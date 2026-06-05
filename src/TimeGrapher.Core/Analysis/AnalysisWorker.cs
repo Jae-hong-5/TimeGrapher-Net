@@ -37,6 +37,7 @@ public sealed class AnalysisWorker : IDisposable
 
     private const uint DetectorNumberOfSamples = 4096u;
     private const int SoundPixelSize = 3;
+    private const int SoundImagePublishIntervalMs = 100;
 
     // double inwardMarkerLength(int sample_rate): 500.0 * (sample_rate / 48000.0)
     private static double InwardMarkerLength(int sampleRate)
@@ -61,9 +62,11 @@ public sealed class AnalysisWorker : IDisposable
     private ulong _nextFrameSourceId = 1;
     private bool _foregroundTimerStarted = false;
     private readonly Stopwatch _foregroundTimer = new();
+    private readonly Stopwatch _soundImagePublishTimer = new();
     private double _foregroundLastTime = 0.0;
     private ulong _foregroundFrameCount = 0;
     private ulong _foregroundSampleCount = 0;
+    private bool _soundImagePublishPending = true;
 
     // Thread loop state (port-only; replaces Qt moveToThread).
     private Thread? _thread;
@@ -177,7 +180,20 @@ public sealed class AnalysisWorker : IDisposable
             localTotalSamplesWritten = _rawAudio.TotalSamplesWritten;
         }
 
-        int samplesToAdd = (int)(localTotalSamplesWritten - _rawAudio.AnalysisLastTotalSamplesWritten);
+        ulong pendingSamples = localTotalSamplesWritten - _rawAudio.AnalysisLastTotalSamplesWritten;
+        bool inputOverrun = false;
+        ulong inputSamplesDropped = 0;
+        if (pendingSamples > (ulong)_rawAudio.NumberOfAudioSamples)
+        {
+            inputOverrun = true;
+            inputSamplesDropped = pendingSamples - (ulong)_rawAudio.NumberOfAudioSamples;
+            _rawAudio.AnalysisLastTotalSamplesWritten = localTotalSamplesWritten - (ulong)_rawAudio.NumberOfAudioSamples;
+            _rawAudio.AnalysisLastWriteIndex =
+                (uint)(_rawAudio.AnalysisLastTotalSamplesWritten % (ulong)_rawAudio.NumberOfAudioSamples);
+            pendingSamples = (ulong)_rawAudio.NumberOfAudioSamples;
+        }
+
+        int samplesToAdd = (int)pendingSamples;
         if (samplesToAdd <= 0)
         {
             return;
@@ -188,6 +204,8 @@ public sealed class AnalysisWorker : IDisposable
             SessionId = _config.SessionId,
             SourceId = _nextFrameSourceId++,
             SourceSampleEnd = localTotalSamplesWritten,
+            InputOverrun = inputOverrun,
+            InputSamplesDropped = inputSamplesDropped,
             BackgroundFps = _rawAudio.Fps,
             BackgroundSps = _rawAudio.Sps,
             BackgroundSpf = _rawAudio.Spf,
@@ -204,6 +222,11 @@ public sealed class AnalysisWorker : IDisposable
 
         while (samplesToAdd > 0)
         {
+            if (_stopRequested)
+            {
+                return;
+            }
+
             int slice = samplesToAdd > (int)DetectorNumberOfSamples
                             ? (int)DetectorNumberOfSamples
                             : samplesToAdd;
@@ -230,8 +253,15 @@ public sealed class AnalysisWorker : IDisposable
 
         _rawAudio.AnalysisLastTotalSamplesWritten = localTotalSamplesWritten;
         frame.GraphTickEnd = _localGraphTicks;
-        frame.SoundImage = _soundImage.Clone();
-        frame.SoundImageUpdated = true;
+        if (_soundImagePublishPending ||
+            !_soundImagePublishTimer.IsRunning ||
+            _soundImagePublishTimer.ElapsedMilliseconds >= SoundImagePublishIntervalMs)
+        {
+            frame.SoundImage = _soundImage.Clone();
+            frame.SoundImageUpdated = true;
+            _soundImagePublishPending = false;
+            _soundImagePublishTimer.Restart();
+        }
         AppendGraphSeries(frame);
 
         AnalysisFrameReady?.Invoke(frame);
@@ -251,7 +281,13 @@ public sealed class AnalysisWorker : IDisposable
             _localGraphTicks++;
         }
 
-        if ((!_soundRenderHasBph) && (result.SyncStatus == TgSyncStatus.Synced))
+        if (result.SyncLostEvent || result.DetectorResetEvent || result.SyncStatus != TgSyncStatus.Synced)
+        {
+            _soundRenderHasBph = false;
+            _soundRenderer.SetBph(0.0);
+        }
+        else if ((!_soundRenderHasBph || Math.Abs(_soundRenderer.CurrentBph - result.DetectedBph) > 0.5) &&
+                 result.SyncStatus == TgSyncStatus.Synced)
         {
             _soundRenderHasBph = true;
             _soundRenderer.SetBph(result.DetectedBph);

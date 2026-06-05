@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-test:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Restore
+        run: dotnet restore TimeGrapherNet.sln --locked-mode
+
+      - name: Build
+        run: dotnet build TimeGrapherNet.sln -c Release --no-restore
+
+      - name: Test
+        run: dotnet test TimeGrapherNet.sln -c Release --no-build
+
+      - name: Optional golden WAV verification
+        shell: pwsh
+        run: |
+          if (Test-Path .\samples) {
+            dotnet run --project .\src\TimeGrapher.Verify\TimeGrapher.Verify.csproj -c Release --no-build -- .\samples
+          } else {
+            Write-Host "No tracked samples directory found; skipping golden WAV verification."
+          }
+
+      - name: Publish Windows app
+        run: dotnet publish src/TimeGrapher.App/TimeGrapher.App.csproj -c Release -r win-x64 --self-contained false --no-restore -o artifacts/TimeGrapher.App-win-x64
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: TimeGrapher.App-win-x64
+          path: artifacts/TimeGrapher.App-win-x64

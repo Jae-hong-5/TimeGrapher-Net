@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Runtime.InteropServices;
 
 namespace TimeGrapher.Core.AudioIo;
 
@@ -90,18 +91,25 @@ public sealed class WavStreamWriter : IDisposable
         if (samples.Length <= 0)
             return true; // nothing to do, not an error
 
-        // Write each float in native IEEE-754 little-endian format.
-        Span<byte> word = stackalloc byte[4];
         try
         {
-            for (int i = 0; i < samples.Length; ++i)
+            if (BitConverter.IsLittleEndian)
             {
-                int bits = BitConverter.SingleToInt32Bits(samples[i]);
-                word[0] = (byte)bits;
-                word[1] = (byte)(bits >> 8);
-                word[2] = (byte)(bits >> 16);
-                word[3] = (byte)(bits >> 24);
-                _file.Write(word);
+                _file.Write(MemoryMarshal.AsBytes(samples));
+            }
+            else
+            {
+                byte[] buffer = new byte[samples.Length * sizeof(float)];
+                for (int i = 0; i < samples.Length; ++i)
+                {
+                    int bits = BitConverter.SingleToInt32Bits(samples[i]);
+                    int o = i * sizeof(float);
+                    buffer[o + 0] = (byte)bits;
+                    buffer[o + 1] = (byte)(bits >> 8);
+                    buffer[o + 2] = (byte)(bits >> 16);
+                    buffer[o + 3] = (byte)(bits >> 24);
+                }
+                _file.Write(buffer);
             }
         }
         catch

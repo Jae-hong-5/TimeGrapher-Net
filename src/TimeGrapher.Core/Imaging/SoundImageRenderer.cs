@@ -413,18 +413,13 @@ public sealed class SoundImageRenderer
 
     public void SetBph(double bph)
     {
-        if (bph <= 0.0)
-        {
-            return;
-        }
-
         bool wasValid = _bphValid;
         double oldBph = _cfg.Bph;
 
         _cfg.Bph = bph;
         RecomputeDerived();
 
-        if (!wasValid || oldBph != bph)
+        if (wasValid != _bphValid || oldBph != bph)
         {
             ClearRenderStateKeepingSampleCounter();
             if (_image != null)

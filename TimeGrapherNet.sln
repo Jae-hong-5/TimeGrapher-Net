@@ -11,6 +11,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TimeGrapher.App", "src\Time
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TimeGrapher.Verify", "src\TimeGrapher.Verify\TimeGrapher.Verify.csproj", "{2E4C92A5-4E9E-4F9E-A4F7-E931FC9EB7E9}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{F3BAE50B-17BD-4B39-8349-13E8FA87CCD6}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TimeGrapher.Core.Tests", "tests\TimeGrapher.Core.Tests\TimeGrapher.Core.Tests.csproj", "{C339AAD0-7633-402F-902F-8E4A012547D8}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -32,10 +36,15 @@ Global
 		{2E4C92A5-4E9E-4F9E-A4F7-E931FC9EB7E9}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{2E4C92A5-4E9E-4F9E-A4F7-E931FC9EB7E9}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{2E4C92A5-4E9E-4F9E-A4F7-E931FC9EB7E9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C339AAD0-7633-402F-902F-8E4A012547D8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C339AAD0-7633-402F-902F-8E4A012547D8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C339AAD0-7633-402F-902F-8E4A012547D8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C339AAD0-7633-402F-902F-8E4A012547D8}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{7C1E4464-F6F9-44E0-B865-8D273717ED6A} = {6F8CB6CB-3947-447D-98E4-EB96F60105C5}
 		{1E7D78F3-FF7D-4623-89C9-7AFE1E196D99} = {6F8CB6CB-3947-447D-98E4-EB96F60105C5}
 		{2E4C92A5-4E9E-4F9E-A4F7-E931FC9EB7E9} = {6F8CB6CB-3947-447D-98E4-EB96F60105C5}
+		{C339AAD0-7633-402F-902F-8E4A012547D8} = {F3BAE50B-17BD-4B39-8349-13E8FA87CCD6}
 	EndGlobalSection
 EndGlobal

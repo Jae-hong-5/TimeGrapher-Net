@@ -21,7 +21,7 @@ foreach (string arg in args)
 {
     if (Directory.Exists(arg))
     {
-        files.AddRange(Directory.GetFiles(arg, "*.wav"));
+        files.AddRange(Directory.GetFiles(arg, "*.wav").OrderBy(p => p, StringComparer.OrdinalIgnoreCase));
     }
     else
     {
@@ -141,6 +141,18 @@ foreach (string file in files)
         "{0}: detected_bph={1} sync_status={2} results=[{3}]",
         name, detectedBph, syncStatus, resultsText));
 
+    if (syncStatus != TgSyncStatus.Synced)
+    {
+        allMatch = false;
+        Console.Error.WriteLine("  MISMATCH: expected sync_status=Synced, detected " + syncStatus);
+    }
+
+    if (string.IsNullOrWhiteSpace(resultsText))
+    {
+        allMatch = false;
+        Console.Error.WriteLine("  MISMATCH: no metrics result text was produced");
+    }
+
     // Expected BPH parsed from the filename, e.g. "21600BPH_*.wav" -> 21600.
     Match m = Regex.Match(name, @"(\d+)BPH");
     if (m.Success)
@@ -155,6 +167,7 @@ foreach (string file in files)
     }
     else
     {
+        allMatch = false;
         Console.Error.WriteLine("  no expected BPH in filename: " + name);
     }
 }

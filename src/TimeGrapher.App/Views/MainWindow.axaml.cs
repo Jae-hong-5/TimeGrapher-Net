@@ -29,6 +29,7 @@ public partial class MainWindow : Window
 
     private const int ERROR_RATE_Y_SCALE = 10;
     private const int ERROR_RATE_X_DATA_POINTS = 250;
+    private const int UI_RENDER_INTERVAL_MS = 33;
 
     private const string PLAYBACK_OR_SIM_PCM = "Playback/Sim";
 
@@ -110,6 +111,11 @@ public partial class MainWindow : Window
     private double mForegroundLastSPF;
     private double mForegroundLastSPS;
     private ulong mAnalysisSessionId;
+    private DateTime mNextAnalysisRenderUtc = DateTime.MinValue;
+    private AnalysisFrame? mPendingAnalysisFrame;
+    private readonly object mPendingAnalysisFrameLock = new();
+    private bool mAnalysisFrameRenderScheduled;
+    private ulong mDroppedAnalysisFrames;
 
     // Parallel to InputDeviceComboBox items: device number for live devices, -1 for "Playback/Sim".
     private readonly List<int> mInputDeviceNumbers = new();
@@ -444,6 +450,7 @@ public partial class MainWindow : Window
             mAnalysisWorker.Dispose();
             mAnalysisWorker = null;
             mAnalysisSessionId++;
+            ClearPendingAnalysisFrames();
         }
     }
 
@@ -495,10 +502,76 @@ public partial class MainWindow : Window
     // AnalysisFrameReady fires on the analysis thread; marshal to UI thread.
     private void OnAnalysisFrameReady(AnalysisFrame frame)
     {
-        Dispatcher.UIThread.Post(() => HandleAnalysisFrame(frame));
+        lock (mPendingAnalysisFrameLock)
+        {
+            if (mPendingAnalysisFrame != null)
+            {
+                mDroppedAnalysisFrames++;
+            }
+            mPendingAnalysisFrame = frame;
+            if (mAnalysisFrameRenderScheduled)
+            {
+                return;
+            }
+            mAnalysisFrameRenderScheduled = true;
+        }
+        Dispatcher.UIThread.Post(ProcessPendingAnalysisFrame);
     }
 
-    private void HandleAnalysisFrame(AnalysisFrame frame)
+    private async Task DelayPendingAnalysisFrameRender(TimeSpan delay)
+    {
+        await Task.Delay(delay);
+        Dispatcher.UIThread.Post(ProcessPendingAnalysisFrame);
+    }
+
+    private void ProcessPendingAnalysisFrame()
+    {
+        DateTime now = DateTime.UtcNow;
+        if (now < mNextAnalysisRenderUtc)
+        {
+            _ = DelayPendingAnalysisFrameRender(mNextAnalysisRenderUtc - now);
+            return;
+        }
+
+        AnalysisFrame? frame;
+        ulong droppedFrames;
+        lock (mPendingAnalysisFrameLock)
+        {
+            frame = mPendingAnalysisFrame;
+            mPendingAnalysisFrame = null;
+            droppedFrames = mDroppedAnalysisFrames;
+            mDroppedAnalysisFrames = 0;
+        }
+
+        if (frame != null)
+        {
+            HandleAnalysisFrame(frame, droppedFrames);
+            mNextAnalysisRenderUtc = DateTime.UtcNow.AddMilliseconds(UI_RENDER_INTERVAL_MS);
+        }
+
+        lock (mPendingAnalysisFrameLock)
+        {
+            if (mPendingAnalysisFrame != null)
+            {
+                _ = DelayPendingAnalysisFrameRender(TimeSpan.FromMilliseconds(UI_RENDER_INTERVAL_MS));
+            }
+            else
+            {
+                mAnalysisFrameRenderScheduled = false;
+            }
+        }
+    }
+
+    private void ClearPendingAnalysisFrames()
+    {
+        lock (mPendingAnalysisFrameLock)
+        {
+            mPendingAnalysisFrame = null;
+            mDroppedAnalysisFrames = 0;
+        }
+    }
+
+    private void HandleAnalysisFrame(AnalysisFrame frame, ulong droppedFrames)
     {
         if (frame.SessionId != mAnalysisSessionId)
         {
@@ -538,6 +611,18 @@ public partial class MainWindow : Window
                 mForegroundLastFPS.ToString("F0", CultureInfo.InvariantCulture),
                 mForegroundLastSPS.ToString("F0", CultureInfo.InvariantCulture),
                 mForegroundLastSPF.ToString("F0", CultureInfo.InvariantCulture));
+        }
+        if (frame.InputOverrun)
+        {
+            StatusBarText.Text = "Audio input overrun: dropped " +
+                                 frame.InputSamplesDropped.ToString(CultureInfo.InvariantCulture) +
+                                 " samples before analysis";
+        }
+        else if (droppedFrames != 0)
+        {
+            Console.Error.WriteLine("UI render coalesced " +
+                                    droppedFrames.ToString(CultureInfo.InvariantCulture) +
+                                    " analysis frame(s)");
         }
     }
 
@@ -611,12 +696,6 @@ public partial class MainWindow : Window
             return false;
         }
 
-        try
-        {
-            mCurrentDir = Path.GetDirectoryName(Path.GetFullPath(fileName)) ?? mCurrentDir;
-        }
-        catch { /* keep current dir */ }
-
         var header = new WaveHeader();
         try
         {
@@ -658,7 +737,28 @@ public partial class MainWindow : Window
             // Open/read failure: treat like Qt's "could not be opened" / truncated header.
             // (Validation below rejects an empty/partial header anyway.)
             StatusBarText.Text = $"File {ToNativeSeparators(fileName)} could not be opened";
+            return false;
         }
+
+        bool riffOk = header.RiffId.Length == 4 &&
+                      header.RiffId[0] == (byte)'R' && header.RiffId[1] == (byte)'I' &&
+                      header.RiffId[2] == (byte)'F' && header.RiffId[3] == (byte)'F';
+        int[] standardRates = { 48000, 96000, 192000, 384000 };
+
+        if (!riffOk || !standardRates.Contains((int)header.SampleRate) ||
+            (header.NumChannels != 1) || (header.BitsPerSample != 32) ||
+            (header.AudioFormat != 3))
+        {
+            StatusBarText.Text = $"File {fileName} Not a standard-rate, single channel 32-bit Float WAV file";
+            _ = ShowCriticalDialog("Error", "Invalid PCM Wave File");
+            return false;
+        }
+
+        try
+        {
+            mCurrentDir = Path.GetDirectoryName(Path.GetFullPath(fileName)) ?? mCurrentDir;
+        }
+        catch { /* keep current dir */ }
 
         GetAudioRate(out mRateBeforePlaybackOrSim);
         GetAudioDevice(out mDeviceNameBeforePlaybackOrSim);
@@ -669,18 +769,6 @@ public partial class MainWindow : Window
         if (!SetAudioRate((int)header.SampleRate))
         {
             Console.Error.WriteLine("SetAudioRate Failed");
-        }
-
-        bool riffOk = header.RiffId.Length == 4 &&
-                      header.RiffId[0] == (byte)'R' && header.RiffId[1] == (byte)'I' &&
-                      header.RiffId[2] == (byte)'F' && header.RiffId[3] == (byte)'F';
-
-        if (!riffOk || (header.SampleRate != (uint)mCurrentSamplesPerSecond) ||
-            (header.NumChannels != 1) || (header.BitsPerSample != 32) ||
-            (header.AudioFormat != 3))
-        {
-            StatusBarText.Text = $"File {fileName} Not a 48K, single channel 32-bit Float WAV file";
-            _ = ShowCriticalDialog("Error", "Invalid PCM Wave File");
             return false;
         }
 
@@ -708,9 +796,9 @@ public partial class MainWindow : Window
         }
         else
         {
-            IReadOnlyList<int> supported = AudioCaptureWorker.GetSupportedSampleRates(deviceNumber);
-            // Keep only the standard rates that the device reports as supported,
-            // preserving the standard-rate ordering (matches the original probe loop).
+            IReadOnlyList<int> supported = AudioCaptureWorker.GetCandidateSampleRates(deviceNumber);
+            // NAudio cannot probe arbitrary formats up front like Qt did. Show the standard
+            // candidates and let AudioCaptureWorker.Start() be the authoritative validation.
             foreach (int rate in standardRates)
             {
                 if (supported.Contains(rate) && mNumberofRates < mAvalableRates.Length)
@@ -807,7 +895,18 @@ public partial class MainWindow : Window
     private async Task LiveStart()
     {
         if (!await RecordSessionCheck()) return;
-        StartAudioThread();
+        try
+        {
+            StartAudioThread();
+        }
+        catch (Exception ex)
+        {
+            StopAudioWorker();
+            StopAnalysisThread();
+            StatusBarText.Text = "Failed to start live audio";
+            await ShowCriticalDialog("Error", "Failed to start live audio: " + ex.Message);
+            return;
+        }
         SetGuiRunMode();
         StatusBarText.Text = "Running";
     }

@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Avalonia;
 using Avalonia.Media.Imaging;
@@ -19,16 +20,18 @@ namespace TimeGrapher.App.Rendering;
 /// </summary>
 public static class PixelBufferBitmap
 {
-    // Cached bitmap, reused while the dimensions stay the same (avoids per-frame allocation,
-    // mirroring SoundImageWidget which kept a single QImage instance alive).
-    private static WriteableBitmap? _bitmap;
-    private static int _width;
-    private static int _height;
+    private sealed class ImageCache
+    {
+        public WriteableBitmap? Bitmap;
+        public int Width;
+        public int Height;
+        public int[] Scratch = Array.Empty<int>();
+    }
 
-    // Scratch int[] used for the blit. Marshal.Copy has no uint[] overload, so the uint[]
-    // is bit-copied into an int[] (identical 32-bit layout) and then marshalled to the
-    // framebuffer. Reused while dimensions stay the same.
-    private static int[] _scratch = Array.Empty<int>();
+    // Per-image cache, reused while dimensions stay the same. This keeps the allocation
+    // benefit of the Qt-era persistent image without sharing mutable bitmap state between
+    // windows or image controls.
+    private static readonly ConditionalWeakTable<Avalonia.Controls.Image, ImageCache> Caches = new();
 
     /// <summary>
     /// Copy <paramref name="buffer"/> into a Bgra8888 WriteableBitmap, set it as the
@@ -37,36 +40,37 @@ public static class PixelBufferBitmap
     /// </summary>
     public static void UpdateImage(Avalonia.Controls.Image target, PixelBuffer buffer)
     {
-        if (_bitmap is null || _width != buffer.Width || _height != buffer.Height)
+        ImageCache cache = Caches.GetValue(target, _ => new ImageCache());
+        if (cache.Bitmap is null || cache.Width != buffer.Width || cache.Height != buffer.Height)
         {
             // The source pixels are opaque (the renderer only writes solid colors), so the
             // alpha format is irrelevant; Opaque avoids any premultiplication round-trip.
-            _bitmap = new WriteableBitmap(
+            cache.Bitmap = new WriteableBitmap(
                 new PixelSize(buffer.Width, buffer.Height),
                 new Vector(96, 96),
                 PixelFormat.Bgra8888,
                 AlphaFormat.Opaque);
-            _width = buffer.Width;
-            _height = buffer.Height;
+            cache.Width = buffer.Width;
+            cache.Height = buffer.Height;
         }
 
         int pixelCount = buffer.Pixels.Length;
-        if (_scratch.Length != pixelCount)
+        if (cache.Scratch.Length != pixelCount)
         {
-            _scratch = new int[pixelCount];
+            cache.Scratch = new int[pixelCount];
         }
 
         // Bit-for-bit reinterpret uint[] -> int[] (no value conversion).
-        Buffer.BlockCopy(buffer.Pixels, 0, _scratch, 0, pixelCount * sizeof(uint));
+        Buffer.BlockCopy(buffer.Pixels, 0, cache.Scratch, 0, pixelCount * sizeof(uint));
 
-        using (ILockedFramebuffer fb = _bitmap.Lock())
+        using (ILockedFramebuffer fb = cache.Bitmap.Lock())
         {
             // PixelBuffer is tightly packed (RowBytes == Width * 4) and so is the framebuffer
             // when created with matching dimensions; copy the whole row-major buffer at once.
-            Marshal.Copy(_scratch, 0, fb.Address, pixelCount);
+            Marshal.Copy(cache.Scratch, 0, fb.Address, pixelCount);
         }
 
-        target.Source = _bitmap;
+        target.Source = cache.Bitmap;
         target.InvalidateVisual();
     }
 }

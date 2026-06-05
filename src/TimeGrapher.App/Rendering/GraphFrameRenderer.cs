@@ -223,6 +223,7 @@ public sealed class GraphFrameRenderer
     public void RenderFrame(AnalysisFrame frame, int sampleRate, int scopeScale)
     {
         bool scopePlotUpdated = false;
+        int scopeDisplayStride = Math.Max(1, sampleRate / 48000);
         for (int i = 0; i < ScopeGraphCount; i++)
         {
             GraphSeriesFrame? series = FindSeries(frame.ScopeSeries, ScopeGraphs[i].Id);
@@ -232,13 +233,11 @@ public sealed class GraphFrameRenderer
                 {
                     _scopeX[i].Clear();
                     _scopeY[i].Clear();
-                    _scopeX[i].AddRange(series.X);
-                    _scopeY[i].AddRange(series.Y);
+                    AddScopeData(i, series.X, series.Y, scopeDisplayStride);
                 }
                 else
                 {
-                    _scopeX[i].AddRange(series.X);
-                    _scopeY[i].AddRange(series.Y);
+                    AddScopeData(i, series.X, series.Y, scopeDisplayStride);
                 }
                 scopePlotUpdated = true;
             }
@@ -343,6 +342,22 @@ public sealed class GraphFrameRenderer
         plot.Axes.Bottom.TickLabelStyle.IsVisible = false;
     }
 
+    private void AddScopeData(int graphIndex, List<double> x, List<double> y, int stride)
+    {
+        if (stride <= 1)
+        {
+            _scopeX[graphIndex].AddRange(x);
+            _scopeY[graphIndex].AddRange(y);
+            return;
+        }
+
+        for (int i = 0; i < x.Count && i < y.Count; i += stride)
+        {
+            _scopeX[graphIndex].Add(x[i]);
+            _scopeY[graphIndex].Add(y[i]);
+        }
+    }
+
     // Rebuild scope Scatter plottables from accumulators. Equivalent to QCPGraph holding the
     // accumulated data; recreated each refresh so ScottPlot renders the current List contents.
     private void RebuildScopePlottables()
@@ -402,17 +417,21 @@ public sealed class GraphFrameRenderer
     {
         for (int i = 0; i < ScopeGraphCount; i++)
         {
-            if (_scopeX[i].Count > (GraphHistoryInSeconds * sampleRate))
+            if (_scopeX[i].Count == 0)
+            {
+                continue;
+            }
+
+            double minKey = _scopeX[i][0];
+            double maxKey = _scopeX[i][_scopeX[i].Count - 1];
+            double historySamples = GraphHistoryInSeconds * sampleRate;
+            if (maxKey - minKey > historySamples)
             {
                 // getKeyRange (key = x). Data arrives in ascending x order.
-                double minKey = _scopeX[i][0];
-                double maxKey = _scopeX[i][_scopeX[i].Count - 1];
-                double numKeys = maxKey - minKey;
                 // C++: num_keys - ((GraphHistoryInSeconds * sample_rate) / 2) where the inner
                 // product/divide is INTEGER arithmetic (int / int truncates) before the subtract.
-                double numToRemove = numKeys - ((GraphHistoryInSeconds * sampleRate) / 2);
                 double removeStart = minKey;
-                double removeEnd = minKey + numToRemove;
+                double removeEnd = maxKey - (historySamples / 2.0);
                 RemoveMarkersAndText(removeStart, removeEnd);
                 RemoveScopeDataRange(i, removeStart, removeEnd);
             }
@@ -452,9 +471,9 @@ public sealed class GraphFrameRenderer
     {
         // QCPItemText at plot coords (x,height), font (family,10), colored.
         Text label = _scopePlot.Plot.Add.Text(text, x, height);
-        label.Color = Color.FromARGB(color);
-        label.FontName = _textFontFamily;
-        label.FontSize = 10;
+        label.LabelFontColor = Color.FromARGB(color);
+        label.LabelFontName = _textFontFamily;
+        label.LabelFontSize = 10;
         label.Alignment = MapAlignment(alignment);
         _scopeTexts.Add(new TrackedText { Plot = label, X = x });
     }

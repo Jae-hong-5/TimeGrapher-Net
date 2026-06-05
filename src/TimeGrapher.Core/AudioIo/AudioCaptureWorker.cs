@@ -69,7 +69,8 @@ public sealed class AudioCaptureWorker : IDisposable
         _audioInput = new WaveInEvent
         {
             DeviceNumber = deviceNumber,
-            WaveFormat = format
+            WaveFormat = format,
+            BufferMilliseconds = 20,
         };
         _audioInput.DataAvailable += OnDataAvailable;
         _audioInput.StartRecording();
@@ -163,14 +164,17 @@ public sealed class AudioCaptureWorker : IDisposable
     }
 
     /// <summary>
-    /// Returns the standard sample rates supported by the device (mirrors
-    /// MainWindow::PopulateSampleRates standard rate probing). Up to 5 entries,
-    /// 48000 first. NAudio cannot probe arbitrary rates, so this reports the
-    /// well-known set; 48000 is always included.
+    /// Returns the standard sample-rate candidates shown by the UI. NAudio/WinMM does not
+    /// expose the same up-front per-format support probe that Qt used, so Start() remains
+    /// the authoritative validation point for live capture.
     /// </summary>
-    public static IReadOnlyList<int> GetSupportedSampleRates(int deviceNumber)
+    public static IReadOnlyList<int> GetCandidateSampleRates(int deviceNumber)
     {
+        _ = deviceNumber;
         // Original standard rates list: {48000, 96000, 192000, 384000}.
         return new[] { 48000, 96000, 192000, 384000 };
     }
+
+    [Obsolete("Use GetCandidateSampleRates; live capture support is validated by Start().")]
+    public static IReadOnlyList<int> GetSupportedSampleRates(int deviceNumber) => GetCandidateSampleRates(deviceNumber);
 }

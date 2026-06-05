@@ -83,6 +83,8 @@ public sealed class AnalysisFrame
     public ulong SessionId;
     public ulong SourceId;
     public ulong SourceSampleEnd;
+    public bool InputOverrun;
+    public ulong InputSamplesDropped;
 
     public List<GraphSeriesFrame> ScopeSeries = new();
     public List<GraphSeriesFrame> RateSeries = new();
