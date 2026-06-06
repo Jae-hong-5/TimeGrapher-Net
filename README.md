@@ -21,9 +21,10 @@ dotnet publish .\src\TimeGrapher.App\TimeGrapher.App.csproj -c Release -r linux-
 ```
 
 Pi GUI 실행에는 XWayland/Avalonia 의존성(`libx11-6`, `libice6`, `libsm6`, `libfontconfig1`,
-`xwayland`)이 필요하다. Pi live audio는 PipeWire source를 `wpctl status`로 열거하고
-`pw-record` raw float mono stream을 분석 pipeline에 공급한다. capture source가 없으면 UI는
-`Playback/Sim`만 표시한다.
+`xwayland`)이 필요하다. Pi live audio는 먼저 PipeWire source를 `wpctl status`로 열거하고
+`pw-record` raw float mono stream을 분석 pipeline에 공급한다. PipeWire source가 없으면
+ALSA capture hardware를 `arecord -l`로 열거하고 `arecord` raw S16 mono stream으로 fallback한다.
+capture source가 없으면 UI는 `Playback/Sim`만 표시한다.
 
 Pi에서 화면 없이 audio 상태를 확인할 때:
 
@@ -32,7 +33,7 @@ Pi에서 화면 없이 audio 상태를 확인할 때:
 ./TimeGrapher.App --capture-smoke --duration-ms=1500
 ```
 
-`--audio-smoke`는 PipeWire capture source 목록만 출력한다. `--capture-smoke`는 첫 source를
+`--audio-smoke`는 PipeWire/ALSA capture source 목록을 출력한다. `--capture-smoke`는 첫 source를
 짧게 열고 `samples_written`을 출력하며, source가 없으면 exit code 2를 반환한다.
 
 ## 프로젝트 구성
@@ -47,7 +48,7 @@ Pi에서 화면 없이 audio 상태를 확인할 때:
 | `TimeGrapher.App.Tests` | tab catalog/router, 렌더링 data contract, UI payload 축소 회귀 테스트 |
 
 기술 매핑: Qt Widgets→Avalonia, QCustomPlot→ScottPlot.Avalonia, Qt Multimedia→플랫폼별
-audio backend(Windows는 NAudio WaveInEvent, Linux/Pi는 PipeWire `pw-record`), QImage→PixelBuffer(ARGB32)→WriteableBitmap,
+audio backend(Windows는 NAudio WaveInEvent, Linux/Pi는 PipeWire `pw-record` + ALSA `arecord` fallback), QImage→PixelBuffer(ARGB32)→WriteableBitmap,
 QThread/signal→전용 Thread + AutoResetEvent + `Dispatcher.UIThread.Post`. WPF 미사용.
 
 Core는 WindowsAudio/NAudio/PipeWire를 참조하지 않는다. live audio backend는 App의 작은

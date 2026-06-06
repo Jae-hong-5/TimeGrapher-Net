@@ -10,9 +10,14 @@ namespace TimeGrapher.App.Audio;
 internal sealed class PipeWireAudioCaptureWorker : ILiveAudioWorker
 {
     private const int Channels = MasterAudioBuffer.Channels;
+    private const int AlsaDeviceNumberBase = 1_000_000;
+    private const int AlsaDeviceNumberStride = 1_000;
 
     private static readonly Regex SourceLineRegex = new(
         @"(?:^|\s)(?:\*\s*)?(?<id>\d+)\.\s+(?<name>.+?)(?:\s+\[|$)",
+        RegexOptions.Compiled | RegexOptions.CultureInvariant);
+    private static readonly Regex AlsaCaptureDeviceRegex = new(
+        @"^card\s+(?<card>\d+):\s+(?<cardId>[^\[]+)\[(?<cardName>[^\]]+)\],\s+device\s+(?<device>\d+):\s+(?<deviceName>.+?)(?:\s+\[.*\])?$",
         RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
     private readonly MasterAudioBuffer _rawAudio;
@@ -27,6 +32,8 @@ internal sealed class PipeWireAudioCaptureWorker : ILiveAudioWorker
     private ulong _frameCount;
     private ulong _sampleCount;
     private float _volume = 1.0f;
+    private PcmSampleFormat _sampleFormat = PcmSampleFormat.Float32LittleEndian;
+    private string _processErrorPrefix = "pw-record";
 
     public PipeWireAudioCaptureWorker(MasterAudioBuffer buffer)
     {
@@ -45,7 +52,8 @@ internal sealed class PipeWireAudioCaptureWorker : ILiveAudioWorker
             return devices;
         }
 
-        return Array.Empty<LiveAudioDevice>();
+        string arecordList = RunCommand("arecord", "-l");
+        return ParseAlsaCaptureDevices(arecordList);
     }
 
     internal static IReadOnlyList<LiveAudioDevice> ParseWpctlSources(string status)
@@ -98,6 +106,41 @@ internal sealed class PipeWireAudioCaptureWorker : ILiveAudioWorker
         return devices;
     }
 
+    internal static IReadOnlyList<LiveAudioDevice> ParseAlsaCaptureDevices(string arecordList)
+    {
+        if (string.IsNullOrWhiteSpace(arecordList))
+        {
+            return Array.Empty<LiveAudioDevice>();
+        }
+
+        var devices = new List<LiveAudioDevice>();
+        foreach (string rawLine in arecordList.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None))
+        {
+            string line = rawLine.Trim();
+            Match match = AlsaCaptureDeviceRegex.Match(line);
+            if (!match.Success ||
+                !int.TryParse(match.Groups["card"].Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int card) ||
+                !int.TryParse(match.Groups["device"].Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int device))
+            {
+                continue;
+            }
+
+            string cardName = match.Groups["cardName"].Value.Trim();
+            string deviceName = match.Groups["deviceName"].Value.Trim();
+            string displayName = "ALSA hw:" + card.ToString(CultureInfo.InvariantCulture) +
+                "," + device.ToString(CultureInfo.InvariantCulture) +
+                " " + cardName;
+            if (deviceName.Length > 0 && !displayName.Contains(deviceName, StringComparison.Ordinal))
+            {
+                displayName += " - " + deviceName;
+            }
+
+            devices.Add(new LiveAudioDevice(EncodeAlsaDeviceNumber(card, device), displayName));
+        }
+
+        return devices;
+    }
+
     public void Start(int deviceNumber, int sampleRate, float volume)
     {
         _volume = volume;
@@ -107,6 +150,17 @@ internal sealed class PipeWireAudioCaptureWorker : ILiveAudioWorker
             _process = null;
         }
 
+        if (TryDecodeAlsaDeviceNumber(deviceNumber, out int card, out int device))
+        {
+            StartAlsaCapture(card, device, sampleRate);
+            return;
+        }
+
+        StartPipeWireCapture(deviceNumber, sampleRate);
+    }
+
+    private void StartPipeWireCapture(int deviceNumber, int sampleRate)
+    {
         var startInfo = new ProcessStartInfo
         {
             FileName = "pw-record",
@@ -130,20 +184,52 @@ internal sealed class PipeWireAudioCaptureWorker : ILiveAudioWorker
         }
         startInfo.ArgumentList.Add("-");
 
+        StartProcess(startInfo, PcmSampleFormat.Float32LittleEndian, "pw-record");
+    }
+
+    private void StartAlsaCapture(int card, int device, int sampleRate)
+    {
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = "arecord",
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+        };
+        startInfo.ArgumentList.Add("-q");
+        startInfo.ArgumentList.Add("-D");
+        startInfo.ArgumentList.Add(
+            "hw:" + card.ToString(CultureInfo.InvariantCulture) + "," + device.ToString(CultureInfo.InvariantCulture));
+        startInfo.ArgumentList.Add("-t");
+        startInfo.ArgumentList.Add("raw");
+        startInfo.ArgumentList.Add("-f");
+        startInfo.ArgumentList.Add("S16_LE");
+        startInfo.ArgumentList.Add("-c");
+        startInfo.ArgumentList.Add(Channels.ToString(CultureInfo.InvariantCulture));
+        startInfo.ArgumentList.Add("-r");
+        startInfo.ArgumentList.Add(sampleRate.ToString(CultureInfo.InvariantCulture));
+        startInfo.ArgumentList.Add("-");
+
+        StartProcess(startInfo, PcmSampleFormat.Int16LittleEndian, "arecord");
+    }
+
+    private void StartProcess(ProcessStartInfo startInfo, PcmSampleFormat sampleFormat, string processName)
+    {
         Process process = Process.Start(startInfo)
-            ?? throw new InvalidOperationException("Failed to start pw-record.");
+            ?? throw new InvalidOperationException("Failed to start " + processName + ".");
 
         _process = process;
         _stderr.Clear();
-
+        _sampleFormat = sampleFormat;
+        _processErrorPrefix = processName;
         _stdoutThread = new Thread(() => ReadPcm(process))
         {
-            Name = "PipeWireAudioCaptureRead",
+            Name = processName + "AudioCaptureRead",
             IsBackground = true,
         };
         _stderrThread = new Thread(() => ReadStderr(process))
         {
-            Name = "PipeWireAudioCaptureErr",
+            Name = processName + "AudioCaptureErr",
             IsBackground = true,
         };
         _stdoutThread.Start();
@@ -156,7 +242,7 @@ internal sealed class PipeWireAudioCaptureWorker : ILiveAudioWorker
             process.Dispose();
             _process = null;
             throw new InvalidOperationException(
-                error.Length == 0 ? "pw-record exited before capture started." : "pw-record exited: " + error);
+                error.Length == 0 ? processName + " exited before capture started." : processName + " exited: " + error);
         }
     }
 
@@ -212,6 +298,7 @@ internal sealed class PipeWireAudioCaptureWorker : ILiveAudioWorker
         try
         {
             Stream stream = process.StandardOutput.BaseStream;
+            int bytesPerSample = BytesPerSample(_sampleFormat);
             while (true)
             {
                 int read = stream.Read(readBuffer, 0, readBuffer.Length);
@@ -228,11 +315,11 @@ internal sealed class PipeWireAudioCaptureWorker : ILiveAudioWorker
                 }
                 Array.Copy(readBuffer, 0, combined, pending.Length, read);
 
-                int usableBytes = combinedLength - (combinedLength % sizeof(float));
+                int usableBytes = combinedLength - (combinedLength % bytesPerSample);
                 int leftoverBytes = combinedLength - usableBytes;
                 if (usableBytes > 0)
                 {
-                    WriteFloatSamples(combined.AsSpan(0, usableBytes));
+                    WriteSamples(combined.AsSpan(0, usableBytes), _sampleFormat);
                 }
 
                 if (leftoverBytes > 0)
@@ -271,7 +358,7 @@ internal sealed class PipeWireAudioCaptureWorker : ILiveAudioWorker
                     _stderr.AppendLine(line);
                 }
 
-                Console.Error.WriteLine("pw-record: " + line);
+                Console.Error.WriteLine(_processErrorPrefix + ": " + line);
             }
         }
         catch (ObjectDisposedException)
@@ -282,9 +369,10 @@ internal sealed class PipeWireAudioCaptureWorker : ILiveAudioWorker
         }
     }
 
-    private void WriteFloatSamples(ReadOnlySpan<byte> bytes)
+    private void WriteSamples(ReadOnlySpan<byte> bytes, PcmSampleFormat sampleFormat)
     {
-        int sampleCount = bytes.Length / sizeof(float);
+        int bytesPerSample = BytesPerSample(sampleFormat);
+        int sampleCount = bytes.Length / bytesPerSample;
         if (sampleCount <= 0)
         {
             DataReady?.Invoke();
@@ -295,8 +383,10 @@ internal sealed class PipeWireAudioCaptureWorker : ILiveAudioWorker
         float[] block = new float[sampleCount];
         for (int i = 0; i < sampleCount; i++)
         {
-            int bits = BinaryPrimitives.ReadInt32LittleEndian(bytes.Slice(i * sizeof(float), sizeof(float)));
-            block[i] = BitConverter.Int32BitsToSingle(bits) * volume;
+            int offset = i * bytesPerSample;
+            block[i] = sampleFormat == PcmSampleFormat.Float32LittleEndian
+                ? BitConverter.Int32BitsToSingle(BinaryPrimitives.ReadInt32LittleEndian(bytes.Slice(offset, sizeof(float)))) * volume
+                : BinaryPrimitives.ReadInt16LittleEndian(bytes.Slice(offset, sizeof(short))) / 32768.0f * volume;
         }
 
         _rawAudio.WriteSamples(block);
@@ -356,5 +446,36 @@ internal sealed class PipeWireAudioCaptureWorker : ILiveAudioWorker
         {
             return "";
         }
+    }
+
+    private static int EncodeAlsaDeviceNumber(int card, int device)
+    {
+        return AlsaDeviceNumberBase + (card * AlsaDeviceNumberStride) + device;
+    }
+
+    internal static bool TryDecodeAlsaDeviceNumber(int deviceNumber, out int card, out int device)
+    {
+        if (deviceNumber < AlsaDeviceNumberBase)
+        {
+            card = 0;
+            device = 0;
+            return false;
+        }
+
+        int encoded = deviceNumber - AlsaDeviceNumberBase;
+        card = encoded / AlsaDeviceNumberStride;
+        device = encoded % AlsaDeviceNumberStride;
+        return true;
+    }
+
+    private static int BytesPerSample(PcmSampleFormat sampleFormat)
+    {
+        return sampleFormat == PcmSampleFormat.Float32LittleEndian ? sizeof(float) : sizeof(short);
+    }
+
+    private enum PcmSampleFormat
+    {
+        Float32LittleEndian,
+        Int16LittleEndian,
     }
 }
