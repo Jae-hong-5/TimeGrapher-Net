@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.IO;
 
 using Avalonia.Controls;
@@ -11,12 +12,14 @@ namespace TimeGrapher.App.Views;
 public partial class SplashWindow : Window
 {
     private const int FrameCount = 122;
-    private static readonly TimeSpan FrameInterval = TimeSpan.FromSeconds(1.0 / 30.0);
+    private const int FramesPerSecond = 30;
+    private static readonly TimeSpan FrameInterval = TimeSpan.FromSeconds(1.0 / FramesPerSecond);
+    private static readonly TimeSpan PlaybackDuration = TimeSpan.FromSeconds((double)FrameCount / FramesPerSecond);
 
+    private readonly Bitmap[] mFrames;
     private readonly DispatcherTimer mTimer;
-    private int mNextFrameNumber = 1;
-    private Bitmap? mCurrentFrame;
-    private Bitmap? mPreviousFrame;
+    private readonly Stopwatch mPlaybackClock = new();
+    private int mDisplayedFrameNumber;
     private bool mCompleted;
 
     public event EventHandler? PlaybackCompleted;
@@ -24,6 +27,7 @@ public partial class SplashWindow : Window
     public SplashWindow()
     {
         InitializeComponent();
+        mFrames = LoadFrames();
 
         mTimer = new DispatcherTimer { Interval = FrameInterval };
         mTimer.Tick += OnTimerTick;
@@ -31,46 +35,70 @@ public partial class SplashWindow : Window
         Opened += OnOpened;
         Closed += OnClosed;
 
-        _ = ShowNextFrame();
+        ShowFrame(1);
     }
 
     private void OnOpened(object? sender, EventArgs e)
     {
+        mPlaybackClock.Restart();
         mTimer.Start();
     }
 
     private void OnTimerTick(object? sender, EventArgs e)
     {
-        if (!ShowNextFrame())
+        if (mPlaybackClock.Elapsed >= PlaybackDuration)
         {
+            ShowFrame(FrameCount);
             CompletePlayback();
+            return;
         }
+
+        ShowFrame(GetFrameNumberForElapsed(mPlaybackClock.Elapsed));
     }
 
-    private bool ShowNextFrame()
+    internal static int GetFrameNumberForElapsed(TimeSpan elapsed)
     {
-        if (mNextFrameNumber > FrameCount)
+        if (elapsed <= TimeSpan.Zero)
         {
-            return false;
+            return 1;
         }
 
-        Bitmap frame;
+        long frameNumber = elapsed.Ticks / FrameInterval.Ticks + 1;
+        return (int)Math.Clamp(frameNumber, 1, FrameCount);
+    }
+
+    private void ShowFrame(int frameNumber)
+    {
+        if (mDisplayedFrameNumber == frameNumber)
+        {
+            return;
+        }
+
+        mDisplayedFrameNumber = frameNumber;
+        SplashImage.Source = mFrames[frameNumber - 1];
+    }
+
+    private static Bitmap[] LoadFrames()
+    {
+        var frames = new Bitmap[FrameCount];
         try
         {
-            frame = LoadFrame(mNextFrameNumber);
+            for (int frameNumber = 1; frameNumber <= FrameCount; frameNumber++)
+            {
+                frames[frameNumber - 1] = LoadFrame(frameNumber);
+            }
         }
-        catch (IOException ex)
+        catch
         {
-            Console.Error.WriteLine("Splash frame load failed: " + ex.Message);
-            return false;
+            foreach (Bitmap? frame in frames)
+            {
+                frame?.Dispose();
+            }
+
+            throw;
         }
 
-        mPreviousFrame?.Dispose();
-        mPreviousFrame = mCurrentFrame;
-        mCurrentFrame = frame;
-        SplashImage.Source = frame;
-        mNextFrameNumber++;
-        return true;
+        return frames;
     }
 
     private static Bitmap LoadFrame(int frameNumber)
@@ -97,7 +125,9 @@ public partial class SplashWindow : Window
         mTimer.Stop();
         mTimer.Tick -= OnTimerTick;
         SplashImage.Source = null;
-        mPreviousFrame?.Dispose();
-        mCurrentFrame?.Dispose();
+        foreach (Bitmap frame in mFrames)
+        {
+            frame.Dispose();
+        }
     }
 }
