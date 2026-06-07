@@ -14,6 +14,11 @@ internal sealed class RateScopeFrameConsumer : IAnalysisFrameConsumer
 
     public string TabId => InfoTabCatalog.RateScopeTabId;
 
+    public void ApplyTheme(PlotThemePalette theme)
+    {
+        _renderer.ApplyTheme(theme);
+    }
+
     public void Initialize(AnalysisTabResetContext context)
     {
         _renderer.CreateGraphs(context.RateErrorYScale, context.RateDataPoints);

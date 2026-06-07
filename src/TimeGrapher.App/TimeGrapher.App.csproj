@@ -7,6 +7,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>TimeGrapher.App</RootNamespace>
     <AssemblyName>TimeGrapher.App</AssemblyName>
+    <ApplicationIcon>Assets\App\AppIcon.ico</ApplicationIcon>
     <AvaloniaUseCompiledBindingsByDefault>false</AvaloniaUseCompiledBindingsByDefault>
     <RuntimeIdentifiers>win-x64;linux-arm64</RuntimeIdentifiers>
   </PropertyGroup>
@@ -33,6 +34,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <AvaloniaResource Include="Assets\App\*.ico" />
+    <AvaloniaResource Include="Assets\App\*.png" />
+    <AvaloniaResource Include="Assets\Fonts\**\*.ttf" />
     <AvaloniaResource Include="Assets\Splash\*.png" />
   </ItemGroup>
 

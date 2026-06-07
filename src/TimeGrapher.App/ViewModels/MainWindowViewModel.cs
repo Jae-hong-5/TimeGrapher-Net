@@ -17,16 +17,17 @@ internal enum RunUiState
 internal sealed class MainWindowViewModel : INotifyPropertyChanged
 {
     private readonly AsyncRelayCommand _startCommand;
+    private readonly AsyncRelayCommand _playPauseCommand;
     private readonly RelayCommand _pauseCommand;
     private readonly RelayCommand _stopCommand;
     private readonly RelayCommand _refreshDevicesCommand;
     private RunUiState _runState = RunUiState.Stopped;
     private bool _modeAllowsSampleRate = true;
+    private bool _modeAllowsGain = true;
     private string _statusText = "";
     private double _gain = 100.0;
     private int _selectedInputDeviceIndex = -1;
     private int _selectedSampleRateIndex = -1;
-    private int _selectedModeIndex;
     private int _selectedAveragingPeriodIndex = -1;
     private int _selectedBphIndex;
     private decimal _liftAngle = 52m;
@@ -46,6 +47,16 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
         Action refreshDevices)
     {
         _startCommand = new AsyncRelayCommand(startAsync, () => IsStartEnabled);
+        _playPauseCommand = new AsyncRelayCommand(async () =>
+        {
+            if (_runState == RunUiState.Stopped)
+            {
+                await startAsync();
+                return;
+            }
+
+            pauseOrResume();
+        }, () => IsPlayPauseEnabled);
         _pauseCommand = new RelayCommand(pauseOrResume, () => IsPauseEnabled);
         _stopCommand = new RelayCommand(stop, () => IsStopEnabled);
         _refreshDevicesCommand = new RelayCommand(refreshDevices, () => AreRunParametersEnabled);
@@ -54,13 +65,13 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     public event PropertyChangedEventHandler? PropertyChanged;
 
     public ICommand StartCommand => _startCommand;
+    public ICommand PlayPauseCommand => _playPauseCommand;
     public ICommand PauseCommand => _pauseCommand;
     public ICommand StopCommand => _stopCommand;
     public ICommand RefreshDevicesCommand => _refreshDevicesCommand;
 
     public ObservableCollection<string> InputDeviceNames { get; } = new();
     public ObservableCollection<string> SampleRateLabels { get; } = new();
-    public ObservableCollection<string> ModeNames { get; } = new();
     public ObservableCollection<string> AveragingPeriodLabels { get; } = new();
     public ObservableCollection<string> BphLabels { get; } = new();
     public ObservableCollection<string> SimBphLabels { get; } = new();
@@ -73,11 +84,30 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
 
     public bool IsPauseEnabled => _runState is RunUiState.Running or RunUiState.Paused;
 
+    public bool IsPlayPauseEnabled => _runState is RunUiState.Stopped or RunUiState.Running or RunUiState.Paused;
+
     public bool IsStopEnabled => _runState is RunUiState.Running or RunUiState.Paused;
 
     public bool IsSampleRateEnabled => AreRunParametersEnabled && _modeAllowsSampleRate;
 
+    public bool IsGainEnabled => AreRunParametersEnabled && _modeAllowsGain;
+
     public string PauseButtonText => _runState == RunUiState.Paused ? "Resume" : "Pause";
+
+    public string PlayPauseButtonText => _runState switch
+    {
+        RunUiState.Stopped => "Start",
+        RunUiState.Paused => "Resume",
+        _ => "Pause",
+    };
+
+    public bool IsPlayPauseButtonShowingPause => _runState == RunUiState.Running;
+
+    public bool IsPlayPauseButtonShowingPlay => !IsPlayPauseButtonShowingPause;
+
+    public bool IsPauseButtonShowingResume => _runState == RunUiState.Paused;
+
+    public bool IsPauseButtonShowingPause => !IsPauseButtonShowingResume;
 
     public string StatusText
     {
@@ -110,12 +140,6 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     {
         get => _selectedSampleRateIndex;
         set => SetProperty(ref _selectedSampleRateIndex, value);
-    }
-
-    public int SelectedModeIndex
-    {
-        get => _selectedModeIndex;
-        set => SetProperty(ref _selectedModeIndex, value);
     }
 
     public int SelectedAveragingPeriodIndex
@@ -195,11 +219,20 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(IsSampleRateEnabled));
     }
 
+    public void SetModeAllowsGain(bool value)
+    {
+        if (_modeAllowsGain == value)
+        {
+            return;
+        }
+
+        _modeAllowsGain = value;
+        OnPropertyChanged(nameof(IsGainEnabled));
+    }
+
     public void SetInputDeviceNames(IEnumerable<string> values) => ReplaceItems(InputDeviceNames, values);
 
     public void SetSampleRateLabels(IEnumerable<string> values) => ReplaceItems(SampleRateLabels, values);
-
-    public void SetModeNames(IEnumerable<string> values) => ReplaceItems(ModeNames, values);
 
     public void SetAveragingPeriodLabels(IEnumerable<string> values) => ReplaceItems(AveragingPeriodLabels, values);
 
@@ -229,10 +262,18 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(AreRunParametersEnabled));
         OnPropertyChanged(nameof(IsStartEnabled));
         OnPropertyChanged(nameof(IsPauseEnabled));
+        OnPropertyChanged(nameof(IsPlayPauseEnabled));
         OnPropertyChanged(nameof(IsStopEnabled));
         OnPropertyChanged(nameof(IsSampleRateEnabled));
+        OnPropertyChanged(nameof(IsGainEnabled));
         OnPropertyChanged(nameof(PauseButtonText));
+        OnPropertyChanged(nameof(PlayPauseButtonText));
+        OnPropertyChanged(nameof(IsPlayPauseButtonShowingPause));
+        OnPropertyChanged(nameof(IsPlayPauseButtonShowingPlay));
+        OnPropertyChanged(nameof(IsPauseButtonShowingResume));
+        OnPropertyChanged(nameof(IsPauseButtonShowingPause));
         _startCommand.NotifyCanExecuteChanged();
+        _playPauseCommand.NotifyCanExecuteChanged();
         _pauseCommand.NotifyCanExecuteChanged();
         _stopCommand.NotifyCanExecuteChanged();
         _refreshDevicesCommand.NotifyCanExecuteChanged();

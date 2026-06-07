@@ -148,6 +148,28 @@ public sealed class RunCommandServiceTests
     }
 
     [Fact]
+    public void StopSimulationRestoresSampleRateButKeepsGainDisabled()
+    {
+        MainWindowViewModel vm = CreateViewModel();
+        vm.SetRunning();
+        vm.StatusText = "Running";
+        var operations = new FakeRunCommandOperations
+        {
+            CurrentMode = RunCommandMode.Simulation,
+            HasActiveWorker = true,
+        };
+        var service = new RunCommandService(vm, operations);
+
+        service.Stop();
+
+        Assert.Equal(1, operations.StopSimulationCalls);
+        Assert.Equal(1, operations.RestorePlaybackOrSimulationAudioStateCalls);
+        Assert.Equal(RunUiState.Stopped, vm.RunState);
+        Assert.True(vm.IsSampleRateEnabled);
+        Assert.False(vm.IsGainEnabled);
+    }
+
+    [Fact]
     public void StopWithStoppingOutcomeLeavesUiStopping()
     {
         MainWindowViewModel vm = CreateViewModel();
@@ -206,6 +228,8 @@ public sealed class RunCommandServiceTests
         public bool CloseAudioResult { get; set; } = true;
 
         public int StopPlaybackCalls { get; private set; }
+
+        public int StopSimulationCalls { get; private set; }
 
         public int CloseAudioCalls { get; private set; }
 
@@ -270,6 +294,7 @@ public sealed class RunCommandServiceTests
         public RunCommandStopOutcome StopSimulation()
         {
             Calls.Add("StopSimulation");
+            StopSimulationCalls++;
             return StopSimulationOutcome;
         }
 

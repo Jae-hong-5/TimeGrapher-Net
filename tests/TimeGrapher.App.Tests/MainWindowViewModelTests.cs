@@ -12,12 +12,20 @@ public sealed class MainWindowViewModelTests
 
         Assert.Equal(RunUiState.Stopped, vm.RunState);
         Assert.True(vm.IsStartEnabled);
+        Assert.True(vm.IsPlayPauseEnabled);
         Assert.False(vm.IsPauseEnabled);
         Assert.False(vm.IsStopEnabled);
         Assert.True(vm.AreRunParametersEnabled);
         Assert.True(vm.IsSampleRateEnabled);
+        Assert.True(vm.IsGainEnabled);
+        Assert.Equal("Start", vm.PlayPauseButtonText);
+        Assert.True(vm.IsPlayPauseButtonShowingPlay);
+        Assert.False(vm.IsPlayPauseButtonShowingPause);
         Assert.Equal("Pause", vm.PauseButtonText);
+        Assert.True(vm.IsPauseButtonShowingPause);
+        Assert.False(vm.IsPauseButtonShowingResume);
         Assert.True(vm.StartCommand.CanExecute(null));
+        Assert.True(vm.PlayPauseCommand.CanExecute(null));
         Assert.False(vm.PauseCommand.CanExecute(null));
         Assert.False(vm.StopCommand.CanExecute(null));
         Assert.True(vm.RefreshDevicesCommand.CanExecute(null));
@@ -31,12 +39,20 @@ public sealed class MainWindowViewModelTests
         vm.SetRunning();
 
         Assert.False(vm.IsStartEnabled);
+        Assert.True(vm.IsPlayPauseEnabled);
         Assert.True(vm.IsPauseEnabled);
         Assert.True(vm.IsStopEnabled);
         Assert.False(vm.AreRunParametersEnabled);
         Assert.False(vm.IsSampleRateEnabled);
+        Assert.False(vm.IsGainEnabled);
+        Assert.Equal("Pause", vm.PlayPauseButtonText);
+        Assert.False(vm.IsPlayPauseButtonShowingPlay);
+        Assert.True(vm.IsPlayPauseButtonShowingPause);
         Assert.Equal("Pause", vm.PauseButtonText);
+        Assert.True(vm.IsPauseButtonShowingPause);
+        Assert.False(vm.IsPauseButtonShowingResume);
         Assert.False(vm.StartCommand.CanExecute(null));
+        Assert.True(vm.PlayPauseCommand.CanExecute(null));
         Assert.True(vm.PauseCommand.CanExecute(null));
         Assert.True(vm.StopCommand.CanExecute(null));
         Assert.False(vm.RefreshDevicesCommand.CanExecute(null));
@@ -44,36 +60,83 @@ public sealed class MainWindowViewModelTests
         vm.SetPaused();
 
         Assert.True(vm.IsPauseEnabled);
+        Assert.True(vm.IsPlayPauseEnabled);
         Assert.True(vm.IsStopEnabled);
+        Assert.Equal("Resume", vm.PlayPauseButtonText);
+        Assert.True(vm.IsPlayPauseButtonShowingPlay);
+        Assert.False(vm.IsPlayPauseButtonShowingPause);
         Assert.Equal("Resume", vm.PauseButtonText);
+        Assert.False(vm.IsPauseButtonShowingPause);
+        Assert.True(vm.IsPauseButtonShowingResume);
 
         vm.SetStopping();
 
         Assert.False(vm.IsPauseEnabled);
+        Assert.False(vm.IsPlayPauseEnabled);
         Assert.False(vm.IsStopEnabled);
         Assert.False(vm.AreRunParametersEnabled);
         Assert.Equal("Pause", vm.PauseButtonText);
+        Assert.True(vm.IsPauseButtonShowingPause);
+        Assert.False(vm.IsPauseButtonShowingResume);
     }
 
     [Fact]
-    public void SampleRateAvailabilityDependsOnModeAndStoppedState()
+    public void PlayPauseCommandStartsThenTogglesPauseResume()
+    {
+        int starts = 0;
+        int pauseToggles = 0;
+        var vm = new MainWindowViewModel(
+            () =>
+            {
+                starts++;
+                return Task.CompletedTask;
+            },
+            () => pauseToggles++,
+            () => { },
+            () => { });
+
+        vm.PlayPauseCommand.Execute(null);
+
+        Assert.Equal(1, starts);
+        Assert.Equal(0, pauseToggles);
+
+        vm.SetRunning();
+        vm.PlayPauseCommand.Execute(null);
+
+        Assert.Equal(1, starts);
+        Assert.Equal(1, pauseToggles);
+
+        vm.SetPaused();
+        vm.PlayPauseCommand.Execute(null);
+
+        Assert.Equal(1, starts);
+        Assert.Equal(2, pauseToggles);
+    }
+
+    [Fact]
+    public void LiveOnlyControlsDependOnModeAndStoppedState()
     {
         var vm = CreateViewModel();
 
         vm.SetModeAllowsSampleRate(false);
+        vm.SetModeAllowsGain(false);
 
         Assert.True(vm.AreRunParametersEnabled);
         Assert.False(vm.IsSampleRateEnabled);
+        Assert.False(vm.IsGainEnabled);
 
         vm.SetModeAllowsSampleRate(true);
+        vm.SetModeAllowsGain(true);
         vm.SetRunning();
 
         Assert.False(vm.AreRunParametersEnabled);
         Assert.False(vm.IsSampleRateEnabled);
+        Assert.False(vm.IsGainEnabled);
 
         vm.SetStopped();
 
         Assert.True(vm.IsSampleRateEnabled);
+        Assert.True(vm.IsGainEnabled);
     }
 
     [Fact]
@@ -84,7 +147,6 @@ public sealed class MainWindowViewModelTests
         Assert.Equal(100.0, vm.Gain);
         Assert.Equal(-1, vm.SelectedInputDeviceIndex);
         Assert.Equal(-1, vm.SelectedSampleRateIndex);
-        Assert.Equal(0, vm.SelectedModeIndex);
         Assert.Equal(-1, vm.SelectedAveragingPeriodIndex);
         Assert.Equal(0, vm.SelectedBphIndex);
         Assert.Equal(52m, vm.LiftAngle);
@@ -103,16 +165,14 @@ public sealed class MainWindowViewModelTests
     {
         var vm = CreateViewModel();
 
-        vm.SetInputDeviceNames(new[] { "Mic A", "Playback/Sim" });
+        vm.SetInputDeviceNames(new[] { "Live: Mic A", "Playback", "Simulation" });
         vm.SetSampleRateLabels(new[] { "48000 Hz", "96000 Hz" });
-        vm.SetModeNames(new[] { "Live", "Playback", "Sim" });
         vm.SetAveragingPeriodLabels(new[] { "2s", "4s", "12s" });
         vm.SetBphLabels(new[] { "Auto BPH", "18000" });
         vm.SetSimBphLabels(new[] { "18000", "28800" });
 
-        Assert.Equal(new[] { "Mic A", "Playback/Sim" }, vm.InputDeviceNames);
+        Assert.Equal(new[] { "Live: Mic A", "Playback", "Simulation" }, vm.InputDeviceNames);
         Assert.Equal(new[] { "48000 Hz", "96000 Hz" }, vm.SampleRateLabels);
-        Assert.Equal(new[] { "Live", "Playback", "Sim" }, vm.ModeNames);
         Assert.Equal(new[] { "2s", "4s", "12s" }, vm.AveragingPeriodLabels);
         Assert.Equal(new[] { "Auto BPH", "18000" }, vm.BphLabels);
         Assert.Equal(new[] { "18000", "28800" }, vm.SimBphLabels);
@@ -131,14 +191,12 @@ public sealed class MainWindowViewModelTests
 
         vm.SelectedInputDeviceIndex = 1;
         vm.SelectedSampleRateIndex = 0;
-        vm.SelectedModeIndex = 2;
         vm.SelectedAveragingPeriodIndex = 6;
         vm.Gain = 250;
         vm.LiftAngle = 53m;
 
         Assert.Contains(nameof(MainWindowViewModel.SelectedInputDeviceIndex), changed);
         Assert.Contains(nameof(MainWindowViewModel.SelectedSampleRateIndex), changed);
-        Assert.Contains(nameof(MainWindowViewModel.SelectedModeIndex), changed);
         Assert.Contains(nameof(MainWindowViewModel.SelectedAveragingPeriodIndex), changed);
         Assert.Contains(nameof(MainWindowViewModel.Gain), changed);
         Assert.Contains(nameof(MainWindowViewModel.LiftAngle), changed);

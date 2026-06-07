@@ -38,6 +38,14 @@ internal sealed class GraphFrameRenderer
         _results.Text = "RATE ------ s/d   AMPLITUDE ---   BEAT ERROR ---- ms   BEAT ----- bph";
     }
 
+    public void ApplyTheme(PlotThemePalette theme)
+    {
+        foreach (RateScopeFrameConsumer consumer in _consumers.OfType<RateScopeFrameConsumer>())
+        {
+            consumer.ApplyTheme(theme);
+        }
+    }
+
     public void UpdateResults(AnalysisFrame frame)
     {
         if (frame.MetricsUpdate.ResultsUpdated)

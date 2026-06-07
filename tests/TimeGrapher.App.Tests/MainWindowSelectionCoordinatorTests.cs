@@ -7,36 +7,51 @@ namespace TimeGrapher.App.Tests;
 public sealed class MainWindowSelectionCoordinatorTests
 {
     [Fact]
-    public void SelectingPlaybackDeviceSwitchesLiveModeToPlayback()
+    public void SelectingPlaybackSourceUsesVirtualDeviceAndDisablesSampleRate()
     {
         MainWindowViewModel vm = CreateViewModel();
-        vm.SetInputDeviceNames(new[] { "Mic A", "Playback/Sim" });
-        vm.SetModeNames(new[] { "Live", "Playback", "Sim" });
-        vm.SelectedModeIndex = 0;
-        var operations = new FakeSelectionOperations(7, -1);
+        vm.SetInputDeviceNames(new[] { "Live: Mic A", "Playback", "Simulation" });
+        var operations = new FakeSelectionOperations(7, -1, -1);
         MainWindowSelectionCoordinator coordinator = CreateCoordinator(vm, operations);
 
         coordinator.SetSelectedInputDeviceIndex(1);
 
-        Assert.Equal(1, vm.SelectedModeIndex);
+        Assert.Equal(RunCommandMode.Playback, coordinator.CurrentMode);
+        Assert.False(vm.IsSampleRateEnabled);
+        Assert.False(vm.IsGainEnabled);
         Assert.Equal(new[] { -1 }, operations.PopulatedDeviceNumbers);
     }
 
     [Fact]
-    public void SelectingLiveModePrefersConfiguredLiveDevice()
+    public void SelectingSimulationSourceUsesVirtualDeviceAndKeepsSampleRateEnabled()
     {
         MainWindowViewModel vm = CreateViewModel();
-        vm.SetInputDeviceNames(new[] { "Other Mic", "Welshi USB", "Playback/Sim" });
-        vm.SetModeNames(new[] { "Live", "Playback", "Sim" });
-        vm.SelectedInputDeviceIndex = 2;
-        vm.SelectedModeIndex = 1;
-        var operations = new FakeSelectionOperations(3, 9, -1);
+        vm.SetInputDeviceNames(new[] { "Live: Mic A", "Playback", "Simulation" });
+        var operations = new FakeSelectionOperations(7, -1, -1);
         MainWindowSelectionCoordinator coordinator = CreateCoordinator(vm, operations);
 
-        coordinator.SetSelectedModeIndex(0);
+        coordinator.SetSelectedInputDeviceIndex(2);
 
-        Assert.Equal(1, vm.SelectedInputDeviceIndex);
-        Assert.Equal(new[] { 9 }, operations.PopulatedDeviceNumbers);
+        Assert.Equal(RunCommandMode.Simulation, coordinator.CurrentMode);
+        Assert.True(vm.IsSampleRateEnabled);
+        Assert.False(vm.IsGainEnabled);
+        Assert.Equal(new[] { -1 }, operations.PopulatedDeviceNumbers);
+    }
+
+    [Fact]
+    public void SelectingLiveSourceUsesLiveDeviceNumber()
+    {
+        MainWindowViewModel vm = CreateViewModel();
+        vm.SetInputDeviceNames(new[] { "Live: Mic A", "Playback", "Simulation" });
+        var operations = new FakeSelectionOperations(7, -1, -1);
+        MainWindowSelectionCoordinator coordinator = CreateCoordinator(vm, operations);
+
+        coordinator.SetSelectedInputDeviceIndex(0);
+
+        Assert.Equal(RunCommandMode.Live, coordinator.CurrentMode);
+        Assert.True(vm.IsSampleRateEnabled);
+        Assert.True(vm.IsGainEnabled);
+        Assert.Equal(new[] { 7 }, operations.PopulatedDeviceNumbers);
     }
 
     [Fact]
@@ -58,8 +73,7 @@ public sealed class MainWindowSelectionCoordinatorTests
     public void SuppressedSelectionChangesDoNotRunSideEffects()
     {
         MainWindowViewModel vm = CreateViewModel();
-        vm.SetInputDeviceNames(new[] { "Mic A", "Playback/Sim" });
-        vm.SetModeNames(new[] { "Live", "Playback", "Sim" });
+        vm.SetInputDeviceNames(new[] { "Live: Mic A", "Playback", "Simulation" });
         var operations = new FakeSelectionOperations(7, -1);
         MainWindowSelectionCoordinator coordinator = CreateCoordinator(vm, operations);
 
@@ -100,9 +114,8 @@ public sealed class MainWindowSelectionCoordinatorTests
             vm,
             operations,
             new MainWindowSelectionOptions(
-                "Live",
                 "Playback",
-                "Playback/Sim",
+                "Simulation",
                 new[] { "Welshi USB", "Chinese Generic USB" },
                 new[] { 2, 4, 8, 10, 12 }));
         vm.PropertyChanged += coordinator.OnViewModelPropertyChanged;

@@ -11,7 +11,7 @@ namespace TimeGrapher.App.Views;
 public partial class SplashWindow : Window
 {
     private const int FrameCount = 122;
-    private static readonly TimeSpan FrameInterval = TimeSpan.FromSeconds(1.0 / 24.0);
+    private static readonly TimeSpan FrameInterval = TimeSpan.FromSeconds(1.0 / 30.0);
 
     private readonly DispatcherTimer mTimer;
     private int mNextFrameNumber = 1;

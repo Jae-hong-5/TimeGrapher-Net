@@ -22,26 +22,7 @@ public partial class MainWindow
 
         public RunCommandMode CurrentMode
         {
-            get
-            {
-                string mode = _owner.CurrentModeText();
-                if (mode == ModeStrings[LIVE])
-                {
-                    return RunCommandMode.Live;
-                }
-
-                if (mode == ModeStrings[PLAYBACK])
-                {
-                    return RunCommandMode.Playback;
-                }
-
-                if (mode == ModeStrings[SIM])
-                {
-                    return RunCommandMode.Simulation;
-                }
-
-                return RunCommandMode.Unknown;
-            }
+            get => _owner.CurrentMode();
         }
 
         public void ConfigureLiveAudio()

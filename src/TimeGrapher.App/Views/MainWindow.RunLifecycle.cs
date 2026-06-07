@@ -106,7 +106,7 @@ public partial class MainWindow
     {
         CompletePlaybackOrSimulationRun(
             runSessionToken,
-            shouldRestoreAudioState: CurrentModeText() == ModeStrings[PLAYBACK],
+            shouldRestoreAudioState: CurrentMode() == RunCommandMode.Playback,
             stopInputWorker: () => mRunSessionController.StopInputWorker("Playback"),
             failureStatus: "Playback failed",
             failed: reason == PlaybackCompletionReason.Failed);
@@ -116,7 +116,7 @@ public partial class MainWindow
     {
         CompletePlaybackOrSimulationRun(
             runSessionToken,
-            shouldRestoreAudioState: CurrentModeText() == ModeStrings[SIM],
+            shouldRestoreAudioState: CurrentMode() == RunCommandMode.Simulation,
             stopInputWorker: () => mRunSessionController.StopInputWorker("Sim"),
             failureStatus: "Simulation failed",
             failed: reason == SimCompletionReason.Failed);
@@ -207,7 +207,9 @@ public partial class MainWindow
 
     private void SetGuiStopMode()
     {
-        mViewModel.SetModeAllowsSampleRate(CurrentModeText() != ModeStrings[PLAYBACK]);
+        RunCommandMode mode = CurrentMode();
+        mViewModel.SetModeAllowsSampleRate(RunCommandModePolicies.AllowsSelectableSampleRate(mode));
+        mViewModel.SetModeAllowsGain(RunCommandModePolicies.AllowsGain(mode));
         mViewModel.SetStopped();
     }
 
@@ -254,7 +256,7 @@ public partial class MainWindow
         mCurrentDir = selection.CurrentDirectory;
         GetAudioRate(out mRateBeforePlaybackOrSim);
         GetAudioDevice(out mDeviceNameBeforePlaybackOrSim);
-        if (!SetAudioDevice(PLAYBACK_OR_SIM_PCM))
+        if (!SetAudioDevice(PLAYBACK_SOURCE))
         {
             Console.Error.WriteLine("SetAudioDevice Failed");
         }
@@ -301,7 +303,7 @@ public partial class MainWindow
 
         GetAudioRate(out mRateBeforePlaybackOrSim);
         GetAudioDevice(out mDeviceNameBeforePlaybackOrSim);
-        if (!SetAudioDevice(PLAYBACK_OR_SIM_PCM))
+        if (!SetAudioDevice(SIMULATION_SOURCE))
         {
             Console.Error.WriteLine("SetAudioDevice Failed");
         }

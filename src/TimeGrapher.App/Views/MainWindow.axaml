@@ -2,10 +2,84 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="TimeGrapher.App.Views.MainWindow"
         Title="TimeGrapher"
+        Icon="/Assets/App/AppIcon.ico"
         Width="1280" Height="750"
         MinWidth="900" MinHeight="560">
-  <DockPanel>
-    <Border DockPanel.Dock="Bottom" Height="24" Background="#F0F0F0" BorderBrush="#C0C0C0" BorderThickness="0,1,0,0">
+  <Grid RowDefinitions="36,*" Background="{DynamicResource SurfaceBgBrush}">
+    <Border Grid.Row="0"
+            Background="{DynamicResource SurfaceBgBrush}"
+            BorderBrush="{DynamicResource ChromeBorderBrush}"
+            BorderThickness="0,0,0,1">
+      <Grid ColumnDefinitions="*,Auto">
+        <Grid Grid.Column="0"
+              ColumnDefinitions="Auto,Auto,*"
+              Background="Transparent"
+              PointerPressed="OnTitleBarPointerPressed">
+          <Border Grid.Column="0"
+                  Background="Transparent">
+            <Image Source="/Assets/App/AppIcon.png"
+                   Width="26"
+                   Height="26"
+                   Margin="10,0,8,0"
+                   VerticalAlignment="Center" />
+          </Border>
+          <TextBlock Grid.Column="1"
+                     Text="TimeGrapher"
+                     VerticalAlignment="Center"
+                     FontSize="13"
+                     FontWeight="Bold"
+                     Foreground="{DynamicResource TextPrimaryBrush}" />
+          <Border Grid.Column="2" Background="Transparent" />
+        </Grid>
+
+        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="0">
+          <Button Name="ThemeToggleButton"
+                  Classes="TitleBarIconButton"
+                  Click="OnThemeToggleButtonClick"
+                  ToolTip.Tip="Toggle theme">
+            <Grid Width="16" Height="16">
+              <Ellipse Width="16" Height="16" StrokeThickness="2" />
+              <Canvas Width="16" Height="16">
+                <Path Data="M8,2 A6,6 0 0 1 8,14 Z" />
+              </Canvas>
+            </Grid>
+          </Button>
+          <Button Name="MinimizeWindowButton"
+                  Classes="TitleBarIconButton"
+                  Click="OnMinimizeWindowButtonClick"
+                  ToolTip.Tip="Minimize">
+            <Grid Width="16" Height="16">
+              <Rectangle Width="14"
+                         Height="2"
+                         HorizontalAlignment="Center"
+                         VerticalAlignment="Bottom"
+                         Margin="0,0,0,2" />
+            </Grid>
+          </Button>
+          <Button Name="MaximizeWindowButton"
+                  Classes="TitleBarIconButton"
+                  Click="OnMaximizeWindowButtonClick"
+                  ToolTip.Tip="Maximize">
+            <Viewbox Width="15" Height="15">
+              <Path Width="24" Height="24" Stretch="Uniform"
+                    Data="M5 5H19V19H5V5ZM7 7V17H17V7H7Z" />
+            </Viewbox>
+          </Button>
+          <Button Name="CloseWindowButton"
+                  Classes="TitleBarIconButton TitleBarCloseButton"
+                  Click="OnCloseWindowButtonClick"
+                  ToolTip.Tip="Close">
+            <Viewbox Width="15" Height="15">
+              <Path Width="24" Height="24" Stretch="Uniform"
+                    Data="M6.4 5L12 10.6L17.6 5L19 6.4L13.4 12L19 17.6L17.6 19L12 13.4L6.4 19L5 17.6L10.6 12L5 6.4L6.4 5Z" />
+            </Viewbox>
+          </Button>
+        </StackPanel>
+      </Grid>
+    </Border>
+
+    <DockPanel Grid.Row="1">
+    <Border DockPanel.Dock="Bottom" Height="24" Background="{DynamicResource SurfaceBgBrush}" BorderBrush="{DynamicResource ChromeBorderBrush}" BorderThickness="0,1,0,0">
       <TextBlock Name="StatusBarText" VerticalAlignment="Center" Margin="6,0,0,0" Text="{Binding StatusText}" />
     </Border>
 
@@ -13,78 +87,115 @@
       <ScrollViewer Grid.Column="0" Grid.RowSpan="2"
                     HorizontalScrollBarVisibility="Disabled"
                     VerticalScrollBarVisibility="Auto"
-                    Background="#FAFAFA">
+                    Background="{DynamicResource PanelBgBrush}">
         <StackPanel Margin="8" Spacing="8">
-          <Border BorderBrush="#808080" BorderThickness="1" Background="Transparent" Padding="8">
+          <Border BorderBrush="{DynamicResource ChromeBorderBrush}" BorderThickness="1" Background="{DynamicResource PanelBgBrush}" Padding="8">
             <StackPanel Spacing="8">
               <TextBlock Name="RunParamLabel"
-                         FontSize="14" FontWeight="Bold" TextDecorations="Underline"
-                         TextAlignment="Center" Text="Run Parameters" />
-              <Grid ColumnDefinitions="112,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="7" ColumnSpacing="8">
-                <TextBlock Name="GainLabel" Grid.Row="0" Grid.Column="0"
-                           VerticalAlignment="Center" FontWeight="Bold" Text="Gain" />
-                <Slider Name="MicrophoneHorizontalSlider" Grid.Row="0" Grid.Column="1"
-                        Minimum="0" Maximum="1000" Value="{Binding Gain, Mode=TwoWay}" Orientation="Horizontal" />
-
-                <ComboBox Name="InputDeviceComboBox" Grid.Row="1" Grid.ColumnSpan="2"
+                         Classes="SectionHeader"
+                         Text="Run Parameters" />
+              <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                <TextBlock Name="InputDeviceLabel" Grid.Column="0"
+                           Margin="0,0,2,0"
+                           VerticalAlignment="Center" FontWeight="Bold" Text="Input" />
+                <ComboBox Name="InputDeviceComboBox" Grid.Column="1"
+                          HorizontalAlignment="Stretch"
+                          MinWidth="0"
                           IsEnabled="{Binding AreRunParametersEnabled}"
                           ItemsSource="{Binding InputDeviceNames}"
                           SelectedIndex="{Binding SelectedInputDeviceIndex, Mode=TwoWay}"
-                          FontWeight="Bold" />
-
-                <Button Name="RefreshPushButton" Grid.Row="2" Grid.Column="0"
-                        MinWidth="72" FontWeight="Bold" Content="Refresh"
-                        Command="{Binding RefreshDevicesCommand}"
-                        IsEnabled="{Binding AreRunParametersEnabled}" />
-
-                <TextBlock Name="SampleRateLabel" Grid.Row="3" Grid.Column="0"
-                           VerticalAlignment="Center" FontWeight="Bold" Text="Sample Rate" />
-                <ComboBox Name="SampleRatesComboBox" Grid.Row="3" Grid.Column="1"
-                          IsEnabled="{Binding IsSampleRateEnabled}"
-                          ItemsSource="{Binding SampleRateLabels}"
-                          SelectedIndex="{Binding SelectedSampleRateIndex, Mode=TwoWay}"
-                          FontWeight="Bold" />
-
-                <TextBlock Name="ModeLabel" Grid.Row="4" Grid.Column="0"
-                           VerticalAlignment="Center" FontWeight="Bold" Text="Mode" />
-                <ComboBox Name="ModeComboBox" Grid.Row="4" Grid.Column="1"
-                          IsEnabled="{Binding AreRunParametersEnabled}"
-                          ItemsSource="{Binding ModeNames}"
-                          SelectedIndex="{Binding SelectedModeIndex, Mode=TwoWay}"
-                          FontWeight="Bold" />
-
-                <TextBlock Name="AveragingPeriodLabel" Grid.Row="5" Grid.Column="0"
-                           VerticalAlignment="Center" FontSize="13" FontWeight="Bold" Text="Averaging Period" />
-                <ComboBox Name="AveragingPeriodComboBox" Grid.Row="5" Grid.Column="1"
-                          IsEnabled="{Binding AreRunParametersEnabled}"
-                          ItemsSource="{Binding AveragingPeriodLabels}"
-                          SelectedIndex="{Binding SelectedAveragingPeriodIndex, Mode=TwoWay}"
-                          FontSize="13" FontWeight="Bold" />
+                          FontWeight="Bold">
+                  <ComboBox.ItemTemplate>
+                    <DataTemplate>
+                      <TextBlock Text="{Binding}" TextTrimming="CharacterEllipsis" MaxWidth="220" />
+                    </DataTemplate>
+                  </ComboBox.ItemTemplate>
+                </ComboBox>
               </Grid>
 
-              <Grid ColumnDefinitions="Auto,*,Auto,*,Auto">
-                <Button Name="StartPushButton" Grid.Column="0"
-                        MinWidth="72" FontWeight="Bold" Content="Start"
-                        Command="{Binding StartCommand}"
-                        IsEnabled="{Binding IsStartEnabled}" />
-                <Button Name="PausePushButton" Grid.Column="2"
-                        MinWidth="72" FontWeight="Bold"
-                        Content="{Binding PauseButtonText}"
-                        Command="{Binding PauseCommand}"
-                        IsEnabled="{Binding IsPauseEnabled}" />
-                <Button Name="StopPushButton" Grid.Column="4"
-                        MinWidth="72" FontWeight="Bold" Content="Stop"
-                        Command="{Binding StopCommand}"
-                        IsEnabled="{Binding IsStopEnabled}" />
+              <Grid ColumnDefinitions="98,*" RowDefinitions="32,32,32" RowSpacing="4" ColumnSpacing="8">
+                <TextBlock Name="SampleRateLabel" Grid.Row="0" Grid.Column="0"
+                           VerticalAlignment="Center" FontWeight="Bold" Text="Sample Rate" />
+                <Grid Grid.Row="0" Grid.Column="1" ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                  <ComboBox Name="SampleRatesComboBox" Grid.Column="0"
+                            HorizontalAlignment="Stretch"
+                            Height="32"
+                            IsEnabled="{Binding IsSampleRateEnabled}"
+                            ItemsSource="{Binding SampleRateLabels}"
+                            SelectedIndex="{Binding SelectedSampleRateIndex, Mode=TwoWay}"
+                            FontWeight="Bold" />
+
+                  <Button Name="RefreshPushButton" Grid.Column="1"
+                          Classes="RunIconButton InlineComboIconButton"
+                          Command="{Binding RefreshDevicesCommand}"
+                          IsEnabled="{Binding AreRunParametersEnabled}"
+                          ToolTip.Tip="Refresh input devices">
+                    <Viewbox Width="15" Height="15">
+                      <Path Width="24" Height="24" Stretch="Uniform"
+                            Data="M17.65 6.35C16.2 4.9 14.21 4 12 4C7.58 4 4 7.58 4 12C4 16.42 7.58 20 12 20C15.73 20 18.84 17.45 19.73 14H17.65C16.82 16.33 14.6 18 12 18C8.69 18 6 15.31 6 12C6 8.69 8.69 6 12 6C13.66 6 15.14 6.69 16.22 7.78L13 11H20V4L17.65 6.35Z" />
+                    </Viewbox>
+                  </Button>
+                </Grid>
+
+                <TextBlock Name="GainLabel" Grid.Row="1" Grid.Column="0"
+                           VerticalAlignment="Center" FontWeight="Bold" Text="Gain" />
+                <Slider Name="MicrophoneHorizontalSlider" Grid.Row="1" Grid.Column="1"
+                        VerticalAlignment="Center"
+                        Height="32"
+                        Margin="0,-7,0,7"
+                        IsEnabled="{Binding IsGainEnabled}"
+                        Minimum="0" Maximum="1000" Value="{Binding Gain, Mode=TwoWay}" Orientation="Horizontal" />
+
+                <TextBlock Name="AveragingPeriodLabel" Grid.Row="2" Grid.Column="0"
+                           VerticalAlignment="Center" FontWeight="Bold" Text="Avg. Period" />
+                <Grid Grid.Row="2" Grid.Column="1" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+                  <ComboBox Name="AveragingPeriodComboBox" Grid.Column="0"
+                            HorizontalAlignment="Stretch"
+                            Height="32"
+                            IsEnabled="{Binding AreRunParametersEnabled}"
+                            ItemsSource="{Binding AveragingPeriodLabels}"
+                            SelectedIndex="{Binding SelectedAveragingPeriodIndex, Mode=TwoWay}"
+                            FontWeight="Bold" />
+
+                  <Button Name="StopPushButton" Grid.Column="1"
+                          Classes="RunIconButton InlineComboIconButton"
+                          Command="{Binding StopCommand}"
+                          IsEnabled="{Binding IsStopEnabled}"
+                          ToolTip.Tip="Stop">
+                    <Viewbox Width="14" Height="14">
+                      <Path Width="24" Height="24" Stretch="Uniform"
+                            Data="M6 6H18V18H6V6Z" />
+                    </Viewbox>
+                  </Button>
+
+                  <Button Name="PlayPausePushButton" Grid.Column="2"
+                          Classes="RunIconButton InlineComboIconButton PrimaryRunIconButton"
+                          Command="{Binding PlayPauseCommand}"
+                          IsEnabled="{Binding IsPlayPauseEnabled}"
+                          ToolTip.Tip="{Binding PlayPauseButtonText}">
+                    <Grid HorizontalAlignment="Center">
+                      <Viewbox Width="14" Height="14"
+                               IsVisible="{Binding IsPlayPauseButtonShowingPlay}">
+                        <Path Width="24" Height="24" Stretch="Uniform"
+                              Data="M8 5V19L19 12L8 5Z" />
+                      </Viewbox>
+                      <Viewbox Width="14" Height="14"
+                               IsVisible="{Binding IsPlayPauseButtonShowingPause}">
+                        <Path Width="24" Height="24" Stretch="Uniform"
+                              Data="M6 5H10V19H6V5ZM14 5H18V19H14V5Z" />
+                      </Viewbox>
+                    </Grid>
+                  </Button>
+                </Grid>
               </Grid>
             </StackPanel>
           </Border>
 
-          <Border BorderBrush="#808080" BorderThickness="1" Background="Transparent" Padding="8">
+          <Border BorderBrush="{DynamicResource ChromeBorderBrush}" BorderThickness="1" Background="{DynamicResource PanelBgBrush}" Padding="8">
             <StackPanel Spacing="8">
               <TextBlock Name="WatchParamLabel"
-                         FontSize="14" FontWeight="Bold" TextDecorations="Underline"
-                         TextAlignment="Center" Text="Watch Parameters" />
+                         Classes="SectionHeader"
+                         Text="Watch Parameters" />
               <Grid ColumnDefinitions="106,*" RowDefinitions="Auto,Auto" RowSpacing="7" ColumnSpacing="8">
                 <TextBlock Name="WatchBphLabel" Grid.Row="0" Grid.Column="0"
                            VerticalAlignment="Center" FontWeight="Bold" Text="BPH" />
@@ -95,21 +206,21 @@
                           FontWeight="Bold" />
 
                 <TextBlock Name="LiftAngleLabel" Grid.Row="1" Grid.Column="0"
-                           VerticalAlignment="Center" FontSize="12" FontWeight="Bold" Text="Lift Angle" />
+                           VerticalAlignment="Center" FontWeight="Bold" Text="Lift Angle" />
                 <NumericUpDown Name="LiftAngleSpinBox" Grid.Row="1" Grid.Column="1"
                                IsEnabled="{Binding AreRunParametersEnabled}"
                                Value="{Binding LiftAngle, Mode=TwoWay}"
-                               FontSize="13" FontWeight="Bold" FormatString="0'°'"
+                               FontWeight="Bold" FormatString="0'°'"
                                Minimum="30" Maximum="70" Increment="1" />
               </Grid>
             </StackPanel>
           </Border>
 
-          <Border BorderBrush="#808080" BorderThickness="1" Background="Transparent" Padding="8">
+          <Border BorderBrush="{DynamicResource ChromeBorderBrush}" BorderThickness="1" Background="{DynamicResource PanelBgBrush}" Padding="8">
             <StackPanel Spacing="8">
               <TextBlock Name="SimParamLabel"
-                         FontSize="14" FontWeight="Bold" TextDecorations="Underline"
-                         TextAlignment="Center" Text="Simulation Parameters" />
+                         Classes="SectionHeader"
+                         Text="Simulation Parameters" />
               <Grid ColumnDefinitions="106,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto" RowSpacing="7" ColumnSpacing="8">
                 <TextBlock Name="SimBphLabel" Grid.Row="0" Grid.Column="0"
                            VerticalAlignment="Center" FontWeight="Bold" Text="BPH" />
@@ -124,7 +235,7 @@
                 <NumericUpDown Name="SimErrorRateSpinBox" Grid.Row="1" Grid.Column="1"
                                IsEnabled="{Binding AreRunParametersEnabled}"
                                Value="{Binding SimErrorRate, Mode=TwoWay}"
-                               FontSize="13" FontWeight="Bold" FormatString="0' s/d'"
+                               FontWeight="Bold" FormatString="0' s/d'"
                                Minimum="-999" Maximum="999" Increment="1" />
 
                 <TextBlock Name="SimAmpLabel" Grid.Row="2" Grid.Column="0"
@@ -132,7 +243,7 @@
                 <NumericUpDown Name="SimAmplitudeSpinBox" Grid.Row="2" Grid.Column="1"
                                IsEnabled="{Binding AreRunParametersEnabled}"
                                Value="{Binding SimAmplitude, Mode=TwoWay}"
-                               FontSize="13" FontWeight="Bold" FormatString="0'°'"
+                               FontWeight="Bold" FormatString="0'°'"
                                Minimum="100" Maximum="360" Increment="1" />
 
                 <TextBlock Name="SimBeatErrorLabel" Grid.Row="3" Grid.Column="0"
@@ -150,11 +261,11 @@
             </StackPanel>
           </Border>
 
-          <Border BorderBrush="#808080" BorderThickness="1" Background="Transparent" Padding="8">
+          <Border BorderBrush="{DynamicResource ChromeBorderBrush}" BorderThickness="1" Background="{DynamicResource PanelBgBrush}" Padding="8">
             <StackPanel Spacing="8">
               <TextBlock Name="MiscLabel"
-                         FontSize="14" FontWeight="Bold" TextDecorations="Underline"
-                         TextAlignment="Center" Text="Misc. Parameters" />
+                         Classes="SectionHeader"
+                         Text="Misc. Parameters" />
               <Grid ColumnDefinitions="132,*" RowDefinitions="Auto,Auto,Auto" RowSpacing="7" ColumnSpacing="8">
                 <TextBlock Name="HighPassLabel" Grid.Row="0" Grid.Column="0"
                            VerticalAlignment="Center" FontWeight="Bold" Text="High Pass Cutoff" />
@@ -181,9 +292,11 @@
       <TextBlock Name="Results" Grid.Column="1" Grid.Row="0" Margin="8,0,10,0"
                  FontSize="16" FontWeight="Bold" TextAlignment="Center"
                  VerticalAlignment="Center"
+                 Foreground="{DynamicResource TextPrimaryBrush}"
                  Text="RATE ------ s/d  AMPLITUDE ---°  BEAT ERROR ---- ms BEAT ----- bph" />
 
       <TabControl Name="GraphicsTabWidget" Grid.Column="1" Grid.Row="1" Margin="8,3,10,10" />
     </Grid>
-  </DockPanel>
+    </DockPanel>
+  </Grid>
 </Window>

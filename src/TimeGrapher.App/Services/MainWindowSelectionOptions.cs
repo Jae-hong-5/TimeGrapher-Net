@@ -3,24 +3,20 @@ namespace TimeGrapher.App.Services;
 internal sealed class MainWindowSelectionOptions
 {
     public MainWindowSelectionOptions(
-        string liveModeName,
-        string playbackModeName,
-        string playbackOrSimulationDeviceName,
+        string playbackSourceName,
+        string simulationSourceName,
         IReadOnlyList<string> preferredLiveDeviceNames,
         IReadOnlyList<int> averagingPeriods)
     {
-        LiveModeName = liveModeName;
-        PlaybackModeName = playbackModeName;
-        PlaybackOrSimulationDeviceName = playbackOrSimulationDeviceName;
+        PlaybackSourceName = playbackSourceName;
+        SimulationSourceName = simulationSourceName;
         PreferredLiveDeviceNames = preferredLiveDeviceNames;
         AveragingPeriods = averagingPeriods;
     }
 
-    public string LiveModeName { get; }
+    public string PlaybackSourceName { get; }
 
-    public string PlaybackModeName { get; }
-
-    public string PlaybackOrSimulationDeviceName { get; }
+    public string SimulationSourceName { get; }
 
     public IReadOnlyList<string> PreferredLiveDeviceNames { get; }
 

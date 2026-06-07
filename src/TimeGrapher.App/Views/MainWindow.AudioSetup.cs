@@ -33,7 +33,7 @@ public partial class MainWindow
         }
         else
         {
-            Console.Error.WriteLine("Live audio capture is not available on this platform; using Playback/Sim only.");
+            Console.Error.WriteLine("Live audio capture is not available on this platform; using Playback/Simulation only.");
         }
 
         var deviceNames = new List<string>();
@@ -53,11 +53,13 @@ public partial class MainWindow
                 }
             }
 
-            deviceNames.Add(description);
+            deviceNames.Add("Live: " + description);
             mInputDeviceNumbers.Add(device.Number);
         }
 
-        deviceNames.Add(PLAYBACK_OR_SIM_PCM);
+        deviceNames.Add(PLAYBACK_SOURCE);
+        mInputDeviceNumbers.Add(-1);
+        deviceNames.Add(SIMULATION_SOURCE);
         mInputDeviceNumbers.Add(-1);
         using (mSelectionCoordinator.SuppressEvents())
         {
@@ -98,8 +100,6 @@ public partial class MainWindow
                 mSelectionCoordinator.SetSelectedInputDeviceIndex(0);
             }
         }
-
-        LoadMode();
     }
 
     private void LoadAveragingPeriod()
@@ -167,32 +167,6 @@ public partial class MainWindow
         return labels;
     }
 
-    private void LoadMode()
-    {
-        int start = 0;
-        int len = ModeStrings.Length;
-
-        var labels = new List<string>(len);
-
-        if (mViewModel.InputDeviceNames.Count == 1) // Skip over Live (only "Playback/Sim" present)
-        {
-            start++;
-        }
-
-        for (int i = start; i < len; i++)
-        {
-            labels.Add(ModeStrings[i]);
-        }
-
-        using (mSelectionCoordinator.SuppressEvents())
-        {
-            mViewModel.SetModeNames(labels);
-            mViewModel.SelectedModeIndex = -1;
-        }
-
-        mSelectionCoordinator.SetSelectedModeIndex(0);
-    }
-
     private void PopulateSampleRates(int deviceNumber)
     {
         IReadOnlyList<int> standardRates = AudioSampleRates.Standard;
@@ -202,7 +176,6 @@ public partial class MainWindow
 
         if (deviceNumber < 0)
         {
-            // Audio device is null / "Playback/Sim": offer the standard rates.
             foreach (int rate in standardRates)
             {
                 labels.Add(rate.ToString(CultureInfo.InvariantCulture) + " Hz");
@@ -273,8 +246,9 @@ public partial class MainWindow
         return mSelectionCoordinator.CurrentInputDeviceText;
     }
 
-    private string CurrentModeText()
+    private RunCommandMode CurrentMode()
     {
-        return mSelectionCoordinator.CurrentModeText;
+        return mSelectionCoordinator.CurrentMode;
     }
+
 }

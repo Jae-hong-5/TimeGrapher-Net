@@ -32,6 +32,9 @@ internal sealed class RateScopeRenderer
 
     private readonly List<TrackedLine> _scopeLines = new();
     private readonly List<TrackedText> _scopeTexts = new();
+    private readonly List<Scatter> _scopePlots = new();
+    private readonly List<Scatter> _ratePlots = new();
+    private PlotThemePalette _theme = PlotThemePalette.Light;
 
     public RateScopeRenderer(AvaPlot scopePlot, AvaPlot ratePlot, string textFontFamily)
     {
@@ -49,10 +52,21 @@ internal sealed class RateScopeRenderer
         _rateY = CreateSeriesLists(_rateSeries.Length);
     }
 
+    public void ApplyTheme(PlotThemePalette theme)
+    {
+        _theme = theme;
+        ApplyPlotTheme(_scopePlot.Plot);
+        ApplyPlotTheme(_ratePlot.Plot);
+        ApplySeriesTheme();
+        _scopePlot.Refresh();
+        _ratePlot.Refresh();
+    }
+
     public void CreateGraphs(double rateErrorYScale, int rateDataPoints)
     {
         Plot scope = _scopePlot.Plot;
         scope.Clear();
+        ApplyPlotTheme(scope);
         scope.YLabel("Amplitude");
         scope.XLabel("Time");
         scope.Axes.SetLimitsY(0, 0.1);
@@ -63,6 +77,7 @@ internal sealed class RateScopeRenderer
 
         Plot rate = _ratePlot.Plot;
         rate.Clear();
+        ApplyPlotTheme(rate);
         rate.YLabel("Rate Error (milliseconds)");
         rate.XLabel("Time");
         rate.Axes.SetLimitsY(-rateErrorYScale, rateErrorYScale);
@@ -80,6 +95,7 @@ internal sealed class RateScopeRenderer
     {
         Plot scope = _scopePlot.Plot;
         scope.Clear();
+        ApplyPlotTheme(scope);
         ClearSeriesData(_scopeX, _scopeY);
         ClearScopeMarkers();
         AddScopePlottables();
@@ -87,6 +103,7 @@ internal sealed class RateScopeRenderer
 
         Plot rate = _ratePlot.Plot;
         rate.Clear();
+        ApplyPlotTheme(rate);
         rate.Axes.SetLimitsY(-rateErrorYScale, rateErrorYScale);
         rate.Axes.SetLimitsX(0, rateDataPoints);
         ClearSeriesData(_rateX, _rateY);
@@ -153,25 +170,28 @@ internal sealed class RateScopeRenderer
     private void AddScopePlottables()
     {
         Plot scope = _scopePlot.Plot;
+        _scopePlots.Clear();
         for (int i = 0; i < _scopeSeries.Length; i++)
         {
             GraphSeriesDefinition spec = _scopeSeries[i];
             Scatter sc = scope.Add.Scatter(_scopeX[i], _scopeY[i]);
             sc.LineWidth = 1;
-            sc.LineColor = Color.FromARGB(spec.Color);
+            sc.LineColor = Color.FromARGB(ThemeColor(spec));
             sc.MarkerStyle.IsVisible = false;
             if (spec.FillAlpha > 0)
             {
                 sc.FillY = true;
-                sc.FillYColor = Color.FromARGB(spec.Color).WithAlpha((byte)spec.FillAlpha);
+                sc.FillYColor = Color.FromARGB(ThemeColor(spec)).WithAlpha((byte)spec.FillAlpha);
             }
             sc.LegendText = spec.Name;
+            _scopePlots.Add(sc);
         }
     }
 
     private void AddRatePlottables()
     {
         Plot rate = _ratePlot.Plot;
+        _ratePlots.Clear();
         for (int i = 0; i < _rateSeries.Length; i++)
         {
             GraphSeriesDefinition spec = _rateSeries[i];
@@ -179,10 +199,45 @@ internal sealed class RateScopeRenderer
             sc.LineWidth = 0;
             sc.MarkerShape = MarkerShape.FilledCircle;
             sc.MarkerSize = 3;
-            sc.MarkerColor = Color.FromARGB(spec.Color);
+            sc.MarkerColor = Color.FromARGB(ThemeColor(spec));
             sc.LegendText = spec.Name;
+            _ratePlots.Add(sc);
         }
     }
+
+    private void ApplySeriesTheme()
+    {
+        for (int i = 0; i < _scopePlots.Count && i < _scopeSeries.Length; i++)
+        {
+            uint color = ThemeColor(_scopeSeries[i]);
+            _scopePlots[i].LineColor = Color.FromARGB(color);
+            if (_scopeSeries[i].FillAlpha > 0)
+            {
+                _scopePlots[i].FillYColor = Color.FromARGB(color).WithAlpha((byte)_scopeSeries[i].FillAlpha);
+            }
+        }
+
+        for (int i = 0; i < _ratePlots.Count && i < _rateSeries.Length; i++)
+        {
+            _ratePlots[i].MarkerColor = Color.FromARGB(ThemeColor(_rateSeries[i]));
+        }
+    }
+
+    private void ApplyPlotTheme(Plot plot)
+    {
+        plot.FigureBackground.Color = Color.FromARGB(_theme.SurfaceBg);
+        plot.DataBackground.Color = Color.FromARGB(_theme.ScopeBg);
+        plot.Axes.Color(Color.FromARGB(_theme.TextPrimary));
+        plot.Axes.FrameColor(Color.FromARGB(_theme.ScopeGrid));
+    }
+
+    private uint ThemeColor(GraphSeriesDefinition spec) => spec.Id switch
+    {
+        AnalysisGraphSeries.RateTic => _theme.TraceTick,
+        AnalysisGraphSeries.RateToc => _theme.TraceTock,
+        AnalysisGraphSeries.ScopeThreshold => _theme.StatusError,
+        _ => _theme.TraceTock,
+    };
 
     private static List<double>[] CreateSeriesLists(int count)
     {
@@ -266,7 +321,7 @@ internal sealed class RateScopeRenderer
     private void AddVerticalMarker(double x, double height, uint color)
     {
         LinePlot line = _scopePlot.Plot.Add.Line(x, 0.0, x, height);
-        line.LineColor = Color.FromARGB(color);
+        line.LineColor = Color.FromARGB(ThemeColor(color));
         line.LineWidth = 2;
         line.LinePattern = LinePattern.Dashed;
         line.MarkerStyle.IsVisible = false;
@@ -276,7 +331,7 @@ internal sealed class RateScopeRenderer
     private void AddText(double x, double height, string text, uint color, MarkerTextAlignment alignment)
     {
         Text label = _scopePlot.Plot.Add.Text(text, x, height);
-        label.LabelFontColor = Color.FromARGB(color);
+        label.LabelFontColor = Color.FromARGB(ThemeColor(color));
         label.LabelFontName = _textFontFamily;
         label.LabelFontSize = 10;
         label.Alignment = MapAlignment(alignment);
@@ -292,7 +347,7 @@ internal sealed class RateScopeRenderer
 
     private void AddHorizontalMarkerInward(double xLeft, double xRight, double length, double height, uint color)
     {
-        Color c = Color.FromARGB(color);
+        Color c = Color.FromARGB(ThemeColor(color));
 
         LinePlot left = _scopePlot.Plot.Add.Line(xLeft - length, height, xLeft, height);
         left.LineColor = c;
@@ -312,10 +367,19 @@ internal sealed class RateScopeRenderer
     private void AddHorizontalMarkerOutward(double xLeft, double xRight, double height, uint color)
     {
         LinePlot line = _scopePlot.Plot.Add.Line(xLeft, height, xRight, height);
-        line.LineColor = Color.FromARGB(color);
+        line.LineColor = Color.FromARGB(ThemeColor(color));
         line.LineWidth = 1;
         line.LinePattern = LinePattern.Solid;
         line.MarkerStyle.IsVisible = false;
         _scopeLines.Add(new TrackedLine { Plot = line });
     }
+
+    private uint ThemeColor(uint sourceColor) => sourceColor switch
+    {
+        Argb.Green => _theme.TraceTick,
+        Argb.Blue => _theme.TraceTock,
+        Argb.Red => _theme.StatusError,
+        Argb.Black => _theme.TextPrimary,
+        _ => sourceColor,
+    };
 }

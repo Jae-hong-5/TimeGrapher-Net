@@ -162,7 +162,9 @@ internal sealed class RunCommandService
 
     private void SetStopped()
     {
-        _viewModel.SetModeAllowsSampleRate(_operations.CurrentMode != RunCommandMode.Playback);
+        RunCommandMode mode = _operations.CurrentMode;
+        _viewModel.SetModeAllowsSampleRate(RunCommandModePolicies.AllowsSelectableSampleRate(mode));
+        _viewModel.SetModeAllowsGain(RunCommandModePolicies.AllowsGain(mode));
         _viewModel.SetStopped();
     }
 

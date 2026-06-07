@@ -6,7 +6,10 @@ using System.Linq;
 using System.Threading.Tasks;
 
 using Avalonia.Controls;
+using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Media;
+using Avalonia.Styling;
 using Avalonia.Threading;
 
 using TimeGrapher.App;
@@ -25,16 +28,13 @@ namespace TimeGrapher.App.Views;
 
 public partial class MainWindow : Window
 {
-    // Mode indices (MainWindow.cpp #define LIVE/PLAYBACK/SIM).
-    private const int LIVE = 0;
-    private const int PLAYBACK = 1;
-    private const int SIM = 2;
-
     private const int ERROR_RATE_Y_SCALE = 10;
     private const int ERROR_RATE_X_DATA_POINTS = 250;
     private const int DEFAULT_SOUND_IMAGE_WIDTH = 1019;
     private const int DEFAULT_SOUND_IMAGE_HEIGHT = 654;
-    private const string PLAYBACK_OR_SIM_PCM = "Playback/Sim";
+    private const string APP_FONT_FAMILY = "D2Coding";
+    private const string PLAYBACK_SOURCE = "Playback";
+    private const string SIMULATION_SOURCE = "Simulation";
 
     private const string PREF_NAME_WELSHI = "Welshi USB";
     private const string PREF_NAME_CHINESE_GENERIC = "Chinese Generic USB";
@@ -64,13 +64,6 @@ public partial class MainWindow : Window
         PREF_NAME_CHINESE_GENERIC,
         "Cubilux HA-3",
         "CUBILUX CA7",
-    };
-
-    private static readonly string[] ModeStrings =
-    {
-        "Live",
-        "Playback",
-        "Sim",
     };
 
     private static readonly int[] AveragingPeriodList = { 2, 4, 8, 10, 12, 20, 20, 30, 40, 50, 60, 120, 240 };
@@ -104,20 +97,19 @@ public partial class MainWindow : Window
     private readonly RunCommandService mRunCommandService;
     private readonly RunSessionController mRunSessionController;
 
-    // Parallel to InputDeviceComboBox items: device number for live devices, -1 for "Playback/Sim".
     private readonly List<int> mInputDeviceNumbers = new();
 
     public MainWindow()
     {
         InitializeComponent();
+        ConfigurePlatformWindow();
         mViewModel = new MainWindowViewModel(StartRunAsync, TogglePauseRun, StopRun, LoadAudioDevices);
         mSelectionCoordinator = new MainWindowSelectionCoordinator(
             mViewModel,
             new MainWindowSelectionOperations(this),
             new MainWindowSelectionOptions(
-                ModeStrings[LIVE],
-                ModeStrings[PLAYBACK],
-                PLAYBACK_OR_SIM_PCM,
+                PLAYBACK_SOURCE,
+                SIMULATION_SOURCE,
                 PreferredAudioDevices,
                 AveragingPeriodList));
         mRunSelectionResolver = new RunSelectionResolver(
@@ -155,8 +147,9 @@ public partial class MainWindow : Window
         Title = "TimeGrapher";
 
         // Results->setAlignment(Qt::AlignHCenter); set in XAML.
-        mInfoTabRegistry = InfoTabRegistry.FromCatalog(GraphicsTabWidget, FontFamily.Name);
+        mInfoTabRegistry = InfoTabRegistry.FromCatalog(GraphicsTabWidget, APP_FONT_FAMILY);
         mGraphFrameRenderer = new GraphFrameRenderer(mInfoTabRegistry.Consumers, Results);
+        mGraphFrameRenderer.ApplyTheme(CurrentPlotTheme());
         mFrameRouter = mInfoTabRegistry.CreateRouter();
         mFrameRenderScheduler = new AnalysisFrameRenderScheduler(
             action => Dispatcher.UIThread.Post(action),
@@ -176,6 +169,87 @@ public partial class MainWindow : Window
         SetGuiStopMode();
 
         Closed += OnWindowClosed;
+    }
+
+    private void ConfigurePlatformWindow()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            SystemDecorations = SystemDecorations.None;
+            CanResize = false;
+            MaximizeWindowButton.IsVisible = true;
+            return;
+        }
+
+        if (OperatingSystem.IsLinux())
+        {
+            SystemDecorations = SystemDecorations.None;
+            CanResize = false;
+            MaximizeWindowButton.IsVisible = false;
+            WindowState = WindowState.Normal;
+            return;
+        }
+
+        SystemDecorations = SystemDecorations.None;
+        CanResize = false;
+        MaximizeWindowButton.IsVisible = false;
+    }
+
+    private void OnTitleBarPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+        {
+            BeginMoveDrag(e);
+        }
+    }
+
+    private void OnMinimizeWindowButtonClick(object? sender, RoutedEventArgs e)
+    {
+        WindowState = WindowState.Minimized;
+    }
+
+    private void OnThemeToggleButtonClick(object? sender, RoutedEventArgs e)
+    {
+        Avalonia.Application? application = Avalonia.Application.Current;
+        if (application == null)
+        {
+            return;
+        }
+
+        ThemeVariant nextTheme = application.RequestedThemeVariant == ThemeVariant.Dark
+            ? ThemeVariant.Light
+            : ThemeVariant.Dark;
+
+        application.RequestedThemeVariant = nextTheme;
+        mGraphFrameRenderer.ApplyTheme(PlotThemeFor(nextTheme));
+    }
+
+    private static PlotThemePalette CurrentPlotTheme()
+    {
+        ThemeVariant requestedTheme = Avalonia.Application.Current?.RequestedThemeVariant ?? ThemeVariant.Light;
+        return PlotThemeFor(requestedTheme);
+    }
+
+    private static PlotThemePalette PlotThemeFor(ThemeVariant theme)
+    {
+        return theme == ThemeVariant.Dark ? PlotThemePalette.Dark : PlotThemePalette.Light;
+    }
+
+    private void OnMaximizeWindowButtonClick(object? sender, RoutedEventArgs e)
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        WindowState = WindowState == WindowState.Maximized
+            ? WindowState.Normal
+            : WindowState.Maximized;
+    }
+
+    private void OnCloseWindowButtonClick(object? sender, RoutedEventArgs e)
+    {
+        Close();
     }
 
     // AnalysisFrameReady fires on the analysis thread; marshal to UI thread.

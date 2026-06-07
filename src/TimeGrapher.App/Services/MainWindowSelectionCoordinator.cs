@@ -33,7 +33,24 @@ internal sealed class MainWindowSelectionCoordinator
 
     public string CurrentInputDeviceText => ItemText(_viewModel.InputDeviceNames, _viewModel.SelectedInputDeviceIndex);
 
-    public string CurrentModeText => ItemText(_viewModel.ModeNames, _viewModel.SelectedModeIndex);
+    public RunCommandMode CurrentMode
+    {
+        get
+        {
+            string source = CurrentInputDeviceText;
+            if (source == _options.PlaybackSourceName)
+            {
+                return RunCommandMode.Playback;
+            }
+
+            if (source == _options.SimulationSourceName)
+            {
+                return RunCommandMode.Simulation;
+            }
+
+            return string.IsNullOrEmpty(source) ? RunCommandMode.Unknown : RunCommandMode.Live;
+        }
+    }
 
     private bool IsSuppressed => _suppressDepth > 0;
 
@@ -47,9 +64,6 @@ internal sealed class MainWindowSelectionCoordinator
     {
         switch (e.PropertyName)
         {
-            case nameof(MainWindowViewModel.SelectedModeIndex):
-                OnSelectedModeChanged();
-                break;
             case nameof(MainWindowViewModel.SelectedInputDeviceIndex):
                 OnSelectedInputDeviceChanged();
                 break;
@@ -90,20 +104,6 @@ internal sealed class MainWindowSelectionCoordinator
         _viewModel.SelectedSampleRateIndex = index;
     }
 
-    public void SetSelectedModeIndex(int index, bool forceChanged = false)
-    {
-        if (_viewModel.SelectedModeIndex == index)
-        {
-            if (forceChanged)
-            {
-                OnSelectedModeChanged();
-            }
-            return;
-        }
-
-        _viewModel.SelectedModeIndex = index;
-    }
-
     public bool SetAudioRate(int rate)
     {
         for (int i = 0; i < _operations.AvailableSampleRateCount; i++)
@@ -130,45 +130,6 @@ internal sealed class MainWindowSelectionCoordinator
         return true;
     }
 
-    private void OnSelectedModeChanged()
-    {
-        if (IsSuppressed)
-        {
-            return;
-        }
-
-        string mode = CurrentModeText;
-        if (mode != _options.LiveModeName)
-        {
-            SetAudioDevice(_options.PlaybackOrSimulationDeviceName);
-        }
-
-        _viewModel.SetModeAllowsSampleRate(mode != _options.PlaybackModeName);
-        if (mode != _options.LiveModeName)
-        {
-            return;
-        }
-
-        foreach (string preferredName in _options.PreferredLiveDeviceNames)
-        {
-            int index = FindText(_viewModel.InputDeviceNames, preferredName, matchContains: true);
-            if (index != -1)
-            {
-                SetSelectedInputDeviceIndex(index);
-                return;
-            }
-        }
-
-        for (int i = 0; i < _viewModel.InputDeviceNames.Count; ++i)
-        {
-            if (ItemText(_viewModel.InputDeviceNames, i) != _options.PlaybackOrSimulationDeviceName)
-            {
-                SetSelectedInputDeviceIndex(i);
-                return;
-            }
-        }
-    }
-
     private void OnSelectedInputDeviceChanged()
     {
         if (IsSuppressed)
@@ -176,30 +137,12 @@ internal sealed class MainWindowSelectionCoordinator
             return;
         }
 
-        int deviceNumber;
-        if (CurrentInputDeviceText != _options.PlaybackOrSimulationDeviceName)
-        {
-            deviceNumber = CurrentInputDeviceNumber;
+        RunCommandMode mode = CurrentMode;
+        bool isLive = mode == RunCommandMode.Live;
+        int deviceNumber = isLive ? CurrentInputDeviceNumber : -1;
 
-            int index = FindText(_viewModel.ModeNames, _options.LiveModeName, matchContains: false);
-            if (index != -1)
-            {
-                SetSelectedModeIndex(index);
-            }
-        }
-        else
-        {
-            deviceNumber = -1;
-            if (CurrentModeText == _options.LiveModeName)
-            {
-                int index = FindText(_viewModel.ModeNames, _options.PlaybackModeName, matchContains: false);
-                if (index != -1)
-                {
-                    SetSelectedModeIndex(index);
-                }
-            }
-        }
-
+        _viewModel.SetModeAllowsSampleRate(RunCommandModePolicies.AllowsSelectableSampleRate(mode));
+        _viewModel.SetModeAllowsGain(RunCommandModePolicies.AllowsGain(mode));
         _operations.PopulateSampleRates(deviceNumber);
     }
 
