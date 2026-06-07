@@ -147,9 +147,16 @@ jobs:
             Sort-Object Path |
             ForEach-Object { "$($_.Hash)  $(Split-Path $_.Path -Leaf)" } |
             Set-Content -Encoding ascii "artifacts/TimeGrapher.App-win-x64.sha256.txt"
-          & (Join-Path $out "TimeGrapher.App.exe") --smoke
-          if ($LASTEXITCODE -ne 0) {
-            throw "Published app smoke check failed with exit code $LASTEXITCODE"
+          # TimeGrapher.App is a WinExe (GUI subsystem): PowerShell's call operator
+          # neither waits for it nor sets $LASTEXITCODE, so this check used to throw
+          # with an empty exit code on every run. Start-Process -Wait reports the
+          # real exit code.
+          $smokeOut = Join-Path $env:RUNNER_TEMP "smoke-out.txt"
+          $smokeErr = Join-Path $env:RUNNER_TEMP "smoke-err.txt"
+          $smoke = Start-Process -FilePath (Join-Path $out "TimeGrapher.App.exe") -ArgumentList "--smoke" -NoNewWindow -Wait -PassThru -RedirectStandardOutput $smokeOut -RedirectStandardError $smokeErr
+          Get-Content $smokeOut, $smokeErr -ErrorAction SilentlyContinue
+          if ($smoke.ExitCode -ne 0) {
+            throw "Published app smoke check failed with exit code $($smoke.ExitCode)"
           }
 
       - name: Upload artifact
