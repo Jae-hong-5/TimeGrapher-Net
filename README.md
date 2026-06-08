@@ -228,36 +228,6 @@ cp deploy/linux/TimeGrapher.App.desktop ~/.local/share/applications/   # Exec/Ic
 
 `.desktop` 파일명과 `StartupWMClass`는 app-id(`TimeGrapher.App`)와 일치해야 패널이 매칭한다.
 
-## 사용 예제
-
-### 헤드리스 오디오 스모크 (Pi에서 화면 없이)
-
-```bash
-./TimeGrapher.App --audio-smoke
-./TimeGrapher.App --capture-smoke --duration-ms=1500
-```
-
-`--audio-smoke`는 PipeWire/ALSA capture source 목록을 출력한다. `--capture-smoke`는 첫 source를
-짧게 열고 `samples_written`을 출력하며, source가 없으면 exit code 2를 반환한다. `--smoke`는
-Avalonia 초기화만 확인하고 `TimeGrapher.App smoke OK`를 출력한 뒤 종료한다(CI publish 스모크).
-
-### WAV 검출 검증
-
-```powershell
-# 폴더의 *.wav 전부 검증 (파일명 "21600BPH_*.wav" 의 BPH와 검출값 비교)
-dotnet run --project src/TimeGrapher.Verify -c Release -- D:\TimeGrapher_Refactoring\samples
-
-# CI용 결정적 합성/바이트-빌드 픽스처 (외부 파일 불필요)
-dotnet run --project src/TimeGrapher.Verify -c Release -- --generated --byte-fixtures
-```
-
-검출 결과 텍스트 예시(한 줄):
-
-```text
-18000BPH_clean_48000Hz_generated.wav: detected_bph=18000 sync_status=Synced
-  results=[RATE   +0.0 s/d   AMPLITUDE 272°   BEAT ERROR  0.0 ms   BEAT 18000 bph]
-```
-
 ## 설정 / 환경
 
 ### 중앙 관리 패키지 버전 (`Directory.Packages.props`)
@@ -273,48 +243,6 @@ dotnet run --project src/TimeGrapher.Verify -c Release -- --generated --byte-fix
 
 빌드는 결정적(`Deterministic=true`)이며 `RestorePackagesWithLockFile=true`로
 `packages.lock.json`을 커밋, `--locked-mode`로 복원한다.
-
-### RID 분기 (`TimeGrapher.App.csproj`)
-
-| RuntimeIdentifier | DefineConstants | 포함 백엔드 |
-|---|---|---|
-| (없음, 개발 빌드) | `TIMEGRAPHER_WINDOWS_AUDIO; TIMEGRAPHER_LINUX_AUDIO` | 둘 다 |
-| `win-x64` | `TIMEGRAPHER_WINDOWS_AUDIO` | WindowsAudio만 |
-| `linux-arm64` | `TIMEGRAPHER_LINUX_AUDIO` | LinuxAudio만 |
-
-### 분석 런 설정 (`AnalysisWorker.Config` / `TgConfig.Default()`)
-
-| 항목 | 기본값 | 비고 |
-|---|---|---|
-| SampleRate | 48000 Hz | 런별 선택(Live/Sim), Playback은 파일값 |
-| LiftAngle | 52.0° | 진폭 계산용 |
-| AveragingPeriod | 2 | 롤링 평균 창 |
-| BphMode | Auto | Auto/Manual/Mismatch 표시 |
-| HpfCutoffHz | 200.0 | 고역통과 컷오프 |
-| SyncTolerancePct | 3.0 | 동기 허용 오차 |
-| SyncLossMisses | 12 | 동기 상실 판단 |
-| 스코프 포인트 예산 | 8000 | UI 전달 전 축소 |
-| 레이트 포인트 예산 | 250 | tic/toc 산점 |
-| UI 갱신 주기 | 33 ms (Rate/Scope) · 100 ms (Sound Print) | 렌더 비용 상한 |
-
-## 성능
-
-- 분석 스레드는 `ThreadPriority.Highest`(원본 QThread TimeCritical 대응)로 `AutoResetEvent`
-  대기 루프에서 깨어나며, 한 번의 깨어남이 `AnalysisFrame` 한 개를 만든다.
-- UI 전달 전에 `SeriesDataReducer`로 스코프(8000)·레이트(250) 포인트 예산까지 축소하고, 탭별
-  갱신 주기(33/100 ms)로 렌더 빈도를 분리해 비용을 제한한다.
-- 스플래시 재생은 playback 클록에 디코드-어헤드를 앵커링하고 타이머 양자화를 보정해 저더를
-  줄이며, MainWindow는 스플래시 종료 시점에 생성해 재생 중 UI 정지를 피한다.
-- 입력 폭주는 링 버퍼에서 overrun으로 감지해 `AnalysisFrame.InputOverrun`/`InputSamplesDropped`로
-  보고한다.
-
-## 보안
-
-- 네트워크/원격 통신·텔레메트리 없음. 입력은 로컬 오디오 장치/WAV 파일에 한정.
-- Core는 플랫폼/네이티브 의존성이 없으며, CI가 `NAudio|TimeGrapher\.Platform|WindowsAudio`
-  텍스트 스캔으로 경계를 강제한다.
-- `packages.lock.json` + `--locked-mode`로 의존성 고정, CI가 Windows publish 산출물의
-  SHA256 해시를 기록한다.
 
 ## 테스트 / CI
 
@@ -343,47 +271,6 @@ CI(`.github/workflows/ci.yml`)는 두 잡으로 구성된다.
 > Windows publish 산출물은 framework-dependent(`--self-contained false`)이므로 실행 환경에
 > .NET 8 Runtime이 필요하다. 런타임 설치 전제를 없애려면 self-contained 산출물을 별도로 만든다.
 
-## 스플래시 리소스
-
-앱 시작 시 640x360 borderless `SplashWindow`를 중앙에 띄우고 24fps PNG 시퀀스를 재생한 뒤
-`MainWindow`로 전환한다.
-
-- 원본 영상: `src/TimeGrapher.App/Assets/Splash/Source/splash5.mp4`
-- 앱 리소스: `splash_0001.png` … `splash_0122.png`
-- 프레임 생성 예:
-
-```powershell
-ffmpeg -i .\src\TimeGrapher.App\Assets\Splash\Source\splash5.mp4 -vf scale=640:360 -vsync 0 .\src\TimeGrapher.App\Assets\Splash\splash_%04d.png
-```
-
-## 원본과의 의도적 차이 (요약)
-
-- `setRenderSource`의 QObject 동적 프로퍼티 기록(런타임 진단용)은 Avalonia 대응 개념이 없어 생략.
-- QCP 마커 화살촉 글리프는 단순 선분으로 근사(위치/길이는 동일).
-- Qt 동영상 스플래시 대신 MP4에서 생성한 640x360 PNG 시퀀스를 Avalonia 리소스로 재생.
-- AGC 비활성화(device-topology 순회)는 NAudio 미노출로 엔드포인트 볼륨 설정만 수행.
-
-세부 편차는 각 소스 파일 주석 참조.
-
-## 검증 상태
-
-### Windows (2026-06-08, 본 문서 작성 시 실행)
-
-- `dotnet build TimeGrapherNet.sln -c Release` 오류 0.
-- `dotnet test TimeGrapherNet.sln -c Release` 전부 통과 — App 60 / Core 31 / LinuxAudio 10
-  (총 101 케이스, 실패 0).
-- `dotnet run --project src/TimeGrapher.Verify -- --generated --byte-fixtures` exit 0:
-  합성 5 + edge 3 + byte-fixture 3 = 11/11 BPH 정확(18000/21600/28800/36000/43200), 전부 Synced.
-  진폭 대부분 271–273°, 비트 에러 0.0 ms; 의도적 저진폭·고잡음 케이스만 외란
-  (rate +286 s/d, 진폭 181°, 비트 에러 24.6 ms).
-
-### Raspberry Pi 5 (직전 기록)
-
-- `linux-arm64 --self-contained true` publish 통과.
-- `./TimeGrapher.App --smoke` 통과, `DISPLAY=:0` GUI 실행을 스플래시 길이보다 긴 12초 동안
-  stderr 없이 유지.
-- 현재 테스트 Pi에는 PipeWire/ALSA capture source가 없어 live microphone 입력은 물리 검증 대기.
-
 ## 체크리스트
 
 | 항목 | 명령 / 확인 | 상태 |
@@ -397,15 +284,3 @@ ffmpeg -i .\src\TimeGrapher.App\Assets\Splash\Source\splash5.mp4 -vf scale=640:3
 | Pi GUI 스모크 | `./TimeGrapher.App --smoke` (`DISPLAY=:0`) | ✅ |
 | Pi 오디오 스모크 | `./TimeGrapher.App --audio-smoke` / `--capture-smoke` | ⏳ live capture source 대기 |
 | 보안 경계 | Core 플랫폼 의존성 0 (CI 스캔) | ✅ |
-
-## 변경 이력
-
-- **v1.1.0 (2026-06-08)**
-  - Avalonia 11.3.2 등 중앙 관리 패키지 버전 반영.
-  - CI에 `linux-arm64` self-contained publish/경계 확인 잡 추가, Windows publish 스모크가
-    실제 exit code를 관찰하도록 정정.
-  - Pi 작업표시줄 통합용 `deploy/linux/`(`.desktop` + 아이콘 안내) 추가, PNG 윈도우 아이콘 사용.
-  - 스플래시 디코드-어헤드 playback 클록 앵커링 및 타이머 양자화 보정으로 저더/정지 완화.
-  - 헤드리스 검증기 픽스처를 11종(합성/edge/byte-fixture)으로 갱신, 검증 수치 재측정.
-- **v1.0.0 (2026-06-06)**
-  - Qt/C++ → Avalonia/.NET 8 포팅 초기 검증 스냅샷(빌드/테스트/Pi 스모크 통과) 기준선.
