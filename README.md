@@ -117,21 +117,6 @@ classDiagram
 
 *그림 4. 입력 워커 계층. live 백엔드는 플랫폼 어셈블리에 구현된다.*
 
-### 실행 수명주기
-
-```mermaid
-stateDiagram-v2
-    [*] --> Idle
-    Idle --> Running : Run (Live/Playback/Sim)
-    Running --> Paused : Pause
-    Paused --> Running : Resume
-    Running --> Idle : Stop
-    Paused --> Idle : Stop
-    Running --> Idle : Playback 완료 / Capture 종료
-```
-
-*그림 5. 실행 상태 전이. 정지/완료 시 입력·분석 워커를 타임아웃(2s) 안에 join한다.*
-
 ### 프레임 데이터 모델
 
 `AnalysisFrame`은 한 번의 분석 패스가 만든 모든 UI 갱신 단위(스코프 시리즈, 이벤트 마커, 레이트
@@ -163,7 +148,7 @@ erDiagram
     }
 ```
 
-*그림 6. `AnalysisFrame` 구성. 사운드 이미지는 갱신된 패스에만 채워진다(0..1).*
+*그림 5. `AnalysisFrame` 구성. 사운드 이미지는 갱신된 패스에만 채워진다(0..1).*
 
 ## 프로젝트 구성
 
@@ -256,7 +241,7 @@ pie showData
     "Platform.LinuxAudio.Tests" : 10
 ```
 
-*그림 7. 테스트 케이스 분포. 전부 통과, 실패 0.*
+*그림 6. 테스트 케이스 분포. 전부 통과, 실패 0.*
 
 CI(`.github/workflows/ci.yml`)는 두 잡으로 구성된다.
 
