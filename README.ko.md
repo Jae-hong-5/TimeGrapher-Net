@@ -111,7 +111,7 @@
    ./TimeGrapher.App --smoke    # 화면 없이 동작 점검 (장치 목록은 --audio-smoke)
    ```
 
-   작업표시줄 아이콘 수동 등록 등 데스크톱 통합 세부 사항은 `deploy/linux/README.md`를 참고하세요.
+   작업표시줄 아이콘 수동 등록 등 데스크톱 통합 세부 사항은 `deploy/linux/README.ko.md`를 참고하세요.
 
 ## 주요 기능
 
