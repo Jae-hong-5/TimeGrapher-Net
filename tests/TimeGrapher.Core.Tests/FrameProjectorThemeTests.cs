@@ -63,4 +63,26 @@ public sealed class FrameProjectorThemeTests
         // Blank print (no beats yet) -> the whole image is the new background.
         Assert.All(frame.SoundImage!.Pixels, px => Assert.Equal(Black, px));
     }
+
+    [Fact]
+    public void SoundPrintProjector_PublishRotatesFixedBufferPool()
+    {
+        var projector = new SoundPrintFrameProjector(sampleRate: 48000, width: 64, height: 48, backgroundColor: White);
+
+        // Publishing must not allocate a fresh buffer per frame: a published buffer
+        // may be reused, but only after two newer publishes have gone out.
+        var seen = new List<PixelBuffer>();
+        for (int i = 0; i < 4; ++i)
+        {
+            var frame = new AnalysisFrame();
+            projector.AppendSnapshot(frame, force: true);
+            Assert.NotNull(frame.SoundImage);
+            seen.Add(frame.SoundImage!);
+        }
+
+        Assert.NotSame(seen[0], seen[1]);
+        Assert.NotSame(seen[0], seen[2]);
+        Assert.NotSame(seen[1], seen[2]);
+        Assert.Same(seen[0], seen[3]);
+    }
 }
