@@ -6,6 +6,12 @@ on:
   pull_request:
     branches: [ main ]
 
+# Cancel a superseded in-progress run for the same branch/PR (saves CI minutes
+# when commits are pushed in quick succession). Distinct refs run independently.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   core-boundary:
     runs-on: ubuntu-latest
