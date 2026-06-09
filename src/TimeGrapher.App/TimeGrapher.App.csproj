@@ -9,7 +9,7 @@
     <AssemblyName>TimeGrapher.App</AssemblyName>
     <ApplicationIcon>Assets\App\AppIcon.ico</ApplicationIcon>
     <AvaloniaUseCompiledBindingsByDefault>false</AvaloniaUseCompiledBindingsByDefault>
-    <RuntimeIdentifiers>win-x64;linux-arm64</RuntimeIdentifiers>
+    <RuntimeIdentifiers>win-x64;win-arm64;linux-x64;linux-arm64</RuntimeIdentifiers>
     <!--
       The app is culture-invariant by design: every numeric format/parse uses
       CultureInfo.InvariantCulture and every string comparison is Ordinal, so there
@@ -24,11 +24,11 @@
     <DefineConstants>$(DefineConstants);TIMEGRAPHER_WINDOWS_AUDIO;TIMEGRAPHER_LINUX_AUDIO</DefineConstants>
   </PropertyGroup>
 
-  <PropertyGroup Condition="'$(RuntimeIdentifier)' == 'win-x64'">
+  <PropertyGroup Condition="$(RuntimeIdentifier.StartsWith('win'))">
     <DefineConstants>$(DefineConstants);TIMEGRAPHER_WINDOWS_AUDIO</DefineConstants>
   </PropertyGroup>
 
-  <PropertyGroup Condition="'$(RuntimeIdentifier)' == 'linux-arm64'">
+  <PropertyGroup Condition="$(RuntimeIdentifier.StartsWith('linux'))">
     <DefineConstants>$(DefineConstants);TIMEGRAPHER_LINUX_AUDIO</DefineConstants>
   </PropertyGroup>
 
@@ -52,11 +52,11 @@
     <ProjectReference Include="..\TimeGrapher.Core\TimeGrapher.Core.csproj" />
   </ItemGroup>
 
-  <ItemGroup Condition="'$(RuntimeIdentifier)' == '' Or '$(RuntimeIdentifier)' == 'win-x64'">
+  <ItemGroup Condition="'$(RuntimeIdentifier)' == '' Or $(RuntimeIdentifier.StartsWith('win'))">
     <ProjectReference Include="..\TimeGrapher.Platform.WindowsAudio\TimeGrapher.Platform.WindowsAudio.csproj" />
   </ItemGroup>
 
-  <ItemGroup Condition="'$(RuntimeIdentifier)' == '' Or '$(RuntimeIdentifier)' == 'linux-arm64'">
+  <ItemGroup Condition="'$(RuntimeIdentifier)' == '' Or $(RuntimeIdentifier.StartsWith('linux'))">
     <ProjectReference Include="..\TimeGrapher.Platform.LinuxAudio\TimeGrapher.Platform.LinuxAudio.csproj" />
   </ItemGroup>
 

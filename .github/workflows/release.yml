@@ -1,7 +1,11 @@
 name: Release
 
-# Build self-contained release archives for both target platforms
-# (Windows win-x64 and Raspberry Pi 5 linux-arm64) and attach them to a GitHub Release.
+# Build self-contained release archives for every target RID and attach them to
+# a GitHub Release. Targets:
+#   win-x64      → Windows x64
+#   win-arm64    → Windows on ARM
+#   linux-x64    → Ubuntu/Debian/most glibc desktops & servers (x64)
+#   linux-arm64  → Ubuntu/Debian/Raspberry Pi OS (arm64)
 #
 # Triggers on a pushed 'v*' tag (e.g. v0.1.0, v1.0.0-beta.1), or manually via
 # workflow_dispatch with a 'tag' input. Cut a release with:
@@ -91,16 +95,24 @@ jobs:
           echo "Resolved tag=$FULL_TAG version=$CORE prerelease=$PRERELEASE"
 
   # ---------------------------------------------------------------------------
-  # Windows build: publish self-contained win-x64, smoke-test it, zip + checksum.
+  # Windows builds (matrix over RID): publish self-contained, smoke-test the
+  # native-arch build, zip + checksum. win-arm64 is cross-published on the x64
+  # runner and therefore cannot be executed there, so the smoke test is gated to
+  # win-x64 only.
   # ---------------------------------------------------------------------------
   build-windows:
-    name: Build win-x64
+    name: Build ${{ matrix.rid }}
     needs: version
     runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        rid: [win-x64, win-arm64]
     env:
       VERSION: ${{ needs.version.outputs.version }}
       FULL_TAG: ${{ needs.version.outputs.full_tag }}
-      PUBLISH_DIR: artifacts/publish/win-x64
+      RID: ${{ matrix.rid }}
+      PUBLISH_DIR: artifacts/publish/${{ matrix.rid }}
       STAGE_DIR: artifacts/stage
     steps:
       - name: Checkout
@@ -115,12 +127,12 @@ jobs:
         shell: pwsh
         run: dotnet restore src/TimeGrapher.App/TimeGrapher.App.csproj --locked-mode
 
-      - name: Publish self-contained win-x64
+      - name: Publish self-contained ${{ matrix.rid }}
         shell: pwsh
         run: >
           dotnet publish src/TimeGrapher.App/TimeGrapher.App.csproj
           -c Release
-          -r win-x64
+          -r $env:RID
           --self-contained true
           --no-restore
           /p:RestoreLockedMode=false
@@ -142,7 +154,7 @@ jobs:
           )
           foreach ($name in $required) {
             if (-not (Test-Path (Join-Path $out $name))) {
-              throw "Missing win-x64 publish artifact: $name"
+              throw "Missing $env:RID publish artifact: $name"
             }
           }
           if (Test-Path (Join-Path $out "TimeGrapher.Platform.LinuxAudio.dll")) {
@@ -150,6 +162,9 @@ jobs:
           }
 
       - name: Smoke test published app
+        # The win-arm64 binary cannot run on the x64 Windows runner, so only the
+        # native win-x64 build is executed here.
+        if: matrix.rid == 'win-x64'
         shell: pwsh
         run: |
           # TimeGrapher.App is a WinExe (GUI subsystem): the PowerShell call operator
@@ -168,7 +183,7 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path $env:STAGE_DIR | Out-Null
-          $zipName = "TimeGrapher-$env:FULL_TAG-win-x64.zip"
+          $zipName = "TimeGrapher-$env:FULL_TAG-$env:RID.zip"
           $zipPath = Join-Path $env:STAGE_DIR $zipName
           # Archive the publish folder CONTENTS so the zip root holds the binary directly.
           Compress-Archive -Path (Join-Path $env:PUBLISH_DIR '*') -DestinationPath $zipPath -Force
@@ -177,28 +192,35 @@ jobs:
           "$hash  $zipName" | Set-Content -Encoding ascii (Join-Path $env:STAGE_DIR "$zipName.sha256")
           Get-ChildItem $env:STAGE_DIR
 
-      - name: Upload win-x64 artifacts
+      - name: Upload ${{ matrix.rid }} artifacts
         uses: actions/upload-artifact@v7
         with:
-          name: release-win-x64
+          name: release-${{ matrix.rid }}
           path: |
-            ${{ env.STAGE_DIR }}/TimeGrapher-${{ env.FULL_TAG }}-win-x64.zip
-            ${{ env.STAGE_DIR }}/TimeGrapher-${{ env.FULL_TAG }}-win-x64.zip.sha256
+            ${{ env.STAGE_DIR }}/TimeGrapher-${{ env.FULL_TAG }}-${{ matrix.rid }}.zip
+            ${{ env.STAGE_DIR }}/TimeGrapher-${{ env.FULL_TAG }}-${{ matrix.rid }}.zip.sha256
           if-no-files-found: error
           retention-days: 7
 
   # ---------------------------------------------------------------------------
-  # Linux build: cross-publish self-contained linux-arm64 (never executed on the
-  # x64 runner), bundle desktop-integration files, tar.gz (+x preserved) + checksum.
+  # Linux builds (matrix over RID): cross-publish self-contained (never executed
+  # on the runner), bundle desktop-integration files, tar.gz (+x preserved) +
+  # checksum. linux-x64 runs natively on Ubuntu/Debian; linux-arm64 targets the
+  # Raspberry Pi.
   # ---------------------------------------------------------------------------
   build-linux:
-    name: Build linux-arm64
+    name: Build ${{ matrix.rid }}
     needs: version
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        rid: [linux-x64, linux-arm64]
     env:
       VERSION: ${{ needs.version.outputs.version }}
       FULL_TAG: ${{ needs.version.outputs.full_tag }}
-      PUBLISH_DIR: artifacts/publish/linux-arm64
+      RID: ${{ matrix.rid }}
+      PUBLISH_DIR: artifacts/publish/${{ matrix.rid }}
       STAGE_DIR: artifacts/stage
     steps:
       - name: Checkout
@@ -213,12 +235,12 @@ jobs:
         shell: bash
         run: dotnet restore src/TimeGrapher.App/TimeGrapher.App.csproj --locked-mode
 
-      - name: Cross-publish self-contained linux-arm64
+      - name: Cross-publish self-contained ${{ matrix.rid }}
         shell: bash
         run: |
           dotnet publish src/TimeGrapher.App/TimeGrapher.App.csproj \
             -c Release \
-            -r linux-arm64 \
+            -r "$RID" \
             --self-contained true \
             --no-restore \
             /p:RestoreLockedMode=false \
@@ -240,7 +262,7 @@ jobs:
           )
           for name in "${required[@]}"; do
             if [ ! -f "$PUBLISH_DIR/$name" ]; then
-              echo "::error::Missing linux-arm64 publish artifact: $name"
+              echo "::error::Missing $RID publish artifact: $name"
               exit 1
             fi
           done
@@ -248,9 +270,9 @@ jobs:
             echo "::error::Linux publish unexpectedly contains WindowsAudio"
             exit 1
           fi
-          # ScottPlot renders via SkiaSharp; warn (don't fail) if the arm64 native blob is absent.
+          # ScottPlot renders via SkiaSharp; warn (don't fail) if the native blob is absent.
           if [ ! -f "$PUBLISH_DIR/libSkiaSharp.so" ]; then
-            echo "::warning::libSkiaSharp.so not found in publish output; ScottPlot rendering may fail on the Pi."
+            echo "::warning::libSkiaSharp.so not found in $RID publish output; ScottPlot rendering may fail."
           fi
 
       - name: Bundle desktop-integration files
@@ -272,23 +294,23 @@ jobs:
           mkdir -p "$STAGE_DIR"
           # tar.gz (not zip) so the ELF launcher keeps its +x bit on extraction.
           chmod +x "$PUBLISH_DIR/TimeGrapher.App"
-          tarName="TimeGrapher-${FULL_TAG}-linux-arm64.tar.gz"
+          tarName="TimeGrapher-${FULL_TAG}-${RID}.tar.gz"
           tar -C "$PUBLISH_DIR" -czf "$STAGE_DIR/$tarName" .
           ( cd "$STAGE_DIR" && sha256sum "$tarName" > "$tarName.sha256" )
           ls -l "$STAGE_DIR"
 
-      - name: Upload linux-arm64 artifacts
+      - name: Upload ${{ matrix.rid }} artifacts
         uses: actions/upload-artifact@v7
         with:
-          name: release-linux-arm64
+          name: release-${{ matrix.rid }}
           path: |
-            ${{ env.STAGE_DIR }}/TimeGrapher-${{ env.FULL_TAG }}-linux-arm64.tar.gz
-            ${{ env.STAGE_DIR }}/TimeGrapher-${{ env.FULL_TAG }}-linux-arm64.tar.gz.sha256
+            ${{ env.STAGE_DIR }}/TimeGrapher-${{ env.FULL_TAG }}-${{ matrix.rid }}.tar.gz
+            ${{ env.STAGE_DIR }}/TimeGrapher-${{ env.FULL_TAG }}-${{ matrix.rid }}.tar.gz.sha256
           if-no-files-found: error
           retention-days: 7
 
   # ---------------------------------------------------------------------------
-  # Release: gather both builds and publish the GitHub Release with all assets.
+  # Release: gather every build and publish the GitHub Release with all assets.
   # ---------------------------------------------------------------------------
   release:
     name: Publish GitHub Release
@@ -308,8 +330,10 @@ jobs:
         run: |
           set -euo pipefail
           find dist -type f | sort
-          # Fail early if either platform's archive is missing.
+          # Fail early if any target's archive is missing.
           test -f "dist/TimeGrapher-${FULL_TAG}-win-x64.zip"
+          test -f "dist/TimeGrapher-${FULL_TAG}-win-arm64.zip"
+          test -f "dist/TimeGrapher-${FULL_TAG}-linux-x64.tar.gz"
           test -f "dist/TimeGrapher-${FULL_TAG}-linux-arm64.tar.gz"
 
       - name: Create GitHub Release
@@ -321,7 +345,6 @@ jobs:
           generate_release_notes: true
           fail_on_unmatched_files: true
           files: |
-            dist/TimeGrapher-${{ needs.version.outputs.full_tag }}-win-x64.zip
-            dist/TimeGrapher-${{ needs.version.outputs.full_tag }}-win-x64.zip.sha256
-            dist/TimeGrapher-${{ needs.version.outputs.full_tag }}-linux-arm64.tar.gz
-            dist/TimeGrapher-${{ needs.version.outputs.full_tag }}-linux-arm64.tar.gz.sha256
+            dist/*.zip
+            dist/*.tar.gz
+            dist/*.sha256

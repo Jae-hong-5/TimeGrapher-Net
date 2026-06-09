@@ -6,7 +6,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>TimeGrapher.Platform.LinuxAudio</RootNamespace>
     <AssemblyName>TimeGrapher.Platform.LinuxAudio</AssemblyName>
-    <RuntimeIdentifiers>linux-arm64</RuntimeIdentifiers>
+    <RuntimeIdentifiers>linux-x64;linux-arm64</RuntimeIdentifiers>
     <RestorePackagesWithLockFile>false</RestorePackagesWithLockFile>
   </PropertyGroup>
 
