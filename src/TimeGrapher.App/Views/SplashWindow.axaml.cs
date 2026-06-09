@@ -12,9 +12,9 @@ namespace TimeGrapher.App.Views;
 
 public partial class SplashWindow : Window
 {
-    private const int FrameCount = 122;
+    private const int FrameCount = 74;
     private const int FramesPerSecond = 30;
-    // Bounded read-ahead: ~11 MB of decoded 640x360 frames instead of ~112 MB for all 122.
+    // Bounded read-ahead: ~11 MB of decoded 640x360 frames instead of ~65 MB for all 74.
     private const int DecodeAheadFrames = 12;
     private static readonly TimeSpan FrameInterval = TimeSpan.FromSeconds(1.0 / FramesPerSecond);
     // Tick faster than the frame rate: Windows quantizes dispatcher timers up to the

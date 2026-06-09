@@ -27,6 +27,9 @@ coverage.*
 *.snupkg
 packages/
 
+# Regenerable splash intermediate (the 2x-speed clip; intro.mp4 is the tracked source)
+src/TimeGrapher.App/Assets/Splash/Source/intro_2x.mp4
+
 # Logs and local OS files
 *.log
 *.tmp
