@@ -1,0 +1,324 @@
+name: Release
+
+# Build self-contained release archives for both target platforms
+# (Windows win-x64 and Raspberry Pi 5 linux-arm64) and attach them to a GitHub Release.
+#
+# Triggers on a pushed 'v*' tag (e.g. v0.1.0, v1.0.0-beta.1), or manually via
+# workflow_dispatch with a 'tag' input. Cut a release with:
+#     git tag v0.1.0 && git push origin v0.1.0
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to cut by hand (e.g. v0.1.0 or v1.0.0-beta.1). Required for manual runs.'
+        required: true
+        type: string
+
+# Only what is needed to create a Release and upload assets.
+permissions:
+  contents: write
+
+# Cancel superseded runs for the same tag. Normalize both sides to the bare
+# tag (ref_name yields 'v1.2.3', matching the manual input) so a tag-push run
+# and a manual run for the same version share one group.
+concurrency:
+  group: release-${{ github.event.inputs.tag || github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Resolve the version metadata once so every downstream job agrees on it.
+  #   - full_tag    : the full tag, prerelease suffix kept (e.g. v1.2.3-beta.1) -> names
+  #   - version     : numeric-only semver core (e.g. 1.2.3)                     -> /p:Version
+  #   - prerelease  : 'true' when the tag contains '-'
+  # ---------------------------------------------------------------------------
+  version:
+    name: Resolve version
+    runs-on: ubuntu-latest
+    outputs:
+      full_tag: ${{ steps.derive.outputs.full_tag }}
+      version: ${{ steps.derive.outputs.version }}
+      prerelease: ${{ steps.derive.outputs.prerelease }}
+    steps:
+      - name: Derive version from tag / manual input
+        id: derive
+        shell: bash
+        # Pass the untrusted input via env (never interpolate ${{ }} into the
+        # script body) to avoid shell injection from a crafted tag/input.
+        env:
+          INPUT_TAG: ${{ github.event.inputs.tag }}
+        run: |
+          set -euo pipefail
+          # Prefer the manual workflow_dispatch input; otherwise the pushed tag.
+          if [ -n "$INPUT_TAG" ]; then
+            RAW="$INPUT_TAG"
+          else
+            RAW="${GITHUB_REF#refs/tags/}"
+          fi
+          if [ -z "$RAW" ] || [ "$RAW" = "$GITHUB_REF" ]; then
+            echo "::error::No tag could be resolved. Push a 'v*' tag or supply the 'tag' input on a manual run."
+            exit 1
+          fi
+          # Restrict to a safe release-tag charset so neither the names nor the
+          # derived version can carry shell metacharacters downstream.
+          if ! printf '%s' "$RAW" | grep -Eq '^v?[0-9A-Za-z.+-]+$'; then
+            echo "::error::Tag '$RAW' contains unexpected characters; expected something like v1.2.3 or v1.0.0-beta.1."
+            exit 1
+          fi
+          # Normalize to exactly one leading 'v' for the full tag used in names/zips.
+          FULL_TAG="v${RAW#v}"
+          # Numeric-only semver core for /p:Version: drop 'v', then any '-prerelease'/'+build' suffix.
+          CORE="${RAW#v}"
+          CORE="${CORE%%-*}"
+          CORE="${CORE%%+*}"
+          if ! printf '%s' "$CORE" | grep -Eq '^[0-9]+(\.[0-9]+){1,3}$'; then
+            echo "::error::Derived version core '$CORE' is not numeric (from tag '$RAW')."
+            exit 1
+          fi
+          # Prerelease when the original tag carries a '-' suffix.
+          case "$RAW" in
+            *-*) PRERELEASE=true ;;
+            *)   PRERELEASE=false ;;
+          esac
+          {
+            echo "full_tag=$FULL_TAG"
+            echo "version=$CORE"
+            echo "prerelease=$PRERELEASE"
+          } >> "$GITHUB_OUTPUT"
+          echo "Resolved tag=$FULL_TAG version=$CORE prerelease=$PRERELEASE"
+
+  # ---------------------------------------------------------------------------
+  # Windows build: publish self-contained win-x64, smoke-test it, zip + checksum.
+  # ---------------------------------------------------------------------------
+  build-windows:
+    name: Build win-x64
+    needs: version
+    runs-on: windows-latest
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+      FULL_TAG: ${{ needs.version.outputs.full_tag }}
+      PUBLISH_DIR: artifacts/publish/win-x64
+      STAGE_DIR: artifacts/stage
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+
+      - name: Restore (locked)
+        shell: pwsh
+        run: dotnet restore src/TimeGrapher.App/TimeGrapher.App.csproj --locked-mode
+
+      - name: Publish self-contained win-x64
+        shell: pwsh
+        run: >
+          dotnet publish src/TimeGrapher.App/TimeGrapher.App.csproj
+          -c Release
+          -r win-x64
+          --self-contained true
+          --no-restore
+          /p:RestoreLockedMode=false
+          /p:PublishTrimmed=false
+          /p:PublishSingleFile=false
+          /p:Version=$env:VERSION
+          -o $env:PUBLISH_DIR
+
+      - name: Verify publish payload
+        shell: pwsh
+        run: |
+          $out = $env:PUBLISH_DIR
+          $required = @(
+            "TimeGrapher.App.exe",
+            "TimeGrapher.App.dll",
+            "TimeGrapher.App.runtimeconfig.json",
+            "TimeGrapher.Core.dll",
+            "TimeGrapher.Platform.WindowsAudio.dll"
+          )
+          foreach ($name in $required) {
+            if (-not (Test-Path (Join-Path $out $name))) {
+              throw "Missing win-x64 publish artifact: $name"
+            }
+          }
+          if (Test-Path (Join-Path $out "TimeGrapher.Platform.LinuxAudio.dll")) {
+            throw "Windows publish unexpectedly contains LinuxAudio"
+          }
+
+      - name: Smoke test published app
+        shell: pwsh
+        run: |
+          # TimeGrapher.App is a WinExe (GUI subsystem): the PowerShell call operator
+          # neither waits nor surfaces $LASTEXITCODE, so use Start-Process -Wait -PassThru.
+          $exe = Join-Path $env:PUBLISH_DIR "TimeGrapher.App.exe"
+          $smokeOut = Join-Path $env:RUNNER_TEMP "smoke-out.txt"
+          $smokeErr = Join-Path $env:RUNNER_TEMP "smoke-err.txt"
+          $smoke = Start-Process -FilePath $exe -ArgumentList "--smoke" -NoNewWindow -Wait -PassThru `
+            -RedirectStandardOutput $smokeOut -RedirectStandardError $smokeErr
+          Get-Content $smokeOut, $smokeErr -ErrorAction SilentlyContinue
+          if ($smoke.ExitCode -ne 0) {
+            throw "Published app smoke check failed with exit code $($smoke.ExitCode)"
+          }
+
+      - name: Package zip + checksum
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path $env:STAGE_DIR | Out-Null
+          $zipName = "TimeGrapher-$env:FULL_TAG-win-x64.zip"
+          $zipPath = Join-Path $env:STAGE_DIR $zipName
+          # Archive the publish folder CONTENTS so the zip root holds the binary directly.
+          Compress-Archive -Path (Join-Path $env:PUBLISH_DIR '*') -DestinationPath $zipPath -Force
+          $hash = (Get-FileHash -Algorithm SHA256 -Path $zipPath).Hash.ToLower()
+          # "<sha256>  <filename>" — the two-space format `sha256sum -c` understands.
+          "$hash  $zipName" | Set-Content -Encoding ascii (Join-Path $env:STAGE_DIR "$zipName.sha256")
+          Get-ChildItem $env:STAGE_DIR
+
+      - name: Upload win-x64 artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-win-x64
+          path: |
+            ${{ env.STAGE_DIR }}/TimeGrapher-${{ env.FULL_TAG }}-win-x64.zip
+            ${{ env.STAGE_DIR }}/TimeGrapher-${{ env.FULL_TAG }}-win-x64.zip.sha256
+          if-no-files-found: error
+          retention-days: 7
+
+  # ---------------------------------------------------------------------------
+  # Linux build: cross-publish self-contained linux-arm64 (never executed on the
+  # x64 runner), bundle desktop-integration files, tar.gz (+x preserved) + checksum.
+  # ---------------------------------------------------------------------------
+  build-linux:
+    name: Build linux-arm64
+    needs: version
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+      FULL_TAG: ${{ needs.version.outputs.full_tag }}
+      PUBLISH_DIR: artifacts/publish/linux-arm64
+      STAGE_DIR: artifacts/stage
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+
+      - name: Restore (locked)
+        shell: bash
+        run: dotnet restore src/TimeGrapher.App/TimeGrapher.App.csproj --locked-mode
+
+      - name: Cross-publish self-contained linux-arm64
+        shell: bash
+        run: |
+          dotnet publish src/TimeGrapher.App/TimeGrapher.App.csproj \
+            -c Release \
+            -r linux-arm64 \
+            --self-contained true \
+            --no-restore \
+            /p:RestoreLockedMode=false \
+            /p:PublishTrimmed=false \
+            /p:PublishSingleFile=false \
+            /p:Version="$VERSION" \
+            -o "$PUBLISH_DIR"
+
+      - name: Verify publish payload
+        shell: bash
+        run: |
+          set -euo pipefail
+          required=(
+            "TimeGrapher.App"
+            "TimeGrapher.App.dll"
+            "TimeGrapher.App.runtimeconfig.json"
+            "TimeGrapher.Core.dll"
+            "TimeGrapher.Platform.LinuxAudio.dll"
+          )
+          for name in "${required[@]}"; do
+            if [ ! -f "$PUBLISH_DIR/$name" ]; then
+              echo "::error::Missing linux-arm64 publish artifact: $name"
+              exit 1
+            fi
+          done
+          if [ -f "$PUBLISH_DIR/TimeGrapher.Platform.WindowsAudio.dll" ]; then
+            echo "::error::Linux publish unexpectedly contains WindowsAudio"
+            exit 1
+          fi
+          # ScottPlot renders via SkiaSharp; warn (don't fail) if the arm64 native blob is absent.
+          if [ ! -f "$PUBLISH_DIR/libSkiaSharp.so" ]; then
+            echo "::warning::libSkiaSharp.so not found in publish output; ScottPlot rendering may fail on the Pi."
+          fi
+
+      - name: Bundle desktop-integration files
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Keep the exact .desktop filename; ship the icon and README alongside the binary.
+          cp deploy/linux/TimeGrapher.App.desktop "$PUBLISH_DIR/TimeGrapher.App.desktop"
+          cp deploy/linux/README.md "$PUBLISH_DIR/README.md"
+          cp src/TimeGrapher.App/Assets/App/AppIcon-256.png "$PUBLISH_DIR/AppIcon-256.png"
+
+      - name: Package tar.gz + checksum
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$STAGE_DIR"
+          # tar.gz (not zip) so the ELF launcher keeps its +x bit on extraction.
+          chmod +x "$PUBLISH_DIR/TimeGrapher.App"
+          tarName="TimeGrapher-${FULL_TAG}-linux-arm64.tar.gz"
+          tar -C "$PUBLISH_DIR" -czf "$STAGE_DIR/$tarName" .
+          ( cd "$STAGE_DIR" && sha256sum "$tarName" > "$tarName.sha256" )
+          ls -l "$STAGE_DIR"
+
+      - name: Upload linux-arm64 artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-linux-arm64
+          path: |
+            ${{ env.STAGE_DIR }}/TimeGrapher-${{ env.FULL_TAG }}-linux-arm64.tar.gz
+            ${{ env.STAGE_DIR }}/TimeGrapher-${{ env.FULL_TAG }}-linux-arm64.tar.gz.sha256
+          if-no-files-found: error
+          retention-days: 7
+
+  # ---------------------------------------------------------------------------
+  # Release: gather both builds and publish the GitHub Release with all assets.
+  # ---------------------------------------------------------------------------
+  release:
+    name: Publish GitHub Release
+    needs: [version, build-windows, build-linux]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v8
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: List collected assets
+        shell: bash
+        env:
+          FULL_TAG: ${{ needs.version.outputs.full_tag }}
+        run: |
+          set -euo pipefail
+          find dist -type f | sort
+          # Fail early if either platform's archive is missing.
+          test -f "dist/TimeGrapher-${FULL_TAG}-win-x64.zip"
+          test -f "dist/TimeGrapher-${FULL_TAG}-linux-arm64.tar.gz"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ needs.version.outputs.full_tag }}
+          name: ${{ needs.version.outputs.full_tag }}
+          prerelease: ${{ needs.version.outputs.prerelease == 'true' }}
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          files: |
+            dist/TimeGrapher-${{ needs.version.outputs.full_tag }}-win-x64.zip
+            dist/TimeGrapher-${{ needs.version.outputs.full_tag }}-win-x64.zip.sha256
+            dist/TimeGrapher-${{ needs.version.outputs.full_tag }}-linux-arm64.tar.gz
+            dist/TimeGrapher-${{ needs.version.outputs.full_tag }}-linux-arm64.tar.gz.sha256
