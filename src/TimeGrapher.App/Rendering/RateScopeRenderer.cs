@@ -20,18 +20,15 @@ internal sealed class RateScopeRenderer
     private readonly List<double>[] _rateX;
     private readonly List<double>[] _rateY;
 
-    private sealed class TrackedLine
-    {
-        public LinePlot Plot = null!;
-    }
-
-    private sealed class TrackedText
-    {
-        public Text Plot = null!;
-    }
-
-    private readonly List<TrackedLine> _scopeLines = new();
-    private readonly List<TrackedText> _scopeTexts = new();
+    // Scope event markers are pooled: a render tick repositions the existing
+    // LinePlot/Text plottables in place and hides the surplus instead of
+    // removing and re-allocating the whole 2 s marker window (~100+ plottables)
+    // at up to 30 Hz on the UI thread. Hidden plottables are excluded from
+    // ScottPlot's autoscale, so leftovers cannot distort the Y fit.
+    private readonly List<LinePlot> _scopeLinePool = new();
+    private readonly List<Text> _scopeTextPool = new();
+    private int _scopeLinesUsed;
+    private int _scopeTextsUsed;
     private readonly List<Scatter> _scopePlots = new();
     private readonly List<Scatter> _ratePlots = new();
     private PlotThemePalette _theme = PlotThemePalette.Current;
@@ -84,6 +81,7 @@ internal sealed class RateScopeRenderer
         scope.Axes.SetLimitsY(0, 0.1);
         HideXTickLabels(scope);
         ClearSeriesData(_scopeX, _scopeY);
+        DropScopeMarkerPool();
         AddScopePlottables();
         scope.ShowLegend();
 
@@ -112,7 +110,7 @@ internal sealed class RateScopeRenderer
         scope.Clear();
         ApplyPlotTheme(scope);
         ClearSeriesData(_scopeX, _scopeY);
-        ClearScopeMarkers();
+        DropScopeMarkerPool();
         AddScopePlottables();
         _scopePlot.Refresh();
 
@@ -138,8 +136,7 @@ internal sealed class RateScopeRenderer
 
         if (scopeUpdated)
         {
-            ClearScopeMarkers();
-            AddScopeMarkers(frame);
+            UpdateScopeMarkers(frame);
             if (_scopeFollowLive)
             {
                 double width = (double)context.SampleRate / Math.Max(1, context.ScopeScale);
@@ -319,24 +316,20 @@ internal sealed class RateScopeRenderer
         plot.Axes.Bottom.TickLabelStyle.IsVisible = false;
     }
 
-    private void ClearScopeMarkers()
+    /// <summary>Pool cleanup for paths that already detached everything via Plot.Clear().</summary>
+    private void DropScopeMarkerPool()
     {
-        Plot scope = _scopePlot.Plot;
-        foreach (TrackedLine line in _scopeLines)
-        {
-            scope.Remove(line.Plot);
-        }
-        _scopeLines.Clear();
-
-        foreach (TrackedText text in _scopeTexts)
-        {
-            scope.Remove(text.Plot);
-        }
-        _scopeTexts.Clear();
+        _scopeLinePool.Clear();
+        _scopeTextPool.Clear();
+        _scopeLinesUsed = 0;
+        _scopeTextsUsed = 0;
     }
 
-    private void AddScopeMarkers(AnalysisFrame frame)
+    private void UpdateScopeMarkers(AnalysisFrame frame)
     {
+        _scopeLinesUsed = 0;
+        _scopeTextsUsed = 0;
+
         foreach (ScopeVerticalMarker marker in frame.VerticalMarkers)
         {
             AddVerticalMarker(marker.X, marker.Height, marker.Color);
@@ -358,26 +351,66 @@ internal sealed class RateScopeRenderer
         {
             AddText(marker.X, marker.Height, marker.Text, marker.Color, marker.Alignment);
         }
+
+        for (int i = _scopeLinesUsed; i < _scopeLinePool.Count; i++)
+        {
+            _scopeLinePool[i].IsVisible = false;
+        }
+        for (int i = _scopeTextsUsed; i < _scopeTextPool.Count; i++)
+        {
+            _scopeTextPool[i].IsVisible = false;
+        }
+    }
+
+    private LinePlot AcquireLine()
+    {
+        if (_scopeLinesUsed < _scopeLinePool.Count)
+        {
+            LinePlot pooled = _scopeLinePool[_scopeLinesUsed++];
+            pooled.IsVisible = true;
+            return pooled;
+        }
+
+        LinePlot created = _scopePlot.Plot.Add.Line(0.0, 0.0, 0.0, 0.0);
+        created.MarkerStyle.IsVisible = false;
+        _scopeLinePool.Add(created);
+        _scopeLinesUsed++;
+        return created;
+    }
+
+    private Text AcquireText()
+    {
+        if (_scopeTextsUsed < _scopeTextPool.Count)
+        {
+            Text pooled = _scopeTextPool[_scopeTextsUsed++];
+            pooled.IsVisible = true;
+            return pooled;
+        }
+
+        Text created = _scopePlot.Plot.Add.Text("", 0.0, 0.0);
+        created.LabelFontName = _textFontFamily;
+        created.LabelFontSize = 10;
+        _scopeTextPool.Add(created);
+        _scopeTextsUsed++;
+        return created;
     }
 
     private void AddVerticalMarker(double x, double height, uint color)
     {
-        LinePlot line = _scopePlot.Plot.Add.Line(x, 0.0, x, height);
+        LinePlot line = AcquireLine();
+        line.Line = new CoordinateLine(x, 0.0, x, height);
         line.LineColor = Color.FromARGB(ThemeColor(color));
         line.LineWidth = 2;
         line.LinePattern = LinePattern.Dashed;
-        line.MarkerStyle.IsVisible = false;
-        _scopeLines.Add(new TrackedLine { Plot = line });
     }
 
     private void AddText(double x, double height, string text, uint color, MarkerTextAlignment alignment)
     {
-        Text label = _scopePlot.Plot.Add.Text(text, x, height);
+        Text label = AcquireText();
+        label.LabelText = text;
+        label.Location = new Coordinates(x, height);
         label.LabelFontColor = Color.FromARGB(ThemeColor(color));
-        label.LabelFontName = _textFontFamily;
-        label.LabelFontSize = 10;
         label.Alignment = MapAlignment(alignment);
-        _scopeTexts.Add(new TrackedText { Plot = label });
     }
 
     private static Alignment MapAlignment(MarkerTextAlignment alignment) => alignment switch
@@ -391,29 +424,26 @@ internal sealed class RateScopeRenderer
     {
         Color c = Color.FromARGB(ThemeColor(color));
 
-        LinePlot left = _scopePlot.Plot.Add.Line(xLeft - length, height, xLeft, height);
+        LinePlot left = AcquireLine();
+        left.Line = new CoordinateLine(xLeft - length, height, xLeft, height);
         left.LineColor = c;
         left.LineWidth = 1;
         left.LinePattern = LinePattern.Solid;
-        left.MarkerStyle.IsVisible = false;
-        _scopeLines.Add(new TrackedLine { Plot = left });
 
-        LinePlot right = _scopePlot.Plot.Add.Line(xRight, height, xRight + length, height);
+        LinePlot right = AcquireLine();
+        right.Line = new CoordinateLine(xRight, height, xRight + length, height);
         right.LineColor = c;
         right.LineWidth = 1;
         right.LinePattern = LinePattern.Solid;
-        right.MarkerStyle.IsVisible = false;
-        _scopeLines.Add(new TrackedLine { Plot = right });
     }
 
     private void AddHorizontalMarkerOutward(double xLeft, double xRight, double height, uint color)
     {
-        LinePlot line = _scopePlot.Plot.Add.Line(xLeft, height, xRight, height);
+        LinePlot line = AcquireLine();
+        line.Line = new CoordinateLine(xLeft, height, xRight, height);
         line.LineColor = Color.FromARGB(ThemeColor(color));
         line.LineWidth = 1;
         line.LinePattern = LinePattern.Solid;
-        line.MarkerStyle.IsVisible = false;
-        _scopeLines.Add(new TrackedLine { Plot = line });
     }
 
     private uint ThemeColor(uint sourceColor) => sourceColor switch
