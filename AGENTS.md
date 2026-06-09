@@ -11,6 +11,7 @@
 - For any code change or implementation request, always keep the change **minimal** within the required scope.
 - Do not add **exception handling or fallback logic** that was not explicitly requested.
 - Do not perform **refactoring for structural or performance improvement** that was not explicitly requested.
+- Even if you spot what looks like an obvious bug, error, or mistake outside the requested scope, **do not fix it on your own — notify the user** and let them decide.
 
 ## Commits
 
