@@ -10,6 +10,14 @@
     <ApplicationIcon>Assets\App\AppIcon.ico</ApplicationIcon>
     <AvaloniaUseCompiledBindingsByDefault>false</AvaloniaUseCompiledBindingsByDefault>
     <RuntimeIdentifiers>win-x64;linux-arm64</RuntimeIdentifiers>
+    <!--
+      The app is culture-invariant by design: every numeric format/parse uses
+      CultureInfo.InvariantCulture and every string comparison is Ordinal, so there
+      is no dependency on locale formatting/sorting. Running in invariant mode drops
+      the system ICU (libicu) runtime dependency on Linux/Raspberry Pi and guarantees
+      identical behavior on any-locale machines.
+    -->
+    <InvariantGlobalization>true</InvariantGlobalization>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(RuntimeIdentifier)' == ''">
