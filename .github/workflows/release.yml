@@ -279,8 +279,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # Keep the exact .desktop filename; ship the icon, both-language READMEs, and installer.
-          cp deploy/linux/TimeGrapher.App.desktop "$PUBLISH_DIR/TimeGrapher.App.desktop"
+          # Ship the icon, both-language READMEs, and installer. No .desktop file is
+          # bundled: install.sh generates the entry with absolute paths for the actual
+          # install location (a committed copy would carry hardcoded foreign paths).
           cp deploy/linux/README.md "$PUBLISH_DIR/README.md"
           cp deploy/linux/README.ko.md "$PUBLISH_DIR/README.ko.md"
           cp src/TimeGrapher.App/Assets/App/AppIcon-256.png "$PUBLISH_DIR/AppIcon-256.png"
