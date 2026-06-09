@@ -51,6 +51,36 @@ public sealed class RollingAverageTests
     }
 
     [Fact]
+    public void Add_KeepsExactWindowAcrossManyWraps()
+    {
+        var avg = new RollingAverage(3);
+        double last = 0.0;
+        for (int i = 1; i <= 100; ++i)
+        {
+            last = avg.Add(i);
+        }
+
+        Assert.Equal(3, avg.CurrentSize());
+        Assert.Equal(99.0, last, 10); // {98,99,100}
+        Assert.Equal(99.0, avg.GetAverage(), 10);
+    }
+
+    [Fact]
+    public void Resize_GrowingKeepsExistingWindowContents()
+    {
+        var avg = new RollingAverage(2);
+        avg.Add(1.0);
+        avg.Add(2.0);
+        avg.Add(3.0); // window {2,3}
+
+        avg.Resize(4);
+        avg.Add(4.0); // window {2,3,4}
+
+        Assert.Equal(3, avg.CurrentSize());
+        Assert.Equal(3.0, avg.GetAverage(), 10);
+    }
+
+    [Fact]
     public void Reset_ClearsWindowAndSum()
     {
         var avg = new RollingAverage(3);

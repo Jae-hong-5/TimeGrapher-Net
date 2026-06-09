@@ -72,6 +72,12 @@ internal sealed class TgDetectorCore
 
     /* ---- reference peak: median of last N accepted burst peaks ---- */
     public readonly double[] PeakHistory = new double[TG_PEAK_HISTORY_N];
+
+    /* Sort scratch for the median / 75th-percentile caches. The detector is
+     * driven by a single analysis thread and the percentile cache refreshes once
+     * per ~1 ms of silence, so reusing these keeps that path allocation-free. */
+    private readonly double[] _medianSortScratch = new double[TG_PEAK_HISTORY_N];
+    private readonly double[] _noiseSortScratch = new double[TG_NOISE_HISTORY_N];
     public int PeakHistoryCount;
     public int PeakHistoryHead;
     public double MedianPeakCache;
@@ -431,7 +437,7 @@ internal sealed class TgDetectorCore
     {
         int n = PeakHistoryCount;
         if (n < 1) { MedianPeakCache = 0.0; return; }
-        double[] tmp = new double[TG_PEAK_HISTORY_N];
+        double[] tmp = _medianSortScratch;
         for (int i = 0; i < n; ++i) tmp[i] = PeakHistory[i];
         InsertionSort(tmp, n);
         if ((n & 1) != 0)
@@ -506,7 +512,7 @@ internal sealed class TgDetectorCore
     {
         int n = NoiseHistoryCount;
         if (n < 1) { NoisePercentileCache = 0.0; return; }
-        double[] tmp = new double[TG_NOISE_HISTORY_N];
+        double[] tmp = _noiseSortScratch;
         for (int i = 0; i < n; ++i) tmp[i] = NoiseHistory[i];
         InsertionSort(tmp, n);
         /* 75th percentile index */
