@@ -94,6 +94,72 @@ public sealed class BeatMetricsHistoryTests
     }
 
     [Fact]
+    public void SnapshotCarriesRunningStatsForRateAndAmplitude()
+    {
+        var history = new BeatMetricsHistory();
+        history.Record(BeatUpdate(1, 0.125, rateSPerDay: 4.0));
+        history.Record(BeatUpdate(2, 0.250, rateSPerDay: 8.0));
+        history.Record(AmplitudeUpdate(0.300, pairDeg: 280.0));
+        history.Record(AmplitudeUpdate(0.500, pairDeg: 290.0));
+
+        BeatMetricsHistorySnapshot? snapshot = history.CurrentSnapshot();
+
+        StatsSummary rate = snapshot!.RateStats;
+        Assert.True(rate.Valid);
+        Assert.Equal(4.0, rate.Min);
+        Assert.Equal(8.0, rate.Max);
+        Assert.Equal(6.0, rate.Mean, 12);
+        Assert.Equal(2.0, rate.Sigma, 12); // population sigma of {4, 8}
+        Assert.Equal(2, rate.Count);
+
+        StatsSummary amplitude = snapshot.AmplitudeStats;
+        Assert.True(amplitude.Valid);
+        Assert.Equal(280.0, amplitude.Min);
+        Assert.Equal(290.0, amplitude.Max);
+        Assert.Equal(285.0, amplitude.Mean, 12);
+        Assert.Equal(5.0, amplitude.Sigma, 12);
+        Assert.Equal(2, amplitude.Count);
+    }
+
+    [Fact]
+    public void RunningStatsAreInvalidWithoutSamplesAndClearOnReset()
+    {
+        var history = new BeatMetricsHistory();
+        history.Record(BeatUpdate(1, 0.125, rateSPerDay: 5.0));
+
+        BeatMetricsHistorySnapshot? snapshot = history.CurrentSnapshot();
+        Assert.True(snapshot!.RateStats.Valid);
+        Assert.False(snapshot.AmplitudeStats.Valid); // no amplitude pair recorded yet
+
+        history.Reset();
+        history.Record(BeatUpdate(2, 0.250, rateSPerDay: 7.0));
+
+        StatsSummary restarted = history.CurrentSnapshot()!.RateStats;
+        Assert.Equal(1, restarted.Count); // pre-reset sample is gone
+        Assert.Equal(7.0, restarted.Min);
+        Assert.Equal(7.0, restarted.Max);
+    }
+
+    [Fact]
+    public void RunningStatsStayExactWhileSeriesDecimate()
+    {
+        // Capacity 4 forces the plotted series to coarsen; the stats must keep
+        // counting every recorded beat regardless.
+        var history = new BeatMetricsHistory(seriesCapacity: 4);
+        for (int i = 0; i < 100; i++)
+        {
+            history.Record(BeatUpdate((ulong)(i + 1), i * 0.125, rateSPerDay: i));
+        }
+
+        BeatMetricsHistorySnapshot? snapshot = history.CurrentSnapshot();
+        Assert.InRange(snapshot!.Rate.Y.Count, 1, 4);
+        Assert.Equal(100, snapshot.RateStats.Count);
+        Assert.Equal(0.0, snapshot.RateStats.Min);
+        Assert.Equal(99.0, snapshot.RateStats.Max);
+        Assert.Equal(49.5, snapshot.RateStats.Mean, 12);
+    }
+
+    [Fact]
     public void SeriesStayBoundedOverLongRuns()
     {
         var history = new BeatMetricsHistory(seriesCapacity: 64);

@@ -19,6 +19,11 @@ public sealed class BeatMetricsHistory
     private readonly DecimatingSeries _amplitude;
     private readonly DecimatingSeries _beatError;
 
+    // Vario stability statistics: fed per beat (before decimation), so min/max/
+    // mean/sigma stay exact however coarse the plotted series become.
+    private readonly RunningStats _rateStats = new();
+    private readonly RunningStats _amplitudeStats = new();
+
     private DerivedTimingMeasures _derived;
     private bool _rateValid;
     private double _rateSPerDay;
@@ -50,6 +55,7 @@ public sealed class BeatMetricsHistory
             if (sample.RateValid)
             {
                 _rate.Add(sample.TimeS, sample.RateSPerDay);
+                _rateStats.Add(sample.RateSPerDay);
                 _rateValid = true;
                 _rateSPerDay = sample.RateSPerDay;
             }
@@ -68,6 +74,7 @@ public sealed class BeatMetricsHistory
         {
             AmplitudeSample sample = update.AmplitudeSample;
             _amplitude.Add(sample.TimeS, sample.PairAverageDeg);
+            _amplitudeStats.Add(sample.PairAverageDeg);
             _amplitudeValid = true;
             _amplitudeDeg = sample.PairAverageDeg;
             _latestTimeS = Math.Max(_latestTimeS, sample.TimeS);
@@ -86,6 +93,8 @@ public sealed class BeatMetricsHistory
         _rate.Reset();
         _amplitude.Reset();
         _beatError.Reset();
+        _rateStats.Reset();
+        _amplitudeStats.Reset();
         _derived = default;
         _rateValid = false;
         _amplitudeValid = false;
@@ -132,11 +141,16 @@ public sealed class BeatMetricsHistory
             BeatErrorValid = _beatErrorValid,
             BeatErrorSignedMs = _beatErrorSignedMs,
             LatestTimeS = _latestTimeS,
+            RateStats = Summarize(_rateStats),
+            AmplitudeStats = Summarize(_amplitudeStats),
         };
         _lastSnapshotTimeS = _latestTimeS;
         _dirty = false;
         return _snapshot;
     }
+
+    private static StatsSummary Summarize(RunningStats stats) => new(
+        stats.Count > 0, stats.Min, stats.Max, stats.Mean, stats.Sigma, stats.Count);
 
     private static MetricsHistorySeries BuildSeries(DecimatingSeries source)
     {

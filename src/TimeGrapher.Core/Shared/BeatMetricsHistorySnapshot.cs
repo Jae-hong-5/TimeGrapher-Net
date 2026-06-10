@@ -16,6 +16,21 @@ public sealed class MetricsHistorySeries
 }
 
 /// <summary>
+/// Running min/max/mean/population-sigma summary of one measure since
+/// measurement start (built by <see cref="TimeGrapher.Core.Metrics.RunningStats"/>).
+/// Valid is false until the first sample; the numeric fields are 0 while invalid.
+/// Fed per beat in Core, so the statistics stay exact even though the plotted
+/// series decimate, and survive latest-wins frame coalescing.
+/// </summary>
+public readonly record struct StatsSummary(
+    bool Valid,
+    double Min,
+    double Max,
+    double Mean,
+    double Sigma,
+    long Count);
+
+/// <summary>
 /// Cumulative beat-metrics history snapshot carried by every frame. Because the
 /// render scheduler coalesces frames latest-wins, per-beat data must accumulate in
 /// Core and travel as a cumulative snapshot: dropping intermediate frames then
@@ -49,4 +64,10 @@ public sealed class BeatMetricsHistorySnapshot
 
     /// <summary>Stream time (s) of the newest recorded beat.</summary>
     public double LatestTimeS { get; init; }
+
+    /// <summary>Running rate (s/d) stability statistics since start (Vario display).</summary>
+    public StatsSummary RateStats { get; init; }
+
+    /// <summary>Running amplitude (deg, tic/toc pair averages) stability statistics since start.</summary>
+    public StatsSummary AmplitudeStats { get; init; }
 }
