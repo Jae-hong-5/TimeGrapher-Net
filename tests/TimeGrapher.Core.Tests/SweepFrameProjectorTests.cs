@@ -88,6 +88,44 @@ public sealed class SweepFrameProjectorTests
     }
 
     [Fact]
+    public void ReLockAtADifferentBphRetunesAndClearsExactlyOnce()
+    {
+        // The other half of the dropout-latch contract: latching must not make
+        // the window over-sticky. Lock at 18000 bph (0.2 s beat, 2x window =
+        // 19200 samples) and paint a pattern.
+        const int window18000 = 19200;
+        var projector = new SweepFrameProjector(SampleRate);
+        projector.Project(Update(
+            ImpulseBlock(window18000, 1.0f, 0), 0,
+            measuredPeriodS: 0.2, detectedBph: 18000));
+        Assert.Equal(1.0, Snapshot(projector).Y[0]);
+
+        // Dropout, then a genuine re-lock at 21600 bph (1/6 s beat, 2x window
+        // = 16000 samples): past the 1% latch tolerance, so the window
+        // re-tunes and the bins clear - once.
+        projector.Project(Update(
+            Array.Empty<float>(), window18000,
+            measuredPeriodS: 0.0, sync: TgSyncStatus.NotSynced, detectedBph: 0));
+        projector.Project(Update(
+            ImpulseBlock(1, 1.0f, 0), window18000,
+            measuredPeriodS: 1.0 / 6.0, detectedBph: 21600));
+
+        const int window21600 = 16000;
+        GraphSeriesFrame relocked = Snapshot(projector);
+        double windowMs = 2000.0 / 6.0;
+        double binWidthMs = windowMs / SweepFrameProjector.SweepBinBudget;
+        Assert.Equal(windowMs - binWidthMs / 2.0, relocked.X[^1], 6); // re-tuned axis
+        Assert.Equal(0.0, relocked.Y[0]);                             // old pattern gone
+        Assert.Equal(1.0, relocked.Y[BinOf(19200 - window21600, window21600)]); // new pattern
+
+        // A further synced pass at the new rate must not clear again: the
+        // accumulating pattern survives (exactly one clear per re-lock).
+        projector.Project(Update(
+            new float[1], 30000UL, measuredPeriodS: 1.0 / 6.0, detectedBph: 21600));
+        Assert.Equal(1.0, Snapshot(projector).Y[BinOf(19200 - window21600, window21600)]);
+    }
+
+    [Fact]
     public void OnPeriodImpulsesStackIntoTheSameBinsAcrossPasses()
     {
         // 2x window = 12000 samples; impulses every beat (6000 samples) over four
