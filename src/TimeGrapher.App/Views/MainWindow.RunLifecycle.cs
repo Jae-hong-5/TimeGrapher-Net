@@ -20,6 +20,7 @@ public partial class MainWindow
         mIsClosing = true;
         mViewModel.PropertyChanged -= mSelectionCoordinator.OnViewModelPropertyChanged;
         mViewModel.PropertyChanged -= OnRunControlPropertyChanged;
+        mViewModel.PropertyChanged -= OnReviewCursorPropertyChanged;
         mRunSessionController.InvalidateRunSession();
         mRunSessionController.StopInputWorker("Input");
         mRunSessionController.StopAnalysisThread();

@@ -155,6 +155,7 @@ public partial class MainWindow : Window
         // Wire events (Qt auto-connected on_* slots + explicit connect()s).
         mViewModel.PropertyChanged += mSelectionCoordinator.OnViewModelPropertyChanged;
         mViewModel.PropertyChanged += OnRunControlPropertyChanged;
+        mViewModel.PropertyChanged += OnReviewCursorPropertyChanged;
         mViewModel.ResetSequenceRequested += OnResetSequenceRequested;
         GraphicsTabWidget.SelectionChanged += OnGraphicsTabSelectionChanged;
 
@@ -276,6 +277,9 @@ public partial class MainWindow : Window
         mGraphFrameRenderer.UpdateResults(frame);
         mFrameRouter.Route(frame, ActiveInfoTabId(), BuildTabRenderContext(frame));
 
+        // Grow the review scrub range to the newest captured reading.
+        mViewModel.UpdateReviewMaximum(frame.MetricsHistory?.LatestTimeS ?? 0.0);
+
         // Display leg of the latency evidence: stamped after the frame rendered.
         long displayTicks = System.Diagnostics.Stopwatch.GetTimestamp();
         mLatencyStats.Observe(frame, droppedFrames, displayTicks);
@@ -303,6 +307,7 @@ public partial class MainWindow : Window
         mRunStatusReporter.Reset();
         mLatencyStats.Reset();
         mViewModel.LatencyText = "";
+        mViewModel.ResetReview();
     }
 
     // --- Event handlers (Qt on_* slots) ---
@@ -333,6 +338,25 @@ public partial class MainWindow : Window
     private void OnResetSequenceRequested()
     {
         mRunSessionController.ResetPositionAggregates();
+    }
+
+    // Review-cursor moves while paused re-render the kept last frame at the new
+    // scrub time (the OnGraphicsTabSelectionChanged re-route): the input workers
+    // are gated and the analysis is drained during pause, so no new frame would
+    // otherwise carry the moved cursor to the active tab.
+    private void OnReviewCursorPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(MainWindowViewModel.ReviewCursorTimeS) ||
+            mViewModel.RunState != RunUiState.Paused)
+        {
+            return;
+        }
+
+        AnalysisFrame? frame = mLastAnalysisFrame;
+        if (frame != null && frame.SessionId == mRunSessionController.AnalysisSessionId)
+        {
+            mFrameRouter.Route(frame, ActiveInfoTabId(), BuildTabRenderContext(frame));
+        }
     }
 
     private void OnGraphicsTabSelectionChanged(object? sender, SelectionChangedEventArgs e)
@@ -391,7 +415,8 @@ public partial class MainWindow : Window
     {
         return new AnalysisTabRenderContext(
             SampleRate: FrameSampleRate(frame),
-            ScopeScale: Math.Max(1, (int)mViewModel.ScopeScale));
+            ScopeScale: Math.Max(1, (int)mViewModel.ScopeScale),
+            ReviewCursorTimeS: mViewModel.ReviewCursorTimeS);
     }
 
     /// <summary>

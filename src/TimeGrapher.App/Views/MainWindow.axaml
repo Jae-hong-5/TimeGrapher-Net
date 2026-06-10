@@ -102,6 +102,45 @@
       </Grid>
     </Border>
 
+    <!-- Pause-and-review bar (above the status bar, only while paused): scrub the
+         review cursor through the captured readings without losing any data.
+         Maximum binds before Value so the slider never coerces the restored
+         cursor against a stale 0..100 default range. -->
+    <Border Name="ReviewBar"
+            DockPanel.Dock="Bottom" Height="32"
+            Background="{DynamicResource SurfaceBgBrush}"
+            BorderBrush="{DynamicResource ChromeBorderBrush}"
+            BorderThickness="0,1,0,0"
+            IsVisible="{Binding IsReviewBarVisible}">
+      <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto" Margin="6,0">
+        <Button Name="ReviewStepBackButton" Grid.Column="0"
+                Content="-1 s" FontSize="11" Padding="8,2"
+                VerticalAlignment="Center" Margin="0,0,4,0"
+                Command="{Binding ReviewStepBackCommand}"
+                ToolTip.Tip="Move the review cursor 1 second back" />
+        <Button Name="ReviewStepForwardButton" Grid.Column="1"
+                Content="+1 s" FontSize="11" Padding="8,2"
+                VerticalAlignment="Center" Margin="0,0,8,0"
+                Command="{Binding ReviewStepForwardCommand}"
+                ToolTip.Tip="Move the review cursor 1 second forward" />
+        <Slider Name="ReviewSlider" Grid.Column="2"
+                VerticalAlignment="Center"
+                Minimum="0"
+                Maximum="{Binding ReviewMaximumS}"
+                Value="{Binding ReviewSliderValueS, Mode=TwoWay}"
+                ToolTip.Tip="Scrub backward/forward through the captured readings" />
+        <Button Name="ReviewLiveButton" Grid.Column="3"
+                Content="LIVE" FontSize="11" Padding="8,2"
+                VerticalAlignment="Center" Margin="8,0,8,0"
+                Command="{Binding ReviewLiveCommand}"
+                ToolTip.Tip="Clear the review cursor (back to the newest reading)" />
+        <TextBlock Name="ReviewReadoutLabel" Grid.Column="4"
+                   VerticalAlignment="Center" MinWidth="130"
+                   Text="{Binding ReviewReadoutText}"
+                   ToolTip.Tip="Review cursor position / latest captured time" />
+      </Grid>
+    </Border>
+
     <Grid ColumnDefinitions="300,Auto,*">
       <ScrollViewer Grid.Column="0"
                     HorizontalScrollBarVisibility="Disabled"
