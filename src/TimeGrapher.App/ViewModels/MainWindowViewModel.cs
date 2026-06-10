@@ -17,12 +17,18 @@ internal enum RunUiState
 
 internal sealed class MainWindowViewModel : INotifyPropertyChanged
 {
+    /// <summary>Review-bar step button increment (stream seconds).</summary>
+    public const double ReviewStepS = 1.0;
+
     private readonly AsyncRelayCommand _startCommand;
     private readonly AsyncRelayCommand _playPauseCommand;
     private readonly RelayCommand _pauseCommand;
     private readonly RelayCommand _stopCommand;
     private readonly RelayCommand _refreshDevicesCommand;
     private readonly RelayCommand _resetSequenceCommand;
+    private readonly RelayCommand _reviewStepBackCommand;
+    private readonly RelayCommand _reviewStepForwardCommand;
+    private readonly RelayCommand _reviewLiveCommand;
     private RunUiState _runState = RunUiState.Stopped;
     private bool _modeAllowsSampleRate = true;
     private bool _modeAllowsGain = true;
@@ -46,6 +52,8 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     private int _sweepMultiple = 2;
     private int _selectedPositionIndex; // 0 = WatchPosition.CH (dial up)
     private bool _sigmaAveraging;
+    private double? _reviewCursorTimeS;
+    private double _reviewMaximumS;
 
     public MainWindowViewModel(
         Func<Task> startAsync,
@@ -68,6 +76,9 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
         _stopCommand = new RelayCommand(stop, () => IsStopEnabled);
         _refreshDevicesCommand = new RelayCommand(refreshDevices, () => AreRunParametersEnabled);
         _resetSequenceCommand = new RelayCommand(() => ResetSequenceRequested?.Invoke());
+        _reviewStepBackCommand = new RelayCommand(() => StepReviewCursor(-ReviewStepS));
+        _reviewStepForwardCommand = new RelayCommand(() => StepReviewCursor(ReviewStepS));
+        _reviewLiveCommand = new RelayCommand(() => ReviewCursorTimeS = null);
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -85,6 +96,9 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     public ICommand StopCommand => _stopCommand;
     public ICommand RefreshDevicesCommand => _refreshDevicesCommand;
     public ICommand ResetSequenceCommand => _resetSequenceCommand;
+    public ICommand ReviewStepBackCommand => _reviewStepBackCommand;
+    public ICommand ReviewStepForwardCommand => _reviewStepForwardCommand;
+    public ICommand ReviewLiveCommand => _reviewLiveCommand;
 
     public ObservableCollection<string> InputDeviceNames { get; } = new();
     public ObservableCollection<string> SampleRateLabels { get; } = new();
@@ -269,6 +283,99 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     /// <summary>Always-visible status-bar indicator of the active test position ("POS CH").</summary>
     public string PositionLabel => "POS " + ((WatchPosition)_selectedPositionIndex).ShortName();
 
+    /// <summary>
+    /// Pause-and-review scrub cursor (stream seconds), the
+    /// AnalysisTabRenderContext.ReviewCursorTimeS contract: null = live (no
+    /// cursor). Values clamp into the captured 0..<see cref="ReviewMaximumS"/>
+    /// range. MainWindow re-renders the kept last frame when this moves while
+    /// paused, so scrubbing inspects the recorded data without touching it.
+    /// </summary>
+    public double? ReviewCursorTimeS
+    {
+        get => _reviewCursorTimeS;
+        set
+        {
+            double? clamped = value is double timeS ? Math.Clamp(timeS, 0.0, _reviewMaximumS) : null;
+            if (SetProperty(ref _reviewCursorTimeS, clamped))
+            {
+                OnPropertyChanged(nameof(ReviewSliderValueS));
+                OnPropertyChanged(nameof(ReviewReadoutText));
+            }
+        }
+    }
+
+    /// <summary>Latest captured stream time (s); the review slider's Maximum.</summary>
+    public double ReviewMaximumS => _reviewMaximumS;
+
+    /// <summary>
+    /// Slider surface of the cursor: live (null cursor) reads as the latest
+    /// captured time. Echo writes of the current effective value are ignored so
+    /// the slider re-applying its value (e.g. when its Maximum binding moves)
+    /// never enters review mode by itself.
+    /// </summary>
+    public double ReviewSliderValueS
+    {
+        get => _reviewCursorTimeS ?? _reviewMaximumS;
+        set
+        {
+            if (value != (_reviewCursorTimeS ?? _reviewMaximumS))
+            {
+                ReviewCursorTimeS = value;
+            }
+        }
+    }
+
+    /// <summary>Review-bar readout: "REVIEW 01:23 / 12:34" while scrubbed, "LIVE 12:34" otherwise.</summary>
+    public string ReviewReadoutText => _reviewCursorTimeS is double timeS
+        ? "REVIEW " + FormatStreamTime(timeS) + " / " + FormatStreamTime(_reviewMaximumS)
+        : "LIVE " + FormatStreamTime(_reviewMaximumS);
+
+    /// <summary>The review bar shows only while paused (pause gates new readings; live data is never lost).</summary>
+    public bool IsReviewBarVisible => _runState == RunUiState.Paused;
+
+    /// <summary>
+    /// Grows the captured review range to the newest rendered stream time.
+    /// Monotonic within a session: late or history-less frames never shrink the
+    /// scrub range; only <see cref="ResetReview"/> (a new session) clears it.
+    /// </summary>
+    public void UpdateReviewMaximum(double latestTimeS)
+    {
+        if (latestTimeS <= _reviewMaximumS)
+        {
+            return;
+        }
+
+        _reviewMaximumS = latestTimeS;
+        OnPropertyChanged(nameof(ReviewMaximumS));
+        OnPropertyChanged(nameof(ReviewSliderValueS));
+        OnPropertyChanged(nameof(ReviewReadoutText));
+    }
+
+    /// <summary>Clears the scrub cursor and captured range for a new measurement session.</summary>
+    public void ResetReview()
+    {
+        ReviewCursorTimeS = null;
+        if (_reviewMaximumS != 0.0)
+        {
+            _reviewMaximumS = 0.0;
+            OnPropertyChanged(nameof(ReviewMaximumS));
+            OnPropertyChanged(nameof(ReviewSliderValueS));
+            OnPropertyChanged(nameof(ReviewReadoutText));
+        }
+    }
+
+    private void StepReviewCursor(double deltaS)
+    {
+        // Stepping from live starts at the newest reading; the setter clamps.
+        ReviewCursorTimeS = (_reviewCursorTimeS ?? _reviewMaximumS) + deltaS;
+    }
+
+    private static string FormatStreamTime(double seconds)
+    {
+        int total = Math.Max(0, (int)seconds);
+        return $"{total / 60:00}:{total % 60:00}";
+    }
+
     public void SetModeAllowsSampleRate(bool value)
     {
         if (_modeAllowsSampleRate == value)
@@ -318,8 +425,10 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
             return;
         }
 
+        bool wasPaused = _runState == RunUiState.Paused;
         _runState = value;
         OnPropertyChanged(nameof(RunState));
+        OnPropertyChanged(nameof(IsReviewBarVisible));
         OnPropertyChanged(nameof(AreRunParametersEnabled));
         OnPropertyChanged(nameof(IsStartEnabled));
         OnPropertyChanged(nameof(IsPauseEnabled));
@@ -338,6 +447,13 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
         _pauseCommand.NotifyCanExecuteChanged();
         _stopCommand.NotifyCanExecuteChanged();
         _refreshDevicesCommand.NotifyCanExecuteChanged();
+
+        // Leaving pause ends review mode: live rendering resumes cursor-free and
+        // a stop must not leak a stale cursor into the next run.
+        if (wasPaused)
+        {
+            ReviewCursorTimeS = null;
+        }
     }
 
     private bool SetProperty<T>(ref T storage, T value, [CallerMemberName] string? propertyName = null)

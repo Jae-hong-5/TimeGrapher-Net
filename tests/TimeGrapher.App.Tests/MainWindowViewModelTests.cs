@@ -236,6 +236,138 @@ public sealed class MainWindowViewModelTests
     }
 
     [Fact]
+    public void ReviewBarShowsOnlyWhilePaused()
+    {
+        var vm = CreateViewModel();
+        var raised = new List<string?>();
+        vm.PropertyChanged += (_, e) => raised.Add(e.PropertyName);
+
+        Assert.False(vm.IsReviewBarVisible);
+
+        vm.SetRunning();
+        Assert.False(vm.IsReviewBarVisible);
+
+        vm.SetPaused();
+        Assert.True(vm.IsReviewBarVisible);
+        Assert.Contains(nameof(MainWindowViewModel.IsReviewBarVisible), raised);
+
+        vm.SetRunning();
+        Assert.False(vm.IsReviewBarVisible);
+    }
+
+    [Fact]
+    public void LeavingPauseClearsTheReviewCursor()
+    {
+        var vm = CreateViewModel();
+        vm.UpdateReviewMaximum(100.0);
+        vm.SetRunning();
+        vm.SetPaused();
+        vm.ReviewCursorTimeS = 42.0;
+
+        vm.SetRunning();
+
+        Assert.Null(vm.ReviewCursorTimeS);
+
+        // Stop from pause must not leak a stale cursor into the next run either.
+        vm.SetPaused();
+        vm.ReviewCursorTimeS = 17.0;
+        vm.SetStopped();
+
+        Assert.Null(vm.ReviewCursorTimeS);
+    }
+
+    [Fact]
+    public void ReviewCursorClampsToTheCapturedRange()
+    {
+        var vm = CreateViewModel();
+        var raised = new List<string?>();
+        vm.UpdateReviewMaximum(60.0);
+        vm.PropertyChanged += (_, e) => raised.Add(e.PropertyName);
+
+        vm.ReviewCursorTimeS = -5.0;
+        Assert.Equal(0.0, vm.ReviewCursorTimeS);
+
+        vm.ReviewCursorTimeS = 120.0;
+        Assert.Equal(60.0, vm.ReviewCursorTimeS);
+
+        Assert.Contains(nameof(MainWindowViewModel.ReviewCursorTimeS), raised);
+        Assert.Contains(nameof(MainWindowViewModel.ReviewSliderValueS), raised);
+        Assert.Contains(nameof(MainWindowViewModel.ReviewReadoutText), raised);
+    }
+
+    [Fact]
+    public void ReviewStepCommandsScrubFromTheLatestReading()
+    {
+        var vm = CreateViewModel();
+        vm.UpdateReviewMaximum(90.0);
+
+        // Live (null cursor): the first step back starts at the newest reading.
+        vm.ReviewStepBackCommand.Execute(null);
+        Assert.Equal(89.0, vm.ReviewCursorTimeS);
+
+        vm.ReviewStepBackCommand.Execute(null);
+        Assert.Equal(88.0, vm.ReviewCursorTimeS);
+
+        vm.ReviewStepForwardCommand.Execute(null);
+        vm.ReviewStepForwardCommand.Execute(null);
+        vm.ReviewStepForwardCommand.Execute(null);
+        Assert.Equal(90.0, vm.ReviewCursorTimeS); // clamped at the captured end
+
+        vm.ReviewLiveCommand.Execute(null);
+        Assert.Null(vm.ReviewCursorTimeS);
+    }
+
+    [Fact]
+    public void ReviewSliderEchoOfTheEffectiveValueStaysLive()
+    {
+        var vm = CreateViewModel();
+        vm.UpdateReviewMaximum(30.0);
+
+        // The slider re-applies its value when its Maximum binding moves; an
+        // echo of the current effective value must not enter review mode.
+        vm.ReviewSliderValueS = 30.0;
+        Assert.Null(vm.ReviewCursorTimeS);
+
+        vm.ReviewSliderValueS = 12.5;
+        Assert.Equal(12.5, vm.ReviewCursorTimeS);
+        Assert.Equal(12.5, vm.ReviewSliderValueS);
+    }
+
+    [Fact]
+    public void ReviewMaximumIsMonotonicAndDrivesTheReadout()
+    {
+        var vm = CreateViewModel();
+
+        Assert.Equal("LIVE 00:00", vm.ReviewReadoutText);
+
+        vm.UpdateReviewMaximum(754.0);
+        Assert.Equal(754.0, vm.ReviewMaximumS);
+        Assert.Equal("LIVE 12:34", vm.ReviewReadoutText);
+
+        // Late or history-less frames never shrink the captured range.
+        vm.UpdateReviewMaximum(0.0);
+        Assert.Equal(754.0, vm.ReviewMaximumS);
+
+        vm.ReviewCursorTimeS = 83.4;
+        Assert.Equal("REVIEW 01:23 / 12:34", vm.ReviewReadoutText);
+    }
+
+    [Fact]
+    public void ResetReviewClearsCursorAndCapturedRange()
+    {
+        var vm = CreateViewModel();
+        vm.UpdateReviewMaximum(120.0);
+        vm.ReviewCursorTimeS = 60.0;
+
+        vm.ResetReview();
+
+        Assert.Null(vm.ReviewCursorTimeS);
+        Assert.Equal(0.0, vm.ReviewMaximumS);
+        Assert.Equal(0.0, vm.ReviewSliderValueS);
+        Assert.Equal("LIVE 00:00", vm.ReviewReadoutText);
+    }
+
+    [Fact]
     public void IsAwaitingBeatSyncRaisesPropertyChanged()
     {
         var vm = CreateViewModel();
