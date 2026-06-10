@@ -31,10 +31,12 @@ internal sealed class EscapementAnalyzerFrameConsumer : IAnalysisFrameConsumer, 
 
     public void ObserveFrame(AnalysisFrame frame)
     {
-        // Segments are cumulative on the frame; nothing to accumulate UI-side.
-        // The repeatability tracker feeds in RenderFrame, gated on the
-        // snapshot version, so inactive frames cost nothing here.
-        _ = frame;
+        // The repeatability tracker must see every routed frame, not just the
+        // ones rendered while this tab is active - otherwise the advertised
+        // last-32-beats window silently dropped every beat that arrived while
+        // another tab was selected. Version-gated, so the cost per frame is a
+        // ulong compare (and a small ring append ~2x per second).
+        _renderer.ObserveSegments(frame);
     }
 
     public void RenderFrame(AnalysisFrame frame, AnalysisTabRenderContext context)

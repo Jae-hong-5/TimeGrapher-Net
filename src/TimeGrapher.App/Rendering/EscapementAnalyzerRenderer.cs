@@ -54,6 +54,7 @@ internal sealed class EscapementAnalyzerRenderer
 
     private PlotThemePalette _theme = PlotThemePalette.Current;
     private ulong _lastVersion;
+    private ulong _lastObservedVersion;
 
     public EscapementAnalyzerRenderer(AvaPlot plot, TextBlock[] valueTexts, string textFontFamily)
     {
@@ -73,6 +74,7 @@ internal sealed class EscapementAnalyzerRenderer
     public void CreateGraphs()
     {
         _lastVersion = 0;
+        _lastObservedVersion = 0;
         _tracker.Reset();
         foreach (TextBlock value in _valueTexts)
         {
@@ -106,6 +108,24 @@ internal sealed class EscapementAnalyzerRenderer
         CreateGraphs();
     }
 
+    /// <summary>
+    /// Feeds the repeatability tracker from every routed frame (the consumer's
+    /// ObserveFrame path), so the advertised last-32-beats window keeps
+    /// accumulating while another tab is active. Version-gated and O(ring) per
+    /// new snapshot (~2/s), so the observe path stays trivial.
+    /// </summary>
+    public void ObserveSegments(AnalysisFrame frame)
+    {
+        BeatSegmentsSnapshot? snapshot = frame.BeatSegments;
+        if (snapshot == null || snapshot.Version == _lastObservedVersion)
+        {
+            return;
+        }
+
+        _lastObservedVersion = snapshot.Version;
+        _tracker.Accumulate(snapshot);
+    }
+
     public void RenderFrame(AnalysisFrame frame, AnalysisTabRenderContext context)
     {
         // Review cursor deliberately not rendered here: this is a single-beat
@@ -121,7 +141,9 @@ internal sealed class EscapementAnalyzerRenderer
         }
 
         _lastVersion = snapshot.Version;
-        _tracker.Accumulate(snapshot);
+        // Catch-up for re-routed frames (tab switch / scrub) whose snapshot the
+        // observe path already consumed - Accumulate is watermark-idempotent.
+        ObserveSegments(frame);
 
         BeatSegment? latest = snapshot.Segments.Count > 0 ? snapshot.Segments[^1] : null;
         double envelopeMax = RenderEnvelope(latest);
