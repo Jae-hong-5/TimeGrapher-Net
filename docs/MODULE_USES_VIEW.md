@@ -26,30 +26,38 @@ flowchart TB
         direction TB
         Avalonia["Avalonia"]
         ScottPlot["ScottPlot.Avalonia"]
+        TmdsDbus["Tmds.DBus.Protocol"]
         NAudio["NAudio"]
-        LinuxAudioStack["PipeWire / ALSA"]
+        LinuxAudioStack["PipeWire / ALSA tools<br/>wpctl · pw-record · arecord"]
         Xunit["xUnit"]
     end
 
     App --> Core
-    App --> WindowsAudio
-    App --> LinuxAudio
+    App -.-> WindowsAudio
+    App -.-> LinuxAudio
     Verify --> Core
     WindowsAudio --> Core
     LinuxAudio --> Core
 
     AppTests --> App
+    AppTests --> Core
     CoreTests --> Core
     LinuxAudioTests --> LinuxAudio
+    LinuxAudioTests --> Core
 
     App --> Avalonia
     App --> ScottPlot
+    App --> TmdsDbus
     WindowsAudio --> NAudio
     LinuxAudio --> LinuxAudioStack
+    AppTests --> Avalonia
+    AppTests --> ScottPlot
     AppTests --> Xunit
     CoreTests --> Xunit
     LinuxAudioTests --> Xunit
 ```
+
+`TimeGrapher.App`의 플랫폼 오디오 `ProjectReference`는 `RuntimeIdentifier` 조건부다. RID가 없을 때는 개발/테스트 빌드를 위해 Windows와 Linux 어댑터가 모두 포함되고, `win-*` 또는 `linux-*` RID publish에서는 해당 플랫폼 어댑터만 포함된다.
 
 ## App internal uses
 
@@ -62,8 +70,8 @@ flowchart TB
         ViewModels["ViewModels<br/>UI state, commands"]
         Services["Services<br/>run, selection, recording, dialogs"]
         Audio["Audio<br/>backend selection, smoke check"]
-        Tabs["Tabs<br/>tab catalog, routing"]
-        Rendering["Rendering<br/>scope/rate, sound print"]
+        Tabs["Tabs<br/>catalog, registry, frame router"]
+        Rendering["Rendering<br/>frame consumers, plots,<br/>readouts, images"]
         Assets["Assets<br/>icons, fonts, splash frames"]
     end
 
@@ -72,6 +80,7 @@ flowchart TB
         CoreAnalysis["Core.Analysis"]
         CoreAudioIo["Core.AudioIo"]
         CoreDetection["Core.Detection"]
+        CoreMetrics["Core.Metrics"]
         CoreShared["Core.Shared"]
         CoreSim["Core.Sim"]
         PlatformAudio["Platform audio backends"]
@@ -89,15 +98,20 @@ flowchart TB
     Views --> CoreDetection
     Views --> CoreShared
     Views --> CoreSim
+    ViewModels --> CoreShared
     Services --> ViewModels
     Services --> CoreAnalysis
     Services --> CoreAudioIo
+    Services --> CoreMetrics
     Services --> CoreShared
     Audio --> CoreShared
     Audio --> PlatformAudio
+    Tabs --> ViewModels
     Tabs --> Rendering
     Tabs --> CoreShared
     Rendering --> Tabs
+    Rendering --> CoreAnalysis
+    Rendering --> CoreMetrics
     Rendering --> CoreShared
     Views --> Assets
 ```
@@ -132,9 +146,11 @@ flowchart TB
 
 | Using module | Used module(s) | Coupling created |
 |---|---|---|
-| `TimeGrapher.App` | `TimeGrapher.Core`, platform audio backends, Avalonia, ScottPlot | UI is coupled to Core contracts/results and to selected platform audio adapters |
+| `TimeGrapher.App` | `TimeGrapher.Core`, RID-selected platform audio backends, Avalonia, ScottPlot, Tmds.DBus.Protocol | UI is coupled to Core contracts/results, desktop UI libraries, and selected platform audio adapters |
 | `TimeGrapher.Verify` | `TimeGrapher.Core` | Console verification shares the same analysis, detection, WAV, and simulator modules as the app |
 | `TimeGrapher.Platform.WindowsAudio` | `TimeGrapher.Core.Shared`, NAudio | Windows input backend is coupled to Core live-audio contracts and NAudio APIs |
-| `TimeGrapher.Platform.LinuxAudio` | `TimeGrapher.Core.Shared`, PipeWire/ALSA environment | Linux input backend is coupled to Core live-audio contracts and Linux audio facilities |
+| `TimeGrapher.Platform.LinuxAudio` | `TimeGrapher.Core.Shared`, `wpctl`, `pw-record`, `arecord` | Linux input backend is coupled to Core live-audio contracts and Linux audio command-line tools |
+| `TimeGrapher.App.Tabs` | `TimeGrapher.App.Rendering`, `TimeGrapher.App.ViewModels`, `TimeGrapher.Core.Shared` | Tab registration owns tab-to-consumer wiring and reads view-model state for position controls |
+| `TimeGrapher.App.Rendering` | `TimeGrapher.App.Tabs`, `TimeGrapher.Core.Analysis`, `TimeGrapher.Core.Metrics`, `TimeGrapher.Core.Shared` | Frame consumers implement tab routing contracts and render Core frame/metric DTOs |
 | `TimeGrapher.Core.Analysis` | `Detection`, `Metrics`, `Imaging`, `AudioIo`, `Shared` | Analysis coordinates the core algorithm modules and is the most coupled Core submodule |
-| `*.Tests` | target runtime modules, xUnit | Tests depend on the modules they validate and on the xUnit test framework |
+| `*.Tests` | target runtime modules, Core DTO namespaces, App UI libraries where control tests construct them, xUnit | Tests depend on the modules they validate, direct contract DTOs used by assertions, and the xUnit test framework |
