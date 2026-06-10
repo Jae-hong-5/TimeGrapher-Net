@@ -70,6 +70,28 @@ public sealed class WatchMetrics
     private double _amplitudeToc = 0.0;
     private bool _amplitudeTicValid = false;
 
+    // Derived timing measures (project plan "Expected Enhancements"): DiffTicTac,
+    // DiffPeriod (short fixed window) and AvgPeriod (since start / last sync reset).
+    private const int DiffPeriodWindowSeconds = 4;
+    private readonly RollingAverage _rollPeriodDelta = new(0);
+    private double _avgPeriodDeltaSumMs = 0.0;
+    private long _avgPeriodDeltaCount = 0;
+    private bool _skipNextPeriodDelta = false;
+    private double _diffTicTacMs = 0.0;
+    private bool _diffTicTacValid = false;
+    private double _signedBeatErrorMs = 0.0;
+    private bool _signedBeatErrorValid = false;
+
+    // Per-event numeric stash consumed by the BeatTimingSample/AmplitudeSample
+    // emission in HandleAEvent/HandleCEvent. _lastRateErrorMs is always fresh when
+    // the emission gate (_haveStartTime && _bphValid) holds, because that is the
+    // same condition under which ComputeRateError's synced branch just ran.
+    private double _lastRateErrorMs = 0.0;
+    private bool _lastAmplitudeInstValid = false;
+    private double _lastAmplitudeInstDeg = 0.0;
+    private bool _lastAmplitudePairUpdated = false;
+    private double _lastAmplitudePairDeg = 0.0;
+
     public WatchMetrics(WatchMetricsConfig config)
     {
         _config = config;
@@ -103,6 +125,20 @@ public sealed class WatchMetrics
         _rlsTicRate.Reset();
         _rlsTocRate.Reset();
         _rlsRateValid = false;
+
+        ResetDerivedMeasures();
+        _lastAmplitudeInstValid = false;
+        _lastAmplitudePairUpdated = false;
+    }
+
+    private void ResetDerivedMeasures()
+    {
+        _rollPeriodDelta.Reset();
+        _avgPeriodDeltaSumMs = 0.0;
+        _avgPeriodDeltaCount = 0;
+        _skipNextPeriodDelta = true;
+        _diffTicTacValid = false;
+        _signedBeatErrorValid = false;
     }
 
     public WatchMetricsUpdate HandleAEvent(double eventSample, bool haveValidBph, double bph)
@@ -110,6 +146,28 @@ public sealed class WatchMetrics
         var update = new WatchMetricsUpdate();
         ComputeRateError(eventSample, haveValidBph, bph, update);
         ComputeBeatError(eventSample);
+
+        if (_haveStartTime && _bphValid)
+        {
+            update.SetBeatTimingSample(new BeatTimingSample(
+                _ticTocBeatNumber,
+                eventSample / (double)_config.SampleRate,
+                CurrentBeatPhase() == Tic,
+                _lastRateErrorMs,
+                _rlsRateValid,
+                _rlsRate,
+                _signedBeatErrorValid,
+                _signedBeatErrorMs));
+
+            update.SetDerivedMeasures(new DerivedTimingMeasures(
+                _diffTicTacValid,
+                _diffTicTacMs,
+                _rollPeriodDelta.CurrentSize() > 0,
+                _rollPeriodDelta.GetAverage(),
+                _avgPeriodDeltaCount > 0,
+                _avgPeriodDeltaCount > 0 ? _avgPeriodDeltaSumMs / _avgPeriodDeltaCount : 0.0));
+        }
+
         _haveAEvent = true;
         _lastAEvent = eventSample;
         return update;
@@ -126,6 +184,17 @@ public sealed class WatchMetrics
 
         ComputeAmplitude(eventSample, bph);
         update.SetResults(FormatResults());
+
+        if (_lastAmplitudeInstValid || _lastAmplitudePairUpdated)
+        {
+            update.SetAmplitudeSample(new AmplitudeSample(
+                eventSample / (double)_config.SampleRate,
+                _lastAmplitudeInstValid,
+                _lastAmplitudeInstDeg,
+                _lastAmplitudePairUpdated,
+                _lastAmplitudePairDeg));
+        }
+
         return update;
     }
 
@@ -164,6 +233,11 @@ public sealed class WatchMetrics
 
             _rollBeatError.Reset();
             _rollAmplitude.Reset();
+
+            // Derived measures restart with the sync segment: a stale _lastAEvent
+            // from before a sync loss must not contribute a bogus period delta.
+            _rollPeriodDelta.Resize(DiffPeriodWindowSeconds * _watchHertz);
+            ResetDerivedMeasures();
         }
 
         if ((haveValidBph) && (_haveStartTime))
@@ -191,6 +265,9 @@ public sealed class WatchMetrics
                 _zeroOffsetValue = -instTimingErrorMs;
             }
             instTimingErrorMs = instTimingErrorMs + _zeroOffsetValue;
+            _lastRateErrorMs = instTimingErrorMs;
+
+            AccumulatePeriodDelta(eventSample, expectedTimeTarget);
 
             double wrappedRateError = WrapIntoRange(
                 instTimingErrorMs,
@@ -233,6 +310,29 @@ public sealed class WatchMetrics
         }
     }
 
+    /// <summary>
+    /// Accumulates measured-vs-expected beat-duration deltas (consecutive A events)
+    /// for DiffPeriod / AvgPeriod. Intervals off by more than half a beat span a
+    /// detection gap rather than a single beat and would poison the averages, so
+    /// they are excluded.
+    /// </summary>
+    private void AccumulatePeriodDelta(double eventSample, double expectedTimeTarget)
+    {
+        if (_haveAEvent && !_skipNextPeriodDelta)
+        {
+            double measuredPeriodS = (eventSample - _lastAEvent) / (double)_config.SampleRate;
+            double deltaMs = (measuredPeriodS - expectedTimeTarget) * 1000.0;
+            if (Math.Abs(deltaMs) < expectedTimeTarget * 500.0)
+            {
+                _rollPeriodDelta.Add(deltaMs);
+                _avgPeriodDeltaSumMs += deltaMs;
+                _avgPeriodDeltaCount++;
+            }
+        }
+
+        _skipNextPeriodDelta = false;
+    }
+
     private void ComputeBeatError(double eventSample)
     {
         _beatErrorTimes[_beatErrorIdx] = eventSample;
@@ -244,6 +344,20 @@ public sealed class WatchMetrics
 
             _beatErrorMs = Math.Abs(((t1 - t2) / 2.0) * 1000.0);
             _rollBeatError.Add(_beatErrorMs);
+
+            if (_haveStartTime)
+            {
+                // The window start's phase equals the current event's phase (the
+                // window advances two beats per completion), so a tic-start window
+                // makes t1 the tick duration and t2 the tock duration; normalize
+                // DiffTicTac to (tick - tock) regardless of the start phase.
+                double diffMs = (t1 - t2) * 1000.0;
+                _diffTicTacMs = CurrentBeatPhase() == Tic ? diffMs : -diffMs;
+                _diffTicTacValid = true;
+                _signedBeatErrorMs = _diffTicTacMs / 2.0;
+                _signedBeatErrorValid = true;
+            }
+
             _beatErrorTimes[0] = _beatErrorTimes[2];
             _beatErrorIdx = 1;
         }
@@ -251,6 +365,9 @@ public sealed class WatchMetrics
 
     private void ComputeAmplitude(double eventSample, double bph)
     {
+        _lastAmplitudeInstValid = false;
+        _lastAmplitudePairUpdated = false;
+
         if ((_haveAEvent) && (_bphValid))
         {
             int ticOrToc = CurrentBeatPhase();
@@ -258,6 +375,9 @@ public sealed class WatchMetrics
             double tempAmp = Amplitude(_config.LiftAngle, time, bph);
             if (tempAmp < 360.00)
             {
+                _lastAmplitudeInstValid = true;
+                _lastAmplitudeInstDeg = tempAmp;
+
                 if (ticOrToc == Tic)
                 {
                     _amplitudeTicValid = true;
@@ -271,6 +391,8 @@ public sealed class WatchMetrics
                         double averageAmplitudeTicToc = (_amplitudeTic + _amplitudeToc) / 2.0;
                         _rollAmplitude.Add(averageAmplitudeTicToc);
                         _amplitudeTicValid = false;
+                        _lastAmplitudePairUpdated = true;
+                        _lastAmplitudePairDeg = averageAmplitudeTicToc;
                     }
                 }
             }

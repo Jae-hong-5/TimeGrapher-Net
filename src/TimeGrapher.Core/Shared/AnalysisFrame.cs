@@ -81,6 +81,12 @@ public sealed class WatchMetricsUpdate
     public string ResultsText { get; private set; } = "";
     public bool CMarkerTextUpdated { get; private set; }
     public string CMarkerText { get; private set; } = "";
+    public bool BeatTimingSampleUpdated { get; private set; }
+    public BeatTimingSample BeatTimingSample { get; private set; }
+    public bool AmplitudeSampleUpdated { get; private set; }
+    public AmplitudeSample AmplitudeSample { get; private set; }
+    public bool DerivedMeasuresUpdated { get; private set; }
+    public DerivedTimingMeasures DerivedMeasures { get; private set; }
 
     internal void SetTicRate(IReadOnlyList<double> x, IReadOnlyList<double> y)
     {
@@ -106,6 +112,24 @@ public sealed class WatchMetricsUpdate
     {
         CMarkerText = text;
         CMarkerTextUpdated = true;
+    }
+
+    internal void SetBeatTimingSample(BeatTimingSample sample)
+    {
+        BeatTimingSample = sample;
+        BeatTimingSampleUpdated = true;
+    }
+
+    internal void SetAmplitudeSample(AmplitudeSample sample)
+    {
+        AmplitudeSample = sample;
+        AmplitudeSampleUpdated = true;
+    }
+
+    internal void SetDerivedMeasures(DerivedTimingMeasures measures)
+    {
+        DerivedMeasures = measures;
+        DerivedMeasuresUpdated = true;
     }
 
     private static void Replace(List<double> target, IReadOnlyList<double> source)
