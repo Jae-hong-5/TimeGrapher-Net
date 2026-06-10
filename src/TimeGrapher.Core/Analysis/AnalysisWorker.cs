@@ -133,6 +133,17 @@ public sealed class AnalysisWorker : IDisposable
     }
 
     /// <summary>
+    /// Request the watch test position (NIHS 95-10 / ISO 3158) new measurements
+    /// are tagged with. Stored in the projector's volatile knob and applied on
+    /// the analysis thread at the start of the next pass (the SetSweepMultiple
+    /// flow). Callable from any thread.
+    /// </summary>
+    public void SetActivePosition(WatchPosition position)
+    {
+        _beatMetricsProjector.SetActivePosition(position);
+    }
+
+    /// <summary>
     /// Request a sound-print background recolor (e.g. on UI theme toggle). The change
     /// is applied on the analysis thread and an updated image frame is published.
     /// Callable from any thread.

@@ -24,6 +24,13 @@ public sealed class BeatMetricsHistory
     private readonly RunningStats _rateStats = new();
     private readonly RunningStats _amplitudeStats = new();
 
+    // Per-position aggregates, indexed by WatchPosition ordinal. A slot is
+    // created on the first measurement tagged with that position, so storage is
+    // bounded by the six standard positions regardless of run length.
+    private readonly PositionAggregate?[] _positionAggregates =
+        new PositionAggregate?[WatchPositions.Count];
+    private WatchPosition _activePosition = WatchPosition.CH;
+
     private DerivedTimingMeasures _derived;
     private bool _rateValid;
     private double _rateSPerDay;
@@ -46,6 +53,22 @@ public sealed class BeatMetricsHistory
         _beatError = new DecimatingSeries(seriesCapacity);
     }
 
+    /// <summary>
+    /// Tags subsequent measurements with the given test position. Analysis-thread
+    /// only (the UI request travels through the projector's volatile knob); a
+    /// change re-stamps the next snapshot.
+    /// </summary>
+    public void SetActivePosition(WatchPosition position)
+    {
+        if (_activePosition == position)
+        {
+            return;
+        }
+
+        _activePosition = position;
+        _dirty = true;
+    }
+
     public void Record(WatchMetricsUpdate update)
     {
         if (update.BeatTimingSampleUpdated)
@@ -58,6 +81,7 @@ public sealed class BeatMetricsHistory
             {
                 _rate.Add(sample.TimeS, sample.RateSPerDay);
                 _rateStats.Add(sample.RateSPerDay);
+                ActiveAggregate().Rate.Add(sample.RateSPerDay);
                 _rateValid = true;
                 _rateSPerDay = sample.RateSPerDay;
             }
@@ -65,6 +89,7 @@ public sealed class BeatMetricsHistory
             if (sample.BeatErrorValid)
             {
                 _beatError.Add(sample.TimeS, sample.BeatErrorSignedMs);
+                ActiveAggregate().BeatError.Add(sample.BeatErrorSignedMs);
                 _beatErrorValid = true;
                 _beatErrorSignedMs = sample.BeatErrorSignedMs;
             }
@@ -77,6 +102,7 @@ public sealed class BeatMetricsHistory
             AmplitudeSample sample = update.AmplitudeSample;
             _amplitude.Add(sample.TimeS, sample.PairAverageDeg);
             _amplitudeStats.Add(sample.PairAverageDeg);
+            ActiveAggregate().Amplitude.Add(sample.PairAverageDeg);
             _amplitudeValid = true;
             _amplitudeDeg = sample.PairAverageDeg;
             _latestTimeS = Math.Max(_latestTimeS, sample.TimeS);
@@ -97,6 +123,9 @@ public sealed class BeatMetricsHistory
         _beatError.Reset();
         _rateStats.Reset();
         _amplitudeStats.Reset();
+        // The active position is the watch's physical orientation, not run
+        // data, so it survives the reset; only its accumulated stats clear.
+        Array.Clear(_positionAggregates);
         _derived = default;
         _rateValid = false;
         _bph = 0;
@@ -106,6 +135,17 @@ public sealed class BeatMetricsHistory
         _dirty = false;
         _snapshot = null;
         _lastSnapshotTimeS = 0.0;
+    }
+
+    /// <summary>
+    /// Clears only the per-position aggregates (live series and overall stats
+    /// keep accumulating). Intended for the planned multi-position sequence
+    /// flow, which restarts position statistics mid-run; not yet wired to UI.
+    /// </summary>
+    public void ResetPositionAggregates()
+    {
+        Array.Clear(_positionAggregates);
+        _dirty = true;
     }
 
     /// <summary>
@@ -147,10 +187,58 @@ public sealed class BeatMetricsHistory
             LatestTimeS = _latestTimeS,
             RateStats = Summarize(_rateStats),
             AmplitudeStats = Summarize(_amplitudeStats),
+            ActivePosition = _activePosition,
+            Positions = BuildPositionSummaries(),
         };
         _lastSnapshotTimeS = _latestTimeS;
         _dirty = false;
         return _snapshot;
+    }
+
+    private sealed class PositionAggregate
+    {
+        public readonly RunningStats Rate = new();
+        public readonly RunningStats Amplitude = new();
+        public readonly RunningStats BeatError = new();
+    }
+
+    private PositionAggregate ActiveAggregate()
+    {
+        return _positionAggregates[(int)_activePosition] ??= new PositionAggregate();
+    }
+
+    private IReadOnlyList<PositionSummary> BuildPositionSummaries()
+    {
+        int measured = 0;
+        foreach (PositionAggregate? aggregate in _positionAggregates)
+        {
+            if (aggregate != null)
+            {
+                measured++;
+            }
+        }
+
+        if (measured == 0)
+        {
+            return Array.Empty<PositionSummary>();
+        }
+
+        // Rebuilt with the snapshot (at most every SnapshotMinIntervalS), so
+        // the allocation stays off the per-beat path and is bounded at 6 rows.
+        var summaries = new List<PositionSummary>(measured);
+        foreach (WatchPosition position in WatchPositions.All)
+        {
+            if (_positionAggregates[(int)position] is { } aggregate)
+            {
+                summaries.Add(new PositionSummary(
+                    position,
+                    Summarize(aggregate.Rate),
+                    Summarize(aggregate.Amplitude),
+                    Summarize(aggregate.BeatError)));
+            }
+        }
+
+        return summaries;
     }
 
     private static StatsSummary Summarize(RunningStats stats) => new(

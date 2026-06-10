@@ -175,6 +175,126 @@ public sealed class BeatMetricsHistoryTests
     }
 
     [Fact]
+    public void SnapshotStampsTheActivePositionAndDefaultsToDialUp()
+    {
+        var history = new BeatMetricsHistory();
+        history.Record(BeatUpdate(1, 0.125, 5.0));
+
+        BeatMetricsHistorySnapshot? first = history.CurrentSnapshot();
+        Assert.Equal(WatchPosition.CH, first!.ActivePosition);
+
+        // Stream time must clear the 0.5 s throttle before the new stamp shows.
+        history.SetActivePosition(WatchPosition.P3H);
+        history.Record(BeatUpdate(2, 0.750, 6.0));
+
+        BeatMetricsHistorySnapshot? restamped = history.CurrentSnapshot();
+        Assert.NotSame(first, restamped);
+        Assert.Equal(WatchPosition.P3H, restamped!.ActivePosition);
+    }
+
+    [Fact]
+    public void PositionAggregatesTagEachMeasurementWithTheActivePosition()
+    {
+        var history = new BeatMetricsHistory();
+
+        // Two rated beats and one amplitude pair while dial up...
+        history.Record(BeatUpdate(1, 0.125, rateSPerDay: 4.0, beatErrorMs: 0.2));
+        history.Record(BeatUpdate(2, 0.250, rateSPerDay: 8.0, beatErrorMs: 0.4));
+        history.Record(AmplitudeUpdate(0.300, pairDeg: 280.0));
+
+        // ...then one rated beat while crown left.
+        history.SetActivePosition(WatchPosition.P6H);
+        history.Record(BeatUpdate(3, 0.750, rateSPerDay: -2.0, beatErrorMs: 0.6));
+
+        IReadOnlyList<PositionSummary> positions = history.CurrentSnapshot()!.Positions;
+
+        // Only measured positions appear, in WatchPositions.All order.
+        Assert.Equal(2, positions.Count);
+        Assert.Equal(WatchPosition.CH, positions[0].Position);
+        Assert.Equal(WatchPosition.P6H, positions[1].Position);
+
+        PositionSummary dialUp = positions[0];
+        Assert.Equal(2, dialUp.Rate.Count);
+        Assert.Equal(6.0, dialUp.Rate.Mean, 12);
+        Assert.Equal(4.0, dialUp.Rate.Min);
+        Assert.Equal(8.0, dialUp.Rate.Max);
+        Assert.Equal(2.0, dialUp.Rate.Sigma, 12); // population sigma of {4, 8}
+        Assert.Equal(1, dialUp.Amplitude.Count);
+        Assert.Equal(280.0, dialUp.Amplitude.Mean);
+        Assert.Equal(2, dialUp.BeatError.Count);
+        Assert.Equal(0.3, dialUp.BeatError.Mean, 12);
+
+        PositionSummary crownLeft = positions[1];
+        Assert.Equal(1, crownLeft.Rate.Count);
+        Assert.Equal(-2.0, crownLeft.Rate.Mean);
+        Assert.False(crownLeft.Amplitude.Valid); // no pair recorded in 6H yet
+        Assert.Equal(0.6, crownLeft.BeatError.Mean);
+    }
+
+    [Fact]
+    public void PositionListStaysBoundedAtTheSixStandardPositions()
+    {
+        var history = new BeatMetricsHistory();
+        double timeS = 0.125;
+        foreach (WatchPosition position in WatchPositions.All)
+        {
+            history.SetActivePosition(position);
+            history.Record(BeatUpdate((ulong)(timeS * 8), timeS, rateSPerDay: 1.0));
+            timeS += 1.0;
+        }
+
+        IReadOnlyList<PositionSummary> positions = history.CurrentSnapshot()!.Positions;
+        Assert.Equal(WatchPositions.Count, positions.Count);
+        Assert.Equal(WatchPositions.All, positions.Select(summary => summary.Position));
+    }
+
+    [Fact]
+    public void ResetPositionAggregatesClearsSummariesButKeepsSeriesAndPosition()
+    {
+        var history = new BeatMetricsHistory();
+        history.SetActivePosition(WatchPosition.P9H);
+        history.Record(BeatUpdate(1, 0.125, rateSPerDay: 5.0));
+        Assert.Single(history.CurrentSnapshot()!.Positions);
+
+        history.ResetPositionAggregates();
+        history.Record(BeatUpdate(2, 0.750, rateSPerDay: 6.0));
+
+        BeatMetricsHistorySnapshot? snapshot = history.CurrentSnapshot();
+        // The sequence restart drops the aggregates; the run's series, overall
+        // stats and the active position stamp keep going.
+        PositionSummary restarted = Assert.Single(snapshot!.Positions);
+        Assert.Equal(1, restarted.Rate.Count);
+        Assert.Equal(2, snapshot.Rate.Y.Count);
+        Assert.Equal(2, snapshot.RateStats.Count);
+        Assert.Equal(WatchPosition.P9H, snapshot.ActivePosition);
+    }
+
+    [Fact]
+    public void ProjectorAppliesTheVolatilePositionKnobOnProject()
+    {
+        var projector = new BeatMetricsFrameProjector();
+        var result = new DetectorResultSnapshot(
+            TgSyncStatus.Synced, 28800, 0.125, Array.Empty<TgEvent>(),
+            Array.Empty<float>(), 0, 0UL, false, false, false, 0f, 0f, 0f, 0f);
+
+        // Requested from "another thread" before the pass: the beat recorded by
+        // the pass must land in the requested position's aggregate.
+        projector.SetActivePosition(WatchPosition.P12H);
+        projector.Project(new DetectorMetricsBlockUpdate(result, new List<DetectedEventUpdate>
+        {
+            new(new TgEvent { Type = TgEventType.A }, 6000.0, BeatUpdate(1, 0.125, 5.0)),
+        }));
+
+        var frame = new AnalysisFrame();
+        projector.AppendSnapshot(frame);
+
+        Assert.Equal(WatchPosition.P12H, frame.MetricsHistory!.ActivePosition);
+        PositionSummary summary = Assert.Single(frame.MetricsHistory.Positions);
+        Assert.Equal(WatchPosition.P12H, summary.Position);
+        Assert.Equal(1, summary.Rate.Count);
+    }
+
+    [Fact]
     public void ProjectorAttachesSnapshotToFrame()
     {
         var projector = new BeatMetricsFrameProjector();

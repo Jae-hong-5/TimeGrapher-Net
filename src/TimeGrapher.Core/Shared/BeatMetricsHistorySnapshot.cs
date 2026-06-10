@@ -31,6 +31,19 @@ public readonly record struct StatsSummary(
     long Count);
 
 /// <summary>
+/// Running aggregates of one measured watch test position: rate (s/d),
+/// amplitude (deg, tic/toc pair averages) and signed beat error (ms) of every
+/// beat tagged with that position. Only positions with at least one recorded
+/// measurement appear in <see cref="BeatMetricsHistorySnapshot.Positions"/>,
+/// so the list is bounded by the six standard positions.
+/// </summary>
+public sealed record PositionSummary(
+    WatchPosition Position,
+    StatsSummary Rate,
+    StatsSummary Amplitude,
+    StatsSummary BeatError);
+
+/// <summary>
 /// Cumulative beat-metrics history snapshot carried by every frame. Because the
 /// render scheduler coalesces frames latest-wins, per-beat data must accumulate in
 /// Core and travel as a cumulative snapshot: dropping intermediate frames then
@@ -72,4 +85,14 @@ public sealed class BeatMetricsHistorySnapshot
 
     /// <summary>Running amplitude (deg, tic/toc pair averages) stability statistics since start.</summary>
     public StatsSummary AmplitudeStats { get; init; }
+
+    /// <summary>Watch test position new measurements are currently tagged with.</summary>
+    public WatchPosition ActivePosition { get; init; }
+
+    /// <summary>
+    /// Per-position aggregates of every position measured so far, in
+    /// <see cref="WatchPositions.All"/> order (bounded: at most 6 entries).
+    /// Rebuilt together with the snapshot.
+    /// </summary>
+    public IReadOnlyList<PositionSummary> Positions { get; init; } = Array.Empty<PositionSummary>();
 }
