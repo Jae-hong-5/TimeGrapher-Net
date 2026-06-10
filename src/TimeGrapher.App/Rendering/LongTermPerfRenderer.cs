@@ -35,7 +35,7 @@ internal sealed class LongTermPerfRenderer
         public Scatter? BucketLine;
         public FillY? VariationBand;
         public HorizontalLine? OverallAverage;
-        public LinePlot? Cursor;
+        public ReviewCursorLayer? Cursor;
     }
 
     private readonly Pane _rate;
@@ -200,40 +200,19 @@ internal sealed class LongTermPerfRenderer
     /// <summary>Review-cursor contract: a vertical marker at the scrub time on all three plots.</summary>
     private bool UpdateReviewCursor(double? reviewCursorTimeS)
     {
-        bool visible = reviewCursorTimeS is not null;
         bool changed = false;
-
         foreach (Pane pane in _panes)
         {
-            LinePlot? cursor = pane.Cursor;
-            if (cursor == null)
-            {
-                continue;
-            }
-
-            if (cursor.IsVisible != visible)
-            {
-                cursor.IsVisible = visible;
-                changed = true;
-            }
-
-            if (reviewCursorTimeS is double t && Math.Abs(cursor.Start.X - t) > double.Epsilon)
-            {
-                cursor.Line = new CoordinateLine(t, -1e6, t, 1e6);
-                changed = true;
-            }
+            changed |= pane.Cursor?.Update(reviewCursorTimeS) ?? false;
         }
 
         return changed;
     }
 
-    private static LinePlot AddCursor(Plot plot)
+    private ReviewCursorLayer AddCursor(Plot plot)
     {
-        LinePlot cursor = plot.Add.Line(0.0, 0.0, 0.0, 0.0);
-        cursor.MarkerStyle.IsVisible = false;
-        cursor.LineWidth = 1;
-        cursor.LinePattern = LinePattern.Dotted;
-        cursor.IsVisible = false;
+        var cursor = new ReviewCursorLayer(plot);
+        cursor.ApplyTheme(_theme);
         return cursor;
     }
 
@@ -272,10 +251,7 @@ internal sealed class LongTermPerfRenderer
             pane.OverallAverage.LineColor = Color.FromARGB(_theme.TextPrimary);
         }
 
-        if (pane.Cursor != null)
-        {
-            pane.Cursor.LineColor = Color.FromARGB(_theme.TextPrimary);
-        }
+        pane.Cursor?.ApplyTheme(_theme);
     }
 
     private void ApplyPlotTheme(Plot plot)

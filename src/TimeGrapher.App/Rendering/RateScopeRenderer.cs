@@ -31,7 +31,7 @@ internal sealed class RateScopeRenderer
     private int _scopeTextsUsed;
     private readonly List<Scatter> _scopePlots = new();
     private readonly List<Scatter> _ratePlots = new();
-    private LinePlot? _scopeReviewCursor;
+    private ReviewCursorLayer? _scopeReviewCursor;
     private PlotThemePalette _theme = PlotThemePalette.Current;
 
     // The scope auto-follows incoming audio (scrolls its X window each frame). Once the
@@ -169,36 +169,13 @@ internal sealed class RateScopeRenderer
             return false;
         }
 
-        bool visible = context.ReviewCursorTimeS is not null;
-        bool changed = false;
-
-        if (_scopeReviewCursor.IsVisible != visible)
-        {
-            _scopeReviewCursor.IsVisible = visible;
-            changed = true;
-        }
-
-        if (context.ReviewCursorTimeS is double timeS)
-        {
-            double x = timeS * context.SampleRate;
-            if (Math.Abs(_scopeReviewCursor.Start.X - x) > double.Epsilon)
-            {
-                _scopeReviewCursor.Line = new CoordinateLine(x, -1e6, x, 1e6);
-                changed = true;
-            }
-        }
-
-        return changed;
+        return _scopeReviewCursor.Update(context.ReviewCursorTimeS * context.SampleRate);
     }
 
-    private LinePlot AddReviewCursor(Plot plot)
+    private ReviewCursorLayer AddReviewCursor(Plot plot)
     {
-        LinePlot cursor = plot.Add.Line(0.0, 0.0, 0.0, 0.0);
-        cursor.MarkerStyle.IsVisible = false;
-        cursor.LineWidth = 1;
-        cursor.LinePattern = LinePattern.Dotted;
-        cursor.LineColor = Color.FromARGB(_theme.TextPrimary);
-        cursor.IsVisible = false;
+        var cursor = new ReviewCursorLayer(plot);
+        cursor.ApplyTheme(_theme);
         return cursor;
     }
 
@@ -307,10 +284,7 @@ internal sealed class RateScopeRenderer
             _ratePlots[i].MarkerColor = Color.FromARGB(ThemeColor(_rateSeries[i]));
         }
 
-        if (_scopeReviewCursor != null)
-        {
-            _scopeReviewCursor.LineColor = Color.FromARGB(_theme.TextPrimary);
-        }
+        _scopeReviewCursor?.ApplyTheme(_theme);
     }
 
     private void ApplyPlotTheme(Plot plot)

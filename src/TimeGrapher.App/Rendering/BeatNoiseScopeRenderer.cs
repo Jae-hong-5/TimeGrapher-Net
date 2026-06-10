@@ -60,7 +60,7 @@ internal sealed class BeatNoiseScopeRenderer
     private VerticalLine? _aMarker;
     private VerticalLine? _cPeakMarker;
     private VerticalLine? _cOnsetMarker;
-    private LinePlot? _reviewCursor;
+    private ReviewCursorLayer? _reviewCursor;
     private readonly Scatter?[] _stripScatters;
     private HorizontalSpan? _selectionSpan;
     private Scatter? _lane1Scatter;
@@ -436,22 +436,7 @@ internal sealed class BeatNoiseScopeRenderer
             ? BeatNoiseScopeLogic.DisplayedSegment(snapshot, _selectedSlot)
             : null;
         double? offsetMs = BeatNoiseScopeLogic.CursorOffsetMs(reviewCursorTimeS, segment);
-        bool visible = offsetMs is not null;
-        bool changed = false;
-
-        if (_reviewCursor.IsVisible != visible)
-        {
-            _reviewCursor.IsVisible = visible;
-            changed = true;
-        }
-
-        if (offsetMs is double x && Math.Abs(_reviewCursor.Start.X - x) > double.Epsilon)
-        {
-            _reviewCursor.Line = new CoordinateLine(x, -1e6, x, 1e6);
-            changed = true;
-        }
-
-        return changed;
+        return _reviewCursor.Update(offsetMs);
     }
 
     private void ApplyRangeLimits()
@@ -483,13 +468,10 @@ internal sealed class BeatNoiseScopeRenderer
         }
     }
 
-    private static LinePlot AddCursor(Plot plot)
+    private ReviewCursorLayer AddCursor(Plot plot)
     {
-        LinePlot cursor = plot.Add.Line(0.0, 0.0, 0.0, 0.0);
-        cursor.MarkerStyle.IsVisible = false;
-        cursor.LineWidth = 1;
-        cursor.LinePattern = LinePattern.Dotted;
-        cursor.IsVisible = false;
+        var cursor = new ReviewCursorLayer(plot);
+        cursor.ApplyTheme(_theme);
         return cursor;
     }
 
@@ -546,10 +528,7 @@ internal sealed class BeatNoiseScopeRenderer
             _lane2Scatter.LineColor = Color.FromARGB(_theme.TraceTock);
         }
 
-        if (_reviewCursor != null)
-        {
-            _reviewCursor.LineColor = Color.FromARGB(_theme.TextPrimary);
-        }
+        _reviewCursor?.ApplyTheme(_theme);
     }
 
     private void ApplyPlotTheme(Plot plot)

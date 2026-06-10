@@ -34,8 +34,8 @@ internal sealed class TraceDisplayRenderer
     private Scatter? _rateScatter;
     private Scatter? _amplitudeScatter;
     private VerticalSpan? _amplitudeBand;
-    private LinePlot? _rateCursor;
-    private LinePlot? _amplitudeCursor;
+    private ReviewCursorLayer? _rateCursor;
+    private ReviewCursorLayer? _amplitudeCursor;
 
     private PlotThemePalette _theme = PlotThemePalette.Current;
     private ulong _lastVersion;
@@ -197,39 +197,15 @@ internal sealed class TraceDisplayRenderer
     /// <summary>Review-cursor contract: a vertical marker at the scrub time on both plots.</summary>
     private bool UpdateReviewCursor(double? reviewCursorTimeS)
     {
-        bool visible = reviewCursorTimeS is not null;
-        bool changed = false;
-
-        foreach (LinePlot? cursor in new[] { _rateCursor, _amplitudeCursor })
-        {
-            if (cursor == null)
-            {
-                continue;
-            }
-
-            if (cursor.IsVisible != visible)
-            {
-                cursor.IsVisible = visible;
-                changed = true;
-            }
-
-            if (reviewCursorTimeS is double t && Math.Abs(cursor.Start.X - t) > double.Epsilon)
-            {
-                cursor.Line = new CoordinateLine(t, -1e6, t, 1e6);
-                changed = true;
-            }
-        }
-
+        bool changed = _rateCursor?.Update(reviewCursorTimeS) ?? false;
+        changed |= _amplitudeCursor?.Update(reviewCursorTimeS) ?? false;
         return changed;
     }
 
-    private LinePlot AddCursor(Plot plot)
+    private ReviewCursorLayer AddCursor(Plot plot)
     {
-        LinePlot cursor = plot.Add.Line(0.0, 0.0, 0.0, 0.0);
-        cursor.MarkerStyle.IsVisible = false;
-        cursor.LineWidth = 1;
-        cursor.LinePattern = LinePattern.Dotted;
-        cursor.IsVisible = false;
+        var cursor = new ReviewCursorLayer(plot);
+        cursor.ApplyTheme(_theme);
         return cursor;
     }
 
@@ -251,13 +227,8 @@ internal sealed class TraceDisplayRenderer
             _amplitudeBand.LineStyle.Color = Color.FromARGB(_theme.TraceTick).WithAlpha((byte)(BandFillAlpha * 2));
         }
 
-        foreach (LinePlot? cursor in new[] { _rateCursor, _amplitudeCursor })
-        {
-            if (cursor != null)
-            {
-                cursor.LineColor = Color.FromARGB(_theme.TextPrimary);
-            }
-        }
+        _rateCursor?.ApplyTheme(_theme);
+        _amplitudeCursor?.ApplyTheme(_theme);
     }
 
     private void ApplyPlotTheme(Plot plot)

@@ -62,7 +62,7 @@ internal sealed class WaveformCompareRenderer
     private VerticalLine? _cMeanGuide;
     private Text? _aGuideLabel;
     private Text? _cMeanGuideLabel;
-    private LinePlot? _reviewCursor;
+    private ReviewCursorLayer? _reviewCursor;
 
     private PlotThemePalette _theme = PlotThemePalette.Current;
     private ulong _lastVersion;
@@ -284,22 +284,7 @@ internal sealed class WaveformCompareRenderer
         double? offsetMs = WaveformCompareLogic.CursorOffsetMs(
             reviewCursorTimeS,
             _lastSnapshot?.Segments ?? Array.Empty<BeatSegment>());
-        bool visible = offsetMs is not null;
-        bool changed = false;
-
-        if (_reviewCursor.IsVisible != visible)
-        {
-            _reviewCursor.IsVisible = visible;
-            changed = true;
-        }
-
-        if (offsetMs is double x && Math.Abs(_reviewCursor.Start.X - x) > double.Epsilon)
-        {
-            _reviewCursor.Line = new CoordinateLine(x, -1e6, x, 1e6);
-            changed = true;
-        }
-
-        return changed;
+        return _reviewCursor.Update(offsetMs);
     }
 
     private static VerticalLine AddGuide(Plot plot)
@@ -340,13 +325,10 @@ internal sealed class WaveformCompareRenderer
         }
     }
 
-    private static LinePlot AddCursor(Plot plot)
+    private ReviewCursorLayer AddCursor(Plot plot)
     {
-        LinePlot cursor = plot.Add.Line(0.0, 0.0, 0.0, 0.0);
-        cursor.MarkerStyle.IsVisible = false;
-        cursor.LineWidth = 1;
-        cursor.LinePattern = LinePattern.Dotted;
-        cursor.IsVisible = false;
+        var cursor = new ReviewCursorLayer(plot);
+        cursor.ApplyTheme(_theme);
         return cursor;
     }
 
@@ -389,10 +371,7 @@ internal sealed class WaveformCompareRenderer
             _cMeanGuideLabel.LabelFontColor = Color.FromARGB(Argb.Red);
         }
 
-        if (_reviewCursor != null)
-        {
-            _reviewCursor.LineColor = Color.FromARGB(_theme.TextPrimary);
-        }
+        _reviewCursor?.ApplyTheme(_theme);
     }
 
     private void ApplyPlotTheme(Plot plot)

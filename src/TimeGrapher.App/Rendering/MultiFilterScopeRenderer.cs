@@ -23,7 +23,7 @@ internal sealed class MultiFilterScopeRenderer
     private readonly List<double>[] _x;
     private readonly List<double>[] _y;
     private readonly Scatter?[] _scatters;
-    private readonly LinePlot?[] _cursors;
+    private readonly ReviewCursorLayer?[] _cursors;
 
     private PlotThemePalette _theme = PlotThemePalette.Current;
     private bool _followLive = true;
@@ -40,7 +40,7 @@ internal sealed class MultiFilterScopeRenderer
         _x = new List<double>[_plots.Length];
         _y = new List<double>[_plots.Length];
         _scatters = new Scatter?[_plots.Length];
-        _cursors = new LinePlot?[_plots.Length];
+        _cursors = new ReviewCursorLayer?[_plots.Length];
 
         for (int i = 0; i < _plots.Length; i++)
         {
@@ -118,42 +118,14 @@ internal sealed class MultiFilterScopeRenderer
     /// <summary>Review-cursor contract: a dotted marker at the scrub time on every lane.</summary>
     private bool UpdateReviewCursor(int lane, AnalysisTabRenderContext context)
     {
-        LinePlot? cursor = _cursors[lane];
-        if (cursor == null)
-        {
-            return false;
-        }
-
-        bool visible = context.ReviewCursorTimeS is not null;
-        bool changed = false;
-
-        if (cursor.IsVisible != visible)
-        {
-            cursor.IsVisible = visible;
-            changed = true;
-        }
-
-        if (context.ReviewCursorTimeS is double timeS)
-        {
-            // The lanes plot absolute sample ticks; map the stream time onto them.
-            double x = timeS * context.SampleRate;
-            if (Math.Abs(cursor.Start.X - x) > double.Epsilon)
-            {
-                cursor.Line = new CoordinateLine(x, -1e6, x, 1e6);
-                changed = true;
-            }
-        }
-
-        return changed;
+        // The lanes plot absolute sample ticks; map the stream time onto them.
+        return _cursors[lane]?.Update(context.ReviewCursorTimeS * context.SampleRate) ?? false;
     }
 
-    private static LinePlot AddCursor(Plot plot)
+    private ReviewCursorLayer AddCursor(Plot plot)
     {
-        LinePlot cursor = plot.Add.Line(0.0, 0.0, 0.0, 0.0);
-        cursor.MarkerStyle.IsVisible = false;
-        cursor.LineWidth = 1;
-        cursor.LinePattern = LinePattern.Dotted;
-        cursor.IsVisible = false;
+        var cursor = new ReviewCursorLayer(plot);
+        cursor.ApplyTheme(_theme);
         return cursor;
     }
 
@@ -166,10 +138,7 @@ internal sealed class MultiFilterScopeRenderer
                 scatter.LineColor = Color.FromARGB(MultiFilterScopeLanes.All[i].Color(_theme));
             }
 
-            if (_cursors[i] is { } cursor)
-            {
-                cursor.LineColor = Color.FromARGB(_theme.TextPrimary);
-            }
+            _cursors[i]?.ApplyTheme(_theme);
         }
     }
 

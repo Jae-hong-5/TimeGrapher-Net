@@ -26,7 +26,7 @@ internal sealed class ScopeSweepRenderer
     private readonly List<double> _sweepY = new();
 
     private Scatter? _sweepScatter;
-    private LinePlot? _reviewCursor;
+    private ReviewCursorLayer? _reviewCursor;
 
     private PlotThemePalette _theme = PlotThemePalette.Current;
     private ulong _lastReadoutVersion;
@@ -116,31 +116,13 @@ internal sealed class ScopeSweepRenderer
 
         double? phaseMs = ScopeSweepReadout.CursorPhaseMs(
             reviewCursorTimeS, ScopeSweepReadout.WindowMs(_sweepX));
-        bool visible = phaseMs is not null;
-        bool changed = false;
-
-        if (_reviewCursor.IsVisible != visible)
-        {
-            _reviewCursor.IsVisible = visible;
-            changed = true;
-        }
-
-        if (phaseMs is double x && Math.Abs(_reviewCursor.Start.X - x) > double.Epsilon)
-        {
-            _reviewCursor.Line = new CoordinateLine(x, -1e6, x, 1e6);
-            changed = true;
-        }
-
-        return changed;
+        return _reviewCursor.Update(phaseMs);
     }
 
-    private static LinePlot AddCursor(Plot plot)
+    private ReviewCursorLayer AddCursor(Plot plot)
     {
-        LinePlot cursor = plot.Add.Line(0.0, 0.0, 0.0, 0.0);
-        cursor.MarkerStyle.IsVisible = false;
-        cursor.LineWidth = 1;
-        cursor.LinePattern = LinePattern.Dotted;
-        cursor.IsVisible = false;
+        var cursor = new ReviewCursorLayer(plot);
+        cursor.ApplyTheme(_theme);
         return cursor;
     }
 
@@ -151,10 +133,7 @@ internal sealed class ScopeSweepRenderer
             _sweepScatter.LineColor = Color.FromARGB(_theme.TraceWave);
         }
 
-        if (_reviewCursor != null)
-        {
-            _reviewCursor.LineColor = Color.FromARGB(_theme.TextPrimary);
-        }
+        _reviewCursor?.ApplyTheme(_theme);
     }
 
     private void ApplyPlotTheme(Plot plot)
