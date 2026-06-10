@@ -50,7 +50,9 @@ internal sealed class LatencyStatsTracker
 
     /// <summary>
     /// True when any observed capture stamp was a ring-eviction lower bound:
-    /// the worst-case figures then under-report and the readout marks them "≥".
+    /// the clamped samples feed the averages as well as the maxima, so ALL
+    /// capture-derived figures (E2E and cap→proc, avg and worst case) then
+    /// under-report and the readout marks each of them "≥".
     /// </summary>
     public bool WorstCaseIsLowerBound => _sawLowerBoundCapture;
 
@@ -110,7 +112,7 @@ internal sealed class LatencyStatsTracker
 
     public string FormatStatus() => string.Format(
         CultureInfo.InvariantCulture,
-        "E2E {0:F0}/{10}{1:F0} ms (cap→proc {2:F0}/{10}{3:F0} + disp {4:F0}/{5:F0}) | drop {6} smp / {7} frm | miss {8} | sync−loss {9}",
+        "E2E {10}{0:F0}/{10}{1:F0} ms (cap→proc {10}{2:F0}/{10}{3:F0} + disp {4:F0}/{5:F0}) | drop {6} smp / {7} frm | miss {8} | sync−loss {9}",
         EndToEndAvgMs, EndToEndMaxMs,
         CapToProcAvgMs, CapToProcMaxMs,
         ProcToDispAvgMs, ProcToDispMaxMs,

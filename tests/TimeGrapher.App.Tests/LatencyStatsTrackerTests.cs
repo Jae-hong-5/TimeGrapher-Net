@@ -114,9 +114,11 @@ public sealed class LatencyStatsTrackerTests
         tracker.Observe(clamped, 0, 16_000);
 
         Assert.True(tracker.WorstCaseIsLowerBound);
+        // Clamped samples feed the averages too, so every capture-derived
+        // figure (avg and worst case) reads as a lower bound.
         string text = tracker.FormatStatus();
-        Assert.Contains("E2E 15/≥15 ms", text);
-        Assert.Contains("cap→proc 10/≥10", text);
+        Assert.Contains("E2E ≥15/≥15 ms", text);
+        Assert.Contains("cap→proc ≥10/≥10", text);
     }
 
     [Fact]
