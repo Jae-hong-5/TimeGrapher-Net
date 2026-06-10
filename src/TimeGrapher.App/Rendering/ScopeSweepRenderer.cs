@@ -76,6 +76,18 @@ internal sealed class ScopeSweepRenderer
         CreateGraphs();
     }
 
+    /// <summary>
+    /// Re-arms live auto-fitting after a pan/zoom (the one-way follow-live
+    /// latch otherwise sticks until the session restarts — which also hid the
+    /// rest of a longer window after a 1x→4x sweep change mid-pan).
+    /// </summary>
+    public void ResetView()
+    {
+        _followLive = true;
+        _sweepPlot.Plot.Axes.AutoScale();
+        _sweepPlot.Refresh();
+    }
+
     public void RenderFrame(AnalysisFrame frame, AnalysisTabRenderContext context)
     {
         bool dataUpdated = SeriesDataReducer.TryReplaceSeriesData(

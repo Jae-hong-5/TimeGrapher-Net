@@ -90,6 +90,21 @@ internal sealed class MultiFilterScopeRenderer
         CreateGraphs();
     }
 
+    /// <summary>
+    /// Re-arms live windowing on all four lanes after a pan/zoom (the one-way
+    /// follow-live latch otherwise sticks until the session restarts).
+    /// </summary>
+    public void ResetView()
+    {
+        _followLive = true;
+        for (int i = 0; i < _plots.Length; i++)
+        {
+            _plots[i].Plot.Axes.AutoScale();
+        }
+
+        RefreshAll();
+    }
+
     public void RenderFrame(AnalysisFrame frame, AnalysisTabRenderContext context)
     {
         for (int i = 0; i < _plots.Length; i++)

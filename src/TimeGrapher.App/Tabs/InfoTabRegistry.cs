@@ -131,6 +131,35 @@ internal sealed class InfoTabRegistry
         return new AnalysisFrameRouter(_registrations.Select(registration => registration.Consumer));
     }
 
+    /// <summary>
+    /// Small overlay-chrome button (the shared styling of the per-plot
+    /// "Reset View" buttons and toolbar selectors). Position it at the call
+    /// site (alignment / margin / grid row).
+    /// </summary>
+    private static Button CreateOverlayButton(string content, string tooltip, Action onClick)
+    {
+        var button = new Button
+        {
+            Content = content,
+            Padding = new Thickness(8, 2, 8, 2),
+            FontSize = 11,
+        };
+        ToolTip.SetTip(button, tooltip);
+        button.Click += (_, _) => onClick();
+        return button;
+    }
+
+    /// <summary>Pins an overlay button to the top-right corner of a plot grid row.</summary>
+    private static Button CreatePinnedResetViewButton(string tooltip, int row, Action onClick)
+    {
+        Button button = CreateOverlayButton("Reset View", tooltip, onClick);
+        button.HorizontalAlignment = HorizontalAlignment.Right;
+        button.VerticalAlignment = VerticalAlignment.Top;
+        button.Margin = new Thickness(0, 6, 10, 0);
+        Grid.SetRow(button, row);
+        return button;
+    }
+
     private static InfoTabRegistration CreateRegistration(
         InfoTabDefinition definition,
         InfoTabFactoryContext context)
@@ -373,6 +402,15 @@ internal sealed class InfoTabRegistry
         }
 
         var renderer = new ScopeSweepRenderer(sweepPlot, referenceText);
+        // Reset View sits top-left so it never collides with the 1x/2x/4x
+        // selector pinned top-right.
+        Button resetView = CreateOverlayButton(
+            "Reset View", "Re-enable live auto-fitting of the sweep window", renderer.ResetView);
+        resetView.HorizontalAlignment = HorizontalAlignment.Left;
+        resetView.VerticalAlignment = VerticalAlignment.Top;
+        resetView.Margin = new Thickness(10, 6, 0, 0);
+        Grid.SetRow(resetView, 0);
+        grid.Children.Add(resetView);
         var consumer = new ScopeSweepFrameConsumer(renderer);
         return new InfoTabRegistration(definition, CreateTabItem(definition, grid), consumer);
     }
@@ -571,6 +609,8 @@ internal sealed class InfoTabRegistry
         }
 
         var renderer = new MultiFilterScopeRenderer(plots);
+        grid.Children.Add(CreatePinnedResetViewButton(
+            "Re-enable live windowing on all four lanes", row: 1, renderer.ResetView));
         var consumer = new MultiFilterScopeFrameConsumer(renderer);
         return new InfoTabRegistration(definition, CreateTabItem(definition, grid), consumer);
     }
