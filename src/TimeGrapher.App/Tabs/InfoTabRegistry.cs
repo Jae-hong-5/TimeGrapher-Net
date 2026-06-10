@@ -6,6 +6,7 @@ using Avalonia.Media;
 using ScottPlot.Avalonia;
 using TimeGrapher.App.Rendering;
 using TimeGrapher.App.ViewModels;
+using TimeGrapher.Core.Shared;
 
 namespace TimeGrapher.App.Tabs;
 
@@ -38,6 +39,7 @@ internal sealed class InfoTabRegistry
             [InfoTabKind.BeatErrorDiag] = CreateBeatErrorDiagRegistration,
             [InfoTabKind.MultiFilterScope] = CreateMultiFilterScopeRegistration,
             [InfoTabKind.LongTermPerformance] = CreateLongTermPerfRegistration,
+            [InfoTabKind.TestPositions] = CreateTestPositionsRegistration,
             [InfoTabKind.Placeholder] = CreatePlaceholderRegistration,
         };
 
@@ -626,6 +628,88 @@ internal sealed class InfoTabRegistry
         grid.Children.Add(resetButton);
 
         var consumer = new LongTermPerfFrameConsumer(renderer);
+        return new InfoTabRegistration(definition, CreateTabItem(definition, grid), consumer);
+    }
+
+    private static InfoTabRegistration CreateTestPositionsRegistration(
+        InfoTabDefinition definition,
+        InfoTabFactoryContext context)
+    {
+        // One large button per NIHS 95-10 / ISO 3158 test position in a
+        // 2-column grid (the manual's horizontal pair CH/CB on the first row).
+        // Clicking writes the shared SelectedPositionIndex view-model property;
+        // MainWindow forwards the change to the running analysis worker (the
+        // SetSoundBackgroundColor flow) and the status-bar "POS …" indicator
+        // updates from the same property, so the active position stays visible
+        // at all times while measuring. The consumer re-highlights from the
+        // position Core stamps into the metrics-history snapshot.
+        IReadOnlyList<WatchPosition> positions = WatchPositions.All;
+        var buttons = new Button[positions.Count];
+        var grid = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions("*,*"),
+            RowDefinitions = new RowDefinitions("*,*,*"),
+            Margin = new Thickness(8),
+        };
+
+        for (int i = 0; i < positions.Count; i++)
+        {
+            WatchPosition position = positions[i];
+            var shortText = new TextBlock
+            {
+                Text = position.ShortName(),
+                FontSize = 34,
+                HorizontalAlignment = HorizontalAlignment.Center,
+            };
+            var longText = new TextBlock
+            {
+                Text = position.LongName(),
+                FontSize = 13,
+                Opacity = 0.75,
+                HorizontalAlignment = HorizontalAlignment.Center,
+            };
+            var content = new StackPanel
+            {
+                Spacing = 2,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+            content.Children.Add(shortText);
+            content.Children.Add(longText);
+
+            var button = new Button
+            {
+                Content = content,
+                Classes = { "PositionButton" },
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                VerticalAlignment = VerticalAlignment.Stretch,
+                Margin = new Thickness(4),
+            };
+            ToolTip.SetTip(button, $"Tag new measurements as {position.ShortName()} — {position.LongName()}");
+            Grid.SetRow(button, i / 2);
+            Grid.SetColumn(button, i % 2);
+            buttons[i] = button;
+            grid.Children.Add(button);
+        }
+
+        var initialPosition = (WatchPosition)(context.ViewModel?.SelectedPositionIndex ?? 0);
+        var renderer = new TestPositionsRenderer(buttons, initialPosition);
+
+        for (int i = 0; i < buttons.Length; i++)
+        {
+            var position = (WatchPosition)i;
+            buttons[i].Click += (_, _) =>
+            {
+                if (context.ViewModel is { } viewModel)
+                {
+                    viewModel.SelectedPositionIndex = (int)position;
+                }
+
+                renderer.SetActivePosition(position);
+            };
+        }
+
+        var consumer = new TestPositionsFrameConsumer(renderer);
         return new InfoTabRegistration(definition, CreateTabItem(definition, grid), consumer);
     }
 

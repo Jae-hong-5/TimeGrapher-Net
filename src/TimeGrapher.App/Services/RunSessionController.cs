@@ -27,6 +27,7 @@ internal sealed class RunSessionController : IDisposable
     private Action? _inputCompletionDetach;
     private ulong _runSessionToken;
     private int? _sweepMultiple;
+    private WatchPosition? _activePosition;
 
     public RunSessionController(
         Func<ulong, AnalysisWorker.Config> createAnalysisConfig,
@@ -172,6 +173,16 @@ internal sealed class RunSessionController : IDisposable
         _analysisWorker?.SetSweepMultiple(sweepMultiple);
     }
 
+    /// <summary>
+    /// Forwards the active watch test position to the running analysis worker
+    /// and remembers it so later runs start with the user's selection.
+    /// </summary>
+    public void SetActivePosition(WatchPosition position)
+    {
+        _activePosition = position;
+        _analysisWorker?.SetActivePosition(position);
+    }
+
     public void Dispose()
     {
         InvalidateRunSession();
@@ -203,6 +214,10 @@ internal sealed class RunSessionController : IDisposable
         if (_sweepMultiple is int sweepMultiple)
         {
             _analysisWorker.SetSweepMultiple(sweepMultiple);
+        }
+        if (_activePosition is WatchPosition activePosition)
+        {
+            _analysisWorker.SetActivePosition(activePosition);
         }
         _analysisWorker.AnalysisFrameReady += _onAnalysisFrameReady;
         _analysisWorker.Start();

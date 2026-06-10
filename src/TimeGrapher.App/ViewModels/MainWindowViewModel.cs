@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Windows.Input;
+using TimeGrapher.Core.Shared;
 
 namespace TimeGrapher.App.ViewModels;
 
@@ -42,6 +43,7 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     private decimal _scopeScale = 2m;
     private bool _useCOnset;
     private int _sweepMultiple = 2;
+    private int _selectedPositionIndex; // 0 = WatchPosition.CH (dial up)
 
     public MainWindowViewModel(
         Func<Task> startAsync,
@@ -232,6 +234,22 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
         get => _sweepMultiple;
         set => SetProperty(ref _sweepMultiple, value);
     }
+
+    /// <summary>Active watch test position as a <see cref="WatchPosition"/> ordinal (0 = CH, dial up).</summary>
+    public int SelectedPositionIndex
+    {
+        get => _selectedPositionIndex;
+        set
+        {
+            if (SetProperty(ref _selectedPositionIndex, value))
+            {
+                OnPropertyChanged(nameof(PositionLabel));
+            }
+        }
+    }
+
+    /// <summary>Always-visible status-bar indicator of the active test position ("POS CH").</summary>
+    public string PositionLabel => "POS " + ((WatchPosition)_selectedPositionIndex).ShortName();
 
     public void SetModeAllowsSampleRate(bool value)
     {

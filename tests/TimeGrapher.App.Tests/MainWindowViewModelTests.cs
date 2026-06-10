@@ -1,4 +1,5 @@
 using TimeGrapher.App.ViewModels;
+using TimeGrapher.Core.Shared;
 using Xunit;
 
 namespace TimeGrapher.App.Tests;
@@ -202,6 +203,24 @@ public sealed class MainWindowViewModelTests
         Assert.Contains(nameof(MainWindowViewModel.SelectedAveragingPeriodIndex), changed);
         Assert.Contains(nameof(MainWindowViewModel.Gain), changed);
         Assert.Contains(nameof(MainWindowViewModel.LiftAngle), changed);
+    }
+
+    [Fact]
+    public void PositionSelectionKeepsTheAlwaysVisibleLabelInSync()
+    {
+        var vm = CreateViewModel();
+        var raised = new List<string?>();
+        vm.PropertyChanged += (_, e) => raised.Add(e.PropertyName);
+
+        // Default: CH (dial up), already visible before any selection.
+        Assert.Equal((int)WatchPosition.CH, vm.SelectedPositionIndex);
+        Assert.Equal("POS CH", vm.PositionLabel);
+
+        vm.SelectedPositionIndex = (int)WatchPosition.P6H;
+
+        Assert.Equal("POS 6H", vm.PositionLabel);
+        Assert.Contains(nameof(MainWindowViewModel.SelectedPositionIndex), raised);
+        Assert.Contains(nameof(MainWindowViewModel.PositionLabel), raised);
     }
 
     [Fact]

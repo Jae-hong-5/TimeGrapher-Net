@@ -315,6 +315,11 @@ public partial class MainWindow : Window
         {
             mRunSessionController.SetSweepMultiple(mViewModel.SweepMultiple);
         }
+
+        if (e.PropertyName == nameof(MainWindowViewModel.SelectedPositionIndex))
+        {
+            mRunSessionController.SetActivePosition((WatchPosition)mViewModel.SelectedPositionIndex);
+        }
     }
 
     private void OnGraphicsTabSelectionChanged(object? sender, SelectionChangedEventArgs e)

@@ -90,9 +90,13 @@
 
     <DockPanel Grid.Row="1">
     <Border DockPanel.Dock="Bottom" Height="24" Background="{DynamicResource SurfaceBgBrush}" BorderBrush="{DynamicResource ChromeBorderBrush}" BorderThickness="0,1,0,0">
-      <Grid ColumnDefinitions="*,Auto">
+      <Grid ColumnDefinitions="*,Auto,Auto">
         <TextBlock Name="StatusBarText" VerticalAlignment="Center" Margin="6,0,0,0" Text="{Binding StatusText}" TextTrimming="CharacterEllipsis" />
-        <TextBlock Name="LatencyBarText" Grid.Column="1" VerticalAlignment="Center" Margin="12,0,6,0"
+        <TextBlock Name="PositionBarText" Grid.Column="1" VerticalAlignment="Center" Margin="12,0,0,0"
+                   Text="{Binding PositionLabel}"
+                   Foreground="{DynamicResource ChromeAccentBrush}"
+                   ToolTip.Tip="Active watch test position (NIHS 95-10 / ISO 3158) — pick it on the Test Positions tab" />
+        <TextBlock Name="LatencyBarText" Grid.Column="2" VerticalAlignment="Center" Margin="12,0,6,0"
                    Text="{Binding LatencyText}"
                    ToolTip.Tip="End-to-end latency avg/worst (capture→processing + processing→display), dropped input samples / coalesced UI frames, missed beats, sync losses" />
       </Grid>

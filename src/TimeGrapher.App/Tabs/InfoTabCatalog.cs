@@ -12,6 +12,7 @@ internal enum InfoTabKind
     BeatErrorDiag,
     MultiFilterScope,
     LongTermPerformance,
+    TestPositions,
     Placeholder,
 }
 
@@ -47,6 +48,7 @@ internal static class InfoTabCatalog
     public const string BeatErrorDiagTabId = "beat-error-diag";
     public const string MultiFilterScopeTabId = "multi-filter-scope";
     public const string LongTermPerfTabId = "long-term-perf";
+    public const string TestPositionsTabId = "test-positions";
 
     public const int DefaultUiRefreshIntervalMs = 33;
     public const int SoundPrintRefreshIntervalMs = 100;
@@ -98,13 +100,16 @@ internal static class InfoTabCatalog
             // (bucket averages plus YMin/YMax variation bands); it declares no
             // per-frame graph-series contract.
             new(LongTermPerfTabId, "Long-Term Perf", InfoTabKind.LongTermPerformance, DefaultUiRefreshIntervalMs, UsesGraphSnapshots: false, Array.Empty<GraphSeriesDefinition>()),
+            // Test Positions reads only the cumulative snapshot's ActivePosition
+            // stamp (the highlight follows what Core actually tags); it declares
+            // no per-frame graph-series contract.
+            new(TestPositionsTabId, "Test Positions", InfoTabKind.TestPositions, DefaultUiRefreshIntervalMs, UsesGraphSnapshots: false, Array.Empty<GraphSeriesDefinition>()),
         };
 
         // Reserved placeholder tabs for features not yet built.
         // Titles are shortened from the planned feature names to fit the tab width.
         (string Id, string Title)[] placeholders =
         {
-            ("test-positions", "Test Positions"),
             ("multi-position-seq", "Multi-Position Seq"),
             ("beat-noise-scope", "Beat-Noise Scope"),
             ("escapement-analyzer", "Escapement Analyzer"),
