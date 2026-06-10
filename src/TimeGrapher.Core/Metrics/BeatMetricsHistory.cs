@@ -6,9 +6,12 @@ namespace TimeGrapher.Core.Metrics;
 /// Accumulates the numeric per-beat samples emitted by <see cref="WatchMetrics"/>
 /// into bounded decimating series (rate, amplitude, beat error) plus the latest
 /// derived measures and instantaneous readings, and publishes them as immutable
-/// <see cref="BeatMetricsHistorySnapshot"/>s. Snapshots are rebuilt at most once
-/// per <see cref="SnapshotMinIntervalS"/> of stream time; unchanged or in-between
-/// requests return the same shared instance, so per-frame cost stays flat.
+/// <see cref="BeatMetricsHistorySnapshot"/>s. Beat-data rebuilds happen at most
+/// once per <see cref="SnapshotMinIntervalS"/> of stream time; a user state
+/// change (active position, sequence reset) bypasses that throttle once, since
+/// stream time stands still while no synced beats arrive. Unchanged or
+/// in-between requests return the same shared instance, so per-frame cost
+/// stays flat.
 /// </summary>
 public sealed class BeatMetricsHistory
 {
@@ -159,8 +162,11 @@ public sealed class BeatMetricsHistory
     }
 
     /// <summary>
-    /// Latest snapshot, rebuilt only when content changed and the stream-time
-    /// throttle elapsed (the first build is immediate). Null until the first beat.
+    /// Latest snapshot, rebuilt only when content changed and either the
+    /// stream-time throttle elapsed or a state change requested an immediate
+    /// publish (the first build is immediate). Null until the first beat -
+    /// unless a state change precedes it, which publishes a position-only
+    /// snapshot with empty series.
     /// </summary>
     public BeatMetricsHistorySnapshot? CurrentSnapshot()
     {
