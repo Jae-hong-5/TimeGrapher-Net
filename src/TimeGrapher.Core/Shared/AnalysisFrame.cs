@@ -176,6 +176,13 @@ public sealed class AnalysisFrame
     /// processing-to-display, and end-to-end legs on one clock. 0 = unknown.
     /// </summary>
     public long CaptureTimestamp;
+
+    /// <summary>
+    /// True when the capture stamp may be newer than the true capture time
+    /// (stamp-ring eviction under deep backlog): latency legs computed from it
+    /// are lower bounds and the UI marks them as such.
+    /// </summary>
+    public bool CaptureTimestampIsLowerBound;
     public long ProcessingCompletedTimestamp;
 
     /// <summary>Session-cumulative missed-beat / sync-loss counters (coalescing-safe).</summary>

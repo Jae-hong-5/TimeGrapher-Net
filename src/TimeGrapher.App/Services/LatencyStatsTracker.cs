@@ -29,6 +29,7 @@ internal sealed class LatencyStatsTracker
     private ulong _coalescedFrames;
     private ulong _missedBeats;
     private uint _syncLosses;
+    private bool _sawLowerBoundCapture;
     private long _lastStatusTicks;
 
     public LatencyStatsTracker(double? ticksPerMs = null)
@@ -48,6 +49,12 @@ internal sealed class LatencyStatsTracker
     public uint SyncLosses => _syncLosses;
     public long FrameCount => _frameCount;
 
+    /// <summary>
+    /// True when any observed capture stamp was a ring-eviction lower bound:
+    /// the worst-case figures then under-report and the readout marks them "≥".
+    /// </summary>
+    public bool WorstCaseIsLowerBound => _sawLowerBoundCapture;
+
     public void Reset()
     {
         _frameCount = 0;
@@ -58,6 +65,7 @@ internal sealed class LatencyStatsTracker
         _coalescedFrames = 0;
         _missedBeats = 0;
         _syncLosses = 0;
+        _sawLowerBoundCapture = false;
         _lastStatusTicks = 0;
     }
 
@@ -66,6 +74,7 @@ internal sealed class LatencyStatsTracker
     {
         if (frame.CaptureTimestamp > 0 && frame.ProcessingCompletedTimestamp > 0)
         {
+            _sawLowerBoundCapture |= frame.CaptureTimestampIsLowerBound;
             double capToProc = (frame.ProcessingCompletedTimestamp - frame.CaptureTimestamp) / _ticksPerMs;
             double procToDisp = (displayTicks - frame.ProcessingCompletedTimestamp) / _ticksPerMs;
             double endToEnd = (displayTicks - frame.CaptureTimestamp) / _ticksPerMs;
@@ -107,9 +116,10 @@ internal sealed class LatencyStatsTracker
 
     public string FormatStatus() => string.Format(
         CultureInfo.InvariantCulture,
-        "E2E {0:F0}/{1:F0} ms (cap→proc {2:F0}/{3:F0} + disp {4:F0}/{5:F0}) | drop {6} smp / {7} frm | miss {8} | sync−loss {9}",
+        "E2E {0:F0}/{10}{1:F0} ms (cap→proc {2:F0}/{10}{3:F0} + disp {4:F0}/{5:F0}) | drop {6} smp / {7} frm | miss {8} | sync−loss {9}",
         EndToEndAvgMs, EndToEndMaxMs,
         CapToProcAvgMs, CapToProcMaxMs,
         ProcToDispAvgMs, ProcToDispMaxMs,
-        _droppedSamples, _coalescedFrames, _missedBeats, _syncLosses);
+        _droppedSamples, _coalescedFrames, _missedBeats, _syncLosses,
+        _sawLowerBoundCapture ? "≥" : "");
 }

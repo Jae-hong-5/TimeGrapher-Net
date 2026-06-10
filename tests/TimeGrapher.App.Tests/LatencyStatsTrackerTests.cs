@@ -102,6 +102,24 @@ public sealed class LatencyStatsTrackerTests
     }
 
     [Fact]
+    public void FormatStatus_MarksWorstCaseAsLowerBoundAfterStampEviction()
+    {
+        LatencyStatsTracker tracker = NewTracker();
+        var clamped = new AnalysisFrame
+        {
+            CaptureTimestamp = 1_000,
+            ProcessingCompletedTimestamp = 11_000,
+            CaptureTimestampIsLowerBound = true,
+        };
+        tracker.Observe(clamped, 0, 16_000);
+
+        Assert.True(tracker.WorstCaseIsLowerBound);
+        string text = tracker.FormatStatus();
+        Assert.Contains("E2E 15/≥15 ms", text);
+        Assert.Contains("cap→proc 10/≥10", text);
+    }
+
+    [Fact]
     public void Reset_ClearsEverything()
     {
         LatencyStatsTracker tracker = NewTracker();

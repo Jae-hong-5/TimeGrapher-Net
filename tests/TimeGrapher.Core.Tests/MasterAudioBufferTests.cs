@@ -26,13 +26,14 @@ public sealed class MasterAudioBufferTests
         buffer.WriteSamples(Sequence(0, 10), captureTicks: 100); // samples 1..10
         buffer.WriteSamples(Sequence(10, 10), captureTicks: 200); // samples 11..20
 
-        Assert.True(buffer.TryGetCaptureTimestamp(5, out long firstBlock));
+        Assert.True(buffer.TryGetCaptureTimestamp(5, out long firstBlock, out bool lb1));
         Assert.Equal(100, firstBlock);
+        Assert.False(lb1); // ring not full: the true stamp is still present
 
-        Assert.True(buffer.TryGetCaptureTimestamp(10, out long firstBlockEnd));
+        Assert.True(buffer.TryGetCaptureTimestamp(10, out long firstBlockEnd, out _));
         Assert.Equal(100, firstBlockEnd);
 
-        Assert.True(buffer.TryGetCaptureTimestamp(11, out long secondBlock));
+        Assert.True(buffer.TryGetCaptureTimestamp(11, out long secondBlock, out _));
         Assert.Equal(200, secondBlock);
     }
 
@@ -40,28 +41,34 @@ public sealed class MasterAudioBufferTests
     public void CaptureTimestamp_UnknownBeforeFirstWriteAndBeyondNewestSample()
     {
         MasterAudioBuffer buffer = SmallRing();
-        Assert.False(buffer.TryGetCaptureTimestamp(1, out _));
+        Assert.False(buffer.TryGetCaptureTimestamp(1, out _, out _));
 
         buffer.WriteSamples(Sequence(0, 10), captureTicks: 100);
-        Assert.False(buffer.TryGetCaptureTimestamp(11, out _));
+        Assert.False(buffer.TryGetCaptureTimestamp(11, out _, out _));
 
         buffer.Reset();
-        Assert.False(buffer.TryGetCaptureTimestamp(1, out _));
+        Assert.False(buffer.TryGetCaptureTimestamp(1, out _, out _));
     }
 
     [Fact]
-    public void CaptureTimestamp_FallsBackToOldestSurvivingStampUnderDeepBacklog()
+    public void CaptureTimestamp_FlagsTheLowerBoundUnderDeepBacklog()
     {
         MasterAudioBuffer buffer = SmallRing();
         // 300 one-sample writes overflow the 256-entry stamp ring; the oldest
-        // surviving stamp answers for evicted samples (latency lower bound).
+        // surviving stamp answers for evicted samples and the result is marked
+        // as a lower bound so latency reporting stays honest in deep stalls.
         for (int i = 0; i < 300; i++)
         {
             buffer.WriteSamples(Sequence(i, 1), captureTicks: 1000 + i);
         }
 
-        Assert.True(buffer.TryGetCaptureTimestamp(1, out long ticks));
+        Assert.True(buffer.TryGetCaptureTimestamp(1, out long ticks, out bool isLowerBound));
         Assert.Equal(1000 + (300 - 256), ticks);
+        Assert.True(isLowerBound);
+
+        // A sample the surviving ring genuinely covers is exact, not a bound.
+        Assert.True(buffer.TryGetCaptureTimestamp(299, out _, out bool exact));
+        Assert.False(exact);
     }
 
     [Fact]

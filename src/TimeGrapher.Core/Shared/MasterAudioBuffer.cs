@@ -108,8 +108,13 @@ public sealed class MasterAudioBuffer
     /// Stopwatch timestamp of the write block that contained the given absolute
     /// sample index (analysis worker thread). False until the first write or when
     /// the index lies beyond everything written so far.
+    /// <paramref name="isLowerBound"/> is true when the true entry may have been
+    /// evicted (the match is the oldest stamp of a full ring): the returned
+    /// timestamp is then newer than the real capture time, so a latency computed
+    /// from it is a LOWER bound — exactly the deep-stall regime where honest
+    /// worst-case reporting matters.
     /// </summary>
-    public bool TryGetCaptureTimestamp(ulong sampleIndex, out long captureTicks)
+    public bool TryGetCaptureTimestamp(ulong sampleIndex, out long captureTicks, out bool isLowerBound)
     {
         lock (Lock)
         {
@@ -119,12 +124,14 @@ public sealed class MasterAudioBuffer
                 if (_stampSampleEnd[idx] >= sampleIndex)
                 {
                     captureTicks = _stampTicks[idx];
+                    isLowerBound = i == 0 && _stampCount == CaptureStampCapacity;
                     return true;
                 }
             }
         }
 
         captureTicks = 0;
+        isLowerBound = false;
         return false;
     }
 

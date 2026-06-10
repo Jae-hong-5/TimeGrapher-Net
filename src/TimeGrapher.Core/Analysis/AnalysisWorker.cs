@@ -383,9 +383,10 @@ public sealed class AnalysisWorker : IDisposable
             frame.SyncLossCount = lastPipelineUpdate.Result.SyncLossCount;
         }
 
-        if (_rawAudio.TryGetCaptureTimestamp(sourceSampleEnd, out long captureTicks))
+        if (_rawAudio.TryGetCaptureTimestamp(sourceSampleEnd, out long captureTicks, out bool isLowerBound))
         {
             frame.CaptureTimestamp = captureTicks;
+            frame.CaptureTimestampIsLowerBound = isLowerBound;
         }
 
         frame.ProcessingCompletedTimestamp = Stopwatch.GetTimestamp();
