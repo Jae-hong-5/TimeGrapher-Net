@@ -190,13 +190,6 @@ public sealed class BeatSegmentCapture
     }
 
     /// <summary>
-    /// Latest snapshot, rebuilt only when a segment completed since the last
-    /// build; in between, the same shared instance reattaches to every frame
-    /// (the BeatMetricsHistory pattern — the per-beat rebuild allocates only
-    /// the small segment descriptors, never the sample buffers).
-    /// Null until the first completed segment.
-    /// </summary>
-    /// <summary>
     /// Deadline-degradation knob: while suspended, no new segment windows open.
     /// Thread-safe; applied on the next Project pass.
     /// </summary>
@@ -205,6 +198,13 @@ public sealed class BeatSegmentCapture
         _captureSuspended = suspended;
     }
 
+    /// <summary>
+    /// Latest snapshot, rebuilt only when a segment completed since the last
+    /// build; in between, the same shared instance reattaches to every frame
+    /// (the BeatMetricsHistory pattern — the per-beat rebuild allocates only
+    /// the small segment descriptors, never the sample buffers).
+    /// Null until the first completed segment.
+    /// </summary>
     public void AppendSnapshot(AnalysisFrame frame)
     {
         frame.BeatSegments = CurrentSnapshot();
