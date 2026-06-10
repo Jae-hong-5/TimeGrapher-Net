@@ -43,6 +43,7 @@ internal sealed class InfoTabRegistry
             [InfoTabKind.TestPositions] = CreateTestPositionsRegistration,
             [InfoTabKind.MultiPositionSequence] = CreateMultiPositionSeqRegistration,
             [InfoTabKind.BeatNoiseScope] = CreateBeatNoiseScopeRegistration,
+            [InfoTabKind.EscapementAnalyzer] = CreateEscapementAnalyzerRegistration,
             [InfoTabKind.Placeholder] = CreatePlaceholderRegistration,
         };
 
@@ -936,6 +937,67 @@ internal sealed class InfoTabRegistry
         }
 
         var consumer = new BeatNoiseScopeFrameConsumer(renderer);
+        return new InfoTabRegistration(definition, CreateTabItem(definition, grid), consumer);
+    }
+
+    private static InfoTabRegistration CreateEscapementAnalyzerRegistration(
+        InfoTabDefinition definition,
+        InfoTabFactoryContext context)
+    {
+        // One large plot of the latest beat's envelope with the A / C marker
+        // lines and millisecond labels, above the numeric repeatability panel:
+        // label/value cells (the BeatErrorDiag pattern) for the current A→C
+        // readings per reference, the onset-vs-peak delta, the windowed
+        // mean±sigma of both references and the more-repeatable verdict.
+        var markerPlot = new AvaPlot();
+
+        var valueTexts = new TextBlock[EscapementReadout.Labels.Length];
+        var readoutGrid = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions("*,*,*"),
+            RowDefinitions = new RowDefinitions("Auto,Auto"),
+            Margin = new Thickness(8, 4, 8, 2),
+        };
+        for (int i = 0; i < EscapementReadout.Labels.Length; i++)
+        {
+            var label = new TextBlock
+            {
+                Text = EscapementReadout.Labels[i],
+                FontSize = 11,
+                Opacity = 0.65,
+            };
+            var value = new TextBlock
+            {
+                Text = VarioReadout.Missing,
+                FontSize = 15,
+            };
+            valueTexts[i] = value;
+
+            var cell = new StackPanel { Margin = new Thickness(0, 2, 12, 2) };
+            cell.Children.Add(label);
+            cell.Children.Add(value);
+            Grid.SetRow(cell, i / 3);
+            Grid.SetColumn(cell, i % 3);
+            readoutGrid.Children.Add(cell);
+        }
+
+        var grid = new Grid
+        {
+            RowDefinitions = new RowDefinitions("*,Auto"),
+        };
+        Grid.SetRow(markerPlot, 0);
+        Grid.SetRow(readoutGrid, 1);
+        grid.Children.Add(markerPlot);
+        grid.Children.Add(readoutGrid);
+
+        if (CreateWaitingOverlay(context.ViewModel) is { } overlay)
+        {
+            Grid.SetRow(overlay, 0);
+            grid.Children.Add(overlay);
+        }
+
+        var renderer = new EscapementAnalyzerRenderer(markerPlot, valueTexts, context.TextFontFamily);
+        var consumer = new EscapementAnalyzerFrameConsumer(renderer);
         return new InfoTabRegistration(definition, CreateTabItem(definition, grid), consumer);
     }
 
