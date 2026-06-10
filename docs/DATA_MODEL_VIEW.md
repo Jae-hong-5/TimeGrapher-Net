@@ -131,6 +131,7 @@ class BeatTimingSample {
     +double RateErrorMs
     +double RateSPerDay
     +double BeatErrorSignedMs
+    +int Bph
 }
 
 class AmplitudeSample {
@@ -153,6 +154,7 @@ class BeatMetricsHistorySnapshot {
     +DerivedTimingMeasures Derived
     +StatsSummary RateStats
     +StatsSummary AmplitudeStats
+    +int Bph
     +double LatestTimeS
 }
 
@@ -260,8 +262,8 @@ BeatMetricsHistorySnapshot "1" *-- "2" StatsSummary : running stability stats
 | `TgConfig`, `TgResult`, `TgEvent` | `Core.Detection` | Detector configuration, sync state, processed PCM, and tick/tock events |
 | `AnalysisFrame` | `Core.Shared` | One UI update payload produced by an analysis pass |
 | `GraphSeriesFrame`, `ScopeMarker`, `WatchMetricsUpdate`, `PixelBuffer` | `Core.Shared` | Data displayed as scope/rate graphs, markers, numeric results, and sound-print image |
-| `BeatTimingSample`, `AmplitudeSample`, `DerivedTimingMeasures` | `Core.Shared` | Machine-readable per-beat values (rate error, signed beat error, amplitude, DiffTicTac/DiffPeriod/AvgPeriod) emitted per A/C event |
-| `BeatMetricsHistorySnapshot`, `MetricsHistorySeries` | `Core.Shared` (built by `Core.Metrics.BeatMetricsHistory`) | Immutable cumulative history of rate/amplitude/beat-error series shared across frames; survives latest-wins frame coalescing |
+| `BeatTimingSample`, `AmplitudeSample`, `DerivedTimingMeasures` | `Core.Shared` | Machine-readable per-beat values (rate error, signed beat error, locked BPH, amplitude, DiffTicTac/DiffPeriod/AvgPeriod) emitted per A/C event |
+| `BeatMetricsHistorySnapshot`, `MetricsHistorySeries` | `Core.Shared` (built by `Core.Metrics.BeatMetricsHistory`) | Immutable cumulative history of rate/amplitude/beat-error series plus the latest readings and locked BPH, shared across frames; survives latest-wins frame coalescing |
 | `StatsSummary` | `Core.Shared` (fed by `Core.Metrics.RunningStats`) | Running min/max/mean/population-σ since start for rate and amplitude — exact per-beat statistics independent of series decimation (Vario display) |
 
 ## Relationship notes
