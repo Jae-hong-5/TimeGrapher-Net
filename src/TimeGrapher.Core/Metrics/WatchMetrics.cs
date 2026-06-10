@@ -263,6 +263,11 @@ public sealed class WatchMetrics
             // there is no narrowing of the result.
             expectedTimeTarget = 3600.0 / bph;
 
+            // Classify the A-to-A interval (re-anchoring the beat counter across
+            // any detection gap) before the parity read and the expected-time
+            // computation below consume the counter.
+            AccumulatePeriodDelta(eventSample, expectedTimeTarget);
+
             _ticTocBeatNumber++;
 
             int ticOrToc = CurrentBeatPhase();
@@ -276,8 +281,6 @@ public sealed class WatchMetrics
             }
             instTimingErrorMs = instTimingErrorMs + _zeroOffsetValue;
             _lastRateErrorMs = instTimingErrorMs;
-
-            AccumulatePeriodDelta(eventSample, expectedTimeTarget);
 
             double wrappedRateError = WrapIntoRange(
                 instTimingErrorMs,
@@ -324,7 +327,9 @@ public sealed class WatchMetrics
     /// Accumulates measured-vs-expected beat-duration deltas (consecutive A events)
     /// for DiffPeriod / AvgPeriod. Intervals off by more than half a beat span a
     /// detection gap rather than a single beat and would poison the averages, so
-    /// they are excluded.
+    /// they are excluded; gaps additionally re-anchor the tic/toc beat counter to
+    /// the physical schedule, so this must run before the counter is advanced for
+    /// the current event.
     /// </summary>
     private void AccumulatePeriodDelta(double eventSample, double expectedTimeTarget)
     {
@@ -343,7 +348,15 @@ public sealed class WatchMetrics
                 // An over-long interval means the detector skipped beats; the
                 // interval covers ~N nominal beats, of which N-1 went undetected.
                 int beatsSpanned = QRound(measuredPeriodS / expectedTimeTarget);
-                _missedBeats += (ulong)Math.Max(1, beatsSpanned - 1);
+                ulong skippedBeats = (ulong)Math.Max(1, beatsSpanned - 1);
+                _missedBeats += skippedBeats;
+                // Advance the beat counter past the undetected beats: its parity
+                // is the tic/toc label and its product with the nominal period is
+                // the expected-time schedule, so leaving it behind sign-inverts
+                // every signed beat error / DiffTicTac after an odd-length gap
+                // (and mispairs the amplitude average), while every gap shifts
+                // the rate-error baseline by a full beat per missed beat.
+                _ticTocBeatNumber += skippedBeats;
             }
         }
 

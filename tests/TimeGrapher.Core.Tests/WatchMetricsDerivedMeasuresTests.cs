@@ -130,6 +130,42 @@ public sealed class WatchMetricsDerivedMeasuresTests
     }
 
     [Fact]
+    public void DiffTicTac_KeepsSignAcrossAnOddDetectionGap()
+    {
+        // Tick 125.8 ms / tock 124.2 ms; one toc goes undetected mid-run (the
+        // 250.0 ms interval spans it). Re-anchoring the beat counter keeps the
+        // post-gap tic/toc labels aligned with the physical phase, so the
+        // signed measures keep their +0.8/+1.6 ms sign instead of inverting.
+        WatchMetrics metrics = NewMetrics();
+        List<WatchMetricsUpdate> updates = FeedAEvents(
+            metrics, 125.8, 124.2, 125.8, 124.2, 250.0, 125.8, 124.2, 125.8);
+
+        WatchMetricsUpdate postGap = updates[8];
+        Assert.True(postGap.BeatTimingSample.BeatErrorValid);
+        Assert.Equal(0.8, postGap.BeatTimingSample.BeatErrorSignedMs, 6);
+        Assert.True(postGap.DerivedMeasures.DiffTicTacValid);
+        Assert.Equal(1.6, postGap.DerivedMeasures.DiffTicTacMs, 6);
+    }
+
+    [Fact]
+    public void BeatCounter_SkipsUndetectedBeatsAcrossAGap()
+    {
+        // One beat undetected: the next sample is physical beat 4 (toc), not
+        // beat 3, and the expected-time schedule stays anchored, so a watch on
+        // its nominal schedule still reads a zero rate error after the gap.
+        WatchMetrics metrics = NewMetrics();
+        List<WatchMetricsUpdate> updates = FeedAEvents(metrics, 125.0, 250.0, 125.0);
+
+        Assert.Equal(4UL, updates[2].BeatTimingSample.BeatNumber);
+        Assert.False(updates[2].BeatTimingSample.IsTic);
+        Assert.Equal(0.0, updates[2].BeatTimingSample.RateErrorMs, 6);
+        Assert.Equal(5UL, updates[3].BeatTimingSample.BeatNumber);
+        Assert.True(updates[3].BeatTimingSample.IsTic);
+        Assert.Equal(0.0, updates[3].BeatTimingSample.RateErrorMs, 6);
+        Assert.Equal(1UL, metrics.MissedBeats);
+    }
+
+    [Fact]
     public void MissedBeats_CountsBeatsSkippedAcrossDetectionGaps()
     {
         // A 375 ms A-to-A interval spans three nominal 125 ms beats: two beats
