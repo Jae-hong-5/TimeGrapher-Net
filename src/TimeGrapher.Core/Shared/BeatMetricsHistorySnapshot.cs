@@ -35,7 +35,7 @@ public readonly record struct StatsSummary(
 /// amplitude (deg, tic/toc pair averages) and signed beat error (ms) of every
 /// beat tagged with that position. Only positions with at least one recorded
 /// measurement appear in <see cref="BeatMetricsHistorySnapshot.Positions"/>,
-/// so the list is bounded by the six standard positions.
+/// so the list is bounded by the WatchPositions.Count-entry catalog (10).
 /// </summary>
 public sealed record PositionSummary(
     WatchPosition Position,

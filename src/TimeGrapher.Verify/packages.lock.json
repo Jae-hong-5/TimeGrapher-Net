@@ -5,7 +5,6 @@
       "timegrapher.core": {
         "type": "Project"
       }
-    },
-    "net8.0/linux-arm64": {}
+    }
   }
 }

@@ -167,15 +167,38 @@ public sealed class InfoTabCatalogTests
     }
 
     [Fact]
-    public void CatalogTracksFunctionalAndPlaceholderTabCounts()
+    public void EveryFunctionalKindAppearsExactlyOnceAndNoPlaceholdersRemain()
     {
-        InfoTabDefinition[] functional = InfoTabCatalog.All
-            .Where(tab => tab.Kind != InfoTabKind.Placeholder).ToArray();
-        InfoTabDefinition[] placeholders = InfoTabCatalog.All
-            .Where(tab => tab.Kind == InfoTabKind.Placeholder).ToArray();
+        // Derived invariants instead of hardcoded counts (which this wave had
+        // to bump in every tab commit while catching nothing): each functional
+        // InfoTabKind backs exactly one catalog tab, the kinds in the catalog
+        // exactly cover the enum minus Placeholder, and no placeholder is left.
+        // A duplicate kind, a kind without a tab, or a revived placeholder all
+        // fail loudly; adding tab #15 needs no edit here beyond its new kind.
+        InfoTabKind[] expectedKinds = Enum.GetValues<InfoTabKind>()
+            .Where(kind => kind != InfoTabKind.Placeholder)
+            .OrderBy(kind => kind)
+            .ToArray();
+        InfoTabKind[] catalogKinds = InfoTabCatalog.All
+            .Select(tab => tab.Kind)
+            .OrderBy(kind => kind)
+            .ToArray();
 
-        Assert.Equal(14, InfoTabCatalog.All.Count);
-        Assert.Equal(14, functional.Length);
-        Assert.Empty(placeholders);
+        Assert.Equal(expectedKinds, catalogKinds);
+        Assert.DoesNotContain(InfoTabKind.Placeholder, catalogKinds);
+    }
+
+    [Fact]
+    public void EveryCatalogTabResolvesToARegistryFactoryAndConsumer()
+    {
+        // The registry throws on a kind without a factory; building it from the
+        // catalog proves every tab constructs and yields a consumer per id.
+        InfoTabRegistry registry = InfoTabRegistry.FromCatalog(
+            new Avalonia.Controls.TabControl(), "Inter");
+
+        Assert.Equal(InfoTabCatalog.All.Count, registry.Consumers.Count);
+        Assert.Equal(
+            InfoTabCatalog.All.Select(tab => tab.Id).OrderBy(id => id, StringComparer.Ordinal),
+            registry.Consumers.Select(consumer => consumer.TabId).OrderBy(id => id, StringComparer.Ordinal));
     }
 }

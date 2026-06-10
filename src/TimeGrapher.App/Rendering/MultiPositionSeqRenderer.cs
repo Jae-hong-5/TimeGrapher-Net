@@ -13,7 +13,7 @@ namespace TimeGrapher.App.Rendering;
 /// frame already carries. The accent banner reports the balance-wheel
 /// unbalance hint. The table is rebuilt only when the snapshot version
 /// changes (at most one rebuild per Core snapshot interval, bounded at the
-/// six standard rows), so coalesced or repeated frames cost nothing.
+/// WatchPositions.Count rows), so coalesced or repeated frames cost nothing.
 /// </summary>
 internal sealed class MultiPositionSeqRenderer
 {

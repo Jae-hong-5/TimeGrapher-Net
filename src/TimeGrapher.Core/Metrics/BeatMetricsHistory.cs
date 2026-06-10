@@ -26,7 +26,7 @@ public sealed class BeatMetricsHistory
 
     // Per-position aggregates, indexed by WatchPosition ordinal. A slot is
     // created on the first measurement tagged with that position, so storage is
-    // bounded by the six standard positions regardless of run length.
+    // bounded by the WatchPositions.Count-entry catalog (10) regardless of run length.
     private readonly PositionAggregate?[] _positionAggregates =
         new PositionAggregate?[WatchPositions.Count];
     private WatchPosition _activePosition = WatchPosition.CH;
@@ -237,7 +237,7 @@ public sealed class BeatMetricsHistory
         }
 
         // Rebuilt with the snapshot (at most every SnapshotMinIntervalS), so
-        // the allocation stays off the per-beat path and is bounded at 6 rows.
+        // the allocation stays off the per-beat path and is bounded by WatchPositions.Count rows.
         var summaries = new List<PositionSummary>(measured);
         foreach (WatchPosition position in WatchPositions.All)
         {
