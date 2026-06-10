@@ -109,6 +109,27 @@ public sealed class WatchMetricsDerivedMeasuresTests
     }
 
     [Fact]
+    public void MissedBeats_CountsBeatsSkippedAcrossDetectionGaps()
+    {
+        // A 375 ms A-to-A interval spans three nominal 125 ms beats: two beats
+        // went undetected.
+        WatchMetrics metrics = NewMetrics();
+        FeedAEvents(metrics, 125.0, 375.0, 125.0);
+
+        Assert.Equal(2UL, metrics.MissedBeats);
+    }
+
+    [Fact]
+    public void MissedBeats_IgnoresSpuriouslyShortIntervals()
+    {
+        // A too-short interval is a spurious extra detection, not a missed beat.
+        WatchMetrics metrics = NewMetrics();
+        FeedAEvents(metrics, 125.0, 30.0, 125.0);
+
+        Assert.Equal(0UL, metrics.MissedBeats);
+    }
+
+    [Fact]
     public void BeatTimingSample_CarriesBeatNumberPhaseAndRateError()
     {
         // Exact nominal intervals: the zero-offset anchor makes every rate error 0.

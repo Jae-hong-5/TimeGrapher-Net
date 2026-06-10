@@ -228,6 +228,7 @@ public sealed class AnalysisWorker : IDisposable
         MasterAudioBufferSnapshot snapshot = _rawAudio.GetSnapshot();
         ulong sourceSampleEnd = snapshot.TotalSamplesWritten;
         AnalysisFrame? frame = null;
+        DetectorMetricsBlockUpdate? lastPipelineUpdate = null;
 
         if (!_foregroundTimerStarted)
         {
@@ -271,6 +272,7 @@ public sealed class AnalysisWorker : IDisposable
             _soundPrintProjector.ProcessSamples(block);
 
             DetectorMetricsBlockUpdate pipelineUpdate = _pipeline.Process(block);
+            lastPipelineUpdate = pipelineUpdate;
             if (pipelineUpdate.Result.SyncStatus == TgSyncStatus.Synced &&
                 pipelineUpdate.Result.MeasuredPeriodS > 0.0)
             {
@@ -303,7 +305,31 @@ public sealed class AnalysisWorker : IDisposable
         }
         frame.DeadlineDegradationLevel = _deadlineMonitor.Level;
 
+        StampDiagnostics(frame, lastPipelineUpdate, sourceSampleEnd);
         AnalysisFrameReady?.Invoke(frame);
+    }
+
+    /// <summary>
+    /// Latency / missed-beat instrumentation (QA: report capture-to-processing,
+    /// processing-to-display and end-to-end latency plus dropped-block and
+    /// missed-beat counts). Capture time comes from the ring buffer's write-stamp
+    /// ring keyed by the frame's newest sample; the display leg is stamped by the
+    /// UI when it renders the frame.
+    /// </summary>
+    private void StampDiagnostics(AnalysisFrame frame, DetectorMetricsBlockUpdate? lastPipelineUpdate, ulong sourceSampleEnd)
+    {
+        if (lastPipelineUpdate != null)
+        {
+            frame.MissedBeats = lastPipelineUpdate.Result.MissedBeats;
+            frame.SyncLossCount = lastPipelineUpdate.Result.SyncLossCount;
+        }
+
+        if (_rawAudio.TryGetCaptureTimestamp(sourceSampleEnd, out long captureTicks))
+        {
+            frame.CaptureTimestamp = captureTicks;
+        }
+
+        frame.ProcessingCompletedTimestamp = Stopwatch.GetTimestamp();
     }
 
     /*
@@ -351,6 +377,7 @@ public sealed class AnalysisWorker : IDisposable
         frame.ProcessingElapsedMs = processingTimer.Elapsed.TotalMilliseconds;
         frame.DeadlineDegradationLevel = _deadlineMonitor.Level;
 
+        StampDiagnostics(frame, flushUpdate, snapshot.TotalSamplesWritten);
         AnalysisFrameReady?.Invoke(frame);
     }
 

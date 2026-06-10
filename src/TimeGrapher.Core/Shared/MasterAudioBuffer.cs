@@ -1,3 +1,5 @@
+using System.Diagnostics;
+
 namespace TimeGrapher.Core.Shared;
 
 public readonly record struct MasterAudioBufferSnapshot(
@@ -47,6 +49,17 @@ public sealed class MasterAudioBuffer
     private double _spf;
     private double _sps;
 
+    // Capture-timestamp ring: one (sampleEnd, Stopwatch ticks) entry per write so
+    // the analysis worker can compute capture-to-processing latency even under
+    // backlog. 256 entries cover ~2.5 s of 10 ms input blocks; if a deeper backlog
+    // evicts the entry that contained a sample, the lookup returns the oldest
+    // surviving (newer) stamp and the reported latency is a lower bound.
+    private const int CaptureStampCapacity = 256;
+    private readonly ulong[] _stampSampleEnd = new ulong[CaptureStampCapacity];
+    private readonly long[] _stampTicks = new long[CaptureStampCapacity];
+    private int _stampHead;
+    private int _stampCount;
+
     public MasterAudioBuffer(int sampleRate)
     {
         _numberOfAudioSamples = sampleRate * SecondsOfBuffer;
@@ -55,6 +68,12 @@ public sealed class MasterAudioBuffer
 
     /// <summary>Ring-write a block of mono float samples (input worker thread).</summary>
     public void WriteSamples(ReadOnlySpan<float> data)
+    {
+        WriteSamples(data, Stopwatch.GetTimestamp());
+    }
+
+    /// <summary>Timestamp-injectable overload for deterministic latency tests.</summary>
+    internal void WriteSamples(ReadOnlySpan<float> data, long captureTicks)
     {
         lock (Lock)
         {
@@ -71,7 +90,42 @@ public sealed class MasterAudioBuffer
                 remaining -= chunk;
             }
             _totalSamplesWritten += (ulong)data.Length;
+
+            if (data.Length > 0)
+            {
+                _stampSampleEnd[_stampHead] = _totalSamplesWritten;
+                _stampTicks[_stampHead] = captureTicks;
+                _stampHead = (_stampHead + 1) % CaptureStampCapacity;
+                if (_stampCount < CaptureStampCapacity)
+                {
+                    _stampCount++;
+                }
+            }
         }
+    }
+
+    /// <summary>
+    /// Stopwatch timestamp of the write block that contained the given absolute
+    /// sample index (analysis worker thread). False until the first write or when
+    /// the index lies beyond everything written so far.
+    /// </summary>
+    public bool TryGetCaptureTimestamp(ulong sampleIndex, out long captureTicks)
+    {
+        lock (Lock)
+        {
+            for (int i = 0; i < _stampCount; i++)
+            {
+                int idx = (_stampHead - _stampCount + i + CaptureStampCapacity) % CaptureStampCapacity;
+                if (_stampSampleEnd[idx] >= sampleIndex)
+                {
+                    captureTicks = _stampTicks[idx];
+                    return true;
+                }
+            }
+        }
+
+        captureTicks = 0;
+        return false;
     }
 
     /// <summary>Update input-side throughput stats (input worker thread).</summary>
@@ -187,6 +241,8 @@ public sealed class MasterAudioBuffer
             _analysisLastTotalSamplesWritten = 0;
             _analysisLastWriteIndex = 0;
             _fps = _spf = _sps = 0.0;
+            _stampHead = 0;
+            _stampCount = 0;
         }
     }
 }

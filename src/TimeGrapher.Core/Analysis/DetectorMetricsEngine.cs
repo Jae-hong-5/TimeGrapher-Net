@@ -36,7 +36,9 @@ public sealed record DetectorResultSnapshot(
     float OnsetThreshold,
     float MinPeakThreshold,
     float NoiseFloor,
-    float ReferencePeak);
+    float ReferencePeak,
+    ulong MissedBeats = 0,
+    uint SyncLossCount = 0);
 
 /// <summary>
 /// Shared detector + metrics pipeline used by the live worker and the headless
@@ -48,6 +50,7 @@ public sealed class DetectorMetricsEngine
     private readonly WatchMetrics _metrics;
     private readonly TgDetector _detector;
     private readonly TgResult _result = new();
+    private uint _syncLossCount;
 
     public DetectorMetricsEngine(DetectorMetricsEngineConfig config)
     {
@@ -88,6 +91,10 @@ public sealed class DetectorMetricsEngine
     private DetectorMetricsBlockUpdate BuildUpdate()
     {
         bool synced = _result.SyncStatus == TgSyncStatus.Synced;
+        if (_result.SyncLostEvent)
+        {
+            _syncLossCount++;
+        }
         var updates = new List<DetectedEventUpdate>(_result.Events.Count);
 
         foreach (TgEvent ev in _result.Events)
@@ -124,7 +131,9 @@ public sealed class DetectorMetricsEngine
             _result.OnsetThreshold,
             _result.MinPeakThreshold,
             _result.NoiseFloor,
-            _result.ReferencePeak);
+            _result.ReferencePeak,
+            _metrics.MissedBeats,
+            _syncLossCount);
 
         return new DetectorMetricsBlockUpdate(resultSnapshot, updates);
     }

@@ -160,6 +160,18 @@ public sealed class AnalysisFrame
     /// <summary>Current AnalysisDeadlineMonitor ladder level (0 = full quality).</summary>
     public int DeadlineDegradationLevel;
 
+    /// <summary>
+    /// Latency instrumentation (QA: capture-to-display latency reporting).
+    /// Stopwatch timestamps so the UI can compute capture-to-processing,
+    /// processing-to-display, and end-to-end legs on one clock. 0 = unknown.
+    /// </summary>
+    public long CaptureTimestamp;
+    public long ProcessingCompletedTimestamp;
+
+    /// <summary>Session-cumulative missed-beat / sync-loss counters (coalescing-safe).</summary>
+    public ulong MissedBeats;
+    public uint SyncLossCount;
+
     public IReadOnlyList<GraphSeriesFrame> ScopeSeries => _scopeSeries;
     public IReadOnlyList<GraphSeriesFrame> RateSeries => _rateSeries;
 

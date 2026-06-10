@@ -81,6 +81,7 @@ public sealed class WatchMetrics
     private bool _diffTicTacValid = false;
     private double _signedBeatErrorMs = 0.0;
     private bool _signedBeatErrorValid = false;
+    private ulong _missedBeats = 0;
 
     // Per-event numeric stash consumed by the BeatTimingSample/AmplitudeSample
     // emission in HandleAEvent/HandleCEvent. _lastRateErrorMs is always fresh when
@@ -127,6 +128,7 @@ public sealed class WatchMetrics
         _rlsRateValid = false;
 
         ResetDerivedMeasures();
+        _missedBeats = 0;
         _lastAmplitudeInstValid = false;
         _lastAmplitudePairUpdated = false;
     }
@@ -202,6 +204,13 @@ public sealed class WatchMetrics
     {
         return (int)((_ticTocBeatNumber - 1) & 1);
     }
+
+    /// <summary>
+    /// Session-cumulative count of beats the detector skipped over (A-to-A intervals
+    /// spanning more than one nominal beat). QA evidence for the low-missed-beats
+    /// requirement; reset only with <see cref="Reset"/>, not on sync re-acquisition.
+    /// </summary>
+    public ulong MissedBeats => _missedBeats;
 
     public static double Amplitude(double liftAngle, double t1, double bph)
     {
@@ -327,6 +336,13 @@ public sealed class WatchMetrics
                 _rollPeriodDelta.Add(deltaMs);
                 _avgPeriodDeltaSumMs += deltaMs;
                 _avgPeriodDeltaCount++;
+            }
+            else if (deltaMs > 0.0)
+            {
+                // An over-long interval means the detector skipped beats; the
+                // interval covers ~N nominal beats, of which N-1 went undetected.
+                int beatsSpanned = QRound(measuredPeriodS / expectedTimeTarget);
+                _missedBeats += (ulong)Math.Max(1, beatsSpanned - 1);
             }
         }
 
