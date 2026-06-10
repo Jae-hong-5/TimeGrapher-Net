@@ -151,7 +151,18 @@ class BeatMetricsHistorySnapshot {
     +MetricsHistorySeries Amplitude
     +MetricsHistorySeries BeatError
     +DerivedTimingMeasures Derived
+    +StatsSummary RateStats
+    +StatsSummary AmplitudeStats
     +double LatestTimeS
+}
+
+class StatsSummary {
+    +bool Valid
+    +double Min
+    +double Max
+    +double Mean
+    +double Sigma
+    +long Count
 }
 
 class MetricsHistorySeries {
@@ -235,6 +246,7 @@ WatchMetricsUpdate "1" o-- "0..1" BeatTimingSample : per A event
 WatchMetricsUpdate "1" o-- "0..1" AmplitudeSample : per C event
 WatchMetricsUpdate "1" o-- "0..1" DerivedTimingMeasures : per A event
 BeatMetricsHistorySnapshot "1" *-- "3" MetricsHistorySeries : rate/amplitude/beat error
+BeatMetricsHistorySnapshot "1" *-- "2" StatsSummary : running stability stats
 ```
 
 ## Entity summary
@@ -250,6 +262,7 @@ BeatMetricsHistorySnapshot "1" *-- "3" MetricsHistorySeries : rate/amplitude/bea
 | `GraphSeriesFrame`, `ScopeMarker`, `WatchMetricsUpdate`, `PixelBuffer` | `Core.Shared` | Data displayed as scope/rate graphs, markers, numeric results, and sound-print image |
 | `BeatTimingSample`, `AmplitudeSample`, `DerivedTimingMeasures` | `Core.Shared` | Machine-readable per-beat values (rate error, signed beat error, amplitude, DiffTicTac/DiffPeriod/AvgPeriod) emitted per A/C event |
 | `BeatMetricsHistorySnapshot`, `MetricsHistorySeries` | `Core.Shared` (built by `Core.Metrics.BeatMetricsHistory`) | Immutable cumulative history of rate/amplitude/beat-error series shared across frames; survives latest-wins frame coalescing |
+| `StatsSummary` | `Core.Shared` (fed by `Core.Metrics.RunningStats`) | Running min/max/mean/population-σ since start for rate and amplitude — exact per-beat statistics independent of series decimation (Vario display) |
 
 ## Relationship notes
 
