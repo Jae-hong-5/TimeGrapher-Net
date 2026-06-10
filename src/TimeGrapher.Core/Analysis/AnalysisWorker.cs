@@ -400,7 +400,10 @@ public sealed class AnalysisWorker : IDisposable
                      spectrogram live-edge cursor
             level 2: stretch the sound-print and spectrogram publish intervals
                      100 ms -> 400 ms, and the sweep / multi-filter series
-                     publish floors 50 ms -> 200 ms
+                     publish floors 50 ms -> 400 ms (the floor must exceed the
+                     per-pass stream advance of a sustained 2-beat breach,
+                     >= 250 ms at 28800 BPH, or it never gates during the
+                     breach and only sheds in recovery)
             level 3: coarsen the scope decimation stride 2x and suspend new
                      beat-segment windows (the Beat-Noise tab stops advancing)
         Idempotent per level; de-escalation restores the knobs the same way.
@@ -412,8 +415,8 @@ public sealed class AnalysisWorker : IDisposable
         _spectrogramProjector.SetLivePreviewEnabled(level < 1);
         _soundPrintProjector.SetPublishIntervalScale(level < 2 ? 1 : 4);
         _spectrogramProjector.SetPublishIntervalScale(level < 2 ? 1 : 4);
-        _sweepProjector.SetPublishIntervalScale(level < 2 ? 1 : 4);
-        _multiFilterProjector.SetPublishIntervalScale(level < 2 ? 1 : 4);
+        _sweepProjector.SetPublishIntervalScale(level < 2 ? 1 : 8);
+        _multiFilterProjector.SetPublishIntervalScale(level < 2 ? 1 : 8);
         _scopeRateProjector.SetScopeStrideScale(level < 3 ? 1 : 2);
         _beatSegmentCapture.SetCaptureSuspended(level >= 3);
     }
