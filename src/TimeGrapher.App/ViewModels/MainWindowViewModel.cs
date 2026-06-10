@@ -22,6 +22,7 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     private readonly RelayCommand _pauseCommand;
     private readonly RelayCommand _stopCommand;
     private readonly RelayCommand _refreshDevicesCommand;
+    private readonly RelayCommand _resetSequenceCommand;
     private RunUiState _runState = RunUiState.Stopped;
     private bool _modeAllowsSampleRate = true;
     private bool _modeAllowsGain = true;
@@ -65,15 +66,24 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
         _pauseCommand = new RelayCommand(pauseOrResume, () => IsPauseEnabled);
         _stopCommand = new RelayCommand(stop, () => IsStopEnabled);
         _refreshDevicesCommand = new RelayCommand(refreshDevices, () => AreRunParametersEnabled);
+        _resetSequenceCommand = new RelayCommand(() => ResetSequenceRequested?.Invoke());
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
+
+    /// <summary>
+    /// Raised when the user asks to restart the multi-position sequence
+    /// (clear the per-position aggregates). MainWindow forwards it to the
+    /// running analysis worker, the run-control-knob flow.
+    /// </summary>
+    public event Action? ResetSequenceRequested;
 
     public ICommand StartCommand => _startCommand;
     public ICommand PlayPauseCommand => _playPauseCommand;
     public ICommand PauseCommand => _pauseCommand;
     public ICommand StopCommand => _stopCommand;
     public ICommand RefreshDevicesCommand => _refreshDevicesCommand;
+    public ICommand ResetSequenceCommand => _resetSequenceCommand;
 
     public ObservableCollection<string> InputDeviceNames { get; } = new();
     public ObservableCollection<string> SampleRateLabels { get; } = new();

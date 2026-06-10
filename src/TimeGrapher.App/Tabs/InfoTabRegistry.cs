@@ -40,6 +40,7 @@ internal sealed class InfoTabRegistry
             [InfoTabKind.MultiFilterScope] = CreateMultiFilterScopeRegistration,
             [InfoTabKind.LongTermPerformance] = CreateLongTermPerfRegistration,
             [InfoTabKind.TestPositions] = CreateTestPositionsRegistration,
+            [InfoTabKind.MultiPositionSequence] = CreateMultiPositionSeqRegistration,
             [InfoTabKind.Placeholder] = CreatePlaceholderRegistration,
         };
 
@@ -710,6 +711,95 @@ internal sealed class InfoTabRegistry
         }
 
         var consumer = new TestPositionsFrameConsumer(renderer);
+        return new InfoTabRegistration(definition, CreateTabItem(definition, grid), consumer);
+    }
+
+    private static InfoTabRegistration CreateMultiPositionSeqRegistration(
+        InfoTabDefinition definition,
+        InfoTabFactoryContext context)
+    {
+        // Sequence results table (POS | RATE | AMP | BEAT ERR | BEATS, one row
+        // per measured position, the active position's row highlighted) above
+        // the X / D / vertical-vs-horizontal summary block; the accent banner
+        // reports the balance-wheel unbalance hint. The renderer fills the
+        // table from the cumulative snapshot's PositionSummary list.
+        var alertText = new TextBlock
+        {
+            Foreground = Avalonia.Media.Brushes.White,
+            VerticalAlignment = VerticalAlignment.Center,
+            TextWrapping = Avalonia.Media.TextWrapping.Wrap,
+        };
+        var alertBanner = new Border
+        {
+            Padding = new Thickness(8, 3),
+            IsVisible = false,
+            Child = alertText,
+        };
+        alertBanner.Bind(
+            Border.BackgroundProperty,
+            alertBanner.GetResourceObservable("ChromeAccentBrush"));
+
+        var tableGrid = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions("*,*,*,*,*"),
+            Margin = new Thickness(8, 4),
+            VerticalAlignment = VerticalAlignment.Top,
+        };
+
+        var summaryText = new TextBlock
+        {
+            FontSize = 12,
+            Margin = new Thickness(8, 2),
+        };
+        var explanationText = new TextBlock
+        {
+            FontSize = 11,
+            Opacity = 0.65,
+            Margin = new Thickness(8, 0, 8, 3),
+            TextWrapping = Avalonia.Media.TextWrapping.Wrap,
+            Text = "X = mean of all measured positions · D = max−min spread · " +
+                   "DVH = vertical minus horizontal rate mean. A rate spread above " +
+                   "15 s/d among the hanging positions hints at balance-wheel unbalance.",
+        };
+
+        var grid = new Grid
+        {
+            RowDefinitions = new RowDefinitions("Auto,*,Auto,Auto"),
+        };
+        Grid.SetRow(alertBanner, 0);
+        Grid.SetRow(tableGrid, 1);
+        Grid.SetRow(summaryText, 2);
+        Grid.SetRow(explanationText, 3);
+        grid.Children.Add(alertBanner);
+        grid.Children.Add(tableGrid);
+        grid.Children.Add(summaryText);
+        grid.Children.Add(explanationText);
+
+        if (CreateWaitingOverlay(context.ViewModel) is { } overlay)
+        {
+            Grid.SetRow(overlay, 1);
+            grid.Children.Add(overlay);
+        }
+
+        // "Reset Sequence" raises the shared view-model command; MainWindow
+        // forwards it to the running analysis worker (the SetSoundBackgroundColor
+        // flow), which clears the per-position aggregates for a fresh cycle.
+        var resetButton = new Button
+        {
+            Content = "Reset Sequence",
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Top,
+            Margin = new Thickness(0, 6, 10, 0),
+            Padding = new Thickness(8, 2, 8, 2),
+            FontSize = 11,
+            Command = context.ViewModel?.ResetSequenceCommand,
+        };
+        ToolTip.SetTip(resetButton, "Clear every position's results and start a new measurement cycle");
+        Grid.SetRow(resetButton, 1);
+        grid.Children.Add(resetButton);
+
+        var renderer = new MultiPositionSeqRenderer(tableGrid, alertBanner, alertText, summaryText);
+        var consumer = new MultiPositionSeqFrameConsumer(renderer);
         return new InfoTabRegistration(definition, CreateTabItem(definition, grid), consumer);
     }
 

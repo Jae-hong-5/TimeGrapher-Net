@@ -224,6 +224,18 @@ public sealed class MainWindowViewModelTests
     }
 
     [Fact]
+    public void ResetSequenceCommandRaisesTheForwardingEvent()
+    {
+        var vm = CreateViewModel();
+        int requests = 0;
+        vm.ResetSequenceRequested += () => requests++;
+
+        vm.ResetSequenceCommand.Execute(null);
+
+        Assert.Equal(1, requests);
+    }
+
+    [Fact]
     public void IsAwaitingBeatSyncRaisesPropertyChanged()
     {
         var vm = CreateViewModel();

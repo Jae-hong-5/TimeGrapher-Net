@@ -155,6 +155,7 @@ public partial class MainWindow : Window
         // Wire events (Qt auto-connected on_* slots + explicit connect()s).
         mViewModel.PropertyChanged += mSelectionCoordinator.OnViewModelPropertyChanged;
         mViewModel.PropertyChanged += OnRunControlPropertyChanged;
+        mViewModel.ResetSequenceRequested += OnResetSequenceRequested;
         GraphicsTabWidget.SelectionChanged += OnGraphicsTabSelectionChanged;
 
         LoadBph();
@@ -320,6 +321,13 @@ public partial class MainWindow : Window
         {
             mRunSessionController.SetActivePosition((WatchPosition)mViewModel.SelectedPositionIndex);
         }
+    }
+
+    // Multi-Position Sequence "Reset Sequence": clear the running worker's
+    // per-position aggregates so a new measurement cycle starts.
+    private void OnResetSequenceRequested()
+    {
+        mRunSessionController.ResetPositionAggregates();
     }
 
     private void OnGraphicsTabSelectionChanged(object? sender, SelectionChangedEventArgs e)

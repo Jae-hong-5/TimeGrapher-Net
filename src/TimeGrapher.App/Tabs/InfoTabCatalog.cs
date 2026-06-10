@@ -13,6 +13,7 @@ internal enum InfoTabKind
     MultiFilterScope,
     LongTermPerformance,
     TestPositions,
+    MultiPositionSequence,
     Placeholder,
 }
 
@@ -49,6 +50,7 @@ internal static class InfoTabCatalog
     public const string MultiFilterScopeTabId = "multi-filter-scope";
     public const string LongTermPerfTabId = "long-term-perf";
     public const string TestPositionsTabId = "test-positions";
+    public const string MultiPositionSeqTabId = "multi-position-seq";
 
     public const int DefaultUiRefreshIntervalMs = 33;
     public const int SoundPrintRefreshIntervalMs = 100;
@@ -104,13 +106,16 @@ internal static class InfoTabCatalog
             // stamp (the highlight follows what Core actually tags); it declares
             // no per-frame graph-series contract.
             new(TestPositionsTabId, "Test Positions", InfoTabKind.TestPositions, DefaultUiRefreshIntervalMs, UsesGraphSnapshots: false, Array.Empty<GraphSeriesDefinition>()),
+            // Multi-Position Sequence reads only the cumulative snapshot's
+            // per-position aggregates (PositionSummary list) and active-position
+            // stamp; it declares no per-frame graph-series contract.
+            new(MultiPositionSeqTabId, "Multi-Position Seq", InfoTabKind.MultiPositionSequence, DefaultUiRefreshIntervalMs, UsesGraphSnapshots: false, Array.Empty<GraphSeriesDefinition>()),
         };
 
         // Reserved placeholder tabs for features not yet built.
         // Titles are shortened from the planned feature names to fit the tab width.
         (string Id, string Title)[] placeholders =
         {
-            ("multi-position-seq", "Multi-Position Seq"),
             ("beat-noise-scope", "Beat-Noise Scope"),
             ("escapement-analyzer", "Escapement Analyzer"),
             ("spectrogram", "Spectrogram"),

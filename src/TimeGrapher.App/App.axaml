@@ -218,5 +218,14 @@
     <Style Selector="Button.PositionButton.active TextBlock">
       <Setter Property="Foreground" Value="White" />
     </Style>
+    <!-- Multi-Position Sequence tab: accent highlight behind the table row of
+         the position currently being measured, with white-on-accent cell text
+         (declared after the global TextBlock style so the override wins). -->
+    <Style Selector="Border.SeqActiveRow">
+      <Setter Property="Background" Value="{DynamicResource ChromeAccentBrush}" />
+    </Style>
+    <Style Selector="TextBlock.SeqOnAccent">
+      <Setter Property="Foreground" Value="White" />
+    </Style>
   </Application.Styles>
 </Application>
