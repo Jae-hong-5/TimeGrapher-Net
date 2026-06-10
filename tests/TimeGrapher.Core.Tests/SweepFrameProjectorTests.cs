@@ -52,6 +52,42 @@ public sealed class SweepFrameProjectorTests
         (int)(positionSamples / windowSamples * SweepFrameProjector.SweepBinBudget);
 
     [Fact]
+    public void SyncDropoutKeepsTheLatchedWindowAndPattern()
+    {
+        // 18000-bph watch: 0.2 s beat = 9600 samples, 2x window = 19200 samples.
+        // A dropout forces MeasuredPeriodS to 0 / NotSynced; without the latched
+        // period the projector would fall back to the nominal 28800-bph 0.125 s,
+        // re-tune to a 0.25 s window and clear the accumulated pattern - twice
+        // per dropout (once on loss, once on re-lock).
+        const double period18000 = 0.2;
+        const int windowSamples = 19200;
+        var projector = new SweepFrameProjector(SampleRate);
+
+        projector.Project(Update(
+            ImpulseBlock(windowSamples, 1.0f, 0), 0,
+            measuredPeriodS: period18000, detectedBph: 18000));
+        GraphSeriesFrame locked = Snapshot(projector);
+        double windowMsBefore = locked.X[^1];
+        Assert.Contains(locked.Y, v => v > 0.5);
+
+        // Dropout: empty block, period 0, not synced.
+        projector.Project(Update(
+            Array.Empty<float>(), windowSamples,
+            measuredPeriodS: 0.0, sync: TgSyncStatus.NotSynced, detectedBph: 0));
+
+        GraphSeriesFrame afterDropout = Snapshot(projector);
+        Assert.Equal(windowMsBefore, afterDropout.X[^1], 9); // window unchanged
+        Assert.Contains(afterDropout.Y, v => v > 0.5);       // pattern preserved
+
+        // Re-lock at the same bph: still no clear. The probe sample sits mid-window
+        // so its per-pass overwrite touches an empty bin, not the stored pattern.
+        projector.Project(Update(
+            ImpulseBlock(1, 0.0f), (ulong)windowSamples + 9600,
+            measuredPeriodS: period18000, detectedBph: 18000));
+        Assert.Contains(Snapshot(projector).Y, v => v > 0.5);
+    }
+
+    [Fact]
     public void OnPeriodImpulsesStackIntoTheSameBinsAcrossPasses()
     {
         // 2x window = 12000 samples; impulses every beat (6000 samples) over four

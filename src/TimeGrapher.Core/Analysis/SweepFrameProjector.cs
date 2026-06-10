@@ -42,6 +42,13 @@ public sealed class SweepFrameProjector
     private int _activeSweepMultiple = DefaultSweepMultiple;
     private double _windowS;
 
+    // Last locked beat period, latched across sync dropouts: the detector
+    // forces MeasuredPeriodS to 0 on every sync loss, and falling back to the
+    // nominal 28800-bph period there would re-tune (and clear) the window twice
+    // per dropout for any watch whose period differs >1% from 125 ms. Same
+    // discipline as AnalysisWorker._latestBeatPeriodS.
+    private double _lastKnownBeatPeriodS;
+
     public SweepFrameProjector(int sampleRate)
     {
         _sampleRate = sampleRate;
@@ -126,16 +133,16 @@ public sealed class SweepFrameProjector
     private void RetuneWindow(DetectorResultSnapshot result)
     {
         int multiple = _requestedSweepMultiple;
-        double beatPeriodS = FallbackBeatPeriodS;
         if (result.MeasuredPeriodS > 0.0)
         {
-            beatPeriodS = result.MeasuredPeriodS;
+            _lastKnownBeatPeriodS = result.MeasuredPeriodS;
         }
         else if (result.SyncStatus == TgSyncStatus.Synced && result.DetectedBph > 0)
         {
-            beatPeriodS = 3600.0 / result.DetectedBph;
+            _lastKnownBeatPeriodS = 3600.0 / result.DetectedBph;
         }
 
+        double beatPeriodS = _lastKnownBeatPeriodS > 0.0 ? _lastKnownBeatPeriodS : FallbackBeatPeriodS;
         double candidate = multiple * beatPeriodS;
         if (multiple == _activeSweepMultiple &&
             _windowS > 0.0 &&
