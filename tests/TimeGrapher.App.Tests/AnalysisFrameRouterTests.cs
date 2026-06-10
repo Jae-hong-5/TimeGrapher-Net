@@ -23,6 +23,21 @@ public sealed class AnalysisFrameRouterTests
     }
 
     [Fact]
+    public void RenderToAllRendersEveryConsumerForThePauseExitCursorClear()
+    {
+        var rateScope = new FakeConsumer(InfoTabCatalog.RateScopeTabId);
+        var soundPrint = new FakeConsumer(InfoTabCatalog.SoundPrintTabId);
+        var router = new AnalysisFrameRouter(new IAnalysisFrameConsumer[] { rateScope, soundPrint });
+
+        // The null-cursor (pause-exit) path renders every tab so no inactive
+        // tab keeps a dead dotted cursor after a stop from a scrubbed pause.
+        router.RenderToAll(new AnalysisFrame(), new AnalysisTabRenderContext(48000, 2, ReviewCursorTimeS: null));
+
+        Assert.Equal(1, rateScope.RenderCount);
+        Assert.Equal(1, soundPrint.RenderCount);
+    }
+
+    [Fact]
     public void RouterReportsRegisteredTabConsumers()
     {
         var router = new AnalysisFrameRouter(

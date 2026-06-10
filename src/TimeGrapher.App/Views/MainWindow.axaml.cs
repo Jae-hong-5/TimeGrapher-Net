@@ -353,10 +353,23 @@ public partial class MainWindow : Window
         }
 
         AnalysisFrame? frame = mLastAnalysisFrame;
-        if (frame != null && frame.SessionId == mRunSessionController.AnalysisSessionId)
+        if (frame == null || frame.SessionId != mRunSessionController.AnalysisSessionId)
         {
-            mFrameRouter.Route(frame, ActiveInfoTabId(), BuildTabRenderContext(frame));
+            return;
         }
+
+        // Pause-exit: the cursor clears to null while RunState is still Paused
+        // (the SetRunState ordering contract). Fan the cursor-less render out
+        // to every tab once — tabs visited during the scrubbed pause drew the
+        // dotted cursor, and after a stop the kept frame is invalidated, so the
+        // active-tab route alone would leave dead cursors on the others.
+        if (mViewModel.ReviewCursorTimeS == null)
+        {
+            mFrameRouter.RenderToAll(frame, BuildTabRenderContext(frame));
+            return;
+        }
+
+        mFrameRouter.Route(frame, ActiveInfoTabId(), BuildTabRenderContext(frame));
     }
 
     private void OnGraphicsTabSelectionChanged(object? sender, SelectionChangedEventArgs e)
