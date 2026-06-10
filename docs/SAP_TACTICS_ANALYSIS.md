@@ -100,6 +100,7 @@ work requests** — 점진적 저하). 패스마다 백로그를 **비트 주기
 | **maintain multiple copies of data** | 30초 링버퍼로 읽기/쓰기 속도 분리 + 사운드프린트 발행은 **고정 3버퍼 풀을 로테이션**하는 스냅샷 복사(발행된 버퍼는 2회의 더 새로운 발행 이후에만 재사용 → UI가 안전하게 읽는 동안 분석 스레드는 계속 갱신, 정상 상태 할당 0) | `MasterAudioBuffer`, `SoundPrintFrameProjector.cs` | ✓ |
 | **bound execution times / manage work requests** | `AnalysisDeadlineMonitor`가 패스 백로그를 **비트 주기 단위**로 환산해 2비트 예산 초과가 지속되면 점진 저하 사다리(라이브 프리뷰 중단 → 발행 간격 확대 → stride 증가) 실행, 지속 회복 시 단계 복귀. 위 "실시간 마감 예산" 절 참조 | `AnalysisDeadlineMonitor.cs` | ✓ |
 | **bound resource usage (장기 히스토리)** | 비트 단위 메트릭 히스토리(`BeatMetricsHistory`)를 **고정 용량 `DecimatingSeries`**에 누적 — 가득 차면 인접 포인트 쌍을 병합해 해상도를 반감(버킷 min/max 보존). 실행이 몇 시간이어도 메모리·발행 비용이 일정("1시간째 비용 = 1초째 비용"). 스냅샷은 스트림 시간 0.5초당 1회만 재구성, 그 사이 프레임은 같은 불변 인스턴스 공유. 누적은 Core에서 수행 — 렌더 스케줄러의 latest-wins 병합이 프레임을 폐기해도 데이터 손실 없음 | `DecimatingSeries.cs`, `BeatMetricsHistory.cs` | ✓ |
+| **record/monitor (레이턴시 증거)** | QA가 요구하는 캡처→처리→표시 레이턴시를 단일 Stopwatch 시계로 계측: `MasterAudioBuffer`가 쓰기마다 (sampleEnd, ticks) 256개 스탬프 링을 유지, `AnalysisWorker`가 프레임에 `CaptureTimestamp`/`ProcessingCompletedTimestamp`를 스탬핑, UI가 렌더 직후 표시 시각을 더해 구간별 평균/최악값을 집계(`LatencyStatsTracker`, 상태바 우측 표시). 누락 비트(`WatchMetrics.MissedBeats`)·싱크 손실은 **세션 누적 카운터**로 프레임에 실려 latest-wins 병합에도 보존 | `MasterAudioBuffer.cs`, `LatencyStatsTracker.cs` | ✓ |
 
 ### 가용성 (Availability) — 시작/중지 안정화
 
