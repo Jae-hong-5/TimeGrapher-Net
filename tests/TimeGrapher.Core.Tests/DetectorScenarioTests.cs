@@ -2,6 +2,7 @@ using System.Globalization;
 using TimeGrapher.Core.Analysis;
 using TimeGrapher.Core.Detection;
 using TimeGrapher.Core.Metrics;
+using TimeGrapher.Core.Shared;
 using TimeGrapher.Core.Sim;
 using Xunit;
 
@@ -140,6 +141,73 @@ public sealed class DetectorScenarioTests
         // Manual BPH that does not match the signal must not lock; the detector reports
         // Mismatch (or NotSynced), never a false Synced.
         Assert.NotEqual(TgSyncStatus.Synced, update.Result.SyncStatus);
+    }
+
+    private static (DerivedTimingMeasures Derived, BeatTimingSample LastBeat) FeedCapturingDerived(
+        DetectorMetricsEngine engine, WatchSynthStream synth, int sampleRate, int seconds)
+    {
+        var block = new float[4096];
+        DerivedTimingMeasures derived = default;
+        BeatTimingSample lastBeat = default;
+        int remaining = sampleRate * seconds;
+        while (remaining > 0)
+        {
+            int slice = Math.Min(block.Length, remaining);
+            Span<float> span = block.AsSpan(0, slice);
+            synth.Generate(span);
+            DetectorMetricsBlockUpdate update = engine.Process(span);
+            foreach (DetectedEventUpdate ev in update.Events)
+            {
+                if (ev.MetricsUpdate.DerivedMeasuresUpdated)
+                {
+                    derived = ev.MetricsUpdate.DerivedMeasures;
+                }
+                if (ev.MetricsUpdate.BeatTimingSampleUpdated)
+                {
+                    lastBeat = ev.MetricsUpdate.BeatTimingSample;
+                }
+            }
+            remaining -= slice;
+        }
+
+        return (derived, lastBeat);
+    }
+
+    [Fact]
+    public void DerivedMeasures_DiffTicTacTracksInjectedBeatError()
+    {
+        // The synth applies +offset to one phase and -offset to the other, so a
+        // 5 ms injected beat error makes tick and tock durations differ by ~10 ms.
+        const int sr = 48000, bph = 21600;
+        (DerivedTimingMeasures withError, BeatTimingSample beat) =
+            FeedCapturingDerived(NewEngine(sr, true, 0), new WatchSynthStream(Synth(sr, bph, 0.0, 5.0)), sr, 12);
+        (DerivedTimingMeasures clean, _) =
+            FeedCapturingDerived(NewEngine(sr, true, 0), new WatchSynthStream(Synth(sr, bph, 0.0, 0.0)), sr, 12);
+
+        Assert.True(withError.DiffTicTacValid);
+        Assert.InRange(Math.Abs(withError.DiffTicTacMs), 8.0, 12.0);
+        Assert.True(Math.Abs(clean.DiffTicTacMs) < 1.0, $"clean DiffTicTac {clean.DiffTicTacMs} should be near zero");
+
+        // Signed beat error is half the tick-tock difference and keeps its sign.
+        Assert.True(beat.BeatErrorValid);
+        Assert.Equal(withError.DiffTicTacMs / 2.0, beat.BeatErrorSignedMs, 6);
+    }
+
+    [Fact]
+    public void DerivedMeasures_AvgPeriodTracksSlowWatch()
+    {
+        // -30 s/d at 21600 bph stretches each 166.67 ms beat by ~0.058 ms; the
+        // measured-vs-expected averages must read positive (and near zero when clean).
+        const int sr = 48000, bph = 21600;
+        (DerivedTimingMeasures slow, _) =
+            FeedCapturingDerived(NewEngine(sr, true, 0), new WatchSynthStream(Synth(sr, bph, -30.0, 0.0)), sr, 12);
+        (DerivedTimingMeasures clean, _) =
+            FeedCapturingDerived(NewEngine(sr, true, 0), new WatchSynthStream(Synth(sr, bph, 0.0, 0.0)), sr, 12);
+
+        Assert.True(slow.AvgPeriodValid && slow.DiffPeriodValid);
+        Assert.InRange(slow.AvgPeriodMs, 0.02, 0.12);
+        Assert.InRange(slow.DiffPeriodMs, 0.02, 0.12);
+        Assert.True(Math.Abs(clean.AvgPeriodMs) < 0.02, $"clean AvgPeriod {clean.AvgPeriodMs} should be near zero");
     }
 
     [Fact]
