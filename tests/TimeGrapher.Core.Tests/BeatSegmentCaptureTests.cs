@@ -216,6 +216,21 @@ public sealed class BeatSegmentCaptureTests
     }
 
     [Fact]
+    public void Capture_PoolCountCoversTheWorstCaseProtectedSet()
+    {
+        // The acquire scan's "unreachable" fallback is unreachable only while
+        // the pool exceeds the worst-case protected set: the completed ring
+        // (SegmentRingCount) plus the two most recently built snapshots
+        // (SegmentRingCount each, fully disjoint from the ring after a
+        // catch-up burst), with slack for the scan to hand out. If a future
+        // edit grows SegmentRingCount without growing SegmentPoolCount, the
+        // fallback silently starts handing out protected buffers and torn
+        // waveforms return with every other test green - so fail loudly here.
+        Assert.True(BeatSegmentCapture.SegmentPoolCount >=
+            BeatSegmentCapture.SegmentRingCount * 3 + 4);
+    }
+
+    [Fact]
     public void Capture_SuspensionFreezesNewWindowsLanesAndVersionButCompletesOpenOnes()
     {
         var capture = NewCapture();
