@@ -350,6 +350,17 @@ public sealed class WatchMetrics
         _skipNextPeriodDelta = false;
     }
 
+    /// <summary>
+    /// True when the A-to-A interval is within half a nominal beat of the locked
+    /// beat period, i.e. it represents exactly one beat (no detection gap, no
+    /// spurious extra event). Callable only while _bphValid.
+    /// </summary>
+    private bool IsSingleBeatInterval(double intervalS)
+    {
+        double expectedS = 3600.0 / _bph;
+        return Math.Abs(intervalS - expectedS) < expectedS * 0.5;
+    }
+
     private void ComputeBeatError(double eventSample)
     {
         _beatErrorTimes[_beatErrorIdx] = eventSample;
@@ -362,7 +373,7 @@ public sealed class WatchMetrics
             _beatErrorMs = Math.Abs(((t1 - t2) / 2.0) * 1000.0);
             _rollBeatError.Add(_beatErrorMs);
 
-            if (_haveStartTime)
+            if (_haveStartTime && IsSingleBeatInterval(t1) && IsSingleBeatInterval(t2))
             {
                 // The window start's phase equals the current event's phase (the
                 // window advances two beats per completion), so a tic-start window
@@ -373,6 +384,17 @@ public sealed class WatchMetrics
                 _diffTicTacValid = true;
                 _signedBeatErrorMs = _diffTicTacMs / 2.0;
                 _signedBeatErrorValid = true;
+            }
+            else if (_haveStartTime)
+            {
+                // A window interval spanning a detection gap (or a spurious extra
+                // event) is not a tick/tock duration; a single missed beat would
+                // otherwise inject a half-beat-sized fake error (~62.5 ms at
+                // 28800 bph) into the cumulative history and position statistics.
+                // Same half-beat criterion as AccumulatePeriodDelta; the signed
+                // values stay invalid until the next clean window (two beats).
+                _diffTicTacValid = false;
+                _signedBeatErrorValid = false;
             }
 
             _beatErrorTimes[0] = _beatErrorTimes[2];

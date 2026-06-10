@@ -109,6 +109,27 @@ public sealed class WatchMetricsDerivedMeasuresTests
     }
 
     [Fact]
+    public void SignedBeatError_InvalidatedAcrossDetectionGaps()
+    {
+        // A 375 ms window interval spans a detection gap; without the guard the
+        // window would emit (0.375-0.125)/2 = +125 ms/2 = a ~62.5 ms fake error.
+        WatchMetrics metrics = NewMetrics();
+        List<WatchMetricsUpdate> updates = FeedAEvents(metrics, 125.0, 375.0, 125.0, 125.0);
+
+        // Window [0,125,500] completed with the gap interval: signed values invalid.
+        Assert.False(updates[2].BeatTimingSample.BeatErrorValid);
+        Assert.False(updates[2].DerivedMeasures.DiffTicTacValid);
+
+        // No completion on the 4th event; still invalid.
+        Assert.False(updates[3].BeatTimingSample.BeatErrorValid);
+
+        // The next clean window [500,625,750] restores valid signed values.
+        Assert.True(updates[4].BeatTimingSample.BeatErrorValid);
+        Assert.Equal(0.0, updates[4].BeatTimingSample.BeatErrorSignedMs, 6);
+        Assert.True(updates[4].DerivedMeasures.DiffTicTacValid);
+    }
+
+    [Fact]
     public void MissedBeats_CountsBeatsSkippedAcrossDetectionGaps()
     {
         // A 375 ms A-to-A interval spans three nominal 125 ms beats: two beats
