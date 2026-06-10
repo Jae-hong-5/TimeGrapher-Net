@@ -119,9 +119,8 @@ Build on a dev PC (one prepared via the Windows steps above) and copy only the o
 ## Features
 
 - Detects tick/tock to lock the beat (BPH) automatically or manually, and stays in sync via phase tracking.
-- Two display tabs:
-  - **Rate/Scope** — waveform, trigger lines, and the beat-rate graph
-  - **Sound Print** — the sound folded over the beat period into an image
+- Analysis display tabs from the current app catalog: **Rate/Scope**, **Sound Print**, **Trace**, **Sweep**, **Vario**, **Beat Error**, **Filter Scope**, **Long-Term**, **Positions**, **Beat Noise**, **Escapement**, **Waveforms**, and **Spectrogram**.
+- The **Positions** tab combines compact position-selection buttons on the left with per-position sequence measurements on the right.
 - Three inputs: **Live** (mic), **Playback** (WAV file), **Sim** (synthetic signal).
 - Records the input to WAV while analyzing.
 - A console mode to check detection accuracy and audio devices headlessly.
@@ -162,7 +161,7 @@ all four targets** (nothing is executed, so no emulation is needed).
 **For developers**
 - **One solution, one language** — the only per-OS divergence is at the audio-backend boundary; everything else is shared.
 - **Safety & productivity** — GC and nullable reference types cut out whole classes of manual-memory/pointer bugs and speed up iteration.
-- **Simple tests & CI** — `Core` has no UI/OS dependencies, so unit testing is easy (currently 154
+- **Simple tests & CI** — `Core` has no UI/OS dependencies, so unit testing is easy (currently 449
   tests) and runs on stock runners with no special setup.
 
 ## Architecture
@@ -254,13 +253,13 @@ Package versions are managed centrally in `Directory.Packages.props` and pinned 
 
 ## Tests / CI
 
-**All 154 tests pass** under `dotnet test` (App 71 / Core 73 / LinuxAudio 10).
+**All 449 tests pass** under `dotnet test` (App 225 / Core 214 / LinuxAudio 10).
 
 ```mermaid
 pie showData
-    title Test distribution (154 total)
-    "App.Tests" : 71
-    "Core.Tests" : 73
+    title Test distribution (449 total)
+    "App.Tests" : 225
+    "Core.Tests" : 214
     "Platform.LinuxAudio.Tests" : 10
 ```
 
@@ -283,7 +282,7 @@ git tag v0.1.0 && git push origin v0.1.0
 | Item | Command | Status |
 |---|---|---|
 | Build | `dotnet build TimeGrapherNet.sln -c Release` | ✅ |
-| Test | `dotnet test TimeGrapherNet.sln -c Release` (154/154) | ✅ |
+| Test | `dotnet test TimeGrapherNet.sln -c Release` (449/449) | ✅ |
 | Detection check | `... TimeGrapher.Verify -- --generated --byte-fixtures` (exit 0) | ✅ |
 | GUI run | `dotnet run --project src/TimeGrapher.App` | ✅ |
 | Deploy — Raspberry Pi (linux-arm64) | `dotnet publish ... -r linux-arm64 --self-contained true` | ✅ |
