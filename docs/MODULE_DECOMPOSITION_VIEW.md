@@ -17,14 +17,17 @@ flowchart TB
 
                 subgraph App["TimeGrapher.App<br/>Avalonia desktop application"]
                     direction TB
+                    AppStartup["Startup / settings<br/>Program, App.axaml,<br/>AnalysisRunSettings"]
                     AppViews["Views<br/>MainWindow, SplashWindow"]
                     AppViewModels["ViewModels<br/>state, commands"]
                     AppServices["Services<br/>run lifecycle, selection,<br/>recording, dialogs"]
                     AppTabs["Tabs<br/>catalog, registry,<br/>frame routing"]
-                    AppRendering["Rendering<br/>scope/rate,<br/>sound-print"]
+                    AppRendering["Rendering<br/>frame consumers, plots,<br/>readouts, images"]
                     AppAudio["Audio<br/>backend selection,<br/>smoke check"]
                     AppAssets["Assets<br/>icons, fonts,<br/>splash frames"]
 
+                    AppStartup ~~~ AppViews
+                    AppStartup ~~~ AppAudio
                     AppViews ~~~ AppViewModels
                     AppViewModels ~~~ AppServices
                     AppServices ~~~ AppTabs
@@ -35,11 +38,11 @@ flowchart TB
 
                 subgraph Core["TimeGrapher.Core<br/>analysis engine"]
                     direction TB
-                    CoreAnalysis["Analysis<br/>worker, metrics,<br/>frame projectors"]
-                    CoreDetection["Detection<br/>tick/tock, BPH,<br/>sync"]
-                    CoreMetrics["Metrics<br/>watch metrics,<br/>rolling statistics"]
+                    CoreAnalysis["Analysis<br/>worker, deadline monitor,<br/>FFT, frame projectors"]
+                    CoreDetection["Detection<br/>tick/tock, BPH,<br/>sync, filters"]
+                    CoreMetrics["Metrics<br/>watch metrics,<br/>rolling/decimating statistics"]
                     CoreImaging["Imaging<br/>sound image renderer"]
-                    CoreAudioIo["AudioIo<br/>WAV I/O,<br/>playback worker"]
+                    CoreAudioIo["AudioIo<br/>WAV read/write,<br/>playback worker"]
                     CoreSim["Sim<br/>synthetic watch signal"]
                     CoreShared["Shared<br/>contracts, buffers,<br/>frame DTOs"]
 
@@ -57,15 +60,15 @@ flowchart TB
             subgraph RuntimeSupport["platform and verification"]
                 direction LR
 
-                subgraph Platform["TimeGrapher.Platform<br/>OS audio backends"]
+                subgraph Platform["platform audio projects"]
                     direction TB
-                    WindowsAudio["WindowsAudio<br/>NAudio live input"]
-                    LinuxAudio["LinuxAudio<br/>PipeWire/ALSA live input"]
+                    WindowsAudio["TimeGrapher.Platform.WindowsAudio<br/>NAudio capture and system audio"]
+                    LinuxAudio["TimeGrapher.Platform.LinuxAudio<br/>wpctl/pw-record/arecord capture"]
 
                     WindowsAudio ~~~ LinuxAudio
                 end
 
-                Verify["TimeGrapher.Verify<br/>headless verification console"]
+                Verify["TimeGrapher.Verify<br/>headless generated/WAV verification"]
 
                 Platform ~~~ Verify
             end
@@ -88,8 +91,14 @@ flowchart TB
                 direction TB
                 Docs["docs<br/>architecture, porting,<br/>review notes"]
                 Deploy["deploy/linux<br/>Raspberry Pi desktop integration"]
+                Ci[".github/workflows<br/>CI and release pipelines"]
+                BuildConfig["root build config<br/>global.json, Directory.*.props,<br/>solution file"]
+                Fixtures["TimeGrapherTestFilesWeishiMic<br/>manual WAV verification fixtures"]
 
                 Docs ~~~ Deploy
+                Deploy ~~~ Ci
+                Ci ~~~ BuildConfig
+                BuildConfig ~~~ Fixtures
             end
 
             Tests ~~~ Support
@@ -103,8 +112,10 @@ flowchart TB
 
 | Module | Submodules / parts | Role |
 |---|---|---|
-| `TimeGrapher.App` | `Views`, `ViewModels`, `Services`, `Tabs`, `Rendering`, `Audio`, `Assets` | Avalonia UI, run lifecycle coordination, graph/sound-print rendering, platform audio backend selection |
+| `TimeGrapher.App` | startup/settings files, `Views`, `ViewModels`, `Services`, `Tabs`, `Rendering`, `Audio`, `Assets` | Avalonia UI, run lifecycle coordination, tab frame routing/rendering, platform audio backend selection |
 | `TimeGrapher.Core` | `Analysis`, `Detection`, `Metrics`, `Imaging`, `AudioIo`, `Sim`, `Shared` | UI/OS-independent watch sound analysis engine and shared contracts |
-| `TimeGrapher.Platform` | `TimeGrapher.Platform.WindowsAudio`, `TimeGrapher.Platform.LinuxAudio` | OS-specific live microphone input implementations behind Core live-audio contracts |
-| `TimeGrapher.Verify` | console entry point | Headless WAV/generated-signal verification tool |
-| `tests` | `TimeGrapher.App.Tests`, `TimeGrapher.Core.Tests`, `TimeGrapher.Platform.LinuxAudio.Tests` | Regression tests for UI support services, analysis contracts, and Linux audio behavior |
+| `TimeGrapher.Platform.WindowsAudio` | `AudioCaptureWorker`, `SystemAudioControl` | Windows live microphone capture and system-volume integration behind Core live-audio contracts |
+| `TimeGrapher.Platform.LinuxAudio` | `LinuxLiveAudioWorker` | Linux live microphone capture through PipeWire/ALSA command-line tools behind Core live-audio contracts |
+| `TimeGrapher.Verify` | console entry point | Headless generated/WAV verification tool that exercises the Core detection and metrics pipeline |
+| `tests` | `TimeGrapher.App.Tests`, `TimeGrapher.Core.Tests`, `TimeGrapher.Platform.LinuxAudio.Tests` | Regression tests for UI support/services/rendering/tabs, Core analysis contracts, and Linux audio behavior |
+| supporting artifacts | `docs`, `deploy/linux`, `.github/workflows`, root build config, `TimeGrapherTestFilesWeishiMic` | Architecture/course documentation, Raspberry Pi deployment integration, CI/release automation, shared build metadata, and manual WAV fixtures |
