@@ -25,6 +25,7 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     private bool _modeAllowsSampleRate = true;
     private bool _modeAllowsGain = true;
     private string _statusText = "";
+    private string _latencyText = "";
     private bool _isAwaitingBeatSync;
     private double _gain = 100.0;
     private int _selectedInputDeviceIndex = -1;
@@ -131,6 +132,13 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     {
         get => _isAwaitingBeatSync;
         set => SetProperty(ref _isAwaitingBeatSync, value);
+    }
+
+    /// <summary>Latency / missed-beat readout shown on the right of the status bar.</summary>
+    public string LatencyText
+    {
+        get => _latencyText;
+        set => SetProperty(ref _latencyText, value);
     }
 
     public double Gain

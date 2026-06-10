@@ -84,6 +84,7 @@ public partial class MainWindow : Window
     private int mRateBeforePlaybackOrSim;
     private string mDeviceNameBeforePlaybackOrSim = "";
     private readonly AnalysisRunStatusReporter mRunStatusReporter = new();
+    private readonly LatencyStatsTracker mLatencyStats = new();
     private AnalysisFrame? mLastAnalysisFrame;
     private bool mIsClosing;
     private readonly MainWindowViewModel mViewModel;
@@ -272,6 +273,14 @@ public partial class MainWindow : Window
         mGraphFrameRenderer.UpdateResults(frame);
         mFrameRouter.Route(frame, ActiveInfoTabId(), BuildTabRenderContext(frame));
 
+        // Display leg of the latency evidence: stamped after the frame rendered.
+        long displayTicks = System.Diagnostics.Stopwatch.GetTimestamp();
+        mLatencyStats.Observe(frame, droppedFrames, displayTicks);
+        if (mLatencyStats.TryFormatStatus(displayTicks) is string latencyText)
+        {
+            mViewModel.LatencyText = latencyText;
+        }
+
         AnalysisRunStatusReporter.Report report =
             mRunStatusReporter.Describe(frame, droppedFrames, FrameSampleRate(frame));
         if (report.StatusText != null)
@@ -289,6 +298,8 @@ public partial class MainWindow : Window
         mGraphFrameRenderer.Reset(BuildTabResetContext());
 
         mRunStatusReporter.Reset();
+        mLatencyStats.Reset();
+        mViewModel.LatencyText = "";
     }
 
     // --- Event handlers (Qt on_* slots) ---
