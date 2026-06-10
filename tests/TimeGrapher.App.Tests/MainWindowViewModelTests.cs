@@ -276,13 +276,22 @@ public sealed class MainWindowViewModelTests
         Assert.Null(vm.ReviewCursorTimeS);
     }
 
-    [Fact]
-    public void ReviewCursorClearsWhileStillPausedSoTheReRouteGateSeesIt()
+    [Theory]
+    // The transitions production actually takes out of pause: stop is
+    // Paused -> Stopping (RunCommandService.Stop), resume is Paused -> Running
+    // (TogglePause). Stopped is kept as the defensive direct hop so a future
+    // regression cannot hide behind conditioning the clear on the target state.
+    [InlineData((int)RunUiState.Stopping)]
+    [InlineData((int)RunUiState.Running)]
+    [InlineData((int)RunUiState.Stopped)]
+    public void ReviewCursorClearsWhileStillPausedSoTheReRouteGateSeesIt(int exitStateValue)
     {
         // MainWindow re-renders the kept frame on cursor changes only while
         // RunState == Paused; the clearing notification must therefore arrive
         // BEFORE the state flips, or the dotted cursor stays on screen after a
-        // stop from a scrubbed pause.
+        // stop from a scrubbed pause. (int-typed theory data: a public test
+        // method cannot expose the internal RunUiState as a parameter type.)
+        var exitState = (RunUiState)exitStateValue;
         var vm = CreateViewModel();
         vm.UpdateReviewMaximum(100.0);
         vm.SetRunning();
@@ -299,9 +308,21 @@ public sealed class MainWindowViewModelTests
             }
         };
 
-        vm.SetStopped();
+        switch (exitState)
+        {
+            case RunUiState.Stopping:
+                vm.SetStopping();
+                break;
+            case RunUiState.Running:
+                vm.SetRunning();
+                break;
+            default:
+                vm.SetStopped();
+                break;
+        }
 
         Assert.Equal(RunUiState.Paused, stateAtClear);
+        Assert.Equal(exitState, vm.RunState);
     }
 
     [Fact]
