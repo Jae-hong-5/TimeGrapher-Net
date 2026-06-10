@@ -138,6 +138,7 @@ internal sealed class BeatNoiseScopeRenderer
         _cOnsetMarker = AddMarker(main, LinePattern.Dotted);
         _reviewCursor = AddCursor(main);
         ApplyRangeLimits();
+        PlotAxisRules.ClampLeftEdgeToZero(main);
 
         // Frameless strip lane: the data area fills the whole control, so a
         // pointer x-fraction maps directly onto the 8 slots.
@@ -175,6 +176,7 @@ internal sealed class BeatNoiseScopeRenderer
         _lane2Scatter.LineWidth = 1;
         _lane2Scatter.MarkerStyle.IsVisible = false;
         average.Axes.SetLimits(0, BeatNoiseAverager.LaneWindowMs, -0.1, Lane1Baseline + 1.15);
+        PlotAxisRules.ClampLeftEdgeToZero(average);
 
         ApplySeriesTheme();
         RefreshAll();

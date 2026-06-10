@@ -88,6 +88,7 @@ internal sealed class TraceDisplayRenderer
         _rateScatter.LineWidth = 2;
         _rateScatter.MarkerStyle.IsVisible = false;
         _rateCursor = AddCursor(rate);
+        PlotAxisRules.ClampLeftEdgeToZero(rate);
 
         Plot amplitude = _amplitudePlot.Plot;
         amplitude.Clear();
@@ -102,6 +103,7 @@ internal sealed class TraceDisplayRenderer
         _amplitudeScatter.LineWidth = 2;
         _amplitudeScatter.MarkerStyle.IsVisible = false;
         _amplitudeCursor = AddCursor(amplitude);
+        PlotAxisRules.ClampLeftEdgeToZero(amplitude);
 
         ApplySeriesTheme();
         _ratePlot.Refresh();
