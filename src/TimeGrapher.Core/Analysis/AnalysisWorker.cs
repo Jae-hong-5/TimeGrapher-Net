@@ -40,6 +40,7 @@ public sealed class AnalysisWorker : IDisposable
     private readonly DetectorMetricsEngine _pipeline;
     private readonly ScopeRateFrameProjector _scopeRateProjector;
     private readonly SoundPrintFrameProjector _soundPrintProjector;
+    private readonly SpectrogramFrameProjector _spectrogramProjector;
     private readonly BeatMetricsFrameProjector _beatMetricsProjector = new();
     private readonly BeatSegmentCapture _beatSegmentCapture;
     private readonly SweepFrameProjector _sweepProjector;
@@ -95,6 +96,7 @@ public sealed class AnalysisWorker : IDisposable
             config.SoundImageWidth,
             config.SoundImageHeight,
             config.SoundImageBackgroundColor);
+        _spectrogramProjector = new SpectrogramFrameProjector(config.SampleRate);
         _beatSegmentCapture = new BeatSegmentCapture(config.SampleRate, config.LiftAngle);
         _sweepProjector = new SweepFrameProjector(config.SampleRate);
         _multiFilterProjector = new MultiFilterFrameProjector(config.SampleRate);
@@ -319,6 +321,7 @@ public sealed class AnalysisWorker : IDisposable
             _config.SampleWriter?.Write(block);
 
             _soundPrintProjector.ProcessSamples(block);
+            _spectrogramProjector.ProcessSamples(block);
             _multiFilterProjector.ProcessSamples(block);
 
             DetectorMetricsBlockUpdate pipelineUpdate = _pipeline.Process(block);
@@ -343,6 +346,7 @@ public sealed class AnalysisWorker : IDisposable
 
         _scopeRateProjector.AppendSnapshot(frame);
         _soundPrintProjector.AppendSnapshot(frame);
+        _spectrogramProjector.AppendSnapshot(frame);
         _beatMetricsProjector.AppendSnapshot(frame);
         _beatSegmentCapture.AppendSnapshot(frame);
         _sweepProjector.AppendSnapshot(frame);
@@ -391,8 +395,10 @@ public sealed class AnalysisWorker : IDisposable
         ApplyDeadlineLevel()
         --------------------
         Graceful-degradation ladder, cheapest visual cost first:
-            level 1: stop redrawing the in-progress sound-print column
-            level 2: stretch the sound-print publish interval 100 ms -> 400 ms
+            level 1: stop redrawing the in-progress sound-print column and the
+                     spectrogram live-edge cursor
+            level 2: stretch the sound-print and spectrogram publish intervals
+                     100 ms -> 400 ms
             level 3: coarsen the scope decimation stride 2x
         Idempotent per level; de-escalation restores the knobs the same way.
         Runs on the analysis thread between frames.
@@ -400,7 +406,9 @@ public sealed class AnalysisWorker : IDisposable
     private void ApplyDeadlineLevel(int level)
     {
         _soundPrintProjector.SetLivePreviewEnabled(level < 1);
+        _spectrogramProjector.SetLivePreviewEnabled(level < 1);
         _soundPrintProjector.SetPublishIntervalScale(level < 2 ? 1 : 4);
+        _spectrogramProjector.SetPublishIntervalScale(level < 2 ? 1 : 4);
         _scopeRateProjector.SetScopeStrideScale(level < 3 ? 1 : 2);
     }
 
@@ -430,6 +438,7 @@ public sealed class AnalysisWorker : IDisposable
         _sweepProjector.Project(flushUpdate);
         _scopeRateProjector.AppendSnapshot(frame);
         _soundPrintProjector.AppendSnapshot(frame, force: true);
+        _spectrogramProjector.AppendSnapshot(frame, force: true);
         _beatMetricsProjector.AppendSnapshot(frame);
         _beatSegmentCapture.AppendSnapshot(frame);
         _sweepProjector.AppendSnapshot(frame);

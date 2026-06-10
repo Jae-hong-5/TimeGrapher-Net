@@ -209,6 +209,16 @@ public sealed class AnalysisFrame
     public PixelBuffer? SoundImage;
     public bool SoundImageUpdated;
 
+    /// <summary>
+    /// Time-frequency spectrogram of the recent input window (x = time,
+    /// y = frequency low-at-bottom, color = intensity in dB). Published from the
+    /// SpectrogramFrameProjector's fixed buffer pool on the sound-print cadence;
+    /// the render scheduler preserves it across latest-wins coalescing the same
+    /// way as <see cref="SoundImage"/>.
+    /// </summary>
+    public PixelBuffer? SpectrogramImage;
+    public bool SpectrogramImageUpdated;
+
     /// <summary>True once the detector has locked onto the tick/tock beat (BPH synced).</summary>
     public bool BeatSynced;
 
