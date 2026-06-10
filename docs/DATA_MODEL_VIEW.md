@@ -14,10 +14,14 @@ class AnalysisRun {
 class AnalysisRunSettings {
     +int SampleRate
     +double LiftAngle
+    +int AveragingPeriod
+    +bool UseCOnset
     +bool AutoBph
     +int ManualBph
     +double HpfCutoffHz
-    +int SoundImageSize
+    +int SoundImageWidth
+    +int SoundImageHeight
+    +int ScopeSnapshotPointBudget
 }
 
 class AudioSource {
@@ -61,6 +65,8 @@ class WavFormatInfo {
     +ushort AudioFormat
     +ushort NumChannels
     +int SampleRate
+    +uint ByteRate
+    +ushort BlockAlign
     +ushort BitsPerSample
     +long DataOffset
     +uint DataSize
@@ -68,14 +74,17 @@ class WavFormatInfo {
 
 class WavData {
     +int SampleRate
-    +float Samples
+    +float[] Samples
 }
 
 class MasterAudioBuffer {
     +int Channels
     +int SecondsOfBuffer
-    +float Samples
+    +float[] Samples
     +ulong TotalSamplesWritten
+    +double Fps
+    +double Spf
+    +double Sps
 }
 
 class AnalysisFrame {
@@ -84,43 +93,75 @@ class AnalysisFrame {
     +ulong SourceSampleEnd
     +int SampleRate
     +bool InputOverrun
+    +ulong InputSamplesDropped
+    +ulong PendingSamples
+    +ulong AnalysisLagSamples
+    +double ProcessingElapsedMs
+    +int DeadlineDegradationLevel
+    +long CaptureTimestamp
+    +bool CaptureTimestampIsLowerBound
+    +long ProcessingCompletedTimestamp
+    +ulong MissedBeats
+    +uint SyncLossCount
+    +bool BeatSynced
+    +ulong GraphTickEnd
+    +bool SoundImageUpdated
+    +bool SpectrogramImageUpdated
+    +double BackgroundFps
+    +double BackgroundSps
+    +double BackgroundSpf
+    +double ForegroundFps
+    +double ForegroundSps
+    +double ForegroundSpf
+    +bool ForegroundStatsUpdated
 }
 
 class GraphSeriesFrame {
     +string Id
-    +double X
-    +double Y
+    +IReadOnlyList~double~ X
+    +IReadOnlyList~double~ Y
     +bool Replace
 }
 
-class ScopeMarker {
-    <<abstract>>
+class ScopeVerticalMarker {
     +double X
+    +double Height
     +uint Color
 }
 
-class ScopeVerticalMarker {
-    +double Height
-}
-
 class ScopeHorizontalMarker {
+    +HorizontalMarkerDirection Direction
     +double XLeft
     +double XRight
     +double Length
+    +double Height
+    +uint Color
 }
 
 class ScopeTextMarker {
+    +double X
+    +double Height
     +string Text
+    +uint Color
     +MarkerTextAlignment Alignment
 }
 
 class WatchMetricsUpdate {
-    +double TicRatePoints
-    +double TocRatePoints
+    +bool TicRateUpdated
+    +bool TocRateUpdated
+    +IReadOnlyList~double~ XTic
+    +IReadOnlyList~double~ YTic
+    +IReadOnlyList~double~ XToc
+    +IReadOnlyList~double~ YToc
+    +bool ResultsUpdated
     +string ResultsText
+    +bool CMarkerTextUpdated
     +string CMarkerText
+    +bool BeatTimingSampleUpdated
     +BeatTimingSample BeatTimingSample
+    +bool AmplitudeSampleUpdated
     +AmplitudeSample AmplitudeSample
+    +bool DerivedMeasuresUpdated
     +DerivedTimingMeasures DerivedMeasures
 }
 
@@ -129,20 +170,27 @@ class BeatTimingSample {
     +double TimeS
     +bool IsTic
     +double RateErrorMs
+    +bool RateValid
     +double RateSPerDay
+    +bool BeatErrorValid
     +double BeatErrorSignedMs
     +int Bph
 }
 
 class AmplitudeSample {
     +double TimeS
+    +bool InstantValid
     +double InstantDeg
+    +bool PairAverageUpdated
     +double PairAverageDeg
 }
 
 class DerivedTimingMeasures {
+    +bool DiffTicTacValid
     +double DiffTicTacMs
+    +bool DiffPeriodValid
     +double DiffPeriodMs
+    +bool AvgPeriodValid
     +double AvgPeriodMs
 }
 
@@ -154,10 +202,16 @@ class BeatMetricsHistorySnapshot {
     +DerivedTimingMeasures Derived
     +StatsSummary RateStats
     +StatsSummary AmplitudeStats
+    +bool RateValid
+    +double RateSPerDay
     +int Bph
+    +bool AmplitudeValid
+    +double AmplitudeDeg
+    +bool BeatErrorValid
+    +double BeatErrorSignedMs
     +double LatestTimeS
     +WatchPosition ActivePosition
-    +PositionSummary Positions
+    +IReadOnlyList~PositionSummary~ Positions
 }
 
 class WatchPosition {
@@ -191,37 +245,41 @@ class StatsSummary {
 }
 
 class MetricsHistorySeries {
-    +double X
-    +double Y
-    +double YMin
-    +double YMax
+    +IReadOnlyList~double~ X
+    +IReadOnlyList~double~ Y
+    +IReadOnlyList~double~ YMin
+    +IReadOnlyList~double~ YMax
 }
 
 class BeatSegmentsSnapshot {
     +ulong Version
-    +BeatSegment Segments
+    +IReadOnlyList~BeatSegment~ Segments
     +double LiftAngleDeg
     +BeatNoiseAverageSnapshot Average
 }
 
 class BeatSegment {
-    +float Samples
+    +ReadOnlyMemory~float~ Samples
     +double MsPerPoint
     +double StartTimeS
     +bool IsTic
     +double AOffsetMs
     +float PeakValue
+    +bool CPeakValid
     +double CPeakOffsetMs
+    +bool COnsetValid
     +double COnsetOffsetMs
 }
 
 class BeatNoiseAverageSnapshot {
     +bool SigmaEnabled
     +bool Frozen
+    +int IntervalsPerLane
+    +double MsPerPoint
     +int Lane1Count
     +int Lane2Count
-    +float Lane1
-    +float Lane2
+    +IReadOnlyList~float~ Lane1
+    +IReadOnlyList~float~ Lane2
     +double Lane1MeanPeak
     +double Lane2MeanPeak
 }
@@ -229,7 +287,7 @@ class BeatNoiseAverageSnapshot {
 class PixelBuffer {
     +int Width
     +int Height
-    +uint Pixels
+    +uint[] Pixels
 }
 
 class TgConfig {
@@ -237,29 +295,45 @@ class TgConfig {
     +TgBphMode BphMode
     +int ManualBph
     +double HpfCutoffHz
+    +double EnvelopeSmoothMs
+    +double EventMinSeparationMs
+    +double SyncTolerancePct
+    +double AutoDetectSeconds
+    +int SyncLossMisses
+    +double PllPeriodGain
+    +double PllAcGain
+    +double OnsetFractionInit
+    +double MinPeakFractionInit
+    +bool SuppressPreSyncEvents
+    +TgCPlacement CPlacement
 }
 
 class TgResult {
     +TgSyncStatus SyncStatus
     +int DetectedBph
     +double MeasuredPeriodS
-    +float ProcessedPcm
+    +List~TgEvent~ Events
+    +float[] ProcessedPcm
+    +int ProcessedPcmLen
+    +ulong ProcessedPcmStartSample
+    +bool SyncLostEvent
+    +bool SyncAcquiredEvent
+    +bool DetectorResetEvent
+    +float OnsetThreshold
+    +float MinPeakThreshold
+    +float NoiseFloor
+    +float ReferencePeak
 }
 
 class TgEvent {
-    <<abstract>>
     +double TimeSeconds
     +ulong SampleIndex
+    +double SubSampleOffset
     +float PeakValue
     +TgEventType Type
-}
-
-class AEvent {
-    +TgEventType A
-}
-
-class CEvent {
-    +TgEventType C
+    +bool IsPreSync
+    +ulong OnsetSampleIndex
+    +double OnsetSubSampleOffset
     +double OnsetTimeSeconds
     +bool OnsetValid
 }
@@ -267,11 +341,6 @@ class CEvent {
 AudioSource <|-- LiveAudioSource
 AudioSource <|-- PlaybackSource
 AudioSource <|-- SimSource
-ScopeMarker <|-- ScopeVerticalMarker
-ScopeMarker <|-- ScopeHorizontalMarker
-ScopeMarker <|-- ScopeTextMarker
-TgEvent <|-- AEvent
-TgEvent <|-- CEvent
 
 AnalysisRun "1" *-- "1" AnalysisRunSettings : configured by
 AnalysisRun "1" *-- "1" AudioSource : selects
@@ -291,7 +360,9 @@ TgConfig "1" --> "0..*" TgResult : configures detection
 TgResult "1" *-- "0..*" TgEvent : contains
 
 AnalysisFrame "1" *-- "0..*" GraphSeriesFrame : contains scope/rate series
-AnalysisFrame "1" *-- "0..*" ScopeMarker : contains markers
+AnalysisFrame "1" *-- "0..*" ScopeVerticalMarker : contains vertical markers
+AnalysisFrame "1" *-- "0..*" ScopeHorizontalMarker : contains horizontal markers
+AnalysisFrame "1" *-- "0..*" ScopeTextMarker : contains text markers
 AnalysisFrame "1" *-- "1" WatchMetricsUpdate : contains metrics
 AnalysisFrame "1" o-- "0..1" PixelBuffer : contains sound image
 AnalysisFrame "1" o-- "0..1" PixelBuffer : contains spectrogram image
@@ -316,26 +387,26 @@ BeatSegmentsSnapshot "1" *-- "1" BeatNoiseAverageSnapshot : scope 2 lane state
 | Entity | Source in project | Meaning |
 |---|---|---|
 | `WavFile`, `WavFormatInfo`, `WavData` | `Core.AudioIo` | Persisted or decoded audio data used for playback, recording, and verification |
-| `AnalysisRunSettings` | `TimeGrapher.App` | User-selected run parameters converted into analysis worker configuration |
+| `AnalysisRunSettings` | `TimeGrapher.App` | User-selected run parameters converted into `AnalysisWorker.Config`: sample rate, lift angle, averaging period, C-onset mode, BPH mode, HPF cutoff, sound-print image dimensions, and scope snapshot point budget |
 | `AudioSource` specializations | App run modes and Core workers | Live microphone, WAV playback, or synthetic signal input |
-| `MasterAudioBuffer` | `Core.Shared` | Shared mono float ring buffer between input workers and analysis |
-| `TgConfig`, `TgResult`, `TgEvent` | `Core.Detection` | Detector configuration, sync state, processed PCM, and tick/tock events |
-| `AnalysisFrame` | `Core.Shared` | One UI update payload produced by an analysis pass |
-| `GraphSeriesFrame`, `ScopeMarker`, `WatchMetricsUpdate`, `PixelBuffer` | `Core.Shared` | Data displayed as scope/rate graphs, markers, numeric results, and the sound-print / spectrogram images. The spectrogram payload (`AnalysisFrame.SpectrogramImage`) is the STFT of the recent 10 s input window built by `Core.Analysis.SpectrogramFrameProjector` — x = time, y = frequency (bins 0..~12 kHz, low at the bottom), color = dB magnitude through the 64-entry inferno-like LUT — published from a fixed three-buffer pool on the sound-print cadence |
-| `BeatTimingSample`, `AmplitudeSample`, `DerivedTimingMeasures` | `Core.Shared` | Machine-readable per-beat values (rate error, signed beat error, locked BPH, amplitude, DiffTicTac/DiffPeriod/AvgPeriod) emitted per A/C event |
-| `BeatMetricsHistorySnapshot`, `MetricsHistorySeries` | `Core.Shared` (built by `Core.Metrics.BeatMetricsHistory`) | Immutable cumulative history of rate/amplitude/beat-error series plus the latest readings and locked BPH, shared across frames; survives latest-wins frame coalescing |
+| `MasterAudioBuffer` | `Core.Shared` | Shared mono float ring buffer between input workers and analysis, with input throughput counters and capture timestamp lookup for latency reporting |
+| `TgConfig`, `TgResult`, `TgEvent` | `Core.Detection` | Detector configuration, sync state, processed PCM, one-call event list, sync edge flags, detector thresholds, and typed A/C events distinguished by `TgEvent.Type` plus C-onset metadata |
+| `AnalysisFrame` | `Core.Shared` | One UI update payload produced by an analysis pass, including source position, backlog/deadline state, latency timestamps, sync counters, graph tick, current beat-sync state, optional image payloads, and cumulative snapshots |
+| `GraphSeriesFrame`, `ScopeVerticalMarker`, `ScopeHorizontalMarker`, `ScopeTextMarker`, `WatchMetricsUpdate`, `PixelBuffer` | `Core.Shared` | Data displayed as scope/rate graphs, marker DTOs, numeric results, and the sound-print / spectrogram images. The spectrogram payload (`AnalysisFrame.SpectrogramImage`) is the STFT of the recent 10 s input window built by `Core.Analysis.SpectrogramFrameProjector` — x = time, y = frequency (bins 0..~12 kHz, low at the bottom), color = dB magnitude through the 64-entry inferno-like LUT — published from a fixed three-buffer pool on the sound-print cadence |
+| `BeatTimingSample`, `AmplitudeSample`, `DerivedTimingMeasures` | `Core.Shared` | Machine-readable per-beat values (rate error, validity flags, signed beat error, locked BPH, amplitude, pair-average update flag, DiffTicTac/DiffPeriod/AvgPeriod) emitted per A/C event |
+| `BeatMetricsHistorySnapshot`, `MetricsHistorySeries` | `Core.Shared` (built by `Core.Metrics.BeatMetricsHistory`) | Immutable cumulative history of rate/amplitude/beat-error series plus validity-guarded latest readings, running stats, active position, and locked BPH, shared across frames; survives latest-wins frame coalescing |
 | `StatsSummary` | `Core.Shared` (fed by `Core.Metrics.RunningStats`) | Running min/max/mean/population-σ since start for rate and amplitude — exact per-beat statistics independent of series decimation (Vario display) |
 | `WatchPosition` | `Core.Shared` | Standard watch test positions per NIHS 95-10 / ISO 3158 (CH dial up, CB dial down, 6H crown left, 9H crown down, 3H crown up, 12H crown right), plus four 45° intermediate positions (P6H45/P9H45/P3H45/P12H45) for the 10-step sequence; stamped on every snapshot as the position new beats are tagged with |
 | `PositionSummary` | `Core.Shared` (aggregated by `Core.Metrics.BeatMetricsHistory`) | Per-position rate/amplitude/signed-beat-error running aggregates; only measured positions appear, bounded by the 10-position catalog (WatchPositions.Count; Positions display) |
 | `BeatSegmentsSnapshot`, `BeatSegment` | `Core.Shared` (built by `Core.Analysis.BeatSegmentCapture`) | Ring of the last 8 per-beat envelope windows (5 ms pre-roll, 400 ms, 1600 points) with A / C-peak / C-onset offsets, phase and lift angle; segment samples reference the capture's fixed 16-buffer pool and stay immutable until rotated out (Beat-Noise Scope; reused by beat-aligned waveform views) |
-| `BeatNoiseAverageSnapshot` | `Core.Shared` (built by `Core.Analysis.BeatNoiseAverager`) | Scope 2 state: two phase-alternating 20 ms averaged lanes (800 points each) deliberately labeled trace 1/2 — never tic/toc — with per-lane interval counts, mean peak amplitude and the 50+50 cycle freeze flag |
+| `BeatNoiseAverageSnapshot` | `Core.Shared` (built by `Core.Analysis.BeatNoiseAverager`) | Scope 2 state: two phase-alternating 20 ms averaged lanes (800 points each) deliberately labeled trace 1/2 — never tic/toc — with per-lane interval counts, intervals-per-lane target, ms-per-point scale, mean peak amplitude and the cycle freeze flag |
 
 ## Relationship notes
 
 | Relationship type | Representation in this project |
 |---|---|
 | 1:1 | One `AnalysisRun` has one `AnalysisRunSettings`, one selected `AudioSource`, and one `MasterAudioBuffer` |
-| 1:n | One `AnalysisRun` produces many `AnalysisFrame` objects; one `TgResult` contains many `TgEvent` objects; one `AnalysisFrame` contains many graph series and markers |
+| 1:n | One `AnalysisRun` produces many `AnalysisFrame` objects; one `TgResult` contains many `TgEvent` objects; one `AnalysisFrame` contains many graph series and marker DTOs |
 | n:n | No native persisted many-to-many relationship exists because the app has no database and most runtime data is owned by a single run/frame |
-| Generalization / specialization | `AudioSource` specializes into live/playback/sim sources; `TgEvent` specializes into A and C events; `ScopeMarker` specializes into vertical/horizontal/text markers |
-| Aggregation / composition | `AnalysisFrame` is composed from graph series, markers, metrics, and the optional sound-print / spectrogram images (each a `PixelBuffer` from its projector's fixed publish pool); `WavFile` contains format metadata and can be decoded into `WavData`; `BeatMetricsHistorySnapshot` aggregates three `MetricsHistorySeries` plus up to ten `PositionSummary` rows (WatchPositions.Count) and is shared (aggregation, not owned) by many frames; `BeatSegmentsSnapshot` is shared the same way and aggregates (not owns) up to eight `BeatSegment` windows whose samples live in the capture's pooled buffers |
+| Generalization / specialization | `AudioSource` specializes into live/playback/sim sources; detector events are one `TgEvent` DTO distinguished by `TgEvent.Type`; marker payloads are three separate DTOs (`ScopeVerticalMarker`, `ScopeHorizontalMarker`, `ScopeTextMarker`) rather than subclasses of a shared marker type |
+| Aggregation / composition | `AnalysisFrame` is composed from graph series, marker DTOs, metrics, and the optional sound-print / spectrogram images (each a `PixelBuffer` from its projector's fixed publish pool); `WavFile` contains format metadata and can be decoded into `WavData`; `BeatMetricsHistorySnapshot` aggregates three `MetricsHistorySeries` plus up to ten `PositionSummary` rows (WatchPositions.Count) and is shared (aggregation, not owned) by many frames; `BeatSegmentsSnapshot` is shared the same way and aggregates (not owns) up to eight `BeatSegment` windows whose samples live in the capture's pooled buffers |
