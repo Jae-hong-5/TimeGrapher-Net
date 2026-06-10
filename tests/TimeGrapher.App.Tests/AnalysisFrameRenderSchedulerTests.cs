@@ -97,6 +97,26 @@ public sealed class AnalysisFrameRenderSchedulerTests
     }
 
     [Fact]
+    public void EnqueueMergesCaptureLowerBoundFlagFromDisplacedFrames()
+    {
+        var harness = new SchedulerHarness();
+
+        // A one-off global stall flags exactly one frame; the unflagged
+        // follow-up pass must not displace the honesty marker.
+        harness.Scheduler.Enqueue(new AnalysisFrame { SourceId = 1, CaptureTimestampIsLowerBound = true });
+        harness.Scheduler.Enqueue(new AnalysisFrame { SourceId = 2 });
+        harness.RunNextPostedAction();
+
+        Assert.Collection(
+            harness.Rendered,
+            rendered =>
+            {
+                Assert.Equal<ulong>(2, rendered.Frame.SourceId);
+                Assert.True(rendered.Frame.CaptureTimestampIsLowerBound);
+            });
+    }
+
+    [Fact]
     public void EnqueueKeepsReplacementSoundImageWhenBothFramesUpdated()
     {
         var harness = new SchedulerHarness();

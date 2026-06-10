@@ -60,6 +60,12 @@ internal sealed class AnalysisFrameRenderScheduler
     {
         replacement.InputOverrun |= displaced.InputOverrun;
         replacement.InputSamplesDropped += displaced.InputSamplesDropped;
+        // A one-off global stall produces exactly ONE lower-bound-flagged frame;
+        // a fast follow-up pass must not displace the honesty marker. The OR
+        // over-claims for the replacement's own exact stamp, but the consumer
+        // (LatencyStatsTracker) folds it with a sticky OR, so every resulting
+        // "≥" statement stays true.
+        replacement.CaptureTimestampIsLowerBound |= displaced.CaptureTimestampIsLowerBound;
         if (displaced.SoundImageUpdated && !replacement.SoundImageUpdated)
         {
             replacement.SoundImageUpdated = true;
