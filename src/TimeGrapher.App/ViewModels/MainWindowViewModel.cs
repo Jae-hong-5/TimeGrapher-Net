@@ -425,7 +425,16 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
             return;
         }
 
-        bool wasPaused = _runState == RunUiState.Paused;
+        // Leaving pause ends review mode. The cursor must clear BEFORE the
+        // state mutates: MainWindow's re-route of the kept frame is gated on
+        // RunState == Paused, so clearing afterwards never re-renders and a
+        // stop from a scrubbed pause would leave the dotted cursor line on
+        // screen (resume relied on the next live frame by luck).
+        if (_runState == RunUiState.Paused)
+        {
+            ReviewCursorTimeS = null;
+        }
+
         _runState = value;
         OnPropertyChanged(nameof(RunState));
         OnPropertyChanged(nameof(IsReviewBarVisible));
@@ -447,13 +456,6 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
         _pauseCommand.NotifyCanExecuteChanged();
         _stopCommand.NotifyCanExecuteChanged();
         _refreshDevicesCommand.NotifyCanExecuteChanged();
-
-        // Leaving pause ends review mode: live rendering resumes cursor-free and
-        // a stop must not leak a stale cursor into the next run.
-        if (wasPaused)
-        {
-            ReviewCursorTimeS = null;
-        }
     }
 
     private bool SetProperty<T>(ref T storage, T value, [CallerMemberName] string? propertyName = null)

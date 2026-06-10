@@ -277,6 +277,34 @@ public sealed class MainWindowViewModelTests
     }
 
     [Fact]
+    public void ReviewCursorClearsWhileStillPausedSoTheReRouteGateSeesIt()
+    {
+        // MainWindow re-renders the kept frame on cursor changes only while
+        // RunState == Paused; the clearing notification must therefore arrive
+        // BEFORE the state flips, or the dotted cursor stays on screen after a
+        // stop from a scrubbed pause.
+        var vm = CreateViewModel();
+        vm.UpdateReviewMaximum(100.0);
+        vm.SetRunning();
+        vm.SetPaused();
+        vm.ReviewCursorTimeS = 42.0;
+
+        RunUiState? stateAtClear = null;
+        vm.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(MainWindowViewModel.ReviewCursorTimeS) &&
+                vm.ReviewCursorTimeS == null)
+            {
+                stateAtClear = vm.RunState;
+            }
+        };
+
+        vm.SetStopped();
+
+        Assert.Equal(RunUiState.Paused, stateAtClear);
+    }
+
+    [Fact]
     public void ReviewCursorClampsToTheCapturedRange()
     {
         var vm = CreateViewModel();
