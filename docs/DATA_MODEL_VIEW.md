@@ -119,6 +119,46 @@ class WatchMetricsUpdate {
     +double TocRatePoints
     +string ResultsText
     +string CMarkerText
+    +BeatTimingSample BeatTimingSample
+    +AmplitudeSample AmplitudeSample
+    +DerivedTimingMeasures DerivedMeasures
+}
+
+class BeatTimingSample {
+    +ulong BeatNumber
+    +double TimeS
+    +bool IsTic
+    +double RateErrorMs
+    +double RateSPerDay
+    +double BeatErrorSignedMs
+}
+
+class AmplitudeSample {
+    +double TimeS
+    +double InstantDeg
+    +double PairAverageDeg
+}
+
+class DerivedTimingMeasures {
+    +double DiffTicTacMs
+    +double DiffPeriodMs
+    +double AvgPeriodMs
+}
+
+class BeatMetricsHistorySnapshot {
+    +ulong Version
+    +MetricsHistorySeries Rate
+    +MetricsHistorySeries Amplitude
+    +MetricsHistorySeries BeatError
+    +DerivedTimingMeasures Derived
+    +double LatestTimeS
+}
+
+class MetricsHistorySeries {
+    +double X
+    +double Y
+    +double YMin
+    +double YMax
 }
 
 class PixelBuffer {
@@ -189,6 +229,12 @@ AnalysisFrame "1" *-- "0..*" GraphSeriesFrame : contains scope/rate series
 AnalysisFrame "1" *-- "0..*" ScopeMarker : contains markers
 AnalysisFrame "1" *-- "1" WatchMetricsUpdate : contains metrics
 AnalysisFrame "1" o-- "0..1" PixelBuffer : contains sound image
+AnalysisFrame "1" o-- "0..1" BeatMetricsHistorySnapshot : shares cumulative history
+
+WatchMetricsUpdate "1" o-- "0..1" BeatTimingSample : per A event
+WatchMetricsUpdate "1" o-- "0..1" AmplitudeSample : per C event
+WatchMetricsUpdate "1" o-- "0..1" DerivedTimingMeasures : per A event
+BeatMetricsHistorySnapshot "1" *-- "3" MetricsHistorySeries : rate/amplitude/beat error
 ```
 
 ## Entity summary
@@ -202,6 +248,8 @@ AnalysisFrame "1" o-- "0..1" PixelBuffer : contains sound image
 | `TgConfig`, `TgResult`, `TgEvent` | `Core.Detection` | Detector configuration, sync state, processed PCM, and tick/tock events |
 | `AnalysisFrame` | `Core.Shared` | One UI update payload produced by an analysis pass |
 | `GraphSeriesFrame`, `ScopeMarker`, `WatchMetricsUpdate`, `PixelBuffer` | `Core.Shared` | Data displayed as scope/rate graphs, markers, numeric results, and sound-print image |
+| `BeatTimingSample`, `AmplitudeSample`, `DerivedTimingMeasures` | `Core.Shared` | Machine-readable per-beat values (rate error, signed beat error, amplitude, DiffTicTac/DiffPeriod/AvgPeriod) emitted per A/C event |
+| `BeatMetricsHistorySnapshot`, `MetricsHistorySeries` | `Core.Shared` (built by `Core.Metrics.BeatMetricsHistory`) | Immutable cumulative history of rate/amplitude/beat-error series shared across frames; survives latest-wins frame coalescing |
 
 ## Relationship notes
 
@@ -211,4 +259,4 @@ AnalysisFrame "1" o-- "0..1" PixelBuffer : contains sound image
 | 1:n | One `AnalysisRun` produces many `AnalysisFrame` objects; one `TgResult` contains many `TgEvent` objects; one `AnalysisFrame` contains many graph series and markers |
 | n:n | No native persisted many-to-many relationship exists because the app has no database and most runtime data is owned by a single run/frame |
 | Generalization / specialization | `AudioSource` specializes into live/playback/sim sources; `TgEvent` specializes into A and C events; `ScopeMarker` specializes into vertical/horizontal/text markers |
-| Aggregation / composition | `AnalysisFrame` is composed from graph series, markers, metrics, and optional sound image; `WavFile` contains format metadata and can be decoded into `WavData` |
+| Aggregation / composition | `AnalysisFrame` is composed from graph series, markers, metrics, and optional sound image; `WavFile` contains format metadata and can be decoded into `WavData`; `BeatMetricsHistorySnapshot` aggregates three `MetricsHistorySeries` and is shared (aggregation, not owned) by many frames |
