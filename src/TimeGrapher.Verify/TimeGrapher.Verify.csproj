@@ -6,6 +6,10 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>TimeGrapher.Verify</RootNamespace>
+    <!-- Keep the Pi verification target in every restore: without this, a
+         plain Windows restore regenerates packages.lock.json WITHOUT the
+         net8.0/linux-arm64 section that the Raspberry Pi runs depend on. -->
+    <RuntimeIdentifiers>linux-arm64</RuntimeIdentifiers>
   </PropertyGroup>
 
   <ItemGroup>
