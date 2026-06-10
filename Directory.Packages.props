@@ -4,10 +4,10 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageVersion Include="Avalonia" Version="11.3.2" />
-    <PackageVersion Include="Avalonia.Desktop" Version="11.3.2" />
-    <PackageVersion Include="Avalonia.Fonts.Inter" Version="11.3.2" />
-    <PackageVersion Include="Avalonia.Themes.Fluent" Version="11.3.2" />
+    <PackageVersion Include="Avalonia" Version="11.3.17" />
+    <PackageVersion Include="Avalonia.Desktop" Version="11.3.17" />
+    <PackageVersion Include="Avalonia.Fonts.Inter" Version="11.3.17" />
+    <PackageVersion Include="Avalonia.Themes.Fluent" Version="11.3.17" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
     <PackageVersion Include="NAudio.Wasapi" Version="2.2.1" />
     <PackageVersion Include="NAudio.WinMM" Version="2.2.1" />
