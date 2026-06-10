@@ -196,6 +196,50 @@ public sealed class BeatMetricsHistoryTests
     }
 
     [Fact]
+    public void ReApplyingTheSamePositionDoesNotBypassTheThrottle()
+    {
+        // The projector re-applies the volatile position knob on EVERY pass;
+        // only the unchanged-position early return keeps that from raising the
+        // publish-immediately flag each pass and silently voiding the 0.5 s
+        // throttle (every version-gated renderer would re-render per frame).
+        var history = new BeatMetricsHistory();
+        history.Record(BeatUpdate(1, 0.125, 5.0));
+        BeatMetricsHistorySnapshot? first = history.CurrentSnapshot();
+
+        history.SetActivePosition(WatchPosition.CH); // already the active position
+        history.Record(BeatUpdate(2, 0.250, 6.0));   // inside the throttle window
+
+        Assert.Same(first, history.CurrentSnapshot());
+    }
+
+    [Fact]
+    public void ProjectorPassesWithAnUnchangedPositionKnobShareTheSnapshot()
+    {
+        var projector = new BeatMetricsFrameProjector();
+        var result = new DetectorResultSnapshot(
+            TgSyncStatus.Synced, 28800, 0.125, Array.Empty<TgEvent>(),
+            Array.Empty<float>(), 0, 0UL, false, false, false, 0f, 0f, 0f, 0f);
+        projector.SetActivePosition(WatchPosition.P12H);
+        projector.Project(new DetectorMetricsBlockUpdate(result, new List<DetectedEventUpdate>
+        {
+            new(new TgEvent { Type = TgEventType.A }, 6000.0, BeatUpdate(1, 0.125, 5.0)),
+        }));
+        var firstFrame = new AnalysisFrame();
+        projector.AppendSnapshot(firstFrame);
+
+        // A second pass with the knob unchanged and a beat inside the 0.5 s
+        // throttle window: the per-pass knob re-apply must not bypass it.
+        projector.Project(new DetectorMetricsBlockUpdate(result, new List<DetectedEventUpdate>
+        {
+            new(new TgEvent { Type = TgEventType.A }, 12000.0, BeatUpdate(2, 0.250, 6.0)),
+        }));
+        var secondFrame = new AnalysisFrame();
+        projector.AppendSnapshot(secondFrame);
+
+        Assert.Same(firstFrame.MetricsHistory, secondFrame.MetricsHistory);
+    }
+
+    [Fact]
     public void SnapshotStampsTheActivePositionAndDefaultsToDialUp()
     {
         var history = new BeatMetricsHistory();
