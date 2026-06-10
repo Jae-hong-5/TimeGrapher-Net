@@ -7,6 +7,26 @@ namespace TimeGrapher.App.Tests;
 public sealed class SeriesDataReducerTests
 {
     [Fact]
+    public void FindSeriesReturnsTheFirstMatchById()
+    {
+        var first = new GraphSeriesFrame { Id = AnalysisGraphSeries.RateTic };
+        var duplicate = new GraphSeriesFrame { Id = AnalysisGraphSeries.RateTic };
+        var other = new GraphSeriesFrame { Id = AnalysisGraphSeries.RateToc };
+
+        Assert.Same(
+            first,
+            SeriesDataReducer.FindSeries(new[] { other, first, duplicate }, AnalysisGraphSeries.RateTic));
+    }
+
+    [Fact]
+    public void FindSeriesReturnsNullWhenTheIdIsAbsent()
+    {
+        var seriesList = new[] { new GraphSeriesFrame { Id = AnalysisGraphSeries.RateTic } };
+
+        Assert.Null(SeriesDataReducer.FindSeries(seriesList, AnalysisGraphSeries.ScopePcm));
+    }
+
+    [Fact]
     public void ReplaceSeriesDataDecimatesToPointBudget()
     {
         var targetX = new List<double>();
