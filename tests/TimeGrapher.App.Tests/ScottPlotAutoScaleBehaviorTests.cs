@@ -63,4 +63,33 @@ public sealed class ScottPlotAutoScaleBehaviorTests
         Assert.InRange(limits.Top, 0.4, 1.0);
         Assert.InRange(limits.Bottom, -0.5, 0.1);
     }
+
+    [Fact]
+    public void AutoScale_ExcludesVerticalLineXExtentOnlyWhenAutoscaleDisabled()
+    {
+        // A VerticalLine DOES contribute its X to autoscaling by default: a
+        // paused-review cursor parked at an absolute stream time far outside
+        // the visible window would stretch every ResetView / paused-scrub
+        // AutoScale fit.
+        var stretched = new Plot();
+        stretched.Add.Scatter(new double[] { 0, 1 }, new double[] { 0.0, 0.5 });
+        VerticalLine defaultCursor = stretched.Add.VerticalLine(100.0);
+        _ = defaultCursor;
+        stretched.Axes.AutoScale();
+        Assert.True(
+            stretched.Axes.GetLimits().Right > 50.0,
+            $"expected blown X axis, got {stretched.Axes.GetLimits().Right}");
+
+        // ReviewCursorLayer sets EnableAutoscale = false, which fully detaches
+        // the cursor from the X fit — the load-bearing flag the cursor design
+        // (and every ResetView with a visible cursor) relies on.
+        var detached = new Plot();
+        detached.Add.Scatter(new double[] { 0, 1 }, new double[] { 0.0, 0.5 });
+        VerticalLine reviewCursor = detached.Add.VerticalLine(100.0);
+        reviewCursor.EnableAutoscale = false;
+        detached.Axes.AutoScale();
+        AxisLimits limits = detached.Axes.GetLimits();
+        Assert.InRange(limits.Right, 0.9, 2.0);
+        Assert.InRange(limits.Left, -1.0, 0.1);
+    }
 }

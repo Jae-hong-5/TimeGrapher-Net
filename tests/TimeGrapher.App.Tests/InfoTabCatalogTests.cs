@@ -185,20 +185,5 @@ public sealed class InfoTabCatalogTests
             .ToArray();
 
         Assert.Equal(expectedKinds, catalogKinds);
-        Assert.DoesNotContain(InfoTabKind.Placeholder, catalogKinds);
-    }
-
-    [Fact]
-    public void EveryCatalogTabResolvesToARegistryFactoryAndConsumer()
-    {
-        // The registry throws on a kind without a factory; building it from the
-        // catalog proves every tab constructs and yields a consumer per id.
-        InfoTabRegistry registry = InfoTabRegistry.FromCatalog(
-            new Avalonia.Controls.TabControl(), "Inter");
-
-        Assert.Equal(InfoTabCatalog.All.Count, registry.Consumers.Count);
-        Assert.Equal(
-            InfoTabCatalog.All.Select(tab => tab.Id).OrderBy(id => id, StringComparer.Ordinal),
-            registry.Consumers.Select(consumer => consumer.TabId).OrderBy(id => id, StringComparer.Ordinal));
     }
 }

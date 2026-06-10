@@ -297,7 +297,7 @@ public sealed class BeatMetricsHistoryTests
     }
 
     [Fact]
-    public void PositionListStaysBoundedAtTheSixStandardPositions()
+    public void PositionListStaysBoundedAtTheWatchPositionsCatalog()
     {
         var history = new BeatMetricsHistory();
         double timeS = 0.125;

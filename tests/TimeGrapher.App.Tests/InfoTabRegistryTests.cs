@@ -16,6 +16,12 @@ public sealed class InfoTabRegistryTests
 
         Assert.Equal(InfoTabCatalog.All.Count, registry.Registrations.Count);
         Assert.Equal(InfoTabCatalog.All.Count, tabControl.ItemCount);
+        // The registry throws on a kind without a factory; building it from the
+        // catalog proves every tab constructs and yields a consumer per id.
+        Assert.Equal(InfoTabCatalog.All.Count, registry.Consumers.Count);
+        Assert.Equal(
+            InfoTabCatalog.All.Select(tab => tab.Id).OrderBy(id => id, StringComparer.Ordinal),
+            registry.Consumers.Select(consumer => consumer.TabId).OrderBy(id => id, StringComparer.Ordinal));
         Assert.NotNull(registry.SoundImageControl);
         Assert.All(InfoTabCatalog.All, definition =>
             Assert.Contains(registry.Registrations, registration => registration.Definition.Id == definition.Id));
