@@ -156,6 +156,25 @@ class BeatMetricsHistorySnapshot {
     +StatsSummary AmplitudeStats
     +int Bph
     +double LatestTimeS
+    +WatchPosition ActivePosition
+    +PositionSummary Positions
+}
+
+class WatchPosition {
+    <<enumeration>>
+    CH
+    CB
+    P6H
+    P9H
+    P3H
+    P12H
+}
+
+class PositionSummary {
+    +WatchPosition Position
+    +StatsSummary Rate
+    +StatsSummary Amplitude
+    +StatsSummary BeatError
 }
 
 class StatsSummary {
@@ -249,6 +268,10 @@ WatchMetricsUpdate "1" o-- "0..1" AmplitudeSample : per C event
 WatchMetricsUpdate "1" o-- "0..1" DerivedTimingMeasures : per A event
 BeatMetricsHistorySnapshot "1" *-- "3" MetricsHistorySeries : rate/amplitude/beat error
 BeatMetricsHistorySnapshot "1" *-- "2" StatsSummary : running stability stats
+BeatMetricsHistorySnapshot "1" --> "1" WatchPosition : tags new beats as
+BeatMetricsHistorySnapshot "1" *-- "0..6" PositionSummary : measured positions only
+PositionSummary "1" --> "1" WatchPosition : aggregates
+PositionSummary "1" *-- "3" StatsSummary : rate/amplitude/beat error
 ```
 
 ## Entity summary
@@ -265,6 +288,8 @@ BeatMetricsHistorySnapshot "1" *-- "2" StatsSummary : running stability stats
 | `BeatTimingSample`, `AmplitudeSample`, `DerivedTimingMeasures` | `Core.Shared` | Machine-readable per-beat values (rate error, signed beat error, locked BPH, amplitude, DiffTicTac/DiffPeriod/AvgPeriod) emitted per A/C event |
 | `BeatMetricsHistorySnapshot`, `MetricsHistorySeries` | `Core.Shared` (built by `Core.Metrics.BeatMetricsHistory`) | Immutable cumulative history of rate/amplitude/beat-error series plus the latest readings and locked BPH, shared across frames; survives latest-wins frame coalescing |
 | `StatsSummary` | `Core.Shared` (fed by `Core.Metrics.RunningStats`) | Running min/max/mean/population-σ since start for rate and amplitude — exact per-beat statistics independent of series decimation (Vario display) |
+| `WatchPosition` | `Core.Shared` | Standard watch test positions per NIHS 95-10 / ISO 3158 (CH dial up, CB dial down, 6H crown left, 9H crown down, 3H crown up, 12H crown right); stamped on every snapshot as the position new beats are tagged with |
+| `PositionSummary` | `Core.Shared` (aggregated by `Core.Metrics.BeatMetricsHistory`) | Per-position rate/amplitude/signed-beat-error running aggregates; only measured positions appear, bounded at the six standard slots (Test Positions display, future multi-position sequence) |
 
 ## Relationship notes
 
@@ -274,4 +299,4 @@ BeatMetricsHistorySnapshot "1" *-- "2" StatsSummary : running stability stats
 | 1:n | One `AnalysisRun` produces many `AnalysisFrame` objects; one `TgResult` contains many `TgEvent` objects; one `AnalysisFrame` contains many graph series and markers |
 | n:n | No native persisted many-to-many relationship exists because the app has no database and most runtime data is owned by a single run/frame |
 | Generalization / specialization | `AudioSource` specializes into live/playback/sim sources; `TgEvent` specializes into A and C events; `ScopeMarker` specializes into vertical/horizontal/text markers |
-| Aggregation / composition | `AnalysisFrame` is composed from graph series, markers, metrics, and optional sound image; `WavFile` contains format metadata and can be decoded into `WavData`; `BeatMetricsHistorySnapshot` aggregates three `MetricsHistorySeries` and is shared (aggregation, not owned) by many frames |
+| Aggregation / composition | `AnalysisFrame` is composed from graph series, markers, metrics, and optional sound image; `WavFile` contains format metadata and can be decoded into `WavData`; `BeatMetricsHistorySnapshot` aggregates three `MetricsHistorySeries` plus up to six `PositionSummary` rows and is shared (aggregation, not owned) by many frames |
