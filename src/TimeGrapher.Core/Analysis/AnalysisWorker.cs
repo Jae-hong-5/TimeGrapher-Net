@@ -157,6 +157,17 @@ public sealed class AnalysisWorker : IDisposable
     }
 
     /// <summary>
+    /// Request the Beat-Noise Scope 2 Σ averaging mode. Stored in the capture's
+    /// volatile knob and applied on the analysis thread at the start of the
+    /// next pass (the SetSweepMultiple flow); a change resets the averaging
+    /// cycle. Callable from any thread.
+    /// </summary>
+    public void SetSigmaAveraging(bool enabled)
+    {
+        _beatSegmentCapture.SetSigmaAveraging(enabled);
+    }
+
+    /// <summary>
     /// Request a sound-print background recolor (e.g. on UI theme toggle). The change
     /// is applied on the analysis thread and an updated image frame is published.
     /// Callable from any thread.

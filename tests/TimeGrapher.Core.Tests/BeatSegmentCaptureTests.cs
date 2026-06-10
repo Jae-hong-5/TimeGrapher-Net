@@ -138,7 +138,9 @@ public sealed class BeatSegmentCaptureTests
         Feed(capture, 0, firstBlockLength,
             spikes: new[] { (aSample, 0.9f) },
             AEvent(aSample, peak: 0.9f));
-        Assert.Null(capture.CurrentSnapshot()); // window still pending
+        // The 400 ms window is still pending after the first block (the Scope 2
+        // lane may already have published, but no segment has completed).
+        Assert.Empty(capture.CurrentSnapshot()?.Segments ?? Array.Empty<BeatSegment>());
 
         // The second block carries the rest of the window (plus margin); the
         // completed segment stitches both blocks across the boundary.

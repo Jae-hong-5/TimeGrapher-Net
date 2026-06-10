@@ -47,6 +47,42 @@ public sealed class BeatSegment
 }
 
 /// <summary>
+/// Scope 2 averaging state: two fixed 20 ms beat-noise traces accumulated by
+/// alternating beat phase. The lanes are deliberately numbered 1/2, not
+/// labeled tic/toc — the system does not guarantee which physical noise lands
+/// on which lane. Traces are immutable copies built per lane update (per beat
+/// at most), shared across frames with the surrounding snapshot.
+/// </summary>
+public sealed class BeatNoiseAverageSnapshot
+{
+    public static readonly BeatNoiseAverageSnapshot Empty = new();
+
+    /// <summary>Whether Σ averaging is on (off = each lane holds its newest single trace).</summary>
+    public bool SigmaEnabled { get; init; }
+
+    /// <summary>True once both lanes hold their full interval count (cycle complete).</summary>
+    public bool Frozen { get; init; }
+
+    /// <summary>Intervals per lane that complete the averaging cycle.</summary>
+    public int IntervalsPerLane { get; init; }
+
+    /// <summary>Milliseconds covered by one lane trace point.</summary>
+    public double MsPerPoint { get; init; }
+
+    /// <summary>Intervals accumulated into each lane so far (progress display).</summary>
+    public int Lane1Count { get; init; }
+    public int Lane2Count { get; init; }
+
+    /// <summary>Per-lane averaged 20 ms traces (empty until the lane's first interval).</summary>
+    public IReadOnlyList<float> Lane1 { get; init; } = Array.Empty<float>();
+    public IReadOnlyList<float> Lane2 { get; init; } = Array.Empty<float>();
+
+    /// <summary>Mean of the per-interval envelope peaks of each lane (the plan's per-axis average amplitude).</summary>
+    public double Lane1MeanPeak { get; init; }
+    public double Lane2MeanPeak { get; init; }
+}
+
+/// <summary>
 /// Ring of the most recent completed beat segments, carried by every frame.
 /// Cumulative by design: the render scheduler coalesces frames latest-wins, so
 /// dropped intermediate frames lose nothing. Rebuilt only when a segment
@@ -63,4 +99,7 @@ public sealed class BeatSegmentsSnapshot
 
     /// <summary>Lift angle (deg) the producing analysis run was configured with.</summary>
     public double LiftAngleDeg { get; init; }
+
+    /// <summary>Scope 2 lane-averaging state of the same capture.</summary>
+    public BeatNoiseAverageSnapshot Average { get; init; } = BeatNoiseAverageSnapshot.Empty;
 }

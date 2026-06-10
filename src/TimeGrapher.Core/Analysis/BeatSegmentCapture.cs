@@ -25,6 +25,11 @@ namespace TimeGrapher.Core.Analysis;
 /// the newest data, so on-screen reads never touch a buffer being recycled.
 /// Published segments are immutable by contract until rotated out.
 ///
+/// The capture also drives the Scope 2 <see cref="BeatNoiseAverager"/>: the
+/// first 20 ms of every window is decimated into a reused scratch trace and
+/// accumulated into the phase-alternating lanes as soon as its envelope data
+/// arrives.
+///
 /// Sibling of <see cref="ScopeRateFrameProjector"/>; Project/AppendSnapshot run
 /// on the analysis thread only.
 /// </summary>
@@ -64,6 +69,7 @@ public sealed class BeatSegmentCapture
         public double CPeakSample;
         public bool COnsetValid;
         public double COnsetSample;
+        public bool LaneAccumulated;
     }
 
     private struct CompletedSegment
@@ -96,6 +102,14 @@ public sealed class BeatSegmentCapture
     private int _completedHead;
     private int _completedCount;
 
+    // Scope 2 lane averaging over the first LaneWindowMs of each window,
+    // decimated into a reused scratch buffer (no per-beat allocation). The Σ
+    // request is written from any thread (UI toggle) and applied analysis-side
+    // at the start of the next pass (the SweepFrameProjector knob pattern).
+    private readonly BeatNoiseAverager _averager = new();
+    private readonly float[] _laneScratch = new float[BeatNoiseAverager.LanePoints];
+    private volatile bool _requestedSigma;
+
     private bool _dirty;
     private ulong _version;
     private BeatSegmentsSnapshot? _snapshot;
@@ -112,8 +126,23 @@ public sealed class BeatSegmentCapture
         }
     }
 
+    /// <summary>
+    /// Requests the Scope 2 Σ averaging mode. Applied on the analysis thread at
+    /// the start of the next pass; a change resets the averaging cycle.
+    /// Callable from any thread.
+    /// </summary>
+    public void SetSigmaAveraging(bool enabled)
+    {
+        _requestedSigma = enabled;
+    }
+
     public void Project(DetectorMetricsBlockUpdate update)
     {
+        if (_averager.SetSigmaEnabled(_requestedSigma))
+        {
+            _dirty = true;
+        }
+
         AppendEnvelope(update.Result);
 
         foreach (DetectedEventUpdate eventUpdate in update.Events)
@@ -128,6 +157,10 @@ public sealed class BeatSegmentCapture
             }
         }
 
+        // Lanes first: a window that is already fully complete in this pass
+        // must still contribute its 20 ms lane trace before leaving the
+        // pending queue.
+        AccumulateReadyLanes();
         CompleteReadySegments();
     }
 
@@ -175,6 +208,7 @@ public sealed class BeatSegmentCapture
             Version = _version,
             Segments = segments,
             LiftAngleDeg = _liftAngleDeg,
+            Average = _averager.Snapshot(),
         };
         _dirty = false;
         return _snapshot;
@@ -258,6 +292,40 @@ public sealed class BeatSegmentCapture
             }
 
             break;
+        }
+    }
+
+    /// <summary>
+    /// Feeds the averager the first <see cref="BeatNoiseAverager.LaneWindowMs"/>
+    /// of every pending window whose envelope data has arrived (well before the
+    /// full window completes, so Scope 2 progress leads Scope 1 strips).
+    /// </summary>
+    private void AccumulateReadyLanes()
+    {
+        ulong laneSamples = (ulong)Math.Ceiling(BeatNoiseAverager.LaneWindowMs / 1000.0 * _sampleRate);
+        for (int i = 0; i < _pendingCount; i++)
+        {
+            int index = (_pendingHead + i) % _pending.Length;
+            ref PendingSegment pending = ref _pending[index];
+            if (pending.LaneAccumulated)
+            {
+                continue;
+            }
+
+            if (_envelopeEndSample < pending.StartSample + laneSamples)
+            {
+                // Pending windows open in stream order, so none after this one
+                // can be ready either.
+                break;
+            }
+
+            DecimateWindow(pending.StartSample, BeatNoiseAverager.LaneWindowMs, _laneScratch);
+            if (_averager.Add(pending.IsTic, _laneScratch))
+            {
+                _dirty = true;
+            }
+
+            pending.LaneAccumulated = true;
         }
     }
 
