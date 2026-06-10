@@ -26,6 +26,7 @@ internal sealed class RunSessionController : IDisposable
     private Action? _inputDataReadyHandler;
     private Action? _inputCompletionDetach;
     private ulong _runSessionToken;
+    private int? _sweepMultiple;
 
     public RunSessionController(
         Func<ulong, AnalysisWorker.Config> createAnalysisConfig,
@@ -161,6 +162,16 @@ internal sealed class RunSessionController : IDisposable
         _analysisWorker?.SetSoundBackgroundColor(backgroundColor);
     }
 
+    /// <summary>
+    /// Forwards the Scope Sweep window multiple to the running analysis worker
+    /// and remembers it so later runs start with the user's selection.
+    /// </summary>
+    public void SetSweepMultiple(int sweepMultiple)
+    {
+        _sweepMultiple = sweepMultiple;
+        _analysisWorker?.SetSweepMultiple(sweepMultiple);
+    }
+
     public void Dispose()
     {
         InvalidateRunSession();
@@ -189,6 +200,10 @@ internal sealed class RunSessionController : IDisposable
         AnalysisWorker.Config analysisConfig = _createAnalysisConfig(AnalysisSessionId);
 
         _analysisWorker = new AnalysisWorker(_rawAudio!, analysisConfig);
+        if (_sweepMultiple is int sweepMultiple)
+        {
+            _analysisWorker.SetSweepMultiple(sweepMultiple);
+        }
         _analysisWorker.AnalysisFrameReady += _onAnalysisFrameReady;
         _analysisWorker.Start();
     }

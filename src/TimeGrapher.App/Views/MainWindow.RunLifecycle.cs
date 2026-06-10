@@ -19,6 +19,7 @@ public partial class MainWindow
         // ~MainWindow: StopAnalysisThread(); plus stop any running input worker.
         mIsClosing = true;
         mViewModel.PropertyChanged -= mSelectionCoordinator.OnViewModelPropertyChanged;
+        mViewModel.PropertyChanged -= OnRunControlPropertyChanged;
         mRunSessionController.InvalidateRunSession();
         mRunSessionController.StopInputWorker("Input");
         mRunSessionController.StopAnalysisThread();

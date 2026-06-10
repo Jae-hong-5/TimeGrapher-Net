@@ -7,6 +7,7 @@ internal enum InfoTabKind
     RateScope,
     SoundPrint,
     TraceDisplay,
+    ScopeSweep,
     Vario,
     BeatErrorDiag,
     Placeholder,
@@ -39,6 +40,7 @@ internal static class InfoTabCatalog
     public const string RateScopeTabId = "rate-scope";
     public const string SoundPrintTabId = "sound-print";
     public const string TraceDisplayTabId = "trace-display";
+    public const string ScopeSweepTabId = "scope-sweep";
     public const string VarioTabId = "rate-amp-stability";
     public const string BeatErrorDiagTabId = "beat-error-diag";
 
@@ -74,6 +76,10 @@ internal static class InfoTabCatalog
             // Trace Display renders the cumulative BeatMetricsHistorySnapshot the
             // frame carries; it declares no per-frame graph-series contract.
             new(TraceDisplayTabId, "Trace", InfoTabKind.TraceDisplay, DefaultUiRefreshIntervalMs, UsesGraphSnapshots: false, Array.Empty<GraphSeriesDefinition>()),
+            // Scope Sweep refills its single plot from the Core-folded sweep.trace
+            // replace series; the fixed bin budget lives Core-side, so no per-frame
+            // graph-series reduction contract is declared here.
+            new(ScopeSweepTabId, "Scope Sweep", InfoTabKind.ScopeSweep, DefaultUiRefreshIntervalMs, UsesGraphSnapshots: false, Array.Empty<GraphSeriesDefinition>()),
             // Vario stability gauges render the running stats on the same snapshot.
             new(VarioTabId, "Rate/Amp Stability", InfoTabKind.Vario, DefaultUiRefreshIntervalMs, UsesGraphSnapshots: false, Array.Empty<GraphSeriesDefinition>()),
             // Beat Error Diag plots the per-frame tic/toc rate traces and reads the

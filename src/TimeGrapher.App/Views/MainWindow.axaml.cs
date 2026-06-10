@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -153,6 +154,7 @@ public partial class MainWindow : Window
 
         // Wire events (Qt auto-connected on_* slots + explicit connect()s).
         mViewModel.PropertyChanged += mSelectionCoordinator.OnViewModelPropertyChanged;
+        mViewModel.PropertyChanged += OnRunControlPropertyChanged;
         GraphicsTabWidget.SelectionChanged += OnGraphicsTabSelectionChanged;
 
         LoadBph();
@@ -303,6 +305,17 @@ public partial class MainWindow : Window
     }
 
     // --- Event handlers (Qt on_* slots) ---
+
+    // Analysis-worker run-control knobs forwarded from view-model properties.
+    // Kept in MainWindow (not the selection coordinator, which owns input-device/
+    // sample-rate/gain selection): the SetSoundBackgroundColor flow.
+    private void OnRunControlPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(MainWindowViewModel.SweepMultiple))
+        {
+            mRunSessionController.SetSweepMultiple(mViewModel.SweepMultiple);
+        }
+    }
 
     private void OnGraphicsTabSelectionChanged(object? sender, SelectionChangedEventArgs e)
     {

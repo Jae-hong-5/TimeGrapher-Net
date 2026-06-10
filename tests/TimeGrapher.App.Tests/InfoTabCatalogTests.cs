@@ -62,6 +62,16 @@ public sealed class InfoTabCatalogTests
     }
 
     [Fact]
+    public void ScopeSweepTabRendersFromCoreFoldedSweepSeries()
+    {
+        InfoTabDefinition tab = InfoTabCatalog.Get(InfoTabCatalog.ScopeSweepTabId);
+
+        Assert.Equal(InfoTabKind.ScopeSweep, tab.Kind);
+        Assert.False(tab.UsesGraphSnapshots);
+        Assert.Empty(tab.GraphSeries);
+    }
+
+    [Fact]
     public void BeatErrorDiagTabDeclaresRateTraceContract()
     {
         InfoTabDefinition tab = InfoTabCatalog.Get(InfoTabCatalog.BeatErrorDiagTabId);
@@ -83,8 +93,8 @@ public sealed class InfoTabCatalogTests
         InfoTabDefinition[] placeholders = InfoTabCatalog.All
             .Where(tab => tab.Kind == InfoTabKind.Placeholder).ToArray();
 
-        Assert.Equal(13, InfoTabCatalog.All.Count);
-        Assert.Equal(5, functional.Length);
+        Assert.Equal(14, InfoTabCatalog.All.Count);
+        Assert.Equal(6, functional.Length);
         Assert.Equal(8, placeholders.Length);
         Assert.All(placeholders, tab => Assert.Empty(tab.GraphSeries));
         Assert.All(placeholders, tab => Assert.False(tab.UsesGraphSnapshots));

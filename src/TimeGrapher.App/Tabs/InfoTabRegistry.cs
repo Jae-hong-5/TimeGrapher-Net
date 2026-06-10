@@ -33,6 +33,7 @@ internal sealed class InfoTabRegistry
             [InfoTabKind.RateScope] = CreateRateScopeRegistration,
             [InfoTabKind.SoundPrint] = CreateSoundPrintRegistration,
             [InfoTabKind.TraceDisplay] = CreateTraceDisplayRegistration,
+            [InfoTabKind.ScopeSweep] = CreateScopeSweepRegistration,
             [InfoTabKind.Vario] = CreateVarioRegistration,
             [InfoTabKind.BeatErrorDiag] = CreateBeatErrorDiagRegistration,
             [InfoTabKind.Placeholder] = CreatePlaceholderRegistration,
@@ -279,6 +280,90 @@ internal sealed class InfoTabRegistry
         grid.Children.Add(resetButton);
 
         var consumer = new TraceDisplayFrameConsumer(renderer);
+        return new InfoTabRegistration(definition, CreateTabItem(definition, grid), consumer);
+    }
+
+    private static InfoTabRegistration CreateScopeSweepRegistration(
+        InfoTabDefinition definition,
+        InfoTabFactoryContext context)
+    {
+        var sweepPlot = new AvaPlot();
+
+        // Compact reference line of the most recent measurements under the plot
+        // (the plan's "compare the live waveform against the most recent
+        // timing test" readings).
+        var referenceText = new TextBlock
+        {
+            FontSize = 12,
+            Margin = new Thickness(8, 2),
+        };
+
+        var grid = new Grid
+        {
+            RowDefinitions = new RowDefinitions("*,Auto"),
+        };
+        Grid.SetRow(sweepPlot, 0);
+        Grid.SetRow(referenceText, 1);
+        grid.Children.Add(sweepPlot);
+        grid.Children.Add(referenceText);
+
+        if (CreateWaitingOverlay(context.ViewModel) is { } overlay)
+        {
+            Grid.SetRow(overlay, 0);
+            grid.Children.Add(overlay);
+        }
+
+        // 1x/2x/4x sweep-time selector pinned to the top-right of the plot. The
+        // buttons write the shared SweepMultiple view-model property; MainWindow
+        // forwards the change to the running analysis worker (the
+        // SetSoundBackgroundColor flow). The active multiple renders disabled.
+        if (context.ViewModel is { } viewModel)
+        {
+            int[] multiples = { 1, 2, 4 };
+            var buttons = new Button[multiples.Length];
+
+            void UpdateButtonStates()
+            {
+                for (int i = 0; i < buttons.Length; i++)
+                {
+                    buttons[i].IsEnabled = multiples[i] != viewModel.SweepMultiple;
+                }
+            }
+
+            var buttonRow = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                Spacing = 4,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                VerticalAlignment = VerticalAlignment.Top,
+                Margin = new Thickness(0, 6, 10, 0),
+            };
+            for (int i = 0; i < multiples.Length; i++)
+            {
+                int multiple = multiples[i];
+                var button = new Button
+                {
+                    Content = multiple + "x",
+                    Padding = new Thickness(8, 2, 8, 2),
+                    FontSize = 11,
+                };
+                ToolTip.SetTip(button, $"Sweep window = {multiple}x the beat period");
+                button.Click += (_, _) =>
+                {
+                    viewModel.SweepMultiple = multiple;
+                    UpdateButtonStates();
+                };
+                buttons[i] = button;
+                buttonRow.Children.Add(button);
+            }
+
+            UpdateButtonStates();
+            Grid.SetRow(buttonRow, 0);
+            grid.Children.Add(buttonRow);
+        }
+
+        var renderer = new ScopeSweepRenderer(sweepPlot, referenceText);
+        var consumer = new ScopeSweepFrameConsumer(renderer);
         return new InfoTabRegistration(definition, CreateTabItem(definition, grid), consumer);
     }
 

@@ -41,6 +41,7 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     private string _highPassCutoffText = "200";
     private decimal _scopeScale = 2m;
     private bool _useCOnset;
+    private int _sweepMultiple = 2;
 
     public MainWindowViewModel(
         Func<Task> startAsync,
@@ -223,6 +224,13 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     {
         get => _useCOnset;
         set => SetProperty(ref _useCOnset, value);
+    }
+
+    /// <summary>Scope Sweep window length as a multiple of the beat period (1x / 2x / 4x).</summary>
+    public int SweepMultiple
+    {
+        get => _sweepMultiple;
+        set => SetProperty(ref _sweepMultiple, value);
     }
 
     public void SetModeAllowsSampleRate(bool value)
