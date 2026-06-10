@@ -37,6 +37,7 @@ internal sealed class InfoTabRegistry
             [InfoTabKind.Vario] = CreateVarioRegistration,
             [InfoTabKind.BeatErrorDiag] = CreateBeatErrorDiagRegistration,
             [InfoTabKind.MultiFilterScope] = CreateMultiFilterScopeRegistration,
+            [InfoTabKind.LongTermPerformance] = CreateLongTermPerfRegistration,
             [InfoTabKind.Placeholder] = CreatePlaceholderRegistration,
         };
 
@@ -563,6 +564,68 @@ internal sealed class InfoTabRegistry
 
         var renderer = new MultiFilterScopeRenderer(plots);
         var consumer = new MultiFilterScopeFrameConsumer(renderer);
+        return new InfoTabRegistration(definition, CreateTabItem(definition, grid), consumer);
+    }
+
+    private static InfoTabRegistration CreateLongTermPerfRegistration(
+        InfoTabDefinition definition,
+        InfoTabFactoryContext context)
+    {
+        // Three stacked panes (rate / amplitude / beat error over elapsed time)
+        // above the overall-average footer and a one-line legend.
+        var ratePlot = new AvaPlot();
+        var amplitudePlot = new AvaPlot();
+        var beatErrorPlot = new AvaPlot();
+
+        var footerText = new TextBlock
+        {
+            FontSize = 12,
+            Margin = new Thickness(8, 2),
+        };
+        var legendText = new TextBlock
+        {
+            FontSize = 11,
+            Opacity = 0.65,
+            Margin = new Thickness(8, 0, 8, 3),
+            TextWrapping = Avalonia.Media.TextWrapping.Wrap,
+            Text = "Shaded band = range of typical variation (bucket min–max) · solid = bucket average · " +
+                   "dashed = overall average. Resolution coarsens automatically as the run grows (see footer).",
+        };
+
+        var grid = new Grid
+        {
+            RowDefinitions = new RowDefinitions("*,*,*,Auto,Auto"),
+        };
+        Control[] rows = { ratePlot, amplitudePlot, beatErrorPlot, footerText, legendText };
+        for (int i = 0; i < rows.Length; i++)
+        {
+            Grid.SetRow(rows[i], i);
+            grid.Children.Add(rows[i]);
+        }
+
+        if (CreateWaitingOverlay(context.ViewModel) is { } overlay)
+        {
+            Grid.SetRow(overlay, 0);
+            grid.Children.Add(overlay);
+        }
+
+        var renderer = new LongTermPerfRenderer(ratePlot, amplitudePlot, beatErrorPlot, footerText);
+
+        var resetButton = new Button
+        {
+            Content = "Reset View",
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Top,
+            Margin = new Thickness(0, 6, 10, 0),
+            Padding = new Thickness(8, 2, 8, 2),
+            FontSize = 11,
+        };
+        ToolTip.SetTip(resetButton, "Re-enable live auto-scaling on all three graphs");
+        resetButton.Click += (_, _) => renderer.ResetView();
+        Grid.SetRow(resetButton, 0);
+        grid.Children.Add(resetButton);
+
+        var consumer = new LongTermPerfFrameConsumer(renderer);
         return new InfoTabRegistration(definition, CreateTabItem(definition, grid), consumer);
     }
 

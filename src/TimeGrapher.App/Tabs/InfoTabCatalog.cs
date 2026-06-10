@@ -11,6 +11,7 @@ internal enum InfoTabKind
     Vario,
     BeatErrorDiag,
     MultiFilterScope,
+    LongTermPerformance,
     Placeholder,
 }
 
@@ -45,6 +46,7 @@ internal static class InfoTabCatalog
     public const string VarioTabId = "rate-amp-stability";
     public const string BeatErrorDiagTabId = "beat-error-diag";
     public const string MultiFilterScopeTabId = "multi-filter-scope";
+    public const string LongTermPerfTabId = "long-term-perf";
 
     public const int DefaultUiRefreshIntervalMs = 33;
     public const int SoundPrintRefreshIntervalMs = 100;
@@ -92,6 +94,10 @@ internal static class InfoTabCatalog
             // budget lives Core-side (MultiFilterFrameProjector), so no per-frame
             // graph-series reduction contract is declared here.
             new(MultiFilterScopeTabId, "Multi-Filter Scope", InfoTabKind.MultiFilterScope, DefaultUiRefreshIntervalMs, UsesGraphSnapshots: false, Array.Empty<GraphSeriesDefinition>()),
+            // Long-Term Performance renders the cumulative BeatMetricsHistorySnapshot
+            // (bucket averages plus YMin/YMax variation bands); it declares no
+            // per-frame graph-series contract.
+            new(LongTermPerfTabId, "Long-Term Perf", InfoTabKind.LongTermPerformance, DefaultUiRefreshIntervalMs, UsesGraphSnapshots: false, Array.Empty<GraphSeriesDefinition>()),
         };
 
         // Reserved placeholder tabs for features not yet built.
@@ -101,7 +107,6 @@ internal static class InfoTabCatalog
             ("test-positions", "Test Positions"),
             ("multi-position-seq", "Multi-Position Seq"),
             ("beat-noise-scope", "Beat-Noise Scope"),
-            ("long-term-perf", "Long-Term Perf"),
             ("escapement-analyzer", "Escapement Analyzer"),
             ("spectrogram", "Spectrogram"),
             ("waveform-compare", "Waveform Compare"),
