@@ -187,6 +187,30 @@ public sealed class WatchMetricsDerivedMeasuresTests
     }
 
     [Fact]
+    public void RlsRate_RestartsCleanAcrossADetectionGap()
+    {
+        // A 190 ms interval is a detection gap with a sub-beat residual: the
+        // re-anchored schedule steps by 60 ms, which a regression window
+        // mixing pre- and post-gap points would report as a slope spike of
+        // thousands of s/d - permanently recorded by the cumulative rate
+        // statistics. The estimators restart at the gap instead: the gap
+        // sample reports rate-invalid, the reading returns within a few
+        // beats, and no emitted sample ever carries the spike.
+        WatchMetrics metrics = NewMetrics();
+        double[] intervals = Enumerable.Repeat(125.0, 7)
+            .Append(190.0)
+            .Concat(Enumerable.Repeat(125.0, 8))
+            .ToArray();
+        List<WatchMetricsUpdate> updates = FeedAEvents(metrics, intervals);
+
+        Assert.False(updates[8].BeatTimingSample.RateValid);
+        Assert.Contains(updates.Skip(9), u => u.BeatTimingSample.RateValid);
+        Assert.All(
+            updates.Where(u => u.BeatTimingSampleUpdated && u.BeatTimingSample.RateValid),
+            u => Assert.InRange(u.BeatTimingSample.RateSPerDay, -1.0, 1.0));
+    }
+
+    [Fact]
     public void BeatTimingSample_CarriesBeatNumberPhaseAndRateError()
     {
         // Exact nominal intervals: the zero-offset anchor makes every rate error 0.

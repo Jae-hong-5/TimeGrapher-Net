@@ -266,7 +266,7 @@ public sealed class WatchMetrics
             // Classify the A-to-A interval (re-anchoring the beat counter across
             // any detection gap) before the parity read and the expected-time
             // computation below consume the counter.
-            AccumulatePeriodDelta(eventSample, expectedTimeTarget);
+            bool gapDetected = AccumulatePeriodDelta(eventSample, expectedTimeTarget);
 
             _ticTocBeatNumber++;
 
@@ -281,6 +281,22 @@ public sealed class WatchMetrics
             }
             instTimingErrorMs = instTimingErrorMs + _zeroOffsetValue;
             _lastRateErrorMs = instTimingErrorMs;
+
+            if (gapDetected)
+            {
+                // A regression window mixing pre- and post-gap points sees the
+                // re-anchored schedule's sub-beat residual as a step and emits
+                // a transient slope spike (thousands of s/d for one missed
+                // beat) that the cumulative rate statistics would record
+                // permanently. Restart both estimators from the post-gap
+                // segment instead - the same recovery a fresh sync lock
+                // performs; the reading returns after two beats per phase. The
+                // gap-ending event seeds the new window below: its own instant
+                // is measured on the post-gap schedule.
+                _rlsTicRate.Reset();
+                _rlsTocRate.Reset();
+                _rlsRateValid = false;
+            }
 
             double wrappedRateError = WrapIntoRange(
                 instTimingErrorMs,
@@ -329,10 +345,11 @@ public sealed class WatchMetrics
     /// detection gap rather than a single beat and would poison the averages, so
     /// they are excluded; gaps additionally re-anchor the tic/toc beat counter to
     /// the physical schedule, so this must run before the counter is advanced for
-    /// the current event.
+    /// the current event. Returns true when the interval spans a detection gap.
     /// </summary>
-    private void AccumulatePeriodDelta(double eventSample, double expectedTimeTarget)
+    private bool AccumulatePeriodDelta(double eventSample, double expectedTimeTarget)
     {
+        bool gapDetected = false;
         if (_haveAEvent && !_skipNextPeriodDelta)
         {
             double measuredPeriodS = (eventSample - _lastAEvent) / (double)_config.SampleRate;
@@ -357,10 +374,12 @@ public sealed class WatchMetrics
                 // (and mispairs the amplitude average), while every gap shifts
                 // the rate-error baseline by a full beat per missed beat.
                 _ticTocBeatNumber += skippedBeats;
+                gapDetected = true;
             }
         }
 
         _skipNextPeriodDelta = false;
+        return gapDetected;
     }
 
     /// <summary>
