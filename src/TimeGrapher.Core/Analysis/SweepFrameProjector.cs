@@ -53,6 +53,9 @@ public sealed class SweepFrameProjector
     /// Stream-time floor between series rebuilds (the MultiFilterFrameProjector
     /// throttle): the X list is bit-identical between retunes and Y changes
     /// continuously, so frames in between re-attach the same immutable series.
+    /// The per-capture-path cadence analysis on
+    /// <see cref="MultiFilterFrameProjector.PublishIntervalS"/> applies here
+    /// unchanged: the floor gates every path, not just Pi-192k.
     /// </summary>
     public const double PublishIntervalS = 0.05;
 

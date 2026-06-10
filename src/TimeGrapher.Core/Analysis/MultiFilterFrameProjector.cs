@@ -28,8 +28,10 @@ public sealed class MultiFilterFrameProjector
     /// pass cadence (~94/s) that was megabytes per second of analysis-thread
     /// churn, most of it discarded by the latest-wins UI coalescer. Frames in
     /// between re-attach the same immutable series instances (the rate-series
-    /// sharing pattern); at 48 kHz the pass cadence (~85 ms) already exceeds
-    /// the floor, so behavior there is unchanged.
+    /// sharing pattern). The floor gates every capture path: at 48 kHz it
+    /// lowers the rebuild cadence on Windows WaveInEvent (20 ms periods, so
+    /// the gate fires every 3rd pass) and on PipeWire f32 (42.7 ms reads)
+    /// alike; only the ALSA S16 path (~85 ms passes) already exceeded it.
     /// </summary>
     public const double PublishIntervalS = 0.05;
 
