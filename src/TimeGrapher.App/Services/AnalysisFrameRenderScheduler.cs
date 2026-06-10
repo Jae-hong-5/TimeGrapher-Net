@@ -65,6 +65,12 @@ internal sealed class AnalysisFrameRenderScheduler
             replacement.SoundImageUpdated = true;
             replacement.SoundImage ??= displaced.SoundImage;
         }
+
+        if (displaced.SpectrogramImageUpdated && !replacement.SpectrogramImageUpdated)
+        {
+            replacement.SpectrogramImageUpdated = true;
+            replacement.SpectrogramImage ??= displaced.SpectrogramImage;
+        }
     }
 
     public void Reset()

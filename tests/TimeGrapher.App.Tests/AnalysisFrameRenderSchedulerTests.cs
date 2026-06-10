@@ -72,6 +72,31 @@ public sealed class AnalysisFrameRenderSchedulerTests
     }
 
     [Fact]
+    public void EnqueueMergesSpectrogramImageFromDisplacedFrames()
+    {
+        var harness = new SchedulerHarness();
+        var spectrogramImage = new PixelBuffer(4, 4);
+
+        harness.Scheduler.Enqueue(new AnalysisFrame
+        {
+            SourceId = 1,
+            SpectrogramImage = spectrogramImage,
+            SpectrogramImageUpdated = true,
+        });
+        harness.Scheduler.Enqueue(new AnalysisFrame { SourceId = 2 });
+        harness.RunNextPostedAction();
+
+        Assert.Collection(
+            harness.Rendered,
+            rendered =>
+            {
+                Assert.Equal<ulong>(2, rendered.Frame.SourceId);
+                Assert.True(rendered.Frame.SpectrogramImageUpdated);
+                Assert.Same(spectrogramImage, rendered.Frame.SpectrogramImage);
+            });
+    }
+
+    [Fact]
     public void EnqueueKeepsReplacementSoundImageWhenBothFramesUpdated()
     {
         var harness = new SchedulerHarness();
