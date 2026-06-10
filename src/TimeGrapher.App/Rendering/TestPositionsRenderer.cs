@@ -92,6 +92,17 @@ internal sealed class TestPositionsRenderer
         {
             // Older in-flight snapshots still carry the pre-click position;
             // hold the user's choice until Core confirms it.
+            //
+            // Residual window: confirmation is value equality, so the echo
+            // carries no request identity. Rapid clicks A->B->A straddling a
+            // slow analysis pass can clear the latch on the FIRST A click's
+            // echo, letting the in-flight B echo flash backward until the
+            // third click's echo corrects it. A monotonic request token
+            // echoed through the snapshot would close it (the value alone
+            // cannot distinguish click1's echo from click3's) - deemed out
+            // of scope: it needs a Core+Shared contract change for a window
+            // that requires three clicks within roughly one pass-publish
+            // latency.
             if (history.ActivePosition != pending)
             {
                 return;
