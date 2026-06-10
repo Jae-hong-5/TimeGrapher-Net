@@ -159,7 +159,8 @@ public sealed class WatchMetrics
                 _rlsRateValid,
                 _rlsRate,
                 _signedBeatErrorValid,
-                _signedBeatErrorMs));
+                _signedBeatErrorMs,
+                _bph));
 
             update.SetDerivedMeasures(new DerivedTimingMeasures(
                 _diffTicTacValid,

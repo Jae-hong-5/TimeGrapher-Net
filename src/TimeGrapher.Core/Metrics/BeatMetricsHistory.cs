@@ -27,6 +27,7 @@ public sealed class BeatMetricsHistory
     private DerivedTimingMeasures _derived;
     private bool _rateValid;
     private double _rateSPerDay;
+    private int _bph;
     private bool _amplitudeValid;
     private double _amplitudeDeg;
     private bool _beatErrorValid;
@@ -51,6 +52,7 @@ public sealed class BeatMetricsHistory
         {
             BeatTimingSample sample = update.BeatTimingSample;
             _latestTimeS = sample.TimeS;
+            _bph = sample.Bph;
 
             if (sample.RateValid)
             {
@@ -97,6 +99,7 @@ public sealed class BeatMetricsHistory
         _amplitudeStats.Reset();
         _derived = default;
         _rateValid = false;
+        _bph = 0;
         _amplitudeValid = false;
         _beatErrorValid = false;
         _latestTimeS = 0.0;
@@ -136,6 +139,7 @@ public sealed class BeatMetricsHistory
             Derived = _derived,
             RateValid = _rateValid,
             RateSPerDay = _rateSPerDay,
+            Bph = _bph,
             AmplitudeValid = _amplitudeValid,
             AmplitudeDeg = _amplitudeDeg,
             BeatErrorValid = _beatErrorValid,

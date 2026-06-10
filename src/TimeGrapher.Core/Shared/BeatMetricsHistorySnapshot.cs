@@ -57,6 +57,8 @@ public sealed class BeatMetricsHistorySnapshot
     /// <summary>Latest instantaneous readings (the "current" column of stability views).</summary>
     public bool RateValid { get; init; }
     public double RateSPerDay { get; init; }
+    /// <summary>Beats-per-hour of the newest recorded beat (0 until the first synced beat).</summary>
+    public int Bph { get; init; }
     public bool AmplitudeValid { get; init; }
     public double AmplitudeDeg { get; init; }
     public bool BeatErrorValid { get; init; }

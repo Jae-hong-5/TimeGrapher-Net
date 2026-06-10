@@ -19,7 +19,8 @@ public sealed class BeatMetricsHistoryTests
         update.SetBeatTimingSample(new BeatTimingSample(
             beat, timeS, IsTic: (beat & 1) == 1, RateErrorMs: 0.0,
             RateValid: true, RateSPerDay: rateSPerDay,
-            BeatErrorValid: beatErrorValid, BeatErrorSignedMs: beatErrorMs));
+            BeatErrorValid: beatErrorValid, BeatErrorSignedMs: beatErrorMs,
+            Bph: 28800));
         update.SetDerivedMeasures(new DerivedTimingMeasures(true, 0.1, true, 0.2, true, 0.3));
         return update;
     }
@@ -50,6 +51,7 @@ public sealed class BeatMetricsHistoryTests
 
         Assert.True(snapshot.RateValid);
         Assert.Equal(5.0, snapshot.RateSPerDay);
+        Assert.Equal(28800, snapshot.Bph);
         Assert.True(snapshot.AmplitudeValid);
         Assert.Equal(280.0, snapshot.AmplitudeDeg);
         Assert.True(snapshot.BeatErrorValid);

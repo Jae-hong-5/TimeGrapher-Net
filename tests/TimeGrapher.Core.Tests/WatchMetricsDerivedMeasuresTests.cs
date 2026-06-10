@@ -140,6 +140,7 @@ public sealed class WatchMetricsDerivedMeasuresTests
         Assert.Equal(1UL, updates[0].BeatTimingSample.BeatNumber);
         Assert.True(updates[0].BeatTimingSample.IsTic);
         Assert.Equal(0.0, updates[0].BeatTimingSample.TimeS, 9);
+        Assert.Equal(28800, updates[0].BeatTimingSample.Bph);
 
         Assert.Equal(2UL, updates[1].BeatTimingSample.BeatNumber);
         Assert.False(updates[1].BeatTimingSample.IsTic);
