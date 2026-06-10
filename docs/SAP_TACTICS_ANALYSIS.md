@@ -107,13 +107,14 @@ work requests** — 점진적 저하). 패스마다 백로그를 **비트 주기
 | **bound resource usage (장기 히스토리)** | 비트 단위 메트릭 히스토리(`BeatMetricsHistory`)를 **고정 용량 `DecimatingSeries`**에 누적 — 가득 차면 인접 포인트 쌍을 병합해 해상도를 반감(버킷 min/max 보존). 실행이 몇 시간이어도 메모리·발행 비용이 일정("1시간째 비용 = 1초째 비용"). 스냅샷은 스트림 시간 0.5초당 1회만 재구성, 그 사이 프레임은 같은 불변 인스턴스 공유. 누적은 Core에서 수행 — 렌더 스케줄러의 latest-wins 병합이 프레임을 폐기해도 데이터 손실 없음 | `DecimatingSeries.cs`, `BeatMetricsHistory.cs` | ✓ |
 | **record/monitor (레이턴시 증거)** | QA가 요구하는 캡처→처리→표시 레이턴시를 단일 Stopwatch 시계로 계측: `MasterAudioBuffer`가 쓰기마다 (sampleEnd, ticks) 256개 스탬프 링을 유지, `AnalysisWorker`가 프레임에 `CaptureTimestamp`/`ProcessingCompletedTimestamp`를 스탬핑, UI가 렌더 직후 표시 시각을 더해 구간별 평균/최악값을 집계(`LatencyStatsTracker`, 상태바 우측 표시). 누락 비트(`WatchMetrics.MissedBeats`)·싱크 손실은 **세션 누적 카운터**로 프레임에 실려 latest-wins 병합에도 보존 | `MasterAudioBuffer.cs`, `LatencyStatsTracker.cs` | ✓ |
 
-### 가용성 (Availability) — 시작/중지 안정화
+### 가용성 (Availability) — 시작/중지 안정화와 결함 입력 처리
 
 | Tactic | 적용 방식 | 근거 | |
 |---|---|---|---|
 | **timestamp (논리 시퀀스)** | **핵심.** 실행마다 단조증가 `_runSessionToken`을 발급, 모든 비동기 콜백이 토큰을 들고 옴 → 이전 실행의 늦은 응답을 토큰 불일치로 폐기(`AnalysisSessionId`, 렌더 `_generation`까지 3중) | `RunSessionController.cs:165` | ✓ |
 | **exception handling / detection** | 워커 스레드는 예외를 try/catch로 가둬 프로세스를 죽이지 않고 `Failed`로 보고; `_stopRequested`로 "정상 중지"와 "장치 사망"을 구분해 `CaptureEnded` 발생 | `PlaybackWorker.cs`, `AudioCaptureWorker.cs:162` | ✓ |
 | **degradation** | Linux에서 PipeWire 미가용 시 ALSA(`arecord`, S16_LE)로 폴백해 저하된 형태로라도 캡처 지속 | `LinuxLiveAudioWorker.cs` | ✓ |
+| **ignore faulty input + state resynchronization (검출 갭)** | 반 비트를 초과하는 A-A 간격을 단일 기준으로 "검출 갭"으로 분류해 3중 대응: ① 갭에 걸친 부호 비트오차/주기 델타를 무효화(ignore faulty input) ② 틱/톡 비트 카운터를 물리 위상에 재앵커 ③ 레이트 회귀(RLS) 윈도를 갭에서 재시작(state resynchronization, 새 싱크 락과 동일한 회복 — 위상당 2포인트면 판독 복귀). 비트 1개 누락이 부호를 반전시키거나 누적 통계 min/max를 영구 오염시키지 않으며, 누락 비트는 보간 없이 제외되고 `MissedBeats` 세션 카운터로 기록된다 | `WatchMetrics.cs` | ✓ |
 
 ### 시험용이성 (Testability)
 
