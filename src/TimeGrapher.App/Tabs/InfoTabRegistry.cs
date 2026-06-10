@@ -752,7 +752,7 @@ internal sealed class InfoTabRegistry
                     viewModel.SelectedPositionIndex = (int)position;
                 }
 
-                renderer.SetActivePosition(position);
+                renderer.RequestPosition(position);
             };
         }
 

@@ -21,13 +21,26 @@ internal sealed class TestPositionsRenderer
     private int _activeIndex = -1;
     private ulong _lastVersion;
 
+    // The user's latest click, still in flight to the analysis thread. Snapshot
+    // feedback is ignored until Core echoes it back: an in-flight snapshot built
+    // BEFORE the click otherwise snapped the highlight back to the old position
+    // for up to a second before the next snapshot corrected it.
+    private WatchPosition? _pendingPosition;
+
     public TestPositionsRenderer(Button[] buttons, WatchPosition initialPosition)
     {
         _buttons = buttons;
-        SetActivePosition(initialPosition);
+        Highlight(initialPosition);
     }
 
-    public void SetActivePosition(WatchPosition position)
+    /// <summary>User click: highlight immediately and latch until Core echoes it.</summary>
+    public void RequestPosition(WatchPosition position)
+    {
+        _pendingPosition = position;
+        Highlight(position);
+    }
+
+    private void Highlight(WatchPosition position)
     {
         int index = (int)position;
         if (_activeIndex == index)
@@ -68,6 +81,19 @@ internal sealed class TestPositionsRenderer
         }
 
         _lastVersion = history.Version;
-        SetActivePosition(history.ActivePosition);
+
+        if (_pendingPosition is WatchPosition pending)
+        {
+            // Older in-flight snapshots still carry the pre-click position;
+            // hold the user's choice until Core confirms it.
+            if (history.ActivePosition != pending)
+            {
+                return;
+            }
+
+            _pendingPosition = null;
+        }
+
+        Highlight(history.ActivePosition);
     }
 }
