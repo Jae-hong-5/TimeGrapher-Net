@@ -85,6 +85,7 @@ internal sealed class BeatErrorDiagRenderer
 
         AddTracePlottables();
         trace.ShowLegend();
+        PlotAxisRules.ClampLeftEdgeToZero(trace);
         _tracePlot.Refresh();
     }
 

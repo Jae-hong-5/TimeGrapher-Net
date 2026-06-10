@@ -98,6 +98,7 @@ internal sealed class EscapementAnalyzerRenderer
         _cPeakLabel = AddLabel(plot);
         _cOnsetLabel = AddLabel(plot);
         plot.Axes.SetLimitsX(0, BeatSegmentCapture.WindowMs);
+        PlotAxisRules.ClampLeftEdgeToZero(plot);
 
         ApplySeriesTheme();
         _plot.Refresh();

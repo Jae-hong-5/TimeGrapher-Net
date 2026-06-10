@@ -107,6 +107,7 @@ internal sealed class LongTermPerfRenderer
             pane.OverallAverage.EnableAutoscale = false;
             pane.OverallAverage.IsVisible = false;
             pane.Cursor = AddCursor(plot);
+            PlotAxisRules.ClampLeftEdgeToZero(plot);
         }
 
         // One shared time axis label on the bottom pane keeps the stack compact.

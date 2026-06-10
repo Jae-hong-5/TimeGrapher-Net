@@ -86,6 +86,7 @@ internal sealed class RateScopeRenderer
         AddScopePlottables();
         _scopeReviewCursor = AddReviewCursor(scope);
         scope.ShowLegend();
+        PlotAxisRules.ClampLeftEdgeToZero(scope);
 
         Plot rate = _ratePlot.Plot;
         rate.Clear();
@@ -98,6 +99,7 @@ internal sealed class RateScopeRenderer
         ClearSeriesData(_rateX, _rateY);
         AddRatePlottables();
         rate.ShowLegend();
+        PlotAxisRules.ClampLeftEdgeToZero(rate);
 
         _scopePlot.Refresh();
         _ratePlot.Refresh();
@@ -115,6 +117,7 @@ internal sealed class RateScopeRenderer
         DropScopeMarkerPool();
         AddScopePlottables();
         _scopeReviewCursor = AddReviewCursor(scope);
+        PlotAxisRules.ClampLeftEdgeToZero(scope);
         _scopePlot.Refresh();
 
         Plot rate = _ratePlot.Plot;
@@ -124,6 +127,7 @@ internal sealed class RateScopeRenderer
         rate.Axes.SetLimitsX(0, rateDataPoints);
         ClearSeriesData(_rateX, _rateY);
         AddRatePlottables();
+        PlotAxisRules.ClampLeftEdgeToZero(rate);
         _ratePlot.Refresh();
     }
 

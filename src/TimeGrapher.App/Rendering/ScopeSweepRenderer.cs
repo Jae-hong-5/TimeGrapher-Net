@@ -74,6 +74,7 @@ internal sealed class ScopeSweepRenderer
         _sweepScatter.LineWidth = 1;
         _sweepScatter.MarkerStyle.IsVisible = false;
         _reviewCursor = AddCursor(sweep);
+        PlotAxisRules.ClampLeftEdgeToZero(sweep);
 
         ApplySeriesTheme();
         _sweepPlot.Refresh();

@@ -88,6 +88,7 @@ internal sealed class MultiFilterScopeRenderer
             _scatters[i]!.LineWidth = 1;
             _scatters[i]!.MarkerStyle.IsVisible = false;
             _cursors[i] = AddCursor(plot);
+            PlotAxisRules.ClampLeftEdgeToZero(plot);
         }
 
         ApplySeriesTheme();
