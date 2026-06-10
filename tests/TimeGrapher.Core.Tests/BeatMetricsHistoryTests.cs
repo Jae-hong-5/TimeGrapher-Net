@@ -175,6 +175,27 @@ public sealed class BeatMetricsHistoryTests
     }
 
     [Fact]
+    public void PositionChangeAndSequenceResetPublishWithoutWaitingForBeats()
+    {
+        // The stream-time throttle is keyed to beat time, which does not
+        // advance while the watch is off the mic; state changes must publish
+        // anyway or the position UI stays stale until sync resumes.
+        var history = new BeatMetricsHistory();
+        history.Record(BeatUpdate(1, 0.125, 5.0));
+        BeatMetricsHistorySnapshot? beforeChange = history.CurrentSnapshot();
+
+        history.SetActivePosition(WatchPosition.P9H); // no beats since
+        BeatMetricsHistorySnapshot? restamped = history.CurrentSnapshot();
+        Assert.NotSame(beforeChange, restamped);
+        Assert.Equal(WatchPosition.P9H, restamped!.ActivePosition);
+
+        history.ResetPositionAggregates(); // still no beats
+        BeatMetricsHistorySnapshot? cleared = history.CurrentSnapshot();
+        Assert.NotSame(restamped, cleared);
+        Assert.Empty(cleared!.Positions);
+    }
+
+    [Fact]
     public void SnapshotStampsTheActivePositionAndDefaultsToDialUp()
     {
         var history = new BeatMetricsHistory();

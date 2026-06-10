@@ -42,6 +42,12 @@ public sealed class BeatMetricsHistory
     private double _latestTimeS;
 
     private bool _dirty;
+
+    // State changes (active position, sequence reset) bypass the stream-time
+    // throttle: it is keyed to _latestTimeS, which only advances with synced
+    // beats, so a position picked while no beats arrive (watch off the mic)
+    // would otherwise never publish and the position UI would stay stale.
+    private bool _publishImmediately;
     private ulong _version;
     private BeatMetricsHistorySnapshot? _snapshot;
     private double _lastSnapshotTimeS;
@@ -67,6 +73,7 @@ public sealed class BeatMetricsHistory
 
         _activePosition = position;
         _dirty = true;
+        _publishImmediately = true;
     }
 
     public void Record(WatchMetricsUpdate update)
@@ -133,6 +140,7 @@ public sealed class BeatMetricsHistory
         _beatErrorValid = false;
         _latestTimeS = 0.0;
         _dirty = false;
+        _publishImmediately = false;
         _snapshot = null;
         _lastSnapshotTimeS = 0.0;
     }
@@ -147,6 +155,7 @@ public sealed class BeatMetricsHistory
     {
         Array.Clear(_positionAggregates);
         _dirty = true;
+        _publishImmediately = true;
     }
 
     /// <summary>
@@ -160,7 +169,9 @@ public sealed class BeatMetricsHistory
             return _snapshot;
         }
 
-        if (_snapshot != null && _latestTimeS - _lastSnapshotTimeS < SnapshotMinIntervalS)
+        if (_snapshot != null &&
+            !_publishImmediately &&
+            _latestTimeS - _lastSnapshotTimeS < SnapshotMinIntervalS)
         {
             return _snapshot;
         }
@@ -193,6 +204,7 @@ public sealed class BeatMetricsHistory
         };
         _lastSnapshotTimeS = _latestTimeS;
         _dirty = false;
+        _publishImmediately = false;
         return _snapshot;
     }
 
