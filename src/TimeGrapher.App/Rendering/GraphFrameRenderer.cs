@@ -105,7 +105,7 @@ internal sealed class GraphFrameRenderer
 
     public void ApplyTheme(PlotThemePalette theme)
     {
-        foreach (RateScopeFrameConsumer consumer in _consumers.OfType<RateScopeFrameConsumer>())
+        foreach (IThemedFrameConsumer consumer in _consumers.OfType<IThemedFrameConsumer>())
         {
             consumer.ApplyTheme(theme);
         }

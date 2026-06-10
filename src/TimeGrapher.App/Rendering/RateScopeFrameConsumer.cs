@@ -3,7 +3,7 @@ using TimeGrapher.Core.Shared;
 
 namespace TimeGrapher.App.Rendering;
 
-internal sealed class RateScopeFrameConsumer : IAnalysisFrameConsumer
+internal sealed class RateScopeFrameConsumer : IAnalysisFrameConsumer, IThemedFrameConsumer
 {
     private readonly RateScopeRenderer _renderer;
 
