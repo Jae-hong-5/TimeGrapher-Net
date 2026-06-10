@@ -32,6 +32,7 @@ internal sealed class InfoTabRegistry
         {
             [InfoTabKind.RateScope] = CreateRateScopeRegistration,
             [InfoTabKind.SoundPrint] = CreateSoundPrintRegistration,
+            [InfoTabKind.TraceDisplay] = CreateTraceDisplayRegistration,
             [InfoTabKind.Placeholder] = CreatePlaceholderRegistration,
         };
 
@@ -197,6 +198,85 @@ internal sealed class InfoTabRegistry
 
         var renderer = new SoundPrintRenderer(image);
         var consumer = new SoundPrintFrameConsumer(renderer);
+        return new InfoTabRegistration(definition, CreateTabItem(definition, grid), consumer);
+    }
+
+    private static InfoTabRegistration CreateTraceDisplayRegistration(
+        InfoTabDefinition definition,
+        InfoTabFactoryContext context)
+    {
+        var ratePlot = new AvaPlot();
+        var amplitudePlot = new AvaPlot();
+
+        var alertText = new TextBlock
+        {
+            Foreground = Avalonia.Media.Brushes.White,
+            VerticalAlignment = VerticalAlignment.Center,
+            TextWrapping = Avalonia.Media.TextWrapping.Wrap,
+        };
+        var alertBanner = new Border
+        {
+            Padding = new Thickness(8, 3),
+            IsVisible = false,
+            Child = alertText,
+        };
+        alertBanner.Bind(
+            Border.BackgroundProperty,
+            alertBanner.GetResourceObservable("ChromeAccentBrush"));
+
+        var summaryText = new TextBlock
+        {
+            FontSize = 12,
+            Margin = new Thickness(8, 2),
+        };
+        var explanationText = new TextBlock
+        {
+            FontSize = 11,
+            Opacity = 0.65,
+            Margin = new Thickness(8, 0, 8, 3),
+            TextWrapping = Avalonia.Media.TextWrapping.Wrap,
+            Text = "Rate: above 0 = gaining, below 0 = losing; flat = stable. " +
+                   "Amplitude: shaded band marks the healthy 270–300° range.",
+        };
+
+        var grid = new Grid
+        {
+            RowDefinitions = new RowDefinitions("Auto,*,*,Auto,Auto"),
+        };
+        Grid.SetRow(alertBanner, 0);
+        Grid.SetRow(ratePlot, 1);
+        Grid.SetRow(amplitudePlot, 2);
+        Grid.SetRow(summaryText, 3);
+        Grid.SetRow(explanationText, 4);
+        grid.Children.Add(alertBanner);
+        grid.Children.Add(ratePlot);
+        grid.Children.Add(amplitudePlot);
+        grid.Children.Add(summaryText);
+        grid.Children.Add(explanationText);
+
+        if (CreateWaitingOverlay(context.ViewModel) is { } overlay)
+        {
+            Grid.SetRow(overlay, 1);
+            grid.Children.Add(overlay);
+        }
+
+        var renderer = new TraceDisplayRenderer(ratePlot, amplitudePlot, alertBanner, alertText, summaryText);
+
+        var resetButton = new Button
+        {
+            Content = "Reset View",
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Top,
+            Margin = new Thickness(0, 6, 10, 0),
+            Padding = new Thickness(8, 2, 8, 2),
+            FontSize = 11,
+        };
+        ToolTip.SetTip(resetButton, "Re-enable live auto-scaling on both graphs");
+        resetButton.Click += (_, _) => renderer.ResetView();
+        Grid.SetRow(resetButton, 1);
+        grid.Children.Add(resetButton);
+
+        var consumer = new TraceDisplayFrameConsumer(renderer);
         return new InfoTabRegistration(definition, CreateTabItem(definition, grid), consumer);
     }
 

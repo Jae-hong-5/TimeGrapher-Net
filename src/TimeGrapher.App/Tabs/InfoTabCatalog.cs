@@ -6,6 +6,7 @@ internal enum InfoTabKind
 {
     RateScope,
     SoundPrint,
+    TraceDisplay,
     Placeholder,
 }
 
@@ -35,6 +36,7 @@ internal static class InfoTabCatalog
 {
     public const string RateScopeTabId = "rate-scope";
     public const string SoundPrintTabId = "sound-print";
+    public const string TraceDisplayTabId = "trace-display";
 
     public const int DefaultUiRefreshIntervalMs = 33;
     public const int SoundPrintRefreshIntervalMs = 100;
@@ -57,9 +59,12 @@ internal static class InfoTabCatalog
         {
             new(RateScopeTabId, "Rate/Scope", InfoTabKind.RateScope, DefaultUiRefreshIntervalMs, UsesGraphSnapshots: true, RateScopeSeries),
             new(SoundPrintTabId, "Sound Print", InfoTabKind.SoundPrint, SoundPrintRefreshIntervalMs, UsesGraphSnapshots: false, Array.Empty<GraphSeriesDefinition>()),
+            // Trace Display renders the cumulative BeatMetricsHistorySnapshot the
+            // frame carries; it declares no per-frame graph-series contract.
+            new(TraceDisplayTabId, "Trace", InfoTabKind.TraceDisplay, DefaultUiRefreshIntervalMs, UsesGraphSnapshots: false, Array.Empty<GraphSeriesDefinition>()),
         };
 
-        // Reserved placeholder tabs for features not yet built (total tab count = 12).
+        // Reserved placeholder tabs for features not yet built.
         // Titles are shortened from the planned feature names to fit the tab width.
         (string Id, string Title)[] placeholders =
         {

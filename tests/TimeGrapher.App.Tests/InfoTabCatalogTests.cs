@@ -52,15 +52,25 @@ public sealed class InfoTabCatalogTests
     }
 
     [Fact]
-    public void CatalogReservesTwelveTabsWithTenPlaceholders()
+    public void TraceDisplayTabRendersFromCumulativeHistoryNotGraphSeries()
+    {
+        InfoTabDefinition tab = InfoTabCatalog.Get(InfoTabCatalog.TraceDisplayTabId);
+
+        Assert.Equal(InfoTabKind.TraceDisplay, tab.Kind);
+        Assert.False(tab.UsesGraphSnapshots);
+        Assert.Empty(tab.GraphSeries);
+    }
+
+    [Fact]
+    public void CatalogTracksFunctionalAndPlaceholderTabCounts()
     {
         InfoTabDefinition[] functional = InfoTabCatalog.All
             .Where(tab => tab.Kind != InfoTabKind.Placeholder).ToArray();
         InfoTabDefinition[] placeholders = InfoTabCatalog.All
             .Where(tab => tab.Kind == InfoTabKind.Placeholder).ToArray();
 
-        Assert.Equal(12, InfoTabCatalog.All.Count);
-        Assert.Equal(2, functional.Length);
+        Assert.Equal(13, InfoTabCatalog.All.Count);
+        Assert.Equal(3, functional.Length);
         Assert.Equal(10, placeholders.Length);
         Assert.All(placeholders, tab => Assert.Empty(tab.GraphSeries));
         Assert.All(placeholders, tab => Assert.False(tab.UsesGraphSnapshots));
