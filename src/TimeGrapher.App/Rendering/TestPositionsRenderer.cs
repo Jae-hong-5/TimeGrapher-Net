@@ -68,8 +68,14 @@ internal sealed class TestPositionsRenderer
     public void Reset()
     {
         // The highlight is selection state (the watch's physical orientation),
-        // not run data; only the snapshot version gate restarts.
+        // not run data; the snapshot version gate restarts. The in-flight
+        // latch dies with the worker it was sent to: a new session must not
+        // ignore snapshots on behalf of a request the old session never
+        // confirmed (today RunSessionController replays the position into the
+        // new worker, so the first snapshot would echo-clear it anyway, but
+        // the renderer must not depend on that replay invariant).
         _lastVersion = 0;
+        _pendingPosition = null;
     }
 
     public void RenderFrame(AnalysisFrame frame)

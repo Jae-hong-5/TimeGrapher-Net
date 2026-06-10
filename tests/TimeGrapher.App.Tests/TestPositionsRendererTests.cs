@@ -117,6 +117,22 @@ public sealed class TestPositionsRendererTests
     }
 
     [Fact]
+    public void ResetClearsThePendingLatch()
+    {
+        Button[] buttons = Buttons();
+        var renderer = new TestPositionsRenderer(buttons, WatchPosition.CH);
+        renderer.RequestPosition(WatchPosition.P6H);
+
+        // Session boundary: the unconfirmed request died with the old worker.
+        // The next session's snapshot must regain authority immediately, even
+        // when it carries a position the dead request never matched.
+        renderer.Reset();
+        renderer.RenderFrame(Frame(version: 1, WatchPosition.CB));
+
+        Assert.Equal(WatchPosition.CB, ActivePosition(buttons));
+    }
+
+    [Fact]
     public void FrameWithoutHistoryIsIgnored()
     {
         Button[] buttons = Buttons();
