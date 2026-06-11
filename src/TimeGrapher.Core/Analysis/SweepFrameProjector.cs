@@ -24,12 +24,11 @@ public sealed class SweepFrameProjector
     /// <summary>Nominal 28800-BPH beat period used before any lock.</summary>
     public const double FallbackBeatPeriodS = 0.125;
 
-    // The PLL-tracked MeasuredPeriodS jitters slightly every block; re-tuning
-    // (and clearing) the window on every wiggle would never let a pattern
-    // accumulate. The window is latched and only re-tuned when the candidate
-    // moves past this fraction (a re-lock at a different BPH), so genuine rate
-    // error shows up as drift against the latched window instead of silently
-    // re-centering.
+    // MeasuredPeriodS is the nominal locked beat period (3600/bph), bit-stable
+    // while locked, so the only real change is a re-lock at a different BPH.
+    // The window is latched and only re-tuned when the candidate moves past
+    // this fraction, so genuine rate error shows up as drift against the
+    // latched window instead of silently re-centering on every re-lock.
     private const double WindowRetuneFraction = 0.01;
 
     private readonly int _sampleRate;

@@ -126,7 +126,7 @@ public sealed class TgResult
     /* Sync state */
     public TgSyncStatus SyncStatus;
     public int DetectedBph;
-    public double MeasuredPeriodS;       // PLL-tracked beat period
+    public double MeasuredPeriodS;       // nominal locked beat period (3600/bph), 0 while unsynced
 
     /* Events emitted in THIS call. */
     public List<TgEvent> Events = new();

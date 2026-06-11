@@ -48,8 +48,8 @@ public sealed class AnalysisWorker : IDisposable
     private readonly AnalysisDeadlineMonitor _deadlineMonitor = new();
     private readonly float[] _inputBlock;
 
-    // PLL-tracked beat period captured while synced; the deadline monitor falls
-    // back to the 28800-BPH default (125 ms) before the first lock.
+    // Nominal locked beat period (3600/bph) captured while synced; the deadline
+    // monitor falls back to the 28800-BPH default (125 ms) before the first lock.
     private double _latestBeatPeriodS;
 
     private ulong _nextFrameSourceId = 1;
