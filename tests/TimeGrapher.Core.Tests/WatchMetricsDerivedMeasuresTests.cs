@@ -232,6 +232,42 @@ public sealed class WatchMetricsDerivedMeasuresTests
     }
 
     [Fact]
+    public void BphReLock_RestartsTheMeasurementSegment()
+    {
+        // The detector drops the batch in which sync is lost, so a watch swap
+        // surfaces here as a direct BPH change (18000 bph, 200 ms beats ->
+        // 36000 bph, 100 ms beats). The segment must re-anchor: stale _bph
+        // would mislabel every sample and gate signed measures with the old
+        // 200 ms nominal period.
+        WatchMetrics metrics = NewMetrics();
+        double sample = 0.0;
+        metrics.HandleAEvent(sample, true, 18000.0);
+        foreach (double ms in new[] { 200.0, 200.0, 200.0 })
+        {
+            sample += ms / 1000.0 * SampleRate;
+            metrics.HandleAEvent(sample, true, 18000.0);
+        }
+
+        var updates = new List<WatchMetricsUpdate>();
+        foreach (double ms in new[] { 100.0, 100.8, 99.2, 100.8, 99.2 })
+        {
+            sample += ms / 1000.0 * SampleRate;
+            updates.Add(metrics.HandleAEvent(sample, true, 36000.0));
+        }
+
+        // First post-re-lock event restarts the segment numbering.
+        Assert.Equal(1UL, updates[0].BeatTimingSample.BeatNumber);
+        Assert.True(updates[0].BeatTimingSample.IsTic);
+        Assert.All(updates, u => Assert.Equal(36000, u.BeatTimingSample.Bph));
+
+        // Signed measures come back on the new 100 ms nominal (t1=100.8, t2=99.2).
+        Assert.True(updates[2].BeatTimingSample.BeatErrorValid);
+        Assert.Equal(0.8, updates[2].BeatTimingSample.BeatErrorSignedMs, 6);
+        Assert.True(updates[2].DerivedMeasures.DiffTicTacValid);
+        Assert.Equal(1.6, updates[2].DerivedMeasures.DiffTicTacMs, 6);
+    }
+
+    [Fact]
     public void BeatTimingSample_NotEmittedWithoutValidBph()
     {
         WatchMetrics metrics = NewMetrics();

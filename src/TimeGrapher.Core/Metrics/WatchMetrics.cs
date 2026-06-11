@@ -71,7 +71,8 @@ public sealed class WatchMetrics
     private bool _amplitudeTicValid = false;
 
     // Derived timing measures (project plan "Expected Enhancements"): DiffTicTac,
-    // DiffPeriod (short fixed window) and AvgPeriod (since start / last sync reset).
+    // DiffPeriod (short fixed window) and AvgPeriod (since start / last segment
+    // restart on a re-lock at a different BPH).
     private const int DiffPeriodWindowSeconds = 4;
     private readonly RollingAverage _rollPeriodDelta = new(0);
     private double _avgPeriodDeltaSumMs = 0.0;
@@ -220,6 +221,16 @@ public sealed class WatchMetrics
 
     private void ComputeRateError(double eventSample, bool haveValidBph, double bph, WatchMetricsUpdate update)
     {
+        // The shipped pipeline never delivers haveValidBph=false after the first
+        // lock: DetectorMetricsEngine suppresses pre-sync events and TgDetector
+        // drops the whole batch in which sync is lost. A re-lock at a different
+        // BPH therefore arrives with the segment still anchored to the old
+        // watch, so treat the BPH change itself as the segment restart.
+        if (haveValidBph && _haveStartTime && (int)bph != _bph)
+        {
+            _haveStartTime = false;
+        }
+
         if ((!haveValidBph) && (_haveStartTime))
         {
             _haveStartTime = false;

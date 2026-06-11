@@ -40,7 +40,8 @@ public readonly record struct AmplitudeSample(
 /// Project-plan derived timing measures (Chour-style watch time parameters):
 /// DiffTicTac = tick duration minus tock duration; DiffPeriod = measured-vs-expected
 /// beat-duration difference averaged over a short fixed window (4 s); AvgPeriod =
-/// the same difference averaged since measurement start (or last sync reset).
+/// the same difference averaged since measurement start (or the last segment
+/// restart on a re-lock at a different BPH).
 /// </summary>
 public readonly record struct DerivedTimingMeasures(
     bool DiffTicTacValid,
