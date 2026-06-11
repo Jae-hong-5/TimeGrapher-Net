@@ -12,7 +12,7 @@ flowchart TB
         direction TB
         App["TimeGrapher.App<br/>Avalonia UI, views, view models,<br/>services, rendering, tab routing,<br/>live-audio backend selection"]
         Verify["TimeGrapher.Verify<br/>headless verification console"]
-        TestSuites["Test projects<br/>App.Tests, Core.Tests,<br/>LinuxAudio.Tests"]
+        TestSuites["Test projects<br/>App.Tests, Core.Tests,<br/>WindowsAudio.Tests, LinuxAudio.Tests"]
     end
 
     subgraph L2["Layer 2 - Platform adapter layer"]
@@ -55,7 +55,7 @@ flowchart TB
 
 | Rule | Meaning in this project |
 |---|---|
-| Layer 1 can use Layer 2 | `TimeGrapher.App` conditionally references Windows or Linux live-audio adapters through `RuntimeIdentifier`/compile constants; LinuxAudio tests can validate the Linux adapter |
+| Layer 1 can use Layer 2 | `TimeGrapher.App` conditionally references Windows or Linux live-audio adapters through `RuntimeIdentifier`/compile constants; the WindowsAudio/LinuxAudio test projects validate their platform adapters |
 | Layer 1 can use Layer 3 | The UI and verification console can call Core analysis, WAV, simulation, detection, and shared DTO modules such as `AnalysisFrame` and `BeatMetricsHistorySnapshot` |
 | Layer 1 can use Layer 4 | UI code can use Avalonia, ScottPlot, and the App-level `Tmds.DBus.Protocol` package; tests can use xUnit |
 | Layer 2 can use Layer 3 | Platform adapters implement Core live-audio contracts from `Core.Shared` |
