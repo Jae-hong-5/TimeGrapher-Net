@@ -59,7 +59,8 @@ public sealed class TgConfig
     public double PllPeriodGain;         // default 0.01
     public double PllAcGain;             // default 0.05
 
-    /* Detector threshold tuning (init-time; runtime via TgDetector.*).
+    /* Detector threshold tuning (init-time only; the runtime tg_get/set_*
+     * surface was removed as dead parity API).
      * Both 0 -> use built-in defaults: 0.03 onset, 0.20 min-peak. */
     public double OnsetFractionInit;
     public double MinPeakFractionInit;
