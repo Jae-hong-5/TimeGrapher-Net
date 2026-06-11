@@ -25,7 +25,11 @@ internal sealed class MainWindowDialogService : ITimeGrapherDialogService
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
         };
 
-        var result = RecordSessionChoice.No;
+        // Dismissing the dialog (title-bar X / Alt+F4) bypasses the button
+        // handlers, so the fallback must abort the start — matching the Qt
+        // original's QMessageBox escape behavior and this dialog's own Esc
+        // (the Cancel button is IsCancel).
+        var result = RecordSessionChoice.Cancel;
 
         var yes = new Button { Content = "Yes", Width = 80, IsDefault = false };
         var no = new Button { Content = "No", Width = 80, IsDefault = true };
