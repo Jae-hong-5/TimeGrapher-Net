@@ -171,19 +171,24 @@ internal sealed class TraceDisplayRenderer
 
     private void UpdateSummaries(BeatMetricsHistorySnapshot history)
     {
-        string Format(string label, double? sinceStart, double? rolling, string unit) =>
+        string Format(string label, double? sinceStart, double? rolling, string unit, string numericFormat) =>
             sinceStart is double avg && rolling is double roll
                 ? string.Format(System.Globalization.CultureInfo.InvariantCulture,
-                    "{0} avg {1:+0.0;-0.0;0.0}{3} / last {4:F0}s {2:+0.0;-0.0;0.0}{3}",
-                    label, avg, roll, unit, RollingWindowS)
+                    "{0} avg {1}{3} / last {4:F0}s {2}{3}",
+                    label,
+                    avg.ToString(numericFormat, System.Globalization.CultureInfo.InvariantCulture),
+                    roll.ToString(numericFormat, System.Globalization.CultureInfo.InvariantCulture),
+                    unit, RollingWindowS)
                 : label + " avg —";
 
+        // Rate is signed; amplitude is an unsigned magnitude shown in whole
+        // degrees everywhere else in the app.
         _summaryText.Text =
             Format("RATE", MetricsSeriesMath.Average(history.Rate),
-                MetricsSeriesMath.RollingAverage(history.Rate, RollingWindowS), " s/d")
+                MetricsSeriesMath.RollingAverage(history.Rate, RollingWindowS), " s/d", "+0.0;-0.0;0.0")
             + "   |   "
             + Format("AMP", MetricsSeriesMath.Average(history.Amplitude),
-                MetricsSeriesMath.RollingAverage(history.Amplitude, RollingWindowS), "°");
+                MetricsSeriesMath.RollingAverage(history.Amplitude, RollingWindowS), "°", "0");
     }
 
     /// <summary>Review-cursor contract: a vertical marker at the scrub time on both plots.</summary>
