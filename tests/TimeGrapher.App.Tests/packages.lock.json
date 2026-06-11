@@ -303,12 +303,11 @@
         "dependencies": {
           "Avalonia": "[11.3.17, )",
           "Avalonia.Desktop": "[11.3.17, )",
-          "Avalonia.Fonts.Inter": "[11.3.17, )",
           "Avalonia.Themes.Fluent": "[11.3.17, )",
           "ScottPlot.Avalonia": "[5.0.55, )",
-          "TimeGrapher.Core": "[0.1.2, )",
-          "TimeGrapher.Platform.LinuxAudio": "[0.1.2, )",
-          "TimeGrapher.Platform.WindowsAudio": "[0.1.2, )",
+          "TimeGrapher.Core": "[0.5.0, )",
+          "TimeGrapher.Platform.LinuxAudio": "[0.5.0, )",
+          "TimeGrapher.Platform.WindowsAudio": "[0.5.0, )",
           "Tmds.DBus.Protocol": "[0.21.3, )"
         }
       },
@@ -318,7 +317,7 @@
       "timegrapher.platform.linuxaudio": {
         "type": "Project",
         "dependencies": {
-          "TimeGrapher.Core": "[0.1.2, )"
+          "TimeGrapher.Core": "[0.5.0, )"
         }
       },
       "timegrapher.platform.windowsaudio": {
@@ -326,7 +325,7 @@
         "dependencies": {
           "NAudio.Wasapi": "[2.2.1, )",
           "NAudio.WinMM": "[2.2.1, )",
-          "TimeGrapher.Core": "[0.1.2, )"
+          "TimeGrapher.Core": "[0.5.0, )"
         }
       },
       "Avalonia": {
@@ -351,15 +350,6 @@
           "Avalonia.Skia": "11.3.17",
           "Avalonia.Win32": "11.3.17",
           "Avalonia.X11": "11.3.17"
-        }
-      },
-      "Avalonia.Fonts.Inter": {
-        "type": "CentralTransitive",
-        "requested": "[11.3.17, )",
-        "resolved": "11.3.17",
-        "contentHash": "c9wYA8+9QrD3oATxh5DMVLPAZHN5NhNgwGQi0v8iV1qPIMOXIug/23CT8MBXtImj3BsYov8PuSqbpOgjtqxiwQ==",
-        "dependencies": {
-          "Avalonia": "11.3.17"
         }
       },
       "Avalonia.Themes.Fluent": {
