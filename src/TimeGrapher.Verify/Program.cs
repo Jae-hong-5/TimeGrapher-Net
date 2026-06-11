@@ -159,6 +159,25 @@ finally
         {
         }
     }
+
+    // Each generator writes into its own unique temp directory; remove the
+    // now-empty directories too (Delete is non-recursive, so a directory that
+    // still holds an undeletable file is left behind with it).
+    foreach (string? dir in generatedFiles.Select(Path.GetDirectoryName).Distinct())
+    {
+        if (dir == null)
+        {
+            continue;
+        }
+
+        try
+        {
+            Directory.Delete(dir);
+        }
+        catch (IOException)
+        {
+        }
+    }
 }
 
 return allMatch ? 0 : 1;
