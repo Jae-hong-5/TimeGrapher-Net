@@ -82,48 +82,6 @@ internal sealed class InfoTabRegistry
         return new InfoTabRegistry(registrations, context.SoundImageControl);
     }
 
-    public static InfoTabRegistry FromTabControl(TabControl tabControl, IEnumerable<IAnalysisFrameConsumer> consumers)
-    {
-        var consumerByTab = consumers.ToDictionary(consumer => consumer.TabId, StringComparer.Ordinal);
-        var tabById = new Dictionary<string, TabItem>(StringComparer.Ordinal);
-
-        foreach (TabItem tab in tabControl.Items.OfType<TabItem>())
-        {
-            if (tab.Tag is not string tabId || string.IsNullOrWhiteSpace(tabId))
-            {
-                throw new InvalidOperationException("Every info tab must declare a non-empty Tag.");
-            }
-
-            if (!InfoTabCatalog.TryGet(tabId, out _))
-            {
-                throw new InvalidOperationException($"Info tab '{tabId}' is not registered in InfoTabCatalog.");
-            }
-
-            if (!tabById.TryAdd(tabId, tab))
-            {
-                throw new InvalidOperationException($"Duplicate info tab id '{tabId}'.");
-            }
-        }
-
-        var registrations = new List<InfoTabRegistration>(InfoTabCatalog.All.Count);
-        foreach (InfoTabDefinition definition in InfoTabCatalog.All)
-        {
-            if (!tabById.TryGetValue(definition.Id, out TabItem? tab))
-            {
-                throw new InvalidOperationException($"InfoTabCatalog tab '{definition.Id}' has no matching TabItem.");
-            }
-
-            if (!consumerByTab.TryGetValue(definition.Id, out IAnalysisFrameConsumer? consumer))
-            {
-                throw new InvalidOperationException($"Info tab '{definition.Id}' has no analysis frame consumer.");
-            }
-
-            registrations.Add(new InfoTabRegistration(definition, tab, consumer));
-        }
-
-        return new InfoTabRegistry(registrations, null);
-    }
-
     public AnalysisFrameRouter CreateRouter()
     {
         return new AnalysisFrameRouter(_registrations.Select(registration => registration.Consumer));
