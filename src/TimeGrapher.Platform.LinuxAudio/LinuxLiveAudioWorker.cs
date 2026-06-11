@@ -36,7 +36,6 @@ public sealed class LinuxLiveAudioWorker : ILiveAudioWorker
     private ulong _frameCount;
     private ulong _sampleCount;
     private float _volume = 1.0f;
-    private PcmSampleFormat _sampleFormat = PcmSampleFormat.Float32LittleEndian;
     private string _processErrorPrefix = "pw-record";
     private volatile bool _paused;
     private volatile bool _stopRequested;
@@ -251,9 +250,8 @@ public sealed class LinuxLiveAudioWorker : ILiveAudioWorker
             _stderr.Clear();
         }
 
-        _sampleFormat = sampleFormat;
         _processErrorPrefix = processName;
-        _stdoutThread = new Thread(() => ReadPcm(process))
+        _stdoutThread = new Thread(() => ReadPcm(process, sampleFormat))
         {
             Name = processName + "AudioCaptureRead",
             IsBackground = true,
@@ -347,7 +345,10 @@ public sealed class LinuxLiveAudioWorker : ILiveAudioWorker
         TryStop(Timeout.InfiniteTimeSpan);
     }
 
-    private void ReadPcm(Process process)
+    // The sample format is bound at thread start: a reader that outlives the
+    // bounded TryStop join must never decode with a format the NEXT capture
+    // installed into the shared field.
+    private void ReadPcm(Process process, PcmSampleFormat sampleFormat)
     {
         var pending = new byte[sizeof(float)];
         int pendingCount = 0;
@@ -356,13 +357,20 @@ public sealed class LinuxLiveAudioWorker : ILiveAudioWorker
         try
         {
             Stream stream = process.StandardOutput.BaseStream;
-            int bytesPerSample = BytesPerSample(_sampleFormat);
+            int bytesPerSample = BytesPerSample(sampleFormat);
             while (true)
             {
                 int read = stream.Read(readBuffer, 0, readBuffer.Length);
                 if (read <= 0)
                 {
                     break;
+                }
+
+                // An orphaned reader (its capture torn down or replaced) must
+                // not ring-write stale samples into the next session's buffer.
+                if (!ReferenceEquals(Volatile.Read(ref _process), process))
+                {
+                    return;
                 }
 
                 int offset = 0;
@@ -379,7 +387,7 @@ public sealed class LinuxLiveAudioWorker : ILiveAudioWorker
                         continue;
                     }
 
-                    WriteSamples(pending.AsSpan(0, bytesPerSample), _sampleFormat);
+                    WriteSamples(pending.AsSpan(0, bytesPerSample), sampleFormat);
                     pendingCount = 0;
                 }
 
@@ -387,7 +395,7 @@ public sealed class LinuxLiveAudioWorker : ILiveAudioWorker
                 int usableBytes = remaining - (remaining % bytesPerSample);
                 if (usableBytes > 0)
                 {
-                    WriteSamples(readBuffer.AsSpan(offset, usableBytes), _sampleFormat);
+                    WriteSamples(readBuffer.AsSpan(offset, usableBytes), sampleFormat);
                     offset += usableBytes;
                 }
 
