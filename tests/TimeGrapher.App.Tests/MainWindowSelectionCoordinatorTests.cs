@@ -115,9 +115,7 @@ public sealed class MainWindowSelectionCoordinatorTests
             operations,
             new MainWindowSelectionOptions(
                 "Playback",
-                "Simulation",
-                new[] { "Welshi USB", "Chinese Generic USB" },
-                new[] { 2, 4, 8, 10, 12 }));
+                "Simulation"));
         vm.PropertyChanged += coordinator.OnViewModelPropertyChanged;
         return coordinator;
     }

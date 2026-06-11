@@ -106,9 +106,7 @@ public partial class MainWindow : Window
             new MainWindowSelectionOperations(this),
             new MainWindowSelectionOptions(
                 PLAYBACK_SOURCE,
-                SIMULATION_SOURCE,
-                PreferredAudioDevices,
-                AveragingPeriodList));
+                SIMULATION_SOURCE));
         mRunSelectionResolver = new RunSelectionResolver(
             mViewModel,
             AveragingPeriodList,
