@@ -17,7 +17,6 @@ internal enum InfoTabKind
     EscapementAnalyzer,
     WaveformCompare,
     Spectrogram,
-    Placeholder,
 }
 
 internal enum GraphSeriesRenderMode
@@ -132,21 +131,6 @@ internal static class InfoTabCatalog
             // declares no per-frame graph-series contract.
             new(SpectrogramTabId, "Spectrogram", InfoTabKind.Spectrogram, SoundPrintRefreshIntervalMs, UsesGraphSnapshots: false, Array.Empty<GraphSeriesDefinition>()),
         };
-
-        // Reserved placeholder tabs for features not yet built.
-        // Titles are shortened from the planned feature names to fit the tab width.
-        (string Id, string Title)[] placeholders = Array.Empty<(string, string)>();
-
-        foreach ((string id, string title) in placeholders)
-        {
-            definitions.Add(new(
-                id,
-                title,
-                InfoTabKind.Placeholder,
-                DefaultUiRefreshIntervalMs,
-                UsesGraphSnapshots: false,
-                Array.Empty<GraphSeriesDefinition>()));
-        }
 
         return definitions.ToArray();
     }

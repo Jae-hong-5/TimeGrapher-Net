@@ -158,16 +158,15 @@ public sealed class InfoTabCatalogTests
     }
 
     [Fact]
-    public void EveryFunctionalKindAppearsExactlyOnceAndNoPlaceholdersRemain()
+    public void EveryKindAppearsExactlyOnce()
     {
         // Derived invariants instead of hardcoded counts (which this wave had
-        // to bump in every tab commit while catching nothing): each functional
-        // InfoTabKind backs exactly one catalog tab, the kinds in the catalog
-        // exactly cover the enum minus Placeholder, and no placeholder is left.
-        // A duplicate kind, a kind without a tab, or a revived placeholder all
-        // fail loudly; adding tab #15 needs no edit here beyond its new kind.
+        // to bump in every tab commit while catching nothing): each
+        // InfoTabKind backs exactly one catalog tab and the kinds in the
+        // catalog exactly cover the enum. A duplicate kind or a kind without
+        // a tab fails loudly; adding tab #14 needs no edit here beyond its
+        // new kind.
         InfoTabKind[] expectedKinds = Enum.GetValues<InfoTabKind>()
-            .Where(kind => kind != InfoTabKind.Placeholder)
             .OrderBy(kind => kind)
             .ToArray();
         InfoTabKind[] catalogKinds = InfoTabCatalog.All

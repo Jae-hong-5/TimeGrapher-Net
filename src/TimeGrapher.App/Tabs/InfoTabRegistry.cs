@@ -45,7 +45,6 @@ internal sealed class InfoTabRegistry
             [InfoTabKind.EscapementAnalyzer] = CreateEscapementAnalyzerRegistration,
             [InfoTabKind.WaveformCompare] = CreateWaveformCompareRegistration,
             [InfoTabKind.Spectrogram] = CreateSpectrogramRegistration,
-            [InfoTabKind.Placeholder] = CreatePlaceholderRegistration,
         };
 
     private readonly IReadOnlyList<InfoTabRegistration> _registrations;
@@ -1085,25 +1084,6 @@ internal sealed class InfoTabRegistry
 
         var renderer = new SpectrogramRenderer(image, legendImage);
         var consumer = new SpectrogramFrameConsumer(renderer);
-        return new InfoTabRegistration(definition, CreateTabItem(definition, grid), consumer);
-    }
-
-    private static InfoTabRegistration CreatePlaceholderRegistration(
-        InfoTabDefinition definition,
-        InfoTabFactoryContext context)
-    {
-        _ = context;
-        var label = new TextBlock
-        {
-            Text = definition.Title + " (준비 중)",
-            HorizontalAlignment = HorizontalAlignment.Center,
-            VerticalAlignment = VerticalAlignment.Center,
-            Opacity = 0.5,
-        };
-        var grid = new Grid();
-        grid.Children.Add(label);
-
-        var consumer = new PlaceholderFrameConsumer(definition.Id);
         return new InfoTabRegistration(definition, CreateTabItem(definition, grid), consumer);
     }
 
