@@ -124,7 +124,7 @@ work requests** — 점진적 저하). 패스마다 백로그를 **비트 주기
 | **abstract data sources** | mic·WAV·합성이 모두 `IAudioInputWorker`/`engine.Process(span)` 뒤에서 동일하게 소비되어, 파일로 결정론적 검증 가능 | `DetectorMetricsEngine.cs` | ✓ |
 | **specialized interfaces** | GUI 없는 `Verify` 콘솔, `--smoke`/`--audio-smoke`/`--capture-smoke` 진입점(종료코드 0/2/3), `InternalsVisibleTo` 테스트 훅 | `Verify/Program.cs`, `Program.cs`, `AudioSmokeRunner.cs` | ✓ |
 | **executable assertions** | Verify가 파일명의 기대 BPH와 검출 BPH를 대조해 exit code 반환 → **CI가 매 푸시 실행** | `TimeGrapher.Verify/Program.cs` | ✓ |
-| **limit structural complexity** | 파서·리듀서·라우터·서비스를 작은 단일책임 단위로 분리, 현재 테스트 소스 66개(앱 34, Core 31, LinuxAudio 1)가 개별 타깃을 검증 | tests/ | ✓ |
+| **limit structural complexity** | 파서·리듀서·라우터·서비스를 작은 단일책임 단위로 분리, 현재 테스트 소스 69개(앱 36, Core 31, WindowsAudio 1, LinuxAudio 1)가 개별 타깃을 검증 | tests/ | ✓ |
 
 ### 사용성·이식성 (Usability / Portability)
 
