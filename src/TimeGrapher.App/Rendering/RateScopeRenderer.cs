@@ -27,6 +27,11 @@ internal sealed class RateScopeRenderer
     // ScottPlot's autoscale, so leftovers cannot distort the Y fit.
     private readonly List<LinePlot> _scopeLinePool = new();
     private readonly List<Text> _scopeTextPool = new();
+    // Source (theme-independent) marker colors per pool slot: after a stop no
+    // frame re-render refreshes the pool, so a theme toggle must re-map these
+    // through ThemeColor itself.
+    private readonly List<uint> _scopeLineSourceColors = new();
+    private readonly List<uint> _scopeTextSourceColors = new();
     private int _scopeLinesUsed;
     private int _scopeTextsUsed;
     private readonly List<Scatter> _scopePlots = new();
@@ -149,7 +154,7 @@ internal sealed class RateScopeRenderer
 
         if (scopeUpdated)
         {
-            UpdateScopeMarkers(frame);
+            UpdateScopeMarkers(frame.VerticalMarkers, frame.HorizontalMarkers, frame.TextMarkers);
             if (_scopeFollowLive)
             {
                 double width = (double)context.SampleRate / Math.Max(1, context.ScopeScale);
@@ -288,6 +293,16 @@ internal sealed class RateScopeRenderer
             _ratePlots[i].MarkerColor = Color.FromARGB(ThemeColor(_rateSeries[i]));
         }
 
+        for (int i = 0; i < _scopeLinePool.Count; i++)
+        {
+            _scopeLinePool[i].LineColor = Color.FromARGB(ThemeColor(_scopeLineSourceColors[i]));
+        }
+
+        for (int i = 0; i < _scopeTextPool.Count; i++)
+        {
+            _scopeTextPool[i].LabelFontColor = Color.FromARGB(ThemeColor(_scopeTextSourceColors[i]));
+        }
+
         _scopeReviewCursor?.ApplyTheme(_theme);
     }
 
@@ -341,21 +356,26 @@ internal sealed class RateScopeRenderer
     {
         _scopeLinePool.Clear();
         _scopeTextPool.Clear();
+        _scopeLineSourceColors.Clear();
+        _scopeTextSourceColors.Clear();
         _scopeLinesUsed = 0;
         _scopeTextsUsed = 0;
     }
 
-    private void UpdateScopeMarkers(AnalysisFrame frame)
+    internal void UpdateScopeMarkers(
+        IReadOnlyList<ScopeVerticalMarker> verticalMarkers,
+        IReadOnlyList<ScopeHorizontalMarker> horizontalMarkers,
+        IReadOnlyList<ScopeTextMarker> textMarkers)
     {
         _scopeLinesUsed = 0;
         _scopeTextsUsed = 0;
 
-        foreach (ScopeVerticalMarker marker in frame.VerticalMarkers)
+        foreach (ScopeVerticalMarker marker in verticalMarkers)
         {
             AddVerticalMarker(marker.X, marker.Height, marker.Color);
         }
 
-        foreach (ScopeHorizontalMarker marker in frame.HorizontalMarkers)
+        foreach (ScopeHorizontalMarker marker in horizontalMarkers)
         {
             if (marker.Direction == HorizontalMarkerDirection.Inward)
             {
@@ -367,7 +387,7 @@ internal sealed class RateScopeRenderer
             }
         }
 
-        foreach (ScopeTextMarker marker in frame.TextMarkers)
+        foreach (ScopeTextMarker marker in textMarkers)
         {
             AddText(marker.X, marker.Height, marker.Text, marker.Color, marker.Alignment);
         }
@@ -382,11 +402,13 @@ internal sealed class RateScopeRenderer
         }
     }
 
-    private LinePlot AcquireLine()
+    private LinePlot AcquireLine(uint sourceColor)
     {
         if (_scopeLinesUsed < _scopeLinePool.Count)
         {
-            LinePlot pooled = _scopeLinePool[_scopeLinesUsed++];
+            LinePlot pooled = _scopeLinePool[_scopeLinesUsed];
+            _scopeLineSourceColors[_scopeLinesUsed] = sourceColor;
+            _scopeLinesUsed++;
             pooled.IsVisible = true;
             return pooled;
         }
@@ -394,15 +416,18 @@ internal sealed class RateScopeRenderer
         LinePlot created = _scopePlot.Plot.Add.Line(0.0, 0.0, 0.0, 0.0);
         created.MarkerStyle.IsVisible = false;
         _scopeLinePool.Add(created);
+        _scopeLineSourceColors.Add(sourceColor);
         _scopeLinesUsed++;
         return created;
     }
 
-    private Text AcquireText()
+    private Text AcquireText(uint sourceColor)
     {
         if (_scopeTextsUsed < _scopeTextPool.Count)
         {
-            Text pooled = _scopeTextPool[_scopeTextsUsed++];
+            Text pooled = _scopeTextPool[_scopeTextsUsed];
+            _scopeTextSourceColors[_scopeTextsUsed] = sourceColor;
+            _scopeTextsUsed++;
             pooled.IsVisible = true;
             return pooled;
         }
@@ -411,13 +436,14 @@ internal sealed class RateScopeRenderer
         created.LabelFontName = _textFontFamily;
         created.LabelFontSize = 10;
         _scopeTextPool.Add(created);
+        _scopeTextSourceColors.Add(sourceColor);
         _scopeTextsUsed++;
         return created;
     }
 
     private void AddVerticalMarker(double x, double height, uint color)
     {
-        LinePlot line = AcquireLine();
+        LinePlot line = AcquireLine(color);
         line.Line = new CoordinateLine(x, 0.0, x, height);
         line.LineColor = Color.FromARGB(ThemeColor(color));
         line.LineWidth = 2;
@@ -426,7 +452,7 @@ internal sealed class RateScopeRenderer
 
     private void AddText(double x, double height, string text, uint color, MarkerTextAlignment alignment)
     {
-        Text label = AcquireText();
+        Text label = AcquireText(color);
         label.LabelText = text;
         label.Location = new Coordinates(x, height);
         label.LabelFontColor = Color.FromARGB(ThemeColor(color));
@@ -444,13 +470,13 @@ internal sealed class RateScopeRenderer
     {
         Color c = Color.FromARGB(ThemeColor(color));
 
-        LinePlot left = AcquireLine();
+        LinePlot left = AcquireLine(color);
         left.Line = new CoordinateLine(xLeft - length, height, xLeft, height);
         left.LineColor = c;
         left.LineWidth = 1;
         left.LinePattern = LinePattern.Solid;
 
-        LinePlot right = AcquireLine();
+        LinePlot right = AcquireLine(color);
         right.Line = new CoordinateLine(xRight, height, xRight + length, height);
         right.LineColor = c;
         right.LineWidth = 1;
@@ -459,7 +485,7 @@ internal sealed class RateScopeRenderer
 
     private void AddHorizontalMarkerOutward(double xLeft, double xRight, double height, uint color)
     {
-        LinePlot line = AcquireLine();
+        LinePlot line = AcquireLine(color);
         line.Line = new CoordinateLine(xLeft, height, xRight, height);
         line.LineColor = Color.FromARGB(ThemeColor(color));
         line.LineWidth = 1;
