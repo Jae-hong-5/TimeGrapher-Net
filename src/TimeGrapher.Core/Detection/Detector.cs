@@ -128,7 +128,7 @@ internal sealed class TgDetectorCore
 
     /* C-onset detection parameters. */
     public ulong COnsetDwellSamples;        // default ~0.3 ms
-    public ulong COnsetSearchMaxSamples;    // default 5 ms pre-sync, ~t_AC/2 post-sync
+    public ulong COnsetSearchMaxSamples;    // default 5 ms (fixed; never re-tuned, matching the original)
 
     /* misc */
     public double PrevSample;
@@ -251,31 +251,6 @@ internal sealed class TgDetectorCore
     {
         if (skipS < 0.0) skipS = 0.0;
         CSearchSkipSamples = (ulong)(skipS * Fs);
-    }
-
-    // tg_detector_set_c_onset_search_max
-    public void SetCOnsetSearchMax(double maxS)
-    {
-        if (maxS < 0.0) maxS = 0.0;
-        ulong s = (ulong)(maxS * Fs);
-        /* Cap to ring capacity - dwell margin so the walk can't run off
-         * the buffer's tail. */
-        if (s + COnsetDwellSamples >= (ulong)EnvRingCapacity)
-        {
-            s = ((ulong)EnvRingCapacity > COnsetDwellSamples + 1)
-                    ? ((ulong)EnvRingCapacity - COnsetDwellSamples - 1)
-                    : 0;
-        }
-        COnsetSearchMaxSamples = s;
-    }
-
-    // tg_detector_set_c_onset_dwell
-    public void SetCOnsetDwell(double dwellS)
-    {
-        if (dwellS < 0.0) dwellS = 0.0;
-        ulong s = (ulong)(dwellS * Fs);
-        if (s < 2) s = 2;
-        COnsetDwellSamples = s;
     }
 
     // tg_detector_set_min_silence
