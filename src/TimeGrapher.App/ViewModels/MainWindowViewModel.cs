@@ -20,9 +20,7 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     /// <summary>Review-bar step button increment (stream seconds).</summary>
     public const double ReviewStepS = 1.0;
 
-    private readonly AsyncRelayCommand _startCommand;
     private readonly AsyncRelayCommand _playPauseCommand;
-    private readonly RelayCommand _pauseCommand;
     private readonly RelayCommand _stopCommand;
     private readonly RelayCommand _refreshDevicesCommand;
     private readonly RelayCommand _resetSequenceCommand;
@@ -61,7 +59,6 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
         Action stop,
         Action refreshDevices)
     {
-        _startCommand = new AsyncRelayCommand(startAsync, () => IsStartEnabled);
         _playPauseCommand = new AsyncRelayCommand(async () =>
         {
             if (_runState == RunUiState.Stopped)
@@ -72,7 +69,6 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
 
             pauseOrResume();
         }, () => IsPlayPauseEnabled);
-        _pauseCommand = new RelayCommand(pauseOrResume, () => IsPauseEnabled);
         _stopCommand = new RelayCommand(stop, () => IsStopEnabled);
         _refreshDevicesCommand = new RelayCommand(refreshDevices, () => AreRunParametersEnabled);
         _resetSequenceCommand = new RelayCommand(() => ResetSequenceRequested?.Invoke());
@@ -90,9 +86,7 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     /// </summary>
     public event Action? ResetSequenceRequested;
 
-    public ICommand StartCommand => _startCommand;
     public ICommand PlayPauseCommand => _playPauseCommand;
-    public ICommand PauseCommand => _pauseCommand;
     public ICommand StopCommand => _stopCommand;
     public ICommand RefreshDevicesCommand => _refreshDevicesCommand;
     public ICommand ResetSequenceCommand => _resetSequenceCommand;
@@ -110,10 +104,6 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
 
     public bool AreRunParametersEnabled => _runState == RunUiState.Stopped;
 
-    public bool IsStartEnabled => _runState == RunUiState.Stopped;
-
-    public bool IsPauseEnabled => _runState is RunUiState.Running or RunUiState.Paused;
-
     public bool IsPlayPauseEnabled => _runState is RunUiState.Stopped or RunUiState.Running or RunUiState.Paused;
 
     // Stopping stays enabled so a failed/timed-out stop can be retried instead of wedging the UI.
@@ -126,8 +116,6 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     // run state.
     public bool IsGainEnabled => _modeAllowsGain;
 
-    public string PauseButtonText => _runState == RunUiState.Paused ? "Resume" : "Pause";
-
     public string PlayPauseButtonText => _runState switch
     {
         RunUiState.Stopped => "Start",
@@ -138,10 +126,6 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     public bool IsPlayPauseButtonShowingPause => _runState == RunUiState.Running;
 
     public bool IsPlayPauseButtonShowingPlay => !IsPlayPauseButtonShowingPause;
-
-    public bool IsPauseButtonShowingResume => _runState == RunUiState.Paused;
-
-    public bool IsPauseButtonShowingPause => !IsPauseButtonShowingResume;
 
     public string StatusText
     {
@@ -442,20 +426,13 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(RunState));
         OnPropertyChanged(nameof(IsReviewBarVisible));
         OnPropertyChanged(nameof(AreRunParametersEnabled));
-        OnPropertyChanged(nameof(IsStartEnabled));
-        OnPropertyChanged(nameof(IsPauseEnabled));
         OnPropertyChanged(nameof(IsPlayPauseEnabled));
         OnPropertyChanged(nameof(IsStopEnabled));
         OnPropertyChanged(nameof(IsSampleRateEnabled));
-        OnPropertyChanged(nameof(PauseButtonText));
         OnPropertyChanged(nameof(PlayPauseButtonText));
         OnPropertyChanged(nameof(IsPlayPauseButtonShowingPause));
         OnPropertyChanged(nameof(IsPlayPauseButtonShowingPlay));
-        OnPropertyChanged(nameof(IsPauseButtonShowingResume));
-        OnPropertyChanged(nameof(IsPauseButtonShowingPause));
-        _startCommand.NotifyCanExecuteChanged();
         _playPauseCommand.NotifyCanExecuteChanged();
-        _pauseCommand.NotifyCanExecuteChanged();
         _stopCommand.NotifyCanExecuteChanged();
         _refreshDevicesCommand.NotifyCanExecuteChanged();
     }

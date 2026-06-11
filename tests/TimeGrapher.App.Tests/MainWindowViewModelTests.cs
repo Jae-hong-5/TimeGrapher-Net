@@ -12,9 +12,7 @@ public sealed class MainWindowViewModelTests
         var vm = CreateViewModel();
 
         Assert.Equal(RunUiState.Stopped, vm.RunState);
-        Assert.True(vm.IsStartEnabled);
         Assert.True(vm.IsPlayPauseEnabled);
-        Assert.False(vm.IsPauseEnabled);
         Assert.False(vm.IsStopEnabled);
         Assert.True(vm.AreRunParametersEnabled);
         Assert.True(vm.IsSampleRateEnabled);
@@ -22,12 +20,7 @@ public sealed class MainWindowViewModelTests
         Assert.Equal("Start", vm.PlayPauseButtonText);
         Assert.True(vm.IsPlayPauseButtonShowingPlay);
         Assert.False(vm.IsPlayPauseButtonShowingPause);
-        Assert.Equal("Pause", vm.PauseButtonText);
-        Assert.True(vm.IsPauseButtonShowingPause);
-        Assert.False(vm.IsPauseButtonShowingResume);
-        Assert.True(vm.StartCommand.CanExecute(null));
         Assert.True(vm.PlayPauseCommand.CanExecute(null));
-        Assert.False(vm.PauseCommand.CanExecute(null));
         Assert.False(vm.StopCommand.CanExecute(null));
         Assert.True(vm.RefreshDevicesCommand.CanExecute(null));
     }
@@ -39,9 +32,7 @@ public sealed class MainWindowViewModelTests
 
         vm.SetRunning();
 
-        Assert.False(vm.IsStartEnabled);
         Assert.True(vm.IsPlayPauseEnabled);
-        Assert.True(vm.IsPauseEnabled);
         Assert.True(vm.IsStopEnabled);
         Assert.False(vm.AreRunParametersEnabled);
         Assert.False(vm.IsSampleRateEnabled);
@@ -49,38 +40,25 @@ public sealed class MainWindowViewModelTests
         Assert.Equal("Pause", vm.PlayPauseButtonText);
         Assert.False(vm.IsPlayPauseButtonShowingPlay);
         Assert.True(vm.IsPlayPauseButtonShowingPause);
-        Assert.Equal("Pause", vm.PauseButtonText);
-        Assert.True(vm.IsPauseButtonShowingPause);
-        Assert.False(vm.IsPauseButtonShowingResume);
-        Assert.False(vm.StartCommand.CanExecute(null));
         Assert.True(vm.PlayPauseCommand.CanExecute(null));
-        Assert.True(vm.PauseCommand.CanExecute(null));
         Assert.True(vm.StopCommand.CanExecute(null));
         Assert.False(vm.RefreshDevicesCommand.CanExecute(null));
 
         vm.SetPaused();
 
-        Assert.True(vm.IsPauseEnabled);
         Assert.True(vm.IsPlayPauseEnabled);
         Assert.True(vm.IsStopEnabled);
         Assert.Equal("Resume", vm.PlayPauseButtonText);
         Assert.True(vm.IsPlayPauseButtonShowingPlay);
         Assert.False(vm.IsPlayPauseButtonShowingPause);
-        Assert.Equal("Resume", vm.PauseButtonText);
-        Assert.False(vm.IsPauseButtonShowingPause);
-        Assert.True(vm.IsPauseButtonShowingResume);
 
         vm.SetStopping();
 
-        Assert.False(vm.IsPauseEnabled);
         Assert.False(vm.IsPlayPauseEnabled);
         // Stop stays enabled in Stopping so a failed/timed-out stop can be retried.
         Assert.True(vm.IsStopEnabled);
         Assert.True(vm.StopCommand.CanExecute(null));
         Assert.False(vm.AreRunParametersEnabled);
-        Assert.Equal("Pause", vm.PauseButtonText);
-        Assert.True(vm.IsPauseButtonShowingPause);
-        Assert.False(vm.IsPauseButtonShowingResume);
     }
 
     [Fact]
