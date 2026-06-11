@@ -42,6 +42,47 @@ public sealed class RollingAverageTests
     }
 
     [Fact]
+    public void Resize_ShrinkStaysCorrectAfterHeadWraps()
+    {
+        var avg = new RollingAverage(4);
+        foreach (double v in new[] { 1.0, 2.0, 3.0, 4.0 })
+        {
+            avg.Add(v);
+        }
+
+        avg.Resize(2); // window {3,4}
+
+        Assert.Equal(4.5, avg.Add(5.0), 10); // {4,5}
+        Assert.Equal(5.5, avg.Add(6.0), 10); // {5,6}
+        Assert.Equal(6.5, avg.Add(7.0), 10); // {6,7}; pre-fix the stale slot made this 8.5
+        Assert.Equal(7.5, avg.Add(8.0), 10); // {7,8}
+        Assert.Equal(2, avg.CurrentSize());
+    }
+
+    [Fact]
+    public void Resize_ShrinkThenResetRefillsCleanly()
+    {
+        var avg = new RollingAverage(8);
+        for (int i = 0; i < 8; ++i)
+        {
+            avg.Add(100.0);
+        }
+
+        avg.Resize(6);
+        avg.Reset();
+
+        double last = 0.0;
+        for (int i = 0; i < 16; ++i)
+        {
+            last = avg.Add(1.0);
+        }
+
+        Assert.Equal(1.0, last, 10); // pre-fix stale 100.0 slots drove this negative
+        Assert.Equal(1.0, avg.GetAverage(), 10);
+        Assert.Equal(6, avg.CurrentSize());
+    }
+
+    [Fact]
     public void ZeroSizedWindow_AlwaysReturnsZero()
     {
         var avg = new RollingAverage(0);

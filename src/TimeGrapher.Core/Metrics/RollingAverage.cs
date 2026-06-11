@@ -57,22 +57,25 @@ public sealed class RollingAverage
     {
         _maxSize = newSize;
 
-        if (_maxSize > _window.Length)
-        {
-            var grown = new double[CapacityFor(_maxSize)];
-            for (int i = 0; i < _count; ++i)
-            {
-                grown[i] = _window[(_head + i) % _window.Length];
-            }
-            _window = grown;
-            _head = 0;
-        }
-
         while (_count > _maxSize)
         {
             _runningSum -= _window[_head];
             _head = (_head + 1) % _window.Length;
             _count--;
+        }
+
+        // Add's full-window branch writes the newest value into the evicted
+        // front's slot, which is only correct while capacity == _maxSize, so a
+        // shrink must reallocate just like a grow.
+        if (CapacityFor(_maxSize) != _window.Length)
+        {
+            var resized = new double[CapacityFor(_maxSize)];
+            for (int i = 0; i < _count; ++i)
+            {
+                resized[i] = _window[(_head + i) % _window.Length];
+            }
+            _window = resized;
+            _head = 0;
         }
     }
 
