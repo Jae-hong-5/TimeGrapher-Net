@@ -157,7 +157,7 @@
 **만드는 사람(개발자)**
 - **단일 솔루션·단일 언어** — OS 분기는 오디오 백엔드 경계 한 곳뿐, 나머지는 공유.
 - **안전성·생산성** — GC와 nullable 참조 타입으로 수동 메모리·포인터 버그가 줄고 개발 반복이 빨라집니다.
-- **테스트·CI 단순** — `Core`가 UI·OS에 무의존이라 단위 테스트가 쉽고(현재 449개), 별도 환경
+- **테스트·CI 단순** — `Core`가 UI·OS에 무의존이라 단위 테스트가 쉽고(현재 469개), 별도 환경
   없이 기본 러너에서 검증됩니다.
 
 ## 구조
@@ -229,7 +229,7 @@ classDiagram
 | `TimeGrapher.Platform.WindowsAudio` | Windows 마이크 입력 (NAudio) |
 | `TimeGrapher.Platform.LinuxAudio` | 라즈베리파이 마이크 입력 (PipeWire → ALSA) |
 | `TimeGrapher.Verify` | 화면 없이 WAV의 BPH 검출 정확도를 확인하는 콘솔 |
-| `*.Tests` | xUnit 테스트 (Core / App / LinuxAudio) |
+| `*.Tests` | xUnit 테스트 (Core / App / WindowsAudio / LinuxAudio) |
 
 자세한 설계 배경과 Qt→.NET 포팅 과정은 `docs/` 폴더를 참고하세요.
 
@@ -237,7 +237,7 @@ classDiagram
 
 | 패키지 | 버전 | 용도 |
 |---|---|---|
-| Avalonia(.Desktop/.Themes.Fluent/.Fonts.Inter) | 11.3.2 | UI 프레임워크 |
+| Avalonia(.Desktop/.Themes.Fluent) | 11.3.17 | UI 프레임워크 |
 | ScottPlot.Avalonia | 5.0.55 | 스코프/레이트 그래프 |
 | NAudio.Wasapi / NAudio.WinMM | 2.2.1 | Windows 마이크 캡처·볼륨 |
 | Tmds.DBus.Protocol | 0.21.3 | Linux 오디오 보조 |
@@ -249,13 +249,14 @@ classDiagram
 
 ## 테스트 / CI
 
-`dotnet test` 기준 **449개 테스트 전부 통과**(App 225 / Core 214 / LinuxAudio 10).
+`dotnet test` 기준 **469개 테스트 전부 통과**(App 236 / Core 217 / WindowsAudio 6 / LinuxAudio 10).
 
 ```mermaid
 pie showData
-    title 테스트 분포 (총 449)
-    "App.Tests" : 225
-    "Core.Tests" : 214
+    title 테스트 분포 (총 469)
+    "App.Tests" : 236
+    "Core.Tests" : 217
+    "Platform.WindowsAudio.Tests" : 6
     "Platform.LinuxAudio.Tests" : 10
 ```
 
@@ -277,7 +278,7 @@ git tag v0.1.0 && git push origin v0.1.0
 | 항목 | 명령 | 상태 |
 |---|---|---|
 | 빌드 | `dotnet build TimeGrapherNet.sln -c Release` | ✅ |
-| 테스트 | `dotnet test TimeGrapherNet.sln -c Release` (449/449) | ✅ |
+| 테스트 | `dotnet test TimeGrapherNet.sln -c Release` (469/469) | ✅ |
 | 검출 검증 | `... TimeGrapher.Verify -- --generated --byte-fixtures` (exit 0) | ✅ |
 | GUI 실행 | `dotnet run --project src/TimeGrapher.App` | ✅ |
 | 배포 — 라즈베리파이 (linux-arm64) | `dotnet publish ... -r linux-arm64 --self-contained true` | ✅ |

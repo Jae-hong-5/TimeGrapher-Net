@@ -161,7 +161,7 @@ all four targets** (nothing is executed, so no emulation is needed).
 **For developers**
 - **One solution, one language** — the only per-OS divergence is at the audio-backend boundary; everything else is shared.
 - **Safety & productivity** — GC and nullable reference types cut out whole classes of manual-memory/pointer bugs and speed up iteration.
-- **Simple tests & CI** — `Core` has no UI/OS dependencies, so unit testing is easy (currently 449
+- **Simple tests & CI** — `Core` has no UI/OS dependencies, so unit testing is easy (currently 469
   tests) and runs on stock runners with no special setup.
 
 ## Architecture
@@ -233,7 +233,7 @@ classDiagram
 | `TimeGrapher.Platform.WindowsAudio` | Windows mic input (NAudio) |
 | `TimeGrapher.Platform.LinuxAudio` | Raspberry Pi mic input (PipeWire → ALSA) |
 | `TimeGrapher.Verify` | Headless console that checks BPH detection accuracy on WAV files |
-| `*.Tests` | xUnit tests (Core / App / LinuxAudio) |
+| `*.Tests` | xUnit tests (Core / App / WindowsAudio / LinuxAudio) |
 
 For deeper design background and the Qt→.NET porting story, see the `docs/` folder.
 
@@ -241,7 +241,7 @@ For deeper design background and the Qt→.NET porting story, see the `docs/` fo
 
 | Package | Version | Purpose |
 |---|---|---|
-| Avalonia(.Desktop/.Themes.Fluent/.Fonts.Inter) | 11.3.2 | UI framework |
+| Avalonia(.Desktop/.Themes.Fluent) | 11.3.17 | UI framework |
 | ScottPlot.Avalonia | 5.0.55 | Scope/rate graphs |
 | NAudio.Wasapi / NAudio.WinMM | 2.2.1 | Windows mic capture & volume |
 | Tmds.DBus.Protocol | 0.21.3 | Linux audio helper |
@@ -253,13 +253,14 @@ Package versions are managed centrally in `Directory.Packages.props` and pinned 
 
 ## Tests / CI
 
-**All 449 tests pass** under `dotnet test` (App 225 / Core 214 / LinuxAudio 10).
+**All 469 tests pass** under `dotnet test` (App 236 / Core 217 / WindowsAudio 6 / LinuxAudio 10).
 
 ```mermaid
 pie showData
-    title Test distribution (449 total)
-    "App.Tests" : 225
-    "Core.Tests" : 214
+    title Test distribution (469 total)
+    "App.Tests" : 236
+    "Core.Tests" : 217
+    "Platform.WindowsAudio.Tests" : 6
     "Platform.LinuxAudio.Tests" : 10
 ```
 
@@ -282,7 +283,7 @@ git tag v0.1.0 && git push origin v0.1.0
 | Item | Command | Status |
 |---|---|---|
 | Build | `dotnet build TimeGrapherNet.sln -c Release` | ✅ |
-| Test | `dotnet test TimeGrapherNet.sln -c Release` (449/449) | ✅ |
+| Test | `dotnet test TimeGrapherNet.sln -c Release` (469/469) | ✅ |
 | Detection check | `... TimeGrapher.Verify -- --generated --byte-fixtures` (exit 0) | ✅ |
 | GUI run | `dotnet run --project src/TimeGrapher.App` | ✅ |
 | Deploy — Raspberry Pi (linux-arm64) | `dotnet publish ... -r linux-arm64 --self-contained true` | ✅ |
