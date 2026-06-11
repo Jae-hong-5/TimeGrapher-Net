@@ -49,7 +49,6 @@ public sealed class SpectrogramFrameProjector
     /// <summary>64-entry inferno-like intensity LUT (index 0 = floor, 63 = 0 dB). Shared with the UI legend.</summary>
     public static IReadOnlyList<uint> ColorLut => Lut;
 
-    private readonly int _sampleRate;
     private readonly int _fftSize;
     private readonly int _hop;
     private readonly PixelBuffer _image;
@@ -69,7 +68,6 @@ public sealed class SpectrogramFrameProjector
 
     public SpectrogramFrameProjector(int sampleRate)
     {
-        _sampleRate = sampleRate;
         _fftSize = NearestPowerOfTwo(sampleRate * WindowSeconds);
         _hop = _fftSize / 2;
 
