@@ -35,18 +35,7 @@ public sealed class WavStreamWriter : ISampleWriter
     private int _channels;
     private ulong _bytesWritten;  // audio bytes only (after header)
 
-    public int SampleRate => _sampleRate;
-    public int Channels => _channels;
     public bool IsOpen => _file != null;
-
-    public ulong FramesWritten
-    {
-        get
-        {
-            if (_channels == 0) return 0;
-            return _bytesWritten / (sizeof(float) * (ulong)_channels);
-        }
-    }
 
     /// <summary>
     /// Opens the file and writes a placeholder WAV header.
