@@ -132,9 +132,6 @@ internal sealed class TgSync
     public double PeriodGain;       // default 0.01
     public double AcGain;           // default 0.05
 
-    /* timestamp of the most recent matched event */
-    public double LastMatchTime;
-
     // tg_sync_init: memset(s, 0, sizeof(*s)) -- all fields zeroed.
     public void Init()
     {
@@ -148,7 +145,6 @@ internal sealed class TgSync
         MaxMisses = 0;
         PeriodGain = 0.0;
         AcGain = 0.0;
-        LastMatchTime = 0.0;
     }
 
     // tg_sync_reset
@@ -172,7 +168,6 @@ internal sealed class TgSync
         MaxMisses = maxMisses;
         PeriodGain = periodGain;
         AcGain = acGain;
-        LastMatchTime = firstATime;
     }
 
     // tg_sync_update
@@ -202,7 +197,6 @@ internal sealed class TgSync
             NextATime = eventTime + BeatPeriod;
             BeatPeriod += PeriodGain * phase;
             ConsecutiveMisses = 0;
-            LastMatchTime = eventTime;
             return 1;
         }
         if (errC <= ToleranceS)
@@ -214,7 +208,6 @@ internal sealed class TgSync
                 AcOffset += AcGain * nudge;
             }
             ConsecutiveMisses = 0;
-            LastMatchTime = eventTime;
             return 1;
         }
 
