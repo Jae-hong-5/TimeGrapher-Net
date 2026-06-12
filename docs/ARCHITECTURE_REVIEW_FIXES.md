@@ -75,6 +75,18 @@ Date: 2026-06-06
 
 효과: Core는 플랫폼 없이 테스트할 수 있고, 입력 방식은 교체 가능하다.
 
+### 6. 스플래시 화면 추가
+
+문제: 원본 MP4를 앱에서 직접 재생하면 코덱, 유료 MediaPlayer, Pi 의존성 문제가 생긴다.
+
+수정:
+
+- `intro.mp4`(원본)를 2배속한 `intro_2x.mp4`에서 640x360 PNG 74장으로 변환했다.
+- `SplashWindow`가 30fps로 PNG 시퀀스를 보여준 뒤 `MainWindow`로 전환한다.
+- 원본 MP4는 `Assets/Splash/Source/`에 보관하고, 앱 리소스는 PNG만 포함한다.
+
+효과: Windows와 Raspberry Pi에서 같은 방식으로 시작 화면을 보여줄 수 있다.
+
 ### 7. 실행 lifecycle 분리
 
 문제: `MainWindow`가 worker, buffer, run token, analysis thread 상태를 직접 소유했다.
@@ -97,18 +109,6 @@ Date: 2026-06-06
 - `AnalysisFrame`의 series/marker 컬렉션은 App에 읽기 전용으로 노출하고 Core projector만 채운다.
 
 효과: App/Platform 코드가 Core 내부 상태를 우회 변경할 가능성이 줄었다.
-
-### 6. 스플래시 화면 추가
-
-문제: 원본 MP4를 앱에서 직접 재생하면 코덱, 유료 MediaPlayer, Pi 의존성 문제가 생긴다.
-
-수정:
-
-- `intro.mp4`(원본)를 2배속한 `intro_2x.mp4`에서 640x360 PNG 74장으로 변환했다.
-- `SplashWindow`가 30fps로 PNG 시퀀스를 보여준 뒤 `MainWindow`로 전환한다.
-- 원본 MP4는 `Assets/Splash/Source/`에 보관하고, 앱 리소스는 PNG만 포함한다.
-
-효과: Windows와 Raspberry Pi에서 같은 방식으로 시작 화면을 보여줄 수 있다.
 
 ## 검증
 
