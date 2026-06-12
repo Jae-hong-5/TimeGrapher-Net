@@ -335,13 +335,15 @@ public sealed class AnalysisWorker : IDisposable
             _beatMetricsProjector.Project(pipelineUpdate);
             _beatSegmentCapture.Project(pipelineUpdate);
             _sweepProjector.Project(pipelineUpdate);
-            UpdateForegroundStats(read.SamplesCopied, frame);
+            _foregroundSampleCount += (ulong)read.SamplesCopied;
         }
 
         if (frame == null)
         {
             return;
         }
+
+        UpdateForegroundStats(frame);
 
         _scopeRateProjector.AppendSnapshot(frame);
         _soundPrintProjector.AppendSnapshot(frame);
@@ -459,9 +461,11 @@ public sealed class AnalysisWorker : IDisposable
         AnalysisFrameReady?.Invoke(frame);
     }
 
-    private void UpdateForegroundStats(int slice, AnalysisFrame frame)
+    // The original accumulates samples inside the slice loop but counts the
+    // frame and evaluates the 2-second window once per handler pass
+    // (MainWindow.cpp ProcessSamples): FPS = passes/s, SPF = samples/pass.
+    private void UpdateForegroundStats(AnalysisFrame frame)
     {
-        _foregroundSampleCount += (ulong)slice;
         _foregroundFrameCount++;
 
         double currentTime = _foregroundTimer.ElapsedMilliseconds / 1000.0;
