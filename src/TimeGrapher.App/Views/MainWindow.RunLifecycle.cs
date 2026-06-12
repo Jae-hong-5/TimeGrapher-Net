@@ -182,6 +182,10 @@ public partial class MainWindow
         }
 
         SetGuiStopMode();
+        // A run that completed without ever locking the beat must not keep the
+        // "Waiting for tick-tock sync…" overlay over the stopped plots (the
+        // manual-stop path clears this in RunCommandService.Stop).
+        mViewModel.IsAwaitingBeatSync = false;
         mViewModel.StatusText = failed ? failureStatus : "Stopped";
     }
 

@@ -271,7 +271,13 @@ public partial class MainWindow : Window
         }
 
         mLastAnalysisFrame = frame;
-        mViewModel.IsAwaitingBeatSync = !frame.BeatSynced;
+        // The drained final frame of a completed run arrives after the GUI
+        // reached Stopped (completeInput keeps the session id alive); it must
+        // not re-raise the waiting overlay.
+        if (mViewModel.RunState != RunUiState.Stopped)
+        {
+            mViewModel.IsAwaitingBeatSync = !frame.BeatSynced;
+        }
         mGraphFrameRenderer.UpdateResults(frame);
         mFrameRouter.Route(frame, ActiveInfoTabId(), BuildTabRenderContext(frame));
 
