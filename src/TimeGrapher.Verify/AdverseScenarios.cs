@@ -73,7 +73,6 @@ internal sealed record AdverseGates(
     double MinPrecision = double.NaN,
     int MinResets = -1,
     int MaxResets = -1,
-    int MaxSyncLosses = -1,
     bool InfoOnly = false);
 
 internal sealed record AdverseScenario(
@@ -135,6 +134,9 @@ internal static class AdverseScenarios
         // Measured baseline: 7 detector resets in 16 s, lock never survives -
         // the W-3 regime-reset DoS. Pinned at >= 3 resets. Robust measured:
         // 0 resets, Synced 21600, recall 0.083 -> 0.262.
+        // Mirrored in-process by tests/TimeGrapher.Core.Tests/
+        // DetectorStressScenarioTests.cs - keep parameters and gates in sync
+        // when recalibrating.
         new("impulse-dos", Bph: 21600, SampleRate: 48000, Seconds: 16,
             PcmPeak: 0.03, NoisePeak: 0.004, Realistic: false,
             ImpulseRate: 1.0, ImpulseAmp: 0.95,
@@ -150,6 +152,9 @@ internal static class AdverseScenarios
         // Measured baseline: sync lost at the 6 s gain step and never
         // re-acquired (W-4(b): reference peak latched high, no decay path).
         // Robust measured: re-locks Synced 21600, post-step recall 0.694.
+        // Mirrored in-process by tests/TimeGrapher.Core.Tests/
+        // DetectorStressScenarioTests.cs - keep parameters and gates in sync
+        // when recalibrating.
         new("quiet-step", Bph: 21600, SampleRate: 48000, Seconds: 16,
             PcmPeak: 0.60, NoisePeak: 0.01, Realistic: false,
             GainStepAtS: 6.0, GainStepFactor: 0.13, EvalStartS: 10.0,
@@ -370,10 +375,6 @@ internal static class AdverseScenarios
         if (gates.MaxResets >= 0)
         {
             ok &= resets <= gates.MaxResets;
-        }
-        if (gates.MaxSyncLosses >= 0)
-        {
-            ok &= snapshot.SyncLossCount <= (uint)gates.MaxSyncLosses;
         }
         return ok ? "PASS" : "FAIL";
     }
