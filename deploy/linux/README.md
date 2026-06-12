@@ -1,8 +1,8 @@
-# Linux (Raspberry Pi 5) — install · run · desktop integration
+# Linux (x64 / Raspberry Pi 5 arm64) — install · run · desktop integration
 
 **English** · [한국어](README.ko.md)
 
-The release's `TimeGrapher-<version>-linux-arm64.tar.gz` ships this README, the app
+The release's `TimeGrapher-<version>-linux-<arch>.tar.gz` ships this README, the app
 binary, the icon (`AppIcon-256.png`), and the installer script (`install.sh`).
 
 ## 1. Quick install (recommended)
@@ -14,7 +14,7 @@ extract folder plus a desktop shortcut (replacing any existing one). Every entry
 
 ```bash
 mkdir -p ~/timegrapher
-tar -xzf TimeGrapher-*-linux-arm64.tar.gz -C ~/timegrapher
+tar -xzf TimeGrapher-*-linux-*.tar.gz -C ~/timegrapher
 cd ~/timegrapher
 ./install.sh           # apt deps + chmod + icon/.desktop install (skip deps: --no-deps)
 ./TimeGrapher.App      # or 'TimeGrapher' from the menu/taskbar

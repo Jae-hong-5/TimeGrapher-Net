@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# TimeGrapher — Raspberry Pi 5 (linux-arm64) installer.
+# TimeGrapher — Linux (linux-x64 / linux-arm64) installer.
 #
 # Run from inside the extracted release folder:
 #     ./install.sh

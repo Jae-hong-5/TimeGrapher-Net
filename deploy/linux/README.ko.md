@@ -1,8 +1,8 @@
-# Linux (Raspberry Pi 5) 설치 · 실행 · 데스크톱 통합
+# Linux (x64 / Raspberry Pi 5 arm64) 설치 · 실행 · 데스크톱 통합
 
 [English](README.md) · **한국어**
 
-릴리즈의 `TimeGrapher-<버전>-linux-arm64.tar.gz`에는 이 README, 앱 바이너리,
+릴리즈의 `TimeGrapher-<버전>-linux-<arch>.tar.gz`에는 이 README, 앱 바이너리,
 아이콘(`AppIcon-256.png`), 설치 스크립트(`install.sh`)가 함께 들어 있다.
 
 ## 1. 빠른 설치 (권장)
@@ -13,7 +13,7 @@
 
 ```bash
 mkdir -p ~/timegrapher
-tar -xzf TimeGrapher-*-linux-arm64.tar.gz -C ~/timegrapher
+tar -xzf TimeGrapher-*-linux-*.tar.gz -C ~/timegrapher
 cd ~/timegrapher
 ./install.sh           # apt 의존성 + chmod + 아이콘/.desktop 설치 (의존성 생략: --no-deps)
 ./TimeGrapher.App      # 또는 메뉴/작업표시줄의 'TimeGrapher'
