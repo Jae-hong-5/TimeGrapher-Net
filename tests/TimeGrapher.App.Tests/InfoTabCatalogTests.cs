@@ -96,6 +96,16 @@ public sealed class InfoTabCatalogTests
     }
 
     [Fact]
+    public void VarioTabRendersFromCumulativeHistoryNotGraphSeries()
+    {
+        InfoTabDefinition tab = InfoTabCatalog.Get(InfoTabCatalog.VarioTabId);
+
+        Assert.Equal(InfoTabKind.Vario, tab.Kind);
+        Assert.False(tab.UsesGraphSnapshots);
+        Assert.Empty(tab.GraphSeries);
+    }
+
+    [Fact]
     public void LongTermPerfTabRendersFromCumulativeHistoryNotGraphSeries()
     {
         InfoTabDefinition tab = InfoTabCatalog.Get(InfoTabCatalog.LongTermPerfTabId);
