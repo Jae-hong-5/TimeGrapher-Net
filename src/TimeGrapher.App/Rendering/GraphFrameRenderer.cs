@@ -18,7 +18,7 @@ internal sealed class GraphFrameRenderer
     /// (fixed-width) so the readout never shifts when real values replace the dashes.
     /// </summary>
     public const string PlaceholderResults =
-        "RATE ----- s/d | AMPLITUDE ---° | BEAT ERROR ---- ms | BEAT ----- bph";
+        "RATE ------ s/d | AMPLITUDE ---° | BEAT ERROR ---- ms | BEAT ----- bph";
 
     private readonly IReadOnlyList<IAnalysisFrameConsumer> _consumers;
     private readonly TextBlock _results;

@@ -520,7 +520,7 @@ public sealed class WatchMetrics
     /// Pure formatter for the title-bar readout. Each field is fixed-width so the line never
     /// shifts as values change; present numeric values are wrapped in value-span markers (so
     /// the UI can accent only the numbers) while dash placeholders are left unmarked. Widths:
-    /// rate 5 ("-99.9"), amplitude 3 + constant degree sign, beat error 4 ("-9.9"), bph 5.
+    /// rate 6 ("-999.9"), amplitude 3 + constant degree sign, beat error 4 ("-9.9"), bph 5.
     /// </summary>
     internal static string BuildResults(
         bool bphValid, int bph,
@@ -529,7 +529,8 @@ public sealed class WatchMetrics
         bool amplitudeValid, double amplitude)
     {
         string beatsPerHour = bphValid ? Mark(ArgInt(bph, 5)) : "-----";
-        string rateError = rateValid ? Mark(PrintfPlusFloat(rate, 5, 1)) : "-----";
+        // Original: QString::asprintf("%+6.1f", RlsRate) — width 6.
+        string rateError = rateValid ? Mark(PrintfPlusFloat(rate, 6, 1)) : "------";
         string beatErrorText = beatErrorValid ? Mark(ArgFixed(beatError, 4, 1)) : "----";
         string amplitudeText = amplitudeValid ? Mark(ArgLong(QRound64(amplitude), 3)) : "---";
 
