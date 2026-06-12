@@ -27,6 +27,8 @@ public sealed class AnalysisWorker : IDisposable
         public bool AutoBph = true;
         public int ManualBph = 0;
         public double HpfCutoffHz = 0.0;
+        /// <summary>Opt-in detection robustness options; null = original pipeline.</summary>
+        public TgDetectorOptions? DetectorOptions = null;
         public int SoundImageWidth = 0;
         public int SoundImageHeight = 0;
         public int ScopeSnapshotPointBudget = 8000;
@@ -84,7 +86,8 @@ public sealed class AnalysisWorker : IDisposable
             config.UseCOnset,
             config.AutoBph,
             config.ManualBph,
-            config.HpfCutoffHz));
+            config.HpfCutoffHz,
+            config.DetectorOptions));
 
         _inputBlock = new float[DetectorNumberOfSamples];
         _scopeRateProjector = new ScopeRateFrameProjector(

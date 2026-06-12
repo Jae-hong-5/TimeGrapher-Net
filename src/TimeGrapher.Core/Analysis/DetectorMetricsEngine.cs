@@ -11,7 +11,8 @@ public sealed record DetectorMetricsEngineConfig(
     bool UseCOnset,
     bool AutoBph,
     int ManualBph,
-    double HpfCutoffHz);
+    double HpfCutoffHz,
+    TgDetectorOptions? DetectorOptions = null);
 
 public readonly record struct DetectedEventUpdate(
     TgEvent Event,
@@ -72,7 +73,7 @@ public sealed class DetectorMetricsEngine
         detectorConfig.SuppressPreSyncEvents = true;
         detectorConfig.HpfCutoffHz = config.HpfCutoffHz;
 
-        _detector = new TgDetector(detectorConfig);
+        _detector = new TgDetector(detectorConfig, config.DetectorOptions);
         _metrics.Reset();
     }
 

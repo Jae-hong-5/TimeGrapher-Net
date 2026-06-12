@@ -1,3 +1,4 @@
+using TimeGrapher.Core.Analysis;
 using TimeGrapher.Core.Detection;
 using TimeGrapher.Core.Sim;
 using Xunit;
@@ -41,6 +42,54 @@ public sealed class DetectorOptionsFidelityTests
             detectorNull.Process(blockA.AsSpan(0, slice), resultNull);
             detectorAllOff.Process(blockB.AsSpan(0, slice), resultAllOff);
             AssertBlockIdentical(resultNull, resultAllOff);
+            remaining -= slice;
+        }
+    }
+
+    [Fact]
+    public void EngineWithAllOffOptions_MatchesEngineWithNullOptions()
+    {
+        WatchSynthStreamConfig synthConfig = MakeStream("realistic");
+
+        var synthA = new WatchSynthStream(synthConfig);
+        var synthB = new WatchSynthStream(synthConfig);
+        DetectorMetricsEngine NewEngine(TgDetectorOptions? options) =>
+            new(new DetectorMetricsEngineConfig(
+                SampleRate: 48000,
+                LiftAngle: 52.0,
+                AveragingPeriod: 2,
+                UseCOnset: false,
+                AutoBph: true,
+                ManualBph: 0,
+                HpfCutoffHz: 0.0,
+                DetectorOptions: options));
+        DetectorMetricsEngine engineNull = NewEngine(null);
+        DetectorMetricsEngine engineAllOff = NewEngine(new TgDetectorOptions());
+
+        var blockA = new float[4096];
+        var blockB = new float[4096];
+        int remaining = 48000 * 8;
+        while (remaining > 0)
+        {
+            int slice = Math.Min(blockA.Length, remaining);
+            synthA.Generate(blockA.AsSpan(0, slice));
+            synthB.Generate(blockB.AsSpan(0, slice));
+            DetectorMetricsBlockUpdate updateNull = engineNull.Process(blockA.AsSpan(0, slice));
+            DetectorMetricsBlockUpdate updateAllOff = engineAllOff.Process(blockB.AsSpan(0, slice));
+
+            Assert.Equal(updateNull.Result.SyncStatus, updateAllOff.Result.SyncStatus);
+            Assert.Equal(updateNull.Result.DetectedBph, updateAllOff.Result.DetectedBph);
+            Assert.Equal(updateNull.Result.OnsetThreshold, updateAllOff.Result.OnsetThreshold);
+            Assert.Equal(updateNull.Result.NoiseFloor, updateAllOff.Result.NoiseFloor);
+            Assert.Equal(updateNull.Events.Count, updateAllOff.Events.Count);
+            for (int i = 0; i < updateNull.Events.Count; i++)
+            {
+                Assert.Equal(updateNull.Events[i].EventSample, updateAllOff.Events[i].EventSample);
+                Assert.Equal(updateNull.Events[i].Event.Type, updateAllOff.Events[i].Event.Type);
+                Assert.Equal(
+                    updateNull.Events[i].MetricsUpdate.ResultsText,
+                    updateAllOff.Events[i].MetricsUpdate.ResultsText);
+            }
             remaining -= slice;
         }
     }
