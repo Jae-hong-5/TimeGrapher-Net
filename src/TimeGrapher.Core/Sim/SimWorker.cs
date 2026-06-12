@@ -75,7 +75,8 @@ public sealed class SimWorker : IAudioInputWorker
         _thread = new Thread(() => StartSim(cfgCopy))
         {
             IsBackground = true,
-            Name = "SimWorker"
+            Name = "SimWorker",
+            Priority = ThreadPriority.Highest // matches QThread::TimeCriticalPriority intent
         };
         _thread.Start();
         return true;

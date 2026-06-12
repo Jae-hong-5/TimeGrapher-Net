@@ -85,6 +85,7 @@ public sealed class PlaybackWorker : IAudioInputWorker
         _thread = new Thread(() => Run(fileName))
         {
             IsBackground = true,
+            Name = "PlaybackWorker",
             Priority = ThreadPriority.Highest // matches QThread::TimeCriticalPriority intent
         };
         _thread.Start();
