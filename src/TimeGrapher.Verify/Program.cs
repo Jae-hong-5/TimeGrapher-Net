@@ -26,11 +26,18 @@ var generatedFiles = new List<string>();
 // captured from the synth's FillF32 event side channel at write time.
 var truthByFile = new Dictionary<string, double[]>(StringComparer.OrdinalIgnoreCase);
 bool runAdverse = false;
+bool runFidelityCheck = false;
 foreach (string arg in args)
 {
     if (arg == "--adverse")
     {
         runAdverse = true;
+        continue;
+    }
+
+    if (arg == "--fidelity-check")
+    {
+        runFidelityCheck = true;
         continue;
     }
 
@@ -57,7 +64,7 @@ foreach (string arg in args)
 }
 files.AddRange(generatedFiles);
 
-if (files.Count == 0 && !runAdverse)
+if (files.Count == 0 && !runAdverse && !runFidelityCheck)
 {
     Console.Error.WriteLine("TimeGrapher.Verify: no WAV files specified");
     return 1;
@@ -223,6 +230,13 @@ finally
 if (runAdverse && !AdverseScenarios.Run(Console.Out))
 {
     allMatch = false;
+}
+
+// Standing fidelity gate: all-off options must equal the original pipeline.
+if (runFidelityCheck && !FidelityCheck.Run(Console.Out))
+{
+    allMatch = false;
+    Console.Error.WriteLine("  MISMATCH: all-off DetectorOptions diverged from the null-options pipeline");
 }
 
 return allMatch ? 0 : 1;
