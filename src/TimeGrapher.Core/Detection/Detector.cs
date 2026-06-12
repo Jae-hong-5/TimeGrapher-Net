@@ -87,6 +87,15 @@ internal sealed class TgDetectorCore
     /* ---- reference peak: median of last N accepted burst peaks ---- */
     public readonly double[] PeakHistory = new double[TG_PEAK_HISTORY_N];
 
+    /* ---- I-1 AdaptiveFloor runtime state (idle while the option is off):
+     * shadow ring of REJECTED burst peaks above RejectedPeakMinSnr, plus the
+     * absolute index of the last accepted peak for the reference decay. ---- */
+    public readonly double[] RejPeakHistory = new double[TG_PEAK_HISTORY_N];
+    public int RejPeakHistoryCount;
+    public int RejPeakHistoryHead;
+    public double RejMedianPeakCache;
+    public ulong LastAcceptAbsIdx;
+
     /* Sort scratch for the median / 75th-percentile caches. The detector is
      * driven by a single analysis thread and the percentile cache refreshes once
      * per ~1 ms of silence, so reusing these keeps that path allocation-free. */
@@ -186,6 +195,13 @@ internal sealed class TgDetectorCore
         PeakHistoryCount = 0;
         PeakHistoryHead = 0;
         MedianPeakCache = 0.0;
+
+        /* I-1 AdaptiveFloor runtime state (config flags are preserved). */
+        for (int i = 0; i < TG_PEAK_HISTORY_N; ++i) RejPeakHistory[i] = 0.0;
+        RejPeakHistoryCount = 0;
+        RejPeakHistoryHead = 0;
+        RejMedianPeakCache = 0.0;
+        LastAcceptAbsIdx = 0;
         for (int i = 0; i < TG_NOISE_HISTORY_N; ++i) NoiseHistory[i] = 0.0;
         NoiseHistoryCount = 0;
         NoiseHistoryHead = 0;
@@ -500,6 +516,27 @@ internal sealed class TgDetectorCore
     // push_peak
     private void PushPeak(double peak, ulong absIdx)
     {
+        if (AdaptiveFloorEnabled)
+        {
+            /* I-1: an accept after RefDecayAfterS without accepts means the
+             * decayed reference (not the stale median) admitted this burst -
+             * the loudness regime moved down. Restart the peak history from
+             * this beat; otherwise the stale loud median re-latches the
+             * threshold and only one beat per decay cycle gets through
+             * (observed as a ~2.5 s limit cycle that keeps BPH lock
+             * unreachable). Downward counterpart of the V5.6 upward
+             * regime reset. */
+            ulong afterSamples = (ulong)(RefDecayAfterS * Fs);
+            if (LastAcceptAbsIdx > 0 && PeakHistoryCount > 0
+                && absIdx > LastAcceptAbsIdx + afterSamples)
+            {
+                for (int i = 0; i < TG_PEAK_HISTORY_N; ++i) PeakHistory[i] = 0.0;
+                PeakHistoryCount = 0;
+                PeakHistoryHead = 0;
+                MedianPeakCache = 0.0;
+            }
+            LastAcceptAbsIdx = absIdx;
+        }
         PeakHistory[PeakHistoryHead] = peak;
         PeakHistoryHead = (PeakHistoryHead + 1) % TG_PEAK_HISTORY_N;
         if (PeakHistoryCount < TG_PEAK_HISTORY_N) PeakHistoryCount++;
@@ -544,9 +581,27 @@ internal sealed class TgDetectorCore
         return (p > f) ? p : f;
     }
 
-    /* Compute the current reference peak level used to derive thresholds. */
+    /* I-1: record a rejected burst peak in the shadow ring and refresh its
+     * median (shares the sort scratch; single analysis thread). */
+    // push_rejected_peak
+    private void PushRejectedPeak(double peak)
+    {
+        RejPeakHistory[RejPeakHistoryHead] = peak;
+        RejPeakHistoryHead = (RejPeakHistoryHead + 1) % TG_PEAK_HISTORY_N;
+        if (RejPeakHistoryCount < TG_PEAK_HISTORY_N) RejPeakHistoryCount++;
+        int n = RejPeakHistoryCount;
+        double[] tmp = _medianSortScratch;
+        for (int i = 0; i < n; ++i) tmp[i] = RejPeakHistory[i];
+        InsertionSort(tmp, n);
+        RejMedianPeakCache = (n & 1) != 0
+            ? tmp[n / 2]
+            : 0.5 * (tmp[n / 2 - 1] + tmp[n / 2]);
+    }
+
+    /* Compute the current reference peak level used to derive thresholds.
+     * absIdx is consumed only by the opt-in I-1 reference decay. */
     // reference_peak
-    private double ReferencePeak()
+    private double ReferencePeak(ulong absIdx)
     {
         double floorRef = 10.0 * NoiseFloor;
         double r;
@@ -566,16 +621,51 @@ internal sealed class TgDetectorCore
         {
             r = MedianPeakCache;
         }
+
+        if (AdaptiveFloorEnabled)
+        {
+            /* Reference decay (W-4): a reference latched high by a loud
+             * episode relaxes exponentially once no burst has been accepted
+             * for RefDecayAfterS, restoring sensitivity after loud-to-quiet
+             * transitions. The (adapted) floor below still bounds it. */
+            if (PeakHistoryCount > 0 && LastAcceptAbsIdx > 0)
+            {
+                ulong afterSamples = (ulong)(RefDecayAfterS * Fs);
+                if (absIdx > LastAcceptAbsIdx + afterSamples)
+                {
+                    double overSamples = (double)(absIdx - LastAcceptAbsIdx - afterSamples);
+                    r *= Math.Exp(-overSamples / (RefDecayTauS * Fs));
+                }
+            }
+
+            /* Floor adaptation (W-2): when the normal reference sits below
+             * the hard 10x-noise floor (weak-signal regime) and enough
+             * rejected bursts have accumulated, let the floor descend toward
+             * their median, bounded below by AdaptiveFloorMinMul x noise.
+             * Rejected bursts previously left no statistical trace at all,
+             * making sub-floor watches permanently undetectable. */
+            if (r < floorRef
+                && RejPeakHistoryCount >= RejectedPeakMinCount
+                && RejMedianPeakCache > AdaptiveFloorMinMul * NoiseFloor)
+            {
+                double adapted = RejMedianPeakCache;
+                double lo = AdaptiveFloorMinMul * NoiseFloor;
+                if (adapted < lo) adapted = lo;
+                if (adapted < floorRef) floorRef = adapted;
+            }
+        }
+
         return (r > floorRef) ? r : floorRef;
     }
 
     /* Compute the current thresholds from the noise floor and reference peak. */
     // compute_thresholds
-    private void ComputeThresholds(out double effNoise, out double refPeak,
+    private void ComputeThresholds(ulong absIdx,
+                                   out double effNoise, out double refPeak,
                                    out double span, out double onsetThr, out double minPeakThr)
     {
         double n = EffectiveNoise();
-        double r = ReferencePeak();
+        double r = ReferencePeak(absIdx);
         double sp = r - n;
         if (sp < n * 2.0) sp = n * 2.0;
         effNoise = n;
@@ -589,7 +679,7 @@ internal sealed class TgDetectorCore
     public void GetThresholds(out double onsetThr, out double minPeakThr,
                               out double effNoise, out double refPeak)
     {
-        ComputeThresholds(out effNoise, out refPeak, out _, out onsetThr, out minPeakThr);
+        ComputeThresholds(TotalSamples, out effNoise, out refPeak, out _, out onsetThr, out minPeakThr);
     }
 
     // clamp_fraction
@@ -670,7 +760,7 @@ internal sealed class TgDetectorCore
             }
 
             /* Thresholds anchored to median of recent peak heights. */
-            ComputeThresholds(out _, out _, out double span, out double onsetThr, out double _);
+            ComputeThresholds(absIdx, out _, out _, out double span, out double onsetThr, out double _);
 
             /* Silence gate is wall-clock based. Increment silence_samples
              * every sample we're NOT in a burst, unconditionally. */
@@ -857,6 +947,14 @@ internal sealed class TgDetectorCore
                         /* Noise bump rejected - pretend the whole episode
                          * was quiet so the silence-gate is open. */
                         SilenceSamples = 1000000;
+                        /* I-1: rejected bursts leave a statistical trace so
+                         * the reference floor can adapt down to a weak watch
+                         * (only clearly supra-noise bumps qualify). */
+                        if (AdaptiveFloorEnabled
+                            && BurstMax >= RejectedPeakMinSnr * EffectiveNoise())
+                        {
+                            PushRejectedPeak(BurstMax);
+                        }
                     }
                     InBurst = 0;
                 }
