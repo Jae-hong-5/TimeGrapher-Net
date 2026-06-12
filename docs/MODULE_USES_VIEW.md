@@ -94,6 +94,7 @@ flowchart TB
     Program --> CoreAnalysis
     Program --> CoreAudioIo
     Program --> CoreShared
+    Views --> Program
     Views --> ViewModels
     Views --> Services
     Views --> Audio
