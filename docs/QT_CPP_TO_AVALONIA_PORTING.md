@@ -167,6 +167,7 @@ Pi에서는 다음을 확인했다.
 - Qt 동영상 스플래시는 MP4 직접 재생 대신 PNG 시퀀스 재생으로 바꿨다.
 - Windows 장치의 AGC 비활성화 경로는 NAudio에서 직접 노출되지 않아 엔드포인트 볼륨 제어 중심으로 정리했다.
 - Pi live audio는 Windows와 같은 라이브러리가 아니라 PipeWire/ALSA 명령 기반으로 구현했다.
+- 원본의 Linux 마이크 초기화(`LinuxSetSoundParameters`: ALSA 캡처 볼륨 50% 설정 + AGC 비활성화)는 아직 포팅하지 않았다 — Pi에서는 마이크 볼륨/AGC가 시스템 기본값으로 동작하며, ALSA 믹서 제어(`amixer`) 기반 이식은 Pi 실기 검증과 함께 진행할 항목으로 남겨 두었다.
 
 이 차이는 기능을 포기하기 위한 것이 아니라, Windows와 Raspberry Pi를 모두 지원하기 위해 현실적인 방식으로 바꾼 것이다.
 

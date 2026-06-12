@@ -110,6 +110,7 @@
 - 원본 Qt 동영상 스플래시는 MP4 직접 재생 대신 PNG 시퀀스 스플래시로 구현.
 - Linux/Pi live audio는 PipeWire `pw-record`와 ALSA `arecord` fallback 방식으로 App 경계에 구현.
 - AGC 비활성화(device-topology 순회) — NAudio 미노출로 엔드포인트 볼륨 설정만 수행.
+- `LinuxSetSoundParameters`(Linux 마이크 캡처 볼륨 50% + AGC 비활성화, LinuxAudio.cpp) — 미포팅. `ConfigurePreferredInput`은 Linux에서 no-op이며, Pi의 마이크 볼륨/AGC는 시스템 기본값에 맡겨진다. `amixer` 기반 이식은 Pi 실기(마이크 연결) 검증과 함께 진행할 잔여 항목.
 - `__uint128_t` 고정밀 경로 — MSVC에서 원래 비활성이므로 double 폴백 분기만 포팅.
 - `GetRate(double&)` → `out double`, deque→LinkedList 등 C# 관용 대체 (결과 동일).
 - 헤더 검증 실패 시 PlaybackDoneReadingFile 2회 emit → 1회로 정리.
