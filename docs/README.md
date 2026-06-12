@@ -1,6 +1,6 @@
 # TimeGrapherNet Docs
 
-문서는 세 종류로 나눈다.
+문서는 네 종류로 나눈다.
 
 ## 발표/설명용
 
@@ -38,6 +38,18 @@
 - `source-notes/01_PORTING_PLAN.md`: 초기 구현 계약 기록
 - `source-notes/02_ARCHITECTURE_CHANGES.md`: 반영된 구조 변경 기록
 - `source-notes/03_ARCHITECTURE_REVIEW_FIXES.md`: 리뷰 반영 기록과 최신 검증 요약
+
+## 요구사항 원문 자료
+
+과제 브리프, 채점 기준, 프로젝트 계획, 측정 수식, 장비 매뉴얼 같은 요구사항 원문 자료는 `requirement/`에 보관한다. 각 문서에서 추출한 이미지는 같은 이름의 `*_images/` 디렉터리에 있다.
+
+- `requirement/LG-2026-Arch-Kick-Off-Brief.md`: 과제 킥오프 브리프
+- `requirement/LG-SW-Architect-Final-Demo-Grading-Score-Sheet-and-Ruberic.md`: 최종 데모 채점 기준
+- `requirement/Time-Grapher-Project-Plan-(Draft).md`: 프로젝트 계획 초안
+- `requirement/TimeGrapher-Equations_v0.docx.md`: 측정 수식 원문 (v0)
+- `requirement/TimeGrapher/Documents/TimeGrapher Equations_v1.md`: 측정 수식 원문 (v1)
+- `requirement/TimeGrapher-GUI-Set-Up-Instructions.md`: 원본 GUI 설치 안내
+- `requirement/Witschi-Chronoscope-X1-G3-Instruction-Manual.md`, `requirement/Witschi-Training-Course.md`: 상용 장비 참고 자료
 
 ## 빠른 설명
 
