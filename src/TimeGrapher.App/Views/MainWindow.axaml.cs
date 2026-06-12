@@ -4,26 +4,20 @@ using System.ComponentModel;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Threading.Tasks;
 
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
-using Avalonia.Media;
 using Avalonia.Styling;
 using Avalonia.Threading;
 
 using TimeGrapher.App;
-using TimeGrapher.App.Audio;
 using TimeGrapher.App.Rendering;
 using TimeGrapher.App.Services;
 using TimeGrapher.App.Tabs;
 using TimeGrapher.App.ViewModels;
-using TimeGrapher.Core.Analysis;
-using TimeGrapher.Core.AudioIo;
 using TimeGrapher.Core.Detection;
 using TimeGrapher.Core.Shared;
-using TimeGrapher.Core.Sim;
 
 namespace TimeGrapher.App.Views;
 
