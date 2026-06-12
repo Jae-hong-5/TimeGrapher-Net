@@ -21,17 +21,20 @@ const int DetectorNumberOfSamples = 4096;
 // Collect WAV paths: a directory argument expands to its *.wav files.
 var files = new List<string>();
 var generatedFiles = new List<string>();
+// Ground-truth beat times (seconds, file-relative) for generated fixtures,
+// captured from the synth's FillF32 event side channel at write time.
+var truthByFile = new Dictionary<string, double[]>(StringComparer.OrdinalIgnoreCase);
 foreach (string arg in args)
 {
     if (arg == "--generated")
     {
-        generatedFiles.AddRange(GenerateSyntheticFixtures());
+        generatedFiles.AddRange(GenerateSyntheticFixtures(truthByFile));
         continue;
     }
 
     if (arg == "--byte-fixtures")
     {
-        generatedFiles.AddRange(GenerateByteBuiltFixtures());
+        generatedFiles.AddRange(GenerateByteBuiltFixtures(truthByFile));
         continue;
     }
 
@@ -72,6 +75,7 @@ try
         int detectedBph = 0;
         var syncStatus = TgSyncStatus.NotSynced;
         string resultsText = "";
+        var detectedATimes = new List<double>();
 
         float[] samples = wav.Samples;
         int total = samples.Length;
@@ -91,6 +95,10 @@ try
 
             for (int i = 0; i < update.Events.Count; i++)
             {
+                if (update.Events[i].Event.Type == TgEventType.A)
+                {
+                    detectedATimes.Add(update.Events[i].EventSample / wav.SampleRate);
+                }
                 if (update.Events[i].MetricsUpdate.ResultsUpdated)
                 {
                     resultsText = update.Events[i].MetricsUpdate.ResultsText;
@@ -106,6 +114,10 @@ try
         syncStatus = flushUpdate.Result.SyncStatus;
         for (int i = 0; i < flushUpdate.Events.Count; i++)
         {
+            if (flushUpdate.Events[i].Event.Type == TgEventType.A)
+            {
+                detectedATimes.Add(flushUpdate.Events[i].EventSample / wav.SampleRate);
+            }
             if (flushUpdate.Events[i].MetricsUpdate.ResultsUpdated)
             {
                 resultsText = flushUpdate.Events[i].MetricsUpdate.ResultsText;
@@ -121,6 +133,19 @@ try
         Console.WriteLine(string.Format(CultureInfo.InvariantCulture,
             "{0}: detected_bph={1} sync_status={2} results=[{3}]",
             name, detectedBph, syncStatus, cleanResults));
+
+        // Informational ground-truth scoring for generated fixtures (the lock
+        // takes <= ~2 s, so evaluation starts at 2 s). Does not affect the
+        // pass/fail gates below.
+        if (truthByFile.TryGetValue(file, out double[]? truthTimes))
+        {
+            DetectionScorer.Score score = DetectionScorer.Match(
+                truthTimes, detectedATimes.ToArray(), toleranceS: 0.005, evalStartS: 2.0);
+            Console.WriteLine(string.Format(CultureInfo.InvariantCulture,
+                "  score: truth={0} detected={1} matched={2} recall={3:F3} precision={4:F3} a_bias_ms={5:F3} a_rms_ms={6:F3}",
+                score.TruthCount, score.DetectedCount, score.Matched,
+                score.Recall, score.Precision, score.MedianOffsetMs, score.RmsAfterOffsetMs));
+        }
 
         if (syncStatus != TgSyncStatus.Synced)
         {
@@ -188,7 +213,7 @@ finally
 
 return allMatch ? 0 : 1;
 
-static IEnumerable<string> GenerateSyntheticFixtures()
+static IEnumerable<string> GenerateSyntheticFixtures(Dictionary<string, double[]> truthByFile)
 {
     string dir = Path.Combine(Path.GetTempPath(), "timegrapher-verify-" + Guid.NewGuid().ToString("N"));
     Directory.CreateDirectory(dir);
@@ -210,7 +235,7 @@ static IEnumerable<string> GenerateSyntheticFixtures()
             bph,
             name,
             sampleRate));
-        WriteSyntheticWav(path, bph, sampleRate, seconds, pcmPeak, noisePeak);
+        truthByFile[path] = WriteSyntheticWav(path, bph, sampleRate, seconds, pcmPeak, noisePeak);
         yield return path;
     }
 
@@ -229,12 +254,12 @@ static IEnumerable<string> GenerateSyntheticFixtures()
             bph,
             name,
             sampleRate));
-        WriteSyntheticWav(path, bph, sampleRate, seconds, pcmPeak, noisePeak, silenceLeadInSamples, clip, realistic);
+        truthByFile[path] = WriteSyntheticWav(path, bph, sampleRate, seconds, pcmPeak, noisePeak, silenceLeadInSamples, clip, realistic);
         yield return path;
     }
 }
 
-static IEnumerable<string> GenerateByteBuiltFixtures()
+static IEnumerable<string> GenerateByteBuiltFixtures(Dictionary<string, double[]> truthByFile)
 {
     string dir = Path.Combine(Path.GetTempPath(), "timegrapher-verify-byte-" + Guid.NewGuid().ToString("N"));
     Directory.CreateDirectory(dir);
@@ -254,12 +279,12 @@ static IEnumerable<string> GenerateByteBuiltFixtures()
             bph,
             name,
             sampleRate));
-        WriteByteBuiltSyntheticWav(path, bph, sampleRate, seconds, pcmPeak, noisePeak, extensible, oddJunk, listChunk);
+        truthByFile[path] = WriteByteBuiltSyntheticWav(path, bph, sampleRate, seconds, pcmPeak, noisePeak, extensible, oddJunk, listChunk);
         yield return path;
     }
 }
 
-static void WriteSyntheticWav(
+static double[] WriteSyntheticWav(
     string path,
     int bph,
     int sampleRate,
@@ -299,12 +324,22 @@ static void WriteSyntheticWav(
         silenceRemaining -= slice;
     }
 
+    // Ground-truth beat times via the event side channel, shifted by the
+    // silence lead-in so they are file-relative.
+    var truthTimes = new List<double>();
+    double leadInS = (double)silenceLeadInSamples / sampleRate;
+    var eventBuf = new WatchSynthStreamEvent[64];
+
     int remaining = sampleRate * seconds;
     while (remaining > 0)
     {
         int slice = Math.Min(block.Length, remaining);
         Span<float> span = block.AsSpan(0, slice);
-        synth.Generate(span);
+        WatchSynthStreamFillResult fill = synth.FillF32(span, eventBuf);
+        for (int i = 0; i < fill.EventsWritten; i++)
+        {
+            truthTimes.Add(leadInS + eventBuf[i].TimeS);
+        }
         if (hardClip)
         {
             for (int i = 0; i < slice; i++)
@@ -323,9 +358,11 @@ static void WriteSyntheticWav(
     {
         throw new IOException("Failed to close generated WAV file: " + path);
     }
+
+    return truthTimes.ToArray();
 }
 
-static void WriteByteBuiltSyntheticWav(
+static double[] WriteByteBuiltSyntheticWav(
     string path,
     int bph,
     int sampleRate,
@@ -394,19 +431,27 @@ static void WriteByteBuiltSyntheticWav(
     WriteFourCc(writer, "data");
     writer.Write(dataSize);
 
+    var truthTimes = new List<double>();
+    var eventBuf = new WatchSynthStreamEvent[64];
     var block = new float[4096];
     int remaining = sampleCount;
     while (remaining > 0)
     {
         int slice = Math.Min(block.Length, remaining);
         Span<float> span = block.AsSpan(0, slice);
-        synth.Generate(span);
+        WatchSynthStreamFillResult fill = synth.FillF32(span, eventBuf);
+        for (int i = 0; i < fill.EventsWritten; i++)
+        {
+            truthTimes.Add(eventBuf[i].TimeS);
+        }
         for (int i = 0; i < slice; i++)
         {
             writer.Write(BitConverter.SingleToInt32Bits(span[i]));
         }
         remaining -= slice;
     }
+
+    return truthTimes.ToArray();
 }
 
 static void WriteFourCc(BinaryWriter writer, string fourCc)
