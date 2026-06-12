@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using TimeGrapher.Core.AudioIo;
 using TimeGrapher.Core.Detection;
+using TimeGrapher.Core.Detection.Scoring;
 using TimeGrapher.Core.Shared;
 
 namespace TimeGrapher.Core.Analysis;
@@ -29,6 +30,8 @@ public sealed class AnalysisWorker : IDisposable
         public double HpfCutoffHz = 0.0;
         /// <summary>Opt-in detection robustness options; null = original pipeline.</summary>
         public TgDetectorOptions? DetectorOptions = null;
+        /// <summary>Opt-in veto gate at the metrics choke point; null = no gate.</summary>
+        public IBeatEventGate? EventGate = null;
         public int SoundImageWidth = 0;
         public int SoundImageHeight = 0;
         public int ScopeSnapshotPointBudget = 8000;
@@ -87,7 +90,8 @@ public sealed class AnalysisWorker : IDisposable
             config.AutoBph,
             config.ManualBph,
             config.HpfCutoffHz,
-            config.DetectorOptions));
+            config.DetectorOptions,
+            config.EventGate != null ? new BeatEventGateConfig(config.EventGate) : null));
 
         _inputBlock = new float[DetectorNumberOfSamples];
         _scopeRateProjector = new ScopeRateFrameProjector(
