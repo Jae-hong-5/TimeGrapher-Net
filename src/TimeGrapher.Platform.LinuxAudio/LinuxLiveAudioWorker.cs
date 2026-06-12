@@ -501,6 +501,7 @@ public sealed class LinuxLiveAudioWorker : ILiveAudioWorker
             double delta = currentTime - _lastTime;
             double fps = _frameCount / delta;
             double sps = _sampleCount / delta;
+            // Original: SampleCount/FrameCount with both uint64_t -> integer division.
             double spf = _sampleCount / _frameCount;
             _rawAudio.SetStats(fps, spf, sps);
             _lastTime = currentTime;

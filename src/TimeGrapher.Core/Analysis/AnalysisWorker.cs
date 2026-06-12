@@ -302,7 +302,6 @@ public sealed class AnalysisWorker : IDisposable
             {
                 SessionId = _config.SessionId,
                 SourceId = _nextFrameSourceId++,
-                SourceSampleEnd = sourceSampleEnd,
                 SampleRate = _config.SampleRate,
                 PendingSamples = read.OriginalPendingSamples,
                 BackgroundFps = read.Fps,
@@ -431,7 +430,6 @@ public sealed class AnalysisWorker : IDisposable
         {
             SessionId = _config.SessionId,
             SourceId = _nextFrameSourceId++,
-            SourceSampleEnd = snapshot.TotalSamplesWritten,
             SampleRate = _config.SampleRate,
             PendingSamples = 0,
             BackgroundFps = snapshot.Fps,
@@ -472,7 +470,9 @@ public sealed class AnalysisWorker : IDisposable
             double fdelta = currentTime - _foregroundLastTime;
             frame.ForegroundFps = _foregroundFrameCount / fdelta;
             frame.ForegroundSps = _foregroundSampleCount / fdelta;
-            frame.ForegroundSpf = (double)_foregroundSampleCount / _foregroundFrameCount;
+            // Original: mForegroundSampleCount/mForegroundFrameCount with both
+            // uint64_t -> integer division.
+            frame.ForegroundSpf = _foregroundSampleCount / _foregroundFrameCount;
             frame.ForegroundStatsUpdated = true;
 
             _foregroundLastTime = currentTime;
