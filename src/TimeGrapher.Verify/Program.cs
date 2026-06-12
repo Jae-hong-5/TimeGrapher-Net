@@ -15,6 +15,7 @@ using TimeGrapher.Core.AudioIo;
 using TimeGrapher.Core.Detection;
 using TimeGrapher.Core.Metrics;
 using TimeGrapher.Core.Sim;
+using TimeGrapher.Verify;
 
 const int DetectorNumberOfSamples = 4096;
 
@@ -24,8 +25,15 @@ var generatedFiles = new List<string>();
 // Ground-truth beat times (seconds, file-relative) for generated fixtures,
 // captured from the synth's FillF32 event side channel at write time.
 var truthByFile = new Dictionary<string, double[]>(StringComparer.OrdinalIgnoreCase);
+bool runAdverse = false;
 foreach (string arg in args)
 {
+    if (arg == "--adverse")
+    {
+        runAdverse = true;
+        continue;
+    }
+
     if (arg == "--generated")
     {
         generatedFiles.AddRange(GenerateSyntheticFixtures(truthByFile));
@@ -49,7 +57,7 @@ foreach (string arg in args)
 }
 files.AddRange(generatedFiles);
 
-if (files.Count == 0)
+if (files.Count == 0 && !runAdverse)
 {
     Console.Error.WriteLine("TimeGrapher.Verify: no WAV files specified");
     return 1;
@@ -209,6 +217,12 @@ finally
         {
         }
     }
+}
+
+// Adverse-condition scenario rows (in-memory, ground-truth scored).
+if (runAdverse && !AdverseScenarios.Run(Console.Out))
+{
+    allMatch = false;
 }
 
 return allMatch ? 0 : 1;
