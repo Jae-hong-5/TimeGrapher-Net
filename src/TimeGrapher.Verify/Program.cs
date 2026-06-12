@@ -27,6 +27,10 @@ var generatedFiles = new List<string>();
 var truthByFile = new Dictionary<string, double[]>(StringComparer.OrdinalIgnoreCase);
 bool runAdverse = false;
 bool runFidelityCheck = false;
+string profileSpec = "baseline";
+string? optsSpec = null;
+string? gateSpec = null;
+string? abSpec = null;
 foreach (string arg in args)
 {
     if (arg == "--adverse")
@@ -38,6 +42,31 @@ foreach (string arg in args)
     if (arg == "--fidelity-check")
     {
         runFidelityCheck = true;
+        continue;
+    }
+
+    if (arg.StartsWith("--profile=", StringComparison.Ordinal))
+    {
+        profileSpec = arg["--profile=".Length..];
+        continue;
+    }
+
+    if (arg.StartsWith("--opts=", StringComparison.Ordinal))
+    {
+        optsSpec = arg["--opts=".Length..];
+        continue;
+    }
+
+    if (arg.StartsWith("--gate=", StringComparison.Ordinal))
+    {
+        gateSpec = arg["--gate=".Length..];
+        continue;
+    }
+
+    if (arg.StartsWith("--ab=", StringComparison.Ordinal))
+    {
+        abSpec = arg["--ab=".Length..];
+        runAdverse = true; // A/B implies the adverse rows
         continue;
     }
 
@@ -227,9 +256,60 @@ finally
 }
 
 // Adverse-condition scenario rows (in-memory, ground-truth scored).
-if (runAdverse && !AdverseScenarios.Run(Console.Out))
+if (runAdverse)
 {
-    allMatch = false;
+    // Resolve the arm(s). --gate=onnx:<path> is reserved for the future
+    // inference project; using it today is a usage error (exit 2).
+    if (gateSpec != null && gateSpec.StartsWith("onnx:", StringComparison.Ordinal))
+    {
+        Console.Error.WriteLine(
+            "TimeGrapher.Verify: --gate=onnx:<path> is reserved for the TimeGrapher.Inference gate (not yet implemented)");
+        return 2;
+    }
+    if (gateSpec != null && gateSpec != "off" && gateSpec != "pll")
+    {
+        Console.Error.WriteLine($"TimeGrapher.Verify: unknown --gate value '{gateSpec}' (off|pll)");
+        return 2;
+    }
+
+    ArmSpec? ResolveArm(string spec)
+    {
+        ArmSpec? arm = ArmSpec.Parse(spec);
+        if (arm != null && gateSpec != null)
+        {
+            arm = arm with { Name = $"{arm.Name}:gate={gateSpec}", UsePllGate = gateSpec == "pll" };
+        }
+        return arm;
+    }
+
+    if (abSpec != null)
+    {
+        string[] armSpecs = abSpec.Split(',');
+        ArmSpec? armA = armSpecs.Length == 2 ? ResolveArm(armSpecs[0]) : null;
+        ArmSpec? armB = armSpecs.Length == 2 ? ResolveArm(armSpecs[1]) : null;
+        if (armA == null || armB == null)
+        {
+            Console.Error.WriteLine($"TimeGrapher.Verify: invalid --ab spec '{abSpec}' (expected armA,armB)");
+            return 2;
+        }
+        if (!AdverseScenarios.RunAb(Console.Out, armA, armB))
+        {
+            allMatch = false;
+        }
+    }
+    else
+    {
+        ArmSpec? arm = ResolveArm(optsSpec ?? profileSpec);
+        if (arm == null)
+        {
+            Console.Error.WriteLine($"TimeGrapher.Verify: invalid profile/opts spec '{optsSpec ?? profileSpec}'");
+            return 2;
+        }
+        if (!AdverseScenarios.Run(Console.Out, arm))
+        {
+            allMatch = false;
+        }
+    }
 }
 
 // Standing fidelity gate: all-off options must equal the original pipeline.
