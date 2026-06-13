@@ -14,11 +14,13 @@ namespace TimeGrapher.App.Rendering;
 ///
 /// Scope 1: the selected-or-latest beat segment on the main plot (X in ms,
 /// clipped to the 20/200/400 ms range), with pooled A / C-peak / C-onset
-/// marker lines and an optional mirrored view. The capture's envelope is
-/// already rectified (absolute value); MIRROR additionally draws its negation
-/// to approximate the bipolar waveform look of the reference display. The
-/// frameless strip lane below compresses the 8 most recent beats side by side;
-/// pressing a strip selects it (a pooled span highlights the slot).
+/// marker lines and an optional bipolar RAW view. By default the main trace is
+/// the rectified envelope; RAW instead draws the real un-rectified waveform as
+/// its per-point min/max outlines (the actual bipolar signal, symmetric about
+/// zero — not a mirror of the envelope), falling back to the negated envelope
+/// only when the producer fed no raw. The frameless strip lane below compresses
+/// the 8 most recent beats side by side; pressing a strip selects it (a pooled
+/// span highlights the slot).
 ///
 /// Scope 2: the two phase-alternating averaged lanes on a fixed 0-20 ms axis,
 /// vertically offset and labeled trace 1/2 (never tic/toc), with the per-lane
@@ -291,6 +293,55 @@ internal sealed class BeatNoiseScopeRenderer
             return;
         }
 
+        // RAW on + raw available: the real bipolar waveform (max up, min down).
+        // Otherwise the rectified envelope, mirrored below zero only when RAW is on.
+        if (_mirror && segment.RawValid)
+        {
+            RenderMainRaw(segment);
+        }
+        else
+        {
+            RenderMainEnvelope(segment);
+        }
+
+        SetMarker(_aMarker, segment.AOffsetMs);
+        SetMarker(_cPeakMarker, segment.CPeakValid ? segment.CPeakOffsetMs : null);
+        SetMarker(_cOnsetMarker, segment.COnsetValid ? segment.COnsetOffsetMs : null);
+    }
+
+    private void RenderMainRaw(BeatSegment segment)
+    {
+        ReadOnlySpan<float> min = segment.RawMin.Span;
+        ReadOnlySpan<float> max = segment.RawMax.Span;
+        int count = Math.Min(min.Length, max.Length);
+        double rangeAbsMax = 0.0;
+        for (int i = 0; i < count; i++)
+        {
+            double x = i * segment.MsPerPoint;
+            _mainX.Add(x);
+            _mainY.Add(max[i]);
+            _mainYMirror.Add(min[i]);
+            if (x <= _rangeMs)
+            {
+                double extent = Math.Max(Math.Abs(min[i]), Math.Abs(max[i]));
+                if (extent > rangeAbsMax)
+                {
+                    rangeAbsMax = extent;
+                }
+            }
+        }
+
+        if (rangeAbsMax <= 0.0)
+        {
+            rangeAbsMax = 1.0;
+        }
+
+        double yMax = rangeAbsMax * 1.1;
+        _mainPlot.Plot.Axes.SetLimitsY(-yMax, yMax);
+    }
+
+    private void RenderMainEnvelope(BeatSegment segment)
+    {
         ReadOnlySpan<float> samples = segment.Samples.Span;
         double rangeMax = 0.0;
         for (int i = 0; i < samples.Length; i++)
@@ -313,10 +364,6 @@ internal sealed class BeatNoiseScopeRenderer
 
         double yMax = rangeMax * 1.1;
         _mainPlot.Plot.Axes.SetLimitsY(_mirror ? -yMax : -0.02 * yMax, yMax);
-
-        SetMarker(_aMarker, segment.AOffsetMs);
-        SetMarker(_cPeakMarker, segment.CPeakValid ? segment.CPeakOffsetMs : null);
-        SetMarker(_cOnsetMarker, segment.COnsetValid ? segment.COnsetOffsetMs : null);
     }
 
     private void RenderStrips(BeatSegmentsSnapshot snapshot)

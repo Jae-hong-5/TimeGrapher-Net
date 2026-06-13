@@ -995,7 +995,7 @@ internal sealed class InfoTabRegistry
         InfoTabDefinition definition,
         InfoTabFactoryContext context)
     {
-        // Scope 1: toolbar (range / MIRROR / Σ / lift angle), the enlarged
+        // Scope 1: toolbar (range / RAW / Σ / lift angle), the enlarged
         // selected-or-latest beat, and the frameless strip lane of the 8 most
         // recent beats. Scope 2: the two averaged lanes above their readout.
         var mainPlot = new AvaPlot();
@@ -1061,16 +1061,16 @@ internal sealed class InfoTabRegistry
 
         UpdateRangeButtonStates();
 
-        var mirrorToggle = new ToggleButton
+        var rawToggle = new ToggleButton
         {
-            Content = "MIRROR",
+            Content = "RAW",
             Padding = new Thickness(8, 2, 8, 2),
             FontSize = 11,
             Margin = new Thickness(8, 0, 0, 0),
         };
-        ToolTip.SetTip(mirrorToggle, "Mirror the rectified envelope below zero (bipolar waveform look)");
-        mirrorToggle.IsCheckedChanged += (_, _) => renderer.SetMirror(mirrorToggle.IsChecked == true);
-        toolbar.Children.Add(mirrorToggle);
+        ToolTip.SetTip(rawToggle, "Show the real un-rectified bipolar waveform (min/max), not the rectified envelope");
+        rawToggle.IsCheckedChanged += (_, _) => renderer.SetMirror(rawToggle.IsChecked == true);
+        toolbar.Children.Add(rawToggle);
 
         // Σ writes the shared SigmaAveraging view-model property; MainWindow
         // forwards the change to the running analysis worker (the
