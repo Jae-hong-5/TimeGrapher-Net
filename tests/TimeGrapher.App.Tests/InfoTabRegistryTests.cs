@@ -10,6 +10,8 @@ namespace TimeGrapher.App.Tests;
 
 public sealed class InfoTabRegistryTests
 {
+    private const double VarioCapturedMinimumFontSize = 16.0;
+
     [Fact]
     public void RegistryCreatesCatalogTabsAndConsumers()
     {
@@ -138,9 +140,9 @@ public sealed class InfoTabRegistryTests
             summaryColumns.Children.Single(child => Grid.GetColumn(child) == 2));
 
         Assert.Equal("View criteria ▾", criteriaButton.Content);
-        Assert.True(criteriaButton.FontSize >= 12);
-        Assert.True(criteriaButton.MinWidth >= 144);
-        Assert.True(criteriaButton.MinHeight >= 30);
+        Assert.True(criteriaButton.FontSize >= VarioCapturedMinimumFontSize);
+        Assert.True(criteriaButton.MinWidth >= 168);
+        Assert.True(criteriaButton.MinHeight >= 36);
         Assert.Equal(HorizontalAlignment.Right, criteriaButton.HorizontalAlignment);
         Assert.Equal(VerticalAlignment.Top, criteriaButton.VerticalAlignment);
         Assert.Equal(160, summaryColumns.ColumnDefinitions[2].Width.Value);
@@ -171,7 +173,27 @@ public sealed class InfoTabRegistryTests
         {
             Assert.True(header.Opacity >= 0.8);
             Assert.Equal(FontWeight.SemiBold, header.FontWeight);
+            Assert.True(header.FontSize >= VarioCapturedMinimumFontSize);
         });
+    }
+
+    [Fact]
+    public void VarioTextUsesCapturedMinimumFontSize()
+    {
+        Grid content = CreateVarioContent();
+        Button criteriaButton = Descendants(content)
+            .OfType<Button>()
+            .Single(button => Equals(button.Content, "View criteria ▾"));
+        var flyout = Assert.IsType<Flyout>(criteriaButton.Flyout);
+        var criteriaPanel = Assert.IsType<StackPanel>(flyout.Content);
+
+        TextBlock[] textBlocks = Descendants(content)
+            .Concat(Descendants(criteriaPanel))
+            .OfType<TextBlock>()
+            .ToArray();
+
+        Assert.NotEmpty(textBlocks);
+        Assert.All(textBlocks, text => Assert.True(text.FontSize >= VarioCapturedMinimumFontSize));
     }
 
     [Fact]

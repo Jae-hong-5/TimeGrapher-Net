@@ -47,6 +47,7 @@ internal sealed class VarioRenderer
     private const uint AcceptBandEdge = 0xFF9A6A00;
     private const byte AcceptBandAlpha = 42;
     private const byte AcceptBandEdgeAlpha = 180;
+    private const float MarkerLabelFontSize = 16;
 
     // Y layout inside each gauge: bands fill the plot; labels sit in the headroom.
     private const double YMax = 1.42;
@@ -169,7 +170,7 @@ internal sealed class VarioRenderer
             {
                 Text label = plot.Add.Text(string.Empty, 0.0, VarioGaugeLayout.CurrentLabelY);
                 label.LabelFontName = _textFontFamily;
-                label.LabelFontSize = 12;
+                label.LabelFontSize = MarkerLabelFontSize;
                 label.LabelBold = true;
                 label.IsVisible = false;
                 gauge.Labels.Add(label);

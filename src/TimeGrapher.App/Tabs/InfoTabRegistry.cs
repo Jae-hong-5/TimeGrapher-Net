@@ -19,6 +19,8 @@ internal sealed record InfoTabRegistration(
 
 internal sealed class InfoTabRegistry
 {
+    private const double VarioMinimumFontSize = 16.0;
+
     private delegate InfoTabRegistration InfoTabFactory(
         InfoTabDefinition definition,
         InfoTabFactoryContext context);
@@ -371,7 +373,7 @@ internal sealed class InfoTabRegistry
             var title = new TextBlock
             {
                 Text = text,
-                FontSize = 13,
+                FontSize = VarioMinimumFontSize,
                 FontWeight = FontWeight.Bold,
                 VerticalAlignment = VerticalAlignment.Center,
             };
@@ -387,7 +389,7 @@ internal sealed class InfoTabRegistry
                 Child = new TextBlock
                 {
                     Text = bandText,
-                    FontSize = 11,
+                    FontSize = VarioMinimumFontSize,
                     FontWeight = FontWeight.SemiBold,
                     VerticalAlignment = VerticalAlignment.Center,
                 },
@@ -402,7 +404,6 @@ internal sealed class InfoTabRegistry
         var ratePlot = new AvaPlot();
         var amplitudePlot = new AvaPlot();
 
-        // --- SUMMARY bar: verdicts and elapsed; exact numbers stay in the table ---
         var rateStatus = new TextBlock { FontSize = 24, FontWeight = FontWeight.Bold };
         var ampStatus = new TextBlock { FontSize = 24, FontWeight = FontWeight.Bold };
         var elapsedValue = new TextBlock { FontSize = 24, FontWeight = FontWeight.Bold, FontFamily = font };
@@ -410,7 +411,7 @@ internal sealed class InfoTabRegistry
         StackPanel SummaryColumn(string caption, TextBlock status)
         {
             var sp = new StackPanel { Margin = new Thickness(12, 0, 12, 2) };
-            sp.Children.Add(new TextBlock { Text = caption, FontSize = 12, Opacity = 0.9, FontWeight = FontWeight.SemiBold });
+            sp.Children.Add(new TextBlock { Text = caption, FontSize = VarioMinimumFontSize, Opacity = 0.9, FontWeight = FontWeight.SemiBold });
             sp.Children.Add(status);
             return sp;
         }
@@ -420,15 +421,15 @@ internal sealed class InfoTabRegistry
             HorizontalAlignment = HorizontalAlignment.Left,
             Margin = new Thickness(12, 0, 12, 2),
         };
-        elapsedColumn.Children.Add(new TextBlock { Text = "ELAPSED", FontSize = 12, Opacity = 0.9, FontWeight = FontWeight.SemiBold });
+        elapsedColumn.Children.Add(new TextBlock { Text = "ELAPSED", FontSize = VarioMinimumFontSize, Opacity = 0.9, FontWeight = FontWeight.SemiBold });
         elapsedColumn.Children.Add(elapsedValue);
 
         var criteriaButton = new Button
         {
             Content = "View criteria ▾",
-            FontSize = 12,
-            MinWidth = 144,
-            MinHeight = 30,
+            FontSize = VarioMinimumFontSize,
+            MinWidth = 168,
+            MinHeight = 36,
             Padding = new Thickness(12, 4, 12, 4),
             HorizontalAlignment = HorizontalAlignment.Right,
             VerticalAlignment = VerticalAlignment.Top,
@@ -455,7 +456,7 @@ internal sealed class InfoTabRegistry
 
         var overallText = new TextBlock
         {
-            FontSize = 14,
+            FontSize = VarioMinimumFontSize,
             FontWeight = FontWeight.Bold,
             TextWrapping = TextWrapping.Wrap,
             MinHeight = 22,
@@ -504,7 +505,7 @@ internal sealed class InfoTabRegistry
                 {
                     Text = VarioReadout.Missing,
                     FontFamily = font,
-                    FontSize = 13,
+                    FontSize = VarioMinimumFontSize,
                     FontWeight = FontWeight.SemiBold,
                     Margin = new Thickness(0, 0, 0, 1),
                     HorizontalAlignment = HorizontalAlignment.Left,
@@ -536,7 +537,7 @@ internal sealed class InfoTabRegistry
                 var header = new TextBlock
                 {
                     Text = columnHeaders[cellIndex],
-                    FontSize = 11,
+                    FontSize = VarioMinimumFontSize,
                     Opacity = 0.82,
                     FontWeight = FontWeight.SemiBold,
                     Margin = new Thickness(0, 0, 10, 0),
@@ -567,7 +568,7 @@ internal sealed class InfoTabRegistry
         // --- Legend (colour words match the gauge markers) ---
         var legend = new TextBlock
         {
-            FontSize = 12,
+            FontSize = VarioMinimumFontSize,
             Opacity = 1.0,
             FontWeight = FontWeight.SemiBold,
             Margin = new Thickness(16, 0, 16, 6),
@@ -641,11 +642,11 @@ internal sealed class InfoTabRegistry
         Color Warn = Color.FromRgb(0xB0, 0x6A, 0x00);
         Color Bad = Color.FromRgb(0xC0, 0x30, 0x30);
 
-        TextBlock Title(string t) => new() { Text = t, FontWeight = FontWeight.Bold, FontSize = 13, Margin = new Thickness(0, 6, 0, 2) };
+        TextBlock Title(string t) => new() { Text = t, FontWeight = FontWeight.Bold, FontSize = VarioMinimumFontSize, Margin = new Thickness(0, 6, 0, 2) };
         TextBlock Rule(string t, Color c) => new()
         {
             Text = t,
-            FontSize = 12,
+            FontSize = VarioMinimumFontSize,
             Foreground = new SolidColorBrush(c),
             Margin = new Thickness(0, 1, 0, 1),
             MaxWidth = 320,
@@ -653,11 +654,11 @@ internal sealed class InfoTabRegistry
         };
 
         var panel = new StackPanel { Margin = new Thickness(12), Width = 360, MaxWidth = 360 };
-        panel.Children.Add(new TextBlock { Text = "Assessment criteria", FontWeight = FontWeight.Bold, FontSize = 14 });
+        panel.Children.Add(new TextBlock { Text = "Assessment criteria", FontWeight = FontWeight.Bold, FontSize = VarioMinimumFontSize });
         panel.Children.Add(new TextBlock
         {
             Text = $"Shown after {VarioVerdict.MinSamples} beats, classified from the average, for the current watch position.",
-            FontSize = 11,
+            FontSize = VarioMinimumFontSize,
             Opacity = 0.7,
             TextWrapping = TextWrapping.Wrap,
             MaxWidth = 320,
