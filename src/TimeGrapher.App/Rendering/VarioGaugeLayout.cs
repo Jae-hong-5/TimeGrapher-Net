@@ -12,7 +12,7 @@ internal enum GaugeLabelAnchor
 internal readonly record struct GaugeLabel(string Role, double X, double Y, GaugeLabelAnchor Anchor);
 
 /// <summary>
-/// Decides where Vario gauge marker labels (min/max/avg/now) sit so same-value
+/// Decides where Vario gauge marker labels (min/max/avg/current) sit so same-value
 /// markers remain readable on fixed 1280x800 layouts. Min/max share the top lane,
 /// average uses the middle lane, and current uses the bottom lane; labels still
 /// anchor inward near the axis edges so they do not clip.
@@ -23,7 +23,7 @@ internal static class VarioGaugeLayout
     public const double LabelWidthFraction = 0.07;
 
     /// <summary>Markers within this fraction of an edge anchor inward so text cannot clip.</summary>
-    public const double EdgeFraction = 0.05;
+    public const double EdgeFraction = 0.02;
 
     public const double MinMaxLabelY = 1.29;
     public const double AverageLabelY = 1.18;
@@ -70,7 +70,7 @@ internal static class VarioGaugeLayout
 
         if (current is double c)
         {
-            labels.Add(CreateLabel("now", c, CurrentLabelY, lo, hi, span));
+            labels.Add(CreateLabel("current", c, CurrentLabelY, lo, hi, span));
         }
 
         labels.Sort((l, r) =>

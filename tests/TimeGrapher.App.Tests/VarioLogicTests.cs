@@ -149,11 +149,11 @@ public sealed class VarioLogicTests
             VarioGaugeLayout.LayOut(-11, 11, min: -4.5, max: 6.6, avg: 4.3, current: 2.7);
 
         Assert.Equal(4, labels.Count);
-        Assert.Equal(new[] { "min", "now", "avg", "max" }, labels.Select(l => l.Role));
+        Assert.Equal(new[] { "min", "current", "avg", "max" }, labels.Select(l => l.Role));
         Assert.Equal(VarioGaugeLayout.MinMaxLabelY, labels.Single(l => l.Role == "min").Y);
         Assert.Equal(VarioGaugeLayout.MinMaxLabelY, labels.Single(l => l.Role == "max").Y);
         Assert.Equal(VarioGaugeLayout.AverageLabelY, labels.Single(l => l.Role == "avg").Y);
-        Assert.Equal(VarioGaugeLayout.CurrentLabelY, labels.Single(l => l.Role == "now").Y);
+        Assert.Equal(VarioGaugeLayout.CurrentLabelY, labels.Single(l => l.Role == "current").Y);
         AssertNoSameLaneLabelOverlap(labels, -11, 11);
     }
 
@@ -163,23 +163,23 @@ public sealed class VarioLogicTests
         IReadOnlyList<GaugeLabel> labels =
             VarioGaugeLayout.LayOut(195, 305, min: 200, max: 201, avg: 200.5, current: 200.7);
 
-        Assert.Equal(new[] { "min/max", "avg", "now" }, labels.Select(l => l.Role));
+        Assert.Equal(new[] { "min/max", "avg", "current" }, labels.Select(l => l.Role));
         Assert.Equal(VarioGaugeLayout.MinMaxLabelY, labels.Single(l => l.Role == "min/max").Y);
         Assert.Equal(VarioGaugeLayout.AverageLabelY, labels.Single(l => l.Role == "avg").Y);
-        Assert.Equal(VarioGaugeLayout.CurrentLabelY, labels.Single(l => l.Role == "now").Y);
+        Assert.Equal(VarioGaugeLayout.CurrentLabelY, labels.Single(l => l.Role == "current").Y);
         AssertNoSameLaneLabelOverlap(labels, 195, 305);
     }
 
     [Fact]
-    public void Layout_AvgAndNowClose_UsesSeparateLanes()
+    public void Layout_AvgAndCurrentClose_UsesSeparateLanes()
     {
         IReadOnlyList<GaugeLabel> labels =
             VarioGaugeLayout.LayOut(185, 305, min: 190, max: 240, avg: 215, current: 215.5);
 
         Assert.Contains(labels, l => l.Role == "avg");
-        Assert.Contains(labels, l => l.Role == "now");
+        Assert.Contains(labels, l => l.Role == "current");
         Assert.Equal(VarioGaugeLayout.AverageLabelY, labels.Single(l => l.Role == "avg").Y);
-        Assert.Equal(VarioGaugeLayout.CurrentLabelY, labels.Single(l => l.Role == "now").Y);
+        Assert.Equal(VarioGaugeLayout.CurrentLabelY, labels.Single(l => l.Role == "current").Y);
         AssertNoSameLaneLabelOverlap(labels, 185, 305);
     }
 
@@ -191,9 +191,18 @@ public sealed class VarioLogicTests
 
         Assert.Equal(GaugeLabelAnchor.Left, labels.Single(l => l.Role == "min").Anchor);
         Assert.Equal(GaugeLabelAnchor.Right, labels.Single(l => l.Role == "max").Anchor);
-        Assert.All(labels.Where(l => l.Role is "avg" or "now"), l => Assert.Equal(GaugeLabelAnchor.Center, l.Anchor));
+        Assert.All(labels.Where(l => l.Role is "avg" or "current"), l => Assert.Equal(GaugeLabelAnchor.Center, l.Anchor));
         Assert.Equal(VarioGaugeLayout.AverageLabelY, labels.Single(l => l.Role == "avg").Y);
-        Assert.Equal(VarioGaugeLayout.CurrentLabelY, labels.Single(l => l.Role == "now").Y);
+        Assert.Equal(VarioGaugeLayout.CurrentLabelY, labels.Single(l => l.Role == "current").Y);
+    }
+
+    [Fact]
+    public void Layout_MarkerNearButNotAtEdge_KeepsCenteredAnchor()
+    {
+        IReadOnlyList<GaugeLabel> labels =
+            VarioGaugeLayout.LayOut(188.1, 303.9, min: 192, max: 205, avg: 200, current: 199);
+
+        Assert.Equal(GaugeLabelAnchor.Center, labels.Single(l => l.Role == "min").Anchor);
     }
 
     [Theory]
@@ -206,9 +215,9 @@ public sealed class VarioLogicTests
     [InlineData(-11.0, 11.0, -9.0, -8.5, -8.7, -8.6)]
     [InlineData(-11.0, 11.0, 5.0, 5.0, 5.0, 5.0)]
     public void Layout_NeverOverlaps_AcrossArrangements(
-        double lo, double hi, double min, double max, double avg, double now)
+        double lo, double hi, double min, double max, double avg, double current)
     {
-        IReadOnlyList<GaugeLabel> labels = VarioGaugeLayout.LayOut(lo, hi, min, max, avg, now);
+        IReadOnlyList<GaugeLabel> labels = VarioGaugeLayout.LayOut(lo, hi, min, max, avg, current);
         AssertNoSameLaneLabelOverlap(labels, lo, hi);
         Assert.All(labels, l => Assert.InRange(l.X, lo, hi));
         Assert.All(labels, l => Assert.InRange(l.Y, VarioGaugeLayout.CurrentLabelY, VarioGaugeLayout.MinMaxLabelY));
