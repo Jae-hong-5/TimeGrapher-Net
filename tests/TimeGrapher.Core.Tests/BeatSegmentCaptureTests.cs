@@ -359,6 +359,112 @@ public sealed class BeatSegmentCaptureTests
     }
 
     [Fact]
+    public void Capture_ExposesRealRawBipolarWindowAlignedWithTheEnvelopeGrid()
+    {
+        var capture = NewCapture();
+        const int aSample = 24000;             // 0.5 s
+        const int troughSample = aSample + 240; // +5 ms
+
+        // The raw (un-rectified) block carries a positive peak at the A and a
+        // negative trough 5 ms later; the envelope block (rectified) drives the
+        // window. The raw block is longer than the raw ring, so it wraps - the
+        // steady-state streaming case - yet the window's range is retained.
+        var raw = new float[48000];
+        raw[aSample] = 0.9f;
+        raw[troughSample] = -0.7f;
+        capture.AppendRaw(raw);
+
+        Feed(capture, 0, 48000,
+            spikes: new[] { (aSample, 0.9f) },
+            AEvent(aSample, peak: 0.9f, isTic: true));
+
+        BeatSegment segment = Assert.Single(capture.CurrentSnapshot()!.Segments);
+
+        Assert.True(segment.RawValid);
+        Assert.Equal(BeatSegmentCapture.SegmentPoints, segment.RawMin.Length);
+        Assert.Equal(BeatSegmentCapture.SegmentPoints, segment.RawMax.Length);
+
+        // The positive peak lands in RawMax at the A offset; the negative trough
+        // lands in RawMin 5 ms later - on the same point grid as Samples.
+        int aPoint = (int)(segment.AOffsetMs / BeatSegmentCapture.MsPerPoint);
+        int troughPoint = (int)((segment.AOffsetMs + 5.0) / BeatSegmentCapture.MsPerPoint);
+        Assert.Equal(0.9f, segment.RawMax.Span[aPoint], 3);
+        Assert.Equal(0f, segment.RawMin.Span[aPoint], 3);
+        Assert.Equal(-0.7f, segment.RawMin.Span[troughPoint], 3);
+
+        // A silent raw bucket is a true zero (the raw block was otherwise zero),
+        // unlike the rectified envelope's planted 0.05 floor.
+        Assert.Equal(0f, segment.RawMax.Span[aPoint + 50], 3);
+        Assert.Equal(0f, segment.RawMin.Span[aPoint + 50], 3);
+        Assert.Equal(0.05f, segment.Samples.Span[aPoint + 50]);
+    }
+
+    [Fact]
+    public void Capture_LeavesRawInvalidWhenNoRawIsFed()
+    {
+        var capture = NewCapture();
+        FeedBeats(capture, streamPosition: 0, beats: 1, beatSamples: 6000);
+
+        BeatSegment segment = Assert.Single(capture.CurrentSnapshot()!.Segments);
+        Assert.False(segment.RawValid);
+        Assert.True(segment.RawMin.IsEmpty);
+        Assert.True(segment.RawMax.IsEmpty);
+    }
+
+    [Fact]
+    public void Capture_DoesNotPublishRawForAWindowWhoseTailWasNotFed()
+    {
+        // The end-of-stream flush advances the envelope past the last fed raw
+        // sample, so a window can complete with its raw tail never written. That
+        // window must report RawValid=false (envelope only), not a torn raw tail
+        // read from stale ring memory.
+        var capture = NewCapture();
+        const int aSample = 1000;
+        int windowEnd = (int)(aSample - BeatSegmentCapture.PreEventMs * SamplesPerMs) + WindowSamples;
+
+        // Raw stops short of the window end (the last real block); the envelope
+        // is then fed across the full window (the flush's envelope tail), so the
+        // window completes even though its raw tail was never written.
+        capture.AppendRaw(new float[windowEnd - 50]);
+        Feed(capture, 0, windowEnd + 100, spikes: null, AEvent(aSample));
+
+        BeatSegment segment = Assert.Single(capture.CurrentSnapshot()!.Segments);
+        Assert.False(segment.RawValid);
+        Assert.True(segment.RawMin.IsEmpty);
+        Assert.True(segment.RawMax.IsEmpty);
+    }
+
+    [Fact]
+    public void Capture_DelayedPostGateEventStillCapturesAlignedRaw()
+    {
+        // The raw ring carries the detector's 50 ms envelope-delay lead on top
+        // of the envelope ring, so a delayed post-gate event - whose window
+        // opens long after its samples streamed - still finds its full raw
+        // window resident and publishes it aligned with the A.
+        const double postMs = 600.0;
+        var capture = NewCapture(maxDisplayDelayMs: postMs);
+        const int aSample = 24000;
+        const int blockSize = 4096;
+        int delayedEventBlockStart = aSample + (int)(postMs / 1000.0 * SampleRate);
+
+        // Raw streams on the same block schedule as the envelope, with a bipolar
+        // spike at the A.
+        var raw = new float[delayedEventBlockStart];
+        raw[aSample] = 0.8f;
+        capture.AppendRaw(raw);
+        capture.AppendRaw(new float[blockSize]);
+
+        Feed(capture, 0, delayedEventBlockStart, spikes: new[] { (aSample, 0.9f) });
+        Feed(capture, (ulong)delayedEventBlockStart, blockSize, spikes: null,
+            AEvent(aSample, peak: 0.9f, isTic: true));
+
+        BeatSegment segment = Assert.Single(capture.CurrentSnapshot()!.Segments);
+        Assert.True(segment.RawValid);
+        int aPoint = (int)(segment.AOffsetMs / BeatSegmentCapture.MsPerPoint);
+        Assert.Equal(0.8f, segment.RawMax.Span[aPoint], 3);
+    }
+
+    [Fact]
     public void Snapshot_IsSharedUntilANewSegmentCompletes()
     {
         var capture = NewCapture();

@@ -365,6 +365,10 @@ public sealed class AnalysisWorker : IDisposable
             _scopeRateProjector.Project(pipelineUpdate, frame);
             _soundPrintProjector.Project(pipelineUpdate);
             _beatMetricsProjector.Project(pipelineUpdate);
+            // Feed the un-rectified raw block before Project so the beat windows
+            // can expose the real bipolar waveform (RawMin/RawMax) alongside the
+            // envelope; the flush pass below has no new raw block and skips it.
+            _beatSegmentCapture.AppendRaw(block);
             _beatSegmentCapture.Project(pipelineUpdate);
             _sweepProjector.Project(pipelineUpdate);
             _foregroundSampleCount += (ulong)read.SamplesCopied;

@@ -258,6 +258,9 @@ class BeatSegmentsSnapshot {
 
 class BeatSegment {
     +ReadOnlyMemory~float~ Samples
+    +bool RawValid
+    +ReadOnlyMemory~float~ RawMin
+    +ReadOnlyMemory~float~ RawMax
     +double MsPerPoint
     +double StartTimeS
     +bool IsTic
@@ -397,7 +400,7 @@ BeatSegmentsSnapshot "1" *-- "1" BeatNoiseAverageSnapshot : scope 2 lane state
 | `StatsSummary` | `Core.Shared` (fed by `Core.Metrics.RunningStats`) | Running min/max/mean/population-σ since start for rate and amplitude — exact per-beat statistics independent of series decimation (Vario display) |
 | `WatchPosition` | `Core.Shared` | Standard watch test positions per NIHS 95-10 / ISO 3158 (CH dial up, CB dial down, 6H crown left, 9H crown down, 3H crown up, 12H crown right), plus four 45° intermediate positions (P6H45/P9H45/P3H45/P12H45) for the 10-step sequence; stamped on every snapshot as the position new beats are tagged with |
 | `PositionSummary` | `Core.Shared` (aggregated by `Core.Metrics.BeatMetricsHistory`) | Per-position rate/amplitude/signed-beat-error running aggregates; only measured positions appear, bounded by the 10-position catalog (WatchPositions.Count; Positions display) |
-| `BeatSegmentsSnapshot`, `BeatSegment` | `Core.Shared` (built by `Core.Analysis.BeatSegmentCapture`) | Ring of the last 8 per-beat envelope windows (5 ms pre-roll, 400 ms, 1600 points) with A / C-peak / C-onset offsets, phase and lift angle; segment samples reference the capture's fixed 28-buffer pool and stay immutable while referenced by the completed ring or the two most recently built snapshots — publication-gated reuse. The capture envelope ring is sized from the configured event-gate post-window, 5 ms pre-roll, one analysis block, and a one-sample sub-sample guard so delayed post-gate display events still read the same source envelope (Beat-Noise Scope; reused by beat-aligned waveform views) |
+| `BeatSegmentsSnapshot`, `BeatSegment` | `Core.Shared` (built by `Core.Analysis.BeatSegmentCapture`) | Ring of the last 8 per-beat envelope windows (5 ms pre-roll, 400 ms, 1600 points) with A / C-peak / C-onset offsets, phase and lift angle; segment samples reference the capture's fixed 28-buffer pool and stay immutable while referenced by the completed ring or the two most recently built snapshots — publication-gated reuse. When the worker also feeds the un-rectified input (`AppendRaw`), each window additionally carries the real bipolar waveform as per-point min/max (`RawMin`/`RawMax`, `RawValid` flag) on the envelope's point grid from a parallel raw ring/pool, so the escapement views show the actual raw signal rather than the negated envelope. The capture envelope ring is sized from the configured event-gate post-window, 5 ms pre-roll, one analysis block, and a one-sample sub-sample guard so delayed post-gate display events still read the same source envelope; the raw ring adds the detector's 50 ms envelope-delay lead (Beat-Noise Scope; reused by beat-aligned waveform views) |
 | `BeatNoiseAverageSnapshot` | `Core.Shared` (built by `Core.Analysis.BeatNoiseAverager`) | Scope 2 state: two phase-alternating 20 ms averaged lanes (800 points each) deliberately labeled trace 1/2 — never tic/toc — with per-lane interval counts, intervals-per-lane target, ms-per-point scale, mean peak amplitude and the cycle freeze flag |
 
 ## Relationship notes

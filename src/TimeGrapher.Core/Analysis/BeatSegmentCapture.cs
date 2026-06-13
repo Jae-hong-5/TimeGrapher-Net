@@ -10,6 +10,15 @@ namespace TimeGrapher.Core.Analysis;
 /// immutable <see cref="BeatSegmentsSnapshot"/> (Beat-Noise Scope; shared
 /// infrastructure for any beat-aligned waveform view).
 ///
+/// When the worker also feeds the un-rectified input via <see cref="AppendRaw"/>,
+/// each window additionally captures the real bipolar waveform as per-point
+/// min/max (<see cref="BeatSegment.RawMin"/> / <see cref="BeatSegment.RawMax"/>)
+/// on the same point grid as the envelope, so the escapement views can show the
+/// actual raw signal instead of the negated envelope. The raw and envelope share
+/// the absolute input-sample index domain (the detector's 50 ms envelope delay
+/// only re-times the displayed envelope; <c>ProcessedPcmStartSample</c> re-labels
+/// it back to input samples), so the same window start indexes both rings.
+///
 /// A fixed-size rolling envelope ring, sized from the sample rate and the
 /// configured event-gate post-window at construction, lets a window span
 /// detector block boundaries and the bounded post-gate display latency of a
@@ -63,6 +72,14 @@ public sealed class BeatSegmentCapture
 
     private const double BaseEnvelopeRingSeconds = 0.6;
 
+    /// <summary>
+    /// The detector's fixed envelope delay line (TgDetector, 50 ms). The raw
+    /// ring is NOT delayed, so it leads the envelope by this span and must hold
+    /// that much extra history beyond the envelope ring or a completing window's
+    /// start would have scrolled out of the raw ring before its raw is read.
+    /// </summary>
+    private const double DetectorEnvelopeDelayMs = 50.0;
+
     // Bounded backlog of open (not yet filled) windows. Windows complete after
     // WindowMs, so at most ceil(WindowMs / beat period) + 1 are open at once
     // (5 at the fastest standard 43200 BPH); overflow drops the oldest.
@@ -85,6 +102,7 @@ public sealed class BeatSegmentCapture
     {
         public float[] Buffer;
         public int PoolIndex;
+        public bool RawValid;
         public double StartTimeS;
         public bool IsTic;
         public double AOffsetMs;
@@ -100,7 +118,18 @@ public sealed class BeatSegmentCapture
     private readonly float[] _envelopeRing;
     private ulong _envelopeEndSample;
 
+    // Parallel raw-input ring (un-rectified, bipolar). Filled by AppendRaw in
+    // the same absolute index domain as the envelope ring; null-fed runs leave
+    // _rawFed false and segments publish RawValid = false.
+    private readonly float[] _rawRing;
+    private ulong _rawEndSample;
+    private bool _rawFed;
+
     private readonly float[][] _segmentPool;
+    // Raw min/max segment buffers share the envelope pool's index, so the
+    // existing publication-gated protection covers all three at once.
+    private readonly float[][] _rawMinPool;
+    private readonly float[][] _rawMaxPool;
     private int _nextPoolBuffer;
 
     // Snapshot version that last published each pool buffer (0 = never).
@@ -142,10 +171,15 @@ public sealed class BeatSegmentCapture
         _sampleRate = sampleRate;
         _liftAngleDeg = liftAngleDeg;
         _envelopeRing = new float[EnvelopeRingLength(sampleRate, maxDisplayDelayMs, deliveryBlockSamples)];
+        _rawRing = new float[RawRingLength(sampleRate, maxDisplayDelayMs, deliveryBlockSamples)];
         _segmentPool = new float[SegmentPoolCount][];
+        _rawMinPool = new float[SegmentPoolCount][];
+        _rawMaxPool = new float[SegmentPoolCount][];
         for (int i = 0; i < SegmentPoolCount; i++)
         {
             _segmentPool[i] = new float[SegmentPoints];
+            _rawMinPool[i] = new float[SegmentPoints];
+            _rawMaxPool[i] = new float[SegmentPoints];
         }
     }
 
@@ -155,6 +189,16 @@ public sealed class BeatSegmentCapture
         int delayedStartAgeSamples = (int)Math.Ceiling((maxDisplayDelayMs + PreEventMs) / 1000.0 * sampleRate) +
                                      deliveryBlockSamples + 1;
         return Math.Max(1, Math.Max(baseSamples, delayedStartAgeSamples));
+    }
+
+    private static int RawRingLength(int sampleRate, double maxDisplayDelayMs, int deliveryBlockSamples)
+    {
+        // The envelope ring already covers the window plus display-delay history;
+        // the raw ring leads it by the detector's envelope delay, so add that
+        // span (and a block of slack for the completion check firing a block late).
+        int envelopeLength = EnvelopeRingLength(sampleRate, maxDisplayDelayMs, deliveryBlockSamples);
+        int leadSamples = (int)Math.Ceiling(DetectorEnvelopeDelayMs / 1000.0 * sampleRate) + deliveryBlockSamples;
+        return envelopeLength + leadSamples;
     }
 
     /// <summary>
@@ -247,6 +291,9 @@ public sealed class BeatSegmentCapture
             segments.Add(new BeatSegment
             {
                 Samples = completed.Buffer,
+                RawValid = completed.RawValid,
+                RawMin = completed.RawValid ? _rawMinPool[completed.PoolIndex] : ReadOnlyMemory<float>.Empty,
+                RawMax = completed.RawValid ? _rawMaxPool[completed.PoolIndex] : ReadOnlyMemory<float>.Empty,
                 MsPerPoint = MsPerPoint,
                 StartTimeS = completed.StartTimeS,
                 IsTic = completed.IsTic,
@@ -268,6 +315,38 @@ public sealed class BeatSegmentCapture
         };
         _dirty = false;
         return _snapshot;
+    }
+
+    /// <summary>
+    /// Appends one un-rectified raw input block to the raw ring, in the same
+    /// absolute index domain as the envelope (the worker feeds the SAME block it
+    /// hands the detector, in order, so the running count tracks the detector's
+    /// input-sample clock). Must be called before <see cref="Project"/> for the
+    /// matching block. Analysis thread only.
+    /// </summary>
+    public void AppendRaw(ReadOnlySpan<float> block)
+    {
+        int length = block.Length;
+        if (length <= 0)
+        {
+            return;
+        }
+
+        _rawFed = true;
+
+        // Wrap-aware block copy (at most two segments), mirroring AppendEnvelope.
+        int ringLength = _rawRing.Length;
+        ulong start = _rawEndSample;
+        int copied = 0;
+        while (copied < length)
+        {
+            int destination = (int)((start + (ulong)copied) % (ulong)ringLength);
+            int chunk = Math.Min(length - copied, ringLength - destination);
+            block.Slice(copied, chunk).CopyTo(_rawRing.AsSpan(destination, chunk));
+            copied += chunk;
+        }
+
+        _rawEndSample = start + (ulong)length;
     }
 
     private void AppendEnvelope(DetectorResultSnapshot result)
@@ -398,16 +477,48 @@ public sealed class BeatSegmentCapture
                 break;
             }
 
-            CompleteSegment(in oldest);
+            // Raw is published only when the whole window was actually written
+            // to the raw ring and is still resident. The steady loop feeds raw
+            // ahead of the envelope, so this holds; it fails only for a window
+            // pushed to completion by the silent end-of-stream flush (which
+            // advances the envelope without a matching AppendRaw) — that window
+            // falls back to the envelope instead of reading stale ring memory.
+            bool rawCovered = IsRawWindowResident(oldest.StartSample, windowSamples);
+            CompleteSegment(in oldest, rawCovered);
             _pendingHead = (_pendingHead + 1) % _pending.Length;
             _pendingCount--;
         }
     }
 
-    private void CompleteSegment(in PendingSegment pending)
+    /// <summary>
+    /// True when <see cref="AppendRaw"/> has written the full window range
+    /// [start, start + windowSamples) and none of it has yet been overwritten by
+    /// a ring wrap, so <see cref="DecimateWindowMinMax"/> reads only real raw.
+    /// </summary>
+    private bool IsRawWindowResident(ulong startSample, ulong windowSamples)
+    {
+        if (!_rawFed || startSample + windowSamples > _rawEndSample)
+        {
+            return false;
+        }
+
+        ulong oldestResident = _rawEndSample > (ulong)_rawRing.Length
+            ? _rawEndSample - (ulong)_rawRing.Length
+            : 0UL;
+        return startSample >= oldestResident;
+    }
+
+    private void CompleteSegment(in PendingSegment pending, bool rawCovered)
     {
         float[] buffer = AcquireSegmentBuffer(out int poolIndex);
         DecimateWindow(pending.StartSample, WindowMs, buffer);
+
+        // The raw window decimates from the parallel raw ring at the same window
+        // start, so its min/max points align with the envelope points 1:1.
+        if (rawCovered)
+        {
+            DecimateWindowMinMax(pending.StartSample, WindowMs, _rawMinPool[poolIndex], _rawMaxPool[poolIndex]);
+        }
 
         double samplesToMs = 1000.0 / _sampleRate;
         double cPeakOffsetMs = pending.HasC
@@ -433,6 +544,7 @@ public sealed class BeatSegmentCapture
         {
             Buffer = buffer,
             PoolIndex = poolIndex,
+            RawValid = rawCovered,
             StartTimeS = pending.StartSample / (double)_sampleRate,
             IsTic = pending.IsTic,
             AOffsetMs = (pending.ASample - pending.StartSample) * samplesToMs,
@@ -520,6 +632,47 @@ public sealed class BeatSegmentCapture
             }
 
             target[point] = max;
+        }
+    }
+
+    /// <summary>
+    /// Fills <paramref name="minTarget"/> / <paramref name="maxTarget"/> with the
+    /// minimum and maximum raw sample of each equal-width bucket across the
+    /// window (min/max decimation preserves the bipolar extent of the
+    /// un-rectified signal, unlike the envelope's max-only decimation). The two
+    /// targets are the same length and share the envelope's point grid.
+    /// </summary>
+    private void DecimateWindowMinMax(ulong startSample, double windowMs, float[] minTarget, float[] maxTarget)
+    {
+        int ringLength = _rawRing.Length;
+        double samplesPerPoint = windowMs / 1000.0 * _sampleRate / maxTarget.Length;
+        for (int point = 0; point < maxTarget.Length; point++)
+        {
+            ulong from = startSample + (ulong)(point * samplesPerPoint);
+            ulong to = startSample + (ulong)((point + 1) * samplesPerPoint);
+            if (to <= from)
+            {
+                to = from + 1;
+            }
+
+            float min = _rawRing[(int)(from % (ulong)ringLength)];
+            float max = min;
+            for (ulong sample = from + 1; sample < to; sample++)
+            {
+                float value = _rawRing[(int)(sample % (ulong)ringLength)];
+                if (value < min)
+                {
+                    min = value;
+                }
+
+                if (value > max)
+                {
+                    max = value;
+                }
+            }
+
+            minTarget[point] = min;
+            maxTarget[point] = max;
         }
     }
 }

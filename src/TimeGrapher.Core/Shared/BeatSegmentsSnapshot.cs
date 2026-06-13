@@ -18,6 +18,26 @@ public sealed class BeatSegment
     /// <summary>Decimated envelope of the window (rectified, so values are non-negative).</summary>
     public ReadOnlyMemory<float> Samples { get; init; }
 
+    /// <summary>
+    /// True when the un-rectified raw-waveform window (<see cref="RawMin"/> /
+    /// <see cref="RawMax"/>) was captured for this segment. False when the
+    /// producer fed only the envelope (e.g. the detection-accuracy harness),
+    /// in which case consumers must fall back to <see cref="Samples"/>.
+    /// </summary>
+    public bool RawValid { get; init; }
+
+    /// <summary>
+    /// Per-point minimum of the un-rectified raw input over the same window and
+    /// point grid as <see cref="Samples"/>. Together with <see cref="RawMax"/>
+    /// this is min/max decimation of the real (bipolar) watch signal — what the
+    /// escapement views show instead of the negated envelope. Empty unless
+    /// <see cref="RawValid"/>.
+    /// </summary>
+    public ReadOnlyMemory<float> RawMin { get; init; }
+
+    /// <summary>Per-point maximum of the un-rectified raw input; see <see cref="RawMin"/>.</summary>
+    public ReadOnlyMemory<float> RawMax { get; init; }
+
     /// <summary>Milliseconds covered by one sample point.</summary>
     public double MsPerPoint { get; init; }
 
