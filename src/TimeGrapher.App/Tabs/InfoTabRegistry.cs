@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Documents;
 using Avalonia.Controls.Primitives;
 using Avalonia.Data;
 using Avalonia.Layout;
@@ -358,41 +359,182 @@ internal sealed class InfoTabRegistry
         InfoTabDefinition definition,
         InfoTabFactoryContext context)
     {
+        var font = new FontFamily(context.TextFontFamily);
+
         TextBlock SectionHeader(string text) => new()
         {
             Text = text,
             FontSize = 13,
+            FontWeight = FontWeight.Bold,
             Margin = new Thickness(8, 4, 8, 0),
         };
 
-        TextBlock Readout() => new()
+        var ratePlot = new AvaPlot();
+        var amplitudePlot = new AvaPlot();
+
+        // --- SUMMARY bar: colour-coded verdicts, sublines and elapsed ---
+        var rateStatus = new TextBlock { FontSize = 20, FontWeight = FontWeight.Bold };
+        var rateSub = new TextBlock { FontSize = 12, Opacity = 0.6, FontFamily = font };
+        var ampStatus = new TextBlock { FontSize = 20, FontWeight = FontWeight.Bold };
+        var ampSub = new TextBlock { FontSize = 12, Opacity = 0.6, FontFamily = font };
+        var elapsedValue = new TextBlock { FontSize = 22, FontWeight = FontWeight.Bold, FontFamily = font };
+
+        StackPanel SummaryColumn(string caption, TextBlock status, TextBlock sub)
         {
-            FontSize = 12,
-            Margin = new Thickness(8, 0, 8, 4),
+            var sp = new StackPanel { Margin = new Thickness(12, 2, 12, 2) };
+            sp.Children.Add(new TextBlock { Text = caption, FontSize = 11, Opacity = 0.6 });
+            sp.Children.Add(status);
+            sp.Children.Add(sub);
+            return sp;
+        }
+
+        var elapsedColumn = new StackPanel { Margin = new Thickness(12, 2, 12, 2) };
+        elapsedColumn.Children.Add(new TextBlock { Text = "ELAPSED", FontSize = 11, Opacity = 0.6 });
+        elapsedColumn.Children.Add(elapsedValue);
+
+        var criteriaButton = new Button
+        {
+            Content = "Criteria ▾",
+            FontSize = 11,
+            Padding = new Thickness(8, 2, 8, 2),
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(4, 0, 8, 0),
+            Flyout = new Flyout { Content = BuildVarioCriteria() },
         };
 
-        var ratePlot = new AvaPlot();
-        var rateReadout = Readout();
-        var amplitudePlot = new AvaPlot();
-        var amplitudeReadout = Readout();
-
-        var legend = new TextBlock
+        var summaryColumns = new Grid { ColumnDefinitions = new ColumnDefinitions("*,*,Auto,Auto") };
+        Control[] summaryCells =
         {
-            FontSize = 11,
-            Opacity = 0.65,
-            Margin = new Thickness(8, 0, 8, 3),
-            Text = "Green band = acceptable range · blue = measured min/max · red = average · thin = current",
+            SummaryColumn("RATE", rateStatus, rateSub),
+            SummaryColumn("AMPLITUDE", ampStatus, ampSub),
+            elapsedColumn,
+            criteriaButton,
+        };
+        for (int c = 0; c < summaryCells.Length; c++)
+        {
+            Grid.SetColumn(summaryCells[c], c);
+            summaryColumns.Children.Add(summaryCells[c]);
+        }
+
+        var summaryStack = new StackPanel();
+        summaryStack.Children.Add(new TextBlock { Text = "VARIO SUMMARY", FontSize = 11, Opacity = 0.55, Margin = new Thickness(12, 6, 12, 0) });
+        summaryStack.Children.Add(summaryColumns);
+        var summaryCard = new Border
+        {
+            Child = summaryStack,
+            CornerRadius = new CornerRadius(6),
+            BorderThickness = new Thickness(1),
+            BorderBrush = new SolidColorBrush(Color.FromRgb(0xC9, 0xC9, 0xC9)),
+            Background = new SolidColorBrush(Color.FromArgb(0x60, 0xFF, 0xFF, 0xFF)),
+            Margin = new Thickness(16, 8, 16, 4),
+            Padding = new Thickness(0, 0, 0, 6),
+        };
+
+        // --- Overall conclusion strip (renderer fills text/colour, hidden until ready) ---
+        var overallText = new TextBlock { FontSize = 13, FontWeight = FontWeight.Bold, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(10, 4, 10, 4) };
+        var overallBox = new Border
+        {
+            Child = overallText,
+            CornerRadius = new CornerRadius(5),
+            BorderThickness = new Thickness(1),
+            Margin = new Thickness(16, 0, 16, 4),
+            IsVisible = false,
+        };
+
+        // --- Numeric table: exact numbers live here; gauges show position only ---
+        string[] columnHeaders = { "Min", "Max", "Spread (Max−Min)", "Average", "Std dev (σ)", "Current" };
+        uint[] columnColors = { 0xFF2D7DD2, 0xFF2D7DD2, 0x00000000, 0xFFC0392B, 0x00000000, 0x00000000 };
+
+        TextBlock[] BuildCells()
+        {
+            var cells = new TextBlock[VarioRenderer.CellCount];
+            for (int i = 0; i < cells.Length; i++)
+            {
+                var cell = new TextBlock
+                {
+                    Text = VarioReadout.Missing,
+                    FontFamily = font,
+                    FontSize = 13,
+                    Margin = new Thickness(0, 1, 16, 1),
+                    HorizontalAlignment = HorizontalAlignment.Right,
+                };
+                if (columnColors[i] != 0u)
+                {
+                    cell.Foreground = new SolidColorBrush(Color.FromUInt32(columnColors[i]));
+                }
+
+                cells[i] = cell;
+            }
+
+            return cells;
+        }
+
+        TextBlock[] rateCells = BuildCells();
+        TextBlock[] amplitudeCells = BuildCells();
+
+        var table = new Grid
+        {
+            Margin = new Thickness(16, 2, 16, 2),
+            ColumnDefinitions = new ColumnDefinitions("Auto,Auto,Auto,Auto,Auto,Auto,Auto"),
+            RowDefinitions = new RowDefinitions("Auto,Auto,Auto"),
+        };
+        for (int c = 0; c < columnHeaders.Length; c++)
+        {
+            var header = new TextBlock
+            {
+                Text = columnHeaders[c],
+                FontSize = 11,
+                Opacity = 0.6,
+                Margin = new Thickness(0, 1, 16, 1),
+                HorizontalAlignment = HorizontalAlignment.Right,
+            };
+            Grid.SetRow(header, 0);
+            Grid.SetColumn(header, c + 1);
+            table.Children.Add(header);
+        }
+
+        void AddTableRow(string label, TextBlock[] cells, int row)
+        {
+            var rowLabel = new TextBlock { Text = label, FontSize = 13, Margin = new Thickness(0, 1, 16, 1) };
+            Grid.SetRow(rowLabel, row);
+            Grid.SetColumn(rowLabel, 0);
+            table.Children.Add(rowLabel);
+            for (int c = 0; c < cells.Length; c++)
+            {
+                Grid.SetRow(cells[c], row);
+                Grid.SetColumn(cells[c], c + 1);
+                table.Children.Add(cells[c]);
+            }
+        }
+
+        AddTableRow("Rate (s/d)", rateCells, 1);
+        AddTableRow("Amplitude (°)", amplitudeCells, 2);
+
+        // --- Legend (colour words match the gauge markers) ---
+        var legend = new TextBlock { FontSize = 12, Opacity = 0.9, Margin = new Thickness(16, 0, 16, 6) };
+        Run Swatch(string text, Color color) => new(text) { Foreground = new SolidColorBrush(color), FontWeight = FontWeight.Bold };
+        legend.Inlines = new InlineCollection
+        {
+            Swatch("Green band", Color.FromRgb(0x4C, 0xAF, 0x50)),
+            new Run(" = acceptable range     "),
+            Swatch("Blue", Color.FromRgb(0x2D, 0x7D, 0xD2)),
+            new Run(" = measured range (min–max)     "),
+            Swatch("Red", Color.FromRgb(0xC0, 0x39, 0x2B)),
+            new Run(" = average     "),
+            Swatch("Black", Color.FromRgb(0x20, 0x20, 0x20)),
+            new Run(" = current"),
         };
 
         var grid = new Grid
         {
-            RowDefinitions = new RowDefinitions("Auto,*,Auto,Auto,*,Auto,Auto"),
+            RowDefinitions = new RowDefinitions("Auto,Auto,Auto,*,Auto,*,Auto,Auto"),
         };
         Control[] rows =
         {
-            SectionHeader("RATE (s/d)"), ratePlot, rateReadout,
-            SectionHeader("AMPLITUDE (°)"), amplitudePlot, amplitudeReadout,
-            legend,
+            summaryCard, overallBox,
+            SectionHeader("RATE (s/d)"), ratePlot,
+            SectionHeader("AMPLITUDE (°)"), amplitudePlot,
+            table, legend,
         };
         for (int i = 0; i < rows.Length; i++)
         {
@@ -402,13 +544,56 @@ internal sealed class InfoTabRegistry
 
         if (CreateWaitingOverlay(context.ViewModel) is { } overlay)
         {
-            Grid.SetRow(overlay, 1);
+            Grid.SetRow(overlay, 3);
             grid.Children.Add(overlay);
         }
 
-        var renderer = new VarioRenderer(ratePlot, rateReadout, amplitudePlot, amplitudeReadout);
+        var summary = new VarioSummaryControls(
+            rateStatus, rateSub, ampStatus, ampSub, elapsedValue, overallBox, overallText);
+        var renderer = new VarioRenderer(
+            ratePlot, amplitudePlot, summary, new VarioTableControls(rateCells, amplitudeCells), context.TextFontFamily);
         var consumer = new VarioFrameConsumer(renderer);
         return new InfoTabRegistration(definition, CreateTabItem(definition, grid), consumer);
+    }
+
+    /// <summary>
+    /// The Vario "Criteria" flyout: the verdict thresholds, built from the same
+    /// constants the evaluator uses so the popup cannot drift from the live rules.
+    /// </summary>
+    private static Control BuildVarioCriteria()
+    {
+        double band = VarioGaugePolicy.RateAcceptMaxSPerDay;
+        double ampMin = VarioGaugePolicy.AmplitudeAcceptMinDeg;
+        double ampMax = VarioGaugePolicy.AmplitudeAcceptMaxDeg;
+        double service = VarioVerdict.AmplitudeServiceDeg;
+        double sigma = VarioVerdict.RateUnstableSigma;
+
+        Color Good = Color.FromRgb(0x2E, 0x7D, 0x32);
+        Color Warn = Color.FromRgb(0xB0, 0x6A, 0x00);
+        Color Bad = Color.FromRgb(0xC0, 0x30, 0x30);
+
+        TextBlock Title(string t) => new() { Text = t, FontWeight = FontWeight.Bold, FontSize = 13, Margin = new Thickness(0, 6, 0, 2) };
+        TextBlock Rule(string t, Color c) => new() { Text = t, FontSize = 12, Foreground = new SolidColorBrush(c), Margin = new Thickness(0, 1, 0, 1) };
+
+        var panel = new StackPanel { Margin = new Thickness(12), MaxWidth = 480 };
+        panel.Children.Add(new TextBlock { Text = "Assessment criteria", FontWeight = FontWeight.Bold, FontSize = 14 });
+        panel.Children.Add(new TextBlock
+        {
+            Text = $"Shown after {VarioVerdict.MinSamples} beats, classified from the average, for the current watch position.",
+            FontSize = 11,
+            Opacity = 0.7,
+            TextWrapping = TextWrapping.Wrap,
+            Margin = new Thickness(0, 2, 0, 0),
+        });
+        panel.Children.Add(Title("Rate (s/d)"));
+        panel.Children.Add(Rule($"Stable · in range — average within ±{band:0} s/d, σ ≤ {sigma:0}", Good));
+        panel.Children.Add(Rule($"In range · unstable — within ±{band:0} s/d but σ > {sigma:0}", Warn));
+        panel.Children.Add(Rule($"Fast / Slow · out of range — average beyond ±{band:0} s/d", Bad));
+        panel.Children.Add(Title("Amplitude (°)"));
+        panel.Children.Add(Rule($"Healthy — average {ampMin:0}–{ampMax:0}°", Good));
+        panel.Children.Add(Rule($"Slightly low / High — {service:0}–{ampMin:0}° or above {ampMax:0}°", Warn));
+        panel.Children.Add(Rule($"Low · service — average below {service:0}°", Bad));
+        return panel;
     }
 
     private static InfoTabRegistration CreateBeatErrorDiagRegistration(

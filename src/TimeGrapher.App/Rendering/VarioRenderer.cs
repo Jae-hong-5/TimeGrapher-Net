@@ -7,60 +7,115 @@ using TimeGrapher.Core.Shared;
 
 namespace TimeGrapher.App.Rendering;
 
+/// <summary>Status chips, sublines, elapsed and the Overall conclusion the renderer drives.</summary>
+internal sealed record VarioSummaryControls(
+    TextBlock RateStatus, TextBlock RateSub,
+    TextBlock AmpStatus, TextBlock AmpSub,
+    TextBlock Elapsed,
+    Border OverallBox, TextBlock OverallText);
+
+/// <summary>Numeric table cells (Min, Max, Spread, Average, Sigma, Current) per measure.</summary>
+internal sealed record VarioTableControls(
+    IReadOnlyList<TextBlock> RateCells,
+    IReadOnlyList<TextBlock> AmplitudeCells);
+
 /// <summary>
-/// Vario display: long-term stability of rate and amplitude as two horizontal
-/// value gauges plus numeric readouts. Per the plan: green region = acceptable
-/// range, blue markers = measured min/max, red marker = average; numeric grid
-/// shows min/max/avg/sigma/current/elapsed, all from the running statistics on
-/// the cumulative history snapshot (exact regardless of series decimation).
+/// Vario display: per-position stability of rate and amplitude. Each gauge shows
+/// the acceptable band (green), the measured min–max range (blue span) with its
+/// bounds, the average (red line) and the current reading (black line); short
+/// role labels are placed by <see cref="VarioGaugeLayout"/> so they never overlap
+/// or clip. A SUMMARY bar carries the colour-coded verdicts, sublines and elapsed;
+/// the table holds the exact numbers. Gauges are non-interactive (no Vario zoom
+/// requirement; QAS-5 wants the readings legible without scroll/zoom), so their
+/// X-window stays locked to the derived range.
 /// </summary>
 internal sealed class VarioRenderer
 {
-    // The palette has no blue; a fixed mid-blue stays readable on both themes.
+    public const int CellMin = 0;
+    public const int CellMax = 1;
+    public const int CellSpread = 2;
+    public const int CellAverage = 3;
+    public const int CellSigma = 4;
+    public const int CellCurrent = 5;
+    public const int CellCount = 6;
+
     private const uint MinMaxBlue = 0xFF2D7DD2;
-    private const byte AcceptBandAlpha = 40;
+    private const uint AvgRed = 0xFFC0392B;
+    private const uint AcceptGreen = 0xFF4CAF50;
+    private const byte AcceptBandAlpha = 56;
+    private const byte RangeFillAlpha = 38;
+
+    // Y layout inside each gauge: bands fill the plot; labels sit in the headroom.
+    private const double YMax = 1.18;
+    private const double LabelY = 1.04;
+    private const int LabelPoolSize = 4;
 
     private sealed class Gauge
     {
         public required AvaPlot Plot { get; init; }
-        public required TextBlock Readout { get; init; }
+        public required IReadOnlyList<TextBlock> Cells { get; init; }
+        public required TextBlock StatusText { get; init; }
+        public required TextBlock SubText { get; init; }
+        public required Func<StatsSummary, VarioVerdict> Assess { get; init; }
         public required double AcceptMin { get; init; }
         public required double AcceptMax { get; init; }
         public required string Unit { get; init; }
         public required string NumericFormat { get; init; }
+        public required string RangeFormat { get; init; }
+
         public HorizontalSpan? AcceptBand;
-        public LinePlot? MinLine;
-        public LinePlot? MaxLine;
-        public LinePlot? MeanLine;
-        public LinePlot? CurrentLine;
+        public HorizontalSpan? RangeSpan;
+        public LinePlot? AvgLine;
+        public LinePlot? NowLine;
+        public readonly List<Text> Labels = new(LabelPoolSize);
     }
 
     private readonly Gauge _rate;
     private readonly Gauge _amplitude;
+    private readonly VarioSummaryControls _summary;
+    private readonly string _textFontFamily;
     private PlotThemePalette _theme = PlotThemePalette.Current;
     private ulong _lastVersion;
     private double? _lastCursor;
 
-    public VarioRenderer(AvaPlot ratePlot, TextBlock rateReadout, AvaPlot amplitudePlot, TextBlock amplitudeReadout)
+    public VarioRenderer(
+        AvaPlot ratePlot, AvaPlot amplitudePlot,
+        VarioSummaryControls summary, VarioTableControls table, string textFontFamily)
     {
+        _summary = summary;
+        _textFontFamily = textFontFamily;
+
         _rate = new Gauge
         {
             Plot = ratePlot,
-            Readout = rateReadout,
+            Cells = table.RateCells,
+            StatusText = summary.RateStatus,
+            SubText = summary.RateSub,
+            Assess = s => VarioVerdict.ForRate(s, VarioGaugePolicy.RateAcceptMinSPerDay, VarioGaugePolicy.RateAcceptMaxSPerDay),
             AcceptMin = VarioGaugePolicy.RateAcceptMinSPerDay,
             AcceptMax = VarioGaugePolicy.RateAcceptMaxSPerDay,
             Unit = " s/d",
             NumericFormat = "+0.0;-0.0;0.0",
+            RangeFormat = "0.0",
         };
         _amplitude = new Gauge
         {
             Plot = amplitudePlot,
-            Readout = amplitudeReadout,
+            Cells = table.AmplitudeCells,
+            StatusText = summary.AmpStatus,
+            SubText = summary.AmpSub,
+            Assess = s => VarioVerdict.ForAmplitude(s, VarioGaugePolicy.AmplitudeAcceptMinDeg, VarioGaugePolicy.AmplitudeAcceptMaxDeg),
             AcceptMin = VarioGaugePolicy.AmplitudeAcceptMinDeg,
             AcceptMax = VarioGaugePolicy.AmplitudeAcceptMaxDeg,
             Unit = "°",
             NumericFormat = "0",
+            RangeFormat = "0",
         };
+
+        // A value gauge is not pannable/zoomable: lock it to the derived X-window
+        // so a stray scroll can never push the markers off screen.
+        ratePlot.UserInputProcessor.Disable();
+        amplitudePlot.UserInputProcessor.Disable();
     }
 
     public void ApplyTheme(PlotThemePalette theme)
@@ -82,22 +137,40 @@ internal sealed class VarioRenderer
         {
             Plot plot = gauge.Plot.Plot;
             plot.Clear();
+            gauge.Labels.Clear();
             ApplyPlotTheme(plot);
+
+            // The X axis is the measured-value scale; the Y axis carries no data
+            // (every marker is a full-height line), so its ticks and horizontal
+            // grid are hidden to avoid implying a second dimension.
             plot.Axes.Left.TickLabelStyle.IsVisible = false;
-            plot.Axes.SetLimitsY(0.0, 1.0);
+            plot.Axes.Left.MajorTickStyle.Length = 0;
+            plot.Axes.Left.MinorTickStyle.Length = 0;
+            plot.Grid.YAxisStyle.IsVisible = false;
 
             gauge.AcceptBand = plot.Add.HorizontalSpan(gauge.AcceptMin, gauge.AcceptMax);
-            gauge.MinLine = AddMarker(plot, 3);
-            gauge.MaxLine = AddMarker(plot, 3);
-            gauge.MeanLine = AddMarker(plot, 3);
-            gauge.CurrentLine = AddMarker(plot, 1);
+            gauge.RangeSpan = plot.Add.HorizontalSpan(0.0, 0.0);
+            gauge.RangeSpan.IsVisible = false;
+            gauge.AvgLine = AddLine(plot, 3);
+            gauge.NowLine = AddLine(plot, 2);
+            for (int i = 0; i < LabelPoolSize; i++)
+            {
+                Text label = plot.Add.Text(string.Empty, 0.0, LabelY);
+                label.LabelFontName = _textFontFamily;
+                label.LabelFontSize = 12;
+                label.LabelBold = true;
+                label.IsVisible = false;
+                gauge.Labels.Add(label);
+            }
 
             ApplyGaugeTheme(gauge);
             (double lo, double hi) = VarioGaugePolicy.GaugeRange(gauge.AcceptMin, gauge.AcceptMax, default, null);
             plot.Axes.SetLimitsX(lo, hi);
-            gauge.Readout.Text = PlaceholderReadout();
+            plot.Axes.SetLimitsY(0.0, YMax);
             gauge.Plot.Refresh();
         }
+
+        SetPlaceholderSummary();
     }
 
     public void Reset()
@@ -128,56 +201,164 @@ internal sealed class VarioRenderer
             ? VarioReadout.ValueAt(history.Amplitude, at)
             : history.AmplitudeValid ? history.AmplitudeDeg : null;
 
-        UpdateGauge(_rate, history.RateStats, rateCurrent, history.LatestTimeS);
-        UpdateGauge(_amplitude, history.AmplitudeStats, amplitudeCurrent, history.LatestTimeS);
+        VarioVerdict rateVerdict = UpdateGauge(_rate, history.RateStats, rateCurrent);
+        VarioVerdict amplitudeVerdict = UpdateGauge(_amplitude, history.AmplitudeStats, amplitudeCurrent);
+
+        _summary.Elapsed.Text = VarioReadout.FormatElapsed(history.StatsElapsedS);
+        UpdateOverall(rateVerdict, amplitudeVerdict);
     }
 
-    private void UpdateGauge(Gauge gauge, StatsSummary stats, double? current, double elapsedS)
+    private VarioVerdict UpdateGauge(Gauge gauge, StatsSummary stats, double? current)
     {
         Plot plot = gauge.Plot.Plot;
+        double? min = stats.Valid ? stats.Min : null;
+        double? max = stats.Valid ? stats.Max : null;
+        double? avg = stats.Valid ? stats.Mean : null;
+
         (double lo, double hi) = VarioGaugePolicy.GaugeRange(gauge.AcceptMin, gauge.AcceptMax, stats, current);
         plot.Axes.SetLimitsX(lo, hi);
-        plot.Axes.SetLimitsY(0.0, 1.0);
+        plot.Axes.SetLimitsY(0.0, YMax);
 
-        PositionMarker(gauge.MinLine, stats.Valid ? stats.Min : null);
-        PositionMarker(gauge.MaxLine, stats.Valid ? stats.Max : null);
-        PositionMarker(gauge.MeanLine, stats.Valid ? stats.Mean : null);
-        PositionMarker(gauge.CurrentLine, current);
+        if (gauge.RangeSpan != null)
+        {
+            gauge.RangeSpan.IsVisible = stats.Valid;
+            if (stats.Valid)
+            {
+                gauge.RangeSpan.X1 = stats.Min;
+                gauge.RangeSpan.X2 = stats.Max;
+            }
+        }
 
-        gauge.Readout.Text = string.Join("   ",
-            "MIN " + VarioReadout.Format(stats.Valid ? stats.Min : null, gauge.NumericFormat, gauge.Unit),
-            "MAX " + VarioReadout.Format(stats.Valid ? stats.Max : null, gauge.NumericFormat, gauge.Unit),
-            "AVG " + VarioReadout.Format(stats.Valid ? stats.Mean : null, gauge.NumericFormat, gauge.Unit),
-            "σ " + VarioReadout.Format(stats.Valid ? stats.Sigma : null, "0.00", gauge.Unit),
-            "CUR " + VarioReadout.Format(current, gauge.NumericFormat, gauge.Unit),
-            "ELAPSED " + VarioReadout.FormatElapsed(elapsedS));
+        PositionLine(gauge.AvgLine, avg);
+        PositionLine(gauge.NowLine, current);
+        PlaceLabels(gauge, lo, hi, min, max, avg, current);
+
+        SetCells(gauge, stats, current);
+
+        VarioVerdict verdict = gauge.Assess(stats);
+        gauge.StatusText.Text = verdict.Text;
+        gauge.StatusText.Foreground = LevelBrush(verdict.Level);
+        gauge.SubText.Text = stats.Valid || current is not null
+            ? $"avg {VarioReadout.Format(avg, gauge.NumericFormat, string.Empty)} · now {VarioReadout.Format(current, gauge.NumericFormat, gauge.Unit)}"
+            : string.Empty;
 
         gauge.Plot.Refresh();
+        return verdict;
     }
 
-    private static string PlaceholderReadout() =>
-        "MIN " + VarioReadout.Missing + "   MAX " + VarioReadout.Missing + "   AVG " + VarioReadout.Missing +
-        "   σ " + VarioReadout.Missing + "   CUR " + VarioReadout.Missing + "   ELAPSED 00:00";
-
-    private static void PositionMarker(LinePlot? marker, double? value)
+    private void PlaceLabels(Gauge gauge, double lo, double hi, double? min, double? max, double? avg, double? current)
     {
-        if (marker == null)
+        foreach (Text label in gauge.Labels)
+        {
+            label.IsVisible = false;
+        }
+
+        IReadOnlyList<GaugeLabel> layout = VarioGaugeLayout.LayOut(lo, hi, min, max, avg, current);
+        for (int i = 0; i < layout.Count && i < gauge.Labels.Count; i++)
+        {
+            GaugeLabel spec = layout[i];
+            Text label = gauge.Labels[i];
+            label.LabelText = spec.Role;
+            label.Location = new Coordinates(spec.X, LabelY);
+            label.LabelFontColor = RoleColor(spec.Role);
+            label.Alignment = spec.Anchor switch
+            {
+                GaugeLabelAnchor.Left => Alignment.LowerLeft,
+                GaugeLabelAnchor.Right => Alignment.LowerRight,
+                _ => Alignment.LowerCenter,
+            };
+            label.IsVisible = true;
+        }
+    }
+
+    private void SetCells(Gauge gauge, StatsSummary stats, double? current)
+    {
+        string Stat(double? value, string format) => VarioReadout.Format(value, format, gauge.Unit);
+
+        gauge.Cells[CellMin].Text = Stat(stats.Valid ? stats.Min : null, gauge.NumericFormat);
+        gauge.Cells[CellMax].Text = Stat(stats.Valid ? stats.Max : null, gauge.NumericFormat);
+        gauge.Cells[CellSpread].Text = Stat(stats.Valid ? stats.Max - stats.Min : null, gauge.RangeFormat);
+        gauge.Cells[CellAverage].Text = Stat(stats.Valid ? stats.Mean : null, gauge.NumericFormat);
+        gauge.Cells[CellSigma].Text = Stat(stats.Valid ? stats.Sigma : null, "0.00");
+        gauge.Cells[CellCurrent].Text = Stat(current, gauge.NumericFormat);
+    }
+
+    private void UpdateOverall(VarioVerdict rate, VarioVerdict amplitude)
+    {
+        VarioVerdict overall = VarioVerdict.Overall(rate, amplitude);
+        if (overall.Level == VarioVerdictLevel.Pending)
+        {
+            _summary.OverallBox.IsVisible = false;
+            return;
+        }
+
+        _summary.OverallText.Text = overall.Text;
+        _summary.OverallText.Foreground = LevelBrush(overall.Level);
+        _summary.OverallBox.Background = LevelTintBrush(overall.Level);
+        _summary.OverallBox.BorderBrush = LevelBrush(overall.Level);
+        _summary.OverallBox.IsVisible = true;
+    }
+
+    private void SetPlaceholderSummary()
+    {
+        foreach (Gauge gauge in new[] { _rate, _amplitude })
+        {
+            gauge.StatusText.Text = VarioVerdict.Measuring.Text;
+            gauge.StatusText.Foreground = LevelBrush(VarioVerdictLevel.Pending);
+            gauge.SubText.Text = string.Empty;
+            foreach (TextBlock cell in gauge.Cells)
+            {
+                cell.Text = VarioReadout.Missing;
+            }
+        }
+
+        _summary.Elapsed.Text = "00:00";
+        _summary.OverallBox.IsVisible = false;
+    }
+
+    private ScottPlot.Color RoleColor(string role) => role switch
+    {
+        "avg" => Color.FromARGB(AvgRed),
+        "now" => Color.FromARGB(_theme.TextPrimary),
+        _ => Color.FromARGB(MinMaxBlue),
+    };
+
+    private static Avalonia.Media.IBrush LevelBrush(VarioVerdictLevel level) =>
+        new Avalonia.Media.SolidColorBrush(LevelColor(level));
+
+    private static Avalonia.Media.IBrush LevelTintBrush(VarioVerdictLevel level)
+    {
+        Avalonia.Media.Color c = LevelColor(level);
+        return new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.FromArgb(0x20, c.R, c.G, c.B));
+    }
+
+    private static Avalonia.Media.Color LevelColor(VarioVerdictLevel level) => level switch
+    {
+        VarioVerdictLevel.Good => Avalonia.Media.Color.FromRgb(0x2E, 0x7D, 0x32),
+        VarioVerdictLevel.Warn => Avalonia.Media.Color.FromRgb(0xB0, 0x6A, 0x00),
+        VarioVerdictLevel.Bad => Avalonia.Media.Color.FromRgb(0xC0, 0x30, 0x30),
+        _ => Avalonia.Media.Color.FromRgb(0x80, 0x80, 0x80),
+    };
+
+    private static void PositionLine(LinePlot? line, double? value)
+    {
+        if (line == null)
         {
             return;
         }
 
         if (value is double x)
         {
-            marker.Line = new CoordinateLine(x, 0.0, x, 1.0);
-            marker.IsVisible = true;
+            line.Line = new CoordinateLine(x, 0.0, x, 1.0);
+            line.IsVisible = true;
         }
         else
         {
-            marker.IsVisible = false;
+            line.IsVisible = false;
         }
     }
 
-    private static LinePlot AddMarker(Plot plot, float width)
+    private static LinePlot AddLine(Plot plot, float width)
     {
         LinePlot line = plot.Add.Line(0.0, 0.0, 0.0, 1.0);
         line.MarkerStyle.IsVisible = false;
@@ -190,28 +371,24 @@ internal sealed class VarioRenderer
     {
         if (gauge.AcceptBand != null)
         {
-            gauge.AcceptBand.FillStyle.Color = Color.FromARGB(_theme.TraceTick).WithAlpha(AcceptBandAlpha);
-            gauge.AcceptBand.LineStyle.Color = Color.FromARGB(_theme.TraceTick).WithAlpha((byte)(AcceptBandAlpha * 2));
+            gauge.AcceptBand.FillStyle.Color = Color.FromARGB(AcceptGreen).WithAlpha(AcceptBandAlpha);
+            gauge.AcceptBand.LineStyle.Color = Color.FromARGB(AcceptGreen).WithAlpha((byte)(AcceptBandAlpha * 2));
         }
 
-        if (gauge.MinLine != null)
+        if (gauge.RangeSpan != null)
         {
-            gauge.MinLine.LineColor = Color.FromARGB(MinMaxBlue);
+            gauge.RangeSpan.FillStyle.Color = Color.FromARGB(MinMaxBlue).WithAlpha(RangeFillAlpha);
+            gauge.RangeSpan.LineStyle.Color = Color.FromARGB(MinMaxBlue);
         }
 
-        if (gauge.MaxLine != null)
+        if (gauge.AvgLine != null)
         {
-            gauge.MaxLine.LineColor = Color.FromARGB(MinMaxBlue);
+            gauge.AvgLine.LineColor = Color.FromARGB(AvgRed);
         }
 
-        if (gauge.MeanLine != null)
+        if (gauge.NowLine != null)
         {
-            gauge.MeanLine.LineColor = Color.FromARGB(_theme.TraceTock);
-        }
-
-        if (gauge.CurrentLine != null)
-        {
-            gauge.CurrentLine.LineColor = Color.FromARGB(_theme.TextPrimary);
+            gauge.NowLine.LineColor = Color.FromARGB(_theme.TextPrimary);
         }
     }
 
