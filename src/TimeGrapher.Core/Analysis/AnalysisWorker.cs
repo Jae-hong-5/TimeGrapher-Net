@@ -34,6 +34,8 @@ public sealed class AnalysisWorker : IDisposable
         public int SoundImageHeight = 0;
         public int ScopeSnapshotPointBudget = 8000;
         public uint SoundImageBackgroundColor = 0xFFFFFFFFu;
+        /// <summary>Light UI theme -> reversed (light-background) spectrogram colormap.</summary>
+        public bool SpectrogramLightColormap = false;
         public ISampleWriter? SampleWriter = null;
     }
 
@@ -72,6 +74,7 @@ public sealed class AnalysisWorker : IDisposable
     // the analysis thread between frames so it never races the pixel buffer.
     private readonly object _recolorLock = new();
     private uint? _pendingSoundBackground;
+    private bool? _pendingSpectrogramLight;
 
     /// <summary>Raised on the analysis thread when a frame is ready.</summary>
     public event Action<AnalysisFrame>? AnalysisFrameReady;
@@ -100,7 +103,7 @@ public sealed class AnalysisWorker : IDisposable
             config.SoundImageWidth,
             config.SoundImageHeight,
             config.SoundImageBackgroundColor);
-        _spectrogramProjector = new SpectrogramFrameProjector(config.SampleRate);
+        _spectrogramProjector = new SpectrogramFrameProjector(config.SampleRate, config.SpectrogramLightColormap);
         _beatSegmentCapture = new BeatSegmentCapture(
             config.SampleRate,
             config.LiftAngle,
@@ -191,6 +194,21 @@ public sealed class AnalysisWorker : IDisposable
         _wakeup.Set();
     }
 
+    /// <summary>
+    /// Request a spectrogram colormap switch (light = reversed inferno) on a UI
+    /// theme toggle. Applied on the analysis thread between frames (the
+    /// SetSoundBackgroundColor flow) so it never races the pixel buffer.
+    /// Callable from any thread.
+    /// </summary>
+    public void SetSpectrogramColormap(bool light)
+    {
+        lock (_recolorLock)
+        {
+            _pendingSpectrogramLight = light;
+        }
+        _wakeup.Set();
+    }
+
     /// <summary>Stops the analysis thread and joins it.</summary>
     public void Stop()
     {
@@ -257,23 +275,29 @@ public sealed class AnalysisWorker : IDisposable
 
     private void ApplyPendingRecolor()
     {
-        uint background;
+        uint? background;
+        bool? spectrogramLight;
         lock (_recolorLock)
         {
-            if (_pendingSoundBackground is not uint pending)
-            {
-                return;
-            }
-            background = pending;
+            background = _pendingSoundBackground;
+            spectrogramLight = _pendingSpectrogramLight;
             _pendingSoundBackground = null;
+            _pendingSpectrogramLight = null;
         }
 
         // Re-tint on the analysis thread (safe: same thread that writes the pixel
-        // buffer) and flag the image for republish. The next regular frame carries
+        // buffers) and flag the images for republish. The next regular frame carries
         // the new colors — within ~one frame while streaming. We deliberately do NOT
         // publish a standalone frame here: a frame with no scope series / zero stats
         // would become the "last frame" and blank the rate/scope plots on tab switch.
-        _soundPrintProjector.SetBackgroundColor(background);
+        if (background is uint soundBackground)
+        {
+            _soundPrintProjector.SetBackgroundColor(soundBackground);
+        }
+        if (spectrogramLight is bool light)
+        {
+            _spectrogramProjector.SetColormap(light);
+        }
     }
 
     public void HandleInputData()

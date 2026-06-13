@@ -45,9 +45,22 @@ public sealed class SpectrogramFrameProjector
     public const uint LiveEdgeColor = 0xFF7F7F7Fu;
 
     private static readonly uint[] Lut = BuildInfernoLut();
+    private static readonly uint[] LutLight = BuildLightLut(Lut);
+    private static readonly IReadOnlyDictionary<uint, uint> DarkToLight = BuildIndexMap(Lut, LutLight);
+    private static readonly IReadOnlyDictionary<uint, uint> LightToDark = BuildIndexMap(LutLight, Lut);
 
     /// <summary>64-entry inferno-like intensity LUT (index 0 = floor, 63 = 0 dB). Shared with the UI legend.</summary>
     public static IReadOnlyList<uint> ColorLut => Lut;
+
+    /// <summary>
+    /// Light-theme colormap: the inferno LUT reversed (rising energy darkens) with
+    /// the dB floor pinned to white so empty bands match the white light-theme
+    /// scope background instead of an off-white cream. Shared with the UI legend.
+    /// </summary>
+    public static IReadOnlyList<uint> ColorLutLight => LutLight;
+
+    /// <summary>The colormap to color with / draw the legend from for the requested theme.</summary>
+    public static IReadOnlyList<uint> ColorLutFor(bool light) => light ? LutLight : Lut;
 
     private readonly int _fftSize;
     private readonly int _hop;
@@ -60,21 +73,26 @@ public sealed class SpectrogramFrameProjector
     private readonly double _fullScaleMagnitude;
     private readonly Stopwatch _publishTimer = new();
 
+    private uint[] _activeLut;
+    private bool _light;
     private int _fifoFill;
     private int _writeColumn;
     private int _nextPublishBuffer;
     private int _publishIntervalScale = 1;
     private bool _livePreviewEnabled = true;
+    private bool _recolorPending;
 
-    public SpectrogramFrameProjector(int sampleRate)
+    public SpectrogramFrameProjector(int sampleRate, bool light = false)
     {
+        _light = light;
+        _activeLut = light ? LutLight : Lut;
         _fftSize = NearestPowerOfTwo(sampleRate * WindowSeconds);
         _hop = _fftSize / 2;
 
         int rows = Math.Min(_fftSize / 2, (int)(MaxDisplayFrequencyHz * _fftSize / sampleRate)) + 1;
         int width = (int)Math.Ceiling(DisplaySeconds * (double)sampleRate / _hop);
         _image = new PixelBuffer(width, rows);
-        _image.Fill(Lut[0]);
+        _image.Fill(_activeLut[0]);
         for (int i = 0; i < PublishBufferCount; ++i)
         {
             _publishBuffers[i] = new PixelBuffer(width, rows);
@@ -117,6 +135,25 @@ public sealed class SpectrogramFrameProjector
     }
 
     /// <summary>
+    /// Switches the spectrogram colormap to match the UI theme (light = reversed
+    /// inferno) and flags the image for republish. Existing columns are remapped
+    /// in place so the whole window recolors at once, not just new columns.
+    /// Analysis thread only (the SetSoundBackgroundColor recolor flow).
+    /// </summary>
+    public void SetColormap(bool light)
+    {
+        if (light == _light)
+        {
+            return;
+        }
+
+        _light = light;
+        _activeLut = light ? LutLight : Lut;
+        MirrorColormap(_image.Pixels, toLight: light);
+        _recolorPending = true;
+    }
+
+    /// <summary>
     /// Feeds one raw audio block. Whole hops render columns immediately; the
     /// remainder stays in the FIFO for the next block.
     /// </summary>
@@ -147,6 +184,7 @@ public sealed class SpectrogramFrameProjector
     public void AppendSnapshot(AnalysisFrame frame, bool force = false)
     {
         if (force ||
+            _recolorPending ||
             !_publishTimer.IsRunning ||
             _publishTimer.ElapsedMilliseconds >= (long)PublishIntervalMs * _publishIntervalScale)
         {
@@ -155,6 +193,7 @@ public sealed class SpectrogramFrameProjector
             Array.Copy(_image.Pixels, snapshot.Pixels, snapshot.Pixels.Length);
             frame.SpectrogramImage = snapshot;
             frame.SpectrogramImageUpdated = true;
+            _recolorPending = false;
             _publishTimer.Restart();
         }
     }
@@ -189,7 +228,7 @@ public sealed class SpectrogramFrameProjector
             }
 
             int y = rows - 1 - bin; // low frequency at the bottom
-            pixels[y * width + _writeColumn] = Lut[(int)(t * (Lut.Length - 1) + 0.5)];
+            pixels[y * width + _writeColumn] = _activeLut[(int)(t * (_activeLut.Length - 1) + 0.5)];
         }
 
         _writeColumn = (_writeColumn + 1) % width;
@@ -207,6 +246,48 @@ public sealed class SpectrogramFrameProjector
         {
             pixels[y * width + _writeColumn] = LiveEdgeColor;
         }
+    }
+
+    /// <summary>
+    /// Recolors a spectrogram image between the dark and light colormaps in place,
+    /// mapping each pixel by its intensity index (<paramref name="toLight"/> picks
+    /// the direction); the live-edge cursor and any non-LUT pixel pass through
+    /// unchanged. Used by the projector's live recolor and, after a stop, to
+    /// recolor the kept frozen image on a theme toggle (no live worker).
+    /// </summary>
+    public static void MirrorColormap(uint[] pixels, bool toLight)
+    {
+        IReadOnlyDictionary<uint, uint> map = toLight ? DarkToLight : LightToDark;
+        for (int i = 0; i < pixels.Length; i++)
+        {
+            if (map.TryGetValue(pixels[i], out uint mapped))
+            {
+                pixels[i] = mapped;
+            }
+        }
+    }
+
+    private static uint[] BuildLightLut(uint[] dark)
+    {
+        var light = new uint[dark.Length];
+        for (int i = 0; i < dark.Length; i++)
+        {
+            light[i] = dark[dark.Length - 1 - i];
+        }
+
+        light[0] = Argb.Rgba(255, 255, 255); // dB floor = white scope background
+        return light;
+    }
+
+    private static IReadOnlyDictionary<uint, uint> BuildIndexMap(uint[] from, uint[] to)
+    {
+        var map = new Dictionary<uint, uint>(from.Length);
+        for (int i = 0; i < from.Length; i++)
+        {
+            map[from[i]] = to[i];
+        }
+
+        return map;
     }
 
     private static int NearestPowerOfTwo(double target)

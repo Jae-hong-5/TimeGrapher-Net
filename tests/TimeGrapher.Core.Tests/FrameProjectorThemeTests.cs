@@ -1,3 +1,4 @@
+using System.Linq;
 using TimeGrapher.Core.Analysis;
 using TimeGrapher.Core.Detection;
 using TimeGrapher.Core.Shared;
@@ -62,6 +63,64 @@ public sealed class FrameProjectorThemeTests
         Assert.NotNull(frame.SoundImage);
         // Blank print (no beats yet) -> the whole image is the new background.
         Assert.All(frame.SoundImage!.Pixels, px => Assert.Equal(Black, px));
+    }
+
+    [Fact]
+    public void SpectrogramProjector_LightColormap_FillsFloorWithWhiteScopeBackground()
+    {
+        var dark = new SpectrogramFrameProjector(sampleRate: 48000);
+        var light = new SpectrogramFrameProjector(sampleRate: 48000, light: true);
+
+        var darkFrame = new AnalysisFrame();
+        dark.AppendSnapshot(darkFrame, force: true);
+        var lightFrame = new AnalysisFrame();
+        light.AppendSnapshot(lightFrame, force: true);
+
+        uint darkFloor = SpectrogramFrameProjector.ColorLut[0];
+        uint lightFloor = SpectrogramFrameProjector.ColorLutLight[0];
+        Assert.Equal(White, lightFloor); // light dB floor = white scope background
+        Assert.NotEqual(darkFloor, lightFloor);
+        // A blank window is the dB floor of each theme's colormap.
+        Assert.All(darkFrame.SpectrogramImage!.Pixels, px => Assert.Equal(darkFloor, px));
+        Assert.All(lightFrame.SpectrogramImage!.Pixels, px => Assert.Equal(lightFloor, px));
+    }
+
+    [Fact]
+    public void SpectrogramProjector_SetColormap_MirrorsExistingImageAndRepublishes()
+    {
+        var projector = new SpectrogramFrameProjector(sampleRate: 48000);
+        var initial = new AnalysisFrame();
+        projector.AppendSnapshot(initial, force: true); // dark floor everywhere
+
+        projector.SetColormap(light: true);
+        var recolored = new AnalysisFrame();
+        projector.AppendSnapshot(recolored); // recolor pending publishes despite cadence
+        Assert.True(recolored.SpectrogramImageUpdated);
+        Assert.All(
+            recolored.SpectrogramImage!.Pixels,
+            px => Assert.Equal(SpectrogramFrameProjector.ColorLutLight[0], px));
+
+        // Selecting the same colormap again is a no-op: the image must not mirror
+        // a second time (which would flip it back to the dark floor).
+        projector.SetColormap(light: true);
+        var unchanged = new AnalysisFrame();
+        projector.AppendSnapshot(unchanged, force: true);
+        Assert.All(
+            unchanged.SpectrogramImage!.Pixels,
+            px => Assert.Equal(SpectrogramFrameProjector.ColorLutLight[0], px));
+    }
+
+    [Fact]
+    public void SpectrogramProjector_MirrorColormap_MapsBetweenThemesByIntensity()
+    {
+        uint[] dark = SpectrogramFrameProjector.ColorLut.ToArray();
+        uint[] mapped = (uint[])dark.Clone();
+
+        SpectrogramFrameProjector.MirrorColormap(mapped, toLight: true);
+        Assert.Equal(SpectrogramFrameProjector.ColorLutLight, mapped);
+
+        SpectrogramFrameProjector.MirrorColormap(mapped, toLight: false);
+        Assert.Equal(dark, mapped); // round-trips back to the dark colormap
     }
 
     [Fact]
