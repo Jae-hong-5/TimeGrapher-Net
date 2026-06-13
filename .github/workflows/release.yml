@@ -203,10 +203,10 @@ jobs:
           retention-days: 7
 
   # ---------------------------------------------------------------------------
-  # Linux builds (matrix over RID): cross-publish self-contained (never executed
-  # on the runner), bundle desktop-integration files, tar.gz (+x preserved) +
-  # checksum. linux-x64 runs natively on Ubuntu/Debian; linux-arm64 targets the
-  # Raspberry Pi.
+  # Linux builds (matrix over RID): publish self-contained, smoke-test the
+  # native linux-x64 build, bundle desktop-integration files, tar.gz (+x
+  # preserved) + checksum. linux-arm64 targets the Raspberry Pi and cannot be
+  # executed on the x64 runner.
   # ---------------------------------------------------------------------------
   build-linux:
     name: Build ${{ matrix.rid }}
@@ -274,6 +274,14 @@ jobs:
           if [ ! -f "$PUBLISH_DIR/libSkiaSharp.so" ]; then
             echo "::warning::libSkiaSharp.so not found in $RID publish output; ScottPlot rendering may fail."
           fi
+
+      - name: Smoke test published app
+        if: matrix.rid == 'linux-x64'
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x "$PUBLISH_DIR/TimeGrapher.App"
+          "$PUBLISH_DIR/TimeGrapher.App" --smoke
 
       - name: Bundle desktop-integration files
         shell: bash

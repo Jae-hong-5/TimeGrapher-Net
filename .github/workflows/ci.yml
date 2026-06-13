@@ -60,10 +60,39 @@ jobs:
       - name: Restore Linux app publish
         run: dotnet restore src/TimeGrapher.App/TimeGrapher.App.csproj --locked-mode
 
-      - name: Publish Linux app
+      - name: Publish Linux x64 app
+        run: dotnet publish src/TimeGrapher.App/TimeGrapher.App.csproj -c Release -r linux-x64 --self-contained true --no-restore -o artifacts/TimeGrapher.App-linux-x64 /p:RestoreLockedMode=false
+
+      - name: Check Linux x64 publish boundary
+        shell: pwsh
+        run: |
+          $out = "artifacts/TimeGrapher.App-linux-x64"
+          $required = @(
+            "TimeGrapher.App",
+            "TimeGrapher.App.dll",
+            "TimeGrapher.App.runtimeconfig.json",
+            "TimeGrapher.Core.dll",
+            "TimeGrapher.Platform.LinuxAudio.dll"
+          )
+          foreach ($name in $required) {
+            $path = Join-Path $out $name
+            if (-not (Test-Path $path)) {
+              throw "Missing Linux publish artifact: $name"
+            }
+          }
+          if (Test-Path (Join-Path $out "TimeGrapher.Platform.WindowsAudio.dll")) {
+            throw "Linux publish unexpectedly contains WindowsAudio"
+          }
+
+      - name: Smoke test Linux x64 published app
+        run: |
+          chmod +x artifacts/TimeGrapher.App-linux-x64/TimeGrapher.App
+          artifacts/TimeGrapher.App-linux-x64/TimeGrapher.App --smoke
+
+      - name: Publish Linux arm64 app
         run: dotnet publish src/TimeGrapher.App/TimeGrapher.App.csproj -c Release -r linux-arm64 --self-contained true --no-restore -o artifacts/TimeGrapher.App-linux-arm64 /p:RestoreLockedMode=false
 
-      - name: Check Linux publish boundary
+      - name: Check Linux arm64 publish boundary
         shell: pwsh
         run: |
           $out = "artifacts/TimeGrapher.App-linux-arm64"
