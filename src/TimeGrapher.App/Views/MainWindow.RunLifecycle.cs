@@ -317,7 +317,9 @@ public partial class MainWindow
             return false;
         }
 
-        if (!await RecordSessionCheck())
+        // Playback replays an existing WAV, so there is nothing to record:
+        // skip the record-session prompt but keep the leaked-writer guard.
+        if (!AudioCloseCheck())
         {
             RestorePlaybackOrSimulationAudioState();
             return false;
