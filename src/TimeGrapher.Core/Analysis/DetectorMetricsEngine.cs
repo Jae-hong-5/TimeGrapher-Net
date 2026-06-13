@@ -13,7 +13,6 @@ public sealed record DetectorMetricsEngineConfig(
     bool AutoBph,
     int ManualBph,
     double HpfCutoffHz,
-    TgDetectorOptions? DetectorOptions = null,
     BeatEventGateConfig? EventGate = null);
 
 public readonly record struct DetectedEventUpdate(
@@ -84,14 +83,13 @@ public sealed class DetectorMetricsEngine
 
         /* The gate consumes the per-event PLL match verdicts, so configuring
          * a gate implies TrackEventPllMatch on the detector. */
-        TgDetectorOptions? detectorOptions = config.DetectorOptions;
         if (config.EventGate != null)
         {
-            detectorOptions = (detectorOptions ?? new TgDetectorOptions()) with { TrackEventPllMatch = true };
+            detectorConfig.TrackEventPllMatch = true;
             _gate = new BeatEventGateHost(config.EventGate.Gate, config.SampleRate);
         }
 
-        _detector = new TgDetector(detectorConfig, detectorOptions);
+        _detector = new TgDetector(detectorConfig);
         _metrics.Reset();
     }
 

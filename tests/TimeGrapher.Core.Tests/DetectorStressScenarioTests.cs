@@ -1,29 +1,25 @@
 using TimeGrapher.Core.Analysis;
 using TimeGrapher.Core.Detection;
-using TimeGrapher.Core.Detection.Scoring;
 using TimeGrapher.Core.Sim;
 using Xunit;
 
 namespace TimeGrapher.Core.Tests;
 
 /// <summary>
-/// In-process mirrors of the verifier's two strongest adverse A/B rows
+/// In-process mirrors of the verifier's two strongest adverse rows
 /// (harness-test alignment convention), so `dotnet test` alone proves the
-/// baseline weakness AND the robust-profile recovery without running the
-/// Verify executable:
+/// default detector recovery without running the Verify executable:
 ///  - impulse-dos: full-scale impulses once a second over a quiet watch.
-///    Baseline storms detector resets (W-3) and never holds lock; the robust
-///    profile rides it out.
-///  - quiet-step: a 0.13x gain step after 6 s. Baseline latches the
-///    reference high and never re-locks (W-4(b)); the robust profile decays
-///    and re-acquires.
+///    The detector rides it out without reset storms.
+///  - quiet-step: a 0.13x gain step after 6 s. The detector decays the
+///    reference and re-acquires.
 /// </summary>
 public sealed class DetectorStressScenarioTests
 {
     private sealed record StressResult(TgSyncStatus FinalSync, int DetectedBph, int Resets);
 
     private static StressResult Run(
-        bool robust, double pcmPeak, double noisePeak, int bph, int seconds,
+        double pcmPeak, double noisePeak, int bph, int seconds,
         double impulseRate = 0.0, double impulseAmp = 0.0,
         double gainStepAtS = 0.0, double gainStepFactor = 1.0)
     {
@@ -46,9 +42,7 @@ public sealed class DetectorStressScenarioTests
             UseCOnset: false,
             AutoBph: true,
             ManualBph: 0,
-            HpfCutoffHz: 0.0,
-            DetectorOptions: robust ? TgDetectorOptions.Robust() : null,
-            EventGate: robust ? new BeatEventGateConfig(new PllMatchGate()) : null));
+            HpfCutoffHz: 0.0));
 
         int resets = 0;
         var block = new float[4096];
@@ -84,36 +78,23 @@ public sealed class DetectorStressScenarioTests
     }
 
     [Fact]
-    public void ImpulseDos_BaselineResetStorm_RobustHoldsLock()
+    public void ImpulseDos_DefaultDetectorHoldsLock()
     {
-        StressResult baseline = Run(robust: false, pcmPeak: 0.03, noisePeak: 0.004,
-            bph: 21600, seconds: 16, impulseRate: 1.0, impulseAmp: 0.95);
-        StressResult robust = Run(robust: true, pcmPeak: 0.03, noisePeak: 0.004,
+        StressResult result = Run(pcmPeak: 0.03, noisePeak: 0.004,
             bph: 21600, seconds: 16, impulseRate: 1.0, impulseAmp: 0.95);
 
-        // W-3 pin: the baseline reset storm must stay reproducible.
-        Assert.True(baseline.Resets >= 3, $"baseline resets {baseline.Resets}");
-        Assert.NotEqual(TgSyncStatus.Synced, baseline.FinalSync);
-
-        // Robust profile: no resets, lock held at the true rate.
-        Assert.True(robust.Resets <= 1, $"robust resets {robust.Resets}");
-        Assert.Equal(TgSyncStatus.Synced, robust.FinalSync);
-        Assert.Equal(21600, robust.DetectedBph);
+        Assert.True(result.Resets <= 1, $"resets {result.Resets}");
+        Assert.Equal(TgSyncStatus.Synced, result.FinalSync);
+        Assert.Equal(21600, result.DetectedBph);
     }
 
     [Fact]
-    public void QuietStep_BaselineNeverRelocks_RobustReacquires()
+    public void QuietStep_DefaultDetectorReacquires()
     {
-        StressResult baseline = Run(robust: false, pcmPeak: 0.60, noisePeak: 0.01,
-            bph: 21600, seconds: 16, gainStepAtS: 6.0, gainStepFactor: 0.13);
-        StressResult robust = Run(robust: true, pcmPeak: 0.60, noisePeak: 0.01,
+        StressResult result = Run(pcmPeak: 0.60, noisePeak: 0.01,
             bph: 21600, seconds: 16, gainStepAtS: 6.0, gainStepFactor: 0.13);
 
-        // W-4(b) pin: the baseline must still lose the watch for good.
-        Assert.NotEqual(TgSyncStatus.Synced, baseline.FinalSync);
-
-        // Robust profile: reference decays, detection resumes, lock returns.
-        Assert.Equal(TgSyncStatus.Synced, robust.FinalSync);
-        Assert.Equal(21600, robust.DetectedBph);
+        Assert.Equal(TgSyncStatus.Synced, result.FinalSync);
+        Assert.Equal(21600, result.DetectedBph);
     }
 }

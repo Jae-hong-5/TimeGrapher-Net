@@ -62,7 +62,7 @@ public sealed class TgDetector
     private int _evHistoryHead;
     private int _evHistoryCount;
 
-    /* Opt-in per-event PLL phase-match recording (diagnostics only; the
+    /* Per-event PLL phase-match recording (diagnostics only; the
      * detector output is unchanged). Indices align with result.Events of the
      * most recent Process call; contents are valid until the next call. */
     private readonly bool _trackEventPllMatch;
@@ -73,7 +73,7 @@ public sealed class TgDetector
     /// <summary>
     /// PLL phase-match verdicts (1 = matched or not gated) aligned with the
     /// Events list filled by the last <see cref="Process"/> call. Empty
-    /// unless TgDetectorOptions.TrackEventPllMatch was set. An event is 0
+    /// unless <see cref="TgConfig.TrackEventPllMatch"/> was set. An event is 0
     /// only when it failed the phase match while a lock was held, so a
     /// veto keyed on this can never starve lock acquisition.
     /// </summary>
@@ -81,17 +81,6 @@ public sealed class TgDetector
 
     // tg_init
     public TgDetector(TgConfig cfg)
-        : this(cfg, null)
-    {
-    }
-
-    /// <summary>
-    /// Overload carrying the opt-in robustness options, kept off TgConfig so
-    /// the robustness surface stays separate from the base config. A null
-    /// options reference (or an all-off instance) leaves the pipeline
-    /// identical to the pinned pre-options baseline.
-    /// </summary>
-    public TgDetector(TgConfig cfg, TgDetectorOptions? options)
     {
         // tg_init: if (!cfg_in || cfg_in->sample_rate <= 0.0) return NULL;
         if (cfg == null || cfg.SampleRate <= 0.0)
@@ -117,6 +106,7 @@ public sealed class TgDetector
             MinPeakFractionInit = cfg.MinPeakFractionInit,
             SuppressPreSyncEvents = cfg.SuppressPreSyncEvents,
             CPlacement = cfg.CPlacement,
+            TrackEventPllMatch = cfg.TrackEventPllMatch,
         };
 
         /* Apply zero-defaults at runtime */
@@ -139,27 +129,7 @@ public sealed class TgDetector
         if (_cfg.MinPeakFractionInit > 0.0)
             _det.SetMinPeakFraction(_cfg.MinPeakFractionInit);
 
-        _trackEventPllMatch = options?.TrackEventPllMatch ?? false;
-
-        /* Opt-in robustness options (config fields on the core; Init applied
-         * the all-off defaults above, so a null options stays bit-identical). */
-        if (options != null)
-        {
-            _det.AdaptiveFloorEnabled = options.EnableAdaptiveFloor;
-            _det.RejectedPeakMinSnr = options.RejectedPeakMinSnr;
-            _det.RejectedPeakMinCount = options.RejectedPeakMinCount;
-            _det.AdaptiveFloorMinMul = options.AdaptiveFloorMinMul;
-            _det.RefDecayAfterS = options.RefDecayAfterS;
-            _det.RefDecayTauS = options.RefDecayTauS;
-            _det.RegimeGuardEnabled = options.EnableRegimeGuard;
-            /* The trip run is structurally capped by the regime ring depth:
-             * after TG_REGIME_RING_N consecutive loud peaks the ring min
-             * rises to the loud level and the run resets, so values above
-             * the ring size could never trip (silently disabling the V5.6
-             * reset). Clamp instead of trusting the knob. */
-            _det.RegimeTripBeats = Math.Clamp(
-                options.RegimeTripBeats, 1, TgDetectorCore.TG_REGIME_RING_N);
-        }
+        _trackEventPllMatch = _cfg.TrackEventPllMatch;
 
         _sync = new TgSync();
         _sync.Init();

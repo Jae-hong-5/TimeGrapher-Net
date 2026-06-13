@@ -6,11 +6,8 @@ using Xunit;
 namespace TimeGrapher.App.Tests;
 
 /// <summary>
-/// Pins the run-settings -> worker-config policy: adaptive floor + regime
-/// guard (the regression-free pair, per the adverse A/B measurements) are
-/// ALWAYS on for GUI runs, while the PLL event veto - which boosts precision
-/// on weak/impulsive signals but costs recall under extreme sustained noise
-/// - stays behind the checkbox, default off.
+/// Pins the run-settings -> worker-config policy: the PLL event veto stays
+/// behind the checkbox and defaults off.
 /// </summary>
 public sealed class AnalysisRunSettingsTests
 {
@@ -28,26 +25,20 @@ public sealed class AnalysisRunSettingsTests
         PllEventVeto: pllEventVeto);
 
     [Fact]
-    public void Default_WiresFloorAndGuardWithoutTheVeto()
+    public void Default_DoesNotWireTheVeto()
     {
         AnalysisWorker.Config config = NewSettings(pllEventVeto: false)
             .ToWorkerConfig(sessionId: 1, sampleWriter: null);
 
-        Assert.NotNull(config.DetectorOptions);
-        Assert.True(config.DetectorOptions!.EnableAdaptiveFloor);
-        Assert.True(config.DetectorOptions.EnableRegimeGuard);
         Assert.Null(config.EventGate);
     }
 
     [Fact]
-    public void PllEventVetoOn_AddsTheGateOnTopOfFloorAndGuard()
+    public void PllEventVetoOn_AddsTheGate()
     {
         AnalysisWorker.Config config = NewSettings(pllEventVeto: true)
             .ToWorkerConfig(sessionId: 1, sampleWriter: null);
 
-        Assert.NotNull(config.DetectorOptions);
-        Assert.True(config.DetectorOptions!.EnableAdaptiveFloor);
-        Assert.True(config.DetectorOptions.EnableRegimeGuard);
         Assert.IsType<PllMatchGate>(config.EventGate);
     }
 }

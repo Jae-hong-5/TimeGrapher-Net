@@ -28,8 +28,6 @@ public sealed class AnalysisWorker : IDisposable
         public bool AutoBph = true;
         public int ManualBph = 0;
         public double HpfCutoffHz = 0.0;
-        /// <summary>Opt-in detection robustness options; null = original pipeline.</summary>
-        public TgDetectorOptions? DetectorOptions = null;
         /// <summary>Opt-in veto gate at the metrics choke point; null = no gate.</summary>
         public IBeatEventGate? EventGate = null;
         public int SoundImageWidth = 0;
@@ -90,7 +88,6 @@ public sealed class AnalysisWorker : IDisposable
             config.AutoBph,
             config.ManualBph,
             config.HpfCutoffHz,
-            config.DetectorOptions,
             config.EventGate != null ? new BeatEventGateConfig(config.EventGate) : null));
 
         _inputBlock = new float[DetectorNumberOfSamples];

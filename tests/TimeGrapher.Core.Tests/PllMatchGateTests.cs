@@ -90,7 +90,6 @@ public sealed class PllMatchGateTests
             AutoBph: true,
             ManualBph: 0,
             HpfCutoffHz: 0.0,
-            DetectorOptions: null,
             EventGate: gate != null ? new BeatEventGateConfig(gate) : null));
 
         var detected = new List<double>();

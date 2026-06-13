@@ -47,7 +47,6 @@ public sealed class BeatEventGateTests
             AutoBph: true,
             ManualBph: 0,
             HpfCutoffHz: 0.0,
-            DetectorOptions: null,
             EventGate: gate != null ? new BeatEventGateConfig(gate) : null));
 
     private static WatchSynthStreamConfig CleanStream() {

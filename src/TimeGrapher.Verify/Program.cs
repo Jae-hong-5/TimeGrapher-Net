@@ -7,10 +7,8 @@
 // A directory argument is expanded to its *.wav files.
 //   TimeGrapher.Verify --generated --byte-fixtures
 // Adds deterministic generated and byte-built WAV fixtures for CI.
-//   TimeGrapher.Verify --adverse [--profile=baseline|robust] [--opts=floor|guard|gate[+..]] [--gate=off|pll]
-//   TimeGrapher.Verify --ab=armA,armB
-//   TimeGrapher.Verify --fidelity-check
-// Adverse-condition rows, arm-based A/B, and the all-off fidelity gate.
+//   TimeGrapher.Verify --adverse [--gate=off|pll]
+// Adverse-condition rows with optional PLL event-gate measurement.
 //
 // Exit codes: 0 = all gates passed, 1 = a verification gate failed,
 // 2 = usage error (unknown option, malformed spec, flags without a runner).
@@ -33,11 +31,7 @@ var generatedFiles = new List<string>();
 // captured from the synth's FillF32 event side channel at write time.
 var truthByFile = new Dictionary<string, double[]>(StringComparer.OrdinalIgnoreCase);
 bool runAdverse = false;
-bool runFidelityCheck = false;
-string profileSpec = "baseline";
-string? optsSpec = null;
-string? gateSpec = null;
-string? abSpec = null;
+string gateSpec = "off";
 foreach (string arg in args)
 {
     if (arg == "--adverse")
@@ -46,34 +40,9 @@ foreach (string arg in args)
         continue;
     }
 
-    if (arg == "--fidelity-check")
-    {
-        runFidelityCheck = true;
-        continue;
-    }
-
-    if (arg.StartsWith("--profile=", StringComparison.Ordinal))
-    {
-        profileSpec = arg["--profile=".Length..];
-        continue;
-    }
-
-    if (arg.StartsWith("--opts=", StringComparison.Ordinal))
-    {
-        optsSpec = arg["--opts=".Length..];
-        continue;
-    }
-
     if (arg.StartsWith("--gate=", StringComparison.Ordinal))
     {
         gateSpec = arg["--gate=".Length..];
-        continue;
-    }
-
-    if (arg.StartsWith("--ab=", StringComparison.Ordinal))
-    {
-        abSpec = arg["--ab=".Length..];
-        runAdverse = true; // A/B implies the adverse rows
         continue;
     }
 
@@ -108,16 +77,15 @@ foreach (string arg in args)
     }
 }
 
-// Arm-selection flags configure only the adverse runner; supplying them
-// without --adverse/--ab silently ran zero adverse gates (false green).
-if (!runAdverse && (profileSpec != "baseline" || optsSpec != null || gateSpec != null))
+// Gate-selection flags configure only the adverse runner.
+if (!runAdverse && gateSpec != "off")
 {
-    Console.Error.WriteLine("TimeGrapher.Verify: --profile/--opts/--gate require --adverse or --ab");
+    Console.Error.WriteLine("TimeGrapher.Verify: --gate requires --adverse");
     return 2;
 }
 files.AddRange(generatedFiles);
 
-if (files.Count == 0 && !runAdverse && !runFidelityCheck)
+if (files.Count == 0 && !runAdverse)
 {
     // Usage error (exit 2): exit 1 is reserved for verification failures.
     Console.Error.WriteLine("TimeGrapher.Verify: no WAV files specified");
@@ -283,76 +251,25 @@ finally
 // Adverse-condition scenario rows (in-memory, ground-truth scored).
 if (runAdverse)
 {
-    // Resolve the arm(s). --gate=onnx:<path> is reserved for the future
+    // Resolve the arm. --gate=onnx:<path> is reserved for the future
     // inference project; using it today is a usage error (exit 2).
-    if (gateSpec != null && gateSpec.StartsWith("onnx:", StringComparison.Ordinal))
+    if (gateSpec.StartsWith("onnx:", StringComparison.Ordinal))
     {
         Console.Error.WriteLine(
             "TimeGrapher.Verify: --gate=onnx:<path> is reserved for the TimeGrapher.Inference gate (not yet implemented)");
         return 2;
     }
-    if (gateSpec != null && gateSpec != "off" && gateSpec != "pll")
+    if (gateSpec != "off" && gateSpec != "pll")
     {
         Console.Error.WriteLine($"TimeGrapher.Verify: unknown --gate value '{gateSpec}' (off|pll)");
         return 2;
     }
 
-    ArmSpec? ResolveArm(string spec)
+    ArmSpec arm = gateSpec == "pll" ? ArmSpec.PllGate : ArmSpec.Default;
+    if (!AdverseScenarios.Run(Console.Out, arm))
     {
-        ArmSpec? arm = ArmSpec.Parse(spec);
-        if (arm != null && gateSpec != null)
-        {
-            bool overrideUsesPll = gateSpec == "pll";
-            if (overrideUsesPll == arm.UsePllGate)
-            {
-                // Identity override: keep the canonical arm name so the
-                // calibrated gates stay active (renaming would silently
-                // downgrade every row to INFO).
-                return arm;
-            }
-            arm = arm with { Name = $"{arm.Name}:gate={gateSpec}", UsePllGate = overrideUsesPll };
-            Console.Error.WriteLine(
-                $"note: --gate creates the attribution arm '{arm.Name}'; calibrated gates run INFO-only");
-        }
-        return arm;
+        allMatch = false;
     }
-
-    if (abSpec != null)
-    {
-        string[] armSpecs = abSpec.Split(',');
-        ArmSpec? armA = armSpecs.Length == 2 ? ResolveArm(armSpecs[0]) : null;
-        ArmSpec? armB = armSpecs.Length == 2 ? ResolveArm(armSpecs[1]) : null;
-        if (armA == null || armB == null)
-        {
-            Console.Error.WriteLine($"TimeGrapher.Verify: invalid --ab spec '{abSpec}' (expected armA,armB)");
-            return 2;
-        }
-        if (!AdverseScenarios.RunAb(Console.Out, armA, armB))
-        {
-            allMatch = false;
-        }
-    }
-    else
-    {
-        ArmSpec? arm = ResolveArm(optsSpec ?? profileSpec);
-        if (arm == null)
-        {
-            Console.Error.WriteLine($"TimeGrapher.Verify: invalid profile/opts spec '{optsSpec ?? profileSpec}'");
-            return 2;
-        }
-        if (!AdverseScenarios.Run(Console.Out, arm))
-        {
-            allMatch = false;
-        }
-    }
-}
-
-// Standing baseline-equivalence gate: all-off options must equal the
-// pinned baseline pipeline (null options).
-if (runFidelityCheck && !FidelityCheck.Run(Console.Out))
-{
-    allMatch = false;
-    Console.Error.WriteLine("  MISMATCH: all-off DetectorOptions diverged from the null-options pipeline");
 }
 
 return allMatch ? 0 : 1;

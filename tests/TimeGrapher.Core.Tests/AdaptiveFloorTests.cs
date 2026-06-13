@@ -13,7 +13,7 @@ namespace TimeGrapher.Core.Tests;
 /// 75th-percentile silence estimate sits at 0.00112, reproducing the
 /// realistic split between the two noise statistics. Period 7 is coprime to
 /// the 48-sample decimation stride so the percentile ring sees both values.
-/// Baseline minPeakThr = 0.00112 + 0.2*(10*0.0008 - 0.00112) = ~0.0025.
+/// Pre-adaptation minPeakThr = 0.00112 + 0.2*(10*0.0008 - 0.00112) = ~0.0025.
 /// </summary>
 public sealed class AdaptiveFloorTests
 {
@@ -23,20 +23,16 @@ public sealed class AdaptiveFloorTests
     private const float NoiseLow = 0.0008f;
     private const float NoiseHigh = 0.00112f;
 
-    private static TgDetectorCore NewCore(bool adaptive)
+    private static TgDetectorCore NewCore()
     {
         var core = new TgDetectorCore();
         core.Init(Fs);
-        if (adaptive)
-        {
-            core.AdaptiveFloorEnabled = true;
-            // Test-friendly parameters: a wider engagement window than the
-            // defaults so the mechanism (not parameter tuning) is under test.
-            core.RejectedPeakMinSnr = 1.5;
-            core.AdaptiveFloorMinMul = 2.0;
-            core.RefDecayAfterS = 1.0;
-            core.RefDecayTauS = 1.0;
-        }
+        // Test-friendly parameters: a wider engagement window than the
+        // defaults so the mechanism (not parameter tuning) is under test.
+        core.RejectedPeakMinSnr = 1.5;
+        core.AdaptiveFloorMinMul = 2.0;
+        core.RefDecayAfterS = 1.0;
+        core.RefDecayTauS = 1.0;
         return core;
     }
 
@@ -78,17 +74,15 @@ public sealed class AdaptiveFloorTests
     }
 
     [Fact]
-    public void WeakBursts_BaselineNeverDetects_AdaptiveRecoversAfterRejectedHistory()
+    public void WeakBursts_AdaptiveFloorRecoversAfterRejectedHistory()
     {
-        // 0.0024 bursts sit just under the baseline min-peak threshold
+        // 0.0024 bursts sit just under the pre-adaptation min-peak threshold
         // (~0.0025): the W-2 floor rejects every one, and rejected bursts
-        // leave no trace, so the lockout is permanent in the baseline.
+        // leave no trace, so the lockout would be permanent without the
+        // rejected-peak shadow history.
         float[] envelope = BuildEnvelope((int)(6.5 * Fs), BurstTrain(1.0, 20, 0.0024f));
 
-        List<TgRawEvent> baseline = Run(NewCore(adaptive: false), envelope);
-        List<TgRawEvent> adaptive = Run(NewCore(adaptive: true), envelope);
-
-        Assert.Empty(baseline); // W-2 pin: permanent no-detection
+        List<TgRawEvent> adaptive = Run(NewCore(), envelope);
 
         Assert.NotEmpty(adaptive);
         // Adaptation requires RejectedPeakMinCount (8) rejected bursts first:
@@ -101,24 +95,19 @@ public sealed class AdaptiveFloorTests
     }
 
     [Fact]
-    public void LoudToQuietTransition_BaselineStaysLatched_AdaptiveDecaysAndReacquires()
+    public void LoudToQuietTransition_AdaptiveFloorDecaysAndReacquires()
     {
         // 10 loud bursts latch the reference peak at 0.05; quiet 0.0024
-        // bursts follow. Baseline: minPeakThr stays ~0.011 forever (W-4(b)).
-        // Adaptive: the reference decays after RefDecayAfterS of no accepts
-        // and the rejected-peak floor takes over, so detection resumes.
+        // bursts follow. The reference decays after RefDecayAfterS of no
+        // accepts and the rejected-peak floor takes over, so detection resumes.
         var bursts = new List<(int, float)>();
         bursts.AddRange(BurstTrain(1.0, 10, 0.05f));
         bursts.AddRange(BurstTrain(3.5, 30, 0.0024f));
         float[] envelope = BuildEnvelope((int)(11.5 * Fs), bursts);
 
-        List<TgRawEvent> baseline = Run(NewCore(adaptive: false), envelope);
-        List<TgRawEvent> adaptive = Run(NewCore(adaptive: true), envelope);
+        List<TgRawEvent> adaptive = Run(NewCore(), envelope);
 
         ulong quietStart = (ulong)(3.5 * Fs);
-        Assert.DoesNotContain(baseline, ev => ev.SampleIndex >= quietStart); // W-4(b) pin
-        Assert.Equal(20, baseline.Count); // exactly the 10 loud bursts (A+C each)
-
         List<TgRawEvent> quietAccepts = adaptive.Where(ev => ev.SampleIndex >= quietStart).ToList();
         Assert.NotEmpty(quietAccepts);
         // Reacquisition happens within the decay horizon (well before the
@@ -144,7 +133,7 @@ public sealed class AdaptiveFloorTests
         bursts.AddRange(BurstTrain(7.1, 8, 0.01f));    // ticks resume
         float[] envelope = BuildEnvelope((int)(9.5 * Fs), bursts);
 
-        List<TgRawEvent> adaptive = Run(NewCore(adaptive: true), envelope);
+        List<TgRawEvent> adaptive = Run(NewCore(), envelope);
 
         ulong resumeStart = (ulong)(7.1 * Fs);
         int resumedAccepts = adaptive.Count(ev => ev.SampleIndex >= resumeStart);
@@ -161,7 +150,7 @@ public sealed class AdaptiveFloorTests
         // adapts and the detector stays silent even with the option on.
         float[] envelope = BuildEnvelope((int)(6.5 * Fs), BurstTrain(1.0, 20, 0.0015f));
 
-        List<TgRawEvent> adaptive = Run(NewCore(adaptive: true), envelope);
+        List<TgRawEvent> adaptive = Run(NewCore(), envelope);
 
         Assert.Empty(adaptive);
     }

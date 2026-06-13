@@ -1,7 +1,6 @@
 using TimeGrapher.App.Rendering;
 using TimeGrapher.Core.Analysis;
 using TimeGrapher.Core.AudioIo;
-using TimeGrapher.Core.Detection;
 using TimeGrapher.Core.Detection.Scoring;
 
 namespace TimeGrapher.App;
@@ -31,13 +30,8 @@ internal sealed record AnalysisRunSettings(
             AutoBph = AutoBph,
             ManualBph = ManualBph,
             HpfCutoffHz = HpfCutoffHz,
-            // Adaptive floor + regime guard are on by default: the adverse
-            // A/B measured no regression from them on any row, and the
-            // original-source fidelity constraint was dropped by the owner.
             // The PLL event veto stays opt-in because it regresses recall
-            // under extreme sustained noise (noisy-1 row) even though it
-            // sharply raises precision on weak/impulsive rows.
-            DetectorOptions = TgDetectorOptions.Robust(),
+            // under extreme sustained noise (noisy-1 row).
             EventGate = PllEventVeto ? new PllMatchGate() : null,
             SoundImageWidth = SoundImageWidth,
             SoundImageHeight = SoundImageHeight,

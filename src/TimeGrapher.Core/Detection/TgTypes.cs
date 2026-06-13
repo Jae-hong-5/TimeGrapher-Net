@@ -4,7 +4,7 @@
  * Timegrapher.h (the comments below preserve the load-bearing parts of the
  * original field-by-field documentation). The provisional C++ source is not
  * authoritative; this surface evolves on its own merits, with behavior
- * drift guarded by the golden-master / parity / --fidelity-check tripwires.
+ * drift guarded by golden-master and adverse-condition verification.
  */
 
 namespace TimeGrapher.Core.Detection;
@@ -72,6 +72,10 @@ public sealed class TgConfig
      * with V5.3 and earlier). */
     public TgCPlacement CPlacement;
 
+    /* Diagnostics for event gates. When true, TgDetector records per-event PLL
+     * phase-match verdicts; detector output itself is unchanged. */
+    public bool TrackEventPllMatch;
+
     /// <summary>tg_config_default: populate with the library defaults.</summary>
     public static TgConfig Default()
     {
@@ -91,6 +95,7 @@ public sealed class TgConfig
             MinPeakFractionInit = 0.0,
             SuppressPreSyncEvents = false,
             CPlacement = TgCPlacement.Peak, // V5.4 default
+            TrackEventPllMatch = false,
         };
     }
 }

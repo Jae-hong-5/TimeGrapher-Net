@@ -1,5 +1,4 @@
 using TimeGrapher.Core.Detection;
-using TimeGrapher.Core.Sim;
 using Xunit;
 
 namespace TimeGrapher.Core.Tests;
@@ -8,8 +7,8 @@ namespace TimeGrapher.Core.Tests;
 /// I-3 RegimeGuard mechanism tests, driving TgDetectorCore directly with the
 /// same controlled envelope style as <see cref="AdaptiveFloorTests"/>:
 /// fluctuating noise carpet (min tracker ~0.0008, percentile ~0.00112) plus
-/// rectangular bursts. Bursts at 0.01 are comfortably accepted
-/// (baseline minPeakThr ~0.0025), so the regime ring fills with real peaks.
+/// rectangular bursts. Bursts at 0.01 are comfortably accepted, so the regime
+/// ring fills with real peaks.
 /// </summary>
 public sealed class RegimeGuardTests
 {
@@ -17,14 +16,10 @@ public sealed class RegimeGuardTests
     private const int BurstWidth = 576;     // 12 ms
     private const float TickAmp = 0.01f;
 
-    private static TgDetectorCore NewCore(bool guard)
+    private static TgDetectorCore NewCore()
     {
         var core = new TgDetectorCore();
         core.Init(Fs);
-        if (guard)
-        {
-            core.RegimeGuardEnabled = true;
-        }
         return core;
     }
 
@@ -72,7 +67,7 @@ public sealed class RegimeGuardTests
     }
 
     [Fact]
-    public void SingleImpulse_TripsBaseline_ButNotGuard()
+    public void SingleImpulse_DoesNotTripRegimeGuard()
     {
         // 8 ordinary ticks, one 12x impulse, more ordinary ticks. The V5.6
         // instantaneous trip fires on the impulse; the guard requires a run
@@ -83,8 +78,7 @@ public sealed class RegimeGuardTests
         bursts.AddRange(Train(3.25, 8, TickAmp));
         float[] envelope = BuildEnvelope((int)(6.0 * Fs), bursts);
 
-        Assert.Equal(1, Run(NewCore(guard: false), envelope)); // V5.6 pin (W-3)
-        Assert.Equal(0, Run(NewCore(guard: true), envelope));
+        Assert.Equal(0, Run(NewCore(), envelope));
     }
 
     [Fact]
@@ -99,79 +93,14 @@ public sealed class RegimeGuardTests
         bursts.AddRange(Train(3.0, 5, 0.12f));
         float[] envelope = BuildEnvelope((int)(5.0 * Fs), bursts);
 
-        Assert.Equal(1, Run(NewCore(guard: true), envelope));
+        Assert.Equal(1, Run(NewCore(), envelope));
     }
 
     [Fact]
-    public void TripRunIsStructurallyCappedByTheRegimeRingDepth()
-    {
-        // A sustained gain step floods the 8-entry regime ring: after 8 loud
-        // peaks the ring min rises to the loud level and peaks stop
-        // qualifying, so the run can never exceed 8. TripBeats = 8 still
-        // trips; TripBeats = 9 would never trip - which is why the
-        // TgDetector ctor clamps the option to [1, TG_REGIME_RING_N].
-        var bursts = new List<(int, float)>();
-        bursts.AddRange(Train(1.0, 8, TickAmp));
-        bursts.AddRange(Train(3.0, 12, 0.12f));
-        float[] envelope = BuildEnvelope((int)(7.0 * Fs), bursts);
-
-        TgDetectorCore atCap = NewCore(guard: true);
-        atCap.RegimeTripBeats = 8;
-        Assert.Equal(1, Run(atCap, envelope));
-
-        TgDetectorCore overCap = NewCore(guard: true);
-        overCap.RegimeTripBeats = 9;
-        Assert.Equal(0, Run(overCap, envelope));
-    }
-
-    [Fact]
-    public void TgDetectorClampsOversizedTripBeats()
-    {
-        // Through the public seam an oversized knob is clamped, so a genuine
-        // sustained gain change still flushes (DetectorResetEvent) instead of
-        // the V5.6 reset being silently disabled.
-        WatchSynthStreamConfig cfg = WatchSynthStreamConfig.Clean();
-        cfg.SampleRateHz = 48000;
-        cfg.Bph = 21600;
-        cfg.PcmPeakAmplitude = 0.04;
-        cfg.NoisePeakAmplitude = 0.0;
-
-        var synth = new WatchSynthStream(cfg);
-        var detector = new TgDetector(TgConfig.Default(),
-            new TgDetectorOptions { EnableRegimeGuard = true, RegimeTripBeats = 99 });
-        var result = new TgResult();
-
-        bool sawReset = false;
-        var block = new float[4096];
-        long total = 48000L * 10;
-        long done = 0;
-        long stepAt = 48000L * 5;
-        while (done < total)
-        {
-            int slice = (int)Math.Min(block.Length, total - done);
-            Span<float> span = block.AsSpan(0, slice);
-            synth.Generate(span);
-            for (int i = 0; i < slice; i++)
-            {
-                if (done + i >= stepAt)
-                {
-                    span[i] *= 14f; // sustained gain-up step
-                }
-            }
-            detector.Process(span, result);
-            sawReset |= result.DetectorResetEvent;
-            done += slice;
-        }
-
-        Assert.True(sawReset, "clamped guard never tripped on a sustained gain step");
-    }
-
-    [Fact]
-    public void RepeatedImpulses_SeparatedByTicks_NeverTripGuard()
+    public void RepeatedImpulses_SeparatedByTicks_NeverTripRegimeGuard()
     {
         // The impulse-DoS pattern: a large impulse roughly once a second with
-        // ordinary ticks in between. Baseline trips repeatedly (cooldown
-        // permitting); the guard never accumulates a run of 3.
+        // ordinary ticks in between never accumulates a run of 3.
         var bursts = new List<(int, float)>();
         bursts.AddRange(Train(1.0, 24, TickAmp));
         for (int k = 0; k < 5; k++)
@@ -180,7 +109,6 @@ public sealed class RegimeGuardTests
         }
         float[] envelope = BuildEnvelope((int)(9.0 * Fs), bursts);
 
-        Assert.True(Run(NewCore(guard: false), envelope) >= 2, "baseline should reset repeatedly");
-        Assert.Equal(0, Run(NewCore(guard: true), envelope));
+        Assert.Equal(0, Run(NewCore(), envelope));
     }
 }
