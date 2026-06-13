@@ -87,6 +87,7 @@ public partial class MainWindow : Window
     private readonly RunSelectionResolver mRunSelectionResolver;
     private readonly RunCommandService mRunCommandService;
     private readonly RunSessionController mRunSessionController;
+    private readonly AnalysisPerformanceLogger? mAnalysisPerformanceLogger;
 
     private readonly List<int> mInputDeviceNumbers = new();
 
@@ -110,6 +111,9 @@ public partial class MainWindow : Window
         mRecordingSessionService = new RecordingSessionService(mDialogs, new QueuedRecordingWriterFactory());
         mPlaybackFileService = new PlaybackFileService(mDialogs);
         mRunCommandService = new RunCommandService(mViewModel, new RunCommandOperations(this));
+        mAnalysisPerformanceLogger = AppStartupOptions.Current.AnalysisLogPath is string analysisLogPath
+            ? new AnalysisPerformanceLogger(analysisLogPath)
+            : null;
         mRunSessionController = new RunSessionController(
             sessionId => BuildRunSettings().ToWorkerConfig(sessionId, mWavWriter),
             Reset,
@@ -281,6 +285,7 @@ public partial class MainWindow : Window
         // Display leg of the latency evidence: stamped after the frame rendered.
         long displayTicks = System.Diagnostics.Stopwatch.GetTimestamp();
         mLatencyStats.Observe(frame, droppedFrames, displayTicks);
+        mAnalysisPerformanceLogger?.ObserveDisplayed(frame, displayTicks);
         if (mLatencyStats.TryFormatStatus(displayTicks) is string latencyText)
         {
             mViewModel.LatencyText = latencyText;
