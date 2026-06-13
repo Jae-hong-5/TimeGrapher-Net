@@ -23,6 +23,10 @@
   - TimeGrapherNet의 View, Controller, Model 역할과 의존 제약을 Mermaid 다이어그램으로 보여준다
 - `DATA_MODEL_VIEW.md`
   - WAV, 분석 실행, 오디오 버퍼, 검출 결과, 분석 프레임 등 시스템이 조작하는 데이터 엔티티와 관계를 Mermaid 다이어그램으로 보여준다
+- `VARIO_MODULE_VIEW.md`
+  - Vario 기능의 Core 통계 축적 모듈과 App 탭/렌더링 모듈 분해를 보여준다
+- `VARIO_CNC_VIEW.md`
+  - Vario 기능의 런타임 컴포넌트와 커넥터, 프레임 전달 시나리오를 보여준다
 
 ## 작업 기록/근거용
 
