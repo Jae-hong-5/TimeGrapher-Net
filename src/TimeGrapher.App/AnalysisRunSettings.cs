@@ -38,6 +38,8 @@ internal sealed record AnalysisRunSettings(
             ScopeSnapshotPointBudget = ScopeSnapshotPointBudget,
             // Sound print background follows the scope background (single source: App.axaml ScopeBgColor).
             SoundImageBackgroundColor = PlotThemePalette.Current.ScopeBg,
+            // Spectrogram colormap follows the theme too: light background -> reversed inferno.
+            SpectrogramLightColormap = PlotThemePalette.Current.IsLight,
             SampleWriter = sampleWriter,
         };
     }

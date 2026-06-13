@@ -18,6 +18,23 @@ internal readonly record struct PlotThemePalette(
     uint TraceTick,
     uint TraceTock)
 {
+    /// <summary>
+    /// True when the scope background is light, so image-based tabs (the
+    /// spectrogram) pick a light-background colormap. Derived from ScopeBg
+    /// luminance so it tracks the App.axaml ScopeBgColor without a separate flag.
+    /// </summary>
+    public bool IsLight
+    {
+        get
+        {
+            byte r = (byte)(ScopeBg >> 16);
+            byte g = (byte)(ScopeBg >> 8);
+            byte b = (byte)ScopeBg;
+            // Rec. 601 luma; brighter than mid-gray reads as a light background.
+            return 0.299 * r + 0.587 * g + 0.114 * b > 127.5;
+        }
+    }
+
     /// <summary>Palette for the currently requested application theme variant.</summary>
     public static PlotThemePalette Current =>
         FromResources(Application.Current?.RequestedThemeVariant ?? ThemeVariant.Light);

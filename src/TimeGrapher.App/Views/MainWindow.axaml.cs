@@ -219,6 +219,7 @@ public partial class MainWindow : Window
         PlotThemePalette nextPalette = PlotThemeFor(nextTheme);
         mGraphFrameRenderer.ApplyTheme(nextPalette);
         mRunSessionController.SetSoundBackgroundColor(nextPalette.ScopeBg);
+        mRunSessionController.SetSpectrogramColormap(nextPalette.IsLight);
     }
 
     private static PlotThemePalette CurrentPlotTheme()

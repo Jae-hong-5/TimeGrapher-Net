@@ -15,6 +15,7 @@ internal sealed class SpectrogramRenderer
 {
     private readonly Image _spectrogramImage;
     private readonly Image _legendImage;
+    private bool _light = PlotThemePalette.Current.IsLight;
 
     public SpectrogramRenderer(Image spectrogramImage, Image legendImage)
     {
@@ -22,10 +23,10 @@ internal sealed class SpectrogramRenderer
         _legendImage = legendImage;
     }
 
-    /// <summary>Builds the gradient legend bitmap once. UI thread only.</summary>
+    /// <summary>Builds the gradient legend bitmap from the active theme's colormap. UI thread only.</summary>
     public void InitializeLegend()
     {
-        IReadOnlyList<uint> lut = SpectrogramFrameProjector.ColorLut;
+        IReadOnlyList<uint> lut = SpectrogramFrameProjector.ColorLutFor(_light);
         var gradient = new PixelBuffer(lut.Count, 1);
         for (int x = 0; x < lut.Count; x++)
         {
@@ -33,6 +34,18 @@ internal sealed class SpectrogramRenderer
         }
 
         PixelBufferBitmap.UpdateImage(_legendImage, gradient);
+    }
+
+    /// <summary>
+    /// Switches to the colormap for <paramref name="light"/> and rebuilds the
+    /// legend so it matches; the next <see cref="Reset"/> uses the new floor color.
+    /// The displayed image itself is recolored by the worker (live) or the
+    /// consumer (stopped). UI thread only.
+    /// </summary>
+    public void ApplyTheme(bool light)
+    {
+        _light = light;
+        InitializeLegend();
     }
 
     public void Reset()
@@ -46,16 +59,8 @@ internal sealed class SpectrogramRenderer
         if (w > 0 && h > 0)
         {
             var blank = new PixelBuffer(w, h);
-            blank.Fill(SpectrogramFrameProjector.ColorLut[0]); // the dB-floor color
+            blank.Fill(SpectrogramFrameProjector.ColorLutFor(_light)[0]); // the dB-floor color
             PixelBufferBitmap.UpdateImage(_spectrogramImage, blank);
-        }
-    }
-
-    public void RenderFrame(AnalysisFrame frame)
-    {
-        if (frame.SpectrogramImageUpdated && frame.SpectrogramImage != null)
-        {
-            RenderImage(frame.SpectrogramImage);
         }
     }
 

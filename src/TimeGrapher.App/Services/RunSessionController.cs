@@ -165,6 +165,15 @@ internal sealed class RunSessionController : IDisposable
     }
 
     /// <summary>
+    /// Switches the running analysis worker's spectrogram colormap to match the UI
+    /// theme (no-op when idle — a fresh run reads the current theme from config).
+    /// </summary>
+    public void SetSpectrogramColormap(bool light)
+    {
+        _analysisWorker?.SetSpectrogramColormap(light);
+    }
+
+    /// <summary>
     /// Forwards the Scope Sweep window multiple to the running analysis worker
     /// and remembers it so later runs start with the user's selection.
     /// </summary>
