@@ -67,7 +67,7 @@ public sealed class InfoTabRegistryTests
         var summaryCard = Assert.IsType<Border>(
             content.Children.Single(child => Grid.GetRow(child) == 0));
         var summaryStack = Assert.IsType<StackPanel>(summaryCard.Child);
-        Assert.IsType<Border>(summaryStack.Children[0]);
+        var overallText = Assert.IsType<TextBlock>(summaryStack.Children[0]);
         var summaryColumns = Assert.IsType<Grid>(summaryStack.Children[1]);
         StackPanel[] measureColumns = summaryColumns.Children
             .OfType<StackPanel>()
@@ -76,6 +76,8 @@ public sealed class InfoTabRegistryTests
 
         Assert.Equal(2, measureColumns.Length);
         Assert.All(measureColumns, column => Assert.Equal(2, column.Children.Count));
+        Assert.True(overallText.MinHeight >= 24);
+        Assert.Equal(" ", overallText.Text);
         Assert.DoesNotContain(
             Descendants(summaryCard).OfType<TextBlock>(),
             text => text.Text == "VARIO SUMMARY");
@@ -150,7 +152,8 @@ public sealed class InfoTabRegistryTests
             content.Children.Single(child => Grid.GetRow(child) == 6));
         string legendText = string.Concat(legend.Inlines!.OfType<Run>().Select(run => run.Text));
 
-        Assert.Contains("Pale green band + blue edge", legendText);
+        Assert.Contains("Amber band", legendText);
+        Assert.DoesNotContain("Pale green band + blue edge", legendText);
         Assert.Contains("Blue solid", legendText);
         Assert.Contains("Red solid", legendText);
         Assert.Contains("Black dashed", legendText);

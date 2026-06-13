@@ -11,7 +11,7 @@ namespace TimeGrapher.App.Rendering;
 internal sealed record VarioSummaryControls(
     TextBlock RateStatus, TextBlock AmpStatus,
     TextBlock Elapsed,
-    Border OverallBox, TextBlock OverallText);
+    TextBlock OverallText);
 
 /// <summary>Numeric table cells (Min, Max, Spread, Average, Sigma, Current) per measure.</summary>
 internal sealed record VarioTableControls(
@@ -41,13 +41,13 @@ internal sealed class VarioRenderer
 
     private const uint MinMaxBlue = 0xFF2D7DD2;
     private const uint AvgRed = 0xFFC0392B;
-    private const uint AcceptBandFill = 0xFF4CAF50;
-    private const uint AcceptBandEdge = 0xFF0072B2;
-    private const byte AcceptBandAlpha = 30;
-    private const byte AcceptBandEdgeAlpha = 150;
+    private const uint AcceptBandFill = 0xFFE9C46A;
+    private const uint AcceptBandEdge = 0xFF9A6A00;
+    private const byte AcceptBandAlpha = 42;
+    private const byte AcceptBandEdgeAlpha = 180;
 
     // Y layout inside each gauge: bands fill the plot; labels sit in the headroom.
-    private const double YMax = 1.22;
+    private const double YMax = 1.42;
     private const int LabelPoolSize = 4;
 
     private sealed class Gauge
@@ -277,15 +277,13 @@ internal sealed class VarioRenderer
         VarioVerdict overall = VarioVerdict.Overall(rate, amplitude);
         if (overall.Level == VarioVerdictLevel.Pending)
         {
-            _summary.OverallBox.IsVisible = false;
+            _summary.OverallText.Text = " ";
+            _summary.OverallText.Foreground = LevelBrush(VarioVerdictLevel.Pending);
             return;
         }
 
         _summary.OverallText.Text = overall.Text;
         _summary.OverallText.Foreground = LevelBrush(overall.Level);
-        _summary.OverallBox.Background = LevelTintBrush(overall.Level);
-        _summary.OverallBox.BorderBrush = LevelBrush(overall.Level);
-        _summary.OverallBox.IsVisible = true;
     }
 
     private void SetPlaceholderSummary()
@@ -301,7 +299,8 @@ internal sealed class VarioRenderer
         }
 
         _summary.Elapsed.Text = "00:00";
-        _summary.OverallBox.IsVisible = false;
+        _summary.OverallText.Text = " ";
+        _summary.OverallText.Foreground = LevelBrush(VarioVerdictLevel.Pending);
     }
 
     private ScottPlot.Color RoleColor(string role) => role switch
@@ -313,12 +312,6 @@ internal sealed class VarioRenderer
 
     private static Avalonia.Media.IBrush LevelBrush(VarioVerdictLevel level) =>
         new Avalonia.Media.SolidColorBrush(LevelColor(level));
-
-    private static Avalonia.Media.IBrush LevelTintBrush(VarioVerdictLevel level)
-    {
-        Avalonia.Media.Color c = LevelColor(level);
-        return new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.FromArgb(0x20, c.R, c.G, c.B));
-    }
 
     private static Avalonia.Media.Color LevelColor(VarioVerdictLevel level) => level switch
     {

@@ -25,9 +25,9 @@ internal static class VarioGaugeLayout
     /// <summary>Markers within this fraction of an edge anchor inward so text cannot clip.</summary>
     public const double EdgeFraction = 0.05;
 
-    public const double MinMaxLabelY = 1.14;
-    public const double AverageLabelY = 1.08;
-    public const double CurrentLabelY = 1.02;
+    public const double MinMaxLabelY = 1.29;
+    public const double AverageLabelY = 1.18;
+    public const double CurrentLabelY = 1.07;
 
     /// <summary>Labels to draw, ordered left-to-right, then top-to-bottom.</summary>
     public static IReadOnlyList<GaugeLabel> LayOut(

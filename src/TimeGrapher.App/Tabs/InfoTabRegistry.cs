@@ -377,8 +377,8 @@ internal sealed class InfoTabRegistry
             };
             var bandBadge = new Border
             {
-                Background = new SolidColorBrush(Color.FromArgb(0x22, 0x00, 0x72, 0xB2)),
-                BorderBrush = new SolidColorBrush(Color.FromRgb(0x00, 0x72, 0xB2)),
+                Background = new SolidColorBrush(Color.FromArgb(0x38, 0xE9, 0xC4, 0x6A)),
+                BorderBrush = new SolidColorBrush(Color.FromRgb(0x9A, 0x6A, 0x00)),
                 BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(4),
                 Padding = new Thickness(6, 1, 6, 1),
@@ -447,19 +447,13 @@ internal sealed class InfoTabRegistry
             FontSize = 13,
             FontWeight = FontWeight.Bold,
             TextWrapping = TextWrapping.Wrap,
-            Margin = new Thickness(10, 4, 10, 4),
-        };
-        var overallBox = new Border
-        {
-            Child = overallText,
-            CornerRadius = new CornerRadius(5),
-            BorderThickness = new Thickness(1),
+            MinHeight = 24,
             Margin = new Thickness(12, 6, 12, 0),
-            IsVisible = false,
+            Text = " ",
         };
 
         var summaryStack = new StackPanel();
-        summaryStack.Children.Add(overallBox);
+        summaryStack.Children.Add(overallText);
         summaryStack.Children.Add(summaryColumns);
         var summaryCard = new Border
         {
@@ -554,7 +548,7 @@ internal sealed class InfoTabRegistry
         Run Swatch(string text, Color color) => new(text) { Foreground = new SolidColorBrush(color), FontWeight = FontWeight.Bold };
         legend.Inlines = new InlineCollection
         {
-            Swatch("Pale green band + blue edge", Color.FromRgb(0x00, 0x72, 0xB2)),
+            Swatch("Amber band", Color.FromRgb(0x9A, 0x6A, 0x00)),
             new Run(" = acceptable range     "),
             Swatch("Blue solid", Color.FromRgb(0x2D, 0x7D, 0xD2)),
             new Run(" = measured min/max     "),
@@ -588,7 +582,7 @@ internal sealed class InfoTabRegistry
         }
 
         var summary = new VarioSummaryControls(
-            rateStatus, ampStatus, elapsedValue, overallBox, overallText);
+            rateStatus, ampStatus, elapsedValue, overallText);
         var renderer = new VarioRenderer(
             ratePlot, amplitudePlot, summary, new VarioTableControls(rateCells, amplitudeCells), context.TextFontFamily);
         var consumer = new VarioFrameConsumer(renderer);
