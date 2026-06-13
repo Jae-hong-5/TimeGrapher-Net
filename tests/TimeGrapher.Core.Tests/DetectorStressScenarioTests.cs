@@ -120,6 +120,14 @@ public sealed class DetectorStressScenarioTests
         }
     }
 
+    private static void AssertTimingWithinGate(DetectionScorer.Score score)
+    {
+        Assert.True(Math.Abs(score.MedianOffsetMs) <= 1.0,
+            $"a_bias_ms {score.MedianOffsetMs:F3}");
+        Assert.True(score.RmsAfterOffsetMs <= 2.0,
+            $"a_rms_ms {score.RmsAfterOffsetMs:F3}");
+    }
+
     [Fact]
     public void WeakSignal_DefaultDetectorKeepsTimedEvents()
     {
@@ -130,6 +138,7 @@ public sealed class DetectorStressScenarioTests
         Assert.Equal(18000, result.DetectedBph);
         Assert.True(result.Score.Recall >= 0.90, $"recall {result.Score.Recall:F3}");
         Assert.True(result.Score.Precision >= 0.90, $"precision {result.Score.Precision:F3}");
+        AssertTimingWithinGate(result.Score);
     }
 
     [Fact]
@@ -142,6 +151,7 @@ public sealed class DetectorStressScenarioTests
         Assert.Equal(21600, result.DetectedBph);
         Assert.True(result.Score.Recall >= 0.70, $"recall {result.Score.Recall:F3}");
         Assert.True(result.Score.Precision >= 0.70, $"precision {result.Score.Precision:F3}");
+        AssertTimingWithinGate(result.Score);
     }
 
     [Fact]
@@ -154,6 +164,7 @@ public sealed class DetectorStressScenarioTests
         Assert.Equal(28800, result.DetectedBph);
         Assert.True(result.Score.Recall >= 0.90, $"recall {result.Score.Recall:F3}");
         Assert.True(result.Score.Precision >= 0.90, $"precision {result.Score.Precision:F3}");
+        AssertTimingWithinGate(result.Score);
     }
 
     [Fact]

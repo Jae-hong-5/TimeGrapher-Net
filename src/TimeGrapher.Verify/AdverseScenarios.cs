@@ -31,6 +31,8 @@ internal sealed record AdverseGates(
     double MinRecall = double.NaN,
     double MaxRecall = double.NaN,
     double MinPrecision = double.NaN,
+    double MaxAbsMedianOffsetMs = double.NaN,
+    double MaxRmsAfterOffsetMs = double.NaN,
     int MinResets = -1,
     int MaxResets = -1,
     bool InfoOnly = false);
@@ -65,19 +67,23 @@ internal static class AdverseScenarios
         // Weak signal (W-1/W-2 territory).
         new("weak-1", Bph: 21600, SampleRate: 48000, Seconds: 14,
             PcmPeak: 0.06, NoisePeak: 0.008, Realistic: true,
-            Default: new AdverseGates(MustSync: true, MinRecall: 0.90, MinPrecision: 0.90)),
+            Default: new AdverseGates(MustSync: true, MinRecall: 0.90, MinPrecision: 0.90,
+                MaxAbsMedianOffsetMs: 1.0, MaxRmsAfterOffsetMs: 2.0)),
         new("weak-2", Bph: 18000, SampleRate: 48000, Seconds: 16,
             PcmPeak: 0.035, NoisePeak: 0.010, Realistic: false,
-            Default: new AdverseGates(MustSync: true, MinRecall: 0.90, MinPrecision: 0.90)),
+            Default: new AdverseGates(MustSync: true, MinRecall: 0.90, MinPrecision: 0.90,
+                MaxAbsMedianOffsetMs: 1.0, MaxRmsAfterOffsetMs: 2.0)),
         // Sustained broadband noise (W-7). The default detector must keep
         // usable event-level timing; the optional PLL veto arm is measured
         // separately because PLL phase can itself be dragged by noise.
         new("noisy-1", Bph: 21600, SampleRate: 48000, Seconds: 14,
             PcmPeak: 0.25, NoisePeak: 0.08, Realistic: true,
-            Default: new AdverseGates(MustSync: true, MinRecall: 0.70, MinPrecision: 0.70)),
+            Default: new AdverseGates(MustSync: true, MinRecall: 0.70, MinPrecision: 0.70,
+                MaxAbsMedianOffsetMs: 1.0, MaxRmsAfterOffsetMs: 2.0)),
         new("noisy-2", Bph: 28800, SampleRate: 48000, Seconds: 14,
             PcmPeak: 0.20, NoisePeak: 0.12, Realistic: false,
-            Default: new AdverseGates(MustSync: true, MinRecall: 0.90, MinPrecision: 0.90)),
+            Default: new AdverseGates(MustSync: true, MinRecall: 0.90, MinPrecision: 0.90,
+                MaxAbsMedianOffsetMs: 1.0, MaxRmsAfterOffsetMs: 2.0)),
         // Impulse storms (W-3 regime-reset DoS, W-5/W-8 contamination).
         // Mirrored in-process by tests/TimeGrapher.Core.Tests/
         // DetectorStressScenarioTests.cs - keep parameters and gates in sync
@@ -272,6 +278,14 @@ internal static class AdverseScenarios
         if (!double.IsNaN(gates.MinPrecision))
         {
             ok &= score.Precision >= gates.MinPrecision;
+        }
+        if (!double.IsNaN(gates.MaxAbsMedianOffsetMs))
+        {
+            ok &= Math.Abs(score.MedianOffsetMs) <= gates.MaxAbsMedianOffsetMs;
+        }
+        if (!double.IsNaN(gates.MaxRmsAfterOffsetMs))
+        {
+            ok &= score.RmsAfterOffsetMs <= gates.MaxRmsAfterOffsetMs;
         }
         if (gates.MinResets >= 0)
         {
