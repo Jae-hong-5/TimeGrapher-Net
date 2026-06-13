@@ -23,8 +23,8 @@ internal sealed record VarioTableControls(
 /// the acceptable band (green), the measured min and max (blue lines), the
 /// average (red solid line) and the current reading (black dashed line) — opaque lines so they
 /// stay legible over the band rather than blending a translucent fill into it;
-/// short role labels are placed by <see cref="VarioGaugeLayout"/> so they never
-/// overlap or clip. A SUMMARY bar carries the verdicts and elapsed time;
+/// short role labels are placed by <see cref="VarioGaugeLayout"/> in fixed lanes
+/// so close values remain readable. A SUMMARY bar carries the verdicts and elapsed time;
 /// the table holds the exact numbers. Gauges are non-interactive (no Vario zoom
 /// requirement; QAS-5 wants the readings legible without scroll/zoom), so their
 /// X-window stays locked to the derived range.
@@ -45,8 +45,7 @@ internal sealed class VarioRenderer
     private const byte AcceptBandAlpha = 56;
 
     // Y layout inside each gauge: bands fill the plot; labels sit in the headroom.
-    private const double YMax = 1.18;
-    private const double LabelY = 1.04;
+    private const double YMax = 1.22;
     private const int LabelPoolSize = 4;
 
     private sealed class Gauge
@@ -152,7 +151,7 @@ internal sealed class VarioRenderer
             gauge.NowLine = AddLine(plot, 2, LinePattern.Dashed);
             for (int i = 0; i < LabelPoolSize; i++)
             {
-                Text label = plot.Add.Text(string.Empty, 0.0, LabelY);
+                Text label = plot.Add.Text(string.Empty, 0.0, VarioGaugeLayout.CurrentLabelY);
                 label.LabelFontName = _textFontFamily;
                 label.LabelFontSize = 12;
                 label.LabelBold = true;
@@ -245,7 +244,7 @@ internal sealed class VarioRenderer
             GaugeLabel spec = layout[i];
             Text label = gauge.Labels[i];
             label.LabelText = spec.Role;
-            label.Location = new Coordinates(spec.X, LabelY);
+            label.Location = new Coordinates(spec.X, spec.Y);
             label.LabelFontColor = RoleColor(spec.Role);
             label.Alignment = spec.Anchor switch
             {
