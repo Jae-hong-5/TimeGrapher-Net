@@ -282,7 +282,7 @@ public sealed class TgDetector
             if (_sync.Synced != 0 && _currentBeatPeriod > 0.0)
             {
                 double tol = _currentBeatPeriod * _cfg.SyncTolerancePct * 0.01;
-                double guideWindow = 1.5 * tol;
+                double guideWindow = 2.5 * tol;
                 double minWindow = 0.006;
                 if (guideWindow < minWindow) guideWindow = minWindow;
                 double maxWindow = 0.12 * _currentBeatPeriod;
