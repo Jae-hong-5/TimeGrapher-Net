@@ -66,7 +66,10 @@ public sealed class BeatSegmentCaptureTests
             }
         }
 
-        capture.Project(new DetectorMetricsBlockUpdate(Result(pcm, startSample), events));
+        capture.Project(new DetectorMetricsBlockUpdate(
+            Result(pcm, startSample),
+            events,
+            Array.Empty<DetectedEventUpdate>()));
     }
 
     /// <summary>

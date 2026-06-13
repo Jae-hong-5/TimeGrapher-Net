@@ -22,7 +22,16 @@ public readonly record struct DetectedEventUpdate(
 
 public sealed record DetectorMetricsBlockUpdate(
     DetectorResultSnapshot Result,
-    IReadOnlyList<DetectedEventUpdate> Events);
+    IReadOnlyList<DetectedEventUpdate> DisplayEvents,
+    IReadOnlyList<DetectedEventUpdate> MetricsEvents)
+{
+    public DetectorMetricsBlockUpdate(
+        DetectorResultSnapshot result,
+        IReadOnlyList<DetectedEventUpdate> events)
+        : this(result, events, events)
+    {
+    }
+}
 
 public sealed record DetectorResultSnapshot(
     TgSyncStatus SyncStatus,
@@ -47,9 +56,8 @@ public sealed record DetectorResultSnapshot(
 /// Shared detector + metrics pipeline used by the live worker and the headless
 /// verifier so their event/metric contracts cannot drift apart.
 ///
-/// Gate semantics: when an event gate is configured, the snapshot's Events
-/// list still carries the PRE-gate raw stream (display surfaces keep seeing
-/// every detector event), while the per-event updates list carries only the
+/// Gate semantics: when an event gate is configured, DisplayEvents carries
+/// the PRE-gate raw detector stream while MetricsEvents carries only the
 /// POST-gate stream that reached metrics/scoring.
 /// </summary>
 public sealed class DetectorMetricsEngine
@@ -112,7 +120,8 @@ public sealed class DetectorMetricsEngine
         {
             _syncLossCount++;
         }
-        var updates = new List<DetectedEventUpdate>(_result.Events.Count);
+        var displayUpdates = new List<DetectedEventUpdate>(_result.Events.Count);
+        var metricsUpdates = new List<DetectedEventUpdate>(_result.Events.Count);
 
         if (_gate == null)
         {
@@ -126,7 +135,9 @@ public sealed class DetectorMetricsEngine
                     _ => new WatchMetricsUpdate(),
                 };
 
-                updates.Add(new DetectedEventUpdate(ev, eventSample, metricsUpdate));
+                var update = new DetectedEventUpdate(ev, eventSample, metricsUpdate);
+                displayUpdates.Add(update);
+                metricsUpdates.Add(update);
             }
         }
         else
@@ -137,11 +148,14 @@ public sealed class DetectorMetricsEngine
             for (int i = 0; i < _result.Events.Count; i++)
             {
                 TgEvent ev = _result.Events[i];
+                double eventSample = EventSample(ev);
+                displayUpdates.Add(new DetectedEventUpdate(ev, eventSample, new WatchMetricsUpdate()));
+
                 bool matched = i >= pllMatch.Length || pllMatch[i] != 0;
                 var candidate = new BeatCandidate(
                     ev, synced, _result.DetectedBph, _result.MeasuredPeriodS,
                     _result.NoiseFloor, _result.ReferencePeak, matched);
-                _gate.Submit(ev, EventSample(ev), candidate);
+                _gate.Submit(ev, eventSample, candidate);
             }
 
             /* Force-release pending events at stream and sync boundaries so
@@ -161,7 +175,7 @@ public sealed class DetectorMetricsEngine
                         released.EventSample, released.Candidate.Synced, released.Candidate.DetectedBph),
                     _ => new WatchMetricsUpdate(),
                 };
-                updates.Add(new DetectedEventUpdate(released.Event, released.EventSample, metricsUpdate));
+                metricsUpdates.Add(new DetectedEventUpdate(released.Event, released.EventSample, metricsUpdate));
             }
             if (_result.SyncLostEvent || _result.DetectorResetEvent)
             {
@@ -195,7 +209,7 @@ public sealed class DetectorMetricsEngine
             _syncLossCount,
             _gate?.VetoedEvents ?? 0);
 
-        return new DetectorMetricsBlockUpdate(resultSnapshot, updates);
+        return new DetectorMetricsBlockUpdate(resultSnapshot, displayUpdates, metricsUpdates);
     }
 
     private double EventSample(TgEvent ev)

@@ -48,7 +48,7 @@ public sealed class BeatMetricsFrameProjector
         }
 
         _history.SetActivePosition((WatchPosition)_requestedPosition);
-        foreach (DetectedEventUpdate eventUpdate in update.Events)
+        foreach (DetectedEventUpdate eventUpdate in update.MetricsEvents)
         {
             _history.Record(eventUpdate.MetricsUpdate);
         }

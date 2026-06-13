@@ -54,7 +54,9 @@ public sealed class ScopeRateFrameProjectorTests
             new(cEvent, 2000.0, new WatchMetricsUpdate()),
         };
         var update = new DetectorMetricsBlockUpdate(
-            Result(TgSyncStatus.Synced, Array.Empty<float>(), 0, 0.2f), events);
+            Result(TgSyncStatus.Synced, Array.Empty<float>(), 0, 0.2f),
+            events,
+            Array.Empty<DetectedEventUpdate>());
         var frame = new AnalysisFrame();
 
         projector.Project(update, frame);

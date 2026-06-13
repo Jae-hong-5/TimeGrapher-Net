@@ -78,7 +78,7 @@ public sealed class DetectorScenarioTests
 
     private static void CaptureResults(DetectorMetricsBlockUpdate update, ref string results)
     {
-        foreach (DetectedEventUpdate ev in update.Events)
+        foreach (DetectedEventUpdate ev in update.MetricsEvents)
         {
             if (ev.MetricsUpdate.ResultsUpdated)
             {
@@ -156,7 +156,7 @@ public sealed class DetectorScenarioTests
             Span<float> span = block.AsSpan(0, slice);
             synth.Generate(span);
             DetectorMetricsBlockUpdate update = engine.Process(span);
-            foreach (DetectedEventUpdate ev in update.Events)
+            foreach (DetectedEventUpdate ev in update.MetricsEvents)
             {
                 if (ev.MetricsUpdate.DerivedMeasuresUpdated)
                 {

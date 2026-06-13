@@ -67,20 +67,29 @@ public sealed class ScopeRateFrameProjector
             _localGraphTicks++;
         }
 
-        foreach (DetectedEventUpdate eventUpdate in update.Events)
+        foreach (DetectedEventUpdate eventUpdate in update.DisplayEvents)
         {
             if (eventUpdate.Event.Type == TgEventType.A)
             {
-                AppendAEvent(eventUpdate.EventSample, eventUpdate.Event.PeakValue, eventUpdate.MetricsUpdate, frame);
+                AppendAEventMarker(eventUpdate.EventSample, eventUpdate.Event.PeakValue);
             }
             else if (eventUpdate.Event.Type == TgEventType.C)
             {
-                AppendCEvent(eventUpdate.Event, eventUpdate.EventSample, eventUpdate.MetricsUpdate, frame);
+                AppendCEventMarker(eventUpdate.Event, eventUpdate.EventSample);
             }
             else
             {
                 Console.Error.WriteLine("Unknown Event Type");
             }
+        }
+
+        foreach (DetectedEventUpdate eventUpdate in update.MetricsEvents)
+        {
+            if (eventUpdate.Event.Type == TgEventType.C)
+            {
+                AppendCMetricText(eventUpdate.Event, eventUpdate.EventSample, eventUpdate.MetricsUpdate);
+            }
+            AppendMetricsUpdate(eventUpdate.MetricsUpdate, frame);
         }
     }
 
@@ -127,7 +136,7 @@ public sealed class ScopeRateFrameProjector
         }
     }
 
-    private void AppendAEvent(double eventSample, float peakValue, WatchMetricsUpdate metricsUpdate, AnalysisFrame frame)
+    private void AppendAEventMarker(double eventSample, float peakValue)
     {
         _scopeWindowVerticalMarkers.Add(new ScopeVerticalMarker
         {
@@ -160,10 +169,9 @@ public sealed class ScopeRateFrameProjector
 
         _lastA = eventSample;
         _haveLastA = true;
-        AppendMetricsUpdate(metricsUpdate, frame);
     }
 
-    private void AppendCEvent(TgEvent ev, double eventSample, WatchMetricsUpdate metricsUpdate, AnalysisFrame frame)
+    private void AppendCEventMarker(TgEvent ev, double eventSample)
     {
         if (_useCOnset && !ev.OnsetValid)
         {
@@ -186,7 +194,10 @@ public sealed class ScopeRateFrameProjector
             Height = ev.PeakValue,
             Color = Argb.Black,
         });
+    }
 
+    private void AppendCMetricText(TgEvent ev, double eventSample, WatchMetricsUpdate metricsUpdate)
+    {
         _scopeWindowTextMarkers.Add(new ScopeTextMarker
         {
             X = eventSample + InwardMarkerLength(_sampleRate),
@@ -195,8 +206,6 @@ public sealed class ScopeRateFrameProjector
             Color = Argb.Black,
             Alignment = MarkerTextAlignment.LeftTop,
         });
-
-        AppendMetricsUpdate(metricsUpdate, frame);
     }
 
     private void AppendMetricsUpdate(WatchMetricsUpdate update, AnalysisFrame frame)

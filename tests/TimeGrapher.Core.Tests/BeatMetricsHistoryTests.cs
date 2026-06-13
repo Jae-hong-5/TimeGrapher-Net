@@ -401,7 +401,7 @@ public sealed class BeatMetricsHistoryTests
             new(new TgEvent { Type = TgEventType.A }, 6000.0, BeatUpdate(1, 0.125, 5.0)),
         };
 
-        projector.Project(new DetectorMetricsBlockUpdate(result, events));
+        projector.Project(new DetectorMetricsBlockUpdate(result, Array.Empty<DetectedEventUpdate>(), events));
 
         var frame = new AnalysisFrame();
         projector.AppendSnapshot(frame);

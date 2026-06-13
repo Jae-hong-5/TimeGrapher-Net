@@ -107,7 +107,7 @@ public sealed class PllMatchGateTests
             {
                 firstSyncBlock = blockIndex;
             }
-            foreach (DetectedEventUpdate ev in update.Events)
+            foreach (DetectedEventUpdate ev in update.MetricsEvents)
             {
                 if (ev.Event.Type == TgEventType.A)
                 {
@@ -118,7 +118,7 @@ public sealed class PllMatchGateTests
             blockIndex++;
         }
         update = engine.Flush();
-        foreach (DetectedEventUpdate ev in update.Events)
+        foreach (DetectedEventUpdate ev in update.MetricsEvents)
         {
             if (ev.Event.Type == TgEventType.A)
             {

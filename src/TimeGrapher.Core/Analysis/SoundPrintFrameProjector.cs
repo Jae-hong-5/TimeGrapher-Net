@@ -107,7 +107,7 @@ public sealed class SoundPrintFrameProjector
             return;
         }
 
-        foreach (DetectedEventUpdate eventUpdate in update.Events)
+        foreach (DetectedEventUpdate eventUpdate in update.DisplayEvents)
         {
             if (eventUpdate.Event.Type == TgEventType.A)
             {

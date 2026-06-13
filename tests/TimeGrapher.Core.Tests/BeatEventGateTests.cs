@@ -59,23 +59,29 @@ public sealed class BeatEventGateTests
     }
 
     private sealed record RunResult(
-        List<(TgEventType Type, ulong SampleIndex)> RoutedEvents,
+        List<(TgEventType Type, ulong SampleIndex)> MetricsEvents,
+        List<(TgEventType Type, ulong SampleIndex)> DisplayEvents,
         List<(TgEventType Type, ulong SampleIndex)> SnapshotEvents,
         DetectorResultSnapshot FinalSnapshot);
 
     private static RunResult Run(DetectorMetricsEngine engine, int seconds, int silenceTailSeconds = 0)
     {
         var synth = new WatchSynthStream(CleanStream());
-        var routed = new List<(TgEventType, ulong)>();
+        var metrics = new List<(TgEventType, ulong)>();
+        var display = new List<(TgEventType, ulong)>();
         var snapshot = new List<(TgEventType, ulong)>();
         var block = new float[4096];
         DetectorMetricsBlockUpdate update = default!;
 
         void Capture(DetectorMetricsBlockUpdate u)
         {
-            foreach (DetectedEventUpdate ev in u.Events)
+            foreach (DetectedEventUpdate ev in u.MetricsEvents)
             {
-                routed.Add((ev.Event.Type, ev.Event.SampleIndex));
+                metrics.Add((ev.Event.Type, ev.Event.SampleIndex));
+            }
+            foreach (DetectedEventUpdate ev in u.DisplayEvents)
+            {
+                display.Add((ev.Event.Type, ev.Event.SampleIndex));
             }
             foreach (TgEvent ev in u.Result.Events)
             {
@@ -103,7 +109,7 @@ public sealed class BeatEventGateTests
         }
         update = engine.Flush();
         Capture(update);
-        return new RunResult(routed, snapshot, update.Result);
+        return new RunResult(metrics, display, snapshot, update.Result);
     }
 
     [Fact]
@@ -112,7 +118,8 @@ public sealed class BeatEventGateTests
         RunResult ungated = Run(NewEngine(null), 8);
         RunResult passThrough = Run(NewEngine(new ScriptedGate()), 8);
 
-        Assert.Equal(ungated.RoutedEvents, passThrough.RoutedEvents);
+        Assert.Equal(ungated.MetricsEvents, passThrough.MetricsEvents);
+        Assert.Equal(ungated.DisplayEvents, passThrough.DisplayEvents);
         Assert.Equal(0UL, passThrough.FinalSnapshot.VetoedEvents);
     }
 
@@ -122,16 +129,18 @@ public sealed class BeatEventGateTests
         var gate = new ScriptedGate
         {
             // Veto every A once synced; Cs are nominally accepted, so any C
-            // missing from the routed stream got there via the pair veto.
+            // missing from the metrics stream got there via the pair veto.
             AcceptFunc = c => !(c.Synced && c.Event.Type == TgEventType.A),
         };
         RunResult result = Run(NewEngine(gate), 8);
 
-        Assert.DoesNotContain(result.RoutedEvents, e => e.Type == TgEventType.A);
-        Assert.DoesNotContain(result.RoutedEvents, e => e.Type == TgEventType.C);
+        Assert.DoesNotContain(result.MetricsEvents, e => e.Type == TgEventType.A);
+        Assert.DoesNotContain(result.MetricsEvents, e => e.Type == TgEventType.C);
         Assert.True(result.FinalSnapshot.VetoedEvents > 0);
 
-        // The raw snapshot stream still carries everything for display.
+        // The display and raw snapshot streams still carry everything.
+        Assert.Contains(result.DisplayEvents, e => e.Type == TgEventType.A);
+        Assert.Contains(result.DisplayEvents, e => e.Type == TgEventType.C);
         Assert.Contains(result.SnapshotEvents, e => e.Type == TgEventType.A);
         Assert.Contains(result.SnapshotEvents, e => e.Type == TgEventType.C);
 
@@ -148,8 +157,8 @@ public sealed class BeatEventGateTests
         RunResult windowed = Run(NewEngine(gate), 8);
 
         // Delayed release may shift delivery into later blocks, but the
-        // routed event sequence must be identical.
-        Assert.Equal(ungated.RoutedEvents, windowed.RoutedEvents);
+        // metrics event sequence must be identical.
+        Assert.Equal(ungated.MetricsEvents, windowed.MetricsEvents);
 
         Assert.NotEmpty(gate.Windows);
         int preSamples = (int)(0.020 * 48000);
@@ -202,11 +211,11 @@ public sealed class BeatEventGateTests
                 int slice = Math.Min(block.Length, remaining);
                 synth.Generate(block.AsSpan(0, slice));
                 DetectorMetricsBlockUpdate u = engine.Process(block.AsSpan(0, slice));
-                foreach (DetectedEventUpdate ev in u.Events) routed.Add((ev.Event.Type, ev.Event.SampleIndex));
+                foreach (DetectedEventUpdate ev in u.MetricsEvents) routed.Add((ev.Event.Type, ev.Event.SampleIndex));
                 remaining -= slice;
             }
             DetectorMetricsBlockUpdate fu = engine.Flush();
-            foreach (DetectedEventUpdate ev in fu.Events) routed.Add((ev.Event.Type, ev.Event.SampleIndex));
+            foreach (DetectedEventUpdate ev in fu.MetricsEvents) routed.Add((ev.Event.Type, ev.Event.SampleIndex));
             return routed;
         }
 

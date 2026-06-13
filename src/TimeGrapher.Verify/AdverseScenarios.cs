@@ -240,7 +240,7 @@ internal static class AdverseScenarios
         {
             resets++;
         }
-        foreach (DetectedEventUpdate ev in update.Events)
+        foreach (DetectedEventUpdate ev in update.MetricsEvents)
         {
             if (ev.Event.Type == TgEventType.A)
             {

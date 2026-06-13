@@ -130,15 +130,15 @@ try
             detectedBph = result.DetectedBph;
             syncStatus = result.SyncStatus;
 
-            for (int i = 0; i < update.Events.Count; i++)
+            for (int i = 0; i < update.MetricsEvents.Count; i++)
             {
-                if (update.Events[i].Event.Type == TgEventType.A)
+                if (update.MetricsEvents[i].Event.Type == TgEventType.A)
                 {
-                    detectedATimes.Add(update.Events[i].EventSample / wav.SampleRate);
+                    detectedATimes.Add(update.MetricsEvents[i].EventSample / wav.SampleRate);
                 }
-                if (update.Events[i].MetricsUpdate.ResultsUpdated)
+                if (update.MetricsEvents[i].MetricsUpdate.ResultsUpdated)
                 {
-                    resultsText = update.Events[i].MetricsUpdate.ResultsText;
+                    resultsText = update.MetricsEvents[i].MetricsUpdate.ResultsText;
                 }
             }
 
@@ -149,15 +149,15 @@ try
         DetectorMetricsBlockUpdate flushUpdate = engine.Flush();
         detectedBph = flushUpdate.Result.DetectedBph;
         syncStatus = flushUpdate.Result.SyncStatus;
-        for (int i = 0; i < flushUpdate.Events.Count; i++)
+        for (int i = 0; i < flushUpdate.MetricsEvents.Count; i++)
         {
-            if (flushUpdate.Events[i].Event.Type == TgEventType.A)
+            if (flushUpdate.MetricsEvents[i].Event.Type == TgEventType.A)
             {
-                detectedATimes.Add(flushUpdate.Events[i].EventSample / wav.SampleRate);
+                detectedATimes.Add(flushUpdate.MetricsEvents[i].EventSample / wav.SampleRate);
             }
-            if (flushUpdate.Events[i].MetricsUpdate.ResultsUpdated)
+            if (flushUpdate.MetricsEvents[i].MetricsUpdate.ResultsUpdated)
             {
-                resultsText = flushUpdate.Events[i].MetricsUpdate.ResultsText;
+                resultsText = flushUpdate.MetricsEvents[i].MetricsUpdate.ResultsText;
             }
         }
 

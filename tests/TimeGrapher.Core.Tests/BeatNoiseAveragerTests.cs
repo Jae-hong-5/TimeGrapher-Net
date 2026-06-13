@@ -140,7 +140,10 @@ public sealed class BeatNoiseAveragerTests
     {
         var pcm = new float[length];
         Array.Fill(pcm, 0.05f);
-        capture.Project(new DetectorMetricsBlockUpdate(Result(pcm, startSample), events));
+        capture.Project(new DetectorMetricsBlockUpdate(
+            Result(pcm, startSample),
+            events,
+            Array.Empty<DetectedEventUpdate>()));
     }
 
     [Fact]
