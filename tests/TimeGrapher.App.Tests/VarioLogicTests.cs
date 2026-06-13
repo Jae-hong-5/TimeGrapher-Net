@@ -184,6 +184,16 @@ public sealed class VarioLogicTests
     }
 
     [Fact]
+    public void Layout_LabelLanesAreSeparatedForSixteenPointMarkers()
+    {
+        double minAverageGap = VarioGaugeLayout.MinMaxLabelY - VarioGaugeLayout.AverageLabelY;
+        double averageCurrentGap = VarioGaugeLayout.AverageLabelY - VarioGaugeLayout.CurrentLabelY;
+
+        Assert.True(minAverageGap >= 0.18);
+        Assert.True(averageCurrentGap >= 0.18);
+    }
+
+    [Fact]
     public void Layout_EdgeMarkers_AnchorInwardToAvoidClipping()
     {
         IReadOnlyList<GaugeLabel> labels =

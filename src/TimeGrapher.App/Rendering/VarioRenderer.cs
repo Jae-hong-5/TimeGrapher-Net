@@ -50,7 +50,7 @@ internal sealed class VarioRenderer
     private const float MarkerLabelFontSize = 16;
 
     // Y layout inside each gauge: bands fill the plot; labels sit in the headroom.
-    private const double YMax = 1.42;
+    private const double YMax = 1.9;
     private const int LabelPoolSize = 4;
 
     private sealed class Gauge
