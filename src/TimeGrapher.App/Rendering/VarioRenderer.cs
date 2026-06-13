@@ -7,10 +7,9 @@ using TimeGrapher.Core.Shared;
 
 namespace TimeGrapher.App.Rendering;
 
-/// <summary>Status chips, sublines, elapsed and the Overall conclusion the renderer drives.</summary>
+/// <summary>Status chips, elapsed and the Overall conclusion the renderer drives.</summary>
 internal sealed record VarioSummaryControls(
-    TextBlock RateStatus, TextBlock RateSub,
-    TextBlock AmpStatus, TextBlock AmpSub,
+    TextBlock RateStatus, TextBlock AmpStatus,
     TextBlock Elapsed,
     Border OverallBox, TextBlock OverallText);
 
@@ -25,7 +24,7 @@ internal sealed record VarioTableControls(
 /// average (red line) and the current reading (black line) — opaque lines so they
 /// stay legible over the band rather than blending a translucent fill into it;
 /// short role labels are placed by <see cref="VarioGaugeLayout"/> so they never
-/// overlap or clip. A SUMMARY bar carries the colour-coded verdicts, sublines and elapsed;
+/// overlap or clip. A SUMMARY bar carries the verdicts and elapsed time;
 /// the table holds the exact numbers. Gauges are non-interactive (no Vario zoom
 /// requirement; QAS-5 wants the readings legible without scroll/zoom), so their
 /// X-window stays locked to the derived range.
@@ -55,7 +54,6 @@ internal sealed class VarioRenderer
         public required AvaPlot Plot { get; init; }
         public required IReadOnlyList<TextBlock> Cells { get; init; }
         public required TextBlock StatusText { get; init; }
-        public required TextBlock SubText { get; init; }
         public required Func<StatsSummary, VarioVerdict> Assess { get; init; }
         public required double AcceptMin { get; init; }
         public required double AcceptMax { get; init; }
@@ -91,7 +89,6 @@ internal sealed class VarioRenderer
             Plot = ratePlot,
             Cells = table.RateCells,
             StatusText = summary.RateStatus,
-            SubText = summary.RateSub,
             Assess = s => VarioVerdict.ForRate(s, VarioGaugePolicy.RateAcceptMinSPerDay, VarioGaugePolicy.RateAcceptMaxSPerDay),
             AcceptMin = VarioGaugePolicy.RateAcceptMinSPerDay,
             AcceptMax = VarioGaugePolicy.RateAcceptMaxSPerDay,
@@ -104,7 +101,6 @@ internal sealed class VarioRenderer
             Plot = amplitudePlot,
             Cells = table.AmplitudeCells,
             StatusText = summary.AmpStatus,
-            SubText = summary.AmpSub,
             Assess = s => VarioVerdict.ForAmplitude(s, VarioGaugePolicy.AmplitudeAcceptMinDeg, VarioGaugePolicy.AmplitudeAcceptMaxDeg),
             AcceptMin = VarioGaugePolicy.AmplitudeAcceptMinDeg,
             AcceptMax = VarioGaugePolicy.AmplitudeAcceptMaxDeg,
@@ -231,9 +227,6 @@ internal sealed class VarioRenderer
         VarioVerdict verdict = gauge.Assess(stats);
         gauge.StatusText.Text = verdict.Text;
         gauge.StatusText.Foreground = LevelBrush(verdict.Level);
-        gauge.SubText.Text = stats.Valid || current is not null
-            ? $"avg {VarioReadout.Format(avg, gauge.NumericFormat, string.Empty)} · now {VarioReadout.Format(current, gauge.NumericFormat, gauge.Unit)}"
-            : string.Empty;
 
         gauge.Plot.Refresh();
         return verdict;
@@ -298,7 +291,6 @@ internal sealed class VarioRenderer
         {
             gauge.StatusText.Text = VarioVerdict.Measuring.Text;
             gauge.StatusText.Foreground = LevelBrush(VarioVerdictLevel.Pending);
-            gauge.SubText.Text = string.Empty;
             foreach (TextBlock cell in gauge.Cells)
             {
                 cell.Text = VarioReadout.Missing;
@@ -327,7 +319,7 @@ internal sealed class VarioRenderer
 
     private static Avalonia.Media.Color LevelColor(VarioVerdictLevel level) => level switch
     {
-        VarioVerdictLevel.Good => Avalonia.Media.Color.FromRgb(0x2E, 0x7D, 0x32),
+        VarioVerdictLevel.Good => Avalonia.Media.Color.FromRgb(0x00, 0x72, 0xB2),
         VarioVerdictLevel.Warn => Avalonia.Media.Color.FromRgb(0xB0, 0x6A, 0x00),
         VarioVerdictLevel.Bad => Avalonia.Media.Color.FromRgb(0xC0, 0x30, 0x30),
         _ => Avalonia.Media.Color.FromRgb(0x80, 0x80, 0x80),

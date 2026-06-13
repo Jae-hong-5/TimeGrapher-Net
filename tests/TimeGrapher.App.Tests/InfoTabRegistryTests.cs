@@ -1,5 +1,6 @@
 using Avalonia.Controls;
 using Avalonia.Layout;
+using Avalonia.Media;
 using TimeGrapher.App.Tabs;
 using TimeGrapher.Core.Shared;
 using Xunit;
@@ -56,6 +57,110 @@ public sealed class InfoTabRegistryTests
 
         Assert.Single(registry.Consumers, consumer => consumer.TabId == InfoTabCatalog.TestPositionsTabId);
         Assert.DoesNotContain(registry.Registrations, registration => registration.Definition.Title == "Position Seq");
+    }
+
+    [Fact]
+    public void VarioSummaryShowsVerdictsWithoutNumericSublines()
+    {
+        Grid content = CreateVarioContent();
+        var summaryCard = Assert.IsType<Border>(
+            content.Children.Single(child => Grid.GetRow(child) == 0));
+        var summaryStack = Assert.IsType<StackPanel>(summaryCard.Child);
+        var summaryColumns = Assert.IsType<Grid>(summaryStack.Children[1]);
+        StackPanel[] measureColumns = summaryColumns.Children
+            .OfType<StackPanel>()
+            .Where(column => Grid.GetColumn(column) is 0 or 1)
+            .ToArray();
+
+        Assert.Equal(2, measureColumns.Length);
+        Assert.All(measureColumns, column => Assert.Equal(2, column.Children.Count));
+    }
+
+    [Fact]
+    public void VarioCriteriaFlyoutWrapsRuleText()
+    {
+        Grid content = CreateVarioContent();
+        Button criteriaButton = Descendants(content)
+            .OfType<Button>()
+            .Single(button => Equals(button.Content, "Criteria ▾"));
+        var flyout = Assert.IsType<Flyout>(criteriaButton.Flyout);
+        var panel = Assert.IsType<StackPanel>(flyout.Content);
+        TextBlock[] rules = panel.Children
+            .OfType<TextBlock>()
+            .Where(text => text.Text is { } value &&
+                (value.StartsWith("OK:", StringComparison.Ordinal) ||
+                 value.StartsWith("Watch:", StringComparison.Ordinal) ||
+                 value.StartsWith("Alert:", StringComparison.Ordinal)))
+            .ToArray();
+
+        Assert.Equal(6, rules.Length);
+        Assert.All(rules, rule =>
+        {
+            Assert.Equal(TextWrapping.Wrap, rule.TextWrapping);
+            Assert.True(rule.MaxWidth <= 340);
+        });
+    }
+
+    [Fact]
+    public void VarioTableHeadersAreHighContrast()
+    {
+        Grid content = CreateVarioContent();
+        var table = Assert.IsType<Grid>(
+            content.Children.Single(child => Grid.GetRow(child) == 6));
+        TextBlock[] headers = table.Children
+            .OfType<TextBlock>()
+            .Where(text => Grid.GetRow(text) == 0)
+            .ToArray();
+
+        Assert.Equal(6, headers.Length);
+        Assert.All(headers, header =>
+        {
+            Assert.True(header.Opacity >= 0.8);
+            Assert.Equal(FontWeight.SemiBold, header.FontWeight);
+        });
+    }
+
+    private static Grid CreateVarioContent()
+    {
+        var tabControl = new TabControl();
+        InfoTabRegistry registry = InfoTabRegistry.FromCatalog(tabControl, "Arial");
+        InfoTabRegistration registration = Assert.Single(
+            registry.Registrations,
+            registration => registration.Definition.Id == InfoTabCatalog.VarioTabId);
+
+        return Assert.IsType<Grid>(registration.TabItem.Content);
+    }
+
+    private static IEnumerable<Control> Descendants(Control control)
+    {
+        yield return control;
+
+        if (control is Panel panel)
+        {
+            foreach (Control child in panel.Children.OfType<Control>())
+            {
+                foreach (Control descendant in Descendants(child))
+                {
+                    yield return descendant;
+                }
+            }
+        }
+
+        if (control is ContentControl { Content: Control content })
+        {
+            foreach (Control descendant in Descendants(content))
+            {
+                yield return descendant;
+            }
+        }
+
+        if (control is Decorator { Child: Control childContent })
+        {
+            foreach (Control descendant in Descendants(childContent))
+            {
+                yield return descendant;
+            }
+        }
     }
 
 }

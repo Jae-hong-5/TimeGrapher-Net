@@ -372,24 +372,21 @@ internal sealed class InfoTabRegistry
         var ratePlot = new AvaPlot();
         var amplitudePlot = new AvaPlot();
 
-        // --- SUMMARY bar: colour-coded verdicts, sublines and elapsed ---
+        // --- SUMMARY bar: verdicts and elapsed; exact numbers stay in the table ---
         var rateStatus = new TextBlock { FontSize = 20, FontWeight = FontWeight.Bold };
-        var rateSub = new TextBlock { FontSize = 12, Opacity = 0.6, FontFamily = font };
         var ampStatus = new TextBlock { FontSize = 20, FontWeight = FontWeight.Bold };
-        var ampSub = new TextBlock { FontSize = 12, Opacity = 0.6, FontFamily = font };
         var elapsedValue = new TextBlock { FontSize = 22, FontWeight = FontWeight.Bold, FontFamily = font };
 
-        StackPanel SummaryColumn(string caption, TextBlock status, TextBlock sub)
+        StackPanel SummaryColumn(string caption, TextBlock status)
         {
-            var sp = new StackPanel { Margin = new Thickness(12, 2, 12, 2) };
-            sp.Children.Add(new TextBlock { Text = caption, FontSize = 11, Opacity = 0.6 });
+            var sp = new StackPanel { Margin = new Thickness(12, 4, 12, 4) };
+            sp.Children.Add(new TextBlock { Text = caption, FontSize = 11, Opacity = 0.68, FontWeight = FontWeight.SemiBold });
             sp.Children.Add(status);
-            sp.Children.Add(sub);
             return sp;
         }
 
-        var elapsedColumn = new StackPanel { Margin = new Thickness(12, 2, 12, 2) };
-        elapsedColumn.Children.Add(new TextBlock { Text = "ELAPSED", FontSize = 11, Opacity = 0.6 });
+        var elapsedColumn = new StackPanel { Margin = new Thickness(12, 4, 12, 4) };
+        elapsedColumn.Children.Add(new TextBlock { Text = "ELAPSED", FontSize = 11, Opacity = 0.68, FontWeight = FontWeight.SemiBold });
         elapsedColumn.Children.Add(elapsedValue);
 
         var criteriaButton = new Button
@@ -405,8 +402,8 @@ internal sealed class InfoTabRegistry
         var summaryColumns = new Grid { ColumnDefinitions = new ColumnDefinitions("*,*,Auto,Auto") };
         Control[] summaryCells =
         {
-            SummaryColumn("RATE", rateStatus, rateSub),
-            SummaryColumn("AMPLITUDE", ampStatus, ampSub),
+            SummaryColumn("RATE", rateStatus),
+            SummaryColumn("AMPLITUDE", ampStatus),
             elapsedColumn,
             criteriaButton,
         };
@@ -417,7 +414,14 @@ internal sealed class InfoTabRegistry
         }
 
         var summaryStack = new StackPanel();
-        summaryStack.Children.Add(new TextBlock { Text = "VARIO SUMMARY", FontSize = 11, Opacity = 0.55, Margin = new Thickness(12, 6, 12, 0) });
+        summaryStack.Children.Add(new TextBlock
+        {
+            Text = "VARIO SUMMARY",
+            FontSize = 11,
+            Opacity = 0.75,
+            FontWeight = FontWeight.SemiBold,
+            Margin = new Thickness(12, 6, 12, 0),
+        });
         summaryStack.Children.Add(summaryColumns);
         var summaryCard = new Border
         {
@@ -484,7 +488,8 @@ internal sealed class InfoTabRegistry
             {
                 Text = columnHeaders[c],
                 FontSize = 11,
-                Opacity = 0.6,
+                Opacity = 0.82,
+                FontWeight = FontWeight.SemiBold,
                 Margin = new Thickness(0, 1, 16, 1),
                 HorizontalAlignment = HorizontalAlignment.Right,
             };
@@ -510,19 +515,25 @@ internal sealed class InfoTabRegistry
         AddTableRow("Rate (s/d)", rateCells, 1);
         AddTableRow("Amplitude (°)", amplitudeCells, 2);
 
-        // --- Legend (colour words match the gauge markers) ---
-        var legend = new TextBlock { FontSize = 12, Opacity = 0.9, Margin = new Thickness(16, 0, 16, 6) };
+        // --- Legend (roles first; colour is a secondary cue) ---
+        var legend = new TextBlock
+        {
+            FontSize = 12,
+            Opacity = 0.95,
+            FontWeight = FontWeight.SemiBold,
+            Margin = new Thickness(16, 0, 16, 6),
+            TextWrapping = TextWrapping.Wrap,
+        };
         Run Swatch(string text, Color color) => new(text) { Foreground = new SolidColorBrush(color), FontWeight = FontWeight.Bold };
         legend.Inlines = new InlineCollection
         {
-            Swatch("Green band", Color.FromRgb(0x4C, 0xAF, 0x50)),
-            new Run(" = acceptable range     "),
-            Swatch("Blue", Color.FromRgb(0x2D, 0x7D, 0xD2)),
-            new Run(" = measured min/max     "),
-            Swatch("Red", Color.FromRgb(0xC0, 0x39, 0x2B)),
-            new Run(" = average     "),
-            Swatch("Black", Color.FromRgb(0x20, 0x20, 0x20)),
-            new Run(" = current"),
+            new Run("Band = acceptable range     "),
+            Swatch("Min/Max", Color.FromRgb(0x2D, 0x7D, 0xD2)),
+            new Run(" = paired limit lines     "),
+            Swatch("Avg", Color.FromRgb(0xC0, 0x39, 0x2B)),
+            new Run(" = center line     "),
+            Swatch("Now", Color.FromRgb(0x20, 0x20, 0x20)),
+            new Run(" = current line"),
         };
 
         var grid = new Grid
@@ -549,7 +560,7 @@ internal sealed class InfoTabRegistry
         }
 
         var summary = new VarioSummaryControls(
-            rateStatus, rateSub, ampStatus, ampSub, elapsedValue, overallBox, overallText);
+            rateStatus, ampStatus, elapsedValue, overallBox, overallText);
         var renderer = new VarioRenderer(
             ratePlot, amplitudePlot, summary, new VarioTableControls(rateCells, amplitudeCells), context.TextFontFamily);
         var consumer = new VarioFrameConsumer(renderer);
@@ -568,14 +579,22 @@ internal sealed class InfoTabRegistry
         double service = VarioVerdict.AmplitudeServiceDeg;
         double sigma = VarioVerdict.RateUnstableSigma;
 
-        Color Good = Color.FromRgb(0x2E, 0x7D, 0x32);
+        Color Good = Color.FromRgb(0x00, 0x72, 0xB2);
         Color Warn = Color.FromRgb(0xB0, 0x6A, 0x00);
         Color Bad = Color.FromRgb(0xC0, 0x30, 0x30);
 
         TextBlock Title(string t) => new() { Text = t, FontWeight = FontWeight.Bold, FontSize = 13, Margin = new Thickness(0, 6, 0, 2) };
-        TextBlock Rule(string t, Color c) => new() { Text = t, FontSize = 12, Foreground = new SolidColorBrush(c), Margin = new Thickness(0, 1, 0, 1) };
+        TextBlock Rule(string t, Color c) => new()
+        {
+            Text = t,
+            FontSize = 12,
+            Foreground = new SolidColorBrush(c),
+            Margin = new Thickness(0, 1, 0, 1),
+            MaxWidth = 340,
+            TextWrapping = TextWrapping.Wrap,
+        };
 
-        var panel = new StackPanel { Margin = new Thickness(12), MaxWidth = 480 };
+        var panel = new StackPanel { Margin = new Thickness(12), MaxWidth = 360 };
         panel.Children.Add(new TextBlock { Text = "Assessment criteria", FontWeight = FontWeight.Bold, FontSize = 14 });
         panel.Children.Add(new TextBlock
         {
@@ -583,16 +602,17 @@ internal sealed class InfoTabRegistry
             FontSize = 11,
             Opacity = 0.7,
             TextWrapping = TextWrapping.Wrap,
+            MaxWidth = 340,
             Margin = new Thickness(0, 2, 0, 0),
         });
         panel.Children.Add(Title("Rate (s/d)"));
-        panel.Children.Add(Rule($"Stable · in range — average within ±{band:0} s/d, σ ≤ {sigma:0}", Good));
-        panel.Children.Add(Rule($"In range · unstable — within ±{band:0} s/d but σ > {sigma:0}", Warn));
-        panel.Children.Add(Rule($"Fast / Slow · out of range — average beyond ±{band:0} s/d", Bad));
+        panel.Children.Add(Rule($"OK: stable in range, average within ±{band:0} s/d and σ ≤ {sigma:0}", Good));
+        panel.Children.Add(Rule($"Watch: in range but unstable, σ > {sigma:0}", Warn));
+        panel.Children.Add(Rule($"Alert: fast or slow, average beyond ±{band:0} s/d", Bad));
         panel.Children.Add(Title("Amplitude (°)"));
-        panel.Children.Add(Rule($"Healthy — average {ampMin:0}–{ampMax:0}°", Good));
-        panel.Children.Add(Rule($"Slightly low / High — {service:0}–{ampMin:0}° or above {ampMax:0}°", Warn));
-        panel.Children.Add(Rule($"Low · service — average below {service:0}°", Bad));
+        panel.Children.Add(Rule($"OK: healthy, average {ampMin:0}–{ampMax:0}°", Good));
+        panel.Children.Add(Rule($"Watch: slightly low/high, {service:0}–{ampMin:0}° or above {ampMax:0}°", Warn));
+        panel.Children.Add(Rule($"Alert: low service range, average below {service:0}°", Bad));
         return panel;
     }
 
