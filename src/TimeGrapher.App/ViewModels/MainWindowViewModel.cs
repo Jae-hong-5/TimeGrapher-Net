@@ -47,6 +47,7 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     private string _highPassCutoffText = "200";
     private decimal _scopeScale = 2m;
     private bool _useCOnset;
+    private bool _pllEventVeto;
     private int _sweepMultiple = 2;
     private int _selectedPositionIndex; // 0 = WatchPosition.CH (dial up)
     private bool _sigmaAveraging;
@@ -238,6 +239,18 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     {
         get => _useCOnset;
         set => SetProperty(ref _useCOnset, value);
+    }
+
+    /// <summary>
+    /// PLL event veto (drops phase-mismatched events before metrics).
+    /// Adaptive floor and regime guard are always on; this opt-in adds the
+    /// veto, which boosts precision on weak/impulsive signals but can cost
+    /// recall under extreme sustained noise.
+    /// </summary>
+    public bool PllEventVeto
+    {
+        get => _pllEventVeto;
+        set => SetProperty(ref _pllEventVeto, value);
     }
 
     /// <summary>Scope Sweep window length as a multiple of the beat period (1x / 2x / 4x).</summary>

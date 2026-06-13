@@ -294,7 +294,6 @@ class TgConfig {
     +int ManualBph
     +double HpfCutoffHz
     +double EnvelopeSmoothMs
-    +double EventMinSeparationMs
     +double SyncTolerancePct
     +double AutoDetectSeconds
     +int SyncLossMisses
@@ -385,7 +384,8 @@ BeatSegmentsSnapshot "1" *-- "1" BeatNoiseAverageSnapshot : scope 2 lane state
 | Entity | Source in project | Meaning |
 |---|---|---|
 | `WavFile`, `WavFormatInfo`, `WavData` | `Core.AudioIo` | Persisted or decoded audio data used for playback, recording, and verification |
-| `AnalysisRunSettings` | `TimeGrapher.App` | User-selected run parameters converted into `AnalysisWorker.Config`: sample rate, lift angle, averaging period, C-onset mode, BPH mode, HPF cutoff, sound-print image dimensions, and scope snapshot point budget |
+| `AnalysisRunSettings` | `TimeGrapher.App` | User-selected run parameters converted into `AnalysisWorker.Config`: sample rate, lift angle, averaging period, C-onset mode, BPH mode, HPF cutoff, sound-print image dimensions, scope snapshot point budget, and the PLL-event-veto flag. Adaptive floor and regime guard are now the detector default; the veto flag additionally wires `PllMatchGate` |
+| `BeatCandidate`, `BeatEventGateConfig` | `Core.Detection.Scoring`, `Core.Analysis` | The candidate-event context handed to an `IBeatEventGate` (event, sync state, thresholds, PLL match verdict captured at emission time), and the engine-level gate configuration carrier |
 | `AudioSource` specializations | App run modes and Core workers | Live microphone, WAV playback, or synthetic signal input |
 | `MasterAudioBuffer` | `Core.Shared` | Shared mono float ring buffer between input workers and analysis, with input throughput counters and capture timestamp lookup for latency reporting |
 | `TgConfig`, `TgResult`, `TgEvent` | `Core.Detection` | Detector configuration, sync state, processed PCM, one-call event list, sync edge flags, detector thresholds, and typed A/C events distinguished by `TgEvent.Type` plus C-onset metadata |
@@ -405,6 +405,7 @@ BeatSegmentsSnapshot "1" *-- "1" BeatNoiseAverageSnapshot : scope 2 lane state
 |---|---|
 | 1:1 | One `AnalysisRun` has one `AnalysisRunSettings`, one selected `AudioSource`, and one `MasterAudioBuffer` |
 | 1:n | One `AnalysisRun` produces many `AnalysisFrame` objects; one `TgResult` contains many `TgEvent` objects; one `AnalysisFrame` contains many graph series and marker DTOs |
+| Pre/post-gate event streams | When an event gate is configured, `DetectorMetricsBlockUpdate.DisplayEvents` and `DetectorResultSnapshot.Events` keep the PRE-gate raw detector stream (display surfaces see every event) while `DetectorMetricsBlockUpdate.MetricsEvents` carries only the POST-gate stream that reached `WatchMetrics`; `DetectorResultSnapshot.VetoedEvents` counts the dropped events (including pair-vetoed Cs) |
 | n:n | No native persisted many-to-many relationship exists because the app has no database and most runtime data is owned by a single run/frame |
 | Generalization / specialization | `AudioSource` specializes into live/playback/sim sources; detector events are one `TgEvent` DTO distinguished by `TgEvent.Type`; marker payloads are three separate DTOs (`ScopeVerticalMarker`, `ScopeHorizontalMarker`, `ScopeTextMarker`) rather than subclasses of a shared marker type |
 | Aggregation / composition | `AnalysisFrame` is composed from graph series, marker DTOs, metrics, and the optional sound-print / spectrogram images (each a `PixelBuffer` from its projector's fixed publish pool); `WavFile` contains format metadata and can be decoded into `WavData`; `BeatMetricsHistorySnapshot` aggregates three `MetricsHistorySeries` plus up to ten `PositionSummary` rows (WatchPositions.Count) and is shared (aggregation, not owned) by many frames; `BeatSegmentsSnapshot` is shared the same way and aggregates (not owns) up to eight `BeatSegment` windows whose samples live in the capture's pooled buffers |

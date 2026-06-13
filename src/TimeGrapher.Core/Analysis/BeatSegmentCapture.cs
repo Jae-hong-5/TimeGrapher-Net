@@ -163,7 +163,7 @@ public sealed class BeatSegmentCapture
 
         AppendEnvelope(update.Result);
 
-        foreach (DetectedEventUpdate eventUpdate in update.Events)
+        foreach (DetectedEventUpdate eventUpdate in update.DisplayEvents)
         {
             // Deadline-degradation: while suspended, the event stream is
             // ignored - no NEW windows open (already-open ones complete

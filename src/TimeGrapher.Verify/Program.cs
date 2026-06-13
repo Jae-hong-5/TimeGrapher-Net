@@ -7,6 +7,11 @@
 // A directory argument is expanded to its *.wav files.
 //   TimeGrapher.Verify --generated --byte-fixtures
 // Adds deterministic generated and byte-built WAV fixtures for CI.
+//   TimeGrapher.Verify --adverse [--gate=off|pll]
+// Adverse-condition rows with optional PLL event-gate measurement.
+//
+// Exit codes: 0 = all gates passed, 1 = a verification gate failed,
+// 2 = usage error (unknown option, malformed spec, flags without a runner).
 
 using System.Globalization;
 using System.Text.RegularExpressions;
@@ -15,24 +20,51 @@ using TimeGrapher.Core.AudioIo;
 using TimeGrapher.Core.Detection;
 using TimeGrapher.Core.Metrics;
 using TimeGrapher.Core.Sim;
+using TimeGrapher.Verify;
 
 const int DetectorNumberOfSamples = 4096;
 
 // Collect WAV paths: a directory argument expands to its *.wav files.
 var files = new List<string>();
 var generatedFiles = new List<string>();
+// Ground-truth beat times (seconds, file-relative) for generated fixtures,
+// captured from the synth's FillF32 event side channel at write time.
+var truthByFile = new Dictionary<string, double[]>(StringComparer.OrdinalIgnoreCase);
+bool runAdverse = false;
+string gateSpec = "off";
 foreach (string arg in args)
 {
+    if (arg == "--adverse")
+    {
+        runAdverse = true;
+        continue;
+    }
+
+    if (arg.StartsWith("--gate=", StringComparison.Ordinal))
+    {
+        gateSpec = arg["--gate=".Length..];
+        continue;
+    }
+
     if (arg == "--generated")
     {
-        generatedFiles.AddRange(GenerateSyntheticFixtures());
+        generatedFiles.AddRange(GenerateSyntheticFixtures(truthByFile));
         continue;
     }
 
     if (arg == "--byte-fixtures")
     {
-        generatedFiles.AddRange(GenerateByteBuiltFixtures());
+        generatedFiles.AddRange(GenerateByteBuiltFixtures(truthByFile));
         continue;
+    }
+
+    if (arg.StartsWith("--", StringComparison.Ordinal))
+    {
+        // An unrecognized option must not fall through to the WAV-path
+        // branch (a typo'd flag used to crash WavFileReader with an
+        // unhandled exception instead of a usage error).
+        Console.Error.WriteLine($"TimeGrapher.Verify: unknown option '{arg}'");
+        return 2;
     }
 
     if (Directory.Exists(arg))
@@ -44,12 +76,20 @@ foreach (string arg in args)
         files.Add(arg);
     }
 }
+
+// Gate-selection flags configure only the adverse runner.
+if (!runAdverse && gateSpec != "off")
+{
+    Console.Error.WriteLine("TimeGrapher.Verify: --gate requires --adverse");
+    return 2;
+}
 files.AddRange(generatedFiles);
 
-if (files.Count == 0)
+if (files.Count == 0 && !runAdverse)
 {
+    // Usage error (exit 2): exit 1 is reserved for verification failures.
     Console.Error.WriteLine("TimeGrapher.Verify: no WAV files specified");
-    return 1;
+    return 2;
 }
 
 bool allMatch = true;
@@ -72,6 +112,7 @@ try
         int detectedBph = 0;
         var syncStatus = TgSyncStatus.NotSynced;
         string resultsText = "";
+        var detectedATimes = new List<double>();
 
         float[] samples = wav.Samples;
         int total = samples.Length;
@@ -89,11 +130,15 @@ try
             detectedBph = result.DetectedBph;
             syncStatus = result.SyncStatus;
 
-            for (int i = 0; i < update.Events.Count; i++)
+            for (int i = 0; i < update.MetricsEvents.Count; i++)
             {
-                if (update.Events[i].MetricsUpdate.ResultsUpdated)
+                if (update.MetricsEvents[i].Event.Type == TgEventType.A)
                 {
-                    resultsText = update.Events[i].MetricsUpdate.ResultsText;
+                    detectedATimes.Add(update.MetricsEvents[i].EventSample / wav.SampleRate);
+                }
+                if (update.MetricsEvents[i].MetricsUpdate.ResultsUpdated)
+                {
+                    resultsText = update.MetricsEvents[i].MetricsUpdate.ResultsText;
                 }
             }
 
@@ -104,11 +149,15 @@ try
         DetectorMetricsBlockUpdate flushUpdate = engine.Flush();
         detectedBph = flushUpdate.Result.DetectedBph;
         syncStatus = flushUpdate.Result.SyncStatus;
-        for (int i = 0; i < flushUpdate.Events.Count; i++)
+        for (int i = 0; i < flushUpdate.MetricsEvents.Count; i++)
         {
-            if (flushUpdate.Events[i].MetricsUpdate.ResultsUpdated)
+            if (flushUpdate.MetricsEvents[i].Event.Type == TgEventType.A)
             {
-                resultsText = flushUpdate.Events[i].MetricsUpdate.ResultsText;
+                detectedATimes.Add(flushUpdate.MetricsEvents[i].EventSample / wav.SampleRate);
+            }
+            if (flushUpdate.MetricsEvents[i].MetricsUpdate.ResultsUpdated)
+            {
+                resultsText = flushUpdate.MetricsEvents[i].MetricsUpdate.ResultsText;
             }
         }
 
@@ -121,6 +170,19 @@ try
         Console.WriteLine(string.Format(CultureInfo.InvariantCulture,
             "{0}: detected_bph={1} sync_status={2} results=[{3}]",
             name, detectedBph, syncStatus, cleanResults));
+
+        // Informational ground-truth scoring for generated fixtures (the lock
+        // takes <= ~2 s, so evaluation starts at 2 s). Does not affect the
+        // pass/fail gates below.
+        if (truthByFile.TryGetValue(file, out double[]? truthTimes))
+        {
+            DetectionScorer.Score score = DetectionScorer.Match(
+                truthTimes, detectedATimes.ToArray(), toleranceS: 0.005, evalStartS: 2.0);
+            Console.WriteLine(string.Format(CultureInfo.InvariantCulture,
+                "  score: truth={0} detected={1} matched={2} recall={3:F3} precision={4:F3} a_bias_ms={5:F3} a_rms_ms={6:F3}",
+                score.TruthCount, score.DetectedCount, score.Matched,
+                score.Recall, score.Precision, score.MedianOffsetMs, score.RmsAfterOffsetMs));
+        }
 
         if (syncStatus != TgSyncStatus.Synced)
         {
@@ -186,9 +248,33 @@ finally
     }
 }
 
+// Adverse-condition scenario rows (in-memory, ground-truth scored).
+if (runAdverse)
+{
+    // Resolve the arm. --gate=onnx:<path> is reserved for the future
+    // inference project; using it today is a usage error (exit 2).
+    if (gateSpec.StartsWith("onnx:", StringComparison.Ordinal))
+    {
+        Console.Error.WriteLine(
+            "TimeGrapher.Verify: --gate=onnx:<path> is reserved for the TimeGrapher.Inference gate (not yet implemented)");
+        return 2;
+    }
+    if (gateSpec != "off" && gateSpec != "pll")
+    {
+        Console.Error.WriteLine($"TimeGrapher.Verify: unknown --gate value '{gateSpec}' (off|pll)");
+        return 2;
+    }
+
+    ArmSpec arm = gateSpec == "pll" ? ArmSpec.PllGate : ArmSpec.Default;
+    if (!AdverseScenarios.Run(Console.Out, arm))
+    {
+        allMatch = false;
+    }
+}
+
 return allMatch ? 0 : 1;
 
-static IEnumerable<string> GenerateSyntheticFixtures()
+static IEnumerable<string> GenerateSyntheticFixtures(Dictionary<string, double[]> truthByFile)
 {
     string dir = Path.Combine(Path.GetTempPath(), "timegrapher-verify-" + Guid.NewGuid().ToString("N"));
     Directory.CreateDirectory(dir);
@@ -210,7 +296,7 @@ static IEnumerable<string> GenerateSyntheticFixtures()
             bph,
             name,
             sampleRate));
-        WriteSyntheticWav(path, bph, sampleRate, seconds, pcmPeak, noisePeak);
+        truthByFile[path] = WriteSyntheticWav(path, bph, sampleRate, seconds, pcmPeak, noisePeak);
         yield return path;
     }
 
@@ -229,12 +315,12 @@ static IEnumerable<string> GenerateSyntheticFixtures()
             bph,
             name,
             sampleRate));
-        WriteSyntheticWav(path, bph, sampleRate, seconds, pcmPeak, noisePeak, silenceLeadInSamples, clip, realistic);
+        truthByFile[path] = WriteSyntheticWav(path, bph, sampleRate, seconds, pcmPeak, noisePeak, silenceLeadInSamples, clip, realistic);
         yield return path;
     }
 }
 
-static IEnumerable<string> GenerateByteBuiltFixtures()
+static IEnumerable<string> GenerateByteBuiltFixtures(Dictionary<string, double[]> truthByFile)
 {
     string dir = Path.Combine(Path.GetTempPath(), "timegrapher-verify-byte-" + Guid.NewGuid().ToString("N"));
     Directory.CreateDirectory(dir);
@@ -254,12 +340,12 @@ static IEnumerable<string> GenerateByteBuiltFixtures()
             bph,
             name,
             sampleRate));
-        WriteByteBuiltSyntheticWav(path, bph, sampleRate, seconds, pcmPeak, noisePeak, extensible, oddJunk, listChunk);
+        truthByFile[path] = WriteByteBuiltSyntheticWav(path, bph, sampleRate, seconds, pcmPeak, noisePeak, extensible, oddJunk, listChunk);
         yield return path;
     }
 }
 
-static void WriteSyntheticWav(
+static double[] WriteSyntheticWav(
     string path,
     int bph,
     int sampleRate,
@@ -299,12 +385,22 @@ static void WriteSyntheticWav(
         silenceRemaining -= slice;
     }
 
+    // Ground-truth beat times via the event side channel, shifted by the
+    // silence lead-in so they are file-relative.
+    var truthTimes = new List<double>();
+    double leadInS = (double)silenceLeadInSamples / sampleRate;
+    var eventBuf = new WatchSynthStreamEvent[64];
+
     int remaining = sampleRate * seconds;
     while (remaining > 0)
     {
         int slice = Math.Min(block.Length, remaining);
         Span<float> span = block.AsSpan(0, slice);
-        synth.Generate(span);
+        WatchSynthStreamFillResult fill = synth.FillF32(span, eventBuf);
+        for (int i = 0; i < fill.EventsWritten; i++)
+        {
+            truthTimes.Add(leadInS + eventBuf[i].TimeS);
+        }
         if (hardClip)
         {
             for (int i = 0; i < slice; i++)
@@ -323,9 +419,11 @@ static void WriteSyntheticWav(
     {
         throw new IOException("Failed to close generated WAV file: " + path);
     }
+
+    return truthTimes.ToArray();
 }
 
-static void WriteByteBuiltSyntheticWav(
+static double[] WriteByteBuiltSyntheticWav(
     string path,
     int bph,
     int sampleRate,
@@ -394,19 +492,27 @@ static void WriteByteBuiltSyntheticWav(
     WriteFourCc(writer, "data");
     writer.Write(dataSize);
 
+    var truthTimes = new List<double>();
+    var eventBuf = new WatchSynthStreamEvent[64];
     var block = new float[4096];
     int remaining = sampleCount;
     while (remaining > 0)
     {
         int slice = Math.Min(block.Length, remaining);
         Span<float> span = block.AsSpan(0, slice);
-        synth.Generate(span);
+        WatchSynthStreamFillResult fill = synth.FillF32(span, eventBuf);
+        for (int i = 0; i < fill.EventsWritten; i++)
+        {
+            truthTimes.Add(eventBuf[i].TimeS);
+        }
         for (int i = 0; i < slice; i++)
         {
             writer.Write(BitConverter.SingleToInt32Bits(span[i]));
         }
         remaining -= slice;
     }
+
+    return truthTimes.ToArray();
 }
 
 static void WriteFourCc(BinaryWriter writer, string fourCc)

@@ -1,6 +1,7 @@
 using TimeGrapher.App.Rendering;
 using TimeGrapher.Core.Analysis;
 using TimeGrapher.Core.AudioIo;
+using TimeGrapher.Core.Detection.Scoring;
 
 namespace TimeGrapher.App;
 
@@ -14,7 +15,8 @@ internal sealed record AnalysisRunSettings(
     double HpfCutoffHz,
     int SoundImageWidth,
     int SoundImageHeight,
-    int ScopeSnapshotPointBudget)
+    int ScopeSnapshotPointBudget,
+    bool PllEventVeto)
 {
     public AnalysisWorker.Config ToWorkerConfig(ulong sessionId, ISampleWriter? sampleWriter)
     {
@@ -28,6 +30,9 @@ internal sealed record AnalysisRunSettings(
             AutoBph = AutoBph,
             ManualBph = ManualBph,
             HpfCutoffHz = HpfCutoffHz,
+            // The PLL event veto stays opt-in because it regresses recall
+            // under extreme sustained noise (noisy-1 row).
+            EventGate = PllEventVeto ? new PllMatchGate() : null,
             SoundImageWidth = SoundImageWidth,
             SoundImageHeight = SoundImageHeight,
             ScopeSnapshotPointBudget = ScopeSnapshotPointBudget,

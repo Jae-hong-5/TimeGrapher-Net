@@ -46,6 +46,7 @@ internal sealed class TgDetectorCore
     public const double TG_REGIME_RATIO = 10.0;  // trip if new peak >= ratio * recent min
     public const double TG_REGIME_FLOOR = 0.001; // skip ratio check when both peaks below this
     public const double TG_REGIME_COOLDOWN_S = 1.0; // seconds between resets
+    private const int TG_REGIME_TRIP_BEATS = 3;
 
     /* ---- configuration ---- */
     public double Fs;                 // sample rate
@@ -57,9 +58,27 @@ internal sealed class TgDetectorCore
     public double OnsetFraction;
     public double MinPeakFraction;
 
+    /* Lock-aware sensitivity guide. The owning TgDetector enables this only
+     * after BPH/PLL lock, so pre-lock acquisition still uses the conservative
+     * global thresholds. */
+    public int PhaseGuideEnabled;
+    public double PhaseGuideNextATime;
+    public double PhaseGuideBeatPeriod;
+    public double PhaseGuideAcOffset;
+    public double PhaseGuideWindowS;
+    public double PhaseGuideOnsetScale;
+    public double PhaseGuideMinPeakScale;
+
     /* V4.5: minimum wall-clock A-to-A interval. */
     public ulong MinAIntervalSamples;
     public ulong SamplesSinceLastA;   // wall-clock counter
+
+    /* ---- adaptive robustness parameters (preserved across Reset) ---- */
+    public double RejectedPeakMinSnr;
+    public int RejectedPeakMinCount;
+    public double AdaptiveFloorMinMul;
+    public double RefDecayAfterS;
+    public double RefDecayTauS;
 
     /* ---- noise floor: 75th percentile of downsampled silence samples ---- */
     public readonly double[] NoiseHistory = new double[TG_NOISE_HISTORY_N];
@@ -72,6 +91,15 @@ internal sealed class TgDetectorCore
 
     /* ---- reference peak: median of last N accepted burst peaks ---- */
     public readonly double[] PeakHistory = new double[TG_PEAK_HISTORY_N];
+
+    /* ---- I-1 AdaptiveFloor runtime state (idle while the option is off):
+     * shadow ring of REJECTED burst peaks above RejectedPeakMinSnr, plus the
+     * absolute index of the last accepted peak for the reference decay. ---- */
+    public readonly double[] RejPeakHistory = new double[TG_PEAK_HISTORY_N];
+    public int RejPeakHistoryCount;
+    public int RejPeakHistoryHead;
+    public double RejMedianPeakCache;
+    public ulong LastAcceptAbsIdx;
 
     /* Sort scratch for the median / 75th-percentile caches. The detector is
      * driven by a single analysis thread and the percentile cache refreshes once
@@ -89,6 +117,9 @@ internal sealed class TgDetectorCore
     public int RegimePeakHead;
     public ulong RegimeLastResetIdx;   // abs sample idx of last reset, 0 = never
     public int RegimeResetPending;     // set on trip, cleared by lib after flush
+
+    /* I-3 RegimeGuard runtime state: consecutive qualifying peaks. */
+    public int RegimeTripRun;
 
     /* ---- wall-clock gates ---- */
     public ulong SilenceSamples;       // samples since burst end (capped)
@@ -109,6 +140,7 @@ internal sealed class TgDetectorCore
     public double BurstMaxYMinus1;
     public double BurstMaxYPlus1;
     public int HavePeakPlus1;
+    public int BurstPhaseGuided;
 
     /* V5.2: separate C-peak tracking. */
     public ulong CSearchSkipSamples;
@@ -146,6 +178,7 @@ internal sealed class TgDetectorCore
         BurstMaxYMinus1 = 0.0;
         BurstMaxYPlus1 = 0.0;
         HavePeakPlus1 = 0;
+        BurstPhaseGuided = 0;
         /* V5.2 */
         CHavePeak = 0;
         BurstCMax = 0.0;
@@ -155,6 +188,7 @@ internal sealed class TgDetectorCore
         CHavePeakPlus1 = 0;
         PrevSample = 0.0;
         TotalSamples = 0;
+        ClearPhaseGuide();
         /* Start with a large virtual silence credit so the first real tick
          * isn't blocked by the silence gate. */
         SilenceSamples = 1UL << 30;
@@ -172,6 +206,13 @@ internal sealed class TgDetectorCore
         PeakHistoryCount = 0;
         PeakHistoryHead = 0;
         MedianPeakCache = 0.0;
+
+        /* I-1 AdaptiveFloor runtime state (config flags are preserved). */
+        for (int i = 0; i < TG_PEAK_HISTORY_N; ++i) RejPeakHistory[i] = 0.0;
+        RejPeakHistoryCount = 0;
+        RejPeakHistoryHead = 0;
+        RejMedianPeakCache = 0.0;
+        LastAcceptAbsIdx = 0;
         for (int i = 0; i < TG_NOISE_HISTORY_N; ++i) NoiseHistory[i] = 0.0;
         NoiseHistoryCount = 0;
         NoiseHistoryHead = 0;
@@ -183,6 +224,7 @@ internal sealed class TgDetectorCore
         RegimePeakCount = 0;
         RegimePeakHead = 0;
         RegimeResetPending = 0;
+        RegimeTripRun = 0;
 
         /* V5.4: clear envelope ring buffer (don't free; kept across resets). */
         if (EnvRing != null && EnvRingCapacity > 0)
@@ -216,9 +258,23 @@ internal sealed class TgDetectorCore
         /* Default gate fractions. */
         OnsetFraction = 0.03;
         MinPeakFraction = 0.20;
+        PhaseGuideEnabled = 0;
+        PhaseGuideNextATime = 0.0;
+        PhaseGuideBeatPeriod = 0.0;
+        PhaseGuideAcOffset = 0.0;
+        PhaseGuideWindowS = 0.0;
+        PhaseGuideOnsetScale = 1.0;
+        PhaseGuideMinPeakScale = 0.55;
 
         /* V4.5: A-to-A interval gate disabled at init / pre-sync. */
         MinAIntervalSamples = 0;
+
+        /* Adaptive robustness is the default detector behavior. */
+        RejectedPeakMinSnr = 2.0;
+        RejectedPeakMinCount = 8;
+        AdaptiveFloorMinMul = 3.0;
+        RefDecayAfterS = 2.0;
+        RefDecayTauS = 5.0;
 
         /* V5.2: C-search skip default 3 ms. */
         CSearchSkipSamples = (ulong)(0.003 * fs);
@@ -275,6 +331,30 @@ internal sealed class TgDetectorCore
         }
     }
 
+    public void SetPhaseGuide(double nextATime, double beatPeriod, double acOffset, double windowS)
+    {
+        if (beatPeriod <= 0.0 || windowS <= 0.0)
+        {
+            ClearPhaseGuide();
+            return;
+        }
+
+        PhaseGuideEnabled = 1;
+        PhaseGuideNextATime = nextATime;
+        PhaseGuideBeatPeriod = beatPeriod;
+        PhaseGuideAcOffset = acOffset < 0.0 ? -acOffset : acOffset;
+        PhaseGuideWindowS = windowS;
+    }
+
+    public void ClearPhaseGuide()
+    {
+        PhaseGuideEnabled = 0;
+        PhaseGuideNextATime = 0.0;
+        PhaseGuideBeatPeriod = 0.0;
+        PhaseGuideAcOffset = 0.0;
+        PhaseGuideWindowS = 0.0;
+    }
+
     // parabolic_offset
     private static double ParabolicOffset(double yM1, double y0, double yP1)
     {
@@ -284,6 +364,20 @@ internal sealed class TgDetectorCore
         if (off < -0.5) off = -0.5;
         if (off > 0.5) off = 0.5;
         return off;
+    }
+
+    private int PhaseGuideMatchesA(ulong absIdx)
+    {
+        if (PhaseGuideEnabled == 0) return 0;
+        double T = PhaseGuideBeatPeriod;
+        if (T <= 0.0) return 0;
+
+        double phase = ((double)absIdx / Fs) - PhaseGuideNextATime;
+        while (phase > 0.5 * T) phase -= T;
+        while (phase < -0.5 * T) phase += T;
+
+        if (Math.Abs(phase) <= PhaseGuideWindowS) return 1;
+        return 0;
     }
 
     /* V5.4: read the envelope sample at absolute index `abs` from the
@@ -449,6 +543,19 @@ internal sealed class TgDetectorCore
              * large enough, OR if jumping from noise to signal. */
             bool ratioOk = aboveFloor && (peak >= TG_REGIME_RATIO * prevMin);
             int trip = (ratioOk || absFloorJump) ? 1 : 0;
+            /* Regime guard: require a run of qualifying peaks before
+             * tripping. A single accepted impulse is reset by the next
+             * ordinary tick, while a genuine gain change qualifies on every
+             * subsequent peak and trips within TG_REGIME_TRIP_BEATS beats. */
+            if (trip != 0)
+            {
+                RegimeTripRun++;
+                trip = (RegimeTripRun >= TG_REGIME_TRIP_BEATS) ? 1 : 0;
+            }
+            else
+            {
+                RegimeTripRun = 0;
+            }
             /* Apply cooldown. */
             if (trip != 0 && RegimeLastResetIdx > 0)
             {
@@ -460,6 +567,7 @@ internal sealed class TgDetectorCore
             {
                 RegimeResetPending = 1;
                 RegimeLastResetIdx = absIdx;
+                RegimeTripRun = 0;
             }
         }
         /* Always store the new peak into the ring. */
@@ -472,6 +580,22 @@ internal sealed class TgDetectorCore
     // push_peak
     private void PushPeak(double peak, ulong absIdx)
     {
+        /* An accept after RefDecayAfterS without accepts, AND below the stale
+         * median, means the decayed reference (not the stale median) admitted
+         * this burst - the loudness regime moved down. Restart the peak
+         * history from this beat; otherwise the stale loud median re-latches
+         * the threshold and only one beat per decay cycle gets through. */
+        ulong afterSamples = (ulong)(RefDecayAfterS * Fs);
+        if (LastAcceptAbsIdx > 0 && PeakHistoryCount > 0
+            && absIdx > LastAcceptAbsIdx + afterSamples
+            && peak < MedianPeakCache)
+        {
+            for (int i = 0; i < TG_PEAK_HISTORY_N; ++i) PeakHistory[i] = 0.0;
+            PeakHistoryCount = 0;
+            PeakHistoryHead = 0;
+            MedianPeakCache = 0.0;
+        }
+        LastAcceptAbsIdx = absIdx;
         PeakHistory[PeakHistoryHead] = peak;
         PeakHistoryHead = (PeakHistoryHead + 1) % TG_PEAK_HISTORY_N;
         if (PeakHistoryCount < TG_PEAK_HISTORY_N) PeakHistoryCount++;
@@ -516,9 +640,27 @@ internal sealed class TgDetectorCore
         return (p > f) ? p : f;
     }
 
-    /* Compute the current reference peak level used to derive thresholds. */
+    /* I-1: record a rejected burst peak in the shadow ring and refresh its
+     * median (shares the sort scratch; single analysis thread). */
+    // push_rejected_peak
+    private void PushRejectedPeak(double peak)
+    {
+        RejPeakHistory[RejPeakHistoryHead] = peak;
+        RejPeakHistoryHead = (RejPeakHistoryHead + 1) % TG_PEAK_HISTORY_N;
+        if (RejPeakHistoryCount < TG_PEAK_HISTORY_N) RejPeakHistoryCount++;
+        int n = RejPeakHistoryCount;
+        double[] tmp = _medianSortScratch;
+        for (int i = 0; i < n; ++i) tmp[i] = RejPeakHistory[i];
+        InsertionSort(tmp, n);
+        RejMedianPeakCache = (n & 1) != 0
+            ? tmp[n / 2]
+            : 0.5 * (tmp[n / 2 - 1] + tmp[n / 2]);
+    }
+
+    /* Compute the current reference peak level used to derive thresholds.
+     * absIdx is consumed only by the opt-in I-1 reference decay. */
     // reference_peak
-    private double ReferencePeak()
+    private double ReferencePeak(ulong absIdx)
     {
         double floorRef = 10.0 * NoiseFloor;
         double r;
@@ -538,30 +680,73 @@ internal sealed class TgDetectorCore
         {
             r = MedianPeakCache;
         }
+
+        /* Reference decay (W-4): a reference latched high by a loud episode
+         * relaxes exponentially once no burst has been accepted for
+         * RefDecayAfterS, restoring sensitivity after loud-to-quiet
+         * transitions. The adapted floor below still bounds it. */
+        if (PeakHistoryCount > 0 && LastAcceptAbsIdx > 0)
+        {
+            ulong afterSamples = (ulong)(RefDecayAfterS * Fs);
+            if (absIdx > LastAcceptAbsIdx + afterSamples)
+            {
+                double overSamples = (double)(absIdx - LastAcceptAbsIdx - afterSamples);
+                r *= Math.Exp(-overSamples / (RefDecayTauS * Fs));
+            }
+        }
+
+        /* Floor adaptation (W-2): when the normal reference sits below the
+         * hard 10x-noise floor and enough rejected bursts have accumulated,
+         * let the floor descend toward their median, bounded below by
+         * AdaptiveFloorMinMul x noise. */
+        if (r < floorRef
+            && RejPeakHistoryCount >= RejectedPeakMinCount
+            && RejMedianPeakCache > AdaptiveFloorMinMul * NoiseFloor)
+        {
+            double adapted = RejMedianPeakCache;
+            double lo = AdaptiveFloorMinMul * NoiseFloor;
+            if (adapted < lo) adapted = lo;
+            if (adapted < floorRef) floorRef = adapted;
+        }
+
         return (r > floorRef) ? r : floorRef;
     }
 
     /* Compute the current thresholds from the noise floor and reference peak. */
     // compute_thresholds
-    private void ComputeThresholds(out double effNoise, out double refPeak,
+    private void ComputeThresholds(ulong absIdx,
+                                   out double effNoise, out double refPeak,
+                                   out double span, out double onsetThr, out double minPeakThr)
+        => ComputeThresholds(absIdx, phaseGuided: false,
+                             out effNoise, out refPeak, out span, out onsetThr, out minPeakThr);
+
+    private void ComputeThresholds(ulong absIdx, bool phaseGuided,
+                                   out double effNoise, out double refPeak,
                                    out double span, out double onsetThr, out double minPeakThr)
     {
         double n = EffectiveNoise();
-        double r = ReferencePeak();
+        double r = ReferencePeak(absIdx);
         double sp = r - n;
         if (sp < n * 2.0) sp = n * 2.0;
         effNoise = n;
         refPeak = r;
         span = sp;
-        onsetThr = n + OnsetFraction * sp;
-        minPeakThr = n + MinPeakFraction * sp;
+        double onsetFraction = OnsetFraction;
+        double minPeakFraction = MinPeakFraction;
+        if (phaseGuided)
+        {
+            onsetFraction *= PhaseGuideOnsetScale;
+            minPeakFraction *= PhaseGuideMinPeakScale;
+        }
+        onsetThr = n + onsetFraction * sp;
+        minPeakThr = n + minPeakFraction * sp;
     }
 
     // tg_detector_get_thresholds
     public void GetThresholds(out double onsetThr, out double minPeakThr,
                               out double effNoise, out double refPeak)
     {
-        ComputeThresholds(out effNoise, out refPeak, out _, out onsetThr, out minPeakThr);
+        ComputeThresholds(TotalSamples, out effNoise, out refPeak, out _, out onsetThr, out minPeakThr);
     }
 
     // clamp_fraction
@@ -642,7 +827,9 @@ internal sealed class TgDetectorCore
             }
 
             /* Thresholds anchored to median of recent peak heights. */
-            ComputeThresholds(out _, out _, out double span, out double onsetThr, out double _);
+            bool phaseGuidedSample = PhaseGuideMatchesA(absIdx) != 0;
+            ComputeThresholds(absIdx, phaseGuidedSample,
+                              out _, out _, out double span, out double onsetThr, out double _);
 
             /* Silence gate is wall-clock based. Increment silence_samples
              * every sample we're NOT in a burst, unconditionally. */
@@ -690,6 +877,7 @@ internal sealed class TgDetectorCore
                     BurstMaxIdx = absIdx;
                     BurstMaxYMinus1 = PrevSample;
                     HavePeakPlus1 = 0;
+                    BurstPhaseGuided = phaseGuidedSample ? 1 : 0;
 
                     /* V5.2: reset C-peak tracker. */
                     CHavePeak = 0;
@@ -740,7 +928,8 @@ internal sealed class TgDetectorCore
                 if (samplesSincePeak >= BurstEndSamples)
                 {
                     /* Minimum tick height: fraction of the dynamic range. */
-                    double minPeak = EffectiveNoise() + MinPeakFraction * span;
+                    ComputeThresholds(absIdx, BurstPhaseGuided != 0,
+                                      out _, out _, out _, out _, out double minPeak);
                     bool isRealTick = (BurstMax >= minPeak);
 
                     if (isRealTick)
@@ -829,6 +1018,13 @@ internal sealed class TgDetectorCore
                         /* Noise bump rejected - pretend the whole episode
                          * was quiet so the silence-gate is open. */
                         SilenceSamples = 1000000;
+                        /* I-1: rejected bursts leave a statistical trace so
+                         * the reference floor can adapt down to a weak watch
+                         * (only clearly supra-noise bumps qualify). */
+                        if (BurstMax >= RejectedPeakMinSnr * EffectiveNoise())
+                        {
+                            PushRejectedPeak(BurstMax);
+                        }
                     }
                     InBurst = 0;
                 }

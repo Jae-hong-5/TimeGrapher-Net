@@ -46,6 +46,7 @@ dotnet build TimeGrapherNet.sln -c Release        # build everything
 dotnet test TimeGrapherNet.sln -c Release         # run all tests (4 projects under tests/)
 dotnet run --project src/TimeGrapher.App          # launch the GUI
 dotnet run --project src/TimeGrapher.Verify -c Release -- --generated --byte-fixtures   # headless detection-accuracy verification
+dotnet run --project src/TimeGrapher.Verify -c Release -- --adverse  # adverse-condition detector-quality verification
 ```
 
 - After changing code, confirm the relevant tests pass before committing.

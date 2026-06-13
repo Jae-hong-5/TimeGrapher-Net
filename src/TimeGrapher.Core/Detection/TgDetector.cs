@@ -62,6 +62,23 @@ public sealed class TgDetector
     private int _evHistoryHead;
     private int _evHistoryCount;
 
+    /* Per-event PLL phase-match recording (diagnostics only; the
+     * detector output is unchanged). Indices align with result.Events of the
+     * most recent Process call; contents are valid until the next call. */
+    private readonly bool _trackEventPllMatch;
+    private byte[] _rawPllMatch = Array.Empty<byte>();
+    private byte[] _eventPllMatch = Array.Empty<byte>();
+    private int _eventPllMatchCount;
+
+    /// <summary>
+    /// PLL phase-match verdicts (1 = matched or not gated) aligned with the
+    /// Events list filled by the last <see cref="Process"/> call. Empty
+    /// unless <see cref="TgConfig.TrackEventPllMatch"/> was set. An event is 0
+    /// only when it failed the phase match while a lock was held, so a
+    /// veto keyed on this can never starve lock acquisition.
+    /// </summary>
+    public ReadOnlySpan<byte> LastEventPllMatch => _eventPllMatch.AsSpan(0, _eventPllMatchCount);
+
     // tg_init
     public TgDetector(TgConfig cfg)
     {
@@ -80,7 +97,6 @@ public sealed class TgDetector
             ManualBph = cfg.ManualBph,
             HpfCutoffHz = cfg.HpfCutoffHz,
             EnvelopeSmoothMs = cfg.EnvelopeSmoothMs,
-            EventMinSeparationMs = cfg.EventMinSeparationMs,
             SyncTolerancePct = cfg.SyncTolerancePct,
             AutoDetectSeconds = cfg.AutoDetectSeconds,
             SyncLossMisses = cfg.SyncLossMisses,
@@ -90,12 +106,12 @@ public sealed class TgDetector
             MinPeakFractionInit = cfg.MinPeakFractionInit,
             SuppressPreSyncEvents = cfg.SuppressPreSyncEvents,
             CPlacement = cfg.CPlacement,
+            TrackEventPllMatch = cfg.TrackEventPllMatch,
         };
 
         /* Apply zero-defaults at runtime */
         if (_cfg.HpfCutoffHz == 0.0) _cfg.HpfCutoffHz = 200.0;
         if (_cfg.EnvelopeSmoothMs == 0.0) _cfg.EnvelopeSmoothMs = 0.15;
-        if (_cfg.EventMinSeparationMs == 0.0) _cfg.EventMinSeparationMs = 2.0;
         if (_cfg.SyncTolerancePct == 0.0) _cfg.SyncTolerancePct = 3.0;
         if (_cfg.AutoDetectSeconds == 0.0) _cfg.AutoDetectSeconds = 1.5;
         if (_cfg.SyncLossMisses == 0) _cfg.SyncLossMisses = 12;
@@ -112,6 +128,8 @@ public sealed class TgDetector
             _det.SetOnsetFraction(_cfg.OnsetFractionInit);
         if (_cfg.MinPeakFractionInit > 0.0)
             _det.SetMinPeakFraction(_cfg.MinPeakFractionInit);
+
+        _trackEventPllMatch = _cfg.TrackEventPllMatch;
 
         _sync = new TgSync();
         _sync.Init();
@@ -261,6 +279,20 @@ public sealed class TgDetector
             int worst = (2 * numSamples) / window + 4;
             EnsureRawEvents(worst);
             int got = 0;
+            if (_sync.Synced != 0 && _currentBeatPeriod > 0.0)
+            {
+                double tol = _currentBeatPeriod * _cfg.SyncTolerancePct * 0.01;
+                double guideWindow = 1.5 * tol;
+                double minWindow = 0.006;
+                if (guideWindow < minWindow) guideWindow = minWindow;
+                double maxWindow = 0.12 * _currentBeatPeriod;
+                if (guideWindow > maxWindow) guideWindow = maxWindow;
+                _det.SetPhaseGuide(_sync.NextATime, _currentBeatPeriod, _sync.AcOffset, guideWindow);
+            }
+            else
+            {
+                _det.ClearPhaseGuide();
+            }
             _det.Process(_bufEnv, numSamples, _rawEvents, ref got, _rawEventsCapacity);
             rawCount = got;
         }
@@ -268,35 +300,43 @@ public sealed class TgDetector
         /* V5.6: regime-change reset. */
         if (_det.ConsumeRegimeReset() != 0)
         {
-            result.DetectorResetEvent = true;
+            bool hasLockContext = _currentBph > 0 || _sync.Synced != 0;
 
-            /* Capture the triggering peak before flushing the detector. */
-            double seedPeak = _det.BurstMax;
+            /* Before BPH lock, a silence-collapsed noise floor can make the
+             * first healthy ticks look like a regime jump. Consume that
+             * bootstrap trip but keep collecting A-event history. */
+            if (hasLockContext)
+            {
+                result.DetectorResetEvent = true;
 
-            /* Flush detector adaptive state, saving/restoring the sample
-             * clock and env_ring abs-index reference around the reset. */
-            ulong savedTotal = _det.TotalSamples;
-            ulong savedEnvNewest = _det.EnvRingNewestAbs;
-            int savedEnvHas = _det.EnvRingHasData;
-            _det.Reset();
-            _det.TotalSamples = savedTotal;
-            _det.EnvRingNewestAbs = savedEnvNewest;
-            _det.EnvRingHasData = savedEnvHas;
+                /* Capture the triggering peak before flushing the detector. */
+                double seedPeak = _det.BurstMax;
 
-            /* Re-seed the regime ring so the next beat doesn't re-trip. */
-            _det.RegimePeakRing[0] = seedPeak;
-            _det.RegimePeakCount = 1;
-            _det.RegimePeakHead = 1;
+                /* Flush detector adaptive state, saving/restoring the sample
+                 * clock and env_ring abs-index reference around the reset. */
+                ulong savedTotal = _det.TotalSamples;
+                ulong savedEnvNewest = _det.EnvRingNewestAbs;
+                int savedEnvHas = _det.EnvRingHasData;
+                _det.Reset();
+                _det.TotalSamples = savedTotal;
+                _det.EnvRingNewestAbs = savedEnvNewest;
+                _det.EnvRingHasData = savedEnvHas;
 
-            /* Flush library-level state too. */
-            _currentBph = 0;
-            _currentBeatPeriod = 0.0;
-            _evHistoryCount = 0;
-            _evHistoryHead = 0;
-            _sync.Reset();
+                /* Re-seed the regime ring so the next beat doesn't re-trip. */
+                _det.RegimePeakRing[0] = seedPeak;
+                _det.RegimePeakCount = 1;
+                _det.RegimePeakHead = 1;
 
-            /* Suppress the raw events from THIS batch. */
-            rawCount = 0;
+                /* Flush library-level state too. */
+                _currentBph = 0;
+                _currentBeatPeriod = 0.0;
+                _evHistoryCount = 0;
+                _evHistoryHead = 0;
+                _sync.Reset();
+
+                /* Suppress the raw events from THIS batch. */
+                rawCount = 0;
+            }
         }
 
         /* Push A events into BPH history */
@@ -371,13 +411,28 @@ public sealed class TgDetector
             }
         }
 
+        /* Per-raw-event PLL match verdicts, prefilled 1 so events outside a
+         * held lock (pre-sync, after mid-batch loss) always count matched. */
+        if (_trackEventPllMatch && rawCount > _rawPllMatch.Length)
+        {
+            Array.Resize(ref _rawPllMatch, rawCount);
+        }
+        if (_trackEventPllMatch)
+        {
+            for (int i = 0; i < rawCount; ++i) _rawPllMatch[i] = 1;
+        }
+
         /* Run sync tracker and detect loss */
         int prevSynced = _sync.Synced;
         if (_sync.Synced != 0)
         {
             for (int i = 0; i < rawCount; ++i)
             {
-                _sync.Update(_rawEvents[i].TimeSeconds);
+                int matched = _sync.Update(_rawEvents[i].TimeSeconds);
+                if (_trackEventPllMatch)
+                {
+                    _rawPllMatch[i] = (byte)matched;
+                }
                 if (_sync.Synced == 0) break;
             }
         }
@@ -439,8 +494,13 @@ public sealed class TgDetector
         result.MeasuredPeriodS = _currentBeatPeriod;
 
         /* Emit events: copy timing, set is_pre_sync, optionally drop. */
+        _eventPllMatchCount = 0;
         if (rawCount > 0)
         {
+            if (_trackEventPllMatch && rawCount > _eventPllMatch.Length)
+            {
+                Array.Resize(ref _eventPllMatch, rawCount);
+            }
             bool preSync = (_currentBph <= 0);
             for (int i = 0; i < rawCount; ++i)
             {
@@ -479,6 +539,10 @@ public sealed class TgDetector
                 ev.OnsetValid = r.OnsetValid != 0;
 
                 result.Events.Add(ev);
+                if (_trackEventPllMatch)
+                {
+                    _eventPllMatch[_eventPllMatchCount++] = _rawPllMatch[i];
+                }
             }
         }
 

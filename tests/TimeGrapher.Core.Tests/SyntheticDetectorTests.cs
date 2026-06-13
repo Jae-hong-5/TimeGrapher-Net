@@ -46,7 +46,7 @@ public sealed class SyntheticDetectorTests
             Span<float> span = block.AsSpan(0, slice);
             synth.Generate(span);
             update = engine.Process(span);
-            foreach (DetectedEventUpdate eventUpdate in update.Events)
+            foreach (DetectedEventUpdate eventUpdate in update.MetricsEvents)
             {
                 if (eventUpdate.MetricsUpdate.ResultsUpdated)
                 {
@@ -57,7 +57,7 @@ public sealed class SyntheticDetectorTests
         }
 
         update = engine.Flush();
-        foreach (DetectedEventUpdate eventUpdate in update.Events)
+        foreach (DetectedEventUpdate eventUpdate in update.MetricsEvents)
         {
             if (eventUpdate.MetricsUpdate.ResultsUpdated)
             {

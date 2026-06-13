@@ -1,9 +1,10 @@
 /* TgTypes.cs -- public detection-layer types.
  *
- * Port of the public enums / structs / config in Timegrapher.h. The
- * signatures here are the fixed Agent A contract from PORTING.md and
- * must not be changed. See Timegrapher.h for the original field-by-field
- * documentation; the comments below preserve the load-bearing parts.
+ * Originally ported from the public enums / structs / config in
+ * Timegrapher.h (the comments below preserve the load-bearing parts of the
+ * original field-by-field documentation). The provisional C++ source is not
+ * authoritative; this surface evolves on its own merits, with behavior
+ * drift guarded by golden-master and adverse-condition verification.
  */
 
 namespace TimeGrapher.Core.Detection;
@@ -52,7 +53,6 @@ public sealed class TgConfig
     /* Optional - 0 = library default */
     public double HpfCutoffHz;           // default 200.0
     public double EnvelopeSmoothMs;      // default 0.15
-    public double EventMinSeparationMs;  // refractory, default 2.0
     public double SyncTolerancePct;      // default 3.0
     public double AutoDetectSeconds;     // default 1.5
     public int SyncLossMisses;           // default 12
@@ -72,6 +72,10 @@ public sealed class TgConfig
      * with V5.3 and earlier). */
     public TgCPlacement CPlacement;
 
+    /* Diagnostics for event gates. When true, TgDetector records per-event PLL
+     * phase-match verdicts; detector output itself is unchanged. */
+    public bool TrackEventPllMatch;
+
     /// <summary>tg_config_default: populate with the library defaults.</summary>
     public static TgConfig Default()
     {
@@ -82,7 +86,6 @@ public sealed class TgConfig
             ManualBph = 0,
             HpfCutoffHz = 200.0,
             EnvelopeSmoothMs = 0.15,
-            EventMinSeparationMs = 2.0,
             SyncTolerancePct = 3.0,
             AutoDetectSeconds = 1.5,
             SyncLossMisses = 12,
@@ -92,6 +95,7 @@ public sealed class TgConfig
             MinPeakFractionInit = 0.0,
             SuppressPreSyncEvents = false,
             CPlacement = TgCPlacement.Peak, // V5.4 default
+            TrackEventPllMatch = false,
         };
     }
 }
