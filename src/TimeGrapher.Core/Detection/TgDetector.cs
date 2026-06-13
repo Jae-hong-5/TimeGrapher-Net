@@ -86,10 +86,10 @@ public sealed class TgDetector
     }
 
     /// <summary>
-    /// Overload carrying the opt-in robustness options. Kept off TgConfig so
-    /// the frozen TgTypes.cs contract stays untouched; a null options
-    /// reference (or an all-off instance) leaves the pipeline bit-identical
-    /// to the original port.
+    /// Overload carrying the opt-in robustness options, kept off TgConfig so
+    /// the robustness surface stays separate from the base config. A null
+    /// options reference (or an all-off instance) leaves the pipeline
+    /// identical to the pinned pre-options baseline.
     /// </summary>
     public TgDetector(TgConfig cfg, TgDetectorOptions? options)
     {

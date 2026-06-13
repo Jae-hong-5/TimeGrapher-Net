@@ -1,6 +1,6 @@
-// Standing port-fidelity gate: streams every adverse scenario through two
-// engines in the same process - DetectorOptions = null (the original
-// pipeline) and an all-off TgDetectorOptions instance - and asserts
+// Standing baseline-equivalence gate: streams every adverse scenario through
+// two engines in the same process - DetectorOptions = null (the pinned
+// baseline pipeline) and an all-off TgDetectorOptions instance - and asserts
 // block-for-block equality of the emitted events, threshold diagnostics, and
 // metrics text. Complements the golden-master tests: the golden master pins
 // the null arm against pre-change absolute values (catching always-on drift),

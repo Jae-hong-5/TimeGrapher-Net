@@ -95,7 +95,7 @@ internal sealed class AnalysisRunStatusReporter
     }
 
     // "Backgroud"/"Foregroud" reproduce the original Qt string verbatim
-    // (MainWindow.cpp:855); kept misspelled for port fidelity.
+    // (MainWindow.cpp:855); kept misspelled to match the original UI text.
     private string FormatThroughput() => string.Format(
         CultureInfo.InvariantCulture,
         "Backgroud Audio Thread Average - FPS:{0}, SPS:{1}, SPF: {2} Foregroud Audio Handler Average - FPS:{3}, SPS:{4}, SPF: {5}",

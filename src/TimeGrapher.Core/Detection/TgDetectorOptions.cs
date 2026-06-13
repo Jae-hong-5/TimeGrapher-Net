@@ -1,10 +1,11 @@
 /* TgDetectorOptions.cs -- opt-in detection robustness options.
  *
- * NOT part of the original Qt/C++ port surface: TgTypes.cs is a frozen
- * contract, so these options enter through a TgDetector constructor overload
- * instead of new TgConfig fields. Every option defaults to OFF; with all
- * options off (or a null options reference) the pipeline is bit-identical to
- * the V5.x port, which the golden-master and parity tests pin.
+ * Kept as a separate options record (entering through a TgDetector
+ * constructor overload rather than new TgConfig fields) so the robustness
+ * surface stays cleanly separated from the base detector config. Every
+ * option defaults to OFF; with all options off (or a null options
+ * reference) the pipeline matches the pinned pre-options baseline, which
+ * the golden-master and parity tests guard against accidental drift.
  */
 
 namespace TimeGrapher.Core.Detection;

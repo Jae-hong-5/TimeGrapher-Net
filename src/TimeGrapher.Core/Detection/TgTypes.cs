@@ -1,9 +1,10 @@
 /* TgTypes.cs -- public detection-layer types.
  *
- * Port of the public enums / structs / config in Timegrapher.h. The
- * signatures here are the fixed Agent A contract from PORTING.md and
- * must not be changed. See Timegrapher.h for the original field-by-field
- * documentation; the comments below preserve the load-bearing parts.
+ * Originally ported from the public enums / structs / config in
+ * Timegrapher.h (the comments below preserve the load-bearing parts of the
+ * original field-by-field documentation). The provisional C++ source is not
+ * authoritative; this surface evolves on its own merits, with behavior
+ * drift guarded by the golden-master / parity / --fidelity-check tripwires.
  */
 
 namespace TimeGrapher.Core.Detection;
@@ -57,8 +58,8 @@ public sealed class TgConfig
      * The existing gates dominate it structurally - silence gate 20 ms
      * (0.4T after lock), A-to-A 0.7T, C-search skip >= 2.5 ms - so the only
      * place it could ever fire is the A->C peak-fallback path, where
-     * dropping the C would break amplitude pairing. Kept for the frozen
-     * contract; wire it behind TgDetectorOptions if ever revived. */
+     * dropping the C would break amplitude pairing. Kept for source
+     * compatibility; wire it behind TgDetectorOptions if ever revived. */
     public double EventMinSeparationMs;  // reserved, default 2.0, unconsumed
     public double SyncTolerancePct;      // default 3.0
     public double AutoDetectSeconds;     // default 1.5

@@ -347,7 +347,8 @@ if (runAdverse)
     }
 }
 
-// Standing fidelity gate: all-off options must equal the original pipeline.
+// Standing baseline-equivalence gate: all-off options must equal the
+// pinned baseline pipeline (null options).
 if (runFidelityCheck && !FidelityCheck.Run(Console.Out))
 {
     allMatch = false;

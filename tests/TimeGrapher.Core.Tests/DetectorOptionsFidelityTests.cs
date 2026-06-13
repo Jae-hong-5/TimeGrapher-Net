@@ -6,8 +6,8 @@ using Xunit;
 namespace TimeGrapher.Core.Tests;
 
 /// <summary>
-/// Hard fidelity constraint as a unit test: a TgDetector constructed with an
-/// all-off <see cref="TgDetectorOptions"/> instance must behave
+/// Baseline-equivalence invariant as a unit test: a TgDetector constructed
+/// with an all-off <see cref="TgDetectorOptions"/> instance must behave
 /// block-for-block identically (events, sync state, threshold diagnostics)
 /// to one constructed with a null options reference, across clean, realistic,
 /// noisy, and impulsive streams. The golden-master tests pin the null arm

@@ -92,7 +92,7 @@ work requests** — 점진적 저하). 패스마다 백로그를 **비트 주기
 | **increase semantic coherence** | Core = 분석(Detection/Metrics/Imaging/Sim)만 담당. UI·OS 책임 없음 | `Core.csproj` | ✓ |
 | **split module** | 비대해지던 `MainWindow`를 partial 5개 + 추출 서비스(`RunCommandService`, `RunSessionController`, `MainWindowSelectionCoordinator`)로 분해 | `MainWindow.*.cs` | ✓ |
 | **defer binding + use an intermediary (ML 소켓)** | 베토 전용 `IBeatEventGate`를 Core에 선언하고 `BeatEventGateHost`가 검출→메트릭 초크포인트에서 중개. 고전 구현(`PllMatchGate`)은 지금 출하, 미래 ONNX TinyML 게이트는 리프 추론 프로젝트에서 같은 인터페이스를 구현해 합성 루트(App 토글/Verify `--gate`)에서 주입 — Core는 무의존 유지. 게이트는 이벤트를 생성·재타이밍할 수 없고 BPH/PLL은 항상 원시 스트림을 보므로, 오동작 ML이 락을 깨뜨릴 수 없는 **구조적** 안전 | `IBeatEventGate.cs`, `BeatEventGateHost.cs`, `AnalysisRunSettings.cs` | ✓ |
-| **anticipate expected changes (옵션 seam)** | 강건성 옵션을 동결 계약(`TgTypes.cs`)에 손대지 않고 `TgDetector(TgConfig, TgDetectorOptions?)` 오버로드로 도입. all-off/null이면 비트동일 — 골든마스터·패리티 테스트·Verify `--fidelity-check` 3중 장치가 핀 | `TgDetectorOptions.cs`, `DetectorGoldenMasterTests.cs`, `FidelityCheck.cs` | ✓ |
+| **anticipate expected changes (옵션 seam)** | 강건성 옵션을 기본 검출 설정(`TgConfig`)과 분리된 `TgDetector(TgConfig, TgDetectorOptions?)` 오버로드로 도입. all-off/null이면 옵션 도입 전 기준선과 동일 — 골든마스터·패리티 테스트·Verify `--fidelity-check` 3중 트립와이어가 드리프트를 감시 | `TgDetectorOptions.cs`, `DetectorGoldenMasterTests.cs`, `FidelityCheck.cs` | ✓ |
 
 ### 성능 (Performance) — 실시간 UI의 핵심
 
@@ -129,7 +129,7 @@ work requests** — 점진적 저하). 패스마다 백로그를 **비트 주기
 | **abstract data sources** | mic·WAV·합성이 모두 `IAudioInputWorker`/`engine.Process(span)` 뒤에서 동일하게 소비되어, 파일로 결정론적 검증 가능 | `DetectorMetricsEngine.cs` | ✓ |
 | **specialized interfaces** | GUI 없는 `Verify` 콘솔, `--smoke`/`--audio-smoke`/`--capture-smoke` 진입점(종료코드 0/2/3), `InternalsVisibleTo` 테스트 훅 | `Verify/Program.cs`, `Program.cs`, `AudioSmokeRunner.cs` | ✓ |
 | **executable assertions** | Verify가 파일명의 기대 BPH와 검출 BPH를 대조해 exit code 반환 → **CI가 매 푸시 실행**. 확장: `FillF32` 그라운드트루스 사이드채널 채점(`DetectionScorer` — 이벤트 수준 정밀도/재현율/타이밍), `--adverse` 악조건 행 9종(약신호·잡음·임펄스 폭풍·게인 스텝·무음 선행·잡음 단독), `--ab=baseline,robust` **양방향 게이트**(베이스라인 팔은 기지 약점을 핀, robust 팔은 개선을 증명 — "개선이 조용히 죽음"과 "클린 경로 파손" 모두 CI 실패) | `Verify/Program.cs`, `AdverseScenarios.cs`, `DetectionScorer.cs` | ✓ |
-| **record/playback (충실도 3중 장치)** | ① 골든마스터: 강건성 작업 착지 **전**에 기록한 절대 이벤트 시퀀스 핀(동일 바이너리 A/B가 못 보는 상시 드리프트 검출) ② null vs all-off 옵션 패리티 단위 테스트 ③ Verify `--fidelity-check` 인프로세스 블록 단위 동일성 CI 게이트(플랫폼 libm 편차 면역) | `DetectorGoldenMasterTests.cs`, `DetectorOptionsFidelityTests.cs`, `FidelityCheck.cs` | ✓ |
+| **record/playback (기준선 3중 트립와이어)** | ① 골든마스터: 강건성 작업 착지 **전**에 기록한 절대 이벤트 시퀀스 핀(동일 바이너리 A/B가 못 보는 상시 드리프트 검출) ② null vs all-off 옵션 패리티 단위 테스트 ③ Verify `--fidelity-check` 인프로세스 블록 단위 동일성 CI 게이트(플랫폼 libm 편차 면역). 목적은 원본 충실도가 아니라 의도치 않은 동작 드리프트 감지 | `DetectorGoldenMasterTests.cs`, `DetectorOptionsFidelityTests.cs`, `FidelityCheck.cs` | ✓ |
 | **controlled fault injection** | 합성기에 포아송 임펄스 잡음 노브(전용 RNG 스트림 — 켜도 틱/지터 시퀀스 비트동일, rate 0이면 출력 비트동일). 균일 백색잡음으로는 재현 불가능하던 레짐 리셋 폭풍·중앙값 오염·PLL 래치를 결정론적으로 재현 | `WatchSynthStream.cs`, `WatchSynthImpulseNoiseTests.cs` | ✓ |
 | **limit structural complexity** | 파서·리듀서·라우터·서비스를 작은 단일책임 단위로 분리, 현재 테스트 소스 69개(앱 36, Core 31, WindowsAudio 1, LinuxAudio 1)가 개별 타깃을 검증 | tests/ | ✓ |
 
