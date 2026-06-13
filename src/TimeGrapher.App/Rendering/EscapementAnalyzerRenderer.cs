@@ -13,10 +13,14 @@ namespace TimeGrapher.App.Rendering;
 /// BeatSegmentsSnapshot the frame carries (the Beat-Noise Scope's segment
 /// infrastructure reused for fine-grained intra-beat timing).
 ///
-/// One large plot shows the latest beat's envelope with pooled vertical timing
-/// markers and millisecond labels for the escapement-cycle events: A (green
-/// dashed, the cycle's zero reference), C peak (red dashed) and C onset (red
-/// dotted, only when the detector located the cluster's rising edge). The
+/// One large plot shows the latest beat's real raw waveform — the un-rectified
+/// bipolar signal as captured, drawn as the per-point min/max outlines so the
+/// vertically-symmetric scope look is the actual data, not the negated envelope
+/// (it falls back to the rectified envelope only when the producer fed no raw).
+/// Over it sit pooled vertical timing markers and millisecond labels for the
+/// escapement-cycle events: A (green dashed, the cycle's zero reference), C peak
+/// (red dashed) and C onset (red dotted, only when the detector located the
+/// cluster's rising edge). The
 /// numeric panel below reads the current A→C interval per reference, the
 /// onset-vs-peak delta, and — via EscapementTimingTracker fed here on each
 /// snapshot-version change — the windowed mean±sigma of both references plus
@@ -43,8 +47,12 @@ internal sealed class EscapementAnalyzerRenderer
 
     private readonly List<double> _envelopeX = new();
     private readonly List<double> _envelopeY = new();
+    // Lower outline of the raw bipolar waveform (RawMin); _envelopeY carries the
+    // upper outline (RawMax) when raw is available, the rectified envelope otherwise.
+    private readonly List<double> _rawMinY = new();
 
     private Scatter? _envelopeScatter;
+    private Scatter? _rawMinScatter;
     private VerticalLine? _aMarker;
     private VerticalLine? _cPeakMarker;
     private VerticalLine? _cOnsetMarker;
@@ -85,12 +93,17 @@ internal sealed class EscapementAnalyzerRenderer
         plot.Clear();
         _envelopeX.Clear();
         _envelopeY.Clear();
+        _rawMinY.Clear();
         ApplyPlotTheme(plot);
-        plot.YLabel("Envelope");
+        plot.YLabel("Amplitude");
         plot.XLabel("ms");
         _envelopeScatter = plot.Add.Scatter(_envelopeX, _envelopeY);
         _envelopeScatter.LineWidth = 1;
         _envelopeScatter.MarkerStyle.IsVisible = false;
+        _rawMinScatter = plot.Add.Scatter(_envelopeX, _rawMinY);
+        _rawMinScatter.LineWidth = 1;
+        _rawMinScatter.MarkerStyle.IsVisible = false;
+        _rawMinScatter.IsVisible = false;
         _aMarker = AddMarker(plot, LinePattern.Dashed);
         _cPeakMarker = AddMarker(plot, LinePattern.Dashed);
         _cOnsetMarker = AddMarker(plot, LinePattern.Dotted);
@@ -147,20 +160,76 @@ internal sealed class EscapementAnalyzerRenderer
         ObserveSegments(frame);
 
         BeatSegment? latest = snapshot.Segments.Count > 0 ? snapshot.Segments[^1] : null;
-        double envelopeMax = RenderEnvelope(latest);
-        UpdateMarkers(latest, envelopeMax);
+        double labelExtent = RenderTrace(latest);
+        UpdateMarkers(latest, labelExtent);
         UpdateReadout(latest);
         _plot.Refresh();
     }
 
-    /// <summary>Refills the envelope series and rescales the axes; returns the envelope max.</summary>
-    private double RenderEnvelope(BeatSegment? segment)
+    /// <summary>
+    /// Refills the trace series and rescales the axes; returns the amplitude the
+    /// marker labels sit above. Draws the real raw bipolar waveform (RawMin/Max
+    /// outlines, symmetric about zero) when the segment carries raw, and falls
+    /// back to the rectified envelope otherwise.
+    /// </summary>
+    private double RenderTrace(BeatSegment? segment)
     {
         _envelopeX.Clear();
         _envelopeY.Clear();
+        _rawMinY.Clear();
         if (segment == null)
         {
+            if (_rawMinScatter != null)
+            {
+                _rawMinScatter.IsVisible = false;
+            }
+
             return 1.0;
+        }
+
+        return segment.RawValid ? RenderRaw(segment) : RenderEnvelope(segment);
+    }
+
+    /// <summary>Raw bipolar waveform: max outline up, min outline down, symmetric Y.</summary>
+    private double RenderRaw(BeatSegment segment)
+    {
+        ReadOnlySpan<float> min = segment.RawMin.Span;
+        ReadOnlySpan<float> max = segment.RawMax.Span;
+        int count = Math.Min(min.Length, max.Length);
+        double extent = 0.0;
+        for (int i = 0; i < count; i++)
+        {
+            _envelopeX.Add(i * segment.MsPerPoint);
+            _envelopeY.Add(max[i]);
+            _rawMinY.Add(min[i]);
+            double pointExtent = Math.Max(Math.Abs(min[i]), Math.Abs(max[i]));
+            if (pointExtent > extent)
+            {
+                extent = pointExtent;
+            }
+        }
+
+        if (extent <= 0.0)
+        {
+            extent = 1.0;
+        }
+
+        if (_rawMinScatter != null)
+        {
+            _rawMinScatter.IsVisible = true;
+        }
+
+        _plot.Plot.Axes.SetLimitsX(0, segment.MsPerPoint * count);
+        _plot.Plot.Axes.SetLimitsY(-YHeadroom * extent, YHeadroom * extent);
+        return extent;
+    }
+
+    /// <summary>Fallback rectified envelope (no raw fed); returns the envelope max.</summary>
+    private double RenderEnvelope(BeatSegment segment)
+    {
+        if (_rawMinScatter != null)
+        {
+            _rawMinScatter.IsVisible = false;
         }
 
         ReadOnlySpan<float> samples = segment.Samples.Span;
@@ -265,6 +334,11 @@ internal sealed class EscapementAnalyzerRenderer
         if (_envelopeScatter != null)
         {
             _envelopeScatter.LineColor = Color.FromARGB(_theme.TraceWave);
+        }
+
+        if (_rawMinScatter != null)
+        {
+            _rawMinScatter.LineColor = Color.FromARGB(_theme.TraceWave);
         }
 
         // A = tick green, C = tock red: the same themed event color mapping the
