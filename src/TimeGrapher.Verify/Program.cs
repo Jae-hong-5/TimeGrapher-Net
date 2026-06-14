@@ -374,9 +374,12 @@ static IEnumerable<string> GenerateSyntheticFixtures(Dictionary<string, Generate
             sampleRate));
         double[] truthTimes = WriteSyntheticWav(
             path, bph, sampleRate, seconds, pcmPeak, noisePeak, rateSPerDay: rateSPerDay, beatErrorMs: beatErrorMs);
+        // These fixtures synthesize exact-timing watches (Clean config, no
+        // jitter/wander), so the rate is gated even when the target is 0 s/d:
+        // a regression that shifts a true-zero-rate watch off zero is caught.
         expectationsByFile[path] = new GeneratedFixtureExpectation(
             TruthTimes: truthTimes,
-            ExpectedRateSPerDay: rateSPerDay == 0.0 ? null : rateSPerDay,
+            ExpectedRateSPerDay: rateSPerDay,
             ExpectedBeatErrorMs: beatErrorMs == 0.0 ? null : -beatErrorMs,
             ExpectedDiffTicTacMs: beatErrorMs == 0.0 ? null : -beatErrorMs * 2.0,
             RateToleranceSPerDay: 0.5);
