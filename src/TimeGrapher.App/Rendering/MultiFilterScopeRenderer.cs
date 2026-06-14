@@ -53,6 +53,14 @@ internal sealed class MultiFilterScopeRenderer
     // lanes must not re-trigger a sync from them.
     private bool _syncing;
 
+    // Coalescing gate for the X-axis link: a drag fires PointerMoved many times
+    // per second, but only one deferred sync needs to be queued — it reads the
+    // latest limits when it runs. While one post is pending, later interactions
+    // just update _syncSource (latest wins) instead of queuing another full
+    // 3-lane SetLimitsX/AutoScaleY/Refresh pass.
+    private bool _syncPending;
+    private int _syncSource;
+
     public MultiFilterScopeRenderer(IReadOnlyList<AvaPlot> plots)
     {
         if (plots.Count != MultiFilterScopeLanes.All.Count)
@@ -168,12 +176,27 @@ internal sealed class MultiFilterScopeRenderer
     /// Links a user zoom/pan on one lane onto the others: drops live-follow and
     /// copies this lane's X window to the rest so all four stay on the same
     /// timestamp range. Deferred so ScottPlot has applied the new limits to the
-    /// source plot before they are read.
+    /// source plot before they are read, and coalesced so a continuous drag
+    /// queues a single sync (reading the latest limits) instead of one per
+    /// PointerMoved.
     /// </summary>
     private void OnUserAxisInteraction(int source)
     {
         _followLive = false;
-        Dispatcher.UIThread.Post(() => SyncXAxisFrom(source), DispatcherPriority.Background);
+        _syncSource = source; // latest interaction wins when the pending post runs
+        if (_syncPending)
+        {
+            return;
+        }
+
+        _syncPending = true;
+        Dispatcher.UIThread.Post(
+            () =>
+            {
+                _syncPending = false;
+                SyncXAxisFrom(_syncSource);
+            },
+            DispatcherPriority.Background);
     }
 
     private void SyncXAxisFrom(int source)
