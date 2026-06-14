@@ -11,7 +11,6 @@
 - Do not **refactor for structure or performance** unless it was explicitly requested.
 - If you spot a likely bug or mistake outside the requested scope, **do not fix it yourself — tell the user** and let them decide. The exception: if the requested change cannot be completed without fixing it, fix it as part of the work and say so in the commit.
 - Keep every change's impact on architectural stability and performance as small as possible.
-- If a change affects the system's structure, update the corresponding document under `docs/architecture/`.
 
 ## Commits
 
@@ -20,7 +19,6 @@
   - Format: `<type>(<scope>): <description>` — scope is optional (e.g. `feat(splash):`, `fix(install.sh):`, `docs:`, `chore:`, `test:`, `ci:`, `build:`).
   - `<type>` is lowercase.
 - A commit message is not a place to show off expertise. Keep it clear, concise, and focused on the essentials.
-  - 커밋 메시지는 전문지식을 자랑하는 곳이 아니다. 알기 쉽고 간결하게 핵심적인 내용 위주로 작성하라.
 - Write the commit body in **both English and Korean**, in this order (English first, then Korean):
 
   ```
@@ -36,7 +34,7 @@
 ## Principles
 
 - Base every change on **software architecture principles and the existing structure**.
-- The architecture and its decisions live under `docs/architecture/` — check the relevant views before making changes:
+- The architecture and its decisions live under `docs/architecture/` — check the relevant views before making changes, and if a change affects the system's structure, update the corresponding document:
   - `docs/architecture/MODULE_DECOMPOSITION_VIEW.md`, `docs/architecture/MODULE_USES_VIEW.md`, `docs/architecture/LAYERED_VIEW.md`, `docs/architecture/MVC_VIEW.md`, `docs/architecture/DATA_MODEL_VIEW.md`
   - `docs/architecture/SAP_TACTICS_ANALYSIS.md` (quality-attribute tactics)
 - Respect the dependency graph: `TimeGrapher.App` → `TimeGrapher.Core` / `TimeGrapher.Platform.*`, `TimeGrapher.Platform.*` → `TimeGrapher.Core`, `TimeGrapher.Verify` → `TimeGrapher.Core`. **Core must not depend on anything** (no UI or platform references).
