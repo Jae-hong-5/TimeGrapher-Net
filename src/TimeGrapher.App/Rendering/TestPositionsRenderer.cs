@@ -4,7 +4,7 @@ using TimeGrapher.Core.Shared;
 namespace TimeGrapher.App.Rendering;
 
 /// <summary>
-/// Positions tab: one button per NIHS 95-10 / ISO 3158 watch test position.
+/// Position strip: one button per NIHS 95-10 / ISO 3158 watch test position.
 /// The active button carries the "active" style class (accent
 /// background, white text; styles in App.axaml so the highlight re-themes via
 /// DynamicResource). Clicking highlights immediately; while frames flow the

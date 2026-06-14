@@ -102,7 +102,6 @@ public sealed class MainWindowSelectionCoordinatorTests
         return new MainWindowViewModel(
             () => Task.CompletedTask,
             () => { },
-            () => { },
             () => { });
     }
 

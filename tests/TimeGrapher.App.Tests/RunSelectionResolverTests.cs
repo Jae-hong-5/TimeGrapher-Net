@@ -80,7 +80,6 @@ public sealed class RunSelectionResolverTests
         return new MainWindowViewModel(
             () => Task.CompletedTask,
             () => { },
-            () => { },
             () => { });
     }
 }

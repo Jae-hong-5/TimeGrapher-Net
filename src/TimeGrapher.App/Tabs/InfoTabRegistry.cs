@@ -30,6 +30,7 @@ internal sealed class InfoTabRegistry
     private sealed class InfoTabFactoryContext
     {
         public required string TextFontFamily { get; init; }
+        public required Grid PositionButtonGrid { get; init; }
         public MainWindowViewModel? ViewModel { get; init; }
         public Image? SoundImageControl { get; set; }
     }
@@ -66,11 +67,20 @@ internal sealed class InfoTabRegistry
     public IReadOnlyList<IAnalysisFrameConsumer> Consumers => _consumers;
     public Image? SoundImageControl { get; }
 
-    public static InfoTabRegistry FromCatalog(TabControl tabControl, string textFontFamily, MainWindowViewModel? viewModel = null)
+    public static InfoTabRegistry FromCatalog(
+        TabControl tabControl,
+        Grid positionButtonGrid,
+        string textFontFamily,
+        MainWindowViewModel? viewModel = null)
     {
         tabControl.Items.Clear();
         var registrations = new List<InfoTabRegistration>(InfoTabCatalog.All.Count);
-        var context = new InfoTabFactoryContext { TextFontFamily = textFontFamily, ViewModel = viewModel };
+        var context = new InfoTabFactoryContext
+        {
+            TextFontFamily = textFontFamily,
+            PositionButtonGrid = positionButtonGrid,
+            ViewModel = viewModel,
+        };
 
         foreach (InfoTabDefinition definition in InfoTabCatalog.All)
         {
@@ -848,24 +858,15 @@ internal sealed class InfoTabRegistry
         InfoTabDefinition definition,
         InfoTabFactoryContext context)
     {
-        // Positions combines the NIHS 95-10 / ISO 3158 selection buttons with
-        // the per-position measurement table. The left button strip writes the
-        // shared SelectedPositionIndex view-model property; MainWindow forwards
-        // the change to the running analysis worker and the status-bar "POS …"
-        // indicator updates from the same property. Both renderers read the
-        // cumulative metrics-history snapshot, so one tab shows what Core is
-        // tagging and the measured values for those positions together.
         IReadOnlyList<WatchPosition> positions = WatchPositions.All;
         var buttons = new Button[positions.Count];
-        var buttonGrid = new Grid
-        {
-            ColumnDefinitions = new ColumnDefinitions("*"),
-            RowDefinitions = new RowDefinitions(string.Join(",", Enumerable.Repeat("*", positions.Count))),
-            Margin = new Thickness(8, 8, 2, 8),
-            MinWidth = 76,
-            MaxWidth = 92,
-            VerticalAlignment = VerticalAlignment.Stretch,
-        };
+        Grid buttonGrid = context.PositionButtonGrid;
+        buttonGrid.Children.Clear();
+        buttonGrid.ColumnDefinitions = new ColumnDefinitions("*");
+        buttonGrid.RowDefinitions = new RowDefinitions(string.Join(",", Enumerable.Repeat("*", positions.Count)));
+        buttonGrid.MinWidth = 76;
+        buttonGrid.MaxWidth = 92;
+        buttonGrid.VerticalAlignment = VerticalAlignment.Stretch;
 
         for (int i = 0; i < positions.Count; i++)
         {
@@ -940,12 +941,6 @@ internal sealed class InfoTabRegistry
                    "15 s/d among the hanging positions hints at balance-wheel unbalance.",
         };
 
-        var grid = new Grid
-        {
-            ColumnDefinitions = new ColumnDefinitions("96,*"),
-            RowDefinitions = new RowDefinitions("*"),
-        };
-
         var sequenceGrid = new Grid
         {
             RowDefinitions = new RowDefinitions("Auto,*,Auto,Auto"),
@@ -966,31 +961,9 @@ internal sealed class InfoTabRegistry
             sequenceGrid.Children.Add(overlay);
         }
 
-        // "Reset Sequence" raises the shared view-model command; MainWindow
-        // forwards it to the running analysis worker (the SetSoundBackgroundColor
-        // flow), which clears the per-position aggregates for a fresh cycle.
-        var resetButton = new Button
-        {
-            Content = "Reset Sequence",
-            HorizontalAlignment = HorizontalAlignment.Right,
-            VerticalAlignment = VerticalAlignment.Top,
-            Margin = new Thickness(0, 6, 10, 0),
-            Padding = new Thickness(8, 2, 8, 2),
-            FontSize = 11,
-            Command = context.ViewModel?.ResetSequenceCommand,
-        };
-        ToolTip.SetTip(resetButton, "Clear every position's results and start a new measurement cycle");
-        Grid.SetRow(resetButton, 1);
-        sequenceGrid.Children.Add(resetButton);
-
-        Grid.SetColumn(buttonGrid, 0);
-        Grid.SetColumn(sequenceGrid, 1);
-        grid.Children.Add(buttonGrid);
-        grid.Children.Add(sequenceGrid);
-
         var sequenceRenderer = new MultiPositionSeqRenderer(tableGrid, alertBanner, alertText, summaryText);
         var consumer = new TestPositionsFrameConsumer(positionRenderer, sequenceRenderer);
-        return new InfoTabRegistration(definition, CreateTabItem(definition, grid), consumer);
+        return new InfoTabRegistration(definition, CreateTabItem(definition, sequenceGrid), consumer);
     }
 
     private static InfoTabRegistration CreateBeatNoiseScopeRegistration(

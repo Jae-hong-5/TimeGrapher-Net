@@ -135,7 +135,7 @@ public sealed class RunCommandServiceTests
         };
         var service = new RunCommandService(vm, operations);
 
-        service.Stop();
+        service.StopRunWithoutReset();
 
         Assert.Equal(new[] { false }, operations.PauseValues);
         Assert.Equal(1, operations.StopPlaybackCalls);
@@ -160,7 +160,7 @@ public sealed class RunCommandServiceTests
         };
         var service = new RunCommandService(vm, operations);
 
-        service.Stop();
+        service.StopRunWithoutReset();
 
         Assert.False(vm.IsAwaitingBeatSync);
     }
@@ -198,7 +198,7 @@ public sealed class RunCommandServiceTests
         };
         var service = new RunCommandService(vm, operations);
 
-        service.Stop();
+        service.StopRunWithoutReset();
 
         Assert.Equal(1, operations.StopSimulationCalls);
         Assert.Equal(1, operations.RestorePlaybackOrSimulationAudioStateCalls);
@@ -208,7 +208,7 @@ public sealed class RunCommandServiceTests
     }
 
     [Fact]
-    public void StopWithStoppingOutcomeLeavesUiStopping()
+    public void StopWithStoppingOutcomeEntersStopFailedRecovery()
     {
         MainWindowViewModel vm = CreateViewModel();
         vm.SetRunning();
@@ -220,10 +220,11 @@ public sealed class RunCommandServiceTests
         };
         var service = new RunCommandService(vm, operations);
 
-        service.Stop();
+        service.StopRunWithoutReset();
 
-        Assert.Equal(RunUiState.Stopping, vm.RunState);
-        Assert.Equal("Stopping", vm.StatusText);
+        Assert.Equal(RunUiState.StopFailed, vm.RunState);
+        Assert.True(vm.ResetCommand.CanExecute(null));
+        Assert.Equal("Stop failed - press Reset to retry", vm.StatusText);
         Assert.Equal(0, operations.CloseAudioCalls);
         Assert.Equal(0, operations.InvalidateRunSessionCalls);
     }
@@ -241,10 +242,10 @@ public sealed class RunCommandServiceTests
         };
         var service = new RunCommandService(vm, operations);
 
-        service.Stop();
+        service.StopRunWithoutReset();
 
-        Assert.Equal(RunUiState.Stopping, vm.RunState);
-        Assert.Equal("Stopping", vm.StatusText);
+        Assert.Equal(RunUiState.StopFailed, vm.RunState);
+        Assert.Equal("Stop failed - press Reset to retry", vm.StatusText);
     }
 
     [Fact]
@@ -260,14 +261,13 @@ public sealed class RunCommandServiceTests
         };
         var service = new RunCommandService(vm, operations);
 
-        service.Stop();
+        service.StopRunWithoutReset();
 
-        Assert.Equal(RunUiState.Stopping, vm.RunState);
-        Assert.True(vm.IsStopEnabled);
+        Assert.Equal(RunUiState.StopFailed, vm.RunState);
         Assert.Equal(0, operations.CloseAudioCalls);
 
         operations.StopLiveOutcome = RunCommandStopOutcome.Stopped;
-        service.Stop();
+        service.StopRunWithoutReset();
 
         Assert.Equal(RunUiState.Stopped, vm.RunState);
         Assert.Equal("Stopped", vm.StatusText);
@@ -290,15 +290,14 @@ public sealed class RunCommandServiceTests
         };
         var service = new RunCommandService(vm, operations);
 
-        service.Stop();
+        service.StopRunWithoutReset();
 
-        Assert.Equal(RunUiState.Stopping, vm.RunState);
-        Assert.True(vm.IsStopEnabled);
+        Assert.Equal(RunUiState.StopFailed, vm.RunState);
         Assert.Equal(1, operations.CloseAudioCalls);
         Assert.Equal(0, operations.InvalidateRunSessionCalls);
 
         operations.CloseAudioResult = true;
-        service.Stop();
+        service.StopRunWithoutReset();
 
         Assert.Equal(RunUiState.Stopped, vm.RunState);
         Assert.Equal("Stopped", vm.StatusText);
@@ -318,17 +317,103 @@ public sealed class RunCommandServiceTests
         };
         var service = new RunCommandService(vm, operations);
 
-        service.Stop();
+        service.StopRunWithoutReset();
 
         Assert.Empty(operations.Calls);
         Assert.Equal(RunUiState.Stopped, vm.RunState);
+    }
+
+    [Fact]
+    public void ResetWhileStoppedClearsRunStateAndRefreshesDevices()
+    {
+        MainWindowViewModel vm = CreateViewModel();
+        var operations = new FakeRunCommandOperations();
+        var service = new RunCommandService(vm, operations);
+
+        service.Reset();
+
+        Assert.Equal(RunUiState.Stopped, vm.RunState);
+        Assert.Equal("Reset", vm.StatusText);
+        Assert.Equal(1, operations.ResetRunStateCalls);
+        Assert.Equal(1, operations.RefreshDevicesCalls);
+        Assert.Equal(0, operations.StopLiveCalls);
+        Assert.Equal(0, operations.InvalidateRunSessionCalls);
+    }
+
+    [Fact]
+    public void ResetFromPausedStopsThenClearsRunStateAndRefreshesDevices()
+    {
+        MainWindowViewModel vm = CreateViewModel();
+        vm.SetPaused();
+        vm.StatusText = "Paused";
+        var operations = new FakeRunCommandOperations
+        {
+            CurrentMode = RunCommandMode.Live,
+        };
+        var service = new RunCommandService(vm, operations);
+
+        service.Reset();
+
+        Assert.Equal(new[] { false }, operations.PauseValues);
+        Assert.Equal(1, operations.StopLiveCalls);
+        Assert.Equal(1, operations.CloseAudioCalls);
+        Assert.Equal(1, operations.InvalidateRunSessionCalls);
+        Assert.Equal(1, operations.ResetRunStateCalls);
+        Assert.Equal(1, operations.RefreshDevicesCalls);
+        Assert.Equal(RunUiState.Stopped, vm.RunState);
+        Assert.Equal("Reset", vm.StatusText);
+    }
+
+    [Fact]
+    public void ResetFromPausedFailedStopDoesNotResetAndKeepsRetryAvailable()
+    {
+        MainWindowViewModel vm = CreateViewModel();
+        vm.SetPaused();
+        var operations = new FakeRunCommandOperations
+        {
+            CurrentMode = RunCommandMode.Live,
+            StopLiveOutcome = RunCommandStopOutcome.Stopping,
+        };
+        var service = new RunCommandService(vm, operations);
+
+        service.Reset();
+
+        Assert.Equal(RunUiState.StopFailed, vm.RunState);
+        Assert.True(vm.ResetCommand.CanExecute(null));
+        Assert.Equal(0, operations.ResetRunStateCalls);
+        Assert.Equal(0, operations.RefreshDevicesCalls);
+        Assert.Equal(0, operations.InvalidateRunSessionCalls);
+    }
+
+    [Fact]
+    public void ResetRetryAfterFailedPausedStopCompletesThePendingReset()
+    {
+        MainWindowViewModel vm = CreateViewModel();
+        vm.SetPaused();
+        var operations = new FakeRunCommandOperations
+        {
+            CurrentMode = RunCommandMode.Live,
+            StopLiveOutcome = RunCommandStopOutcome.Stopping,
+        };
+        var service = new RunCommandService(vm, operations);
+
+        service.Reset();
+        operations.StopLiveOutcome = RunCommandStopOutcome.Stopped;
+        service.Reset();
+
+        Assert.Equal(2, operations.StopLiveCalls);
+        Assert.Equal(1, operations.CloseAudioCalls);
+        Assert.Equal(1, operations.InvalidateRunSessionCalls);
+        Assert.Equal(1, operations.ResetRunStateCalls);
+        Assert.Equal(1, operations.RefreshDevicesCalls);
+        Assert.Equal(RunUiState.Stopped, vm.RunState);
+        Assert.Equal("Reset", vm.StatusText);
     }
 
     private static MainWindowViewModel CreateViewModel()
     {
         return new MainWindowViewModel(
             () => Task.CompletedTask,
-            () => { },
             () => { },
             () => { });
     }
@@ -372,6 +457,10 @@ public sealed class RunCommandServiceTests
         public int InvalidateRunSessionCalls { get; private set; }
 
         public int RestorePlaybackOrSimulationAudioStateCalls { get; private set; }
+
+        public int ResetRunStateCalls { get; private set; }
+
+        public int RefreshDevicesCalls { get; private set; }
 
         public void ConfigureLiveAudio()
         {
@@ -452,6 +541,18 @@ public sealed class RunCommandServiceTests
         {
             Calls.Add("RestorePlaybackOrSimulationAudioState");
             RestorePlaybackOrSimulationAudioStateCalls++;
+        }
+
+        public void ResetRunState()
+        {
+            Calls.Add("ResetRunState");
+            ResetRunStateCalls++;
+        }
+
+        public void RefreshDevices()
+        {
+            Calls.Add("RefreshDevices");
+            RefreshDevicesCalls++;
         }
     }
 }

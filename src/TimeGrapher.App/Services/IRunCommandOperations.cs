@@ -33,4 +33,8 @@ internal interface IRunCommandOperations
     void InvalidateRunSession();
 
     void RestorePlaybackOrSimulationAudioState();
+
+    void ResetRunState();
+
+    void RefreshDevices();
 }

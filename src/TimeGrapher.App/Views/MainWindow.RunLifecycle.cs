@@ -6,6 +6,7 @@ using Avalonia.Threading;
 
 using TimeGrapher.App.Audio;
 using TimeGrapher.App.Services;
+using TimeGrapher.App.ViewModels;
 using TimeGrapher.Core.AudioIo;
 using TimeGrapher.Core.Shared;
 using TimeGrapher.Core.Sim;
@@ -73,7 +74,7 @@ public partial class MainWindow
         // The capture process/device died without a stop request: bring the run
         // down through the normal stop path, then surface what happened (after
         // StopRun so the message survives the "Stopped" status).
-        StopRun();
+        StopRunWithoutReset();
         mViewModel.StatusText = "Live audio capture ended unexpectedly";
     }
 
@@ -113,8 +114,6 @@ public partial class MainWindow
 
     private RunSessionStopOutcome StopPlaybackThread()
     {
-        // requestInterruption(): cancel; the worker reports completion via DoneReadingFile,
-        // but on_StopPushButton_clicked also calls StopAnalysisThread()/AudioCloseCheck() directly.
         return mRunSessionController.StopInputWorker("Playback");
     }
 
@@ -183,9 +182,6 @@ public partial class MainWindow
         }
 
         SetGuiStopMode();
-        // A run that completed without ever locking the beat must not keep the
-        // "Waiting for tick-tock sync…" overlay over the stopped plots (the
-        // manual-stop path clears this in RunCommandService.Stop).
         mViewModel.IsAwaitingBeatSync = false;
         mViewModel.StatusText = failed ? failureStatus : "Stopped";
     }
@@ -386,8 +382,13 @@ public partial class MainWindow
         mRunSessionController.SetWorkersPaused(paused);
     }
 
-    private void StopRun()
+    private void StopRunWithoutReset()
     {
-        mRunCommandService.Stop();
+        mRunCommandService.StopRunWithoutReset();
+    }
+
+    private void ResetRun()
+    {
+        mRunCommandService.Reset();
     }
 }

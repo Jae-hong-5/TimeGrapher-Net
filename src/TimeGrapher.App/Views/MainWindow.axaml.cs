@@ -95,7 +95,7 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         ConfigurePlatformWindow();
-        mViewModel = new MainWindowViewModel(StartRunAsync, TogglePauseRun, StopRun, LoadAudioDevices);
+        mViewModel = new MainWindowViewModel(StartRunAsync, TogglePauseRun, ResetRun);
         mSelectionCoordinator = new MainWindowSelectionCoordinator(
             mViewModel,
             new MainWindowSelectionOperations(this),
@@ -139,7 +139,7 @@ public partial class MainWindow : Window
         AppTitleText.Text = appTitle;
 
         // Results->setAlignment(Qt::AlignHCenter); set in XAML.
-        mInfoTabRegistry = InfoTabRegistry.FromCatalog(GraphicsTabWidget, APP_FONT_FAMILY, mViewModel);
+        mInfoTabRegistry = InfoTabRegistry.FromCatalog(GraphicsTabWidget, PositionButtonStrip, APP_FONT_FAMILY, mViewModel);
         mGraphFrameRenderer = new GraphFrameRenderer(mInfoTabRegistry.Consumers, Results);
         mGraphFrameRenderer.ApplyTheme(CurrentPlotTheme());
         mFrameRouter = mInfoTabRegistry.CreateRouter();
@@ -152,7 +152,6 @@ public partial class MainWindow : Window
         mViewModel.PropertyChanged += mSelectionCoordinator.OnViewModelPropertyChanged;
         mViewModel.PropertyChanged += OnRunControlPropertyChanged;
         mViewModel.PropertyChanged += OnReviewCursorPropertyChanged;
-        mViewModel.ResetSequenceRequested += OnResetSequenceRequested;
         GraphicsTabWidget.SelectionChanged += OnGraphicsTabSelectionChanged;
 
         LoadBph();
@@ -335,13 +334,6 @@ public partial class MainWindow : Window
         {
             mRunSessionController.SetSigmaAveraging(mViewModel.SigmaAveraging);
         }
-    }
-
-    // Positions "Reset Sequence": clear the running worker's
-    // per-position aggregates so a new measurement cycle starts.
-    private void OnResetSequenceRequested()
-    {
-        mRunSessionController.ResetPositionAggregates();
     }
 
     // Review-cursor moves while paused re-render the kept last frame at the new

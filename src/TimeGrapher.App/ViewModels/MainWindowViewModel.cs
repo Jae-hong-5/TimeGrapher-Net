@@ -13,6 +13,7 @@ internal enum RunUiState
     Running,
     Paused,
     Stopping,
+    StopFailed,
 }
 
 internal sealed class MainWindowViewModel : INotifyPropertyChanged
@@ -21,9 +22,7 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     public const double ReviewStepS = 1.0;
 
     private readonly AsyncRelayCommand _playPauseCommand;
-    private readonly RelayCommand _stopCommand;
-    private readonly RelayCommand _refreshDevicesCommand;
-    private readonly RelayCommand _resetSequenceCommand;
+    private readonly RelayCommand _resetCommand;
     private readonly RelayCommand _reviewStepBackCommand;
     private readonly RelayCommand _reviewStepForwardCommand;
     private readonly RelayCommand _reviewLiveCommand;
@@ -57,8 +56,7 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     public MainWindowViewModel(
         Func<Task> startAsync,
         Action pauseOrResume,
-        Action stop,
-        Action refreshDevices)
+        Action reset)
     {
         _playPauseCommand = new AsyncRelayCommand(async () =>
         {
@@ -70,9 +68,7 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
 
             pauseOrResume();
         }, () => IsPlayPauseEnabled);
-        _stopCommand = new RelayCommand(stop, () => IsStopEnabled);
-        _refreshDevicesCommand = new RelayCommand(refreshDevices, () => AreRunParametersEnabled);
-        _resetSequenceCommand = new RelayCommand(() => ResetSequenceRequested?.Invoke());
+        _resetCommand = new RelayCommand(reset, () => IsResetEnabled);
         _reviewStepBackCommand = new RelayCommand(() => StepReviewCursor(-ReviewStepS));
         _reviewStepForwardCommand = new RelayCommand(() => StepReviewCursor(ReviewStepS));
         _reviewLiveCommand = new RelayCommand(() => ReviewCursorTimeS = null);
@@ -80,17 +76,8 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
-    /// <summary>
-    /// Raised when the user asks to restart the multi-position sequence
-    /// (clear the per-position aggregates). MainWindow forwards it to the
-    /// running analysis worker, the run-control-knob flow.
-    /// </summary>
-    public event Action? ResetSequenceRequested;
-
     public ICommand PlayPauseCommand => _playPauseCommand;
-    public ICommand StopCommand => _stopCommand;
-    public ICommand RefreshDevicesCommand => _refreshDevicesCommand;
-    public ICommand ResetSequenceCommand => _resetSequenceCommand;
+    public ICommand ResetCommand => _resetCommand;
     public ICommand ReviewStepBackCommand => _reviewStepBackCommand;
     public ICommand ReviewStepForwardCommand => _reviewStepForwardCommand;
     public ICommand ReviewLiveCommand => _reviewLiveCommand;
@@ -107,8 +94,7 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
 
     public bool IsPlayPauseEnabled => _runState is RunUiState.Stopped or RunUiState.Running or RunUiState.Paused;
 
-    // Stopping stays enabled so a failed/timed-out stop can be retried instead of wedging the UI.
-    public bool IsStopEnabled => _runState is RunUiState.Running or RunUiState.Paused or RunUiState.Stopping;
+    public bool IsResetEnabled => _runState is RunUiState.Stopped or RunUiState.Paused or RunUiState.Stopping or RunUiState.StopFailed;
 
     public bool IsSampleRateEnabled => AreRunParametersEnabled && _modeAllowsSampleRate;
 
@@ -416,6 +402,8 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
 
     public void SetStopping() => SetRunState(RunUiState.Stopping);
 
+    public void SetStopFailed() => SetRunState(RunUiState.StopFailed);
+
     public void SetStopped() => SetRunState(RunUiState.Stopped);
 
     private void SetRunState(RunUiState value)
@@ -440,14 +428,13 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(IsReviewBarVisible));
         OnPropertyChanged(nameof(AreRunParametersEnabled));
         OnPropertyChanged(nameof(IsPlayPauseEnabled));
-        OnPropertyChanged(nameof(IsStopEnabled));
+        OnPropertyChanged(nameof(IsResetEnabled));
         OnPropertyChanged(nameof(IsSampleRateEnabled));
         OnPropertyChanged(nameof(PlayPauseButtonText));
         OnPropertyChanged(nameof(IsPlayPauseButtonShowingPause));
         OnPropertyChanged(nameof(IsPlayPauseButtonShowingPlay));
         _playPauseCommand.NotifyCanExecuteChanged();
-        _stopCommand.NotifyCanExecuteChanged();
-        _refreshDevicesCommand.NotifyCanExecuteChanged();
+        _resetCommand.NotifyCanExecuteChanged();
     }
 
     private bool SetProperty<T>(ref T storage, T value, [CallerMemberName] string? propertyName = null)

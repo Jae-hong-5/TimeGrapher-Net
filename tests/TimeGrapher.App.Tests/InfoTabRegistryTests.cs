@@ -16,8 +16,9 @@ public sealed class InfoTabRegistryTests
     public void RegistryCreatesCatalogTabsAndConsumers()
     {
         var tabControl = new TabControl();
+        var positionStrip = new Grid();
 
-        InfoTabRegistry registry = InfoTabRegistry.FromCatalog(tabControl, "Arial");
+        InfoTabRegistry registry = InfoTabRegistry.FromCatalog(tabControl, positionStrip, "Arial");
 
         Assert.Equal(InfoTabCatalog.All.Count, registry.Registrations.Count);
         Assert.Equal(InfoTabCatalog.All.Count, tabControl.ItemCount);
@@ -35,31 +36,59 @@ public sealed class InfoTabRegistryTests
     }
 
     [Fact]
-    public void RegistryCreatesOneSideBySidePositionsTab()
+    public void RegistryCreatesAlwaysVisiblePositionStrip()
     {
         var tabControl = new TabControl();
+        var positionStrip = new Grid();
 
-        InfoTabRegistry registry = InfoTabRegistry.FromCatalog(tabControl, "Arial");
+        InfoTabRegistry registry = InfoTabRegistry.FromCatalog(tabControl, positionStrip, "Arial");
 
         InfoTabRegistration registration = Assert.Single(
             registry.Registrations,
             registration => registration.Definition.Id == InfoTabCatalog.TestPositionsTabId);
         var content = Assert.IsType<Grid>(registration.TabItem.Content);
-        var buttonGrid = Assert.IsType<Grid>(content.Children[0]);
-        Button[] buttons = buttonGrid.Children.OfType<Button>().ToArray();
+        Button[] buttons = positionStrip.Children.OfType<Button>().ToArray();
 
-        Assert.Equal(2, content.ColumnDefinitions.Count);
-        Assert.Single(buttonGrid.ColumnDefinitions);
-        Assert.Equal(WatchPositions.Count, buttonGrid.RowDefinitions.Count);
+        Assert.Empty(content.ColumnDefinitions);
+        Assert.Single(positionStrip.ColumnDefinitions);
+        Assert.Equal(WatchPositions.Count, positionStrip.RowDefinitions.Count);
         Assert.Equal(WatchPositions.Count, buttons.Length);
         for (int i = 0; i < buttons.Length; i++)
         {
             Assert.Equal(i, Grid.GetRow(buttons[i]));
             Assert.Equal(VerticalAlignment.Stretch, buttons[i].VerticalAlignment);
         }
+        Assert.DoesNotContain(
+            Descendants(content).OfType<Button>(),
+            button => Equals(button.Content, "Reset Sequence"));
 
         Assert.Single(registry.Consumers, consumer => consumer.TabId == InfoTabCatalog.TestPositionsTabId);
         Assert.DoesNotContain(registry.Registrations, registration => registration.Definition.Title == "Position Seq");
+    }
+
+    [Fact]
+    public void PositionStripObservesFramesEvenWhenPositionsTabIsInactive()
+    {
+        var tabControl = new TabControl();
+        var positionStrip = new Grid();
+        InfoTabRegistry registry = InfoTabRegistry.FromCatalog(tabControl, positionStrip, "Arial");
+        Button[] buttons = positionStrip.Children.OfType<Button>().ToArray();
+        AnalysisFrameRouter router = registry.CreateRouter();
+
+        router.Route(
+            new AnalysisFrame
+            {
+                MetricsHistory = new BeatMetricsHistorySnapshot
+                {
+                    Version = 1,
+                    ActivePosition = WatchPosition.P6H,
+                },
+            },
+            InfoTabCatalog.RateScopeTabId,
+            new AnalysisTabRenderContext(48000, 2));
+
+        Assert.Contains("active", buttons[(int)WatchPosition.P6H].Classes);
+        Assert.DoesNotContain("active", buttons[(int)WatchPosition.CH].Classes);
     }
 
     [Fact]
@@ -311,7 +340,7 @@ public sealed class InfoTabRegistryTests
     private static InfoTabRegistration CreateVarioRegistration()
     {
         var tabControl = new TabControl();
-        InfoTabRegistry registry = InfoTabRegistry.FromCatalog(tabControl, "Arial");
+        InfoTabRegistry registry = InfoTabRegistry.FromCatalog(tabControl, new Grid(), "Arial");
         return Assert.Single(
             registry.Registrations,
             registration => registration.Definition.Id == InfoTabCatalog.VarioTabId);

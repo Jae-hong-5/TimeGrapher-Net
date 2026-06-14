@@ -32,15 +32,13 @@ internal sealed class TestPositionsFrameConsumer : IAnalysisFrameConsumer
 
     public void ObserveFrame(AnalysisFrame frame)
     {
-        // History is cumulative on the frame; nothing to accumulate UI-side.
-        _ = frame;
+        _positionRenderer.RenderFrame(frame);
     }
 
     public void RenderFrame(AnalysisFrame frame, AnalysisTabRenderContext context)
     {
         // No time axis on this tab, so the review-cursor contract does not apply.
         _ = context;
-        _positionRenderer.RenderFrame(frame);
         _sequenceRenderer.RenderFrame(frame);
     }
 }

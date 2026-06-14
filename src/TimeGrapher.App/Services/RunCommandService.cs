@@ -2,10 +2,11 @@ using TimeGrapher.App.ViewModels;
 
 namespace TimeGrapher.App.Services;
 
-internal sealed class RunCommandService
+internal sealed partial class RunCommandService
 {
     private readonly MainWindowViewModel _viewModel;
     private readonly IRunCommandOperations _operations;
+    private PendingStopIntent _pendingStopIntent = PendingStopIntent.None;
     private bool _startInProgress;
 
     public RunCommandService(MainWindowViewModel viewModel, IRunCommandOperations operations)
@@ -14,7 +15,38 @@ internal sealed class RunCommandService
         _operations = operations;
     }
 
-    public async Task StartAsync()
+    private IRunCommandState CurrentState => _viewModel.RunState switch
+    {
+        RunUiState.Stopped => StoppedState.Instance,
+        RunUiState.Starting => StartingState.Instance,
+        RunUiState.Running => RunningState.Instance,
+        RunUiState.Paused => PausedState.Instance,
+        RunUiState.Stopping => StoppingState.Instance,
+        RunUiState.StopFailed => StopFailedState.Instance,
+        _ => StoppedState.Instance,
+    };
+
+    public Task StartAsync()
+    {
+        return CurrentState.StartAsync(this);
+    }
+
+    public void TogglePause()
+    {
+        CurrentState.TogglePause(this);
+    }
+
+    public void StopRunWithoutReset()
+    {
+        CurrentState.StopRunWithoutReset(this);
+    }
+
+    public void Reset()
+    {
+        CurrentState.Reset(this);
+    }
+
+    private async Task StartFromStoppedAsync()
     {
         if (_startInProgress || _operations.IsClosing)
         {
@@ -53,22 +85,14 @@ internal sealed class RunCommandService
         }
     }
 
-    public void TogglePause()
+    private void PauseRunning()
     {
         if (_startInProgress || _operations.IsClosing)
         {
             return;
         }
 
-        if (_viewModel.RunState == RunUiState.Paused)
-        {
-            _operations.SetWorkersPaused(false);
-            SetRunning();
-            _viewModel.StatusText = "Running";
-            return;
-        }
-
-        if (_viewModel.RunState != RunUiState.Running || !_operations.HasActiveWorker)
+        if (!_operations.HasActiveWorker)
         {
             return;
         }
@@ -78,40 +102,69 @@ internal sealed class RunCommandService
         _viewModel.StatusText = "Paused";
     }
 
-    public void Stop()
+    private void ResumePaused()
     {
-        // Stopping is allowed through so a failed/timed-out stop can be retried.
-        if (_startInProgress || _operations.IsClosing || _viewModel.RunState == RunUiState.Stopped)
+        if (_startInProgress || _operations.IsClosing)
         {
             return;
         }
 
         _operations.SetWorkersPaused(false);
-        SetStopping();
-        // Set before StopMode/CloseAudio so their detailed failure messages win,
-        // and stale throughput text never survives a failed stop.
-        _viewModel.StatusText = "Stopping";
-        RunCommandStopOutcome outcome = RunCommandStopOutcome.Stopped;
-        RunCommandMode mode = _operations.CurrentMode;
+        SetRunning();
+        _viewModel.StatusText = "Running";
+    }
 
-        outcome = Combine(outcome, StopMode(mode));
+    private void StopOnly()
+    {
+        BeginStop(PendingStopIntent.StopOnly);
+    }
 
-        bool audioClosed = outcome == RunCommandStopOutcome.Stopped && _operations.CloseAudio();
-        if (outcome != RunCommandStopOutcome.Stopped || !audioClosed)
+    private void ResetFromPaused()
+    {
+        BeginStop(PendingStopIntent.ResetAfterStop);
+    }
+
+    private void ResetStopped()
+    {
+        CompleteReset();
+    }
+
+    private void RetryPendingStop()
+    {
+        PendingStopIntent intent = _pendingStopIntent == PendingStopIntent.None
+            ? PendingStopIntent.StopOnly
+            : _pendingStopIntent;
+        BeginStop(intent);
+    }
+
+    private void BeginStop(PendingStopIntent intent)
+    {
+        if (_startInProgress || _operations.IsClosing)
         {
-            SetStopping();
             return;
         }
 
-        _operations.InvalidateRunSession();
-        if (ShouldRestoreAudioState(mode))
+        _pendingStopIntent = intent;
+        _operations.SetWorkersPaused(false);
+        SetStopping();
+        _viewModel.StatusText = intent == PendingStopIntent.ResetAfterStop
+            ? "Stopping for reset"
+            : "Stopping";
+
+        RunCommandMode mode = _operations.CurrentMode;
+        RunCommandStopOutcome outcome = Combine(RunCommandStopOutcome.Stopped, StopMode(mode));
+        bool audioClosed = outcome == RunCommandStopOutcome.Stopped && _operations.CloseAudio();
+        if (outcome != RunCommandStopOutcome.Stopped || !audioClosed)
         {
-            _operations.RestorePlaybackOrSimulationAudioState();
+            SetStopFailed();
+            if (_viewModel.StatusText is "Stopping" or "Stopping for reset")
+            {
+                _viewModel.StatusText = "Stop failed - press Reset to retry";
+            }
+            return;
         }
 
-        SetStopped();
-        _viewModel.StatusText = "Stopped";
-        _viewModel.IsAwaitingBeatSync = false;
+        CompleteStop(mode, intent);
     }
 
     private Task<bool> StartModeAsync(RunCommandMode mode)
@@ -162,6 +215,11 @@ internal sealed class RunCommandService
         _viewModel.SetStopping();
     }
 
+    private void SetStopFailed()
+    {
+        _viewModel.SetStopFailed();
+    }
+
     private void SetStopped()
     {
         RunCommandMode mode = _operations.CurrentMode;
@@ -175,5 +233,40 @@ internal sealed class RunCommandService
         return left == RunCommandStopOutcome.Stopping || right == RunCommandStopOutcome.Stopping
             ? RunCommandStopOutcome.Stopping
             : RunCommandStopOutcome.Stopped;
+    }
+
+    private void CompleteStop(RunCommandMode mode, PendingStopIntent intent)
+    {
+        _operations.InvalidateRunSession();
+        if (ShouldRestoreAudioState(mode))
+        {
+            _operations.RestorePlaybackOrSimulationAudioState();
+        }
+
+        SetStopped();
+        _viewModel.IsAwaitingBeatSync = false;
+        _pendingStopIntent = PendingStopIntent.None;
+
+        if (intent == PendingStopIntent.ResetAfterStop)
+        {
+            CompleteReset();
+            return;
+        }
+
+        _viewModel.StatusText = "Stopped";
+    }
+
+    private void CompleteReset()
+    {
+        _operations.ResetRunState();
+        _operations.RefreshDevices();
+        _viewModel.StatusText = "Reset";
+    }
+
+    private enum PendingStopIntent
+    {
+        None,
+        StopOnly,
+        ResetAfterStop,
     }
 }

@@ -102,6 +102,16 @@ public partial class MainWindow
             _owner.RestorePlaybackOrSimulationAudioState();
         }
 
+        public void ResetRunState()
+        {
+            _owner.Reset();
+        }
+
+        public void RefreshDevices()
+        {
+            _owner.LoadAudioDevices();
+        }
+
         private static RunCommandStopOutcome MapStopOutcome(RunSessionStopOutcome outcome)
         {
             return outcome == RunSessionStopOutcome.Stopped
