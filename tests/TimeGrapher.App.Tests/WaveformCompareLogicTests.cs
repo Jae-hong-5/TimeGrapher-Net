@@ -13,15 +13,15 @@ public sealed class WaveformCompareLogicTests
 {
     private static BeatSegment Segment(
         double startTimeS = 0.0, bool isTic = false, double aMs = 5.0, double? cPeakMs = null) => new()
-    {
-        Samples = new float[1600],
-        MsPerPoint = 0.25,
-        StartTimeS = startTimeS,
-        IsTic = isTic,
-        AOffsetMs = aMs,
-        CPeakValid = cPeakMs is not null,
-        CPeakOffsetMs = cPeakMs ?? 0.0,
-    };
+        {
+            Samples = new float[1600],
+            MsPerPoint = 0.25,
+            StartTimeS = startTimeS,
+            IsTic = isTic,
+            AOffsetMs = aMs,
+            CPeakValid = cPeakMs is not null,
+            CPeakOffsetMs = cPeakMs ?? 0.0,
+        };
 
     [Fact]
     public void HeaderLine_ReportsTheCurrentRateBeatErrorAndBph()

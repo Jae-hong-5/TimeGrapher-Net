@@ -13,15 +13,15 @@ public sealed class EscapementReadoutTests
 {
     private static BeatSegment Segment(
         double aMs, double? cPeakMs, double? cOnsetMs) => new()
-    {
-        MsPerPoint = 0.25,
-        StartTimeS = 0.0,
-        AOffsetMs = aMs,
-        CPeakValid = cPeakMs is not null,
-        CPeakOffsetMs = cPeakMs ?? 0.0,
-        COnsetValid = cOnsetMs is not null,
-        COnsetOffsetMs = cOnsetMs ?? 0.0,
-    };
+        {
+            MsPerPoint = 0.25,
+            StartTimeS = 0.0,
+            AOffsetMs = aMs,
+            CPeakValid = cPeakMs is not null,
+            CPeakOffsetMs = cPeakMs ?? 0.0,
+            COnsetValid = cOnsetMs is not null,
+            COnsetOffsetMs = cOnsetMs ?? 0.0,
+        };
 
     [Fact]
     public void MarkerLabels_ReportTheElapsedMsFromA()

@@ -21,12 +21,12 @@ public sealed class TraceDisplayLogicTests
     private static BeatMetricsHistorySnapshot Snapshot(
         bool rateValid = false, double rate = 0.0,
         bool amplitudeValid = false, double amplitude = 285.0) => new()
-    {
-        RateValid = rateValid,
-        RateSPerDay = rate,
-        AmplitudeValid = amplitudeValid,
-        AmplitudeDeg = amplitude,
-    };
+        {
+            RateValid = rateValid,
+            RateSPerDay = rate,
+            AmplitudeValid = amplitudeValid,
+            AmplitudeDeg = amplitude,
+        };
 
     [Fact]
     public void Average_IsMeanOfStoredPoints()

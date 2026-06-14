@@ -14,15 +14,15 @@ public sealed class EscapementTimingTrackerTests
 {
     private static BeatSegment Segment(
         double startTimeS, double aMs = 5.0, double? cPeakMs = null, double? cOnsetMs = null) => new()
-    {
-        MsPerPoint = 0.25,
-        StartTimeS = startTimeS,
-        AOffsetMs = aMs,
-        CPeakValid = cPeakMs is not null,
-        CPeakOffsetMs = cPeakMs ?? 0.0,
-        COnsetValid = cOnsetMs is not null,
-        COnsetOffsetMs = cOnsetMs ?? 0.0,
-    };
+        {
+            MsPerPoint = 0.25,
+            StartTimeS = startTimeS,
+            AOffsetMs = aMs,
+            CPeakValid = cPeakMs is not null,
+            CPeakOffsetMs = cPeakMs ?? 0.0,
+            COnsetValid = cOnsetMs is not null,
+            COnsetOffsetMs = cOnsetMs ?? 0.0,
+        };
 
     private static BeatSegmentsSnapshot Snapshot(params BeatSegment[] segments) => new()
     {

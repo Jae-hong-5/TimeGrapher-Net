@@ -49,7 +49,8 @@ public sealed class BeatEventGateTests
             HpfCutoffHz: 0.0,
             EventGate: gate != null ? new BeatEventGateConfig(gate) : null));
 
-    private static WatchSynthStreamConfig CleanStream() {
+    private static WatchSynthStreamConfig CleanStream()
+    {
         WatchSynthStreamConfig cfg = WatchSynthStreamConfig.Clean();
         cfg.SampleRateHz = 48000;
         cfg.Bph = 21600;

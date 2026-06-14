@@ -14,13 +14,13 @@ public sealed class BeatErrorDiagnosticsTests
     private static BeatMetricsHistorySnapshot Snapshot(
         bool rateValid = false, double rate = 0.0, int bph = 28800,
         bool beatErrorValid = false, double beatErrorMs = 0.0) => new()
-    {
-        RateValid = rateValid,
-        RateSPerDay = rate,
-        Bph = bph,
-        BeatErrorValid = beatErrorValid,
-        BeatErrorSignedMs = beatErrorMs,
-    };
+        {
+            RateValid = rateValid,
+            RateSPerDay = rate,
+            Bph = bph,
+            BeatErrorValid = beatErrorValid,
+            BeatErrorSignedMs = beatErrorMs,
+        };
 
     [Fact]
     public void SlopeMsPerBeat_ScalesDailyRateToOneBeat()
