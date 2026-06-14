@@ -115,6 +115,7 @@ work requests** — 점진적 저하). 패스마다 백로그를 **비트 주기
 |---|---|---|---|
 | **timestamp (논리 시퀀스)** | **핵심.** 실행마다 단조증가 `_runSessionToken`을 발급, 모든 비동기 콜백이 토큰을 들고 옴 → 이전 실행의 늦은 응답을 토큰 불일치로 폐기(`AnalysisSessionId`, 렌더 `_generation`까지 3중) | `RunSessionController.cs` | ✓ |
 | **exception handling / detection** | 워커 스레드는 예외를 try/catch로 가둬 프로세스를 죽이지 않고 `Failed`로 보고; `_stopRequested`로 "정상 중지"와 "장치 사망"을 구분해 `CaptureEnded` 발생 | `PlaybackWorker.cs`, `AudioCaptureWorker.cs` | ✓ |
+| **fault recovery (명시적 복구 상태)** | `RunCommandService`가 State Pattern으로 `Stopped`/`Running`/`Paused`/`Stopping`/`StopFailed` 전이를 소유한다. paused reset은 `ResetAfterStop` 의도를 보존해 stop 성공 뒤에만 reset+device refresh를 실행하고, worker timeout 또는 recording close 실패는 `StopFailed`로 보내 `RESET` 재시도를 계속 열어 둔다 | `RunCommandService.cs`, `RunCommandService.States.cs`, `RunCommandServiceTests.cs` | ✓ |
 | **degradation** | Linux 입력 장치 열거는 PipeWire `wpctl` 결과가 없으면 ALSA `arecord -l`로 폴백한다. 사용자가 선택한 ALSA 장치는 `arecord`/S16_LE 경로로 캡처되어 PipeWire 장치가 없어도 낮은 수준의 캡처 경로를 제공한다 | `LinuxLiveAudioWorker.cs` | ✓ |
 | **ignore faulty input + state resynchronization (검출 갭)** | 반 비트를 초과하는 A-A 간격을 단일 기준으로 "검출 갭"으로 분류해 3중 대응: ① 갭에 걸친 부호 비트오차/주기 델타를 무효화(ignore faulty input) ② 틱/톡 비트 카운터를 물리 위상에 재앵커 ③ 레이트 회귀(RLS) 윈도를 갭에서 재시작(state resynchronization, 새 싱크 락과 동일한 회복 — 위상당 2포인트면 판독 복귀). 비트 1개 누락이 부호를 반전시키거나 누적 통계 min/max를 영구 오염시키지 않으며, 누락 비트는 보간 없이 제외되고 `MissedBeats` 세션 카운터로 기록된다 | `WatchMetrics.cs` | ✓ |
 | **condition monitoring + degradation recovery (약신호, 옵트인)** | `EnableAdaptiveFloor`: 기각 버스트가 섀도 중앙값 통계를 남겨(condition monitoring) 10×노이즈 하드 플로어(minPeakThr ≈ 2.8×n) 아래의 약한 시계로 기준이 하향 적응하고, 수락 공백 후 기준 피크가 지수 감쇠 + 히스토리 재시작으로 큰소리→조용함 래치를 자가 복구(degradation recovery). 측정: quiet-step 행에서 베이스라인은 게인 스텝 후 영구 무락, 활성 시 재락 + 사후 recall 0.694 | `Detector.cs`, `AdaptiveFloorTests.cs` | ✓ |
@@ -150,7 +151,8 @@ work requests** — 점진적 저하). 패스마다 백로그를 **비트 주기
 | **Layers** | App / Platform.* / Core 3계층, 하향 의존만 + CI 강제 | `TimeGrapher.App.csproj` | ✓ |
 | **Adapter** | `AudioCaptureWorker`가 NAudio를, `LinuxLiveAudioWorker`가 pw-record/arecord를 `ILiveAudioWorker`로 변환 | Platform.* | ✓(Win) / △(Linux: 프로세스 오케스트레이션 성격) |
 | **Factory** | `LiveAudioBackend.CreateWorker`, `IRecordingWriterFactory`, `InfoTabRegistry`(kind→factory 딕셔너리) | 다수 | ✓ |
-| **Strategy** | 탭별 frame consumer `IAnalysisFrameConsumer`를 `TabId`로 선택하고, 입력 모드 `IAudioInputWorker`를 동일하게 구동. Positions 탭은 포지션 버튼 렌더러와 시퀀스 렌더러를 하나의 consumer로 묶어 같은 라우팅 계약을 따른다 | `IAnalysisFrameConsumer.cs`, `TestPositionsFrameConsumer.cs` | ✓ |
+| **Strategy** | 탭별 frame consumer `IAnalysisFrameConsumer`를 `TabId`로 선택하고, 입력 모드 `IAudioInputWorker`를 동일하게 구동. 항상 보이는 포지션 버튼 strip은 `ObserveFrame`, Positions 시퀀스 표는 활성 탭 `RenderFrame`에서 같은 snapshot을 읽어 각 표시 비용을 분리한다 | `IAnalysisFrameConsumer.cs`, `TestPositionsFrameConsumer.cs` | ✓ |
+| **State** | run lifecycle 명령(`Start`, `Play/Pause`, `Reset`, stop retry)과 내부 stop-without-reset 전이를 상태 객체(`StoppedState`, `RunningState`, `PausedState`, `StoppingState`, `StopFailedState`)에 위임해 상태별 허용 동작과 복구 전이를 한 곳에 둔다 | `RunCommandService.States.cs` | ✓ |
 | **Command** | `RelayCommand`/`AsyncRelayCommand`(ICommand) — 재진입 차단 + CanExecute 재질의 | `AsyncRelayCommand.cs` | ✓ |
 | **Observer** | 워커 이벤트(`DataReady`, `AnalysisFrameReady`, `CaptureEnded`) 구독·정지 시 해제 | `AnalysisWorker.cs` | ✓ (브로커형 Pub-Sub은 아님) |
 | **Producer-Consumer (bounded)** | 분석→`WavWriter` 스레드를 `BlockingCollection`으로 분리 | `QueuedWavStreamWriter.cs` | ✓ |
@@ -171,7 +173,7 @@ work requests** — 점진적 저하). 패스마다 백로그를 **비트 주기
 - **Map-Reduce (✗ 기각):** 분할·병렬·셔플이 전혀 없는 **증분 슬라이딩-윈도우 집계**일 뿐 → `reduce overhead` tactic으로 봐야 한다.
 - **기타 교정:**
   - "bound execution times"는 과거 정지 join의 **대기 상한(2초)**뿐이었다. 이후 `AnalysisDeadlineMonitor`가 비트 주기 기반 백로그 감시와 점진 저하를 추가했다 — 단일 패스의 시간 상한은 여전히 없고(4096샘플 청크로 작업 **양**만 바운드), 마감은 사후 감시 + 저하로 다룬다.
-  - "retry"는 자동이 아니라 **사용자가 다시 누르면 멱등 재시도**다.
+  - stop "retry"는 자동 반복이 아니라 **복구 상태에서 사용자가 `RESET`을 다시 누르면 멱등 재시도**하는 구조다.
   - PipeWire→ALSA는 fault-recovery `reconfiguration`이 아니라 장치 열거/선택 단계의 **`degradation` 폴백**이다.
   - stale 콜백 폐기는 `ignore faulty behavior`가 아니라 `timestamp`의 stale 탐지 절반이다.
 
