@@ -13,14 +13,19 @@ namespace TimeGrapher.App.Tests;
 
 public sealed class VarioRendererThemeTests
 {
-    private static PlotThemePalette Palette(uint text) => new(
+    private static PlotThemePalette Palette(
+        uint text,
+        uint varioAverage = 0xFFC0392B,
+        uint varioBad = 0xFFC03030) => new(
         SurfaceBg: 0xFF101010,
         ScopeBg: 0xFF202020,
         ScopeGrid: 0xFF303030,
         TextPrimary: text,
         TraceWave: 0xFF404040,
         TraceTick: 0xFF505050,
-        TraceTock: 0xFF606060);
+        TraceTock: 0xFF606060,
+        VarioAverage: varioAverage,
+        VarioBad: varioBad);
 
     [Fact]
     public void ThemeToggleRecolorsCurrentMarkersAndLabels()
@@ -58,7 +63,10 @@ public sealed class VarioRendererThemeTests
         var bandBadges = new VarioBandBadgeControls(new Border(), new Border());
         var readouts = new VarioReadoutControls(BuildCells(), BuildCells());
         var renderer = new VarioRenderer(ratePlot, amplitudePlot, summary, bandBadges, readouts, "Arial");
-        PlotThemePalette dark = Palette(text: 0xFFC2C8CE);
+        PlotThemePalette dark = Palette(
+            text: 0xFFC2C8CE,
+            varioAverage: 0xFFFF6B6B,
+            varioBad: 0xFFFF6B6B);
 
         renderer.CreateGraphs();
         renderer.ApplyTheme(dark);

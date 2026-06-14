@@ -22,7 +22,7 @@ internal sealed record VarioReadoutControls(
 /// <summary>
 /// Vario display: per-position stability of rate and amplitude. Each gauge shows
 /// the acceptable band (amber), the measured min and max (blue lines), the
-/// average (red solid line) and the current reading (black dashed line) — opaque lines so they
+/// average (red solid line) and the current reading (theme-colored dashed line) — opaque lines so they
 /// stay legible over the band rather than blending a translucent fill into it;
 /// short role labels are placed by <see cref="VarioGaugeLayout"/> in fixed lanes
 /// so close values remain readable. A SUMMARY bar carries the verdicts and elapsed time;
@@ -40,11 +40,6 @@ internal sealed class VarioRenderer
     public const int CellCurrent = 5;
     public const int CellCount = 6;
 
-    private const uint MinMaxBlue = 0xFF2D7DD2;
-    private const uint AvgRed = 0xFFC0392B;
-    private const uint DarkThemeAvgRed = 0xFFFF6B6B;
-    private const uint AcceptBandFill = 0xFFE9C46A;
-    private const uint AcceptBandEdge = 0xFF9A6A00;
     private const byte AcceptBandAlpha = 42;
     private const byte AcceptBandEdgeAlpha = 180;
     private const float MarkerLabelFontSize = 16;
@@ -325,9 +320,9 @@ internal sealed class VarioRenderer
 
     private ScottPlot.Color RoleColor(string role) => role switch
     {
-        "avg" => Color.FromARGB(AverageColor()),
+        "avg" => Color.FromARGB(_theme.VarioAverage),
         "current" => Color.FromARGB(_theme.TextPrimary),
-        _ => Color.FromARGB(MinMaxBlue),
+        _ => Color.FromARGB(_theme.VarioMinMax),
     };
 
     private Avalonia.Media.IBrush LevelBrush(VarioVerdictLevel level) =>
@@ -335,30 +330,18 @@ internal sealed class VarioRenderer
 
     private Avalonia.Media.Color LevelColor(VarioVerdictLevel level) => level switch
     {
-        VarioVerdictLevel.Good => Avalonia.Media.Color.FromRgb(0x00, 0x72, 0xB2),
-        VarioVerdictLevel.Warn => Avalonia.Media.Color.FromRgb(0xB0, 0x6A, 0x00),
-        VarioVerdictLevel.Bad when IsDark(_theme.SurfaceBg) => Avalonia.Media.Color.FromRgb(0xFF, 0x6B, 0x6B),
-        VarioVerdictLevel.Bad => Avalonia.Media.Color.FromRgb(0xC0, 0x30, 0x30),
-        _ => Avalonia.Media.Color.FromRgb(0x80, 0x80, 0x80),
+        VarioVerdictLevel.Good => ToAvaloniaColor(_theme.VarioGood),
+        VarioVerdictLevel.Warn => ToAvaloniaColor(_theme.VarioWarn),
+        VarioVerdictLevel.Bad => ToAvaloniaColor(_theme.VarioBad),
+        _ => ToAvaloniaColor(_theme.VarioPending),
     };
 
-    private uint AverageColor() => IsDark(_theme.ScopeBg) ? DarkThemeAvgRed : AvgRed;
-
-    private static bool IsDark(uint argb)
-    {
-        double r = SrgbToLinear((argb >> 16) & 0xFF);
-        double g = SrgbToLinear((argb >> 8) & 0xFF);
-        double b = SrgbToLinear(argb & 0xFF);
-        return (0.2126 * r) + (0.7152 * g) + (0.0722 * b) < 0.18;
-    }
-
-    private static double SrgbToLinear(uint channel)
-    {
-        double value = channel / 255.0;
-        return value <= 0.04045
-            ? value / 12.92
-            : Math.Pow((value + 0.055) / 1.055, 2.4);
-    }
+    private static Avalonia.Media.Color ToAvaloniaColor(uint argb) =>
+        Avalonia.Media.Color.FromArgb(
+            (byte)(argb >> 24),
+            (byte)(argb >> 16),
+            (byte)(argb >> 8),
+            (byte)argb);
 
     private static void PositionLine(LinePlot? line, double? value)
     {
@@ -392,24 +375,24 @@ internal sealed class VarioRenderer
     {
         if (gauge.AcceptBand != null)
         {
-            gauge.AcceptBand.FillStyle.Color = Color.FromARGB(AcceptBandFill).WithAlpha(AcceptBandAlpha);
-            gauge.AcceptBand.LineStyle.Color = Color.FromARGB(AcceptBandEdge).WithAlpha(AcceptBandEdgeAlpha);
+            gauge.AcceptBand.FillStyle.Color = Color.FromARGB(_theme.VarioAcceptBand).WithAlpha(AcceptBandAlpha);
+            gauge.AcceptBand.LineStyle.Color = Color.FromARGB(_theme.VarioAcceptBandEdge).WithAlpha(AcceptBandEdgeAlpha);
             gauge.AcceptBand.LineStyle.Width = 2;
         }
 
         if (gauge.MinLine != null)
         {
-            gauge.MinLine.LineColor = Color.FromARGB(MinMaxBlue);
+            gauge.MinLine.LineColor = Color.FromARGB(_theme.VarioMinMax);
         }
 
         if (gauge.MaxLine != null)
         {
-            gauge.MaxLine.LineColor = Color.FromARGB(MinMaxBlue);
+            gauge.MaxLine.LineColor = Color.FromARGB(_theme.VarioMinMax);
         }
 
         if (gauge.AvgLine != null)
         {
-            gauge.AvgLine.LineColor = Color.FromARGB(AverageColor());
+            gauge.AvgLine.LineColor = Color.FromARGB(_theme.VarioAverage);
         }
 
         if (gauge.CurrentLine != null)

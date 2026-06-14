@@ -316,6 +316,8 @@ public sealed class InfoTabRegistryTests
         var legend = Assert.IsType<TextBlock>(
             content.Children.Single(child => Grid.GetRow(child) == 7));
         string legendText = string.Concat(legend.Inlines!.OfType<Run>().Select(run => run.Text));
+        Run currentSwatch = legend.Inlines!.OfType<Run>()
+            .Single(run => run.Text == "Current dashed");
 
         Assert.Contains("Amber band", legendText);
         Assert.Contains("acceptable band", legendText);
@@ -323,13 +325,10 @@ public sealed class InfoTabRegistryTests
         Assert.DoesNotContain("Pale green band + blue edge", legendText);
         Assert.Contains("Blue solid", legendText);
         Assert.Contains("Red solid", legendText);
-        Assert.DoesNotContain("Current dashed", legendText);
-        Assert.Contains("Black Dashed", legendText);
+        Assert.Contains("Current dashed", legendText);
+        Assert.DoesNotContain("Black Dashed", legendText);
+        Assert.IsAssignableFrom<IBrush>(currentSwatch.GetValue(TextElement.ForegroundProperty));
         Assert.Equal(TextWrapping.NoWrap, legend.TextWrapping);
-
-        Run currentSwatch = Assert.Single(legend.Inlines!.OfType<Run>(), run => run.Text == "Black Dashed");
-        var currentBrush = Assert.IsType<SolidColorBrush>(currentSwatch.Foreground);
-        Assert.Equal(Colors.Black, currentBrush.Color);
     }
 
     private static Grid CreateVarioContent()

@@ -16,7 +16,15 @@ internal readonly record struct PlotThemePalette(
     uint TextPrimary,
     uint TraceWave,
     uint TraceTick,
-    uint TraceTock)
+    uint TraceTock,
+    uint VarioAcceptBand = 0xFFE9C46A,
+    uint VarioAcceptBandEdge = 0xFF9A6A00,
+    uint VarioMinMax = 0xFF2D7DD2,
+    uint VarioAverage = 0xFFC0392B,
+    uint VarioGood = 0xFF0072B2,
+    uint VarioWarn = 0xFFB06A00,
+    uint VarioBad = 0xFFC03030,
+    uint VarioPending = 0xFF808080)
 {
     /// <summary>
     /// True when the scope background is light, so image-based tabs (the
@@ -47,18 +55,28 @@ internal readonly record struct PlotThemePalette(
         TextPrimary: Lookup("TextPrimaryColor", theme),
         TraceWave: Lookup("TraceWaveColor", theme),
         TraceTick: Lookup("TraceTickColor", theme),
-        TraceTock: Lookup("TraceTockColor", theme));
+        TraceTock: Lookup("TraceTockColor", theme),
+        VarioAcceptBand: Lookup("VarioAcceptBandColor", theme),
+        VarioAcceptBandEdge: Lookup("VarioAcceptBandEdgeColor", theme),
+        VarioMinMax: Lookup("VarioMinMaxColor", theme),
+        VarioAverage: Lookup("VarioAverageColor", theme),
+        VarioGood: Lookup("VarioGoodColor", theme),
+        VarioWarn: Lookup("VarioWarnColor", theme),
+        VarioBad: Lookup("VarioBadColor", theme),
+        VarioPending: Lookup("VarioPendingColor", theme));
 
     private static uint Lookup(string key, ThemeVariant theme)
     {
-        if (Application.Current is { } app &&
-            app.TryGetResource(key, theme, out object? value) &&
-            value is AvaloniaColor color)
+        if (Application.Current is not { } app)
+        {
+            return 0xFF000000;
+        }
+
+        if (app.TryGetResource(key, theme, out object? value) && value is AvaloniaColor color)
         {
             return ((uint)color.A << 24) | ((uint)color.R << 16) | ((uint)color.G << 8) | color.B;
         }
 
-        // Defensive fallback if a resource is missing or looked up before app init.
-        return 0xFF000000;
+        throw new InvalidOperationException($"Missing theme color resource '{key}'.");
     }
 }

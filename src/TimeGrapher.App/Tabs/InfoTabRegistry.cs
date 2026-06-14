@@ -390,8 +390,6 @@ internal sealed partial class InfoTabRegistry
             };
             bandBadge = new Border
             {
-                Background = new SolidColorBrush(Color.FromArgb(0x38, 0xE9, 0xC4, 0x6A)),
-                BorderBrush = new SolidColorBrush(Color.FromRgb(0x9A, 0x6A, 0x00)),
                 BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(4),
                 IsVisible = false,
@@ -405,6 +403,8 @@ internal sealed partial class InfoTabRegistry
                     VerticalAlignment = VerticalAlignment.Center,
                 },
             };
+            bandBadge.Bind(Border.BackgroundProperty, bandBadge.GetResourceObservable("VarioAcceptBandBadgeBrush"));
+            bandBadge.Bind(Border.BorderBrushProperty, bandBadge.GetResourceObservable("VarioAcceptBandEdgeBrush"));
             Grid.SetColumn(title, 0);
             Grid.SetColumn(bandBadge, 1);
             header.Children.Add(title);
@@ -496,7 +496,11 @@ internal sealed partial class InfoTabRegistry
         summaryCard.Bind(Border.BorderBrushProperty, summaryCard.GetResourceObservable("ChromeBorderBrush"));
 
         string[] columnHeaders = { "Min", "Max", "Spread (Max−Min)", "Average", "Std dev (σ)", "Current" };
-        uint[] columnColors = { 0xFF2D7DD2, 0xFF2D7DD2, 0x00000000, 0xFFC0392B, 0x00000000, 0x00000000 };
+        string?[] columnBrushKeys =
+        {
+            "VarioMinMaxBrush", "VarioMinMaxBrush", null,
+            "VarioAverageBrush", null, null,
+        };
         int[] stripOrder =
         {
             VarioRenderer.CellMin,
@@ -521,9 +525,9 @@ internal sealed partial class InfoTabRegistry
                     Margin = new Thickness(0, 0, 0, 1),
                     HorizontalAlignment = HorizontalAlignment.Left,
                 };
-                if (columnColors[i] != 0u)
+                if (columnBrushKeys[i] is string brushKey)
                 {
-                    cell.Foreground = new SolidColorBrush(Color.FromUInt32(columnColors[i]));
+                    cell.Bind(TextBlock.ForegroundProperty, cell.GetResourceObservable(brushKey));
                 }
 
                 cells[i] = cell;
@@ -585,15 +589,20 @@ internal sealed partial class InfoTabRegistry
             Margin = new Thickness(16, 0, 16, 6),
             TextWrapping = TextWrapping.NoWrap,
         };
-        Run Swatch(string text, Color color) => new(text) { Foreground = new SolidColorBrush(color), FontWeight = FontWeight.Bold };
-        var currentSwatch = Swatch("Black Dashed", Colors.Black);
+        Run Swatch(string text, string brushKey)
+        {
+            var run = new Run(text) { FontWeight = FontWeight.Bold };
+            run.Bind(TextElement.ForegroundProperty, run.GetResourceObservable(brushKey));
+            return run;
+        }
+        var currentSwatch = Swatch("Current dashed", "TextPrimaryBrush");
         legend.Inlines = new InlineCollection
         {
-            Swatch("Amber band", Color.FromRgb(0x9A, 0x6A, 0x00)),
+            Swatch("Amber band", "VarioAcceptBandEdgeBrush"),
             new Run(" = acceptable band   "),
-            Swatch("Blue solid", Color.FromRgb(0x2D, 0x7D, 0xD2)),
+            Swatch("Blue solid", "VarioMinMaxBrush"),
             new Run(" = measured min/max   "),
-            Swatch("Red solid", Color.FromRgb(0xC0, 0x39, 0x2B)),
+            Swatch("Red solid", "VarioAverageBrush"),
             new Run(" = average   "),
             currentSwatch,
             new Run(" = current"),
@@ -648,20 +657,20 @@ internal sealed partial class InfoTabRegistry
         double service = VarioVerdict.AmplitudeServiceDeg;
         double sigma = VarioVerdict.RateUnstableSigma;
 
-        Color Good = Color.FromRgb(0x00, 0x72, 0xB2);
-        Color Warn = Color.FromRgb(0xB0, 0x6A, 0x00);
-        Color Bad = Color.FromRgb(0xC0, 0x30, 0x30);
-
         TextBlock Title(string t) => new() { Text = t, FontWeight = FontWeight.Bold, FontSize = VarioMinimumFontSize, Margin = new Thickness(0, 6, 0, 2) };
-        TextBlock Rule(string t, Color c) => new()
+        TextBlock Rule(string t, string brushKey)
         {
-            Text = t,
-            FontSize = VarioMinimumFontSize,
-            Foreground = new SolidColorBrush(c),
-            Margin = new Thickness(0, 1, 0, 1),
-            MaxWidth = 320,
-            TextWrapping = TextWrapping.Wrap,
-        };
+            var rule = new TextBlock
+            {
+                Text = t,
+                FontSize = VarioMinimumFontSize,
+                Margin = new Thickness(0, 1, 0, 1),
+                MaxWidth = 320,
+                TextWrapping = TextWrapping.Wrap,
+            };
+            rule.Bind(TextBlock.ForegroundProperty, rule.GetResourceObservable(brushKey));
+            return rule;
+        }
 
         var panel = new StackPanel { Margin = new Thickness(12), Width = 360, MaxWidth = 360 };
         panel.Children.Add(new TextBlock { Text = "Assessment criteria", FontWeight = FontWeight.Bold, FontSize = VarioMinimumFontSize });
@@ -675,13 +684,13 @@ internal sealed partial class InfoTabRegistry
             Margin = new Thickness(0, 2, 0, 0),
         });
         panel.Children.Add(Title("Rate (s/d)"));
-        panel.Children.Add(Rule($"Stable · in range: average within ±{band:0} s/d and σ ≤ {sigma:0}", Good));
-        panel.Children.Add(Rule($"In range · unstable: average within ±{band:0} s/d but σ > {sigma:0}", Warn));
-        panel.Children.Add(Rule($"Fast / Slow · out of range: average beyond ±{band:0} s/d", Bad));
+        panel.Children.Add(Rule($"Stable · in range: average within ±{band:0} s/d and σ ≤ {sigma:0}", "VarioGoodBrush"));
+        panel.Children.Add(Rule($"In range · unstable: average within ±{band:0} s/d but σ > {sigma:0}", "VarioWarnBrush"));
+        panel.Children.Add(Rule($"Fast / Slow · out of range: average beyond ±{band:0} s/d", "VarioBadBrush"));
         panel.Children.Add(Title("Amplitude (°)"));
-        panel.Children.Add(Rule($"Healthy: average {ampMin:0}–{ampMax:0}°", Good));
-        panel.Children.Add(Rule($"Slightly low / High: average {service:0}–{ampMin:0}° or above {ampMax:0}°", Warn));
-        panel.Children.Add(Rule($"Low · service: average below {service:0}°", Bad));
+        panel.Children.Add(Rule($"Healthy: average {ampMin:0}–{ampMax:0}°", "VarioGoodBrush"));
+        panel.Children.Add(Rule($"Slightly low / High: average {service:0}–{ampMin:0}° or above {ampMax:0}°", "VarioWarnBrush"));
+        panel.Children.Add(Rule($"Low · service: average below {service:0}°", "VarioBadBrush"));
         return panel;
     }
 
