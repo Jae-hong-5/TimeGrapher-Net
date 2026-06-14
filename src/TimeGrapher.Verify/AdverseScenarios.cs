@@ -35,6 +35,7 @@ internal sealed record AdverseGates(
     double MaxRmsAfterOffsetMs = double.NaN,
     int MinResets = -1,
     int MaxResets = -1,
+    long MaxMissedBeats = -1,
     bool InfoOnly = false);
 
 internal sealed record AdverseScenario(
@@ -68,22 +69,22 @@ internal static class AdverseScenarios
         new("weak-1", Bph: 21600, SampleRate: 48000, Seconds: 14,
             PcmPeak: 0.06, NoisePeak: 0.008, Realistic: true,
             Default: new AdverseGates(MustSync: true, MinRecall: 0.90, MinPrecision: 0.90,
-                MaxAbsMedianOffsetMs: 1.0, MaxRmsAfterOffsetMs: 2.0)),
+                MaxAbsMedianOffsetMs: 1.0, MaxRmsAfterOffsetMs: 2.0, MaxMissedBeats: 0)),
         new("weak-2", Bph: 18000, SampleRate: 48000, Seconds: 16,
             PcmPeak: 0.035, NoisePeak: 0.010, Realistic: false,
             Default: new AdverseGates(MustSync: true, MinRecall: 0.90, MinPrecision: 0.90,
-                MaxAbsMedianOffsetMs: 1.0, MaxRmsAfterOffsetMs: 2.0)),
+                MaxAbsMedianOffsetMs: 1.0, MaxRmsAfterOffsetMs: 2.0, MaxMissedBeats: 0)),
         // Sustained broadband noise (W-7). The default detector must keep
         // usable event-level timing; the optional PLL veto arm is measured
         // separately because PLL phase can itself be dragged by noise.
         new("noisy-1", Bph: 21600, SampleRate: 48000, Seconds: 14,
             PcmPeak: 0.25, NoisePeak: 0.08, Realistic: true,
             Default: new AdverseGates(MustSync: true, MinRecall: 0.70, MinPrecision: 0.70,
-                MaxAbsMedianOffsetMs: 1.0, MaxRmsAfterOffsetMs: 2.0)),
+                MaxAbsMedianOffsetMs: 1.0, MaxRmsAfterOffsetMs: 2.0, MaxMissedBeats: 0)),
         new("noisy-2", Bph: 28800, SampleRate: 48000, Seconds: 14,
             PcmPeak: 0.20, NoisePeak: 0.12, Realistic: false,
             Default: new AdverseGates(MustSync: true, MinRecall: 0.90, MinPrecision: 0.90,
-                MaxAbsMedianOffsetMs: 1.0, MaxRmsAfterOffsetMs: 2.0)),
+                MaxAbsMedianOffsetMs: 1.0, MaxRmsAfterOffsetMs: 2.0, MaxMissedBeats: 0)),
         // Impulse storms (W-3 regime-reset DoS, W-5/W-8 contamination).
         // Mirrored in-process by tests/TimeGrapher.Core.Tests/
         // DetectorStressScenarioTests.cs - keep parameters and gates in sync
@@ -91,13 +92,15 @@ internal static class AdverseScenarios
         new("impulse-dos", Bph: 21600, SampleRate: 48000, Seconds: 16,
             PcmPeak: 0.03, NoisePeak: 0.004, Realistic: false,
             ImpulseRate: 1.0, ImpulseAmp: 0.95,
-            Default: new AdverseGates(MustSync: true, MaxResets: 1, MinRecall: 0.90, MinPrecision: 0.90)),
+            Default: new AdverseGates(MustSync: true, MaxResets: 1, MinRecall: 0.90, MinPrecision: 0.90,
+                MaxMissedBeats: 0)),
         // The optional PLL gate can raise precision here; the default detector
         // should still retain the watch.
         new("impulse-storm", Bph: 28800, SampleRate: 48000, Seconds: 16,
             PcmPeak: 0.25, NoisePeak: 0.02, Realistic: false,
             ImpulseRate: 3.0, ImpulseAmp: 0.6,
-            Default: new AdverseGates(MustSync: true, MinRecall: 0.90, MinPrecision: 0.90)),
+            Default: new AdverseGates(MustSync: true, MinRecall: 0.90, MinPrecision: 0.90,
+                MaxMissedBeats: 0)),
         // Loud-to-quiet gain step (W-4(b) latch-up).
         // Mirrored in-process by tests/TimeGrapher.Core.Tests/
         // DetectorStressScenarioTests.cs - keep parameters and gates in sync
@@ -105,14 +108,15 @@ internal static class AdverseScenarios
         new("quiet-step", Bph: 21600, SampleRate: 48000, Seconds: 16,
             PcmPeak: 0.60, NoisePeak: 0.01, Realistic: false,
             GainStepAtS: 6.0, GainStepFactor: 0.13, EvalStartS: 10.0,
-            Default: new AdverseGates(MustSync: true, MinRecall: 0.95, MinPrecision: 0.95)),
+            Default: new AdverseGates(MustSync: true, MinRecall: 0.95, MinPrecision: 0.95,
+                MaxMissedBeats: 0)),
         // Bootstrap behind a silent lead-in (W-2/W-13 bootstrap paths). A
         // silence-collapsed noise floor may still trip the regime detector,
         // but pre-lock trips must not flush the BPH acquisition history.
         new("leadin-quiet", Bph: 21600, SampleRate: 48000, Seconds: 12,
             PcmPeak: 0.30, NoisePeak: 0.01, Realistic: false,
             SilenceLeadInSamples: 96000,
-            Default: new AdverseGates(MustSync: true, MinRecall: 0.80, MaxResets: 0)),
+            Default: new AdverseGates(MustSync: true, MinRecall: 0.80, MaxResets: 0, MaxMissedBeats: 0)),
         // No watch at all: the detector must NOT lock onto noise (false-lock
         // guard).
         new("noise-only", Bph: 21600, SampleRate: 48000, Seconds: 12,
@@ -294,6 +298,13 @@ internal static class AdverseScenarios
         if (gates.MaxResets >= 0)
         {
             ok &= resets <= gates.MaxResets;
+        }
+        if (gates.MaxMissedBeats >= 0)
+        {
+            // The metrics engine counts a missed beat only on an over-long A-to-A
+            // interval (the gap branch of AccumulatePeriodDelta); gating it locks
+            // the gap-vs-extra-event classification end-to-end under noise/impulse.
+            ok &= (long)snapshot.MissedBeats <= gates.MaxMissedBeats;
         }
         return ok ? "PASS" : "FAIL";
     }
