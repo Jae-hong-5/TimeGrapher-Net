@@ -76,6 +76,12 @@ internal sealed class AnalysisFrameRenderScheduler
         {
             replacement.SpectrogramImageUpdated = true;
             replacement.SpectrogramImage ??= displaced.SpectrogramImage;
+            // The windowing metadata travels with the image: without it the
+            // consumer sees ColumnSeconds = 0 and skips the crop, so coalesced
+            // frames would stop updating the spectrogram (choppy under load).
+            replacement.SpectrogramLiveColumn = displaced.SpectrogramLiveColumn;
+            replacement.SpectrogramColumnSeconds = displaced.SpectrogramColumnSeconds;
+            replacement.SpectrogramBeatPeriodS = displaced.SpectrogramBeatPeriodS;
         }
     }
 

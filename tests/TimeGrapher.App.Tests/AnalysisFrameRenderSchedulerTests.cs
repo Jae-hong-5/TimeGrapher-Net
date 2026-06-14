@@ -82,6 +82,9 @@ public sealed class AnalysisFrameRenderSchedulerTests
             SourceId = 1,
             SpectrogramImage = spectrogramImage,
             SpectrogramImageUpdated = true,
+            SpectrogramLiveColumn = 42,
+            SpectrogramColumnSeconds = 0.0106,
+            SpectrogramBeatPeriodS = 0.125,
         });
         harness.Scheduler.Enqueue(new AnalysisFrame { SourceId = 2 });
         harness.RunNextPostedAction();
@@ -93,6 +96,11 @@ public sealed class AnalysisFrameRenderSchedulerTests
                 Assert.Equal<ulong>(2, rendered.Frame.SourceId);
                 Assert.True(rendered.Frame.SpectrogramImageUpdated);
                 Assert.Same(spectrogramImage, rendered.Frame.SpectrogramImage);
+                // The windowing metadata must travel with the image or the
+                // consumer skips the crop (choppy spectrogram under load).
+                Assert.Equal(42, rendered.Frame.SpectrogramLiveColumn);
+                Assert.Equal(0.0106, rendered.Frame.SpectrogramColumnSeconds);
+                Assert.Equal(0.125, rendered.Frame.SpectrogramBeatPeriodS);
             });
     }
 
