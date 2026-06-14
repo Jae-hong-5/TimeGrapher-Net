@@ -223,6 +223,16 @@ public sealed class AnalysisFrame
     public PixelBuffer? SpectrogramImage;
     public bool SpectrogramImageUpdated;
 
+    /// <summary>
+    /// Spectrogram windowing metadata for the UI time-window selector (Last Beat /
+    /// Seconds): the wrap-buffer's live-edge column (next to write), the time each
+    /// image column spans, and the latest locked beat period (0 before sync). The
+    /// renderer crops the most recent window from the published image with these.
+    /// </summary>
+    public int SpectrogramLiveColumn;
+    public double SpectrogramColumnSeconds;
+    public double SpectrogramBeatPeriodS;
+
     /// <summary>True once the detector has locked onto the tick/tock beat (BPH synced).</summary>
     public bool BeatSynced;
 

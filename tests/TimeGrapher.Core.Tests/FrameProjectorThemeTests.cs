@@ -66,23 +66,22 @@ public sealed class FrameProjectorThemeTests
     }
 
     [Fact]
-    public void SpectrogramProjector_LightColormap_FillsFloorWithWhiteScopeBackground()
+    public void SpectrogramProjector_UsesOneColormapForBothThemes()
     {
+        // The colormap is theme-agnostic viridis (the theme only changes the empty
+        // background, handled in the renderer). A blank window is the dB floor.
+        Assert.Equal(SpectrogramFrameProjector.ColorLut, SpectrogramFrameProjector.ColorLutLight);
+
         var dark = new SpectrogramFrameProjector(sampleRate: 48000);
         var light = new SpectrogramFrameProjector(sampleRate: 48000, light: true);
-
         var darkFrame = new AnalysisFrame();
         dark.AppendSnapshot(darkFrame, force: true);
         var lightFrame = new AnalysisFrame();
         light.AppendSnapshot(lightFrame, force: true);
 
-        uint darkFloor = SpectrogramFrameProjector.ColorLut[0];
-        uint lightFloor = SpectrogramFrameProjector.ColorLutLight[0];
-        Assert.Equal(White, lightFloor); // light dB floor = white scope background
-        Assert.NotEqual(darkFloor, lightFloor);
-        // A blank window is the dB floor of each theme's colormap.
-        Assert.All(darkFrame.SpectrogramImage!.Pixels, px => Assert.Equal(darkFloor, px));
-        Assert.All(lightFrame.SpectrogramImage!.Pixels, px => Assert.Equal(lightFloor, px));
+        uint floor = SpectrogramFrameProjector.ColorLut[0];
+        Assert.All(darkFrame.SpectrogramImage!.Pixels, px => Assert.Equal(floor, px));
+        Assert.All(lightFrame.SpectrogramImage!.Pixels, px => Assert.Equal(floor, px));
     }
 
     [Fact]

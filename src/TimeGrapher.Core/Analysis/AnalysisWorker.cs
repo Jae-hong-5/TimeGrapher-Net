@@ -384,6 +384,11 @@ public sealed class AnalysisWorker : IDisposable
         _scopeRateProjector.AppendSnapshot(frame);
         _soundPrintProjector.AppendSnapshot(frame);
         _spectrogramProjector.AppendSnapshot(frame);
+        if (frame.SpectrogramImageUpdated)
+        {
+            // The "Last Beat" view window needs the locked beat period (0 = unsynced).
+            frame.SpectrogramBeatPeriodS = _latestBeatPeriodS;
+        }
         _beatMetricsProjector.AppendSnapshot(frame);
         _beatSegmentCapture.AppendSnapshot(frame);
         _sweepProjector.AppendSnapshot(frame);

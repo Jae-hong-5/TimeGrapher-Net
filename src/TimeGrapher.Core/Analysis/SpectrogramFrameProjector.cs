@@ -35,8 +35,11 @@ public sealed class SpectrogramFrameProjector
     /// <summary>Top of the display band; watch acoustics concentrate below this.</summary>
     public const double MaxDisplayFrequencyHz = 12000.0;
 
-    /// <summary>dB floor of the color scale (0 dB = full-scale sinusoid).</summary>
-    public const double DbFloor = -80.0;
+    /// <summary>dB floor of the color scale (quiet end). 0 dB = full-scale sinusoid.</summary>
+    public const double DbFloor = -70.0;
+
+    /// <summary>dB ceiling of the color scale (loud end); the range matches the original timegrapher.</summary>
+    public const double DbCeiling = -10.0;
 
     /// <summary>Recent time window the image holds (seconds of columns).</summary>
     public const int DisplaySeconds = 10;
@@ -44,19 +47,17 @@ public sealed class SpectrogramFrameProjector
     /// <summary>Live-edge cursor color (not part of the LUT, so it never reads as energy).</summary>
     public const uint LiveEdgeColor = 0xFF7F7F7Fu;
 
-    private static readonly uint[] Lut = BuildInfernoLut();
-    private static readonly uint[] LutLight = BuildLightLut(Lut);
+    private static readonly uint[] Lut = BuildViridisLut();
+    // One colormap for both themes: the theme only changes the empty (no-input)
+    // background, which the renderer fills with the scope background color.
+    private static readonly uint[] LutLight = Lut;
     private static readonly IReadOnlyDictionary<uint, uint> DarkToLight = BuildIndexMap(Lut, LutLight);
     private static readonly IReadOnlyDictionary<uint, uint> LightToDark = BuildIndexMap(LutLight, Lut);
 
-    /// <summary>64-entry inferno-like intensity LUT (index 0 = floor, 63 = 0 dB). Shared with the UI legend.</summary>
+    /// <summary>64-entry viridis intensity LUT (index 0 = dB floor, 63 = dB ceiling). Shared with the UI legend.</summary>
     public static IReadOnlyList<uint> ColorLut => Lut;
 
-    /// <summary>
-    /// Light-theme colormap: the inferno LUT reversed (rising energy darkens) with
-    /// the dB floor pinned to white so empty bands match the white light-theme
-    /// scope background instead of an off-white cream. Shared with the UI legend.
-    /// </summary>
+    /// <summary>Same viridis colormap as <see cref="ColorLut"/> (kept for the themed call site).</summary>
     public static IReadOnlyList<uint> ColorLutLight => LutLight;
 
     /// <summary>The colormap to color with / draw the legend from for the requested theme.</summary>
@@ -71,6 +72,7 @@ public sealed class SpectrogramFrameProjector
     private readonly double[] _re;
     private readonly double[] _im;
     private readonly double _fullScaleMagnitude;
+    private readonly double _columnSeconds;
     private readonly Stopwatch _publishTimer = new();
 
     private uint[] _activeLut;
@@ -88,6 +90,7 @@ public sealed class SpectrogramFrameProjector
         _activeLut = light ? LutLight : Lut;
         _fftSize = NearestPowerOfTwo(sampleRate * WindowSeconds);
         _hop = _fftSize / 2;
+        _columnSeconds = (double)_hop / sampleRate;
 
         int rows = Math.Min(_fftSize / 2, (int)(MaxDisplayFrequencyHz * _fftSize / sampleRate)) + 1;
         int width = (int)Math.Ceiling(DisplaySeconds * (double)sampleRate / _hop);
@@ -193,6 +196,8 @@ public sealed class SpectrogramFrameProjector
             Array.Copy(_image.Pixels, snapshot.Pixels, snapshot.Pixels.Length);
             frame.SpectrogramImage = snapshot;
             frame.SpectrogramImageUpdated = true;
+            frame.SpectrogramLiveColumn = _writeColumn;
+            frame.SpectrogramColumnSeconds = _columnSeconds;
             _recolorPending = false;
             _publishTimer.Restart();
         }
@@ -217,7 +222,7 @@ public sealed class SpectrogramFrameProjector
             double im = _im[bin];
             double magnitude = Math.Sqrt(re * re + im * im) / _fullScaleMagnitude;
             double db = 20.0 * Math.Log10(Math.Max(magnitude, 1e-12));
-            double t = (db - DbFloor) / -DbFloor;
+            double t = (db - DbFloor) / (DbCeiling - DbFloor);
             if (t < 0.0)
             {
                 t = 0.0;
@@ -267,18 +272,6 @@ public sealed class SpectrogramFrameProjector
         }
     }
 
-    private static uint[] BuildLightLut(uint[] dark)
-    {
-        var light = new uint[dark.Length];
-        for (int i = 0; i < dark.Length; i++)
-        {
-            light[i] = dark[dark.Length - 1 - i];
-        }
-
-        light[0] = Argb.Rgba(255, 255, 255); // dB floor = white scope background
-        return light;
-    }
-
     private static IReadOnlyDictionary<uint, uint> BuildIndexMap(uint[] from, uint[] to)
     {
         var map = new Dictionary<uint, uint>(from.Length);
@@ -302,27 +295,32 @@ public sealed class SpectrogramFrameProjector
     }
 
     /// <summary>
-    /// Hand-coded inferno-like LUT: 64 entries linearly interpolated between the
-    /// canonical inferno anchor colors (black-purple-red-orange-yellow), opaque.
+    /// Hand-coded viridis LUT: 64 entries linearly interpolated between the
+    /// canonical viridis anchor colors (dark purple → blue → green → yellow),
+    /// opaque — matching the original timegrapher's spectrogram colors.
     /// </summary>
-    private static uint[] BuildInfernoLut()
+    private static uint[] BuildViridisLut()
     {
-        // (R, G, B) anchors at t = 0.0, 0.1, ..., 1.0.
+        // (R, G, B) viridis anchors at t = 0.0, 0.111, ..., 1.0.
         byte[,] anchors =
         {
-            { 0, 0, 4 },
-            { 22, 11, 57 },
-            { 66, 10, 104 },
-            { 106, 23, 110 },
-            { 147, 38, 103 },
-            { 188, 55, 84 },
-            { 221, 81, 58 },
-            { 243, 120, 25 },
-            { 252, 165, 10 },
-            { 246, 215, 70 },
-            { 252, 255, 164 },
+            { 68, 1, 84 },
+            { 72, 40, 120 },
+            { 62, 74, 137 },
+            { 49, 104, 142 },
+            { 38, 130, 142 },
+            { 31, 158, 137 },
+            { 53, 183, 121 },
+            { 109, 205, 89 },
+            { 180, 222, 44 },
+            { 253, 231, 37 },
         };
+        return InterpolateAnchors(anchors);
+    }
 
+    /// <summary>64-entry opaque LUT linearly interpolated across the (R,G,B) anchor rows.</summary>
+    private static uint[] InterpolateAnchors(byte[,] anchors)
+    {
         int anchorCount = anchors.GetLength(0);
         var lut = new uint[64];
         for (int i = 0; i < lut.Length; i++)
