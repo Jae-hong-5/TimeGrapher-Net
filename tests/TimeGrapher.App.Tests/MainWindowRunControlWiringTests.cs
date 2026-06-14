@@ -1,4 +1,5 @@
 using System.Xml.Linq;
+using TimeGrapher.App.Views;
 using Xunit;
 
 namespace TimeGrapher.App.Tests;
@@ -35,6 +36,27 @@ public sealed class MainWindowRunControlWiringTests
             document.Descendants().Attributes("Name").Select(attribute => attribute.Value),
             value => value.Contains("StopPushButton", StringComparison.Ordinal) ||
                 value.Contains("ResetSequence", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void InitialPlaybackDirectoryUsesBundledSampleFolder()
+    {
+        string root = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        string current = Path.Combine(root, "bin", "Debug");
+        string sample = Path.Combine(root, "sample");
+        Directory.CreateDirectory(current);
+        Directory.CreateDirectory(sample);
+
+        try
+        {
+            Assert.Equal(
+                Path.GetFullPath(sample),
+                MainWindow.ResolveInitialPlaybackDirectory(current));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
     }
 
     private static XElement FindNamedElement(XDocument document, string name)

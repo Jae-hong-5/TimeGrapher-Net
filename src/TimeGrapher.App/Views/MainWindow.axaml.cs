@@ -123,14 +123,8 @@ public partial class MainWindow : Window
             status => mViewModel.StatusText = status);
         DataContext = mViewModel;
 
-        // Default working directory: current dir, then ../../samples if it exists (MainWindow ctor).
-        mCurrentDir = Directory.GetCurrentDirectory();
-        try
-        {
-            string samples = Path.GetFullPath(Path.Combine(mCurrentDir, "..", "..", "samples"));
-            if (Directory.Exists(samples)) mCurrentDir = samples;
-        }
-        catch { /* keep current dir */ }
+        // Default working directory: current dir, then ../../sample if it exists (MainWindow ctor).
+        mCurrentDir = ResolveInitialPlaybackDirectory(Directory.GetCurrentDirectory());
 
         mCurrentSamplesPerSecond = 48000;
 
@@ -163,6 +157,19 @@ public partial class MainWindow : Window
         SetGuiStopMode();
 
         Closed += OnWindowClosed;
+    }
+
+    internal static string ResolveInitialPlaybackDirectory(string currentDirectory)
+    {
+        string resolved = currentDirectory;
+        try
+        {
+            string samples = Path.GetFullPath(Path.Combine(resolved, "..", "..", "sample"));
+            if (Directory.Exists(samples)) resolved = samples;
+        }
+        catch { /* keep current dir */ }
+
+        return resolved;
     }
 
     private void ConfigurePlatformWindow()
