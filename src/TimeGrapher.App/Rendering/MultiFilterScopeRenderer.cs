@@ -1,3 +1,4 @@
+using Avalonia.Threading;
 using ScottPlot;
 using ScottPlot.Avalonia;
 using ScottPlot.Plottables;
@@ -14,6 +15,8 @@ namespace TimeGrapher.App.Rendering;
 /// four filters are easy to switch between and compare. Each plot windows its
 /// X axis to the last two seconds of its own series (x = absolute sample ticks
 /// on the projector's counter, so limits derive from the series' own max x).
+/// The four lanes share one X base, so a user zoom/pan on any lane is linked
+/// onto the other three — every lane always reads on the same timestamp window.
 /// Honors the review-cursor contract by mapping the scrubbed stream time to
 /// sample ticks on every lane.
 /// </summary>
@@ -46,6 +49,10 @@ internal sealed class MultiFilterScopeRenderer
     private PlotThemePalette _theme = PlotThemePalette.Current;
     private bool _followLive = true;
 
+    // Re-entrancy guard for the X-axis link: propagating limits onto the other
+    // lanes must not re-trigger a sync from them.
+    private bool _syncing;
+
     public MultiFilterScopeRenderer(IReadOnlyList<AvaPlot> plots)
     {
         if (plots.Count != MultiFilterScopeLanes.All.Count)
@@ -68,8 +75,22 @@ internal sealed class MultiFilterScopeRenderer
             _x[i] = new List<double>();
             _y[i] = new List<double>();
             _yMirror[i] = new List<double>();
-            _plots[i].PointerWheelChanged += (_, _) => _followLive = false;
-            _plots[i].PointerPressed += (_, _) => _followLive = false;
+
+            int idx = i;
+            // Any zoom (wheel), drag (pan / zoom-rectangle, while a button is
+            // held), or interaction end re-links the other lanes onto this one's
+            // X window. PointerPressed just drops live-follow; it changes no axis.
+            _plots[idx].PointerPressed += (_, _) => _followLive = false;
+            _plots[idx].PointerWheelChanged += (_, _) => OnUserAxisInteraction(idx);
+            _plots[idx].PointerReleased += (_, _) => OnUserAxisInteraction(idx);
+            _plots[idx].PointerMoved += (_, e) =>
+            {
+                Avalonia.Input.PointerPointProperties props = e.GetCurrentPoint(_plots[idx]).Properties;
+                if (props.IsLeftButtonPressed || props.IsRightButtonPressed || props.IsMiddleButtonPressed)
+                {
+                    OnUserAxisInteraction(idx);
+                }
+            };
         }
     }
 
@@ -141,6 +162,50 @@ internal sealed class MultiFilterScopeRenderer
         }
 
         RefreshAll();
+    }
+
+    /// <summary>
+    /// Links a user zoom/pan on one lane onto the others: drops live-follow and
+    /// copies this lane's X window to the rest so all four stay on the same
+    /// timestamp range. Deferred so ScottPlot has applied the new limits to the
+    /// source plot before they are read.
+    /// </summary>
+    private void OnUserAxisInteraction(int source)
+    {
+        _followLive = false;
+        Dispatcher.UIThread.Post(() => SyncXAxisFrom(source), DispatcherPriority.Background);
+    }
+
+    private void SyncXAxisFrom(int source)
+    {
+        if (_syncing)
+        {
+            return;
+        }
+
+        _syncing = true;
+        try
+        {
+            // The four lanes share one X base (absolute sample ticks), so the
+            // X limits transfer directly. Y stays per-lane — each filter has its
+            // own amplitude — auto-scaled to the data now in the shared window.
+            AxisLimits limits = _plots[source].Plot.Axes.GetLimits();
+            for (int i = 0; i < _plots.Length; i++)
+            {
+                if (i == source)
+                {
+                    continue;
+                }
+
+                _plots[i].Plot.Axes.SetLimitsX(limits.Left, limits.Right);
+                _plots[i].Plot.Axes.AutoScaleY();
+                _plots[i].Refresh();
+            }
+        }
+        finally
+        {
+            _syncing = false;
+        }
     }
 
     public void RenderFrame(AnalysisFrame frame, AnalysisTabRenderContext context)
