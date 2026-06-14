@@ -38,6 +38,20 @@ public sealed class WatchMetricsDerivedMeasuresTests
         return updates;
     }
 
+    private static string FeedAThenCAndGetResults(
+        WatchMetrics metrics,
+        double aSample,
+        double cOffsetMs = 50.0)
+    {
+        metrics.HandleAEvent(aSample, true, Bph);
+        WatchMetricsUpdate cUpdate = metrics.HandleCEvent(
+            aSample + cOffsetMs / 1000.0 * SampleRate,
+            true,
+            Bph);
+        Assert.True(cUpdate.ResultsUpdated);
+        return cUpdate.ResultsText;
+    }
+
     [Fact]
     public void SignedBeatErrorAndDiffTicTac_FollowEquationsWorkedExample()
     {
@@ -127,6 +141,30 @@ public sealed class WatchMetricsDerivedMeasuresTests
         Assert.True(updates[4].BeatTimingSample.BeatErrorValid);
         Assert.Equal(0.0, updates[4].BeatTimingSample.BeatErrorSignedMs, 6);
         Assert.True(updates[4].DerivedMeasures.DiffTicTacValid);
+    }
+
+    [Fact]
+    public void DisplayBeatError_ExcludesGapSpanningWindows()
+    {
+        WatchMetrics metrics = NewMetrics();
+        double sample = 0.0;
+
+        string results = FeedAThenCAndGetResults(metrics, sample);
+        sample += 125.0 / 1000.0 * SampleRate;
+        results = FeedAThenCAndGetResults(metrics, sample);
+        sample += 375.0 / 1000.0 * SampleRate;
+        results = FeedAThenCAndGetResults(metrics, sample);
+
+        Assert.Contains("BEAT ERROR ---- ms", results);
+
+        sample += 125.0 / 1000.0 * SampleRate;
+        results = FeedAThenCAndGetResults(metrics, sample);
+        sample += 125.0 / 1000.0 * SampleRate;
+        results = FeedAThenCAndGetResults(metrics, sample);
+
+        Assert.Contains(
+            $"BEAT ERROR {WatchMetrics.ValueSpanStart} 0.0{WatchMetrics.ValueSpanEnd} ms",
+            results);
     }
 
     [Fact]

@@ -414,10 +414,10 @@ public sealed class WatchMetrics
             double t2 = (_beatErrorTimes[2] - _beatErrorTimes[1]) / (double)_config.SampleRate;
 
             _beatErrorMs = Math.Abs(((t1 - t2) / 2.0) * 1000.0);
-            _rollBeatError.Add(_beatErrorMs);
 
             if (_haveStartTime && IsSingleBeatInterval(t1) && IsSingleBeatInterval(t2))
             {
+                _rollBeatError.Add(_beatErrorMs);
                 // The window start's phase equals the current event's phase (the
                 // window advances two beats per completion), so a tic-start window
                 // makes t1 the tick duration and t2 the tock duration; normalize
