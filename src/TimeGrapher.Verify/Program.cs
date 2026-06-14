@@ -19,6 +19,7 @@ using TimeGrapher.Core.Analysis;
 using TimeGrapher.Core.AudioIo;
 using TimeGrapher.Core.Detection;
 using TimeGrapher.Core.Metrics;
+using TimeGrapher.Core.Shared;
 using TimeGrapher.Core.Sim;
 using TimeGrapher.Verify;
 
@@ -29,7 +30,7 @@ var files = new List<string>();
 var generatedFiles = new List<string>();
 // Ground-truth beat times (seconds, file-relative) for generated fixtures,
 // captured from the synth's FillF32 event side channel at write time.
-var truthByFile = new Dictionary<string, double[]>(StringComparer.OrdinalIgnoreCase);
+var expectationsByFile = new Dictionary<string, GeneratedFixtureExpectation>(StringComparer.OrdinalIgnoreCase);
 bool runAdverse = false;
 string gateSpec = "off";
 foreach (string arg in args)
@@ -48,13 +49,13 @@ foreach (string arg in args)
 
     if (arg == "--generated")
     {
-        generatedFiles.AddRange(GenerateSyntheticFixtures(truthByFile));
+        generatedFiles.AddRange(GenerateSyntheticFixtures(expectationsByFile));
         continue;
     }
 
     if (arg == "--byte-fixtures")
     {
-        generatedFiles.AddRange(GenerateByteBuiltFixtures(truthByFile));
+        generatedFiles.AddRange(GenerateByteBuiltFixtures(expectationsByFile));
         continue;
     }
 
@@ -113,6 +114,10 @@ try
         var syncStatus = TgSyncStatus.NotSynced;
         string resultsText = "";
         var detectedATimes = new List<double>();
+        BeatTimingSample lastBeatTiming = default;
+        bool haveBeatTiming = false;
+        DerivedTimingMeasures lastDerived = default;
+        bool haveDerived = false;
 
         float[] samples = wav.Samples;
         int total = samples.Length;
@@ -140,6 +145,16 @@ try
                 {
                     resultsText = update.MetricsEvents[i].MetricsUpdate.ResultsText;
                 }
+                if (update.MetricsEvents[i].MetricsUpdate.BeatTimingSampleUpdated)
+                {
+                    lastBeatTiming = update.MetricsEvents[i].MetricsUpdate.BeatTimingSample;
+                    haveBeatTiming = true;
+                }
+                if (update.MetricsEvents[i].MetricsUpdate.DerivedMeasuresUpdated)
+                {
+                    lastDerived = update.MetricsEvents[i].MetricsUpdate.DerivedMeasures;
+                    haveDerived = true;
+                }
             }
 
             offset += slice;
@@ -159,6 +174,16 @@ try
             {
                 resultsText = flushUpdate.MetricsEvents[i].MetricsUpdate.ResultsText;
             }
+            if (flushUpdate.MetricsEvents[i].MetricsUpdate.BeatTimingSampleUpdated)
+            {
+                lastBeatTiming = flushUpdate.MetricsEvents[i].MetricsUpdate.BeatTimingSample;
+                haveBeatTiming = true;
+            }
+            if (flushUpdate.MetricsEvents[i].MetricsUpdate.DerivedMeasuresUpdated)
+            {
+                lastDerived = flushUpdate.MetricsEvents[i].MetricsUpdate.DerivedMeasures;
+                haveDerived = true;
+            }
         }
 
         string name = Path.GetFileName(file);
@@ -171,17 +196,66 @@ try
             "{0}: detected_bph={1} sync_status={2} results=[{3}]",
             name, detectedBph, syncStatus, cleanResults));
 
-        // Informational ground-truth scoring for generated fixtures (the lock
-        // takes <= ~2 s, so evaluation starts at 2 s). Does not affect the
-        // pass/fail gates below.
-        if (truthByFile.TryGetValue(file, out double[]? truthTimes))
+        if (expectationsByFile.TryGetValue(file, out GeneratedFixtureExpectation? expectation))
         {
             DetectionScorer.Score score = DetectionScorer.Match(
-                truthTimes, detectedATimes.ToArray(), toleranceS: 0.005, evalStartS: 2.0);
+                expectation.TruthTimes, detectedATimes.ToArray(), toleranceS: 0.005, evalStartS: 2.0);
             Console.WriteLine(string.Format(CultureInfo.InvariantCulture,
                 "  score: truth={0} detected={1} matched={2} recall={3:F3} precision={4:F3} a_bias_ms={5:F3} a_rms_ms={6:F3}",
                 score.TruthCount, score.DetectedCount, score.Matched,
                 score.Recall, score.Precision, score.MedianOffsetMs, score.RmsAfterOffsetMs));
+            if (score.Recall < 1.0 || score.Precision < 1.0 || score.RmsAfterOffsetMs > 0.5)
+            {
+                allMatch = false;
+                Console.Error.WriteLine(string.Format(CultureInfo.InvariantCulture,
+                    "  MISMATCH: generated timing score recall={0:F3} precision={1:F3} rms_ms={2:F3}",
+                    score.Recall, score.Precision, score.RmsAfterOffsetMs));
+            }
+
+            if (expectation.ExpectedRateSPerDay is double expectedRate)
+            {
+                if (!haveBeatTiming || !lastBeatTiming.RateValid ||
+                    Math.Abs(lastBeatTiming.RateSPerDay - expectedRate) > expectation.RateToleranceSPerDay)
+                {
+                    allMatch = false;
+                    string actual = haveBeatTiming && lastBeatTiming.RateValid
+                        ? lastBeatTiming.RateSPerDay.ToString("F1", CultureInfo.InvariantCulture)
+                        : "invalid";
+                    Console.Error.WriteLine(string.Format(CultureInfo.InvariantCulture,
+                        "  MISMATCH: expected rate {0:F1}+/-{1:F1} s/d, detected {2}",
+                        expectedRate, expectation.RateToleranceSPerDay, actual));
+                }
+            }
+
+            if (expectation.ExpectedBeatErrorMs is double expectedBeatError)
+            {
+                if (!haveBeatTiming || !lastBeatTiming.BeatErrorValid ||
+                    Math.Abs(lastBeatTiming.BeatErrorSignedMs - expectedBeatError) > expectation.BeatErrorToleranceMs)
+                {
+                    allMatch = false;
+                    string actual = haveBeatTiming && lastBeatTiming.BeatErrorValid
+                        ? lastBeatTiming.BeatErrorSignedMs.ToString("F2", CultureInfo.InvariantCulture)
+                        : "invalid";
+                    Console.Error.WriteLine(string.Format(CultureInfo.InvariantCulture,
+                        "  MISMATCH: expected beat_error {0:F2}+/-{1:F2} ms, detected {2}",
+                        expectedBeatError, expectation.BeatErrorToleranceMs, actual));
+                }
+            }
+
+            if (expectation.ExpectedDiffTicTacMs is double expectedDiff)
+            {
+                if (!haveDerived || !lastDerived.DiffTicTacValid ||
+                    Math.Abs(lastDerived.DiffTicTacMs - expectedDiff) > expectation.DiffTicTacToleranceMs)
+                {
+                    allMatch = false;
+                    string actual = haveDerived && lastDerived.DiffTicTacValid
+                        ? lastDerived.DiffTicTacMs.ToString("F2", CultureInfo.InvariantCulture)
+                        : "invalid";
+                    Console.Error.WriteLine(string.Format(CultureInfo.InvariantCulture,
+                        "  MISMATCH: expected diff_tic_tac {0:F2}+/-{1:F2} ms, detected {2}",
+                        expectedDiff, expectation.DiffTicTacToleranceMs, actual));
+                }
+            }
         }
 
         if (syncStatus != TgSyncStatus.Synced)
@@ -274,21 +348,23 @@ if (runAdverse)
 
 return allMatch ? 0 : 1;
 
-static IEnumerable<string> GenerateSyntheticFixtures(Dictionary<string, double[]> truthByFile)
+static IEnumerable<string> GenerateSyntheticFixtures(Dictionary<string, GeneratedFixtureExpectation> expectationsByFile)
 {
     string dir = Path.Combine(Path.GetTempPath(), "timegrapher-verify-" + Guid.NewGuid().ToString("N"));
     Directory.CreateDirectory(dir);
 
-    (int Bph, int SampleRate, int Seconds, double PcmPeak, double NoisePeak, string Name)[] cases =
+    (int Bph, int SampleRate, int Seconds, double PcmPeak, double NoisePeak, double RateSPerDay, double BeatErrorMs, string Name)[] cases =
     {
-        (18000, 48000, 10, 0.40, 0.00, "clean"),
-        (21600, 48000, 10, 0.18, 0.02, "noisy-lowamp"),
-        (28800, 96000, 8, 0.40, 0.00, "highrate"),
-        (36000, 48000, 10, 0.35, 0.01, "edge"),
-        (43200, 192000, 6, 0.35, 0.00, "max-standard-rate"),
+        (18000, 48000, 10, 0.40, 0.00, 0.0, 0.0, "clean"),
+        (21600, 48000, 10, 0.18, 0.02, 0.0, 0.0, "noisy-lowamp"),
+        (28800, 96000, 8, 0.40, 0.00, 0.0, 0.0, "highrate"),
+        (36000, 48000, 10, 0.35, 0.01, 0.0, 0.0, "edge"),
+        (43200, 192000, 6, 0.35, 0.00, 0.0, 0.0, "max-standard-rate"),
+        (21600, 48000, 12, 0.40, 0.00, 30.0, 0.0, "fast-plus30s"),
+        (21600, 48000, 12, 0.40, 0.00, 0.0, 5.0, "beaterror5ms"),
     };
 
-    foreach ((int bph, int sampleRate, int seconds, double pcmPeak, double noisePeak, string name) in cases)
+    foreach ((int bph, int sampleRate, int seconds, double pcmPeak, double noisePeak, double rateSPerDay, double beatErrorMs, string name) in cases)
     {
         string path = Path.Combine(dir, string.Format(
             CultureInfo.InvariantCulture,
@@ -296,7 +372,14 @@ static IEnumerable<string> GenerateSyntheticFixtures(Dictionary<string, double[]
             bph,
             name,
             sampleRate));
-        truthByFile[path] = WriteSyntheticWav(path, bph, sampleRate, seconds, pcmPeak, noisePeak);
+        double[] truthTimes = WriteSyntheticWav(
+            path, bph, sampleRate, seconds, pcmPeak, noisePeak, rateSPerDay: rateSPerDay, beatErrorMs: beatErrorMs);
+        expectationsByFile[path] = new GeneratedFixtureExpectation(
+            TruthTimes: truthTimes,
+            ExpectedRateSPerDay: rateSPerDay == 0.0 ? null : rateSPerDay,
+            ExpectedBeatErrorMs: beatErrorMs == 0.0 ? null : -beatErrorMs,
+            ExpectedDiffTicTacMs: beatErrorMs == 0.0 ? null : -beatErrorMs * 2.0,
+            RateToleranceSPerDay: 0.5);
         yield return path;
     }
 
@@ -315,12 +398,13 @@ static IEnumerable<string> GenerateSyntheticFixtures(Dictionary<string, double[]
             bph,
             name,
             sampleRate));
-        truthByFile[path] = WriteSyntheticWav(path, bph, sampleRate, seconds, pcmPeak, noisePeak, silenceLeadInSamples, clip, realistic);
+        expectationsByFile[path] = new GeneratedFixtureExpectation(
+            WriteSyntheticWav(path, bph, sampleRate, seconds, pcmPeak, noisePeak, silenceLeadInSamples, clip, realistic));
         yield return path;
     }
 }
 
-static IEnumerable<string> GenerateByteBuiltFixtures(Dictionary<string, double[]> truthByFile)
+static IEnumerable<string> GenerateByteBuiltFixtures(Dictionary<string, GeneratedFixtureExpectation> expectationsByFile)
 {
     string dir = Path.Combine(Path.GetTempPath(), "timegrapher-verify-byte-" + Guid.NewGuid().ToString("N"));
     Directory.CreateDirectory(dir);
@@ -340,7 +424,8 @@ static IEnumerable<string> GenerateByteBuiltFixtures(Dictionary<string, double[]
             bph,
             name,
             sampleRate));
-        truthByFile[path] = WriteByteBuiltSyntheticWav(path, bph, sampleRate, seconds, pcmPeak, noisePeak, extensible, oddJunk, listChunk);
+        expectationsByFile[path] = new GeneratedFixtureExpectation(
+            WriteByteBuiltSyntheticWav(path, bph, sampleRate, seconds, pcmPeak, noisePeak, extensible, oddJunk, listChunk));
         yield return path;
     }
 }
@@ -354,7 +439,9 @@ static double[] WriteSyntheticWav(
     double noisePeak,
     int silenceLeadInSamples = 0,
     bool hardClip = false,
-    bool realistic = false)
+    bool realistic = false,
+    double rateSPerDay = 0.0,
+    double beatErrorMs = 0.0)
 {
     WatchSynthStreamConfig synthConfig = realistic
         ? WatchSynthStreamConfig.Realistic()
@@ -363,6 +450,8 @@ static double[] WriteSyntheticWav(
     synthConfig.Bph = bph;
     synthConfig.NoisePeakAmplitude = noisePeak;
     synthConfig.PcmPeakAmplitude = pcmPeak;
+    synthConfig.RateErrorSPerDay = rateSPerDay;
+    synthConfig.BeatErrorMs = beatErrorMs;
 
     var synth = new WatchSynthStream(synthConfig);
     using var writer = new WavStreamWriter();
@@ -519,3 +608,12 @@ static void WriteFourCc(BinaryWriter writer, string fourCc)
 {
     writer.Write(new[] { (byte)fourCc[0], (byte)fourCc[1], (byte)fourCc[2], (byte)fourCc[3] });
 }
+
+sealed record GeneratedFixtureExpectation(
+    double[] TruthTimes,
+    double? ExpectedRateSPerDay = null,
+    double? ExpectedBeatErrorMs = null,
+    double? ExpectedDiffTicTacMs = null,
+    double RateToleranceSPerDay = 1.0,
+    double BeatErrorToleranceMs = 1.0,
+    double DiffTicTacToleranceMs = 2.0);
