@@ -19,11 +19,22 @@ namespace TimeGrapher.App.Rendering;
 /// </summary>
 internal sealed class MultiFilterScopeRenderer
 {
+    // Semi-opaque baseline fill for the mirrored lanes, so the symmetric
+    // envelope reads as a solid band rather than a thin outline.
+    private const byte MirrorFillAlpha = 150;
+
     private readonly AvaPlot[] _plots;
     private readonly List<double>[] _x;
     private readonly List<double>[] _y;
     private readonly Scatter?[] _scatters;
     private readonly ReviewCursorLayer?[] _cursors;
+
+    // Mirror traces for the mirrored lanes (F0..F2): a second scatter on the
+    // negated y so the envelope shows symmetrically above and below the
+    // baseline (PC-RM4 FR-12-07). _yMirror[i] is refilled in place from _y[i]
+    // whenever the lane's data is replaced. Null for one-sided lanes (F3).
+    private readonly List<double>[] _yMirror;
+    private readonly Scatter?[] _mirrorScatters;
 
     // Identity gate on the projector's shared-instance pattern: between
     // publish-floor rebuilds (and on every paused-scrub re-route) frames
@@ -49,11 +60,14 @@ internal sealed class MultiFilterScopeRenderer
         _scatters = new Scatter?[_plots.Length];
         _cursors = new ReviewCursorLayer?[_plots.Length];
         _lastSeries = new GraphSeriesFrame?[_plots.Length];
+        _yMirror = new List<double>[_plots.Length];
+        _mirrorScatters = new Scatter?[_plots.Length];
 
         for (int i = 0; i < _plots.Length; i++)
         {
             _x[i] = new List<double>();
             _y[i] = new List<double>();
+            _yMirror[i] = new List<double>();
             _plots[i].PointerWheelChanged += (_, _) => _followLive = false;
             _plots[i].PointerPressed += (_, _) => _followLive = false;
         }
@@ -80,6 +94,8 @@ internal sealed class MultiFilterScopeRenderer
             plot.Clear();
             _x[i].Clear();
             _y[i].Clear();
+            _yMirror[i].Clear();
+            _mirrorScatters[i] = null;
             _lastSeries[i] = null;
             ApplyPlotTheme(plot);
             plot.YLabel(MultiFilterScopeLanes.All[i].Label);
@@ -87,6 +103,18 @@ internal sealed class MultiFilterScopeRenderer
             _scatters[i] = plot.Add.Scatter(_x[i], _y[i]);
             _scatters[i]!.LineWidth = 1;
             _scatters[i]!.MarkerStyle.IsVisible = false;
+            if (MultiFilterScopeLanes.All[i].Mirrored)
+            {
+                // Fill each half to the baseline (0): the +y trace fills upward
+                // and the -y mirror fills downward, so together they read as a
+                // solid symmetric envelope (the PC-RM4 filled-waveform look).
+                _scatters[i]!.FillY = true;
+                _mirrorScatters[i] = plot.Add.Scatter(_x[i], _yMirror[i]);
+                _mirrorScatters[i]!.LineWidth = 1;
+                _mirrorScatters[i]!.MarkerStyle.IsVisible = false;
+                _mirrorScatters[i]!.FillY = true;
+            }
+
             _cursors[i] = AddCursor(plot);
             PlotAxisRules.ClampLeftEdgeToZero(plot);
         }
@@ -127,6 +155,7 @@ internal sealed class MultiFilterScopeRenderer
             if (updated)
             {
                 _lastSeries[i] = laneSeries;
+                UpdateMirror(i);
             }
 
             bool cursorMoved = UpdateReviewCursor(i, context);
@@ -144,6 +173,23 @@ internal sealed class MultiFilterScopeRenderer
             {
                 _plots[i].Refresh();
             }
+        }
+    }
+
+    /// <summary>Mirrors the lane's trace below the baseline by negating its y into the mirror list.</summary>
+    private void UpdateMirror(int lane)
+    {
+        if (_mirrorScatters[lane] is null)
+        {
+            return;
+        }
+
+        List<double> y = _y[lane];
+        List<double> mirror = _yMirror[lane];
+        mirror.Clear();
+        for (int i = 0; i < y.Count; i++)
+        {
+            mirror.Add(-y[i]);
         }
     }
 
@@ -165,9 +211,18 @@ internal sealed class MultiFilterScopeRenderer
     {
         for (int i = 0; i < _plots.Length; i++)
         {
+            uint laneColor = MultiFilterScopeLanes.All[i].Color(_theme);
+            Color fill = Color.FromARGB(laneColor).WithAlpha(MirrorFillAlpha);
             if (_scatters[i] is { } scatter)
             {
-                scatter.LineColor = Color.FromARGB(MultiFilterScopeLanes.All[i].Color(_theme));
+                scatter.LineColor = Color.FromARGB(laneColor);
+                scatter.FillYColor = fill;
+            }
+
+            if (_mirrorScatters[i] is { } mirror)
+            {
+                mirror.LineColor = Color.FromARGB(laneColor);
+                mirror.FillYColor = fill;
             }
 
             _cursors[i]?.ApplyTheme(_theme);
