@@ -14,6 +14,9 @@ internal sealed class SpectrogramFrameConsumer : IAnalysisFrameConsumer, IThemed
     // is recognized and cannot restore the old-colormap image.
     private PixelBuffer? _latestSourceImage;
     private PixelBuffer? _latestSpectrogramImage;
+    private int _latestLiveColumn;
+    private double _latestColumnSeconds;
+    private double _latestBeatPeriodS;
     private bool _displayedLight = PlotThemePalette.Current.IsLight;
 
     public SpectrogramFrameConsumer(SpectrogramRenderer renderer)
@@ -49,7 +52,7 @@ internal sealed class SpectrogramFrameConsumer : IAnalysisFrameConsumer, IThemed
         _renderer.ApplyTheme(theme.IsLight);
         if (TryRemapKeptImage(theme.IsLight, out PixelBuffer? remapped))
         {
-            _renderer.RenderImage(remapped);
+            _renderer.RenderWindowed(remapped, _latestLiveColumn, _latestColumnSeconds, _latestBeatPeriodS);
         }
     }
 
@@ -89,6 +92,9 @@ internal sealed class SpectrogramFrameConsumer : IAnalysisFrameConsumer, IThemed
         {
             _latestSourceImage = frame.SpectrogramImage;
             _latestSpectrogramImage = frame.SpectrogramImage;
+            _latestLiveColumn = frame.SpectrogramLiveColumn;
+            _latestColumnSeconds = frame.SpectrogramColumnSeconds;
+            _latestBeatPeriodS = frame.SpectrogramBeatPeriodS;
         }
     }
 
@@ -101,7 +107,8 @@ internal sealed class SpectrogramFrameConsumer : IAnalysisFrameConsumer, IThemed
         ObserveFrame(frame);
         if (_latestSpectrogramImage != null)
         {
-            _renderer.RenderImage(_latestSpectrogramImage);
+            _renderer.RenderWindowed(
+                _latestSpectrogramImage, _latestLiveColumn, _latestColumnSeconds, _latestBeatPeriodS);
         }
     }
 }

@@ -9,10 +9,18 @@ namespace TimeGrapher.App.Tests;
 
 public sealed class SpectrogramFrameConsumerTests
 {
+    // The renderer needs the dynamic time-axis controls; the windowing tests only
+    // exercise the consumer state machine, so dummy labels/caption suffice.
+    private static SpectrogramRenderer CreateRenderer() => new(
+        new Image(),
+        new Image(),
+        new[] { new TextBlock(), new TextBlock(), new TextBlock(), new TextBlock(), new TextBlock(), new TextBlock() },
+        new TextBlock());
+
     [Fact]
     public void ObserveFrameCachesLatestSpectrogramImageAndResetClearsIt()
     {
-        var renderer = new SpectrogramRenderer(new Image(), new Image());
+        var renderer = CreateRenderer();
         var consumer = new SpectrogramFrameConsumer(renderer);
         var spectrogramImage = new PixelBuffer(2, 2);
         spectrogramImage.Fill(Argb.Red);
@@ -36,7 +44,7 @@ public sealed class SpectrogramFrameConsumerTests
     [Fact]
     public void TryRemapKeptImageMirrorsKeptImageOnlyWhenTheThemeChanges()
     {
-        var renderer = new SpectrogramRenderer(new Image(), new Image());
+        var renderer = CreateRenderer();
         var consumer = new SpectrogramFrameConsumer(renderer);
 
         var image = new PixelBuffer(2, 1);
