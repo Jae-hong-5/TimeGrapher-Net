@@ -62,6 +62,8 @@ public sealed class VarioLogicTests
     [Theory]
     [InlineData(0.0, "00:00")]
     [InlineData(83.0, "01:23")]
+    [InlineData(59.9, "01:00")]
+    [InlineData(3599.9, "1:00:00")]
     [InlineData(3661.0, "1:01:01")]
     public void FormatElapsed_SwitchesToHoursFormAtOneHour(double seconds, string expected)
     {

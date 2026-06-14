@@ -21,7 +21,7 @@ internal static class VarioReadout
     /// <summary>Elapsed measurement time as mm:ss, switching to h:mm:ss from one hour.</summary>
     public static string FormatElapsed(double seconds)
     {
-        long total = (long)Math.Max(0.0, seconds);
+        long total = (long)Math.Round(Math.Max(0.0, seconds), MidpointRounding.AwayFromZero);
         long h = total / 3600;
         long m = total % 3600 / 60;
         long s = total % 60;
