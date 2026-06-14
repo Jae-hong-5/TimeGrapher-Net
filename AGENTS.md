@@ -33,15 +33,21 @@
 
 ## Principles
 
-- Base every change on **software architecture principles and the existing structure**.
-- The architecture and its decisions live under `docs/architecture/` — check the relevant views before making changes, and if a change affects the system's structure, update the corresponding document:
+Base every change on **software architecture principles and the existing structure**.
+
+### Architecture & documentation
+
+- The architecture and its decisions live under `docs/architecture/`. Check the relevant views before making changes, and update the matching document whenever a change affects the system's structure:
   - `docs/architecture/MODULE_DECOMPOSITION_VIEW.md`, `docs/architecture/MODULE_USES_VIEW.md`, `docs/architecture/LAYERED_VIEW.md`, `docs/architecture/MVC_VIEW.md`, `docs/architecture/DATA_MODEL_VIEW.md`
   - `docs/architecture/SAP_TACTICS_ANALYSIS.md` (quality-attribute tactics)
 - Respect the dependency graph: `TimeGrapher.App` → `TimeGrapher.Core` / `TimeGrapher.Platform.*`, `TimeGrapher.Platform.*` → `TimeGrapher.Core`, `TimeGrapher.Verify` → `TimeGrapher.Core`. **Core must not depend on anything** (no UI or platform references).
-- Before changing UI resources or styles, reuse the colors, brushes, fonts, default font sizes, and common styles defined in `src/TimeGrapher.App/App.axaml`.
-- Do not hardcode graph colors. Follow the existing flow: colors defined in `App.axaml` are passed into the graph palette through `src/TimeGrapher.App/Rendering/PlotThemePalette.cs`.
-- For graph background, axis, and grid theming, use the existing helper in `src/TimeGrapher.App/Rendering/PlotThemeHelper.cs`.
-- When you need tab IDs, tab names, refresh intervals, or graph series definitions, follow the existing catalog structure in `src/TimeGrapher.App/Tabs/InfoTabCatalog.cs`.
+
+### UI & rendering conventions
+
+- Reuse the colors, brushes, fonts, default font sizes, and common styles defined in `src/TimeGrapher.App/App.axaml` instead of introducing new ones.
+- Never hardcode graph colors. Colors flow from `App.axaml` into the graph palette through `src/TimeGrapher.App/Rendering/PlotThemePalette.cs`.
+- Apply graph background, axis, and grid theming through the existing helper in `src/TimeGrapher.App/Rendering/PlotThemeHelper.cs`.
+- For tab IDs, tab names, refresh intervals, or graph series definitions, follow the existing catalog structure in `src/TimeGrapher.App/Tabs/InfoTabCatalog.cs`.
 
 ## Build & Test
 
