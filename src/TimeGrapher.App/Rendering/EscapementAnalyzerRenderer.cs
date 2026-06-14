@@ -255,7 +255,7 @@ internal sealed class EscapementAnalyzerRenderer
         return max;
     }
 
-    private void UpdateMarkers(BeatSegment? segment, double envelopeMax)
+    private void UpdateMarkers(BeatSegment? segment, double traceExtent)
     {
         if (segment == null)
         {
@@ -265,8 +265,8 @@ internal sealed class EscapementAnalyzerRenderer
             return;
         }
 
-        double topLabelY = TopLabelFraction * envelopeMax;
-        double secondLabelY = SecondLabelFraction * envelopeMax;
+        double topLabelY = TopLabelFraction * traceExtent;
+        double secondLabelY = SecondLabelFraction * traceExtent;
 
         SetMarker(_aMarker, _aLabel, segment.AOffsetMs, EscapementReadout.AMarkerLabel, topLabelY);
         SetMarker(
