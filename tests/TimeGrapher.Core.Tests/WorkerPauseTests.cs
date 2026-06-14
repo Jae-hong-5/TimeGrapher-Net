@@ -39,7 +39,7 @@ public sealed class WorkerPauseTests
             ulong pausedAt = buffer.GetSnapshot().TotalSamplesWritten;
 
             Assert.True(worker.IsPaused);
-            Thread.Sleep(150);
+            Assert.False(resumed.Wait(TimeSpan.FromMilliseconds(150)));
             Assert.Equal(pausedAt, buffer.GetSnapshot().TotalSamplesWritten);
 
             worker.SetPaused(false);
@@ -83,7 +83,7 @@ public sealed class WorkerPauseTests
         ulong pausedAt = buffer.GetSnapshot().TotalSamplesWritten;
 
         Assert.True(worker.IsPaused);
-        Thread.Sleep(150);
+        Assert.False(resumed.Wait(TimeSpan.FromMilliseconds(150)));
         Assert.Equal(pausedAt, buffer.GetSnapshot().TotalSamplesWritten);
 
         worker.SetPaused(false);

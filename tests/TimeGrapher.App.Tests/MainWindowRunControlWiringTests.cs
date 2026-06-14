@@ -1,0 +1,62 @@
+using System.Xml.Linq;
+using Xunit;
+
+namespace TimeGrapher.App.Tests;
+
+public sealed class MainWindowRunControlWiringTests
+{
+    [Fact]
+    public void RunControlButtonsBindToTheDocumentedCommands()
+    {
+        XDocument document = XDocument.Load(FindSourceFile("src/TimeGrapher.App/Views/MainWindow.axaml"));
+
+        XElement resetButton = FindNamedElement(document, "ResetPushButton");
+        XElement playPauseButton = FindNamedElement(document, "PlayPausePushButton");
+
+        Assert.Equal("{Binding ResetCommand}", resetButton.Attribute("Command")?.Value);
+        Assert.Equal("{Binding IsResetEnabled}", resetButton.Attribute("IsEnabled")?.Value);
+        Assert.Equal("Reset and refresh input devices", resetButton.Attribute("ToolTip.Tip")?.Value);
+
+        Assert.Equal("{Binding PlayPauseCommand}", playPauseButton.Attribute("Command")?.Value);
+        Assert.Equal("{Binding IsPlayPauseEnabled}", playPauseButton.Attribute("IsEnabled")?.Value);
+        Assert.Equal("{Binding PlayPauseButtonText}", playPauseButton.Attribute("ToolTip.Tip")?.Value);
+    }
+
+    [Fact]
+    public void RunControlSurfaceDoesNotExposeTheOldStopOrSequenceResetButtons()
+    {
+        XDocument document = XDocument.Load(FindSourceFile("src/TimeGrapher.App/Views/MainWindow.axaml"));
+
+        Assert.DoesNotContain(
+            document.Descendants().Attributes("Command").Select(attribute => attribute.Value),
+            value => value.Contains("StopCommand", StringComparison.Ordinal) ||
+                value.Contains("ResetSequenceCommand", StringComparison.Ordinal));
+        Assert.DoesNotContain(
+            document.Descendants().Attributes("Name").Select(attribute => attribute.Value),
+            value => value.Contains("StopPushButton", StringComparison.Ordinal) ||
+                value.Contains("ResetSequence", StringComparison.Ordinal));
+    }
+
+    private static XElement FindNamedElement(XDocument document, string name)
+    {
+        return document.Descendants()
+            .Single(element => element.Attribute("Name")?.Value == name);
+    }
+
+    private static string FindSourceFile(string relativePath)
+    {
+        DirectoryInfo? directory = new(AppContext.BaseDirectory);
+        while (directory != null)
+        {
+            string candidate = Path.Combine(directory.FullName, relativePath);
+            if (File.Exists(candidate))
+            {
+                return candidate;
+            }
+
+            directory = directory.Parent;
+        }
+
+        throw new FileNotFoundException("Could not locate source file.", relativePath);
+    }
+}
