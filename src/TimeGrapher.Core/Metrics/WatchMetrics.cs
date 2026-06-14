@@ -56,7 +56,7 @@ public sealed class WatchMetrics
     private bool _rlsRateValid = false;
     private int _bph = 0;
     private bool _bphValid = false;
-    private int _watchHertz = 0;
+    private int _beatsPerSecondWindow = 0;
 
     private readonly double[] _beatErrorTimes = { 0.0, 0.0, 0.0 };
     private int _beatErrorIdx = 0;
@@ -147,7 +147,10 @@ public sealed class WatchMetrics
     public WatchMetricsUpdate HandleAEvent(double eventSample, bool haveValidBph, double bph)
     {
         var update = new WatchMetricsUpdate();
-        ComputeRateError(eventSample, haveValidBph, bph, update);
+        if (!ComputeRateError(eventSample, haveValidBph, bph, update))
+        {
+            return update;
+        }
         ComputeBeatError(eventSample);
 
         if (_haveStartTime && _bphValid)
@@ -219,7 +222,7 @@ public sealed class WatchMetrics
         return liftAngle / Math.Sin((2.0 * Math.PI * t1) / (7200.0 / bph));
     }
 
-    private void ComputeRateError(double eventSample, bool haveValidBph, double bph, WatchMetricsUpdate update)
+    private bool ComputeRateError(double eventSample, bool haveValidBph, double bph, WatchMetricsUpdate update)
     {
         // The shipped pipeline never delivers haveValidBph=false after the first
         // lock: DetectorMetricsEngine suppresses pre-sync events and TgDetector
@@ -246,9 +249,9 @@ public sealed class WatchMetrics
             _haveZeroOffset = false;
             _zeroOffsetValue = 0.0;
             _rlsRateValid = false;
-            _watchHertz = _bph / 3600;
-            _rlsTicRate.Resize(_config.AveragingPeriod * _watchHertz);
-            _rlsTocRate.Resize(_config.AveragingPeriod * _watchHertz);
+            _beatsPerSecondWindow = BeatWindowSize(_bph, seconds: 1);
+            _rlsTicRate.Resize(_config.AveragingPeriod * _beatsPerSecondWindow);
+            _rlsTocRate.Resize(_config.AveragingPeriod * _beatsPerSecondWindow);
             _rlsTicRate.Reset();
             _rlsTocRate.Reset();
 
@@ -257,7 +260,7 @@ public sealed class WatchMetrics
 
             // Derived measures restart with the sync segment: a stale _lastAEvent
             // from before a sync loss must not contribute a bogus period delta.
-            _rollPeriodDelta.Resize(DiffPeriodWindowSeconds * _watchHertz);
+            _rollPeriodDelta.Resize(BeatWindowSize(_bph, DiffPeriodWindowSeconds));
             ResetDerivedMeasures();
         }
 
@@ -277,7 +280,11 @@ public sealed class WatchMetrics
             // Classify the A-to-A interval (re-anchoring the beat counter across
             // any detection gap) before the parity read and the expected-time
             // computation below consume the counter.
-            bool gapDetected = AccumulatePeriodDelta(eventSample, expectedTimeTarget);
+            bool gapDetected = AccumulatePeriodDelta(eventSample, expectedTimeTarget, out bool extraEvent);
+            if (extraEvent)
+            {
+                return false;
+            }
 
             _ticTocBeatNumber++;
 
@@ -348,6 +355,8 @@ public sealed class WatchMetrics
                 }
             }
         }
+
+        return true;
     }
 
     /// <summary>
@@ -358,9 +367,10 @@ public sealed class WatchMetrics
     /// the physical schedule, so this must run before the counter is advanced for
     /// the current event. Returns true when the interval spans a detection gap.
     /// </summary>
-    private bool AccumulatePeriodDelta(double eventSample, double expectedTimeTarget)
+    private bool AccumulatePeriodDelta(double eventSample, double expectedTimeTarget, out bool extraEvent)
     {
         bool gapDetected = false;
+        extraEvent = false;
         if (_haveAEvent && !_skipNextPeriodDelta)
         {
             double measuredPeriodS = (eventSample - _lastAEvent) / (double)_config.SampleRate;
@@ -387,10 +397,22 @@ public sealed class WatchMetrics
                 _ticTocBeatNumber += skippedBeats;
                 gapDetected = true;
             }
+            else
+            {
+                extraEvent = true;
+            }
         }
 
-        _skipNextPeriodDelta = false;
+        if (!extraEvent)
+        {
+            _skipNextPeriodDelta = false;
+        }
         return gapDetected;
+    }
+
+    private static int BeatWindowSize(int bph, int seconds)
+    {
+        return Math.Max(1, (int)Math.Round(bph * seconds / 3600.0, MidpointRounding.AwayFromZero));
     }
 
     /// <summary>

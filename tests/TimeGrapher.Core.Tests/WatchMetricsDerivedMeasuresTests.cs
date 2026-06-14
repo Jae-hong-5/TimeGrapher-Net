@@ -23,16 +23,21 @@ public sealed class WatchMetricsDerivedMeasuresTests
     /// <summary>Feeds A events at the given inter-event intervals (ms), returning all updates.</summary>
     private static List<WatchMetricsUpdate> FeedAEvents(WatchMetrics metrics, params double[] intervalsMs)
     {
+        return FeedAEventsAtBph(metrics, Bph, intervalsMs);
+    }
+
+    private static List<WatchMetricsUpdate> FeedAEventsAtBph(WatchMetrics metrics, double bph, params double[] intervalsMs)
+    {
         var updates = new List<WatchMetricsUpdate>
         {
-            metrics.HandleAEvent(0.0, true, Bph),
+            metrics.HandleAEvent(0.0, true, bph),
         };
 
         double sample = 0.0;
         foreach (double intervalMs in intervalsMs)
         {
             sample += intervalMs / 1000.0 * SampleRate;
-            updates.Add(metrics.HandleAEvent(sample, true, Bph));
+            updates.Add(metrics.HandleAEvent(sample, true, bph));
         }
 
         return updates;
@@ -105,6 +110,23 @@ public sealed class WatchMetricsDerivedMeasuresTests
         DerivedTimingMeasures derived = updates[4].DerivedMeasures;
         Assert.Equal(0.5, derived.DiffPeriodMs, 6);
         Assert.Equal(0.5, derived.AvgPeriodMs, 6);
+    }
+
+    [Fact]
+    public void DiffPeriodWindow_RoundsNonIntegerBeatsPerSecond()
+    {
+        const double bph = 19800.0;
+        double expectedMs = 3600.0 / bph * 1000.0;
+        double[] intervals = Enumerable.Range(1, 21)
+            .Select(deltaMs => expectedMs + deltaMs)
+            .ToArray();
+        WatchMetrics metrics = NewMetrics();
+        List<WatchMetricsUpdate> updates = FeedAEventsAtBph(metrics, bph, intervals);
+
+        DerivedTimingMeasures derived = updates[updates.Count - 1].DerivedMeasures;
+        Assert.True(derived.DiffPeriodValid);
+        Assert.Equal(11.0, derived.DiffPeriodMs, 6);
+        Assert.Equal(11.0, derived.AvgPeriodMs, 6);
     }
 
     [Fact]
@@ -221,6 +243,20 @@ public sealed class WatchMetricsDerivedMeasuresTests
         WatchMetrics metrics = NewMetrics();
         FeedAEvents(metrics, 125.0, 30.0, 125.0);
 
+        Assert.Equal(0UL, metrics.MissedBeats);
+    }
+
+    [Fact]
+    public void SpuriousShortAEvents_DoNotAdvanceBeatCounterOrRateSchedule()
+    {
+        WatchMetrics metrics = NewMetrics();
+        List<WatchMetricsUpdate> updates = FeedAEvents(metrics, 125.0, 30.0, 95.0, 125.0);
+
+        Assert.False(updates[2].BeatTimingSampleUpdated);
+        Assert.Equal(3UL, updates[3].BeatTimingSample.BeatNumber);
+        Assert.True(updates[3].BeatTimingSample.IsTic);
+        Assert.Equal(0.0, updates[3].BeatTimingSample.RateErrorMs, 6);
+        Assert.Equal(4UL, updates[4].BeatTimingSample.BeatNumber);
         Assert.Equal(0UL, metrics.MissedBeats);
     }
 
