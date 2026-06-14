@@ -203,16 +203,6 @@ internal sealed class RunSessionController : IDisposable
         _analysisWorker?.SetSigmaAveraging(enabled);
     }
 
-    /// <summary>
-    /// Clears the running analysis worker's per-position aggregates so a new
-    /// multi-position sequence starts (no-op when idle — a fresh run begins
-    /// with empty aggregates anyway).
-    /// </summary>
-    public void ResetPositionAggregates()
-    {
-        _analysisWorker?.ResetPositionAggregates();
-    }
-
     public void Dispose()
     {
         InvalidateRunSession();
