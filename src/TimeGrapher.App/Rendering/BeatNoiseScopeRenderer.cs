@@ -71,7 +71,7 @@ internal sealed class BeatNoiseScopeRenderer
     private PlotThemePalette _theme = PlotThemePalette.Current;
     private ulong _lastVersion;
     private int _rangeMs = DefaultRangeMs;
-    private bool _mirror;
+    private bool _showRawWaveform;
     private int? _selectedSlot;
     private BeatSegmentsSnapshot? _lastSnapshot;
     private double? _lastCursorTimeS;
@@ -134,7 +134,7 @@ internal sealed class BeatNoiseScopeRenderer
         _mirrorScatter = main.Add.Scatter(_mainX, _mainYMirror);
         _mirrorScatter.LineWidth = 1;
         _mirrorScatter.MarkerStyle.IsVisible = false;
-        _mirrorScatter.IsVisible = _mirror;
+        _mirrorScatter.IsVisible = _showRawWaveform;
         _aMarker = AddMarker(main, LinePattern.Dashed);
         _cPeakMarker = AddMarker(main, LinePattern.Dashed);
         _cOnsetMarker = AddMarker(main, LinePattern.Dotted);
@@ -207,18 +207,17 @@ internal sealed class BeatNoiseScopeRenderer
         _mainPlot.Refresh();
     }
 
-    /// <summary>Scope 1 MIRROR toggle (bipolar mirrored view of the rectified envelope).</summary>
-    public void SetMirror(bool mirror)
+    public void SetRawWaveform(bool enabled)
     {
-        if (_mirror == mirror)
+        if (_showRawWaveform == enabled)
         {
             return;
         }
 
-        _mirror = mirror;
+        _showRawWaveform = enabled;
         if (_mirrorScatter != null)
         {
-            _mirrorScatter.IsVisible = mirror;
+            _mirrorScatter.IsVisible = enabled;
         }
 
         if (_lastSnapshot is { } snapshot)
@@ -295,7 +294,7 @@ internal sealed class BeatNoiseScopeRenderer
 
         // RAW on + raw available: the real bipolar waveform (max up, min down).
         // Otherwise the rectified envelope, mirrored below zero only when RAW is on.
-        if (_mirror && segment.RawValid)
+        if (_showRawWaveform && segment.RawValid)
         {
             RenderMainRaw(segment);
         }
@@ -363,7 +362,7 @@ internal sealed class BeatNoiseScopeRenderer
         }
 
         double yMax = rangeMax * 1.1;
-        _mainPlot.Plot.Axes.SetLimitsY(_mirror ? -yMax : -0.02 * yMax, yMax);
+        _mainPlot.Plot.Axes.SetLimitsY(_showRawWaveform ? -yMax : -0.02 * yMax, yMax);
     }
 
     private void RenderStrips(BeatSegmentsSnapshot snapshot)

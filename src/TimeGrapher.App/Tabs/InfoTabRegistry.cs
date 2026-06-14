@@ -1071,7 +1071,7 @@ internal sealed class InfoTabRegistry
             Margin = new Thickness(8, 0, 0, 0),
         };
         ToolTip.SetTip(rawToggle, "Show the real un-rectified bipolar waveform (min/max), not the rectified envelope");
-        rawToggle.IsCheckedChanged += (_, _) => renderer.SetMirror(rawToggle.IsChecked == true);
+        rawToggle.IsCheckedChanged += (_, _) => renderer.SetRawWaveform(rawToggle.IsChecked == true);
         toolbar.Children.Add(rawToggle);
 
         // Σ writes the shared SigmaAveraging view-model property; MainWindow
