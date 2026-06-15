@@ -865,6 +865,11 @@ internal sealed partial class InfoTabRegistry
 
         var renderer = new LongTermPerfRenderer(ratePlot, amplitudePlot, beatErrorPlot, footerText);
 
+        if (context.ViewModel is { } vm)
+        {
+            renderer.SetSliderAlignmentCallback(vm.UpdateReviewSliderAlignment);
+        }
+
         grid.Children.Add(CreatePinnedResetViewButton("Re-enable live auto-scaling on all three graphs", row: 0, renderer.ResetView));
 
         var consumer = new LongTermPerfFrameConsumer(renderer);

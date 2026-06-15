@@ -66,6 +66,10 @@ internal sealed class LongTermPerfRenderer
     // (CreateGraphs clears the plots, so the marker lines must be re-added).
     private int _positionMarkerCount = -1;
 
+    // Optional callback to report the plot area's left/right pixel offsets and
+    // data minimum time so the review slider aligns with the graph X-axis.
+    private Action<double, double, double>? _sliderAlignmentCallback;
+
     public LongTermPerfRenderer(
         AvaPlot ratePlot,
         AvaPlot amplitudePlot,
@@ -97,6 +101,16 @@ internal sealed class LongTermPerfRenderer
                 }
             };
         }
+    }
+
+    /// <summary>
+    /// Registers a callback that receives (leftPad, rightPad) pixel offsets of the
+    /// plot data area relative to the AvaPlot control bounds. The review slider
+    /// uses these to align its track with the graph X-axis.
+    /// </summary>
+    public void SetSliderAlignmentCallback(Action<double, double, double> callback)
+    {
+        _sliderAlignmentCallback = callback;
     }
 
     public void ApplyTheme(PlotThemePalette theme)
@@ -151,7 +165,19 @@ internal sealed class LongTermPerfRenderer
         }
 
         // One shared time axis label on the bottom pane keeps the stack compact.
-        _beatError.Plot.Plot.XLabel("Elapsed (s)");
+        // Upper panes hide their X tick labels to avoid redundancy.
+        _beatError.Plot.Plot.XLabel("Elapsed");
+        foreach (Pane pane in _panes)
+        {
+            pane.Plot.Plot.Axes.Bottom.TickGenerator = new ScottPlot.TickGenerators.NumericAutomatic
+            {
+                LabelFormatter = ElapsedTickLabel
+            };
+            if (pane != _beatError)
+            {
+                pane.Plot.Plot.Axes.Bottom.TickLabelStyle.IsVisible = false;
+            }
+        }
 
         ApplySeriesTheme();
         RefreshAll();
@@ -353,6 +379,38 @@ internal sealed class LongTermPerfRenderer
                 pane.Plot.Refresh();
             }
         }
+
+        // Report the data area offsets so the review slider can align with the X-axis.
+        ReportSliderAlignment();
+    }
+
+    private void ReportSliderAlignment()
+    {
+        if (_sliderAlignmentCallback == null)
+        {
+            return;
+        }
+
+        // Use the bottom pane (beat error) — it has the X-axis label and its
+        // DataRect represents the visible X span.
+        RenderDetails render = _beatError.Plot.Plot.RenderManager.LastRender;
+        if (render.DataRect.Width <= 0)
+        {
+            return;
+        }
+
+        double leftPad = render.DataRect.Left - render.FigureRect.Left;
+        double rightPad = render.FigureRect.Right - render.DataRect.Right;
+
+        // Report the first data point time so the slider Minimum matches the
+        // graph X-axis start (data may not begin at 0 due to accumulation delay).
+        double dataMin = 0.0;
+        if (TryGetDataXRange(out double xMin, out _))
+        {
+            dataMin = xMin;
+        }
+
+        _sliderAlignmentCallback(leftPad, rightPad, dataMin);
     }
 
     private static void UpdatePane(Pane pane, MetricsHistorySeries series)
@@ -537,6 +595,16 @@ internal sealed class LongTermPerfRenderer
         // Transparent label background so the name never masks the trace behind
         // it (the dashed line plus the bold name stay legible on their own).
         marker.LabelBackgroundColor = Colors.Transparent;
+    }
+
+    /// <summary>
+    /// Formats X-axis tick labels as "mm:ss" so the graph time axis matches the
+    /// review slider readout (which shows both seconds and mm:ss).
+    /// </summary>
+    private static string ElapsedTickLabel(double seconds)
+    {
+        int total = Math.Max(0, (int)seconds);
+        return $"{total / 60:00}:{total % 60:00}";
     }
 
     private void ApplyPlotTheme(Plot plot)
