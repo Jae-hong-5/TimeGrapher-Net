@@ -2,6 +2,7 @@ using Avalonia.Threading;
 using ScottPlot;
 using ScottPlot.Avalonia;
 using ScottPlot.Plottables;
+using ScottPlot.Rendering;
 using TimeGrapher.App.Tabs;
 using TimeGrapher.Core.Analysis;
 using TimeGrapher.Core.Shared;
@@ -61,6 +62,36 @@ internal sealed class MultiFilterScopeRenderer
     private bool _syncPending;
     private int _syncSource;
 
+    // Whether the pending sync should re-derive the shared Y pan offset from the
+    // source lane: a drag sets it (the vertical pan is shared across all lanes);
+    // a wheel leaves it false (a wheel changes only the zoom, not the offset).
+    private bool _syncDeriveYOffset;
+
+    // Shared Y-zoom level for all four lanes: the visible Y half-range as a
+    // multiple of each lane's own data peak (the max input value). The wheel
+    // adjusts it for every lane at once, and it is capped at MaxYZoom so a
+    // zoom-out can never show more than 1.5x the peak (e.g. a 0.08 peak tops
+    // out at 0.12). Y stays per-lane in scale — each lane uses its own peak.
+    private const double DefaultYZoom = 1.1;  // fit with a little headroom
+    private const double MaxYZoom = 1.5;      // zoom-out cap: <= 1.5x the peak
+    private const double MinYZoom = 0.1;      // zoom-in floor
+    private const double YZoomStep = 1.15;    // per wheel notch
+    private double _yZoom = DefaultYZoom;
+
+    // Shared Y pan offset for all lanes, in units of each lane's data peak
+    // (0 = centered). A vertical drag updates it so every lane pans together;
+    // the one-sided lane (F3) additionally never shows below 0.
+    private double _yOffset;
+
+    // Live extent of the drawn data on the shared X base (oldest..latest
+    // retained tick), refreshed each frame. The X view is clamped to stay
+    // within it — a pan stops at the first/last drawn sample with no empty
+    // margin beyond the data, and zoom-out is capped at the full buffer. When
+    // the view spans the whole extent, live auto-follow re-arms so it advances.
+    private double _dataMinX;
+    private double _dataMaxX;
+    private bool _hasDataExtent;
+
     public MultiFilterScopeRenderer(IReadOnlyList<AvaPlot> plots)
     {
         if (plots.Count != MultiFilterScopeLanes.All.Count)
@@ -89,16 +120,39 @@ internal sealed class MultiFilterScopeRenderer
             // held), or interaction end re-links the other lanes onto this one's
             // X window. PointerPressed just drops live-follow; it changes no axis.
             _plots[idx].PointerPressed += (_, _) => _followLive = false;
-            _plots[idx].PointerWheelChanged += (_, _) => OnUserAxisInteraction(idx);
-            _plots[idx].PointerReleased += (_, _) => OnUserAxisInteraction(idx);
+            _plots[idx].PointerWheelChanged += (_, e) =>
+            {
+                // Wheel down (Delta.Y < 0) zooms out, up zooms in — applied to
+                // every lane through the shared _yZoom and capped at MaxYZoom.
+                if (e.Delta.Y < 0)
+                {
+                    _yZoom = Math.Min(MaxYZoom, _yZoom * YZoomStep);
+                }
+                else if (e.Delta.Y > 0)
+                {
+                    _yZoom = Math.Max(MinYZoom, _yZoom / YZoomStep);
+                }
+
+                OnUserAxisInteraction(idx, deriveYOffset: false);
+            };
+            // Drag (pan): sync X and re-derive the shared Y offset so a vertical
+            // drag pans every lane together.
+            _plots[idx].PointerReleased += (_, _) => OnUserAxisInteraction(idx, deriveYOffset: true);
             _plots[idx].PointerMoved += (_, e) =>
             {
                 Avalonia.Input.PointerPointProperties props = e.GetCurrentPoint(_plots[idx]).Properties;
                 if (props.IsLeftButtonPressed || props.IsRightButtonPressed || props.IsMiddleButtonPressed)
                 {
-                    OnUserAxisInteraction(idx);
+                    OnUserAxisInteraction(idx, deriveYOffset: true);
                 }
             };
+
+            // The default right-click "Auto Scale" fits only the clicked lane,
+            // which breaks the shared timestamp window. Replace the menu with an
+            // all-lanes auto scale routed through ResetView so every lane fits
+            // together (matching the Reset View button).
+            _plots[idx].Menu?.Clear();
+            _plots[idx].Menu?.Add("Auto Scale (all lanes)", _ => ResetView());
         }
     }
 
@@ -117,6 +171,8 @@ internal sealed class MultiFilterScopeRenderer
     public void CreateGraphs()
     {
         _followLive = true;
+        _yZoom = DefaultYZoom;
+        _yOffset = 0.0;
         for (int i = 0; i < _plots.Length; i++)
         {
             Plot plot = _plots[i].Plot;
@@ -145,11 +201,12 @@ internal sealed class MultiFilterScopeRenderer
             }
 
             _cursors[i] = AddCursor(plot);
-            // Wall (span-preserving) floor, not the plain left floor: the four
-            // lanes share one linked X window, so a left pan that collapsed a
-            // lane past the origin would be propagated to the others. The wall
-            // stops the pan at the origin and keeps the window valid.
-            PlotAxisRules.ClampLeftEdgePreservingSpan(plot);
+            // Clamp the X view to the live drawn-data extent: a left/right pan
+            // stops at the oldest/latest sample (no empty region beyond the
+            // data) and zoom-out is capped at the full buffer. The extent rolls
+            // with the window, so the rule reads it live on every render.
+            plot.Axes.Rules.Clear();
+            plot.Axes.Rules.Add(new XViewBoundsRule(this, plot.Axes.Bottom));
         }
 
         ApplySeriesTheme();
@@ -168,9 +225,12 @@ internal sealed class MultiFilterScopeRenderer
     public void ResetView()
     {
         _followLive = true;
+        _yZoom = DefaultYZoom;
+        _yOffset = 0.0;
         for (int i = 0; i < _plots.Length; i++)
         {
             _plots[i].Plot.Axes.AutoScale();
+            ApplyY(i);
         }
 
         RefreshAll();
@@ -184,10 +244,11 @@ internal sealed class MultiFilterScopeRenderer
     /// queues a single sync (reading the latest limits) instead of one per
     /// PointerMoved.
     /// </summary>
-    private void OnUserAxisInteraction(int source)
+    private void OnUserAxisInteraction(int source, bool deriveYOffset)
     {
         _followLive = false;
-        _syncSource = source; // latest interaction wins when the pending post runs
+        _syncSource = source;            // latest interaction wins when the pending post runs
+        _syncDeriveYOffset |= deriveYOffset; // any coalesced drag re-derives the Y offset
         if (_syncPending)
         {
             return;
@@ -198,12 +259,14 @@ internal sealed class MultiFilterScopeRenderer
             () =>
             {
                 _syncPending = false;
-                SyncXAxisFrom(_syncSource);
+                bool derive = _syncDeriveYOffset;
+                _syncDeriveYOffset = false;
+                SyncXAxisFrom(_syncSource, derive);
             },
             DispatcherPriority.Background);
     }
 
-    private void SyncXAxisFrom(int source)
+    private void SyncXAxisFrom(int source, bool deriveYOffset)
     {
         if (_syncing)
         {
@@ -214,18 +277,64 @@ internal sealed class MultiFilterScopeRenderer
         try
         {
             // The four lanes share one X base (absolute sample ticks), so the
-            // X limits transfer directly. Y stays per-lane — each filter has its
-            // own amplitude — auto-scaled to the data now in the shared window.
+            // X window transfers directly. Keep it inside the drawn-data extent
+            // (no empty margins): a zoom-out to the full buffer snaps to the
+            // whole extent and re-arms live follow; otherwise the window is
+            // shifted back inside the data. Y is set on every lane from the
+            // shared _yZoom level (overriding the wheel's own Y zoom), each
+            // scaled to its own data peak.
             AxisLimits limits = _plots[source].Plot.Axes.GetLimits();
+            double left = limits.Left;
+            double right = limits.Right;
+            if (_hasDataExtent)
+            {
+                double extent = _dataMaxX - _dataMinX;
+                double span = right - left;
+                if (extent > 0.0 && span >= extent)
+                {
+                    _followLive = true;
+                    _yOffset = 0.0; // full zoom-out re-centers Y as well
+                    left = _dataMinX;
+                    right = _dataMaxX;
+                }
+                else if (extent > 0.0)
+                {
+                    if (left < _dataMinX)
+                    {
+                        left = _dataMinX;
+                        right = _dataMinX + span;
+                    }
+
+                    if (right > _dataMaxX)
+                    {
+                        right = _dataMaxX;
+                        left = _dataMaxX - span;
+                    }
+
+                    if (left < _dataMinX)
+                    {
+                        left = _dataMinX;
+                    }
+                }
+            }
+
+            // A drag re-derives the shared Y offset from the source lane (a
+            // mirrored, centered lane only — F3 is pinned at 0 and never the
+            // source of a pan offset), so a vertical drag pans every lane.
+            if (deriveYOffset && MultiFilterScopeLanes.All[source].Mirrored)
+            {
+                double peak = LanePeak(source);
+                if (peak > 0.0)
+                {
+                    double center = (limits.Top + limits.Bottom) / 2.0;
+                    _yOffset = Math.Clamp(center / peak, -MaxYZoom, MaxYZoom);
+                }
+            }
+
             for (int i = 0; i < _plots.Length; i++)
             {
-                if (i == source)
-                {
-                    continue;
-                }
-
-                _plots[i].Plot.Axes.SetLimitsX(limits.Left, limits.Right);
-                _plots[i].Plot.Axes.AutoScaleY();
+                _plots[i].Plot.Axes.SetLimitsX(left, right);
+                ApplyY(i);
                 _plots[i].Refresh();
             }
         }
@@ -235,8 +344,128 @@ internal sealed class MultiFilterScopeRenderer
         }
     }
 
+    /// <summary>Largest absolute sample in a lane's current display buffer (its data peak).</summary>
+    private double LanePeak(int lane)
+    {
+        List<double> y = _y[lane];
+        double peak = 0.0;
+        for (int i = 0; i < y.Count; i++)
+        {
+            double magnitude = Math.Abs(y[i]);
+            if (magnitude > peak)
+            {
+                peak = magnitude;
+            }
+        }
+
+        return peak;
+    }
+
+    /// <summary>
+    /// Sets a lane's Y view, scaled to that lane's own data peak (the max input
+    /// value). Mirrored lanes are centered at <see cref="_yOffset"/> * peak with
+    /// a half-height of <see cref="_yZoom"/> * peak (capped at 1.5x), so a
+    /// vertical pan moves them. The one-sided lane (F3) is the exception: it is
+    /// pinned to [0, _yZoom * peak] — it never shows below 0 and the pan offset
+    /// does not apply, so a vertical drag leaves it unchanged (only a wheel zoom
+    /// resizes it).
+    /// </summary>
+    private void ApplyY(int lane)
+    {
+        double peak = LanePeak(lane);
+        if (peak <= 0.0)
+        {
+            return;
+        }
+
+        double half = _yZoom * peak;
+        if (MultiFilterScopeLanes.All[lane].Mirrored)
+        {
+            double center = _yOffset * peak;
+            _plots[lane].Plot.Axes.SetLimitsY(center - half, center + half);
+        }
+        else
+        {
+            _plots[lane].Plot.Axes.SetLimitsY(0.0, half);
+        }
+    }
+
+    /// <summary>
+    /// Clamps a lane's X view to the owner's live drawn-data extent
+    /// (<see cref="_dataMinX"/>..<see cref="_dataMaxX"/>): a pan stops at the
+    /// oldest/latest sample with no empty margin beyond the data, and a span at
+    /// or past the full extent snaps to it. The extent rolls with the window, so
+    /// it is read live on every render (a hard wall even mid-drag, unlike the
+    /// deferred sync). Mirrors the shift-in-bounds logic in SyncXAxisFrom.
+    /// </summary>
+    private sealed class XViewBoundsRule : IAxisRule
+    {
+        private readonly MultiFilterScopeRenderer _owner;
+        private readonly IXAxis _xAxis;
+
+        public XViewBoundsRule(MultiFilterScopeRenderer owner, IXAxis xAxis)
+        {
+            _owner = owner;
+            _xAxis = xAxis;
+        }
+
+        public void Apply(RenderPack rp, bool beforeLayout)
+        {
+            if (!_owner._hasDataExtent)
+            {
+                return;
+            }
+
+            double min = _owner._dataMinX;
+            double max = _owner._dataMaxX;
+            double extent = max - min;
+            if (extent <= 0.0)
+            {
+                return;
+            }
+
+            double left = _xAxis.Range.Min;
+            double right = _xAxis.Range.Max;
+            double span = right - left;
+            if (span >= extent)
+            {
+                left = min;
+                right = max;
+            }
+            else
+            {
+                if (left < min)
+                {
+                    left = min;
+                    right = min + span;
+                }
+
+                if (right > max)
+                {
+                    right = max;
+                    left = max - span;
+                }
+
+                if (left < min)
+                {
+                    left = min;
+                }
+            }
+
+            _xAxis.Range.Min = left;
+            _xAxis.Range.Max = right;
+        }
+    }
+
     public void RenderFrame(AnalysisFrame frame, AnalysisTabRenderContext context)
     {
+        if (_x[0].Count > 0)
+        {
+            _dataMinX = _x[0][0];
+            _dataMaxX = _x[0][^1];
+            _hasDataExtent = true;
+        }
+
         for (int i = 0; i < _plots.Length; i++)
         {
             GraphSeriesFrame? laneSeries = SeriesDataReducer.FindSeries(
@@ -252,13 +481,14 @@ internal sealed class MultiFilterScopeRenderer
 
             bool cursorMoved = UpdateReviewCursor(i, context);
 
-            if (updated && _followLive && _x[i].Count > 0)
+            if (updated && _x[i].Count > 0 && _followLive)
             {
-                // Window to the last 2 s of this lane's own x base (sample ticks).
-                double end = _x[i][^1];
-                double width = (double)MultiFilterFrameProjector.WindowSeconds * context.SampleRate;
-                _plots[i].Plot.Axes.SetLimitsX(end - width, end);
-                _plots[i].Plot.Axes.AutoScaleY();
+                // Auto-follow shows the whole retained buffer (oldest..latest),
+                // advancing as the window rolls, with Y fit at the shared zoom.
+                // When not following (the user zoomed/panned), X is kept inside
+                // the data by the axis rule and Y is left to the user's pan.
+                _plots[i].Plot.Axes.SetLimitsX(_x[i][0], _x[i][^1]);
+                ApplyY(i);
             }
 
             if (updated || cursorMoved)

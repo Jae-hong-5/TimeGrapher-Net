@@ -17,21 +17,6 @@ internal static class PlotAxisRules
     public static void ClampLeftEdgeToZero(Plot plot) => ClampLeftEdge(plot, 0);
 
     /// <summary>
-    /// Floors the X view's left edge at 0 like <see cref="ClampLeftEdgeToZero"/>,
-    /// but shifts the right edge along so the view span is preserved (a pan that
-    /// reaches the origin stops there instead of collapsing the window from the
-    /// right). Use where the window must never cross below the origin on either
-    /// edge — e.g. the Multi-Filter Scope, whose lanes share one X window: a
-    /// collapsed/negative window on one lane would otherwise be linked onto the
-    /// others.
-    /// </summary>
-    public static void ClampLeftEdgePreservingSpan(Plot plot)
-    {
-        plot.Axes.Rules.Clear();
-        plot.Axes.Rules.Add(new LeftEdgeWall(plot.Axes.Bottom, 0));
-    }
-
-    /// <summary>
     /// Installs a rule that floors the X view's left edge at <paramref name="minLeft"/>
     /// on every render. Clears existing rules first so repeated CreateGraphs
     /// calls do not accumulate duplicates.
@@ -66,36 +51,6 @@ internal static class PlotAxisRules
             if (_xAxis.Range.Min < _minLeft)
             {
                 _xAxis.Range.Min = _minLeft;
-            }
-        }
-    }
-
-    /// <summary>
-    /// Floors the X view's left edge at <see cref="_minLeft"/> and carries the
-    /// right edge with it (preserving the view span) whenever pan/zoom-out would
-    /// push the left edge below the bound. Unlike <see cref="LeftEdgeFloor"/>,
-    /// which pins only the left edge and lets a continued left pan shrink — and
-    /// eventually invert — the window from the right, this stops the whole view
-    /// at the bound like a wall.
-    /// </summary>
-    private sealed class LeftEdgeWall : IAxisRule
-    {
-        private readonly IXAxis _xAxis;
-        private readonly double _minLeft;
-
-        public LeftEdgeWall(IXAxis xAxis, double minLeft)
-        {
-            _xAxis = xAxis;
-            _minLeft = minLeft;
-        }
-
-        public void Apply(RenderPack rp, bool beforeLayout)
-        {
-            if (_xAxis.Range.Min < _minLeft)
-            {
-                double span = _xAxis.Range.Max - _xAxis.Range.Min;
-                _xAxis.Range.Min = _minLeft;
-                _xAxis.Range.Max = _minLeft + span;
             }
         }
     }
