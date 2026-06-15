@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using Avalonia.Threading;
 using ScottPlot;
 using ScottPlot.Avalonia;
 using ScottPlot.Plottables;
@@ -19,7 +20,10 @@ namespace TimeGrapher.App.Rendering;
 /// more seconds — and the display updates less often — as elapsed time grows
 /// (the plan's reduced update frequency), while the band keeps the merged
 /// buckets' min/max visible. Re-renders only when the snapshot version
-/// changes, so coalesced or repeated frames cost nothing.
+/// changes, so coalesced or repeated frames cost nothing. The three panes
+/// share one elapsed-time X base, so a user zoom/pan on any pane is linked
+/// onto the other two — all three always read on the same time window, while
+/// Y stays per-measure (each pane has its own units and range).
 /// </summary>
 internal sealed class LongTermPerfRenderer
 {
@@ -48,6 +52,12 @@ internal sealed class LongTermPerfRenderer
     private ulong _lastVersion;
     private bool _followLive = true;
 
+    // X-axis link: guards the cross-pane SetLimitsX pass against re-entrancy, and
+    // coalesces a continuous drag into a single deferred sync (latest source wins).
+    private bool _syncing;
+    private bool _syncPending;
+    private int _syncSource;
+
     public LongTermPerfRenderer(
         AvaPlot ratePlot,
         AvaPlot amplitudePlot,
@@ -60,10 +70,24 @@ internal sealed class LongTermPerfRenderer
         _panes = new[] { _rate, _amplitude, _beatError };
         _footerText = footerText;
 
-        foreach (Pane pane in _panes)
+        for (int i = 0; i < _panes.Length; i++)
         {
-            pane.Plot.PointerWheelChanged += (_, _) => _followLive = false;
-            pane.Plot.PointerPressed += (_, _) => _followLive = false;
+            int idx = i;
+            AvaPlot plot = _panes[idx].Plot;
+            // Any zoom (wheel), drag (pan / zoom-rectangle, while a button is
+            // held), or interaction end re-links the other panes onto this one's
+            // X window. PointerPressed just drops live-follow; it changes no axis.
+            plot.PointerPressed += (_, _) => _followLive = false;
+            plot.PointerWheelChanged += (_, _) => OnUserAxisInteraction(idx);
+            plot.PointerReleased += (_, _) => OnUserAxisInteraction(idx);
+            plot.PointerMoved += (_, e) =>
+            {
+                Avalonia.Input.PointerPointProperties props = e.GetCurrentPoint(plot).Properties;
+                if (props.IsLeftButtonPressed || props.IsRightButtonPressed || props.IsMiddleButtonPressed)
+                {
+                    OnUserAxisInteraction(idx);
+                }
+            };
         }
     }
 
@@ -131,6 +155,66 @@ internal sealed class LongTermPerfRenderer
         }
 
         RefreshAll();
+    }
+
+    /// <summary>
+    /// Links a user zoom/pan on one pane onto the others: drops live-follow and
+    /// copies this pane's X window to the rest so all three stay on the same
+    /// elapsed-time range. Deferred so ScottPlot has applied the new limits to
+    /// the source plot before they are read, and coalesced so a continuous drag
+    /// queues a single sync (reading the latest limits) instead of one per
+    /// PointerMoved.
+    /// </summary>
+    private void OnUserAxisInteraction(int source)
+    {
+        _followLive = false;
+        _syncSource = source; // latest interaction wins when the pending post runs
+        if (_syncPending)
+        {
+            return;
+        }
+
+        _syncPending = true;
+        Dispatcher.UIThread.Post(
+            () =>
+            {
+                _syncPending = false;
+                SyncXAxisFrom(_syncSource);
+            },
+            DispatcherPriority.Background);
+    }
+
+    private void SyncXAxisFrom(int source)
+    {
+        if (_syncing)
+        {
+            return;
+        }
+
+        _syncing = true;
+        try
+        {
+            // The three panes share one elapsed-time X base, so the X limits
+            // transfer directly. Y stays per-pane — each measure has its own
+            // units — auto-scaled to the data now in the shared window.
+            AxisLimits limits = _panes[source].Plot.Plot.Axes.GetLimits();
+            for (int i = 0; i < _panes.Length; i++)
+            {
+                if (i == source)
+                {
+                    continue;
+                }
+
+                Plot plot = _panes[i].Plot.Plot;
+                plot.Axes.SetLimitsX(limits.Left, limits.Right);
+                plot.Axes.AutoScaleY();
+                _panes[i].Plot.Refresh();
+            }
+        }
+        finally
+        {
+            _syncing = false;
+        }
     }
 
     public void RenderFrame(AnalysisFrame frame, AnalysisTabRenderContext context)
