@@ -145,7 +145,11 @@ internal sealed class MultiFilterScopeRenderer
             }
 
             _cursors[i] = AddCursor(plot);
-            PlotAxisRules.ClampLeftEdgeToZero(plot);
+            // Wall (span-preserving) floor, not the plain left floor: the four
+            // lanes share one linked X window, so a left pan that collapsed a
+            // lane past the origin would be propagated to the others. The wall
+            // stops the pan at the origin and keeps the window valid.
+            PlotAxisRules.ClampLeftEdgePreservingSpan(plot);
         }
 
         ApplySeriesTheme();
