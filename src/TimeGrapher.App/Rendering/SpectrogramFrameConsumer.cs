@@ -17,6 +17,7 @@ internal sealed class SpectrogramFrameConsumer : IAnalysisFrameConsumer, IThemed
     private int _latestLiveColumn;
     private double _latestColumnSeconds;
     private double _latestBeatPeriodS;
+    private double _latestBeatOnsetS;
     private bool _displayedLight = PlotThemePalette.Current.IsLight;
 
     public SpectrogramFrameConsumer(SpectrogramRenderer renderer)
@@ -39,6 +40,7 @@ internal sealed class SpectrogramFrameConsumer : IAnalysisFrameConsumer, IThemed
         _ = context;
         _latestSourceImage = null;
         _latestSpectrogramImage = null;
+        _latestBeatOnsetS = 0.0;
         _renderer.Reset();
     }
 
@@ -52,7 +54,7 @@ internal sealed class SpectrogramFrameConsumer : IAnalysisFrameConsumer, IThemed
         _renderer.ApplyTheme(theme.IsLight);
         if (TryRemapKeptImage(theme.IsLight, out PixelBuffer? remapped))
         {
-            _renderer.RenderWindowed(remapped, _latestLiveColumn, _latestColumnSeconds, _latestBeatPeriodS);
+            _renderer.RenderWindowed(remapped, _latestLiveColumn, _latestColumnSeconds, _latestBeatPeriodS, _latestBeatOnsetS);
         }
     }
 
@@ -83,6 +85,15 @@ internal sealed class SpectrogramFrameConsumer : IAnalysisFrameConsumer, IThemed
 
     public void ObserveFrame(AnalysisFrame frame)
     {
+        // Track the most recent A (beat) onset so Last Beat can phase-lock to it.
+        // Beat segments complete on their own cadence, independent of the image
+        // publish, so this is read every frame it is present.
+        if (frame.BeatSegments != null && frame.BeatSegments.Segments.Count > 0)
+        {
+            BeatSegment last = frame.BeatSegments.Segments[^1];
+            _latestBeatOnsetS = last.StartTimeS + last.AOffsetMs / 1000.0;
+        }
+
         // A re-routed kept frame carries the same pooled buffer reference (the
         // publish pool never repeats a reference on consecutive publishes), so
         // re-observing it must not overwrite a theme-remapped copy with the
@@ -108,7 +119,7 @@ internal sealed class SpectrogramFrameConsumer : IAnalysisFrameConsumer, IThemed
         if (_latestSpectrogramImage != null)
         {
             _renderer.RenderWindowed(
-                _latestSpectrogramImage, _latestLiveColumn, _latestColumnSeconds, _latestBeatPeriodS);
+                _latestSpectrogramImage, _latestLiveColumn, _latestColumnSeconds, _latestBeatPeriodS, _latestBeatOnsetS);
         }
     }
 }

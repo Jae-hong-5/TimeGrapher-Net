@@ -48,6 +48,11 @@ internal sealed class SpectrogramRenderer
     private double _lastColumnSeconds;
     private double _lastBeatPeriodS;
 
+    // Stream time (s) of the most recent detected A (beat) onset. In Last Beat
+    // mode the view is phase-locked to it so the beat stays put instead of
+    // drifting against a fixed-period grid. 0 before the first beat is captured.
+    private double _lastBeatOnsetS;
+
     // Display buffer for the current window: rebuilt every render by cropping the
     // most recent `cols` columns out of the source's full DisplaySeconds history,
     // so a window change is just a re-crop of the same data — no history is lost
@@ -137,6 +142,7 @@ internal sealed class SpectrogramRenderer
         _sweepHead = 0;
         _totalColumns = 0;
         _lastLiveColumn = 0;
+        _lastBeatOnsetS = 0.0;
 
         // Always drop the previous run's image — with the tab hidden the bounds are
         // zero and the blank repaint below is skipped, which would leave stale data.
@@ -158,7 +164,7 @@ internal sealed class SpectrogramRenderer
     /// total-column count by the live-column delta, and re-crops the view. UI
     /// thread only.
     /// </summary>
-    public void RenderWindowed(PixelBuffer image, int liveColumn, double columnSeconds, double beatPeriodS)
+    public void RenderWindowed(PixelBuffer image, int liveColumn, double columnSeconds, double beatPeriodS, double beatOnsetS)
     {
         int sourceWidth = image.Width;
         if (_lastImage == null)
@@ -177,6 +183,7 @@ internal sealed class SpectrogramRenderer
         _lastLiveColumn = liveColumn;
         _lastColumnSeconds = columnSeconds;
         _lastBeatPeriodS = beatPeriodS;
+        _lastBeatOnsetS = beatOnsetS;
         RenderCurrent();
     }
 
@@ -239,13 +246,22 @@ internal sealed class SpectrogramRenderer
         _emptyColor = PlotThemePalette.Current.ScopeBg;
         _sweepBuffer.Fill(_emptyColor);
 
+        // Last Beat phase-locks to the real A onset (re-read each beat) so the beat
+        // stays put: shifting the sweep phase by (onset column − cols/2) centers
+        // the onset in the window. Seconds mode has no shift (phase = column % cols).
+        long shift = 0;
+        if (_viewMode == SpectrogramViewMode.LastBeat && _lastBeatOnsetS > 0.0 && _lastColumnSeconds > 0.0)
+        {
+            shift = (long)Math.Round(_lastBeatOnsetS / _lastColumnSeconds) - cols / 2;
+        }
+
         long total = _totalColumns;
         long firstColumn = Math.Max(0, total - cols); // only the most recent cols exist
         uint[] source = _lastImage!.Pixels;
         uint[] target = _sweepBuffer.Pixels;
         for (long c = firstColumn; c < total; c++)
         {
-            int viewColumn = (int)(c % cols);
+            int viewColumn = (int)(((c - shift) % cols + cols) % cols);
             int sourceColumn = (int)(c % sourceWidth);
             for (int y = 0; y < height; y++)
             {
@@ -254,7 +270,7 @@ internal sealed class SpectrogramRenderer
         }
 
         _sweepCols = cols;
-        _sweepHead = (int)(total % cols); // live edge: the next column to be written
+        _sweepHead = (int)(((total - shift) % cols + cols) % cols); // live edge: next column to write
     }
 
     private double CurrentWindowSeconds()
