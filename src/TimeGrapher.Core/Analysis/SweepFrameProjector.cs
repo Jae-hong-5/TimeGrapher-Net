@@ -18,7 +18,7 @@ namespace TimeGrapher.Core.Analysis;
 /// </summary>
 public sealed class SweepFrameProjector
 {
-    public const int DefaultSweepMultiple = 2;
+    public const int DefaultSweepMultiple = 1;
     public const int SweepBinBudget = 4000;
 
     /// <summary>Nominal 28800-BPH beat period used before any lock.</summary>
@@ -71,8 +71,8 @@ public sealed class SweepFrameProjector
     }
 
     /// <summary>
-    /// Sweep window length as a multiple of the beat period (the plan offers
-    /// 1x / 2x / 4x). Thread-safe; a change re-tunes the window and clears the
+    /// Sweep window length as a multiple of the tick-tick interval (the plan offers
+    /// 1x / 2x / 3x). Thread-safe; a change re-tunes the window and clears the
     /// bins on the next analysis pass.
     /// </summary>
     public void SetSweepMultiple(int sweepMultiple)
@@ -185,7 +185,7 @@ public sealed class SweepFrameProjector
         }
 
         double beatPeriodS = _lastKnownBeatPeriodS > 0.0 ? _lastKnownBeatPeriodS : FallbackBeatPeriodS;
-        double candidate = multiple * beatPeriodS;
+        double candidate = (2 * multiple) * beatPeriodS;  // tick-tick interval = 2 × beat period
         if (multiple == _activeSweepMultiple &&
             _windowS > 0.0 &&
             Math.Abs(candidate - _windowS) <= _windowS * WindowRetuneFraction)

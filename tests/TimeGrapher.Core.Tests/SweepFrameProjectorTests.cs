@@ -205,9 +205,10 @@ public sealed class SweepFrameProjectorTests
         GraphSeriesFrame series = Snapshot(projector);
         Assert.All(series.Y, y => Assert.Equal(0.0, y));
 
-        // 4x window = 500 ms: the bin centers now span ~0..500 ms.
-        double binWidthMs = 500.0 / SweepFrameProjector.SweepBinBudget;
-        Assert.Equal(500.0 - binWidthMs / 2.0, series.X[^1], 6);
+        // 4x window (tick-tick interval) = 1000 ms (2 × 4 × 125 ms):
+        // the bin centers now span ~0..1000 ms.
+        double binWidthMs = 1000.0 / SweepFrameProjector.SweepBinBudget;
+        Assert.Equal(1000.0 - binWidthMs / 2.0, series.X[^1], 6);
     }
 
     [Fact]
@@ -225,7 +226,7 @@ public sealed class SweepFrameProjectorTests
     [Fact]
     public void SnapshotIsSharedWithinThePublishFloorAndHidesInBetweenData()
     {
-        // 2x window = 12000 samples; the publish floor is 50 ms = 2400 samples.
+        // 1x window (tick-tick) = 12000 samples; the publish floor is 50 ms = 2400 samples.
         var projector = new SweepFrameProjector(SampleRate);
         const int windowSamples = 12000;
         projector.Project(Update(ImpulseBlock(windowSamples, 1.0f, 0), 0UL));

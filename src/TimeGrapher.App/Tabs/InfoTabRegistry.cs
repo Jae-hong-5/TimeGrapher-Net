@@ -305,13 +305,13 @@ internal sealed partial class InfoTabRegistry
             grid.Children.Add(overlay);
         }
 
-        // 1x/2x/4x sweep-time selector pinned to the top-right of the plot. The
+        // 1x/2x/3x sweep-time selector pinned to the top-right of the plot. The
         // buttons write the shared SweepMultiple view-model property; MainWindow
         // forwards the change to the running analysis worker (the
         // SetSoundBackgroundColor flow). The active multiple renders disabled.
         if (context.ViewModel is { } viewModel)
         {
-            int[] multiples = { 1, 2, 4 };
+            int[] multiples = { 1, 2, 3 };
             var buttons = new Button[multiples.Length];
 
             void UpdateButtonStates()
@@ -339,7 +339,7 @@ internal sealed partial class InfoTabRegistry
                     Padding = new Thickness(8, 2, 8, 2),
                     FontSize = 11,
                 };
-                ToolTip.SetTip(button, $"Sweep window = {multiple}x the beat period");
+                ToolTip.SetTip(button, $"Sweep window = {multiple}x the tick-tick interval");
                 button.Click += (_, _) =>
                 {
                     viewModel.SweepMultiple = multiple;
@@ -355,7 +355,7 @@ internal sealed partial class InfoTabRegistry
         }
 
         var renderer = new ScopeSweepRenderer(sweepPlot, referenceText);
-        // Reset View sits top-left so it never collides with the 1x/2x/4x
+        // Reset View sits top-left so it never collides with the 1x/2x/3x
         // selector pinned top-right.
         Button resetView = CreateOverlayButton(
             "Reset View", "Re-enable live auto-fitting of the sweep window", renderer.ResetView);
