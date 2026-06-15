@@ -1,14 +1,17 @@
-# Data Model View
+# 데이터 모델 뷰
 
-TimeGrapherNet은 별도 데이터베이스를 사용하지 않는다. 따라서 전통적인 persisted domain element는 WAV 파일이며, 나머지는 실행 중 생성·전달·렌더링되는 도메인 데이터 구조다. 이 다이어그램은 프로젝트가 조작하는 주요 데이터 엔티티와 1:1, 1:n, 집합/집약, 일반화/특수화 관계를 함께 보여준다.
+TimeGrapherNet은 데이터베이스가 없다. 유일하게 영속되는 도메인 요소는 WAV 파일이고, 나머지는 실행 중 생성·전달·렌더링되는 런타임 도메인 데이터 구조다. 아래 클래스 다이어그램은 주요 데이터 엔티티와 그 관계(1:1, 1:n, 집약/합성, 일반화/특수화)를 보여준다.
+
+> 개념(conceptual) 노드 안내: `AnalysisRun`, `AudioSource` 및 그 특수화(`LiveAudioSource`/`PlaybackSource`/`SimSource`)는 단일 실재 클래스가 아니다. 한 번의 분석 세션 수명주기와 입력 소스 종류를 나타내는 도메인 개념으로, 실제로는 `AnalysisWorker`·`RunCommandService`·세 입력 워커(`AudioCaptureWorker`/`LinuxLiveAudioWorker`, `PlaybackWorker`, `SimWorker`)와 `RunCommandMode` 열거형에 분산되어 구현된다. 이들 노드의 속성은 실제 설정/런타임 사용에 근거한 표시용이다.
 
 ```mermaid
 classDiagram
 direction TB
 
 class AnalysisRun {
+    <<conceptual>>
     +ulong SessionId
-    +RunMode Mode
+    +RunCommandMode Mode
 }
 
 class AnalysisRunSettings {
@@ -22,25 +25,28 @@ class AnalysisRunSettings {
     +int SoundImageWidth
     +int SoundImageHeight
     +int ScopeSnapshotPointBudget
+    +bool PllEventVeto
 }
 
 class AudioSource {
-    <<abstract>>
-    +string SourceKind
+    <<conceptual>>
 }
 
 class LiveAudioSource {
+    <<conceptual>>
     +double Gain
 }
 
 class PlaybackSource {
+    <<conceptual>>
     +string FilePath
 }
 
 class SimSource {
+    <<conceptual>>
     +double Bph
-    +double RateError
-    +double BeatError
+    +double RateErrorSPerDay
+    +double BeatErrorMs
 }
 
 class LiveAudioDevice {
@@ -54,11 +60,16 @@ class WatchSynthStreamConfig {
     +double RateErrorSPerDay
     +double BeatErrorMs
     +double WatchAmplitudeDegrees
+    +double LiftAngleDegrees
+    +int EnableRealisticPacket
+    +double ImpulseNoiseRatePerSecond
+    +음향/노이즈/패킷 모델 등 다수 필드 생략
 }
 
 class WavFile {
+    <<conceptual>>
     +string Path
-    +bytes RIFF_WAVE_Data
+    +RIFF/WAVE 바이트
 }
 
 class WavFormatInfo {
@@ -78,13 +89,11 @@ class WavData {
 }
 
 class MasterAudioBuffer {
-    +int Channels
-    +int SecondsOfBuffer
-    +float[] Samples
-    +ulong TotalSamplesWritten
-    +double Fps
-    +double Spf
-    +double Sps
+    +const int Channels = 1
+    +const int SecondsOfBuffer = 30
+    +WriteSamples()
+    +CopyAnalysisSamples()
+    +TryGetCaptureTimestamp()
 }
 
 class AnalysisFrame {
@@ -106,13 +115,12 @@ class AnalysisFrame {
     +ulong GraphTickEnd
     +bool SoundImageUpdated
     +bool SpectrogramImageUpdated
-    +double BackgroundFps
-    +double BackgroundSps
-    +double BackgroundSpf
-    +double ForegroundFps
-    +double ForegroundSps
-    +double ForegroundSpf
+    +int SpectrogramLiveColumn
+    +double SpectrogramColumnSeconds
+    +double SpectrogramBeatPeriodS
     +bool ForegroundStatsUpdated
+    +double BackgroundFps/Sps/Spf
+    +double ForegroundFps/Sps/Spf
 }
 
 class GraphSeriesFrame {
@@ -148,10 +156,8 @@ class ScopeTextMarker {
 class WatchMetricsUpdate {
     +bool TicRateUpdated
     +bool TocRateUpdated
-    +IReadOnlyList~double~ XTic
-    +IReadOnlyList~double~ YTic
-    +IReadOnlyList~double~ XToc
-    +IReadOnlyList~double~ YToc
+    +IReadOnlyList~double~ XTic/YTic
+    +IReadOnlyList~double~ XToc/YToc
     +bool ResultsUpdated
     +string ResultsText
     +string CMarkerText
@@ -198,8 +204,6 @@ class BeatMetricsHistorySnapshot {
     +MetricsHistorySeries Amplitude
     +MetricsHistorySeries BeatError
     +DerivedTimingMeasures Derived
-    +StatsSummary RateStats
-    +StatsSummary AmplitudeStats
     +bool RateValid
     +double RateSPerDay
     +int Bph
@@ -208,6 +212,9 @@ class BeatMetricsHistorySnapshot {
     +bool BeatErrorValid
     +double BeatErrorSignedMs
     +double LatestTimeS
+    +double StatsElapsedS
+    +StatsSummary RateStats
+    +StatsSummary AmplitudeStats
     +WatchPosition ActivePosition
     +IReadOnlyList~PositionSummary~ Positions
 }
@@ -306,6 +313,7 @@ class TgConfig {
     +double MinPeakFractionInit
     +bool SuppressPreSyncEvents
     +TgCPlacement CPlacement
+    +bool TrackEventPllMatch
 }
 
 class TgResult {
@@ -338,78 +346,130 @@ class TgEvent {
     +bool OnsetValid
 }
 
+class DetectorResultSnapshot {
+    +TgSyncStatus SyncStatus
+    +int DetectedBph
+    +double MeasuredPeriodS
+    +IReadOnlyList~TgEvent~ Events
+    +float[] ProcessedPcm
+    +int ProcessedPcmLen
+    +ulong ProcessedPcmStartSample
+    +bool SyncLostEvent
+    +bool SyncAcquiredEvent
+    +bool DetectorResetEvent
+    +float OnsetThreshold/MinPeakThreshold
+    +float NoiseFloor/ReferencePeak
+    +ulong MissedBeats
+    +uint SyncLossCount
+    +ulong VetoedEvents
+}
+
+class DetectorMetricsBlockUpdate {
+    +DetectorResultSnapshot Result
+    +IReadOnlyList~DetectedEventUpdate~ DisplayEvents
+    +IReadOnlyList~DetectedEventUpdate~ MetricsEvents
+}
+
+class DetectedEventUpdate {
+    +TgEvent Event
+    +double EventSample
+    +WatchMetricsUpdate MetricsUpdate
+}
+
+class BeatCandidate {
+    +TgEvent Event
+    +bool Synced
+    +int DetectedBph
+    +double BeatPeriodS
+    +float NoiseFloor
+    +float ReferencePeak
+    +bool PllMatched
+}
+
+class BeatEventGateConfig {
+    +IBeatEventGate Gate
+}
+
 AudioSource <|-- LiveAudioSource
 AudioSource <|-- PlaybackSource
 AudioSource <|-- SimSource
 
-AnalysisRun "1" *-- "1" AnalysisRunSettings : configured by
-AnalysisRun "1" *-- "1" AudioSource : selects
-AnalysisRun "1" *-- "1" MasterAudioBuffer : owns
-AnalysisRun "1" o-- "0..*" AnalysisFrame : produces
+AnalysisRun "1" *-- "1" AnalysisRunSettings : 설정으로 사용
+AnalysisRun "1" *-- "1" AudioSource : 입력 소스 선택
+AnalysisRun "1" *-- "1" MasterAudioBuffer : 소유
+AnalysisRun "1" o-- "0..*" AnalysisFrame : 생성
 
-LiveAudioSource "1" --> "1" LiveAudioDevice : captures from
-PlaybackSource "1" --> "1" WavFile : reads
-SimSource "1" *-- "1" WatchSynthStreamConfig : uses
+LiveAudioSource "1" --> "1" LiveAudioDevice : 캡처 대상
+PlaybackSource "1" --> "1" WavFile : 읽음
+SimSource "1" *-- "1" WatchSynthStreamConfig : 합성 파라미터
 
-WavFile "1" *-- "1" WavFormatInfo : contains format
-WavFile "1" --> "0..1" WavData : decoded as
-WavData "1" --> "0..*" MasterAudioBuffer : supplies samples to
-MasterAudioBuffer "1" --> "0..*" TgResult : analyzed into
+WavFile "1" *-- "1" WavFormatInfo : 포맷 포함
+WavFile "1" --> "0..1" WavData : 디코딩 결과
+WavData "1" --> "0..*" MasterAudioBuffer : 샘플 공급
+MasterAudioBuffer "1" --> "0..*" TgResult : 분석 입력
 
-TgConfig "1" --> "0..*" TgResult : configures detection
-TgResult "1" *-- "0..*" TgEvent : contains
+TgConfig "1" --> "0..*" TgResult : 검출 설정
+TgResult "1" *-- "0..*" TgEvent : 이벤트 목록
+TgConfig "1" --> "0..*" DetectorMetricsBlockUpdate : 엔진 설정에 반영
+DetectorMetricsBlockUpdate "1" *-- "1" DetectorResultSnapshot : 원검출 스냅샷
+DetectorMetricsBlockUpdate "1" o-- "0..*" DetectedEventUpdate : 표시/메트릭 이벤트
+DetectedEventUpdate "1" *-- "1" WatchMetricsUpdate : 이벤트별 메트릭
+BeatEventGateConfig "1" --> "0..*" BeatCandidate : 게이트 판정 입력
 
-AnalysisFrame "1" *-- "0..*" GraphSeriesFrame : contains scope/rate series
-AnalysisFrame "1" *-- "0..*" ScopeVerticalMarker : contains vertical markers
-AnalysisFrame "1" *-- "0..*" ScopeHorizontalMarker : contains horizontal markers
-AnalysisFrame "1" *-- "0..*" ScopeTextMarker : contains text markers
-AnalysisFrame "1" *-- "1" WatchMetricsUpdate : contains metrics
-AnalysisFrame "1" o-- "0..1" PixelBuffer : contains sound image
-AnalysisFrame "1" o-- "0..1" PixelBuffer : contains spectrogram image
-AnalysisFrame "1" o-- "0..1" BeatMetricsHistorySnapshot : shares cumulative history
-AnalysisFrame "1" o-- "0..1" BeatSegmentsSnapshot : shares recent beat windows
+AnalysisFrame "1" *-- "0..*" GraphSeriesFrame : 스코프/레이트 시리즈
+AnalysisFrame "1" *-- "0..*" ScopeVerticalMarker : 수직 마커
+AnalysisFrame "1" *-- "0..*" ScopeHorizontalMarker : 수평 마커
+AnalysisFrame "1" *-- "0..*" ScopeTextMarker : 텍스트 마커
+AnalysisFrame "1" *-- "1" WatchMetricsUpdate : 수치 결과
+AnalysisFrame "1" o-- "0..1" PixelBuffer : 사운드 이미지
+AnalysisFrame "1" o-- "0..1" PixelBuffer : 스펙트로그램 이미지
+AnalysisFrame "1" o-- "0..1" BeatMetricsHistorySnapshot : 누적 이력 공유
+AnalysisFrame "1" o-- "0..1" BeatSegmentsSnapshot : 최근 비트 윈도우 공유
 
-WatchMetricsUpdate "1" o-- "0..1" BeatTimingSample : per A event
-WatchMetricsUpdate "1" o-- "0..1" AmplitudeSample : per C event
-WatchMetricsUpdate "1" o-- "0..1" DerivedTimingMeasures : per A event
+WatchMetricsUpdate "1" *-- "1" BeatTimingSample : A 이벤트별(Updated 플래그)
+WatchMetricsUpdate "1" *-- "1" AmplitudeSample : C 이벤트별(Updated 플래그)
+WatchMetricsUpdate "1" *-- "1" DerivedTimingMeasures : A 이벤트별(Updated 플래그)
 BeatMetricsHistorySnapshot "1" *-- "3" MetricsHistorySeries : rate/amplitude/beat error
-BeatMetricsHistorySnapshot "1" *-- "2" StatsSummary : running stability stats
-BeatMetricsHistorySnapshot "1" --> "1" WatchPosition : tags new beats as
-BeatMetricsHistorySnapshot "1" *-- "0..10" PositionSummary : measured positions only
-PositionSummary "1" --> "1" WatchPosition : aggregates
+BeatMetricsHistorySnapshot "1" *-- "2" StatsSummary : 현재 위치 안정도 통계
+BeatMetricsHistorySnapshot "1" --> "1" WatchPosition : 신규 비트 태깅
+BeatMetricsHistorySnapshot "1" *-- "0..10" PositionSummary : 측정된 위치만
+PositionSummary "1" --> "1" WatchPosition : 위치 식별
 PositionSummary "1" *-- "3" StatsSummary : rate/amplitude/beat error
-BeatSegmentsSnapshot "1" o-- "0..8" BeatSegment : recent beats, oldest first
-BeatSegmentsSnapshot "1" *-- "1" BeatNoiseAverageSnapshot : scope 2 lane state
+BeatSegmentsSnapshot "1" o-- "0..8" BeatSegment : 최근 비트(최대 8), 오래된 순
+BeatSegmentsSnapshot "1" *-- "1" BeatNoiseAverageSnapshot : Scope 2 레인 상태
 ```
 
-## Entity summary
+## 엔티티 요약
 
-| Entity | Source in project | Meaning |
+| 엔티티 | 소속 | 의미 |
 |---|---|---|
-| `WavFile`, `WavFormatInfo`, `WavData` | `Core.AudioIo` | Persisted or decoded audio data used for playback, recording, and verification |
-| `AnalysisRunSettings` | `TimeGrapher.App` | User-selected run parameters converted into `AnalysisWorker.Config`: sample rate, lift angle, averaging period, C-onset mode, BPH mode, HPF cutoff, sound-print image dimensions, scope snapshot point budget, and the PLL-event-veto flag. Adaptive floor and regime guard are now the detector default; the veto flag additionally wires `PllMatchGate` |
-| `BeatCandidate`, `BeatEventGateConfig` | `Core.Detection.Scoring`, `Core.Analysis` | The candidate-event context handed to an `IBeatEventGate` (event, sync state, thresholds, PLL match verdict captured at emission time), and the engine-level gate configuration carrier |
-| `AudioSource` specializations | App run modes and Core workers | Live microphone, WAV playback, or synthetic signal input |
-| `MasterAudioBuffer` | `Core.Shared` | Shared mono float ring buffer between input workers and analysis, with input throughput counters and capture timestamp lookup for latency reporting |
-| `TgConfig`, `TgResult`, `TgEvent` | `Core.Detection` | Detector configuration, sync state, processed PCM, one-call event list, sync edge flags, detector thresholds, and typed A/C events distinguished by `TgEvent.Type` plus C-onset metadata |
-| `DetectorMetricsBlockUpdate`, `DetectorResultSnapshot` | `Core.Analysis` | Per-block contract emitted by the shared detector/metrics engine: raw detector snapshot plus the display and metrics event streams consumed by projectors, the live worker, and Verify |
-| `AnalysisFrame` | `Core.Shared` | One UI update payload produced by an analysis pass, including source position, backlog/deadline state, latency timestamps, sync counters, graph tick, current beat-sync state, optional image payloads, and cumulative snapshots |
-| `GraphSeriesFrame`, `ScopeVerticalMarker`, `ScopeHorizontalMarker`, `ScopeTextMarker`, `WatchMetricsUpdate`, `PixelBuffer` | `Core.Shared` | Data displayed as scope/rate graphs, marker DTOs, numeric results, and the sound-print / spectrogram images. The spectrogram payload (`AnalysisFrame.SpectrogramImage`) is the STFT of the recent 10 s input window built by `Core.Analysis.SpectrogramFrameProjector` — x = time, y = frequency (bins 0..~12 kHz, low at the bottom), color = dB magnitude (range −70..−10 dB) through a 64-entry viridis LUT (dark purple→blue→green→yellow, theme-agnostic; the theme only changes the empty no-input background, which the renderer paints with the scope background color) — published from a fixed three-buffer pool on the sound-print cadence |
-| `BeatTimingSample`, `AmplitudeSample`, `DerivedTimingMeasures` | `Core.Shared` | Machine-readable per-beat values (rate error, validity flags, signed beat error, locked BPH, amplitude, pair-average update flag, DiffTicTac/DiffPeriod/AvgPeriod) emitted per A/C event |
-| `BeatMetricsHistorySnapshot`, `MetricsHistorySeries` | `Core.Shared` (built by `Core.Metrics.BeatMetricsHistory`) | Immutable cumulative history of rate/amplitude/beat-error series plus validity-guarded latest readings, running stats, active position, and locked BPH, shared across frames; survives latest-wins frame coalescing |
-| `StatsSummary` | `Core.Shared` (fed by `Core.Metrics.RunningStats`) | Running min/max/mean/population-σ since start for rate and amplitude — exact per-beat statistics independent of series decimation (Vario display) |
-| `WatchPosition` | `Core.Shared` | Standard watch test positions per NIHS 95-10 / ISO 3158 (CH dial up, CB dial down, 6H crown left, 9H crown down, 3H crown up, 12H crown right), plus four 45° intermediate positions (P6H45/P9H45/P3H45/P12H45) for the 10-step sequence; stamped on every snapshot as the position new beats are tagged with |
-| `PositionSummary` | `Core.Shared` (aggregated by `Core.Metrics.BeatMetricsHistory`) | Per-position rate/amplitude/signed-beat-error running aggregates; only measured positions appear, bounded by the 10-position catalog (WatchPositions.Count; Positions display) |
-| `BeatSegmentsSnapshot`, `BeatSegment` | `Core.Shared` (built by `Core.Analysis.BeatSegmentCapture`) | Ring of the last 8 per-beat envelope windows (5 ms pre-roll, 400 ms, 1600 points) with A / C-peak / C-onset offsets, phase and lift angle; segment samples reference the capture's fixed 28-buffer pool and stay immutable while referenced by the completed ring or the two most recently built snapshots — publication-gated reuse. When the worker also feeds the un-rectified input (`AppendRaw`), each window additionally carries the real bipolar waveform as per-point min/max (`RawMin`/`RawMax`, `RawValid` flag) on the envelope's point grid from a parallel raw ring/pool, so the escapement views show the actual raw signal rather than the negated envelope. The capture envelope ring is sized from the configured event-gate post-window, 5 ms pre-roll, one analysis block, and a one-sample sub-sample guard so delayed post-gate display events still read the same source envelope; the raw ring adds the detector's 50 ms envelope-delay lead (Beat-Noise Scope; reused by beat-aligned waveform views) |
-| `BeatNoiseAverageSnapshot` | `Core.Shared` (built by `Core.Analysis.BeatNoiseAverager`) | Scope 2 state: two phase-alternating 20 ms averaged lanes (800 points each) deliberately labeled trace 1/2 — never tic/toc — with per-lane interval counts, intervals-per-lane target, ms-per-point scale, mean peak amplitude and the cycle freeze flag |
+| `WavFile`, `WavFormatInfo`, `WavData` | `Core.AudioIo` | 영속/디코딩된 오디오 데이터. 재생·녹음·검증에 사용. `WavFile`은 개념 노드(파일 자체) |
+| `AnalysisRunSettings` | `TimeGrapher.App` | 사용자가 고른 실행 파라미터(`AnalysisWorker.Config`로 변환). `PllEventVeto`가 켜지면 `PllMatchGate`를 연결한다(적응형 floor·regime guard는 기본 동작) |
+| `AudioSource` 특수화 | App 실행 모드 / Core 워커 | 라이브 마이크, WAV 재생, 합성 신호 입력. 단일 클래스가 아니라 `RunCommandMode`와 세 워커로 표현되는 개념 |
+| `LiveAudioDevice` | `Core.Shared` | 라이브 입력 장치(번호/이름) |
+| `WatchSynthStreamConfig` | `Core.Sim` | 합성 워치 스트림 설정. BPH·레이트오차·비트오차·진폭/리프트각 외에 패킷·공진·노이즈·임펄스 모델 등 다수 필드. 다이어그램은 대표 필드만 표시 |
+| `MasterAudioBuffer` | `Core.Shared` | 입력 워커(쓰기)와 분석 워커(읽기) 간 공유 모노 float 링버퍼(30초). 입력 throughput 카운터와 지연 보고용 캡처 타임스탬프 조회 제공 |
+| `TgConfig`, `TgResult`, `TgEvent` | `Core.Detection` | 검출기 설정 / sync 상태·처리 PCM·이벤트 목록·sync edge 플래그·검출 임계값 / A·C 이벤트(`TgEvent.Type`로 구분, C-onset 메타 포함) |
+| `DetectorResultSnapshot`, `DetectorMetricsBlockUpdate`, `DetectedEventUpdate` | `Core.Analysis` | 공유 검출/메트릭 엔진의 블록당 계약. 원검출 스냅샷과 표시/메트릭 이벤트 스트림을 라이브 워커와 Verify가 공유 |
+| `BeatCandidate`, `BeatEventGateConfig` | `Core.Detection.Scoring`, `Core.Analysis` | 게이트(`IBeatEventGate`)에 넘기는 후보 이벤트 문맥(이벤트·sync·임계값·PLL 매치 판정)과 엔진 레벨 게이트 설정 |
+| `BeatWindowFeatures` | `Core.Detection.Scoring` | 엔벨로프 윈도우의 고정 길이 특징 벡터(128점, bucket-max 데시메이션 후 피크 정규화) 추출기 |
+| `AnalysisFrame` | `Core.Shared` | 한 번의 분석 패스가 만드는 UI 업데이트 단위. 소스 위치·백로그/데드라인 상태·지연 타임스탬프·sync 카운터·그래프 tick·beat-sync 상태·선택적 이미지·누적 스냅샷 포함 |
+| `GraphSeriesFrame`, 마커 3종, `WatchMetricsUpdate`, `PixelBuffer` | `Core.Shared` | 스코프/레이트 그래프 데이터, 마커 DTO, 수치 결과, 사운드/스펙트로그램 이미지. 스펙트로그램은 최근 입력 윈도우의 STFT(x=시간, y=주파수, 색=dB)로 고정 버퍼 풀에서 발행 |
+| `BeatTimingSample`, `AmplitudeSample`, `DerivedTimingMeasures` | `Core.Shared` | A/C 이벤트별 기계 판독 가능 값. 레이트오차/유효성/부호 비트오차/락 BPH/진폭/쌍평균 갱신/DiffTicTac·DiffPeriod·AvgPeriod |
+| `BeatMetricsHistorySnapshot`, `MetricsHistorySeries` | `Core.Shared` (`Core.Metrics.BeatMetricsHistory`가 생성) | rate/amplitude/beat-error 누적 이력 시리즈 + 최신 판독값·통계·활성 위치·락 BPH. 프레임 간 공유되며 latest-wins 합병에도 손실 없음 |
+| `StatsSummary` | `Core.Shared` (`Core.Metrics.RunningStats`가 공급) | 현재 위치 시작 이후 min/max/mean/모집단 σ. 시리즈 데시메이션과 무관한 정확한 비트별 통계(Vario 표시) |
+| `WatchPosition` | `Core.Shared` | NIHS 95-10 / ISO 3158 표준 검사 위치. CH(다이얼 위)·CB(다이얼 아래)·6H/9H/3H/12H 수직 4종 + 45° 중간 4종으로 총 10단계 |
+| `PositionSummary` | `Core.Shared` (`BeatMetricsHistory`가 집계) | 위치별 rate/amplitude/부호 비트오차 누적 통계. 측정된 위치만 등장(최대 `WatchPositions.Count`=10) |
+| `BeatSegmentsSnapshot`, `BeatSegment` | `Core.Shared` (`Core.Analysis.BeatSegmentCapture`가 생성) | 최근 비트별 엔벨로프 윈도우의 링(최대 8개, `SegmentRingCount`). A/C-peak/C-onset 오프셋과 위상·리프트각 포함. 원파형 min/max(`RawMin`/`RawMax`)는 `RawValid`일 때만 채워진다. 샘플은 캡처의 풀 버퍼를 참조하며 발행 게이트로 불변 보장(Beat-Noise Scope) |
+| `BeatNoiseAverageSnapshot` | `Core.Shared` (`Core.Analysis.BeatNoiseAverager`가 생성) | Scope 2 상태. 위상 교대 20ms 평균 레인 2개(의도적으로 trace 1/2로 표기, tic/toc 아님)와 레인별 카운트·ms/point·평균 피크·동결 플래그 |
 
-## Relationship notes
+## 관계 노트
 
-| Relationship type | Representation in this project |
+| 관계 종류 | 본 프로젝트에서의 표현 |
 |---|---|
-| 1:1 | One `AnalysisRun` has one `AnalysisRunSettings`, one selected `AudioSource`, and one `MasterAudioBuffer` |
-| 1:n | One `AnalysisRun` produces many `AnalysisFrame` objects; one `TgResult` contains many `TgEvent` objects; one `AnalysisFrame` contains many graph series and marker DTOs |
-| Pre/post-gate event streams | When an event gate is configured, `DetectorResultSnapshot.Events` keeps the PRE-gate raw detector stream for diagnostics, while `DetectorMetricsBlockUpdate.DisplayEvents` and `DetectorMetricsBlockUpdate.MetricsEvents` carry the same POST-gate stream that reached `WatchMetrics`; `DetectorResultSnapshot.VetoedEvents` counts the dropped events (including pair-vetoed Cs) |
-| n:n | No native persisted many-to-many relationship exists because the app has no database and most runtime data is owned by a single run/frame |
-| Generalization / specialization | `AudioSource` specializes into live/playback/sim sources; detector events are one `TgEvent` DTO distinguished by `TgEvent.Type`; marker payloads are three separate DTOs (`ScopeVerticalMarker`, `ScopeHorizontalMarker`, `ScopeTextMarker`) rather than subclasses of a shared marker type |
-| Aggregation / composition | `AnalysisFrame` is composed from graph series, marker DTOs, metrics, and the optional sound-print / spectrogram images (each a `PixelBuffer` from its projector's fixed publish pool); `WavFile` contains format metadata and can be decoded into `WavData`; `BeatMetricsHistorySnapshot` aggregates three `MetricsHistorySeries` plus up to ten `PositionSummary` rows (WatchPositions.Count) and is shared (aggregation, not owned) by many frames; `BeatSegmentsSnapshot` is shared the same way and aggregates (not owns) up to eight `BeatSegment` windows whose samples live in the capture's pooled buffers |
+| 1:1 | 한 `AnalysisRun`은 `AnalysisRunSettings` 하나, 선택된 `AudioSource` 하나, `MasterAudioBuffer` 하나를 가진다 |
+| 1:n | 한 `AnalysisRun`은 다수 `AnalysisFrame`을 생성하고, 한 `TgResult`는 다수 `TgEvent`를, 한 `AnalysisFrame`은 다수 그래프 시리즈·마커 DTO를 포함한다 |
+| Pre/post-gate 이벤트 스트림 | 게이트가 설정되면 `DetectorResultSnapshot.Events`는 PRE-gate 원검출 스트림(진단용)을, `DetectorMetricsBlockUpdate`의 `DisplayEvents`/`MetricsEvents`는 `WatchMetrics`에 도달한 POST-gate 스트림을 전달한다. `DetectorResultSnapshot.VetoedEvents`는 누락 이벤트 수(쌍 거부된 C 포함)를 센다 |
+| n:n | DB가 없고 대부분의 런타임 데이터는 단일 run/frame이 소유하므로 영속 다대다 관계는 없다 |
+| 일반화/특수화 | `AudioSource`는 live/playback/sim으로 특수화된다(개념 수준). 검출 이벤트는 `TgEvent.Type`로 구분되는 단일 DTO이며, 마커는 공유 상위형 없이 3개의 별도 DTO다 |
+| 집약/합성 | `AnalysisFrame`은 그래프 시리즈·마커·메트릭·선택적 이미지(`PixelBuffer`)로 합성된다. 단, 누적 스냅샷(`BeatMetricsHistorySnapshot`/`BeatSegmentsSnapshot`)은 여러 프레임이 같은 불변 인스턴스를 공유하므로 집약(소유 아님)이다. `BeatMetricsHistorySnapshot`은 `MetricsHistorySeries` 3개와 최대 10개 `PositionSummary`를, `BeatSegmentsSnapshot`은 최대 8개(`SegmentRingCount`)의 `BeatSegment`를 모은다 |

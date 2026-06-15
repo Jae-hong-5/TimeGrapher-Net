@@ -1,75 +1,99 @@
-# Model-View-Controller View
+# 모델-뷰-컨트롤러 뷰
 
-이 문서는 TimeGrapherNet을 Model-View-Controller(MVC) 관점으로 해석해 보여준다. 실제 구현은 Avalonia의 바인딩과 `ViewModels`를 사용하는 실용적 MVVM/MVC 혼합 구조이지만, 사용자 입력 처리와 분석 상태 갱신 흐름은 MVC의 View, Controller, Model 역할로 나누어 설명할 수 있다.
+이 문서는 TimeGrapherNet을 Model-View-Controller(MVC) 관점으로 해석한다. 실제 구현은 Avalonia 바인딩과 `ViewModels`를 사용하는 MVVM/MVC 혼합 구조이지만, 사용자 입력 처리와 분석 상태 갱신 흐름은 View/Controller/Model 역할로 나누어 설명할 수 있다.
 
 ```mermaid
 flowchart LR
-    subgraph View["View - exhibits data and captures user actions"]
+    subgraph View["View - 데이터 표시 및 사용자 입력 수집"]
         direction TB
         AxamlViews["Views<br/>MainWindow.axaml,<br/>SplashWindow.axaml"]
-        Renderers["Rendering<br/>GraphFrameRenderer,<br/>tab renderers,<br/>frame consumers"]
+        Renderers["Rendering<br/>GraphFrameRenderer,<br/>탭별 *Renderer,<br/>*FrameConsumer"]
         TabViews["Tabs<br/>InfoTabCatalog,<br/>InfoTabRegistry,<br/>AnalysisFrameRouter"]
     end
 
-    subgraph Controller["Controller - handles user actions and coordinates business logic"]
+    subgraph Controller["Controller - 사용자 입력 처리 및 로직 조정"]
         direction TB
-        MainWindowController["MainWindow code-behind<br/>AudioSetup, RunLifecycle,<br/>RunCommandOperations,<br/>SelectionOperations,<br/>view-model property forwarding"]
-        RunServices["Run services<br/>RunCommandService,<br/>RunSessionController,<br/>RunSelectionResolver"]
-        SelectionServices["Selection and dialog services<br/>MainWindowSelectionCoordinator,<br/>PlaybackFileService,<br/>MainWindowDialogService"]
-        RecordingServices["Recording services<br/>RecordingSessionService,<br/>QueuedRecordingWriter"]
-        AudioController["Audio control<br/>LiveAudioBackend,<br/>AudioSmokeRunner"]
+        MainWindowController["MainWindow 코드비하인드<br/>AudioSetup, RunLifecycle,<br/>RunCommandOperations,<br/>SelectionOperations,<br/>뷰모델 속성 전달"]
+        RunServices["실행 서비스<br/>RunCommandService,<br/>RunSessionController,<br/>RunSelectionResolver"]
+        SelectionServices["선택/대화상자 서비스<br/>MainWindowSelectionCoordinator,<br/>PlaybackFileService,<br/>MainWindowDialogService"]
+        RecordingServices["녹음 서비스<br/>RecordingSessionService,<br/>QueuedRecordingWriter"]
+        AudioController["오디오 제어<br/>LiveAudioBackend,<br/>AudioSmokeRunner"]
     end
 
-    subgraph Model["Model - encapsulates application and domain data"]
+    subgraph Model["Model - 응용/도메인 데이터 캡슐화"]
         direction TB
-        UiStateModel["App UI state model<br/>MainWindowViewModel,<br/>commands, selected run options,<br/>selected position"]
-        CoreShared["Core.Shared<br/>AnalysisFrame, WatchMetricsUpdate,<br/>BeatMetricsHistorySnapshot,<br/>MasterAudioBuffer, PixelBuffer,<br/>audio worker contracts"]
-        CoreDomain["Core domain model and logic<br/>Analysis, Detection, Metrics,<br/>Imaging, AudioIo, Sim"]
-        PlatformModel["Platform audio adapters<br/>WindowsAudio, LinuxAudio<br/>implement Core live-audio contracts"]
+        UiStateModel["앱 UI 상태<br/>MainWindowViewModel,<br/>커맨드, 실행 옵션,<br/>SelectedPositionIndex"]
+        CoreShared["Core.Shared<br/>AnalysisFrame, WatchMetricsUpdate,<br/>BeatMetricsHistorySnapshot,<br/>MasterAudioBuffer, PixelBuffer,<br/>오디오 워커 계약"]
+        CoreDomain["Core 도메인 모델/로직<br/>Analysis, Detection, Metrics,<br/>Imaging, AudioIo, Sim"]
+        PlatformModel["플랫폼 오디오 어댑터<br/>WindowsAudio, LinuxAudio"]
     end
 
-    View -- "displays / binds to" --> UiStateModel
-    View -- "renders analysis data" --> CoreShared
-    View -- "user actions" --> Controller
+    View -- "바인딩/표시" --> UiStateModel
+    View -- "분석 데이터 렌더링" --> CoreShared
+    View -- "사용자 입력" --> Controller
 
-    Controller -- "updates UI state" --> UiStateModel
-    Controller -- "starts, stops, configures" --> CoreDomain
-    Controller -- "reads / writes frames and audio data" --> CoreShared
-    Controller -- "selects live audio backend" --> PlatformModel
-    Controller -. "may update view directly<br/>dialogs, window lifecycle" .-> View
+    Controller -- "UI 상태 갱신" --> UiStateModel
+    Controller -- "시작/중지/구성" --> CoreDomain
+    Controller -- "프레임/오디오 입출력" --> CoreShared
+    Controller -- "라이브 백엔드 선택" --> PlatformModel
+    Controller -. "대화상자/창 생명주기는<br/>뷰 직접 조작" .-> View
 
-    PlatformModel -- "implements contracts from" --> CoreShared
-    CoreDomain -- "produces / consumes" --> CoreShared
+    PlatformModel -- "ILiveAudioWorker 구현" --> CoreShared
+    CoreDomain -- "생산/소비" --> CoreShared
 ```
 
-## MVC role mapping
+## MVC 역할 매핑
 
-| MVC element | Project modules | Responsibility |
+| MVC 요소 | 프로젝트 모듈 | 책임 |
 |---|---|---|
-| Model | `TimeGrapher.Core.*`, `TimeGrapher.Core.Shared`, `MainWindowViewModel`, platform audio adapters | Holds analysis data, UI state, selected run options, selected watch position, audio buffers, worker contracts, detection results, generated frames, and backend state |
-| View | `TimeGrapher.App.Views`, `TimeGrapher.App.Rendering`, display-oriented `TimeGrapher.App.Tabs` types | Shows the current state as windows, controls, plots, sound-print/spectrogram images, tab content, and per-position measurement tables; captures user gestures |
-| Controller | `MainWindow` partial code-behind, `TimeGrapher.App.Services`, `TimeGrapher.App.Audio` | Handles button/menu actions, run lifecycle, file selection, recording, live audio selection, analysis worker coordination, and forwarding UI state changes to the running worker |
+| Model | `TimeGrapher.Core.*`, `TimeGrapher.Core.Shared`, `MainWindowViewModel`, 플랫폼 오디오 어댑터 | 분석 데이터, UI 상태, 실행 옵션, 선택된 워치 위치, 오디오 버퍼, 워커 계약, 검출 결과, 생성된 프레임, 백엔드 상태를 보유 |
+| View | `TimeGrapher.App.Views`, `TimeGrapher.App.Rendering`, 표시용 `TimeGrapher.App.Tabs` | 창/컨트롤/플롯/사운드프린트·스펙트로그램 이미지/탭 콘텐츠/위치별 측정 표로 현재 상태를 보여주고 사용자 입력을 받음 |
+| Controller | `MainWindow` 부분 클래스 코드비하인드, `TimeGrapher.App.Services`, `TimeGrapher.App.Audio` | 버튼/메뉴 동작, 실행 생명주기, 파일 선택, 녹음, 라이브 오디오 선택, 분석 워커 조정, UI 상태 변경의 워커 전달을 처리 |
 
-## Current tab routing
+## 탭 카탈로그
 
-`InfoTabCatalog.All` is the source of truth for the analysis display tabs. The current catalog declares `Rate/Scope`, `Sound Print`, `Trace`, `Sweep`, `Vario`, `Beat Error`, `Filter Scope`, `Long-Term`, `Positions`, `Beat Noise`, `Escapement`, `Waveforms`, and `Spectrogram`.
+`InfoTabCatalog.All`이 분석 표시 탭의 진실 원본이다. 현재 13개 탭을 다음 순서로 선언한다: `Rate/Scope`, `Sound Print`, `Trace`, `Sweep`, `Vario`, `Beat Error`, `Filter Scope`, `Long-Term`, `Positions`, `Beat Noise`, `Escapement`, `Waveforms`, `Spectrogram`.
 
-`InfoTabRegistry.FromCatalog` builds one `TabItem` and one `IAnalysisFrameConsumer` per catalog definition. `GraphFrameRenderer` initializes/resets those consumers and owns the shared numeric results readout. During frame delivery, `AnalysisFrameRouter.Route` calls `ObserveFrame` on every consumer, then calls `RenderFrame` only on the active tab's consumer; `RenderToAll` is reserved for the pause-exit review-cursor clear path.
+## 프레임 라우팅
 
-The `Positions` tab is a single tab (`InfoTabCatalog.TestPositionsTabId`, title `Positions`) that contains the sequence-measurement table. `MainWindow` hosts the one-column position selector between the left settings panel and the tab area, and `InfoTabRegistry.CreateTestPositionsRegistration` fills that always-visible selector while building the tab content. `TestPositionsFrameConsumer.ObserveFrame` updates the always-visible selector on every routed frame, while `RenderFrame` updates the sequence table only when the Positions tab is active; both read the same `BeatMetricsHistorySnapshot`.
+- `InfoTabRegistry.FromCatalog`는 카탈로그 정의마다 `TabItem` 하나와 `IAnalysisFrameConsumer` 하나를 1:1로 생성한다.
+- `GraphFrameRenderer`는 모든 consumer를 `Initialize`/`Reset`하고 공용 수치 결과 readout을 소유한다.
+- 프레임 전달 시 `AnalysisFrameRouter.Route`는 모든 consumer에 `ObserveFrame`을 호출한 뒤, 활성 탭의 consumer에만 `RenderFrame`을 호출한다.
+- `RenderToAll`은 pause 종료 시 리뷰 커서를 모든 탭에서 한 번에 지우는 fan-out 전용 경로다(렌더만 수행; 보관 프레임은 이미 모든 consumer가 `ObserveFrame`으로 관찰했음).
 
-For position input, a button click updates `MainWindowViewModel.SelectedPositionIndex`; `MainWindow` observes that property change and forwards the selected `WatchPosition` through `RunSessionController.SetActivePosition` to the running `AnalysisWorker`. The operator control policy is intentionally small: stopped exposes start and reset, running exposes pause only, paused exposes resume and reset, and stop-failure recovery exposes reset retry. `RunCommandService` applies a State Pattern over the run lifecycle: stopped reset clears app-rendered run state and refreshes devices, paused reset enters a stop-for-reset transition and completes the reset only after the existing stop path reaches stopped, failed/incomplete stops enter a retryable recovery state instead of leaving the UI wedged, and `StopRunWithoutReset` remains an internal lifecycle path for input-ended cleanup rather than a main UI button.
+### Positions 탭과 위치 입력
 
-## MVC constraints in this project
+- `Positions`는 단일 탭(`InfoTabCatalog.TestPositionsTabId`, 제목 `Positions`)으로 시퀀스 측정 표를 담는다.
+- `InfoTabRegistry.CreateTestPositionsRegistration`이 탭 콘텐츠를 구성하면서, 왼쪽 설정 패널과 탭 영역 사이에 항상 보이는 1열 위치 선택기(`PositionButtonGrid`)를 채운다.
+- `TestPositionsFrameConsumer.ObserveFrame`은 매 프레임마다 위치 선택기를 갱신하고, `RenderFrame`은 Positions 탭이 활성일 때만 시퀀스 표를 갱신한다. 둘 다 동일한 `BeatMetricsHistorySnapshot`을 읽는다.
+- 위치 입력 흐름: 버튼 클릭 → `MainWindowViewModel.SelectedPositionIndex` 갱신 → `MainWindow.axaml.cs`가 해당 속성 변경을 관찰 → `RunSessionController.SetActivePosition`으로 `WatchPosition`을 실행 중인 `AnalysisWorker`에 전달.
 
-| Constraint | How the project satisfies it |
+### 실행 생명주기 (State Pattern)
+
+`RunCommandService`는 `RunCommandService.States.cs`에 정의된 State Pattern으로 실행 생명주기를 다룬다. 상태는 `Stopped`, `Starting`, `Running`, `Paused`, `Stopping`, `StopFailed`이며, `MainWindowViewModel.RunState`로 현재 상태를 결정한다.
+
+| 상태 | 노출되는 조작 |
 |---|---|
-| View depends on Model | Views/renderers bind to `MainWindowViewModel` and render `AnalysisFrame`, `BeatMetricsHistorySnapshot`, `BeatSegmentsSnapshot`, `PixelBuffer`, graph series, and watch metric data from Core |
-| View may depend on Controller | `MainWindow` user actions invoke command operations and services that start, pause, reset, select files, change tabs, and forward selected-position actions |
-| Controller depends on Model | Controllers/services update the view model, configure Core analysis workers, control input workers, forward position state, and consume analysis frames |
-| Controller may depend on View | Dialog and window-lifecycle code interacts with `MainWindow` and Avalonia window objects |
-| Model does not depend on View or Controller | `TimeGrapher.Core` has no reference to `TimeGrapher.App`; Core analysis and shared contracts are UI-independent |
+| Stopped | Start, Reset |
+| Running | Pause |
+| Paused | Resume, Reset |
+| Stopping / StopFailed | Reset(중지 재시도) |
 
-## Notes
+- Stopped에서 Reset: 앱이 렌더한 실행 상태를 지우고 장치 목록을 새로 고침(`CompleteReset`).
+- Paused에서 Reset: 중지 후 리셋 의도(`ResetAfterStop`)로 중지 경로에 진입하고, 중지 완료 후 리셋을 마무리.
+- 중지 실패/미완료: UI가 멈추지 않도록 `StopFailed` 복구 상태로 진입해 재시도를 허용.
+- `StopRunWithoutReset`은 입력 종료 정리를 위한 내부 생명주기 경로이며, 메인 UI 버튼이 아니다.
 
-The strongest MVC boundary is around `TimeGrapher.Core`: it acts as the portable domain model and does not know about Avalonia views or app controllers. The app layer is more mixed because Avalonia code-behind, commands, and services coordinate user actions around a `MainWindowViewModel`, so this diagram documents the architectural roles rather than claiming a pure MVC framework implementation.
+## MVC 제약
+
+| 제약 | 충족 방식 |
+|---|---|
+| View → Model 의존 | Views/renderer가 `MainWindowViewModel`에 바인딩하고 `AnalysisFrame`, `BeatMetricsHistorySnapshot`, `BeatSegmentsSnapshot`, `PixelBuffer`, 그래프 시리즈, 워치 지표 등 Core 데이터를 렌더 |
+| View → Controller 의존(허용) | `MainWindow`의 사용자 입력이 커맨드/서비스를 호출해 시작·일시정지·리셋·파일 선택·탭 전환·위치 전달을 수행 |
+| Controller → Model 의존 | 컨트롤러/서비스가 뷰모델을 갱신하고 Core 분석 워커를 구성·제어하며 위치 상태를 전달하고 분석 프레임을 소비 |
+| Controller → View 의존(허용) | 대화상자/창 생명주기 코드가 `MainWindow` 및 Avalonia 창 객체와 상호작용 |
+| Model → View/Controller 비의존 | `TimeGrapher.Core`는 `TimeGrapher.App`을 참조하지 않으며, Core 분석과 공유 계약은 UI에 독립적 |
+
+## 비고
+
+가장 강한 MVC 경계는 `TimeGrapher.Core` 둘레에 있다. Core는 이식 가능한 도메인 모델로서 Avalonia 뷰나 앱 컨트롤러를 알지 못한다. 반면 앱 계층은 Avalonia 코드비하인드·커맨드·서비스가 `MainWindowViewModel`을 중심으로 사용자 입력을 조정하므로 더 혼합적이다. 따라서 이 다이어그램은 순수 MVC 프레임워크 구현을 주장하기보다 아키텍처적 역할을 문서화한다.
