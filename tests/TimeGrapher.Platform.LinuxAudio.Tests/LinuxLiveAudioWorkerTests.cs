@@ -104,6 +104,15 @@ card 4: CA7 [Cubilux CA7], device 0: USB Audio [USB Audio]
     }
 
     [Fact]
+    public void GetCandidateSampleRates_ReturnsOnlyRatesAcceptedByDeviceProbe()
+    {
+        IReadOnlyList<int> rates = LinuxLiveAudioWorker.GetCandidateSampleRates(
+            rate => rate is 48000 or 192000);
+
+        Assert.Equal(new[] { 48000, 192000 }, rates);
+    }
+
+    [Fact]
     public void RunCommand_ReturnsOutputForSuccessfulProcess()
     {
         (string fileName, string[] args) = ShellCommand("echo ok");

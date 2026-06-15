@@ -150,6 +150,26 @@ public sealed class LinuxLiveAudioWorker : ILiveAudioWorker
         return devices;
     }
 
+    public static IReadOnlyList<int> GetCandidateSampleRates(int deviceNumber)
+    {
+        return GetCandidateSampleRates(rate => CanOpenDeviceAtSampleRate(deviceNumber, rate));
+    }
+
+    internal static IReadOnlyList<int> GetCandidateSampleRates(Func<int, bool> supportsSampleRate)
+    {
+        IReadOnlyList<int> standardRates = AudioSampleRates.Standard;
+        var supportedRates = new List<int>(standardRates.Count);
+        foreach (int rate in standardRates)
+        {
+            if (supportsSampleRate(rate))
+            {
+                supportedRates.Add(rate);
+            }
+        }
+
+        return supportedRates;
+    }
+
     public void Start(int deviceNumber, int sampleRate, float volume)
     {
         _volume = volume;
@@ -171,7 +191,52 @@ public sealed class LinuxLiveAudioWorker : ILiveAudioWorker
         StartPipeWireCapture(deviceNumber, sampleRate);
     }
 
+    private static bool CanOpenDeviceAtSampleRate(int deviceNumber, int sampleRate)
+    {
+        try
+        {
+            ProcessStartInfo startInfo = TryDecodeAlsaDeviceNumber(deviceNumber, out int card, out int device)
+                ? BuildAlsaProbeStartInfo(card, device, sampleRate)
+                : BuildPipeWireProbeStartInfo(deviceNumber, sampleRate);
+            using Process? process = Process.Start(startInfo);
+            if (process == null)
+            {
+                return false;
+            }
+
+            if (process.WaitForExit(StartupFailureProbeTimeoutMs))
+            {
+                return process.ExitCode == 0;
+            }
+
+            process.Kill(entireProcessTree: true);
+            process.WaitForExit(ReplacementStopTimeoutMs);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     private void StartPipeWireCapture(int deviceNumber, int sampleRate)
+    {
+        StartProcess(BuildPipeWireStartInfo(deviceNumber, sampleRate), PcmSampleFormat.Float32LittleEndian, "pw-record");
+    }
+
+    private void StartAlsaCapture(int card, int device, int sampleRate)
+    {
+        StartProcess(BuildAlsaStartInfo(card, device, sampleRate), PcmSampleFormat.Int16LittleEndian, "arecord");
+    }
+
+    private static ProcessStartInfo BuildPipeWireProbeStartInfo(int deviceNumber, int sampleRate)
+    {
+        ProcessStartInfo startInfo = BuildPipeWireStartInfo(deviceNumber, sampleRate);
+        startInfo.ArgumentList[^1] = "/dev/null";
+        return startInfo;
+    }
+
+    private static ProcessStartInfo BuildPipeWireStartInfo(int deviceNumber, int sampleRate)
     {
         var startInfo = new ProcessStartInfo
         {
@@ -195,11 +260,17 @@ public sealed class LinuxLiveAudioWorker : ILiveAudioWorker
             startInfo.ArgumentList.Add(deviceNumber.ToString(CultureInfo.InvariantCulture));
         }
         startInfo.ArgumentList.Add("-");
-
-        StartProcess(startInfo, PcmSampleFormat.Float32LittleEndian, "pw-record");
+        return startInfo;
     }
 
-    private void StartAlsaCapture(int card, int device, int sampleRate)
+    private static ProcessStartInfo BuildAlsaProbeStartInfo(int card, int device, int sampleRate)
+    {
+        ProcessStartInfo startInfo = BuildAlsaStartInfo(card, device, sampleRate);
+        startInfo.ArgumentList[^1] = "/dev/null";
+        return startInfo;
+    }
+
+    private static ProcessStartInfo BuildAlsaStartInfo(int card, int device, int sampleRate)
     {
         var startInfo = new ProcessStartInfo
         {
@@ -221,8 +292,7 @@ public sealed class LinuxLiveAudioWorker : ILiveAudioWorker
         startInfo.ArgumentList.Add("-r");
         startInfo.ArgumentList.Add(sampleRate.ToString(CultureInfo.InvariantCulture));
         startInfo.ArgumentList.Add("-");
-
-        StartProcess(startInfo, PcmSampleFormat.Int16LittleEndian, "arecord");
+        return startInfo;
     }
 
     /// <summary>Test hook: drives the real StartProcess path with an arbitrary child process.</summary>

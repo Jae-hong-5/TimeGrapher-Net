@@ -52,7 +52,14 @@ internal static class LiveAudioBackend
         }
 #endif
 
-        return AudioSampleRates.Standard;
+#if TIMEGRAPHER_LINUX_AUDIO
+        if (OperatingSystem.IsLinux())
+        {
+            return LinuxLiveAudioWorker.GetCandidateSampleRates(deviceNumber);
+        }
+#endif
+
+        return Array.Empty<int>();
     }
 
     public static ILiveAudioWorker CreateWorker(MasterAudioBuffer buffer)
