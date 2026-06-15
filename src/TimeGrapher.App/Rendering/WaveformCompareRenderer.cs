@@ -206,13 +206,13 @@ internal sealed class WaveformCompareRenderer
         IReadOnlyList<BeatSegment> segments = snapshot.Segments;
         int pairCount = Math.Min(segments.Count / 2, WaveformCompareLogic.PairLanes);
 
-        // Compute x-axis range based on beat period from metrics history
-        double xMaxMs = XMaxMs;  // default
-        if (history?.Bph > 0)
-        {
-            double beatPeriodMs = 3600000.0 / history.Bph;  // ms per beat
-            xMaxMs = WaveformCompareLogic.BeatDisplayWindowMs + beatPeriodMs;
-        }
+        // Clip each half at min(BeatDisplayWindowMs, beatPeriodMs) so a fast
+        // escapement (short beat period) never bleeds a second beat into one lane.
+        double beatPeriodMs = history?.Bph > 0
+            ? 3600000.0 / history.Bph
+            : WaveformCompareLogic.BeatDisplayWindowMs;
+        double clipMs = Math.Min(WaveformCompareLogic.BeatDisplayWindowMs, beatPeriodMs);
+        double xMaxMs = 2 * clipMs;
 
         for (int lane = 0; lane < WaveformCompareLogic.PairLanes; lane++)
         {
@@ -244,9 +244,9 @@ internal sealed class WaveformCompareRenderer
             double baseline = (WaveformCompareLogic.PairLanes - 1 - lane)
                               * WaveformCompareLogic.LaneSpacing;
 
-            FillLane(ticSeg, baseline, _laneX[lane], _laneY[lane], xOffset: 0.0);
+            FillLane(ticSeg, baseline, _laneX[lane], _laneY[lane], xOffset: 0.0, clipMs);
             FillLane(tocSeg, baseline, _tocX[lane],  _tocY[lane],
-                     xOffset: WaveformCompareLogic.TocXOffsetMs);
+                     xOffset: clipMs, clipMs);
 
             if (ticLabel != null)
             {
@@ -260,12 +260,12 @@ internal sealed class WaveformCompareRenderer
                 tocLabel.IsVisible = true;
                 tocLabel.LabelText = WaveformCompareLogic.LaneLabel(tocSeg);
                 tocLabel.Location = new Coordinates(
-                    WaveformCompareLogic.TocXOffsetMs + LaneLabelXMs,
+                    clipMs + LaneLabelXMs,
                     baseline + LaneLabelYOffset);
             }
         }
 
-        UpdateGuides(segments, pairCount);
+        UpdateGuides(segments, pairCount, clipMs);
         _plot.Plot.Axes.SetLimitsX(XMinMs, xMaxMs);
         _plot.Plot.Axes.SetLimitsY(-0.1, YTop(pairCount));
     }
@@ -277,14 +277,14 @@ internal sealed class WaveformCompareRenderer
     /// the A event are skipped so each half shows only its own beat.
     /// </summary>
     private static void FillLane(BeatSegment segment, double baseline,
-        List<double> x, List<double> y, double xOffset)
+        List<double> x, List<double> y, double xOffset, double clipMs)
     {
         EnvelopeLaneSampler.MaxDecimateNormalized(
             segment.Samples.Span, LanePointBudget,
             (p, _, stride, normalized) =>
             {
                 double relX = p * stride * segment.MsPerPoint - segment.AOffsetMs;
-                if (relX > WaveformCompareLogic.BeatDisplayWindowMs)
+                if (relX > clipMs)
                 {
                     return;
                 }
@@ -294,7 +294,7 @@ internal sealed class WaveformCompareRenderer
             });
     }
 
-    private void UpdateGuides(IReadOnlyList<BeatSegment> segments, int pairCount)
+    private void UpdateGuides(IReadOnlyList<BeatSegment> segments, int pairCount, double tocXMs)
     {
         double labelY = YTop(pairCount);
         bool hasData = pairCount > 0;
@@ -306,13 +306,13 @@ internal sealed class WaveformCompareRenderer
         SetGuide(_cMeanGuide, _cMeanGuideLabel, ticMeanC,
             ticMeanC is double tm ? WaveformCompareLogic.CMeanGuideLabel(tm) : "", labelY);
 
-        // Toc-side: A and mean-C shifted right by TocXOffsetMs
+        // Toc-side: A and mean-C shifted right by tocXMs (= clipMs, dynamic)
         SetGuide(_aGuideToc, _aGuideLabelToc,
-            hasData ? WaveformCompareLogic.TocXOffsetMs : null,
+            hasData ? tocXMs : null,
             WaveformCompareLogic.AGuideLabel, labelY);
         double? tocMeanC = WaveformCompareLogic.MeanCPeakOffsetMs(segments, ticOnly: false);
         SetGuide(_cMeanGuideToc, _cMeanGuideLabelToc,
-            tocMeanC.HasValue ? WaveformCompareLogic.TocXOffsetMs + tocMeanC.Value : null,
+            tocMeanC.HasValue ? tocXMs + tocMeanC.Value : null,
             tocMeanC is double tocm ? WaveformCompareLogic.CMeanGuideLabel(tocm) : "", labelY);
     }
 
