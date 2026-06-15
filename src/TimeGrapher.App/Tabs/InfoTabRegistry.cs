@@ -391,7 +391,6 @@ internal sealed partial class InfoTabRegistry
             bandBadge = new Border
             {
                 BorderThickness = new Thickness(1),
-                CornerRadius = new CornerRadius(4),
                 IsVisible = false,
                 Padding = new Thickness(6, 1, 6, 1),
                 Margin = new Thickness(10, 0, 0, 0),
@@ -487,7 +486,6 @@ internal sealed partial class InfoTabRegistry
         var summaryCard = new Border
         {
             Child = summaryStack,
-            CornerRadius = new CornerRadius(6),
             BorderThickness = new Thickness(1),
             Margin = new Thickness(16, 6, 16, 3),
             Padding = new Thickness(0, 0, 0, 4),
@@ -571,7 +569,6 @@ internal sealed partial class InfoTabRegistry
             {
                 Child = strip,
                 BorderThickness = new Thickness(1),
-                CornerRadius = new CornerRadius(3),
                 Margin = new Thickness(16, 0, 16, 2),
                 Padding = new Thickness(8, 3, 8, 3),
             };

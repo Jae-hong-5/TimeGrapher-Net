@@ -1,3 +1,4 @@
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Documents;
 using Avalonia.Layout;
@@ -118,6 +119,19 @@ public sealed class InfoTabRegistryTests
         Assert.DoesNotContain(
             Descendants(summaryCard).OfType<TextBlock>(),
             text => text.Text == "VARIO SUMMARY");
+    }
+
+    [Fact]
+    public void VarioTabBordersUseSquareCorners()
+    {
+        // The UI design guide mandates right-angle corners; the Vario tab borders
+        // must rely on the App.axaml Border style (CornerRadius 0) rather than
+        // assigning a local radius, which would override that style.
+        Grid content = CreateVarioContent();
+        Border[] borders = Descendants(content).OfType<Border>().ToArray();
+
+        Assert.NotEmpty(borders);
+        Assert.All(borders, border => Assert.Equal(new CornerRadius(0), border.CornerRadius));
     }
 
     [Fact]
