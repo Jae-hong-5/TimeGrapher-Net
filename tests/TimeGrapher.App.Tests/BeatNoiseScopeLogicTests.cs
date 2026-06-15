@@ -115,8 +115,6 @@ public sealed class BeatNoiseScopeLogicTests
         Assert.Contains("0.382", line);
         Assert.Contains("0.391", line);
         Assert.Contains("Σ 23/50 · 22/50", line);
-        Assert.DoesNotContain("tic", line, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("toc", line, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

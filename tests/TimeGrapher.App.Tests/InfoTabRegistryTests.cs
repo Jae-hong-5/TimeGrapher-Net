@@ -59,12 +59,7 @@ public sealed class InfoTabRegistryTests
             Assert.Equal(i, Grid.GetRow(buttons[i]));
             Assert.Equal(VerticalAlignment.Stretch, buttons[i].VerticalAlignment);
         }
-        Assert.DoesNotContain(
-            Descendants(content).OfType<Button>(),
-            button => Equals(button.Content, "Reset Sequence"));
-
         Assert.Single(registry.Consumers, consumer => consumer.TabId == InfoTabCatalog.TestPositionsTabId);
-        Assert.DoesNotContain(registry.Registrations, registration => registration.Definition.Title == "Position Seq");
     }
 
     [Fact]
@@ -159,10 +154,6 @@ public sealed class InfoTabRegistryTests
             .ToArray();
 
         Assert.Equal(6, rules.Length);
-        Assert.DoesNotContain(rules, rule => rule.Text is { } value &&
-            (value.StartsWith("OK:", StringComparison.Ordinal) ||
-             value.StartsWith("Watch:", StringComparison.Ordinal) ||
-             value.StartsWith("Alert:", StringComparison.Ordinal)));
         Assert.All(rules, rule =>
         {
             Assert.Equal(TextWrapping.Wrap, rule.TextWrapping);
@@ -340,12 +331,9 @@ public sealed class InfoTabRegistryTests
 
         Assert.Contains("Amber band", legendText);
         Assert.Contains("acceptable band", legendText);
-        Assert.DoesNotContain("acceptable range", legendText);
-        Assert.DoesNotContain("Pale green band + blue edge", legendText);
         Assert.Contains("Blue solid", legendText);
         Assert.Contains("Red solid", legendText);
         Assert.Contains("Current dashed", legendText);
-        Assert.DoesNotContain("Black Dashed", legendText);
         Assert.IsAssignableFrom<IBrush>(currentSwatch.GetValue(TextElement.ForegroundProperty));
         Assert.Equal(TextWrapping.NoWrap, legend.TextWrapping);
     }

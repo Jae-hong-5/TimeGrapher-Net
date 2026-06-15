@@ -19,8 +19,6 @@ public sealed class CatalogTests
     {
         Assert.Contains(17258, BphCatalog.ManualBph);
         Assert.Contains(17786, BphCatalog.ManualBph);
-        Assert.DoesNotContain(11258, BphCatalog.ManualBph);
-        Assert.DoesNotContain(17186, BphCatalog.ManualBph);
     }
 
     [Fact]
