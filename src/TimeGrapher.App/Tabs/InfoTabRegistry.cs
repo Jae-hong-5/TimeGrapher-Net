@@ -912,7 +912,17 @@ internal sealed partial class InfoTabRegistry
         }
 
         var initialPosition = (WatchPosition)(context.ViewModel?.SelectedPositionIndex ?? 0);
-        var positionRenderer = new TestPositionsRenderer(buttons, initialPosition);
+        var diagram = new WatchPositionDiagram
+        {
+            Position = initialPosition,
+            Width = 176,
+            Height = 156,
+            Margin = new Thickness(8, 4, 4, 4),
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Top,
+        };
+        ToolTip.SetTip(diagram, "Active watch position orientation");
+        var positionRenderer = new TestPositionsRenderer(buttons, diagram, initialPosition);
 
         for (int i = 0; i < buttons.Length; i++)
         {
@@ -958,17 +968,27 @@ internal sealed partial class InfoTabRegistry
                    "15 s/d among the hanging positions hints at balance-wheel unbalance.",
         };
 
+        var overviewGrid = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions("Auto,*"),
+            RowDefinitions = new RowDefinitions("*"),
+        };
+        Grid.SetColumn(diagram, 0);
+        Grid.SetColumn(tableGrid, 1);
+        overviewGrid.Children.Add(diagram);
+        overviewGrid.Children.Add(tableGrid);
+
         var sequenceGrid = new Grid
         {
             RowDefinitions = new RowDefinitions("Auto,*,Auto,Auto"),
             Margin = new Thickness(4, 4, 8, 4),
         };
         Grid.SetRow(alertBanner, 0);
-        Grid.SetRow(tableGrid, 1);
+        Grid.SetRow(overviewGrid, 1);
         Grid.SetRow(summaryText, 2);
         Grid.SetRow(explanationText, 3);
         sequenceGrid.Children.Add(alertBanner);
-        sequenceGrid.Children.Add(tableGrid);
+        sequenceGrid.Children.Add(overviewGrid);
         sequenceGrid.Children.Add(summaryText);
         sequenceGrid.Children.Add(explanationText);
 

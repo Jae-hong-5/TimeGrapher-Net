@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.Documents;
 using Avalonia.Layout;
 using Avalonia.Media;
+using TimeGrapher.App.Rendering;
 using TimeGrapher.App.Tabs;
 using TimeGrapher.Core.Shared;
 using Xunit;
@@ -54,6 +55,8 @@ public sealed class InfoTabRegistryTests
         Assert.Single(positionStrip.ColumnDefinitions);
         Assert.Equal(WatchPositions.Count, positionStrip.RowDefinitions.Count);
         Assert.Equal(WatchPositions.Count, buttons.Length);
+        WatchPositionDiagram diagram = Assert.Single(Descendants(content).OfType<WatchPositionDiagram>());
+        Assert.Equal(WatchPosition.CH, diagram.Position);
         for (int i = 0; i < buttons.Length; i++)
         {
             Assert.Equal(i, Grid.GetRow(buttons[i]));
@@ -90,6 +93,11 @@ public sealed class InfoTabRegistryTests
 
         Assert.Contains("active", buttons[(int)WatchPosition.P6H].Classes);
         Assert.DoesNotContain("active", buttons[(int)WatchPosition.CH].Classes);
+        WatchPositionDiagram diagram = Assert.Single(Descendants(
+            Assert.IsType<Grid>(registry.Registrations.Single(
+                registration => registration.Definition.Id == InfoTabCatalog.TestPositionsTabId).TabItem.Content))
+            .OfType<WatchPositionDiagram>());
+        Assert.Equal(WatchPosition.P6H, diagram.Position);
     }
 
     [Fact]

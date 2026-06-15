@@ -18,6 +18,7 @@ internal sealed class TestPositionsRenderer
     private const string ActiveClass = "active";
 
     private readonly Button[] _buttons; // indexed by WatchPosition ordinal
+    private readonly WatchPositionDiagram? _diagram;
     private int _activeIndex = -1;
     private ulong _lastVersion;
 
@@ -28,8 +29,17 @@ internal sealed class TestPositionsRenderer
     private WatchPosition? _pendingPosition;
 
     public TestPositionsRenderer(Button[] buttons, WatchPosition initialPosition)
+        : this(buttons, null, initialPosition)
+    {
+    }
+
+    public TestPositionsRenderer(
+        Button[] buttons,
+        WatchPositionDiagram? diagram,
+        WatchPosition initialPosition)
     {
         _buttons = buttons;
+        _diagram = diagram;
         Highlight(initialPosition);
     }
 
@@ -43,6 +53,7 @@ internal sealed class TestPositionsRenderer
     private void Highlight(WatchPosition position)
     {
         int index = (int)position;
+        _diagram?.SetCurrentValue(WatchPositionDiagram.PositionProperty, position);
         if (_activeIndex == index)
         {
             return;

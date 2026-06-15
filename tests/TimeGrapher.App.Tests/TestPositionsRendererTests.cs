@@ -53,11 +53,13 @@ public sealed class TestPositionsRendererTests
     public void ClickHighlightsImmediatelyWithoutWaitingForAFrame()
     {
         Button[] buttons = Buttons();
-        var renderer = new TestPositionsRenderer(buttons, WatchPosition.CH);
+        var diagram = new WatchPositionDiagram();
+        var renderer = new TestPositionsRenderer(buttons, diagram, WatchPosition.CH);
 
         renderer.RequestPosition(WatchPosition.P6H);
 
         Assert.Equal(WatchPosition.P6H, ActivePosition(buttons));
+        Assert.Equal(WatchPosition.P6H, diagram.Position);
     }
 
     [Fact]
@@ -95,11 +97,13 @@ public sealed class TestPositionsRendererTests
     public void SnapshotDrivesTheHighlightWhenNoClickIsPending()
     {
         Button[] buttons = Buttons();
-        var renderer = new TestPositionsRenderer(buttons, WatchPosition.CH);
+        var diagram = new WatchPositionDiagram();
+        var renderer = new TestPositionsRenderer(buttons, diagram, WatchPosition.CH);
 
         renderer.RenderFrame(Frame(version: 1, WatchPosition.P9H));
 
         Assert.Equal(WatchPosition.P9H, ActivePosition(buttons));
+        Assert.Equal(WatchPosition.P9H, diagram.Position);
     }
 
     [Fact]
