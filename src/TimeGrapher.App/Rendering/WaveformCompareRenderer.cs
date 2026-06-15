@@ -51,6 +51,12 @@ internal sealed class WaveformCompareRenderer
     /// <summary>Headroom above the top lane's normalized peak.</summary>
     private const double YHeadroom = 1.15;
 
+    /// <summary>X margin (ms) applied to the mean C position for label placement.</summary>
+    private const double LaneLabelXMarginMs = 10.0;
+
+    /// <summary>Y offset from the lane baseline for label placement inside the lane.</summary>
+    private const double LaneLabelYOffsetFromBaseline = 0.5;
+
     private readonly AvaPlot _plot;
     private readonly TextBlock _headerText;
     private readonly string _textFontFamily;
@@ -278,16 +284,16 @@ internal sealed class WaveformCompareRenderer
 
             if (ticLabel != null && ticLabel.IsVisible)
             {
-                // Position at mean C offset + 10ms right margin, inside the lane
-                double ticLabelX = (ticMeanCOffsetMs ?? 0.0) + 10.0;
-                ticLabel.Location = new Coordinates(ticLabelX, baseline + 0.3);
+                // Position at mean C offset + X margin, inside the lane
+                double ticLabelX = (ticMeanCOffsetMs ?? 0.0) + LaneLabelXMarginMs;
+                ticLabel.Location = new Coordinates(ticLabelX, baseline + LaneLabelYOffsetFromBaseline);
             }
 
             if (tocLabel != null && tocLabel.IsVisible)
             {
-                // Position at toc side: clipMs + mean C offset + 10ms right margin, inside the lane
-                double tocLabelX = clipMs + (tocMeanCOffsetMs ?? 0.0) + 10.0;
-                tocLabel.Location = new Coordinates(tocLabelX, baseline + 0.3);
+                // Position at toc side: clipMs + mean C offset + X margin, inside the lane
+                double tocLabelX = clipMs + (tocMeanCOffsetMs ?? 0.0) + LaneLabelXMarginMs;
+                tocLabel.Location = new Coordinates(tocLabelX, baseline + LaneLabelYOffsetFromBaseline);
             }
         }
 
