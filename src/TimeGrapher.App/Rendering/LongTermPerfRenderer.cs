@@ -129,6 +129,11 @@ internal sealed class LongTermPerfRenderer
             pane.PositionMarkers.Clear();
             ApplyPlotTheme(plot);
             plot.YLabel(pane.YLabel);
+            // NOTE: deliberately do NOT reset Axes.Left.MinimumSize here. Once
+            // AlignLeftEdges has settled it on the widest natural panel, keeping
+            // it across Reset avoids a natural→aligned jump on every Reset press
+            // (which read as the left edge toggling); it self-corrects upward if
+            // a later run's labels grow wider.
 
             pane.VariationBand = plot.Add.FillY(pane.Band);
             pane.VariationBand.LineWidth = 0;
@@ -249,18 +254,105 @@ internal sealed class LongTermPerfRenderer
         UpdatePane(_amplitude, history.Amplitude);
         UpdatePane(_beatError, history.BeatError);
         UpdatePositionMarkers(history.PositionChanges);
-        PinStartMarkersToFirstPoint();
 
-        if (_followLive)
+        // Shared X window taken from the actual plotted data, not each pane's
+        // autoscaled limits: early in a run a pane may still be empty (rate needs
+        // two beats, amplitude needs a pair), and an empty pane's autoscale would
+        // otherwise pollute a union of per-pane limits with a default range and
+        // skew every pane's X until all three fill — the start-only misalignment
+        // that a Reset View (clean autoscale) hid.
+        bool hasData = TryGetDataXRange(out double xMin, out double xMax);
+
+        // Pin every start marker to the shared first point so the starting-
+        // position line is identical across the three panes and sits at the left
+        // edge, regardless of which series began first.
+        if (hasData)
         {
             foreach (Pane pane in _panes)
             {
-                pane.Plot.Plot.Axes.AutoScale();
+                if (pane.PositionMarkers.Count > 0)
+                {
+                    pane.PositionMarkers[0].X = xMin;
+                }
+            }
+        }
+
+        if (_followLive && hasData)
+        {
+            // X is the shared data window; Y stays per-pane (each measure has its
+            // own units), auto-scaled to all data in view. A single point (or all
+            // points at one time, common in the first frames after a reset) gives
+            // a zero-width window, which SetLimitsX cannot represent — fall back
+            // to a plain autoscale until the data spans a real range.
+            bool sharedWindow = xMax > xMin;
+            foreach (Pane pane in _panes)
+            {
+                if (sharedWindow)
+                {
+                    pane.Plot.Plot.Axes.AutoScaleY();
+                    pane.Plot.Plot.Axes.SetLimitsX(xMin, xMax);
+                }
+                else
+                {
+                    pane.Plot.Plot.Axes.AutoScale();
+                }
             }
         }
 
         _footerText.Text = LongTermReadout.Footer(history);
         RefreshAll();
+    }
+
+    /// <summary>
+    /// Equalizes the three panes' left data-area edge so the same elapsed time
+    /// sits at the same screen x on every pane. Each pane's Y tick labels have a
+    /// different width (rate "0" vs amplitude "304.5" vs beat error "0.02"),
+    /// which otherwise offsets the plot area and makes the stacked graphs — and
+    /// the position markers — look misaligned. Reads the actual rendered pixels,
+    /// so it is DPI-correct.
+    ///
+    /// The target is the widest pane's left-axis PANEL width (DataRect.Left minus
+    /// the figure's left margin), not DataRect.Left itself: DataRect.Left includes
+    /// the margin, and feeding that back into MinimumSize (a panel size) overshot
+    /// by the margin every render, which read as the left edge toggling on each
+    /// Reset. With the panel width the fixed point is exact — MinimumSize settles
+    /// on the widest natural panel and the per-pane guard then leaves it alone.
+    /// </summary>
+    private void AlignLeftEdges()
+    {
+        float maxPanel = 0f;
+        foreach (Pane pane in _panes)
+        {
+            RenderDetails render = pane.Plot.Plot.RenderManager.LastRender;
+            float panel = render.DataRect.Left - render.FigureRect.Left;
+            if (panel > maxPanel) maxPanel = panel;
+        }
+
+        if (maxPanel <= 0f)
+        {
+            return; // nothing rendered yet
+        }
+
+        // Only widen panes that are below the target; the guard makes this a fixed
+        // point (a pane already at the target is skipped), so there is no feedback.
+        bool changed = false;
+        foreach (Pane pane in _panes)
+        {
+            if (maxPanel - pane.Plot.Plot.Axes.Left.MinimumSize > 0.5f)
+            {
+                pane.Plot.Plot.Axes.Left.MinimumSize = maxPanel;
+                changed = true;
+            }
+        }
+
+        // Refresh directly (not RefreshAll) so this does not recurse.
+        if (changed)
+        {
+            foreach (Pane pane in _panes)
+            {
+                pane.Plot.Refresh();
+            }
+        }
     }
 
     private static void UpdatePane(Pane pane, MetricsHistorySeries series)
@@ -322,6 +414,11 @@ internal sealed class LongTermPerfRenderer
         {
             pane.Plot.Refresh();
         }
+
+        // Run after the refresh so each pane's LastRender reflects its current Y
+        // label widths — including the empty post-Reset state, where the panes
+        // would otherwise keep mismatched left edges until the next data frame.
+        AlignLeftEdges();
     }
 
     private void ApplySeriesTheme()
@@ -394,21 +491,25 @@ internal sealed class LongTermPerfRenderer
     }
 
     /// <summary>
-    /// Pins each pane's start marker (the first position entry) onto that pane's
-    /// own first plotted point, so the starting position name appears exactly
-    /// where the graph begins drawing — independent of the snapshot's seed time
-    /// and tracking it if decimation later shifts the first bucket. Later turns
-    /// keep their recorded change times.
+    /// First/last plotted X across every non-empty pane (the panes' series can
+    /// begin and end a beat or two apart). Returns false when no pane has data
+    /// yet, so callers leave the axes untouched rather than scale to an empty
+    /// range.
     /// </summary>
-    private void PinStartMarkersToFirstPoint()
+    private bool TryGetDataXRange(out double xMin, out double xMax)
     {
+        xMin = double.MaxValue;
+        xMax = double.MinValue;
         foreach (Pane pane in _panes)
         {
-            if (pane.PositionMarkers.Count > 0 && pane.X.Count > 0)
+            if (pane.X.Count > 0)
             {
-                pane.PositionMarkers[0].X = pane.X[0];
+                if (pane.X[0] < xMin) xMin = pane.X[0];
+                if (pane.X[^1] > xMax) xMax = pane.X[^1];
             }
         }
+
+        return xMin <= xMax;
     }
 
     private void StylePositionMarker(VerticalLine marker)
