@@ -124,9 +124,11 @@ public sealed class InfoTabRegistryTests
     [Fact]
     public void VarioTabBordersUseSquareCorners()
     {
-        // The UI design guide mandates right-angle corners; the Vario tab borders
-        // must rely on the App.axaml Border style (CornerRadius 0) rather than
-        // assigning a local radius, which would override that style.
+        // Guards against re-introducing a local CornerRadius on a Vario border,
+        // which would override the global App.axaml Border style and render
+        // rounded. This only proves no local radius is set (App.axaml styles are
+        // not applied in this unit context); the Border { CornerRadius=0 } rule
+        // itself is asserted in AppXamlLoadTests.AppAxamlEnforcesSquareCorners.
         Grid content = CreateVarioContent();
         Border[] borders = Descendants(content).OfType<Border>().ToArray();
 
