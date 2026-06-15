@@ -4,15 +4,10 @@ namespace TimeGrapher.Core.Shared;
 /// Standard watch test positions per NIHS 95-10 / ISO 3158, as drawn in the
 /// project plan's "Indication of the test positions in accordance with
 /// NIHS 95-10/ISO 3158" figure (Witschi Chronoscope X1 G3 manual, page 13).
-/// The two horizontal positions are named after the dial (cadran): CH = dial
-/// up, CB = dial down. The four vertical (hanging) positions are named after
-/// the hour index that points up; with the crown on the 3 o'clock side of the
-/// case the figure's crown pictograms therefore map to: 6H up = crown left,
-/// 9H up = crown down, 3H up = crown up, 12H up = crown right.
+/// The display uses the reference figure's DU/DD and crown-position labels.
 /// The plan also requires "support for intermediate positions when used" and a
-/// sequence of up to 10 positions, so the catalog includes the four 45°
-/// intermediate positions (each hanging position tilted 45° toward dial-up),
-/// the convention Witschi sequence programs use between CH and the verticals.
+/// sequence of up to 10 positions, so the catalog includes the four diagonal
+/// crown positions between the cardinal vertical positions.
 /// Ordinals are stable 0..9 and double as array indices for the bounded
 /// per-position aggregates.
 /// </summary>
@@ -70,23 +65,23 @@ public static class WatchPositions
         WatchPosition.P12H45,
     };
 
-    /// <summary>NIHS designation shown in compact displays ("CH", "6H", "6H45", ...).</summary>
+    /// <summary>Reference-figure designation shown in compact displays.</summary>
     public static string ShortName(this WatchPosition position) => position switch
     {
-        WatchPosition.CH => "CH",
-        WatchPosition.CB => "CB",
-        WatchPosition.P6H => "6H",
-        WatchPosition.P9H => "9H",
-        WatchPosition.P3H => "3H",
-        WatchPosition.P12H => "12H",
-        WatchPosition.P6H45 => "6H45",
-        WatchPosition.P9H45 => "9H45",
-        WatchPosition.P3H45 => "3H45",
-        WatchPosition.P12H45 => "12H45",
+        WatchPosition.CH => "DU",
+        WatchPosition.CB => "DD",
+        WatchPosition.P6H => "CL",
+        WatchPosition.P9H => "CD",
+        WatchPosition.P3H => "CU",
+        WatchPosition.P12H => "CR",
+        WatchPosition.P6H45 => "CU(L)",
+        WatchPosition.P9H45 => "CD(L)",
+        WatchPosition.P3H45 => "CU(R)",
+        WatchPosition.P12H45 => "CD(R)",
         _ => throw new ArgumentOutOfRangeException(nameof(position), position, null),
     };
 
-    /// <summary>Plain-language orientation ("Dial up", "Crown left", ...).</summary>
+    /// <summary>Plain-language orientation for tooltips and status text.</summary>
     public static string LongName(this WatchPosition position) => position switch
     {
         WatchPosition.CH => "Dial up",
@@ -95,10 +90,10 @@ public static class WatchPositions
         WatchPosition.P9H => "Crown down",
         WatchPosition.P3H => "Crown up",
         WatchPosition.P12H => "Crown right",
-        WatchPosition.P6H45 => "Crown left 45°",
-        WatchPosition.P9H45 => "Crown down 45°",
-        WatchPosition.P3H45 => "Crown up 45°",
-        WatchPosition.P12H45 => "Crown right 45°",
+        WatchPosition.P6H45 => "Crown up-left",
+        WatchPosition.P9H45 => "Crown down-left",
+        WatchPosition.P3H45 => "Crown up-right",
+        WatchPosition.P12H45 => "Crown down-right",
         _ => throw new ArgumentOutOfRangeException(nameof(position), position, null),
     };
 
