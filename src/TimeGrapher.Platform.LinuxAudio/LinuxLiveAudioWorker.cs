@@ -198,20 +198,41 @@ public sealed class LinuxLiveAudioWorker : ILiveAudioWorker
             ProcessStartInfo startInfo = TryDecodeAlsaDeviceNumber(deviceNumber, out int card, out int device)
                 ? BuildAlsaProbeStartInfo(card, device, sampleRate)
                 : BuildPipeWireProbeStartInfo(deviceNumber, sampleRate);
+            return ProbeStartInfoForSampleRate(
+                startInfo,
+                startupProbeTimeoutMs: StartupFailureProbeTimeoutMs,
+                cleanupTimeoutMs: ReplacementStopTimeoutMs);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    internal static bool ProbeStartInfoForSampleRate(
+        ProcessStartInfo startInfo,
+        int startupProbeTimeoutMs,
+        int cleanupTimeoutMs)
+    {
+        try
+        {
             using Process? process = Process.Start(startInfo);
             if (process == null)
             {
                 return false;
             }
 
-            if (process.WaitForExit(StartupFailureProbeTimeoutMs))
+            if (process.WaitForExit(startupProbeTimeoutMs))
             {
                 return process.ExitCode == 0;
             }
 
-            process.Kill(entireProcessTree: true);
-            process.WaitForExit(ReplacementStopTimeoutMs);
-            return true;
+            if (!process.HasExited)
+            {
+                process.Kill(entireProcessTree: true);
+            }
+
+            return process.WaitForExit(cleanupTimeoutMs);
         }
         catch
         {

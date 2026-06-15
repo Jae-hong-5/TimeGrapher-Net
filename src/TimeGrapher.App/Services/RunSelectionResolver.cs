@@ -74,6 +74,18 @@ internal sealed class RunSelectionResolver
             "sample rate");
     }
 
+    public bool TryGetSelectedSampleRate(
+        IReadOnlyList<int> availableSampleRates,
+        int availableSampleRateCount,
+        out int sampleRate)
+    {
+        return TryGetSelectedValue(
+            availableSampleRates,
+            availableSampleRateCount,
+            _viewModel.SelectedSampleRateIndex,
+            out sampleRate);
+    }
+
     public static int FindValue(IReadOnlyList<int> items, int value)
     {
         for (int i = 0; i < items.Count; i++)
@@ -105,5 +117,22 @@ internal sealed class RunSelectionResolver
         }
 
         return items[selectedIndex];
+    }
+
+    private static bool TryGetSelectedValue(
+        IReadOnlyList<int> items,
+        int itemCount,
+        int selectedIndex,
+        out int value)
+    {
+        int boundedCount = Math.Min(itemCount, items.Count);
+        if (selectedIndex < 0 || selectedIndex >= boundedCount)
+        {
+            value = 0;
+            return false;
+        }
+
+        value = items[selectedIndex];
+        return true;
     }
 }

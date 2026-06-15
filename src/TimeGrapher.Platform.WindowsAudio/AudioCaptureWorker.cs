@@ -457,12 +457,6 @@ public sealed class AudioCaptureWorker : ILiveAudioWorker
 
     private static bool IsAudioClientSampleRateSupported(AudioClient audioClient, int sampleRate)
     {
-        var pcmFormat = new WaveFormat(sampleRate, 16, Channels);
-        if (audioClient.IsFormatSupported(AudioClientShareMode.Shared, pcmFormat))
-        {
-            return true;
-        }
-
         WaveFormat floatFormat = WaveFormat.CreateIeeeFloatWaveFormat(sampleRate, Channels);
         return audioClient.IsFormatSupported(AudioClientShareMode.Shared, floatFormat);
     }

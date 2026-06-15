@@ -113,6 +113,36 @@ card 4: CA7 [Cubilux CA7], device 0: USB Audio [USB Audio]
     }
 
     [Fact]
+    public void ProbeStartInfoForSampleRate_KillsLongRunningProbeBeforeAcceptingRate()
+    {
+        Stopwatch stopwatch = Stopwatch.StartNew();
+        (string fileName, string[] args) = ShellCommand(OperatingSystem.IsWindows()
+            ? "ping 127.0.0.1 -n 30 > nul"
+            : "sleep 30");
+
+        bool supported = LinuxLiveAudioWorker.ProbeStartInfoForSampleRate(
+            BuildStartInfo(fileName, args),
+            startupProbeTimeoutMs: 100,
+            cleanupTimeoutMs: 5000);
+
+        Assert.True(supported);
+        Assert.True(stopwatch.Elapsed < TimeSpan.FromSeconds(10));
+    }
+
+    [Fact]
+    public void ProbeStartInfoForSampleRate_RejectsEarlyFailure()
+    {
+        (string fileName, string[] args) = ShellCommand(OperatingSystem.IsWindows()
+            ? "exit 7"
+            : "exit 7");
+
+        Assert.False(LinuxLiveAudioWorker.ProbeStartInfoForSampleRate(
+            BuildStartInfo(fileName, args),
+            startupProbeTimeoutMs: 5000,
+            cleanupTimeoutMs: 5000));
+    }
+
+    [Fact]
     public void RunCommand_ReturnsOutputForSuccessfulProcess()
     {
         (string fileName, string[] args) = ShellCommand("echo ok");

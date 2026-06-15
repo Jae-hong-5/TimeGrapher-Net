@@ -41,15 +41,28 @@ public partial class MainWindow
         mRunSessionController.InvalidateRunSession();
     }
 
-    private void StartAudioThread()
+    private bool TryResolveLiveStartSelection(out int deviceNumber, out int sampleRate, out string errorMessage)
     {
-        int deviceNumber = CurrentInputDeviceNumber();
+        deviceNumber = CurrentInputDeviceNumber();
+        sampleRate = 0;
         if (deviceNumber < 0)
         {
-            throw new InvalidOperationException("No live audio device is selected.");
+            errorMessage = "No live audio device is selected.";
+            return false;
         }
 
-        int sampleRate = mRunSelectionResolver.GetSelectedSampleRate(mAvailableRates, mNumberOfRates);
+        if (!mRunSelectionResolver.TryGetSelectedSampleRate(mAvailableRates, mNumberOfRates, out sampleRate))
+        {
+            errorMessage = "No valid sample rate is selected.";
+            return false;
+        }
+
+        errorMessage = string.Empty;
+        return true;
+    }
+
+    private void StartAudioThread(int deviceNumber, int sampleRate)
+    {
         mCurrentSamplesPerSecond = sampleRate;
         MasterAudioBuffer buffer = mRunSessionController.PrepareInputRun(sampleRate, out ulong runSessionToken);
 
@@ -188,7 +201,7 @@ public partial class MainWindow
         mViewModel.StatusText = failed ? failureStatus : "Stopped";
     }
 
-    private async Task<bool> RecordSessionCheck()
+    private async Task<bool> RecordSessionCheck(int sampleRate)
     {
         // A writer left over from a failed close must never leak into a new run.
         if (!AudioCloseCheck())
@@ -196,7 +209,7 @@ public partial class MainWindow
             return false;
         }
 
-        RecordingSessionStartResult result = await mRecordingSessionService.TryStartAsync(mCurrentSamplesPerSecond);
+        RecordingSessionStartResult result = await mRecordingSessionService.TryStartAsync(sampleRate);
         if (result.Writer != null)
         {
             mWavWriter = result.Writer;
@@ -262,14 +275,21 @@ public partial class MainWindow
 
     private async Task<bool> LiveStart()
     {
-        if (!await RecordSessionCheck())
+        if (!TryResolveLiveStartSelection(out int deviceNumber, out int sampleRate, out string errorMessage))
+        {
+            mViewModel.StatusText = "Failed to start live audio";
+            await mDialogs.ShowErrorAsync("Error", "Failed to start live audio: " + errorMessage);
+            return false;
+        }
+
+        if (!await RecordSessionCheck(sampleRate))
         {
             return false;
         }
 
         try
         {
-            StartAudioThread();
+            StartAudioThread(deviceNumber, sampleRate);
         }
         catch (Exception ex)
         {
@@ -346,7 +366,7 @@ public partial class MainWindow
         cfg.LiftAngleDegrees = (double)mViewModel.LiftAngle;
         cfg.RateErrorSPerDay = (double)mViewModel.SimErrorRate;
 
-        if (!await RecordSessionCheck())
+        if (!await RecordSessionCheck(selection.SampleRate))
         {
             return false;
         }

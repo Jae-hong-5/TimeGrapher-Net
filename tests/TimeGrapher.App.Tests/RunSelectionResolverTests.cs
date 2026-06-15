@@ -75,14 +75,18 @@ public sealed class RunSelectionResolverTests
 
         vm.SelectedSampleRateIndex = 1;
         Assert.Equal(96000, resolver.GetSelectedSampleRate(availableSampleRates, availableSampleRateCount: 2));
+        Assert.True(resolver.TryGetSelectedSampleRate(availableSampleRates, availableSampleRateCount: 2, out int validRate));
+        Assert.Equal(96000, validRate);
 
         vm.SelectedSampleRateIndex = -1;
         Assert.Throws<InvalidOperationException>(
             () => resolver.GetSelectedSampleRate(availableSampleRates, availableSampleRateCount: 2));
+        Assert.False(resolver.TryGetSelectedSampleRate(availableSampleRates, availableSampleRateCount: 2, out _));
 
         vm.SelectedSampleRateIndex = 0;
         Assert.Throws<InvalidOperationException>(
             () => resolver.GetSelectedSampleRate(availableSampleRates, availableSampleRateCount: 0));
+        Assert.False(resolver.TryGetSelectedSampleRate(availableSampleRates, availableSampleRateCount: 0, out _));
     }
 
     private static RunSelectionResolver CreateResolver(MainWindowViewModel vm)
