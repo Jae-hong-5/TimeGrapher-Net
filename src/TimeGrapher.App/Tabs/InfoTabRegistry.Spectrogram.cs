@@ -171,7 +171,21 @@ internal sealed partial class InfoTabRegistry
             Margin = new Thickness(8, 0, 8, 4),
         };
 
-        var renderer = new SpectrogramRenderer(image, legendImage, timeLabels, timeAxisCaption);
+        // Live-head marker: a thin red vertical line the renderer slides to the
+        // sweep head, showing where data is being written right now. It overlays
+        // the image (added to the same cell after it) and ignores pointer input
+        // so the wheel still reaches the graph.
+        var currentLine = new Rectangle
+        {
+            Width = 2,
+            Fill = Brushes.Red,
+            HorizontalAlignment = HorizontalAlignment.Left,
+            VerticalAlignment = VerticalAlignment.Stretch,
+            IsHitTestVisible = false,
+            IsVisible = false,
+        };
+
+        var renderer = new SpectrogramRenderer(image, legendImage, timeLabels, timeAxisCaption, currentLine);
 
         // Time-window toolbar (the Qt original's Last Beat / Seconds selector). The
         // mode buttons follow the Scope Sweep "active option disabled" pattern; the
@@ -210,6 +224,26 @@ internal sealed partial class InfoTabRegistry
             secondsText.Opacity = seconds ? 1.0 : 0.4;
             secondsText.Text = $"{secondsLadder[secondsIndex]:0.#} s";
         }
+
+        // Steps the Seconds-mode window along the ladder (shared by the −/+
+        // buttons and the wheel-over-graph gesture). No-op outside Seconds mode
+        // or at the ladder ends.
+        void StepWindow(int delta)
+        {
+            if (viewMode != SpectrogramViewMode.Seconds)
+            {
+                return;
+            }
+
+            int next = Math.Clamp(secondsIndex + delta, 0, secondsLadder.Length - 1);
+            if (next != secondsIndex)
+            {
+                secondsIndex = next;
+                renderer.SetViewSeconds(secondsLadder[secondsIndex]);
+                UpdateToolbar();
+            }
+        }
+
         lastBeatButton.Click += (_, _) =>
         {
             viewMode = SpectrogramViewMode.LastBeat;
@@ -222,23 +256,23 @@ internal sealed partial class InfoTabRegistry
             renderer.SetViewMode(viewMode);
             UpdateToolbar();
         };
-        minusButton.Click += (_, _) =>
+        minusButton.Click += (_, _) => StepWindow(-1);
+        plusButton.Click += (_, _) => StepWindow(+1);
+
+        // Wheel over the graph mirrors the −/+ buttons: up lengthens the window
+        // (longer time interval, the + step), down shortens it (the − step).
+        imageHost.PointerWheelChanged += (_, e) =>
         {
-            if (secondsIndex > 0)
+            if (e.Delta.Y > 0)
             {
-                secondsIndex--;
-                renderer.SetViewSeconds(secondsLadder[secondsIndex]);
-                UpdateToolbar();
+                StepWindow(+1);
             }
-        };
-        plusButton.Click += (_, _) =>
-        {
-            if (secondsIndex < secondsLadder.Length - 1)
+            else if (e.Delta.Y < 0)
             {
-                secondsIndex++;
-                renderer.SetViewSeconds(secondsLadder[secondsIndex]);
-                UpdateToolbar();
+                StepWindow(-1);
             }
+
+            e.Handled = true;
         };
         UpdateToolbar();
 
@@ -268,6 +302,8 @@ internal sealed partial class InfoTabRegistry
         Grid.SetColumn(freqTickStrip, 1);
         Grid.SetRow(imageHost, 1);
         Grid.SetColumn(imageHost, 2);
+        Grid.SetRow(currentLine, 1);
+        Grid.SetColumn(currentLine, 2);
         Grid.SetRow(colorbar, 1);
         Grid.SetColumn(colorbar, 3);
         Grid.SetRow(timeTickStrip, 2);
@@ -280,6 +316,7 @@ internal sealed partial class InfoTabRegistry
         grid.Children.Add(axisGrid);
         grid.Children.Add(freqTickStrip);
         grid.Children.Add(imageHost);
+        grid.Children.Add(currentLine); // after imageHost so it overlays the image
         grid.Children.Add(colorbar);
         grid.Children.Add(timeTickStrip);
         grid.Children.Add(timeLabelGrid);

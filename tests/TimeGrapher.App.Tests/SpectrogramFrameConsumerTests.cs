@@ -15,7 +15,8 @@ public sealed class SpectrogramFrameConsumerTests
         new Image(),
         new Image(),
         new[] { new TextBlock(), new TextBlock(), new TextBlock(), new TextBlock(), new TextBlock(), new TextBlock() },
-        new TextBlock());
+        new TextBlock(),
+        new Border());
 
     [Fact]
     public void ObserveFrameCachesLatestSpectrogramImageAndResetClearsIt()

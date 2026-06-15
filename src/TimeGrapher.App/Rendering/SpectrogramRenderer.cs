@@ -1,3 +1,4 @@
+using Avalonia;
 using Avalonia.Controls;
 using TimeGrapher.Core.Analysis;
 using TimeGrapher.Core.Shared;
@@ -12,13 +13,15 @@ internal enum SpectrogramViewMode
 }
 
 /// <summary>
-/// Spectrogram tab: paints the Core-rendered STFT columns into an oscilloscope
-/// sweep buffer — filling left to right and wrapping back to the left to
-/// overwrite when the window is full — and blits it into its Image control. The
-/// window width is the user-selected Last Beat (one beat period) or a fixed
-/// number of Seconds; the time axis re-labels to match. The dB color legend is
-/// drawn from the same Core LUT the projector colors with, so it can never drift
-/// from the image.
+/// Spectrogram tab: the Core projector keeps a full DisplaySeconds (10 s) wrap
+/// buffer of STFT columns; this renderer crops the most recent window out of it
+/// every render and blits it into the Image control as an oscilloscope sweep
+/// (filling left to right, wrapping to overwrite). Because every window is just
+/// a crop of the same 10 s source, changing the window keeps all the retained
+/// history and never restarts the sweep. The window is the user-selected Last
+/// Beat (one beat period) or a fixed number of Seconds; the time axis re-labels
+/// to match. The dB color legend is drawn from the same Core LUT the projector
+/// colors with, so it can never drift from the image.
 /// </summary>
 internal sealed class SpectrogramRenderer
 {
@@ -29,6 +32,10 @@ internal sealed class SpectrogramRenderer
     private readonly Image _legendImage;
     private readonly TextBlock[] _timeLabels;
     private readonly TextBlock _timeCaption;
+
+    // Overlay marking the sweep head — the column where live data is being
+    // written right now — positioned over the image on each render.
+    private readonly Control _currentLine;
 
     private bool _light = PlotThemePalette.Current.IsLight;
     private SpectrogramViewMode _viewMode = SpectrogramViewMode.Seconds;
@@ -41,14 +48,19 @@ internal sealed class SpectrogramRenderer
     private double _lastColumnSeconds;
     private double _lastBeatPeriodS;
 
-    // Oscilloscope sweep buffer (the displayed image): reallocated only on a
-    // window-size change. _sweepHead is the next column to (over)write; it advances
-    // left to right and wraps to 0. _lastSeenLiveColumn tracks how far the source
-    // wrap buffer had been written, so each publish appends only its new columns.
+    // Display buffer for the current window: rebuilt every render by cropping the
+    // most recent `cols` columns out of the source's full DisplaySeconds history,
+    // so a window change is just a re-crop of the same data — no history is lost
+    // and the sweep is not restarted. _sweepHead is the live-edge column
+    // (total % cols), where the red marker sits.
     private PixelBuffer? _sweepBuffer;
     private int _sweepCols = -1;
     private int _sweepHead;
-    private int _lastSeenLiveColumn = -1;
+
+    // Monotonic count of source columns written since the run started, accumulated
+    // from the live-column delta each publish. total % cols gives the sweep head;
+    // total bounds how many columns of real (received) data exist.
+    private long _totalColumns;
 
     // The scope-background color the empty (no-input) region is painted with, kept
     // so a theme toggle can recolor just those pixels (the colormap is theme-agnostic).
@@ -58,12 +70,14 @@ internal sealed class SpectrogramRenderer
         Image spectrogramImage,
         Image legendImage,
         TextBlock[] timeLabels,
-        TextBlock timeCaption)
+        TextBlock timeCaption,
+        Control currentLine)
     {
         _spectrogramImage = spectrogramImage;
         _legendImage = legendImage;
         _timeLabels = timeLabels;
         _timeCaption = timeCaption;
+        _currentLine = currentLine;
         UpdateTimeAxis(CurrentWindowSeconds());
     }
 
@@ -84,57 +98,50 @@ internal sealed class SpectrogramRenderer
     }
 
     /// <summary>
-    /// Recolors the empty (no-input) region to the new scope background — the
-    /// colormap itself is theme-agnostic, so only the background follows the
-    /// theme — and rebuilds the legend. UI thread only.
+    /// Follows the theme: the colormap is theme-agnostic, so only the empty
+    /// (no-input) background changes — re-crop the view with the new background
+    /// and rebuild the legend. UI thread only.
     /// </summary>
     public void ApplyTheme(bool light)
     {
         _light = light;
-        uint newEmpty = PlotThemePalette.Current.ScopeBg;
-        if (_sweepBuffer != null && newEmpty != _emptyColor)
-        {
-            uint[] pixels = _sweepBuffer.Pixels;
-            for (int i = 0; i < pixels.Length; i++)
-            {
-                if (pixels[i] == _emptyColor)
-                {
-                    pixels[i] = newEmpty;
-                }
-            }
-
-            PixelBufferBitmap.UpdateImage(_spectrogramImage, _sweepBuffer);
-        }
-
-        _emptyColor = newEmpty;
+        _emptyColor = PlotThemePalette.Current.ScopeBg;
+        RenderCurrent();
         InitializeLegend();
     }
 
-    /// <summary>Selects the time-window mode and re-seeds the sweep. UI thread only.</summary>
+    /// <summary>Selects the time-window mode and re-crops the view. UI thread only.</summary>
     public void SetViewMode(SpectrogramViewMode mode)
     {
         _viewMode = mode;
-        RenderCurrent(reseed: true);
+        RenderCurrent();
     }
 
-    /// <summary>Sets the Seconds-mode window length and re-seeds the sweep. UI thread only.</summary>
+    /// <summary>
+    /// Sets the Seconds-mode window length. The view is just re-cropped from the
+    /// retained source history, so growing reveals the older columns that were
+    /// already captured and shrinking keeps the most recent ones — the sweep is
+    /// never restarted. UI thread only.
+    /// </summary>
     public void SetViewSeconds(double seconds)
     {
         _viewSeconds = seconds;
-        RenderCurrent(reseed: true);
+        RenderCurrent();
     }
 
     public void Reset()
     {
         _lastImage = null;
-        _sweepBuffer = null; // drop the previous run's swept content so the next run seeds fresh
+        _sweepBuffer = null; // drop the previous run's view so the next run starts fresh
         _sweepCols = -1;
         _sweepHead = 0;
-        _lastSeenLiveColumn = -1;
+        _totalColumns = 0;
+        _lastLiveColumn = 0;
 
         // Always drop the previous run's image — with the tab hidden the bounds are
         // zero and the blank repaint below is skipped, which would leave stale data.
         _spectrogramImage.Source = null;
+        _currentLine.IsVisible = false;
 
         int w = (int)_spectrogramImage.Bounds.Width;
         int h = (int)_spectrogramImage.Bounds.Height;
@@ -147,24 +154,39 @@ internal sealed class SpectrogramRenderer
     }
 
     /// <summary>
-    /// Stores the latest published image plus its windowing metadata and appends
-    /// its new columns to the sweep. UI thread only.
+    /// Stores the latest published image and its windowing metadata, advances the
+    /// total-column count by the live-column delta, and re-crops the view. UI
+    /// thread only.
     /// </summary>
     public void RenderWindowed(PixelBuffer image, int liveColumn, double columnSeconds, double beatPeriodS)
     {
+        int sourceWidth = image.Width;
+        if (_lastImage == null)
+        {
+            // First publish of the run: liveColumn columns have been written so
+            // far (the source has not wrapped within one publish interval).
+            _totalColumns = liveColumn;
+        }
+        else
+        {
+            int delta = ((liveColumn - _lastLiveColumn) % sourceWidth + sourceWidth) % sourceWidth;
+            _totalColumns += delta;
+        }
+
         _lastImage = image;
         _lastLiveColumn = liveColumn;
         _lastColumnSeconds = columnSeconds;
         _lastBeatPeriodS = beatPeriodS;
-        RenderCurrent(reseed: false);
+        RenderCurrent();
     }
 
-    private void RenderCurrent(bool reseed)
+    private void RenderCurrent()
     {
         double windowSeconds = CurrentWindowSeconds();
         if (_lastImage == null || _lastColumnSeconds <= 0.0)
         {
             UpdateTimeAxis(windowSeconds);
+            UpdateCurrentLine();
             return;
         }
 
@@ -173,25 +195,41 @@ internal sealed class SpectrogramRenderer
         int cols = (int)Math.Round(windowSeconds / _lastColumnSeconds);
         cols = Math.Clamp(cols, 1, sourceWidth);
 
-        if (reseed || _sweepBuffer == null || _sweepCols != cols || _sweepBuffer.Height != height)
-        {
-            SeedSweep(height, cols);
-        }
-        else if (!AppendNewColumns(sourceWidth, height, cols))
-        {
-            return; // nothing new since the last render
-        }
+        RebuildView(cols, sourceWidth, height);
 
         PixelBufferBitmap.UpdateImage(_spectrogramImage, _sweepBuffer!);
         UpdateTimeAxis(cols * _lastColumnSeconds); // label the window actually shown
+        UpdateCurrentLine();
     }
 
-    // (Re)start the sweep: paint the whole window with the scope BACKGROUND color
-    // so the not-yet-reached part reads as empty (no input received), distinct
-    // from the dB-floor canvas color that means "received, but quiet". The write
-    // head starts at the left and real data fills in from there at the live rate —
-    // only as much as has actually elapsed.
-    private void SeedSweep(int height, int cols)
+    // Positions the live-head marker over the image at the sweep head column
+    // (head / cols of the displayed width). Hidden until there is data and the
+    // image has been laid out.
+    private void UpdateCurrentLine()
+    {
+        // Last Beat shows one beat repeatedly, not a flow of time, so the live-edge
+        // marker is meaningless there and is hidden.
+        double width = _spectrogramImage.Bounds.Width;
+        if (_viewMode == SpectrogramViewMode.LastBeat || _lastImage == null || _sweepCols <= 0 || width <= 0.0)
+        {
+            _currentLine.IsVisible = false;
+            return;
+        }
+
+        double x = (double)_sweepHead / _sweepCols * width;
+        _currentLine.Margin = new Thickness(x, 0.0, 0.0, 0.0);
+        _currentLine.IsVisible = true;
+    }
+
+    // Rebuild the displayed window by cropping the most recent `cols` columns out
+    // of the source's full DisplaySeconds history into a sweep of width `cols`.
+    // The not-yet-received region (early in a run) is painted the scope BACKGROUND
+    // color so it reads as empty, distinct from the dB-floor canvas color that
+    // means "received, but quiet". Each source column keeps its sweep phase
+    // (absolute index % cols) so the live edge lands at total % cols — which makes
+    // a window change a pure re-crop: growing reveals older retained columns,
+    // shrinking keeps the most recent, neither restarts the sweep.
+    private void RebuildView(int cols, int sourceWidth, int height)
     {
         if (_sweepBuffer == null || _sweepBuffer.Width != cols || _sweepBuffer.Height != height)
         {
@@ -200,44 +238,23 @@ internal sealed class SpectrogramRenderer
 
         _emptyColor = PlotThemePalette.Current.ScopeBg;
         _sweepBuffer.Fill(_emptyColor);
-        _sweepCols = cols;
-        _sweepHead = 0;
-        _lastSeenLiveColumn = _lastLiveColumn;
-    }
 
-    // Append the columns the source wrote since the last render at the sweep head,
-    // advancing it left to right and wrapping to 0. Returns false when nothing is new.
-    private bool AppendNewColumns(int sourceWidth, int height, int cols)
-    {
-        int newCount = ((_lastLiveColumn - _lastSeenLiveColumn) % sourceWidth + sourceWidth) % sourceWidth;
-        if (newCount == 0)
-        {
-            return false;
-        }
-
-        int startColumn = _lastSeenLiveColumn;
-        if (newCount > cols)
-        {
-            // Fell behind by more than a full sweep; only the last `cols` matter.
-            startColumn = ((_lastLiveColumn - cols) % sourceWidth + sourceWidth) % sourceWidth;
-            newCount = cols;
-        }
-
+        long total = _totalColumns;
+        long firstColumn = Math.Max(0, total - cols); // only the most recent cols exist
         uint[] source = _lastImage!.Pixels;
-        uint[] target = _sweepBuffer!.Pixels;
-        for (int j = 0; j < newCount; j++)
+        uint[] target = _sweepBuffer.Pixels;
+        for (long c = firstColumn; c < total; c++)
         {
-            int sourceColumn = (startColumn + j) % sourceWidth;
+            int viewColumn = (int)(c % cols);
+            int sourceColumn = (int)(c % sourceWidth);
             for (int y = 0; y < height; y++)
             {
-                target[y * cols + _sweepHead] = source[y * sourceWidth + sourceColumn];
+                target[y * cols + viewColumn] = source[y * sourceWidth + sourceColumn];
             }
-
-            _sweepHead = (_sweepHead + 1) % cols;
         }
 
-        _lastSeenLiveColumn = _lastLiveColumn;
-        return true;
+        _sweepCols = cols;
+        _sweepHead = (int)(total % cols); // live edge: the next column to be written
     }
 
     private double CurrentWindowSeconds()
