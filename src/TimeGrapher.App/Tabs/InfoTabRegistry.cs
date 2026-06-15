@@ -493,7 +493,7 @@ internal sealed partial class InfoTabRegistry
         summaryCard.Bind(Border.BackgroundProperty, summaryCard.GetResourceObservable("PanelBgBrush"));
         summaryCard.Bind(Border.BorderBrushProperty, summaryCard.GetResourceObservable("ChromeBorderBrush"));
 
-        string[] columnHeaders = { "Min", "Max", "Spread (Max−Min)", "Average", "Std dev (σ)", "Current" };
+        string[] columnHeaders = { "Min", "Max", "Max−Min", "Average", "Std dev (σ)", "Current" };
         string?[] columnBrushKeys =
         {
             "VarioMinMaxBrush", "VarioMinMaxBrush", null,
