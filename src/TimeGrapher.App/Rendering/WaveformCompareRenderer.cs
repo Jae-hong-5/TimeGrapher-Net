@@ -268,6 +268,32 @@ internal sealed class WaveformCompareRenderer
             }
         }
 
+        // Position lane labels below the mean C guides with 10ms right margin
+        double? ticMeanCOffsetMs = WaveformCompareLogic.MeanCPeakOffsetMs(segments, ticOnly: true);
+        double? tocMeanCOffsetMs = WaveformCompareLogic.MeanCPeakOffsetMs(segments, ticOnly: false);
+        double guideLabelsY = YTop(pairCount);
+        double belowGuidesY = guideLabelsY - 0.25;  // Slightly below guide labels
+
+        for (int lane = 0; lane < pairCount; lane++)
+        {
+            Text? ticLabel = _laneLabels[lane * 2];
+            Text? tocLabel = _laneLabels[lane * 2 + 1];
+
+            if (ticLabel != null && ticLabel.IsVisible)
+            {
+                // Position at mean C offset + 10ms right margin
+                double ticLabelX = (ticMeanCOffsetMs ?? 0.0) + 10.0;
+                ticLabel.Location = new Coordinates(ticLabelX, belowGuidesY);
+            }
+
+            if (tocLabel != null && tocLabel.IsVisible)
+            {
+                // Position at toc side: clipMs + mean C offset + 10ms right margin
+                double tocLabelX = clipMs + (tocMeanCOffsetMs ?? 0.0) + 10.0;
+                tocLabel.Location = new Coordinates(tocLabelX, belowGuidesY);
+            }
+        }
+
         UpdateGuides(segments, pairCount, clipMs);
         _plot.Plot.Axes.SetLimitsX(XMinMs, xMaxMs);
         _plot.Plot.Axes.SetLimitsY(-0.1, YTop(pairCount));
