@@ -40,6 +40,10 @@ internal sealed class LongTermPerfRenderer
         public FillY? VariationBand;
         public HorizontalLine? OverallAverage;
         public ReviewCursorLayer? Cursor;
+
+        // Dashed vertical lines (one per watch-position turn) labelled with the
+        // position name; rebuilt only when the change count grows.
+        public readonly List<VerticalLine> PositionMarkers = new();
     }
 
     private readonly Pane _rate;
@@ -57,6 +61,10 @@ internal sealed class LongTermPerfRenderer
     private bool _syncing;
     private bool _syncPending;
     private int _syncSource;
+
+    // Number of position turns the markers currently reflect; -1 forces a rebuild
+    // (CreateGraphs clears the plots, so the marker lines must be re-added).
+    private int _positionMarkerCount = -1;
 
     public LongTermPerfRenderer(
         AvaPlot ratePlot,
@@ -108,6 +116,8 @@ internal sealed class LongTermPerfRenderer
         _lastVersion = 0;
         _followLive = true;
         _footerText.Text = "";
+        // plot.Clear() below drops the marker lines; force the next render to re-add.
+        _positionMarkerCount = -1;
 
         foreach (Pane pane in _panes)
         {
@@ -116,6 +126,7 @@ internal sealed class LongTermPerfRenderer
             pane.X.Clear();
             pane.Y.Clear();
             pane.Band.Clear();
+            pane.PositionMarkers.Clear();
             ApplyPlotTheme(plot);
             plot.YLabel(pane.YLabel);
 
@@ -237,6 +248,8 @@ internal sealed class LongTermPerfRenderer
         UpdatePane(_rate, history.Rate);
         UpdatePane(_amplitude, history.Amplitude);
         UpdatePane(_beatError, history.BeatError);
+        UpdatePositionMarkers(history.PositionChanges);
+        PinStartMarkersToFirstPoint();
 
         if (_followLive)
         {
@@ -338,7 +351,91 @@ internal sealed class LongTermPerfRenderer
             pane.OverallAverage.LineColor = Color.FromARGB(_theme.TextPrimary);
         }
 
+        foreach (VerticalLine marker in pane.PositionMarkers)
+        {
+            StylePositionMarker(marker);
+        }
+
         pane.Cursor?.ApplyTheme(_theme);
+    }
+
+    /// <summary>
+    /// Reconciles the dashed position-change markers with the snapshot's change
+    /// list. Position turns are manual (seconds apart) and the list only grows,
+    /// so a rebuild on a changed count is cheap; the start entry (TimeS 0) gives
+    /// every run a labelled marker even when the watch is never turned.
+    /// </summary>
+    private void UpdatePositionMarkers(IReadOnlyList<PositionChange> changes)
+    {
+        if (changes.Count == _positionMarkerCount)
+        {
+            return;
+        }
+
+        _positionMarkerCount = changes.Count;
+        foreach (Pane pane in _panes)
+        {
+            Plot plot = pane.Plot.Plot;
+            foreach (VerticalLine marker in pane.PositionMarkers)
+            {
+                plot.Remove(marker);
+            }
+
+            pane.PositionMarkers.Clear();
+
+            foreach (PositionChange change in changes)
+            {
+                VerticalLine marker = plot.Add.VerticalLine(change.TimeS);
+                marker.LabelText = change.Position.ShortName();
+                StylePositionMarker(marker);
+                pane.PositionMarkers.Add(marker);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Pins each pane's start marker (the first position entry) onto that pane's
+    /// own first plotted point, so the starting position name appears exactly
+    /// where the graph begins drawing — independent of the snapshot's seed time
+    /// and tracking it if decimation later shifts the first bucket. Later turns
+    /// keep their recorded change times.
+    /// </summary>
+    private void PinStartMarkersToFirstPoint()
+    {
+        foreach (Pane pane in _panes)
+        {
+            if (pane.PositionMarkers.Count > 0 && pane.X.Count > 0)
+            {
+                pane.PositionMarkers[0].X = pane.X[0];
+            }
+        }
+    }
+
+    private void StylePositionMarker(VerticalLine marker)
+    {
+        // Dashed so it reads distinctly from the dotted review cursor; the
+        // markers must never participate in autoscale (the start line sits at the
+        // first plotted point and would otherwise drag the data window).
+        Color color = Color.FromARGB(_theme.TextPrimary);
+        marker.LinePattern = LinePattern.Dashed;
+        marker.LineWidth = 1;
+        marker.LineColor = color;
+        marker.EnableAutoscale = false;
+
+        // Anchor the label at the top edge of the data area, then pull it a few
+        // pixels DOWN inside it (negative top padding: ScottPlot draws the
+        // opposite-axis label at DataRect.Top - PixelPadding.Top). UpperLeft puts
+        // the text's top-left at the anchor, so the name hangs below the top edge
+        // and sits to the RIGHT of the dashed line; LabelOffsetX adds a small gap.
+        // ManualLabelAlignment is required: RenderLast overwrites LabelAlignment.
+        marker.LabelOppositeAxis = true;
+        marker.ManualLabelAlignment = Alignment.UpperLeft;
+        marker.LabelPixelPadding = new PixelPadding(0, 0, 0, -3);
+        marker.LabelOffsetX = 3;
+        marker.LabelFontColor = color;
+        // Transparent label background so the name never masks the trace behind
+        // it (the dashed line plus the bold name stay legible on their own).
+        marker.LabelBackgroundColor = Colors.Transparent;
     }
 
     private void ApplyPlotTheme(Plot plot)
