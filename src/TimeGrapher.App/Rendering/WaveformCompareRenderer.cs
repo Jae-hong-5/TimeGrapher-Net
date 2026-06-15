@@ -255,16 +255,12 @@ internal sealed class WaveformCompareRenderer
             {
                 ticLabel.IsVisible = true;
                 ticLabel.LabelText = WaveformCompareLogic.LaneLabel(ticSeg);
-                ticLabel.Location = new Coordinates(PeakOffsetMs + LaneLabelPeakOffsetMs, baseline + LaneLabelYOffset);
             }
 
             if (tocLabel != null)
             {
                 tocLabel.IsVisible = true;
                 tocLabel.LabelText = WaveformCompareLogic.LaneLabel(tocSeg);
-                tocLabel.Location = new Coordinates(
-                    clipMs + PeakOffsetMs + LaneLabelPeakOffsetMs,
-                    baseline + LaneLabelYOffset);
             }
         }
 
@@ -282,16 +278,16 @@ internal sealed class WaveformCompareRenderer
 
             if (ticLabel != null && ticLabel.IsVisible)
             {
-                // Position at mean C offset + 10ms right margin, below this lane's baseline
+                // Position at mean C offset + 10ms right margin, inside the lane
                 double ticLabelX = (ticMeanCOffsetMs ?? 0.0) + 10.0;
-                ticLabel.Location = new Coordinates(ticLabelX, baseline - 0.25);
+                ticLabel.Location = new Coordinates(ticLabelX, baseline + 0.3);
             }
 
             if (tocLabel != null && tocLabel.IsVisible)
             {
-                // Position at toc side: clipMs + mean C offset + 10ms right margin, below this lane's baseline
+                // Position at toc side: clipMs + mean C offset + 10ms right margin, inside the lane
                 double tocLabelX = clipMs + (tocMeanCOffsetMs ?? 0.0) + 10.0;
-                tocLabel.Location = new Coordinates(tocLabelX, baseline - 0.25);
+                tocLabel.Location = new Coordinates(tocLabelX, baseline + 0.3);
             }
         }
 
