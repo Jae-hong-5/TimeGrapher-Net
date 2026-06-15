@@ -92,7 +92,7 @@ internal sealed class TgDetectorCore
     /* ---- reference peak: median of last N accepted burst peaks ---- */
     public readonly double[] PeakHistory = new double[TG_PEAK_HISTORY_N];
 
-    /* ---- I-1 AdaptiveFloor runtime state (idle while the option is off):
+    /* ---- I-1 AdaptiveFloor runtime state (default detector behavior, always on):
      * shadow ring of REJECTED burst peaks above RejectedPeakMinSnr, plus the
      * absolute index of the last accepted peak for the reference decay. ---- */
     public readonly double[] RejPeakHistory = new double[TG_PEAK_HISTORY_N];
@@ -663,7 +663,7 @@ internal sealed class TgDetectorCore
     }
 
     /* Compute the current reference peak level used to derive thresholds.
-     * absIdx is consumed only by the opt-in I-1 reference decay. */
+     * absIdx is consumed only by the I-1 reference decay. */
     // reference_peak
     private double ReferencePeak(ulong absIdx)
     {

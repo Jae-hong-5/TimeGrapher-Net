@@ -147,7 +147,7 @@ public sealed class AdaptiveFloorTests
     {
         // 0.0015 bursts are below RejectedPeakMinSnr * effNoise (~0.00168):
         // they must never qualify for the shadow ring, so the floor never
-        // adapts and the detector stays silent even with the option on.
+        // adapts and the detector stays silent even with the floor always on.
         float[] envelope = BuildEnvelope((int)(6.5 * Fs), BurstTrain(1.0, 20, 0.0015f));
 
         List<TgRawEvent> adaptive = Run(NewCore(), envelope);
