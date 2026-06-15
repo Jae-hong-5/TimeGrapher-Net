@@ -17,6 +17,26 @@ internal static class WaveformCompareLogic
     public const int MaxLanes = BeatSegmentCapture.SegmentRingCount;
 
     /// <summary>
+    /// Number of tic/toc pair lanes rendered (each lane shows one tic and one
+    /// toc segment side-by-side: tic on the left half, toc on the right half).
+    /// </summary>
+    public const int PairLanes = MaxLanes / 2;
+
+    /// <summary>
+    /// Display width per beat side (half of the full capture window). Each of
+    /// the tic and toc halves shows this many milliseconds after the A event,
+    /// which is enough to capture the C peak while keeping the two beats
+    /// visually separate within a pair lane.
+    /// </summary>
+    public const double BeatDisplayWindowMs = BeatSegmentCapture.WindowMs / 2;
+
+    /// <summary>
+    /// X offset applied to the toc waveform so it appears immediately to the
+    /// right of the tic half within the same lane.
+    /// </summary>
+    public const double TocXOffsetMs = BeatDisplayWindowMs;
+
+    /// <summary>
     /// Vertical offset between lane baselines. Each lane normalizes to its own
     /// peak (height 1.0), so 1.2 leaves a 0.2 gap between lanes.
     /// </summary>
@@ -53,14 +73,21 @@ internal static class WaveformCompareLogic
     /// <summary>
     /// Mean A→C peak interval (ms) across the shown lanes — the cross-beat
     /// consistency reference the guide marker draws. Null until any lane
-    /// carries a valid C peak.
+    /// carries a valid C peak. When <paramref name="ticOnly"/> is not null,
+    /// only segments whose <see cref="BeatSegment.IsTic"/> matches are included.
     /// </summary>
-    public static double? MeanCPeakOffsetMs(IReadOnlyList<BeatSegment> segments)
+    public static double? MeanCPeakOffsetMs(IReadOnlyList<BeatSegment> segments,
+        bool? ticOnly = null)
     {
         double sum = 0.0;
         int count = 0;
         foreach (BeatSegment segment in segments)
         {
+            if (ticOnly.HasValue && segment.IsTic != ticOnly.Value)
+            {
+                continue;
+            }
+
             if (segment.CPeakValid)
             {
                 sum += segment.CPeakOffsetMs - segment.AOffsetMs;
