@@ -268,29 +268,30 @@ internal sealed class WaveformCompareRenderer
             }
         }
 
-        // Position lane labels below the mean C guides with 10ms right margin
+        // Position lane labels below each lane's mean C position with 10ms right margin
         double? ticMeanCOffsetMs = WaveformCompareLogic.MeanCPeakOffsetMs(segments, ticOnly: true);
         double? tocMeanCOffsetMs = WaveformCompareLogic.MeanCPeakOffsetMs(segments, ticOnly: false);
-        double guideLabelsY = YTop(pairCount);
-        double belowGuidesY = guideLabelsY - 0.25;  // Slightly below guide labels
 
         for (int lane = 0; lane < pairCount; lane++)
         {
+            double baseline = (WaveformCompareLogic.PairLanes - 1 - lane)
+                              * WaveformCompareLogic.LaneSpacing;
+
             Text? ticLabel = _laneLabels[lane * 2];
             Text? tocLabel = _laneLabels[lane * 2 + 1];
 
             if (ticLabel != null && ticLabel.IsVisible)
             {
-                // Position at mean C offset + 10ms right margin
+                // Position at mean C offset + 10ms right margin, below this lane's baseline
                 double ticLabelX = (ticMeanCOffsetMs ?? 0.0) + 10.0;
-                ticLabel.Location = new Coordinates(ticLabelX, belowGuidesY);
+                ticLabel.Location = new Coordinates(ticLabelX, baseline - 0.25);
             }
 
             if (tocLabel != null && tocLabel.IsVisible)
             {
-                // Position at toc side: clipMs + mean C offset + 10ms right margin
+                // Position at toc side: clipMs + mean C offset + 10ms right margin, below this lane's baseline
                 double tocLabelX = clipMs + (tocMeanCOffsetMs ?? 0.0) + 10.0;
-                tocLabel.Location = new Coordinates(tocLabelX, belowGuidesY);
+                tocLabel.Location = new Coordinates(tocLabelX, baseline - 0.25);
             }
         }
 
