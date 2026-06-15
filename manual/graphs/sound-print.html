@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>2. Sound Print — TimeGrapher 매뉴얼</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script defer src="../assets/manual.js"></script>
+</head>
+<body class="show-both">
+<div class="layout">
+  <aside class="sidebar" id="sidebar"></aside>
+  <main class="content">
+    <div class="topbar">
+      <div class="crumbs"><a href="../index.html">개요</a> › Sound Print</div>
+      <div class="lang-toggle" id="langToggle"></div>
+    </div>
+    <div class="content-inner">
+
+      <h1>2. Sound Print</h1>
+      <p class="lede ko">시계 소리의 시각적 "지문". 신호가 규칙적이고 건강한지 패턴으로 한눈에 봅니다.</p>
+      <p class="lede en">A visual "fingerprint" of the watch's sound — see at a glance whether the signal is regular and healthy.</p>
+
+      <figure>
+        <img data-shot src="../img/tab-sound-print.png" alt="Sound Print tab">
+        <figcaption class="ko">그림 1. 소리에서 생성된 이미지(축 없음). 약 100 ms마다 갱신.</figcaption>
+        <figcaption class="en">Fig 1. An image built from the sound (no axes); refreshes ~every 100 ms.</figcaption>
+      </figure>
+
+      <h2>용도 · Purpose</h2>
+      <p class="ko">검출이나 숫자가 아니라, 들어온 소리 자체를 이미지로 펼쳐 신호의 결을 봅니다. 규칙적인 똑딱은 규칙적인 무늬로, 잡음은 흐릿한 얼룩으로 나타납니다.</p>
+      <p class="en">Rather than numbers or detections, it spreads the raw sound into an image so you can see the texture of the signal: a regular tick makes a regular pattern; noise smears into haze.</p>
+
+      <h2>무엇이 보이나 · What's shown</h2>
+      <dl class="kv">
+        <dt><span class="ko">가로</span><span class="en">Horizontal</span></dt><dd><span class="ko">최근 시간 구간(픽셀 열로 흐름).</span><span class="en">A recent time window (flowing as pixel columns).</span></dd>
+        <dt><span class="ko">세로</span><span class="en">Vertical</span></dt><dd><span class="ko">주파수/신호 성분.</span><span class="en">Frequency / signal content.</span></dd>
+        <dt><span class="ko">밝기·색</span><span class="en">Brightness</span></dt><dd><span class="ko">해당 지점의 신호 세기. 빈 영역은 테마 배경색(테마 전환 시 함께 바뀜).</span><span class="en">Signal strength at that point. Empty areas use the theme background (remaps on theme toggle).</span></dd>
+      </dl>
+
+      <h2>읽는 법 · How to read</h2>
+      <ul>
+        <li><span class="ko"><b>건강한 시계</b> — 같은 무늬가 일정 간격으로 또렷이 반복됩니다(주기적 신호).</span><span class="en"><b>Healthy watch</b> — the same pattern repeats crisply at a steady spacing (periodic signal).</span></li>
+        <li><span class="ko"><b>문제 신호</b> — 무늬가 흐릿하거나 불규칙하면 잡음이 많거나 신호가 약한 것입니다.</span><span class="en"><b>Trouble</b> — diffuse or irregular patterns mean noise or a weak signal.</span></li>
+        <li><span class="ko">⏸로 일시정지하면 이미지가 멈춰 자세히 살펴볼 수 있습니다.</span><span class="en">Pause (⏸) to freeze the image for closer inspection.</span></li>
+      </ul>
+
+      <div class="note">
+        <p class="ko">이 탭은 보기 전용이라 별도 옵션이 없습니다. 숫자 진단은 <a href="rate-scope.html">Rate/Scope</a>·<a href="beat-error.html">Beat Error</a>에서, 주파수 분석은 <a href="spectrogram.html">Spectrogram</a>에서 보세요.</p>
+        <p class="en">This tab is view-only (no options). For numeric diagnosis use <a href="rate-scope.html">Rate/Scope</a> / <a href="beat-error.html">Beat Error</a>; for frequency analysis see <a href="spectrogram.html">Spectrogram</a>.</p>
+      </div>
+
+      <div class="pager">
+        <a href="rate-scope.html"><small>← 이전 · Prev</small> 1. Rate/Scope</a>
+        <a href="trace.html">3. Trace <small>다음 · Next →</small></a>
+      </div>
+    </div>
+  </main>
+</div>
+</body>
+</html>

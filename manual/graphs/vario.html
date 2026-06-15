@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>5. Vario — TimeGrapher 매뉴얼</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script defer src="../assets/manual.js"></script>
+</head>
+<body class="show-both">
+<div class="layout">
+  <aside class="sidebar" id="sidebar"></aside>
+  <main class="content">
+    <div class="topbar">
+      <div class="crumbs"><a href="../index.html">개요</a> › Vario</div>
+      <div class="lang-toggle" id="langToggle"></div>
+    </div>
+    <div class="content-inner">
+
+      <h1>5. Vario</h1>
+      <p class="lede ko">레이트와 진폭의 안정도를 게이지와 통계로 보여 주고, "기록해도 될 만큼 안정적인지"를 색으로 판정합니다.</p>
+      <p class="lede en">Shows rate and amplitude stability as gauges + stats, and gives a colour verdict on whether the watch is "stable enough to record".</p>
+
+      <figure>
+        <img data-shot src="../img/tab-vario.png" alt="Vario tab">
+        <figcaption class="ko">그림 1. 상단 판정 칩, 레이트·진폭 게이지(min/max/avg/현재 선), 아래 통계표.</figcaption>
+        <figcaption class="en">Fig 1. Verdict chips on top, rate/amplitude gauges (min/max/avg/current lines), stats grids below.</figcaption>
+      </figure>
+
+      <h2>용도 · Purpose</h2>
+      <p class="ko">측정값이 얼마나 퍼져 있는지(표준편차)를 보고, 지금이 신뢰할 만한 측정 시점인지 즉시 판단합니다.</p>
+      <p class="en">Reads how spread out the readings are (standard deviation) so you can tell at a glance whether the watch is settled enough to trust.</p>
+
+      <h2>무엇이 보이나 · What's shown</h2>
+      <ul>
+        <li><span class="ko"><b>레이트 게이지</b> — 가로축 rate(s/d) −10~+10. 음영 띠 = 허용 범위, 파란 선 = 최소·최대, 빨간 선 = 평균, 점선 = 현재값. 곁에 <code>min / max / avg / current</code> 라벨.</span><span class="en"><b>Rate gauge</b> — axis = rate (s/d) −10…+10. Shaded band = acceptable range; blue lines = min/max; red line = mean; dashed = current. Labels <code>min / max / avg / current</code>.</span></li>
+        <li><span class="ko"><b>진폭 게이지</b> — 같은 구성, 건강범위 270–300°.</span><span class="en"><b>Amplitude gauge</b> — same layout, healthy band 270–300°.</span></li>
+        <li><span class="ko"><b>상단 요약</b> — 상태 칩(녹/황/적) + 경과시간 + 종합 판정 텍스트(예: "Overall: OK - Stable enough to record").</span><span class="en"><b>Top summary</b> — status chips (green/yellow/red) + elapsed time + overall verdict (e.g. "Overall: OK - Stable enough to record").</span></li>
+        <li><span class="ko"><b>통계표</b> — 각 게이지 아래 <code>Min · Max · Spread · Average · Sigma · Current</code>.</span><span class="en"><b>Stats grid</b> — under each gauge: <code>Min · Max · Spread · Average · Sigma · Current</code>.</span></li>
+      </ul>
+
+      <h2>읽는 법 · How to read (판정)</h2>
+      <table>
+        <thead><tr><th>판정 · Verdict</th><th>의미 · Meaning</th></tr></thead>
+        <tbody>
+          <tr><td><span class="pill warn">Measuring…</span></td><td><span class="ko">아직 비트가 부족(약 30비트 전). 기다리세요.</span><span class="en">Not enough beats yet (~&lt;30). Wait.</span></td></tr>
+          <tr><td><span class="pill good">Stable · in range</span></td><td><span class="ko">허용 범위 안 + 변동 작음 = 최상.</span><span class="en">In band + low variation = best.</span></td></tr>
+          <tr><td><span class="pill warn">In range · unstable</span></td><td><span class="ko">범위 안이지만 sigma &gt; 3.0 s/d로 출렁임.</span><span class="en">In band but jittery (sigma &gt; 3.0 s/d).</span></td></tr>
+          <tr><td><span class="pill bad">Fast / Slow · out of range</span></td><td><span class="ko">±10 s/d를 벗어남.</span><span class="en">Outside ±10 s/d.</span></td></tr>
+        </tbody>
+      </table>
+      <p class="ko"><b>진폭</b>: <span class="pill good">Healthy</span> 270–300°, <span class="pill warn">Slightly low</span> 270° 미만, <span class="pill bad">Low · service</span> 220° 미만.</p>
+      <p class="en"><b>Amplitude</b>: <span class="pill good">Healthy</span> 270–300°, <span class="pill warn">Slightly low</span> below 270°, <span class="pill bad">Low · service</span> below 220°.</p>
+
+      <div class="tip">
+        <p class="ko"><b>Spread</b>(최대−최소)와 <b>Sigma</b>(표준편차)가 작을수록 좋습니다. 일시정지 후 <a href="../controls.html#review">리뷰 커서</a>를 옮기면 그 시점의 현재값 선이 따라 움직입니다.</p>
+        <p class="en">Smaller <b>Spread</b> (max−min) and <b>Sigma</b> (std dev) are better. While paused, moving the <a href="../controls.html#review">review cursor</a> moves the "current" line to that moment.</p>
+      </div>
+
+      <div class="pager">
+        <a href="sweep.html"><small>← 이전 · Prev</small> 4. Sweep</a>
+        <a href="beat-error.html">6. Beat Error <small>다음 · Next →</small></a>
+      </div>
+    </div>
+  </main>
+</div>
+</body>
+</html>

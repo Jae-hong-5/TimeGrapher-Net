@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>4. Sweep — TimeGrapher 매뉴얼</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script defer src="../assets/manual.js"></script>
+</head>
+<body class="show-both">
+<div class="layout">
+  <aside class="sidebar" id="sidebar"></aside>
+  <main class="content">
+    <div class="topbar">
+      <div class="crumbs"><a href="../index.html">개요</a> › Sweep</div>
+      <div class="lang-toggle" id="langToggle"></div>
+    </div>
+    <div class="content-inner">
+
+      <h1>4. Sweep</h1>
+      <p class="lede ko">여러 비트를 하나로 "접어" 한 비트 분량의 엔벨로프로 보여 줍니다. 오실로스코프의 스윕 화면과 비슷합니다.</p>
+      <p class="lede en">Folds many beats into a single beat-length envelope — like an oscilloscope's swept trace.</p>
+
+      <figure>
+        <img data-shot src="../img/tab-sweep.png" alt="Sweep tab">
+        <figcaption class="ko">그림 1. 한 비트 창으로 접은 파형. 아래 참조줄에 현재 RATE / AMP / BEAT ERR.</figcaption>
+        <figcaption class="en">Fig 1. The waveform folded into one beat window; a reference line shows current RATE / AMP / BEAT ERR.</figcaption>
+      </figure>
+
+      <h2>용도 · Purpose</h2>
+      <p class="ko">탈진기의 한 비트 움직임이 매번 같은 모양으로 반복되는지 봅니다. 모양이 안정적이면 동작이 일정하다는 뜻입니다.</p>
+      <p class="en">Shows whether the escapement's single-beat motion repeats with the same shape each time — a stable shape means consistent action.</p>
+
+      <h2>무엇이 보이나 · What's shown</h2>
+      <dl class="kv">
+        <dt>X축</dt><dd>Sweep (ms) — <span class="ko">0부터 창 길이까지(데이터 폭에 맞춰 자동 스케일).</span><span class="en">0 to the window length (auto-scales to the data width).</span></dd>
+        <dt>Y축</dt><dd>Amplitude — <span class="ko">접은 엔벨로프 한 줄.</span><span class="en">One folded-envelope trace.</span></dd>
+        <dt><span class="ko">참조줄</span><span class="en">Reference line</span></dt><dd><code>RATE X s/d | AMP Y° | BEAT ERR Z ms</code> <span class="ko">— 현재 측정값.</span><span class="en">— current readings.</span></dd>
+      </dl>
+
+      <h2>읽는 법 · How to read</h2>
+      <ul>
+        <li><span class="ko"><b>안정</b>: 프레임이 바뀌어도 같은 자리에 같은 모양 — 반복성이 좋은 탈진기.</span><span class="en"><b>Stable</b>: the same shape stays in the same place frame to frame — a repeatable escapement.</span></li>
+        <li><span class="ko"><b>불안정</b>: 모양이 좌우로 흔들리거나 번지면 타이밍 지터가 있는 것.</span><span class="en"><b>Unstable</b>: a shape that wobbles or smears indicates timing jitter.</span></li>
+        <li><span class="ko">⏸로 멈추면 한 비트의 프로파일을 정밀하게 살펴볼 수 있습니다.</span><span class="en">Pause to inspect a single beat's profile in detail.</span></li>
+      </ul>
+
+      <div class="note">
+        <p class="ko">한 비트 안의 A·C 충격 위치를 자세히 보려면 <a href="beat-noise.html">Beat Noise</a>·<a href="escapement.html">Escapement</a>를 함께 보세요.</p>
+        <p class="en">To examine A/C impulse positions within a beat, pair this with <a href="beat-noise.html">Beat Noise</a> / <a href="escapement.html">Escapement</a>.</p>
+      </div>
+
+      <div class="pager">
+        <a href="trace.html"><small>← 이전 · Prev</small> 3. Trace</a>
+        <a href="vario.html">5. Vario <small>다음 · Next →</small></a>
+      </div>
+    </div>
+  </main>
+</div>
+</body>
+</html>

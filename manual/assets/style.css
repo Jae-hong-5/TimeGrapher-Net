@@ -1,0 +1,225 @@
+/* TimeGrapher-Net User Manual — shared styles.
+   Mirrors the app's design language: flat, right-angled (no rounded corners),
+   single-colour brushes, low-contrast grid. */
+
+:root {
+  --bg: #f4f5f7;
+  --panel: #ffffff;
+  --chrome: #e9ebee;
+  --border: #d2d6db;
+  --text: #1c2025;
+  --text-muted: #5b6470;
+  --accent: #165bff;
+  --accent-soft: #e6edff;
+  --tic: #1f9d55;   /* green = tic */
+  --toc: #d23b3b;   /* red = toc */
+  --warn-bg: #fff6e0;
+  --warn-border: #e0a500;
+  --code-bg: #11151c;
+  --code-text: #e6e8eb;
+  --sidebar-w: 280px;
+  --maxw: 980px;
+  font-synthesis: none;
+}
+
+* { box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  margin: 0;
+  font-family: "Segoe UI", "Malgun Gothic", "Apple SD Gothic Neo", system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+  color: var(--text);
+  background: var(--bg);
+}
+
+/* ---------- layout ---------- */
+.layout { display: flex; min-height: 100vh; }
+
+.sidebar {
+  width: var(--sidebar-w);
+  flex: 0 0 var(--sidebar-w);
+  background: var(--panel);
+  border-right: 1px solid var(--border);
+  padding: 0;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+}
+
+.sidebar .brand {
+  display: flex; align-items: center; gap: 10px;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--border);
+  background: var(--chrome);
+}
+.sidebar .brand img { width: 28px; height: 28px; }
+.sidebar .brand b { font-size: 16px; letter-spacing: .2px; }
+.sidebar .brand span { font-size: 11px; color: var(--text-muted); display:block; }
+
+.nav-group { padding: 10px 0 14px; }
+.nav-group h4 {
+  margin: 0; padding: 12px 18px 4px;
+  font-size: 11px; text-transform: uppercase; letter-spacing: .8px;
+  color: var(--text-muted); font-weight: 700;
+}
+.nav-group a {
+  display: block; padding: 6px 18px 6px 22px;
+  color: var(--text); text-decoration: none; font-size: 14px;
+  border-left: 3px solid transparent;
+}
+.nav-group a:hover { background: var(--accent-soft); }
+.nav-group a.active {
+  border-left-color: var(--accent);
+  background: var(--accent-soft);
+  font-weight: 600; color: var(--accent);
+}
+.nav-group a .num {
+  display: inline-block; width: 20px; color: var(--text-muted); font-variant-numeric: tabular-nums;
+}
+
+.content { flex: 1 1 auto; min-width: 0; }
+.content-inner { max-width: var(--maxw); margin: 0 auto; padding: 28px 40px 90px; }
+
+/* ---------- top bar (lang toggle) ---------- */
+.topbar {
+  position: sticky; top: 0; z-index: 5;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 40px;
+  background: rgba(244,245,247,.92);
+  backdrop-filter: blur(6px);
+  border-bottom: 1px solid var(--border);
+}
+.crumbs { font-size: 13px; color: var(--text-muted); }
+.crumbs a { color: var(--text-muted); text-decoration: none; }
+.crumbs a:hover { color: var(--accent); }
+
+.lang-toggle { display: inline-flex; border: 1px solid var(--border); }
+.lang-toggle button {
+  border: 0; background: var(--panel); color: var(--text);
+  padding: 4px 12px; font-size: 12px; cursor: pointer; font-weight: 600;
+  border-right: 1px solid var(--border);
+}
+.lang-toggle button:last-child { border-right: 0; }
+.lang-toggle button.active { background: var(--accent); color: #fff; }
+
+/* ---------- typography ---------- */
+h1 { font-size: 28px; margin: 8px 0 4px; line-height: 1.25; }
+h2 {
+  font-size: 21px; margin: 38px 0 10px; padding-bottom: 6px;
+  border-bottom: 2px solid var(--border);
+}
+h3 { font-size: 17px; margin: 24px 0 8px; }
+p { margin: 8px 0; }
+.lede { font-size: 16px; color: var(--text-muted); margin-bottom: 8px; }
+ul, ol { margin: 8px 0; padding-left: 22px; }
+li { margin: 4px 0; }
+a { color: var(--accent); }
+code {
+  background: var(--chrome); padding: 1px 6px; font-size: 13px;
+  font-family: "Cascadia Mono", Consolas, monospace;
+}
+pre {
+  background: var(--code-bg); color: var(--code-text);
+  padding: 14px 16px; overflow-x: auto; font-size: 13px; line-height: 1.55;
+  font-family: "Cascadia Mono", Consolas, monospace;
+}
+pre code { background: none; padding: 0; color: inherit; }
+kbd {
+  background: var(--panel); border: 1px solid var(--border); border-bottom-width: 2px;
+  padding: 1px 6px; font-size: 12px; font-family: inherit;
+}
+
+/* ---------- components ---------- */
+.card {
+  background: var(--panel); border: 1px solid var(--border);
+  padding: 16px 18px; margin: 14px 0;
+}
+
+.note, .warn, .tip {
+  border-left: 4px solid var(--accent); background: var(--accent-soft);
+  padding: 10px 14px; margin: 14px 0;
+}
+.warn { border-left-color: var(--warn-border); background: var(--warn-bg); }
+.tip  { border-left-color: var(--tic); background: #eaf7ef; }
+.note p:first-child, .warn p:first-child, .tip p:first-child { margin-top: 0; }
+.note p:last-child, .warn p:last-child, .tip p:last-child { margin-bottom: 0; }
+
+table { border-collapse: collapse; width: 100%; margin: 14px 0; font-size: 14px; }
+th, td { border: 1px solid var(--border); padding: 7px 10px; text-align: left; vertical-align: top; }
+th { background: var(--chrome); font-weight: 700; }
+tbody tr:nth-child(even) { background: #fafbfc; }
+
+.pill {
+  display: inline-block; padding: 1px 8px; font-size: 12px; font-weight: 700;
+  border: 1px solid var(--border); background: var(--chrome); white-space: nowrap;
+}
+.pill.tic { color: var(--tic); border-color: var(--tic); background: #eaf7ef; }
+.pill.toc { color: var(--toc); border-color: var(--toc); background: #fdeaea; }
+.pill.good { color: var(--tic); border-color: var(--tic); background: #eaf7ef; }
+.pill.warn { color: #9a7400; border-color: var(--warn-border); background: var(--warn-bg); }
+.pill.bad  { color: var(--toc); border-color: var(--toc); background: #fdeaea; }
+
+/* figure / screenshot with graceful fallback */
+figure { margin: 16px 0; }
+figure img {
+  display: block; max-width: 100%; height: auto;
+  border: 1px solid var(--border); background: var(--panel);
+}
+figure figcaption { font-size: 12.5px; color: var(--text-muted); margin-top: 6px; }
+.shot-missing {
+  display: flex; align-items: center; justify-content: center; flex-direction: column;
+  min-height: 200px; border: 1px dashed var(--border); background: repeating-linear-gradient(
+    45deg, #fafbfc, #fafbfc 12px, #f1f3f5 12px, #f1f3f5 24px);
+  color: var(--text-muted); font-size: 13px; text-align: center; padding: 20px;
+}
+.shot-missing b { color: var(--text); font-size: 14px; }
+.shot-missing code { background: var(--panel); }
+
+.grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 14px; margin: 18px 0;
+}
+.grid a.tile {
+  display: block; text-decoration: none; color: var(--text);
+  border: 1px solid var(--border); background: var(--panel); padding: 14px;
+}
+.grid a.tile:hover { border-color: var(--accent); background: var(--accent-soft); }
+.grid a.tile .t { font-weight: 700; font-size: 15px; }
+.grid a.tile .n { color: var(--accent); font-weight: 700; font-variant-numeric: tabular-nums; }
+.grid a.tile .d { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+
+.pager { display: flex; justify-content: space-between; margin-top: 48px; gap: 12px; }
+.pager a {
+  border: 1px solid var(--border); padding: 10px 14px; text-decoration: none;
+  background: var(--panel); color: var(--text); font-size: 14px; max-width: 48%;
+}
+.pager a:hover { border-color: var(--accent); color: var(--accent); }
+.pager a small { display: block; color: var(--text-muted); font-size: 11px; }
+
+dl.kv { display: grid; grid-template-columns: max-content 1fr; gap: 4px 16px; margin: 10px 0; }
+dl.kv dt { font-weight: 700; }
+dl.kv dd { margin: 0; }
+
+/* ---------- bilingual toggle ---------- */
+.en { color: var(--text-muted); }
+.en::before {
+  content: "EN"; font-size: 10px; font-weight: 700; color: var(--accent);
+  border: 1px solid var(--accent); padding: 0 3px; margin-right: 6px; vertical-align: 1px;
+}
+body.show-ko .en { display: none; }
+body.show-en .ko { display: none; }
+body.show-en .en { color: var(--text); }
+body.show-en .en::before { display: none; }
+
+/* in side-by-side default, dim EN a touch but keep readable */
+li > .en, p.en { display: block; }
+
+@media (max-width: 860px) {
+  .sidebar { display: none; }
+  .topbar { padding: 10px 18px; }
+  .content-inner { padding: 20px 18px 80px; }
+}

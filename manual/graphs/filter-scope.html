@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>7. Filter Scope — TimeGrapher 매뉴얼</title>
+<link rel="stylesheet" href="../assets/style.css">
+<script defer src="../assets/manual.js"></script>
+</head>
+<body class="show-both">
+<div class="layout">
+  <aside class="sidebar" id="sidebar"></aside>
+  <main class="content">
+    <div class="topbar">
+      <div class="crumbs"><a href="../index.html">개요</a> › Filter Scope</div>
+      <div class="lang-toggle" id="langToggle"></div>
+    </div>
+    <div class="content-inner">
+
+      <h1>7. Filter Scope</h1>
+      <p class="lede ko">같은 파형을 4단계 필터로 동시에 보여 줍니다. 어떤 필터에서 어떤 탈진기 충격이 가장 잘 보이는지 비교합니다.</p>
+      <p class="lede en">Shows the same waveform through four filter stages at once, so you can compare which filter reveals which escapement event.</p>
+
+      <figure>
+        <img data-shot src="../img/tab-filter-scope.png" alt="Filter Scope tab">
+        <figcaption class="ko">그림 1. 위에서부터 F0~F3, 공유 시간축. 초록=tic, 빨강=toc.</figcaption>
+        <figcaption class="en">Fig 1. F0–F3 stacked, sharing one time axis. Green=tic, red=toc.</figcaption>
+      </figure>
+
+      <h2>용도 · Purpose</h2>
+      <p class="ko">원신호부터 점점 강하게 가공한 네 가지 보기를 나란히 두어, 잡음에 묻힌 충격 타이밍을 가장 잘 드러내는 단계를 찾습니다.</p>
+      <p class="en">Places four progressively processed views side by side to find the stage that best exposes impulse timing hidden in noise.</p>
+
+      <h2>무엇이 보이나 · What's shown</h2>
+      <table>
+        <thead><tr><th>레인</th><th>내용 · Content</th></tr></thead>
+        <tbody>
+          <tr><td><b>F0</b></td><td><span class="ko">원신호(평균 기준 미러). 가공 거의 없음.</span><span class="en">Raw signal, mirrored about its average — closest to unfiltered.</span></td></tr>
+          <tr><td><b>F1</b></td><td><span class="ko">F0의 이동평균(미러). 더 매끈하고 잡음이 적음.</span><span class="en">Moving average of F0 (mirrored) — smoother, less noise.</span></td></tr>
+          <tr><td><b>F2</b></td><td><span class="ko">F1에서 상승 기울기를 강조 — T3·T2 타이밍 사건이 드러남.</span><span class="en">F1 with rising slopes emphasised — reveals T3/T2 events.</span></td></tr>
+          <tr><td><b>F3</b></td><td><span class="ko">상단 엔벨로프(단측) + 상승엣지 강조 — T1·T3 식별에 도움.</span><span class="en">Upper envelope (one-sided) with rising-edge emphasis — helps spot T1/T3.</span></td></tr>
+        </tbody>
+      </table>
+      <p class="ko">네 레인은 가로(시간) 축을 공유하며 기본적으로 최근 약 2초를 자동 추적합니다. 똑/딱은 색으로 구분됩니다(초록=tic, 빨강=toc).</p>
+      <p class="en">All four share the horizontal (time) axis and auto-follow the last ~2 seconds by default. Tics/tocs are colour-coded (green=tic, red=toc).</p>
+
+      <h2>읽는 법 · How to read</h2>
+      <ul>
+        <li><span class="ko">레인을 위아래로 비교해, 검출하려는 충격이 또렷하게 솟는 단계를 고릅니다.</span><span class="en">Compare lanes vertically to pick the stage where the impulse you care about stands out clearly.</span></li>
+        <li><span class="ko">한 비트 안에서 여러 충격 성분(세로 구조)이 보이면 탈진기 동작 단계를 구분할 수 있습니다.</span><span class="en">Multiple impulse components (vertical structure) within a beat let you separate escapement action phases.</span></li>
+      </ul>
+
+      <h2>옵션 · Options</h2>
+      <ul>
+        <li><span class="ko"><b>Y 줌</b> — 마우스 휠(네 레인 공통).</span><span class="en"><b>Y zoom</b> — mouse wheel (shared across lanes).</span></li>
+        <li><span class="ko"><b>Y 팬</b> — 세로 드래그(공통).</span><span class="en"><b>Y pan</b> — vertical drag (shared).</span></li>
+        <li><span class="ko"><b>X 줌/팬</b> — 한 레인에서 조작하면 네 레인이 함께 움직입니다. 전체로 줌아웃하면 라이브 추적이 다시 켜집니다.</span><span class="en"><b>X zoom/pan</b> — adjusting one lane moves all four; zooming fully out re-arms live follow.</span></li>
+      </ul>
+
+      <div class="pager">
+        <a href="beat-error.html"><small>← 이전 · Prev</small> 6. Beat Error</a>
+        <a href="long-term.html">8. Long-Term <small>다음 · Next →</small></a>
+      </div>
+    </div>
+  </main>
+</div>
+</body>
+</html>
