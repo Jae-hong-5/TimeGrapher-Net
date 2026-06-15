@@ -2,7 +2,7 @@ namespace TimeGrapher.Core.Shared;
 
 public static class AudioSampleRates
 {
-    private static readonly int[] StandardRateValues = { 48000, 96000, 192000, 384000 };
+    private static readonly int[] StandardRateValues = { 48000, 96000, 192000 };
 
     private static readonly HashSet<int> StandardRateSetValues = new(StandardRateValues);
 

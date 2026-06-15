@@ -30,7 +30,6 @@ public sealed class WavProbeTests
     [InlineData(48000)]
     [InlineData(96000)]
     [InlineData(192000)]
-    [InlineData(384000)]
     public void PlaybackAcceptanceProfileAcceptsStandardRates(int sampleRate)
     {
         var info = new WavFormatInfo(WavProbe.WaveFormatIeeeFloat, 1, sampleRate, (uint)(sampleRate * 4), 4, 32, 44, 16);

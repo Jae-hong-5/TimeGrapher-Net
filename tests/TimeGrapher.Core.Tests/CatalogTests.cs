@@ -26,7 +26,7 @@ public sealed class CatalogTests
     [Fact]
     public void StandardSampleRatesAreSharedByPlaybackAndCapture()
     {
-        Assert.Equal(new[] { 48000, 96000, 192000, 384000 }, AudioSampleRates.Standard);
+        Assert.Equal(new[] { 48000, 96000, 192000 }, AudioSampleRates.Standard);
         foreach (int rate in AudioSampleRates.Standard)
         {
             Assert.Contains(rate, AudioSampleRates.StandardSet);
