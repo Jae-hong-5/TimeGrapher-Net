@@ -239,7 +239,8 @@ new styles.
   tokens are `0`, and `CornerRadius="0"` is set on `TemplatedControl`, `Border`,
   `Thumb`, the slider thumb, and `CheckBox`. A local `CornerRadius` beats a style
   setter, so never assign a non-zero `CornerRadius` in markup or code.
-- **Straight lines, simple markers.** Data series are straight, solid strokes (1–2 px).
+- **Straight lines, simple markers.** Plotted data traces are straight, solid strokes
+  (1–2 px); summary/emphasis lines may be heavier when needed for readability.
   Dashed/dotted patterns are reserved for reference guides (average lines, A/C
   escapement markers, the review cursor) — never the primary data. There are no
   arrowheads or decorative connectors; discrete samples use a plain filled-circle marker.
