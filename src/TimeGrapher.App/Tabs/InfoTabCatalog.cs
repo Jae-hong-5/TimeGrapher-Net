@@ -31,7 +31,9 @@ internal sealed record GraphSeriesDefinition(
     uint Color,
     GraphSeriesRenderMode RenderMode,
     int TargetPointBudget,
-    int FillAlpha = 0);
+    // Per-series fill opacity (0-255); byte so an out-of-range value is a
+    // compile error instead of a silent wrap when applied via WithAlpha.
+    byte FillAlpha = 0);
 
 internal sealed record InfoTabDefinition(
     string Id,

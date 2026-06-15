@@ -252,7 +252,7 @@ internal sealed class RateScopeRenderer
             if (spec.FillAlpha > 0)
             {
                 sc.FillY = true;
-                sc.FillYColor = Color.FromARGB(ThemeColor(spec)).WithAlpha((byte)spec.FillAlpha);
+                sc.FillYColor = Color.FromARGB(ThemeColor(spec)).WithAlpha(spec.FillAlpha);
             }
             sc.LegendText = spec.Name;
             _scopePlots.Add(sc);
@@ -284,7 +284,7 @@ internal sealed class RateScopeRenderer
             _scopePlots[i].LineColor = Color.FromARGB(color);
             if (_scopeSeries[i].FillAlpha > 0)
             {
-                _scopePlots[i].FillYColor = Color.FromARGB(color).WithAlpha((byte)_scopeSeries[i].FillAlpha);
+                _scopePlots[i].FillYColor = Color.FromARGB(color).WithAlpha(_scopeSeries[i].FillAlpha);
             }
         }
 
