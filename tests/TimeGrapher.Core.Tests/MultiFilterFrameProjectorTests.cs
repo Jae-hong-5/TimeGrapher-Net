@@ -7,7 +7,8 @@ namespace TimeGrapher.Core.Tests;
 /// <summary>
 /// Multi-Filter Scope frame contract: four bounded replace series
 /// (filter.f0..f3) sharing one absolute-sample-tick X base, trimmed to the
-/// rolling two-second window and decimated at the producer.
+/// rolling <see cref="MultiFilterFrameProjector.WindowSeconds"/>-second window
+/// and decimated at the producer.
 /// </summary>
 public sealed class MultiFilterFrameProjectorTests
 {
@@ -75,15 +76,16 @@ public sealed class MultiFilterFrameProjectorTests
     }
 
     [Fact]
-    public void WindowKeepsOnlyTheLastTwoSecondsOfTicks()
+    public void WindowKeepsOnlyTheLastWindowSecondsOfTicks()
     {
         var projector = new MultiFilterFrameProjector(SampleRate);
-        const int totalSamples = 3 * SampleRate;
+        // One second past the rolling window so trimming must drop the oldest.
+        int totalSamples = (MultiFilterFrameProjector.WindowSeconds + 1) * SampleRate;
         projector.ProcessSamples(AlternatingBlock(totalSamples));
 
         GraphSeriesFrame f0 = Series(Snapshot(projector), AnalysisGraphSeries.FilterF0);
 
-        Assert.True(f0.X[0] >= totalSamples - 2 * SampleRate);
+        Assert.True(f0.X[0] >= totalSamples - MultiFilterFrameProjector.WindowSeconds * SampleRate);
         Assert.True(f0.X[^1] < totalSamples);
         for (int i = 1; i < f0.X.Count; i++)
         {

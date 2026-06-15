@@ -19,12 +19,12 @@ namespace TimeGrapher.Core.Analysis;
 /// </summary>
 public sealed class MultiFilterFrameProjector
 {
-    public const int WindowSeconds = 2;
-    public const int FilterPointBudget = 2000;
+    public const int WindowSeconds = 10;
+    public const int FilterPointBudget = 10000;
 
     /// <summary>
     /// Stream-time floor between series rebuilds. The five rebuilt lists
-    /// (~80 KB) used to be allocated per analysis pass — at the Pi's 192 kHz
+    /// (~400 KB) used to be allocated per analysis pass — at the Pi's 192 kHz
     /// pass cadence (~94/s) that was megabytes per second of analysis-thread
     /// churn, most of it discarded by the latest-wins UI coalescer. Frames in
     /// between re-attach the same immutable series instances (the rate-series
