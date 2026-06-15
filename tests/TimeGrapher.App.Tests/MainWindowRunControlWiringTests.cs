@@ -24,6 +24,21 @@ public sealed class MainWindowRunControlWiringTests
     }
 
     [Fact]
+    public void RunControlSurfaceDoesNotExposeLegacyStopOrSequenceResetControls()
+    {
+        XDocument document = XDocument.Load(FindSourceFile("src/TimeGrapher.App/Views/MainWindow.axaml"));
+
+        Assert.DoesNotContain(
+            document.Descendants().Attributes("Command").Select(attribute => attribute.Value),
+            value => value.Contains("StopCommand", StringComparison.Ordinal) ||
+                value.Contains("ResetSequenceCommand", StringComparison.Ordinal));
+        Assert.DoesNotContain(
+            document.Descendants().Attributes("Name").Select(attribute => attribute.Value),
+            value => value.Contains("StopPushButton", StringComparison.Ordinal) ||
+                value.Contains("ResetSequence", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void InitialPlaybackDirectoryUsesBundledSampleFolder()
     {
         string root = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
