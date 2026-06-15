@@ -206,13 +206,13 @@ internal sealed class WaveformCompareRenderer
         IReadOnlyList<BeatSegment> segments = snapshot.Segments;
         int pairCount = Math.Min(segments.Count / 2, WaveformCompareLogic.PairLanes);
 
-        // Compute x-axis range based on beat period from metrics history
-        double xMaxMs = XMaxMs;  // default
-        if (history?.Bph > 0)
-        {
-            double beatPeriodMs = 3600000.0 / history.Bph;  // ms per beat
-            xMaxMs = WaveformCompareLogic.BeatDisplayWindowMs + beatPeriodMs;
-        }
+        // Clip each half at min(BeatDisplayWindowMs, beatPeriodMs) so a fast
+        // escapement (short beat period) never bleeds a second beat into one lane.
+        double beatPeriodMs = history?.Bph > 0
+            ? 3600000.0 / history.Bph
+            : WaveformCompareLogic.BeatDisplayWindowMs;
+        double clipMs = Math.Min(WaveformCompareLogic.BeatDisplayWindowMs, beatPeriodMs);
+        double xMaxMs = WaveformCompareLogic.TocXOffsetMs + clipMs;
 
         for (int lane = 0; lane < WaveformCompareLogic.PairLanes; lane++)
         {
@@ -244,9 +244,9 @@ internal sealed class WaveformCompareRenderer
             double baseline = (WaveformCompareLogic.PairLanes - 1 - lane)
                               * WaveformCompareLogic.LaneSpacing;
 
-            FillLane(ticSeg, baseline, _laneX[lane], _laneY[lane], xOffset: 0.0);
+            FillLane(ticSeg, baseline, _laneX[lane], _laneY[lane], xOffset: 0.0, clipMs);
             FillLane(tocSeg, baseline, _tocX[lane],  _tocY[lane],
-                     xOffset: WaveformCompareLogic.TocXOffsetMs);
+                     xOffset: WaveformCompareLogic.TocXOffsetMs, clipMs);
 
             if (ticLabel != null)
             {
@@ -277,14 +277,14 @@ internal sealed class WaveformCompareRenderer
     /// the A event are skipped so each half shows only its own beat.
     /// </summary>
     private static void FillLane(BeatSegment segment, double baseline,
-        List<double> x, List<double> y, double xOffset)
+        List<double> x, List<double> y, double xOffset, double clipMs)
     {
         EnvelopeLaneSampler.MaxDecimateNormalized(
             segment.Samples.Span, LanePointBudget,
             (p, _, stride, normalized) =>
             {
                 double relX = p * stride * segment.MsPerPoint - segment.AOffsetMs;
-                if (relX > WaveformCompareLogic.BeatDisplayWindowMs)
+                if (relX > clipMs)
                 {
                     return;
                 }
