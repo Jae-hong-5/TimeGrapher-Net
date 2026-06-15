@@ -13,15 +13,13 @@ namespace TimeGrapher.App.Rendering;
 /// cumulative BeatSegmentsSnapshot the frame carries (the Beat-Noise Scope's
 /// segment infrastructure reused for cross-beat comparison).
 ///
-/// One plot stacks the recent beats in aligned lanes: lane k draws segment k's
-/// envelope normalized to its own peak (so shapes compare directly even when
-/// beats differ in loudness) and offset by k * LaneSpacing vertically, with
-/// every lane aligned on its A event (x = 0 = A onset; segments are A-anchored
-/// by capture). Pooled vertical guides mark x = 0 (A, green) and the mean
-/// C-peak interval across the shown lanes (red — the cross-beat consistency
-/// reference), and each lane carries a phase + A→C label. The header line
-/// above reads the current rate / beat error / BPH from the cumulative
-/// metrics history.
+/// One plot stacks the recent beat pairs: each pair-lane displays the tic beat
+/// on the left half (x = 0..BeatDisplayWindowMs) and the toc beat on the right
+/// half (x = TocXOffsetMs..TocXOffsetMs+BeatDisplayWindowMs), all A-aligned
+/// within their respective half. Newest pair at the top. Pooled vertical guides
+/// mark x = 0 and x = TocXOffsetMs (A onset for tic/toc sides) and the
+/// per-side mean C-peak interval. The header line above reads the current rate /
+/// beat error / BPH from the cumulative metrics history.
 ///
 /// All plottables refill in place; the lanes re-render only when the segments
 /// snapshot version changes and the header only when the metrics-history
@@ -34,13 +32,14 @@ internal sealed class WaveformCompareRenderer
 {
     /// <summary>
     /// Max-decimated points per lane (the strip-lane decimation policy):
-    /// 8 lanes x 800 points stays inside the scope point budget.
+    /// 12 lanes x 800 points stays inside the scope point budget.
     /// </summary>
     private const int LanePointBudget = 800;
 
-    /// <summary>X range: a small blank strip left of the pre-roll hosts the lane labels.</summary>
+    /// <summary>X range: tic occupies the left half, toc the right half.</summary>
     private const double XMinMs = -2.0 * BeatSegmentCapture.PreEventMs;
-    private const double XMaxMs = BeatSegmentCapture.WindowMs - BeatSegmentCapture.PreEventMs;
+    private const double XMaxMs = WaveformCompareLogic.TocXOffsetMs
+        + WaveformCompareLogic.BeatDisplayWindowMs - BeatSegmentCapture.PreEventMs;
     private const double LaneLabelXMs = XMinMs + 0.5;
 
     /// <summary>Lane label top relative to the lane baseline (traces peak at +1.0).</summary>
@@ -53,15 +52,23 @@ internal sealed class WaveformCompareRenderer
     private readonly TextBlock _headerText;
     private readonly string _textFontFamily;
 
-    private readonly List<double>[] _laneX;
-    private readonly List<double>[] _laneY;
+    private readonly List<double>[] _laneX;   // tic X per pair
+    private readonly List<double>[] _laneY;   // tic Y per pair
+    private readonly List<double>[] _tocX;    // toc X per pair
+    private readonly List<double>[] _tocY;    // toc Y per pair
 
-    private readonly Scatter?[] _laneScatters;
-    private readonly Text?[] _laneLabels;
+    private readonly Scatter?[] _laneScatters; // [pair*2]=tic, [pair*2+1]=toc
+    private readonly Text?[] _laneLabels;      // [pair*2]=tic label, [pair*2+1]=toc label
+    // Tic-side guides (at x = 0 and mean-C for the tic segment)
     private VerticalLine? _aGuide;
     private VerticalLine? _cMeanGuide;
     private Text? _aGuideLabel;
     private Text? _cMeanGuideLabel;
+    // Toc-side guides (offset by TocXOffsetMs)
+    private VerticalLine? _aGuideToc;
+    private VerticalLine? _cMeanGuideToc;
+    private Text? _aGuideLabelToc;
+    private Text? _cMeanGuideLabelToc;
     private ReviewCursorLayer? _reviewCursor;
 
     private PlotThemePalette _theme = PlotThemePalette.Current;
@@ -75,14 +82,18 @@ internal sealed class WaveformCompareRenderer
         _headerText = headerText;
         _textFontFamily = textFontFamily;
 
-        _laneX = new List<double>[WaveformCompareLogic.MaxLanes];
-        _laneY = new List<double>[WaveformCompareLogic.MaxLanes];
-        _laneScatters = new Scatter?[WaveformCompareLogic.MaxLanes];
-        _laneLabels = new Text?[WaveformCompareLogic.MaxLanes];
-        for (int i = 0; i < WaveformCompareLogic.MaxLanes; i++)
+        _laneX = new List<double>[WaveformCompareLogic.PairLanes];
+        _laneY = new List<double>[WaveformCompareLogic.PairLanes];
+        _tocX  = new List<double>[WaveformCompareLogic.PairLanes];
+        _tocY  = new List<double>[WaveformCompareLogic.PairLanes];
+        _laneScatters = new Scatter?[WaveformCompareLogic.PairLanes * 2];
+        _laneLabels   = new Text?[WaveformCompareLogic.PairLanes * 2];
+        for (int i = 0; i < WaveformCompareLogic.PairLanes; i++)
         {
             _laneX[i] = new List<double>();
             _laneY[i] = new List<double>();
+            _tocX[i]  = new List<double>();
+            _tocY[i]  = new List<double>();
         }
     }
 
@@ -104,24 +115,34 @@ internal sealed class WaveformCompareRenderer
         Plot plot = _plot.Plot;
         plot.Clear();
         ApplyPlotTheme(plot);
-        plot.YLabel("Beats (oldest at the bottom)");
-        plot.XLabel("ms from A");
+        plot.YLabel("Pairs (newest at the top)");
+        plot.XLabel("ms from A  |  tic \u2190 | \u2192 toc");
         plot.Axes.Left.TickLabelStyle.IsVisible = false;
 
-        for (int i = 0; i < WaveformCompareLogic.MaxLanes; i++)
+        for (int i = 0; i < WaveformCompareLogic.PairLanes; i++)
         {
             _laneX[i].Clear();
             _laneY[i].Clear();
-            _laneScatters[i] = plot.Add.Scatter(_laneX[i], _laneY[i]);
-            _laneScatters[i]!.LineWidth = 1;
-            _laneScatters[i]!.MarkerStyle.IsVisible = false;
-            _laneLabels[i] = AddLabel(plot);
+            _tocX[i].Clear();
+            _tocY[i].Clear();
+            _laneScatters[i * 2] = plot.Add.Scatter(_laneX[i], _laneY[i]);
+            _laneScatters[i * 2]!.LineWidth = 1;
+            _laneScatters[i * 2]!.MarkerStyle.IsVisible = false;
+            _laneLabels[i * 2] = AddLabel(plot);
+            _laneScatters[i * 2 + 1] = plot.Add.Scatter(_tocX[i], _tocY[i]);
+            _laneScatters[i * 2 + 1]!.LineWidth = 1;
+            _laneScatters[i * 2 + 1]!.MarkerStyle.IsVisible = false;
+            _laneLabels[i * 2 + 1] = AddLabel(plot);
         }
 
         _aGuide = AddGuide(plot);
         _cMeanGuide = AddGuide(plot);
         _aGuideLabel = AddLabel(plot);
         _cMeanGuideLabel = AddLabel(plot);
+        _aGuideToc = AddGuide(plot);
+        _cMeanGuideToc = AddGuide(plot);
+        _aGuideLabelToc = AddLabel(plot);
+        _cMeanGuideLabelToc = AddLabel(plot);
         _reviewCursor = AddCursor(plot);
 
         plot.Axes.SetLimitsX(XMinMs, XMaxMs);
@@ -183,72 +204,111 @@ internal sealed class WaveformCompareRenderer
     private void RenderLanes(BeatSegmentsSnapshot snapshot)
     {
         IReadOnlyList<BeatSegment> segments = snapshot.Segments;
-        int count = Math.Min(segments.Count, WaveformCompareLogic.MaxLanes);
+        int pairCount = Math.Min(segments.Count / 2, WaveformCompareLogic.PairLanes);
 
-        for (int lane = 0; lane < WaveformCompareLogic.MaxLanes; lane++)
+        for (int lane = 0; lane < WaveformCompareLogic.PairLanes; lane++)
         {
+            // Newest pair at lane 0 (top): last two segments = pair 0.
+            int idxLast  = segments.Count - 1 - lane * 2;
+            int idxFirst = idxLast - 1;
+            bool hasPair = idxFirst >= 0;
+
             _laneX[lane].Clear();
             _laneY[lane].Clear();
+            _tocX[lane].Clear();
+            _tocY[lane].Clear();
 
-            Text? label = _laneLabels[lane];
-            if (lane >= count)
+            Text? ticLabel = _laneLabels[lane * 2];
+            Text? tocLabel = _laneLabels[lane * 2 + 1];
+
+            if (!hasPair)
             {
-                if (label != null)
-                {
-                    label.IsVisible = false;
-                }
-
+                if (ticLabel != null) ticLabel.IsVisible = false;
+                if (tocLabel != null) tocLabel.IsVisible = false;
                 continue;
             }
 
-            BeatSegment segment = segments[lane];
-            double baseline = lane * WaveformCompareLogic.LaneSpacing;
-            FillLane(segment, baseline, _laneX[lane], _laneY[lane]);
+            BeatSegment segA = segments[idxFirst];
+            BeatSegment segB = segments[idxLast];
+            BeatSegment ticSeg = segA.IsTic ? segA : segB;
+            BeatSegment tocSeg = segA.IsTic ? segB : segA;
 
-            if (label != null)
+            double baseline = (WaveformCompareLogic.PairLanes - 1 - lane)
+                              * WaveformCompareLogic.LaneSpacing;
+
+            FillLane(ticSeg, baseline, _laneX[lane], _laneY[lane], xOffset: 0.0);
+            FillLane(tocSeg, baseline, _tocX[lane],  _tocY[lane],
+                     xOffset: WaveformCompareLogic.TocXOffsetMs);
+
+            if (ticLabel != null)
             {
-                label.IsVisible = true;
-                label.LabelText = WaveformCompareLogic.LaneLabel(segment);
-                label.Location = new Coordinates(LaneLabelXMs, baseline + LaneLabelYOffset);
+                ticLabel.IsVisible = true;
+                ticLabel.LabelText = WaveformCompareLogic.LaneLabel(ticSeg);
+                ticLabel.Location = new Coordinates(LaneLabelXMs, baseline + LaneLabelYOffset);
+            }
+
+            if (tocLabel != null)
+            {
+                tocLabel.IsVisible = true;
+                tocLabel.LabelText = WaveformCompareLogic.LaneLabel(tocSeg);
+                tocLabel.Location = new Coordinates(
+                    WaveformCompareLogic.TocXOffsetMs + LaneLabelXMs,
+                    baseline + LaneLabelYOffset);
             }
         }
 
-        UpdateGuides(segments, count);
-        _plot.Plot.Axes.SetLimitsY(-0.1, YTop(count));
+        UpdateGuides(segments, pairCount);
+        _plot.Plot.Axes.SetLimitsY(-0.1, YTop(pairCount));
     }
 
     /// <summary>
-    /// Fills one lane with the segment's envelope, A-aligned (x = ms from the A
-    /// onset), via the shared strip-lane sampling policy.
+    /// Fills one lane with the segment's envelope, A-aligned, with an optional
+    /// x offset (used to shift the toc trace into the right half of the plot).
+    /// Points beyond <see cref="WaveformCompareLogic.BeatDisplayWindowMs"/> after
+    /// the A event are skipped so each half shows only its own beat.
     /// </summary>
-    private static void FillLane(BeatSegment segment, double baseline, List<double> x, List<double> y)
+    private static void FillLane(BeatSegment segment, double baseline,
+        List<double> x, List<double> y, double xOffset)
     {
         EnvelopeLaneSampler.MaxDecimateNormalized(
             segment.Samples.Span, LanePointBudget,
             (p, _, stride, normalized) =>
             {
-                x.Add(p * stride * segment.MsPerPoint - segment.AOffsetMs);
+                double relX = p * stride * segment.MsPerPoint - segment.AOffsetMs;
+                if (relX > WaveformCompareLogic.BeatDisplayWindowMs)
+                {
+                    return;
+                }
+
+                x.Add(xOffset + relX);
                 y.Add(baseline + normalized);
             });
     }
 
-    private void UpdateGuides(IReadOnlyList<BeatSegment> segments, int count)
+    private void UpdateGuides(IReadOnlyList<BeatSegment> segments, int pairCount)
     {
-        double labelY = YTop(count);
-        SetGuide(
-            _aGuide, _aGuideLabel,
-            count > 0 ? 0.0 : null,
-            WaveformCompareLogic.AGuideLabel, labelY);
+        double labelY = YTop(pairCount);
+        bool hasData = pairCount > 0;
 
-        double? meanC = WaveformCompareLogic.MeanCPeakOffsetMs(segments);
-        SetGuide(
-            _cMeanGuide, _cMeanGuideLabel,
-            meanC,
-            meanC is double mean ? WaveformCompareLogic.CMeanGuideLabel(mean) : "", labelY);
+        // Tic-side: A at x=0, mean-C from tic segments
+        SetGuide(_aGuide, _aGuideLabel,
+            hasData ? 0.0 : null, WaveformCompareLogic.AGuideLabel, labelY);
+        double? ticMeanC = WaveformCompareLogic.MeanCPeakOffsetMs(segments, ticOnly: true);
+        SetGuide(_cMeanGuide, _cMeanGuideLabel, ticMeanC,
+            ticMeanC is double tm ? WaveformCompareLogic.CMeanGuideLabel(tm) : "", labelY);
+
+        // Toc-side: A and mean-C shifted right by TocXOffsetMs
+        SetGuide(_aGuideToc, _aGuideLabelToc,
+            hasData ? WaveformCompareLogic.TocXOffsetMs : null,
+            WaveformCompareLogic.AGuideLabel, labelY);
+        double? tocMeanC = WaveformCompareLogic.MeanCPeakOffsetMs(segments, ticOnly: false);
+        SetGuide(_cMeanGuideToc, _cMeanGuideLabelToc,
+            tocMeanC.HasValue ? WaveformCompareLogic.TocXOffsetMs + tocMeanC.Value : null,
+            tocMeanC is double tocm ? WaveformCompareLogic.CMeanGuideLabel(tocm) : "", labelY);
     }
 
-    private static double YTop(int laneCount) =>
-        (Math.Max(1, laneCount) - 1) * WaveformCompareLogic.LaneSpacing + YHeadroom;
+    private static double YTop(int pairCount) =>
+        (Math.Max(1, pairCount) - 1) * WaveformCompareLogic.LaneSpacing + YHeadroom;
 
     /// <summary>Review-cursor contract: a dotted marker at the scrub time's A-relative offset.</summary>
     private bool UpdateReviewCursor(double? reviewCursorTimeS)
@@ -311,11 +371,15 @@ internal sealed class WaveformCompareRenderer
 
     private void ApplySeriesTheme()
     {
-        foreach (Scatter? lane in _laneScatters)
+        for (int i = 0; i < _laneScatters.Length; i++)
         {
-            if (lane != null)
+            Scatter? scatter = _laneScatters[i];
+            if (scatter != null)
             {
-                lane.LineColor = Color.FromARGB(_theme.TraceWave);
+                // Even index = tic (TraceTick color), odd index = toc (TraceTock color)
+                scatter.LineColor = (i % 2 == 0)
+                    ? Color.FromARGB(_theme.TraceTick)
+                    : Color.FromARGB(_theme.TraceTock);
             }
         }
 
@@ -329,25 +393,14 @@ internal sealed class WaveformCompareRenderer
 
         // A = tick green, C = tock red: the same themed event color mapping the
         // scope markers use (RateScopeRenderer.ThemeColor).
-        if (_aGuide != null)
-        {
-            _aGuide.LineColor = Color.FromARGB(_theme.TraceTick);
-        }
-
-        if (_aGuideLabel != null)
-        {
-            _aGuideLabel.LabelFontColor = Color.FromARGB(_theme.TraceTick);
-        }
-
-        if (_cMeanGuide != null)
-        {
-            _cMeanGuide.LineColor = Color.FromARGB(_theme.TraceTock);
-        }
-
-        if (_cMeanGuideLabel != null)
-        {
-            _cMeanGuideLabel.LabelFontColor = Color.FromARGB(_theme.TraceTock);
-        }
+        if (_aGuide != null)             _aGuide.LineColor              = Color.FromARGB(_theme.TraceTick);
+        if (_aGuideLabel != null)        _aGuideLabel.LabelFontColor    = Color.FromARGB(_theme.TraceTick);
+        if (_cMeanGuide != null)         _cMeanGuide.LineColor          = Color.FromARGB(_theme.TraceTock);
+        if (_cMeanGuideLabel != null)    _cMeanGuideLabel.LabelFontColor = Color.FromARGB(_theme.TraceTock);
+        if (_aGuideToc != null)          _aGuideToc.LineColor           = Color.FromARGB(_theme.TraceTick);
+        if (_aGuideLabelToc != null)     _aGuideLabelToc.LabelFontColor  = Color.FromARGB(_theme.TraceTick);
+        if (_cMeanGuideToc != null)      _cMeanGuideToc.LineColor       = Color.FromARGB(_theme.TraceTock);
+        if (_cMeanGuideLabelToc != null) _cMeanGuideLabelToc.LabelFontColor = Color.FromARGB(_theme.TraceTock);
 
         _reviewCursor?.ApplyTheme(_theme);
     }
