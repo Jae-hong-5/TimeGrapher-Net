@@ -116,7 +116,7 @@ internal sealed class WaveformCompareRenderer
         plot.Clear();
         ApplyPlotTheme(plot);
         plot.YLabel("Pairs (newest at the top)");
-        plot.XLabel("ms from A  |  tic \u2190 | \u2192 toc");
+        plot.XLabel("tic \u2190 | \u2192 toc \n (ms)");
         plot.Axes.Left.TickLabelStyle.IsVisible = false;
 
         for (int i = 0; i < WaveformCompareLogic.PairLanes; i++)
@@ -176,7 +176,7 @@ internal sealed class WaveformCompareRenderer
         if (snapshot != null && snapshot.Version != _lastVersion)
         {
             _lastVersion = snapshot.Version;
-            RenderLanes(snapshot);
+            RenderLanes(snapshot, frame.MetricsHistory);
             changed = true;
         }
 
@@ -201,10 +201,18 @@ internal sealed class WaveformCompareRenderer
         _headerText.Text = WaveformCompareLogic.HeaderLine(history);
     }
 
-    private void RenderLanes(BeatSegmentsSnapshot snapshot)
+    private void RenderLanes(BeatSegmentsSnapshot snapshot, BeatMetricsHistorySnapshot? history)
     {
         IReadOnlyList<BeatSegment> segments = snapshot.Segments;
         int pairCount = Math.Min(segments.Count / 2, WaveformCompareLogic.PairLanes);
+
+        // Compute x-axis range based on beat period from metrics history
+        double xMaxMs = XMaxMs;  // default
+        if (history?.Bph > 0)
+        {
+            double beatPeriodMs = 3600000.0 / history.Bph;  // ms per beat
+            xMaxMs = WaveformCompareLogic.BeatDisplayWindowMs + beatPeriodMs;
+        }
 
         for (int lane = 0; lane < WaveformCompareLogic.PairLanes; lane++)
         {
@@ -258,6 +266,7 @@ internal sealed class WaveformCompareRenderer
         }
 
         UpdateGuides(segments, pairCount);
+        _plot.Plot.Axes.SetLimitsX(XMinMs, xMaxMs);
         _plot.Plot.Axes.SetLimitsY(-0.1, YTop(pairCount));
     }
 
