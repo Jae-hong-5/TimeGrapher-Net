@@ -261,8 +261,8 @@ pie showData
 
 *그림 4. 테스트 분포.*
 
-GitHub Actions(`.github/workflows/ci.yml`)는 push/PR마다 Ubuntu·Windows 두 환경에서 다음을
-자동 실행합니다 — 빌드·테스트, WAV 검출 검증, 라즈베리파이·Windows용 배포 산출물 생성.
+GitHub Actions(`.github/workflows/ci.yml`)는 `main` 대상 push/PR마다 Ubuntu·Windows 두 환경에서
+다음을 자동 실행합니다 — 빌드·테스트, WAV 검출 검증, 라즈베리파이·Windows용 배포 산출물 생성.
 
 릴리즈는 CI와 별개의 워크플로(`.github/workflows/release.yml`)가 담당합니다. `v*` 태그를
 푸시하면(또는 수동 dispatch) win-x64·win-arm64·linux-x64·linux-arm64 자기 완결형 묶음(`.zip`/`.tar.gz` + `.sha256`)을

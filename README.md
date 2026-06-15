@@ -265,8 +265,8 @@ pie showData
 
 *Figure 4. Test distribution.*
 
-GitHub Actions (`.github/workflows/ci.yml`) runs the following on every push/PR across Ubuntu and
-Windows — build & test, WAV detection verification, and Raspberry Pi/Windows deployment-artifact generation.
+GitHub Actions (`.github/workflows/ci.yml`) runs the following on every push and pull request targeting
+`main`, across Ubuntu and Windows — build & test, WAV detection verification, and Raspberry Pi/Windows deployment-artifact generation.
 
 Releases are handled by a separate workflow (`.github/workflows/release.yml`). Pushing a `v*` tag
 (or a manual dispatch) builds the win-x64 · win-arm64 · linux-x64 · linux-arm64 self-contained
