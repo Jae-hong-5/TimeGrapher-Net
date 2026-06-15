@@ -325,42 +325,67 @@ public sealed class AudioCaptureWorker : ILiveAudioWorker
         string endpointFriendlyName,
         string deviceFriendlyName)
     {
-        return ContainsEither(endpointFriendlyName, waveInProductName) ||
-            ContainsEither(deviceFriendlyName, waveInProductName);
+        return EndpointMatchScore(waveInProductName, endpointFriendlyName, deviceFriendlyName) > 0;
     }
 
     private static MMDevice? FindCaptureEndpoint(string waveInProductName)
     {
         using var enumerator = new MMDeviceEnumerator();
         MMDeviceCollection endpoints = enumerator.EnumerateAudioEndPoints(DataFlow.Capture, DeviceState.Active);
-        var candidates = new List<(MMDevice Device, int Score)>(endpoints.Count);
+        var devices = new List<MMDevice>(endpoints.Count);
+        var identities = new List<(string EndpointFriendlyName, string DeviceFriendlyName)>(endpoints.Count);
         for (int i = 0; i < endpoints.Count; i++)
         {
             MMDevice endpoint = endpoints[i];
-            int score = EndpointMatchScore(waveInProductName, endpoint.FriendlyName, endpoint.DeviceFriendlyName);
-            if (score > 0)
-            {
-                candidates.Add((endpoint, score));
-            }
-            else
-            {
-                endpoint.Dispose();
-            }
+            devices.Add(endpoint);
+            identities.Add((endpoint.FriendlyName, endpoint.DeviceFriendlyName));
         }
 
-        if (candidates.Count == 0)
+        int selectedIndex = FindBestEndpointMatchIndex(waveInProductName, identities);
+        MMDevice? selected = selectedIndex >= 0 ? devices[selectedIndex] : null;
+        for (int i = 0; i < devices.Count; i++)
         {
-            return null;
-        }
-
-        candidates.Sort((left, right) => right.Score.CompareTo(left.Score));
-        MMDevice selected = candidates[0].Device;
-        for (int i = 1; i < candidates.Count; i++)
-        {
-            candidates[i].Device.Dispose();
+            if (i != selectedIndex)
+            {
+                devices[i].Dispose();
+            }
         }
 
         return selected;
+    }
+
+    internal static int FindBestEndpointMatchIndex(
+        string waveInProductName,
+        IReadOnlyList<(string EndpointFriendlyName, string DeviceFriendlyName)> endpoints)
+    {
+        int selectedIndex = -1;
+        int selectedScore = 0;
+        bool ambiguous = false;
+
+        for (int i = 0; i < endpoints.Count; i++)
+        {
+            int score = EndpointMatchScore(
+                waveInProductName,
+                endpoints[i].EndpointFriendlyName,
+                endpoints[i].DeviceFriendlyName);
+            if (score == 0)
+            {
+                continue;
+            }
+
+            if (score > selectedScore)
+            {
+                selectedIndex = i;
+                selectedScore = score;
+                ambiguous = false;
+            }
+            else if (score == selectedScore)
+            {
+                ambiguous = true;
+            }
+        }
+
+        return ambiguous ? -1 : selectedIndex;
     }
 
     private static int EndpointMatchScore(string waveInProductName, string endpointFriendlyName, string deviceFriendlyName)
@@ -370,12 +395,17 @@ public sealed class AudioCaptureWorker : ILiveAudioWorker
             return 100;
         }
 
-        if (ContainsEither(endpointFriendlyName, waveInProductName))
+        if (string.Equals(deviceFriendlyName, waveInProductName, StringComparison.OrdinalIgnoreCase))
+        {
+            return 75;
+        }
+
+        if (ContainsEndpointIdentity(endpointFriendlyName, waveInProductName))
         {
             return 50;
         }
 
-        if (ContainsEither(deviceFriendlyName, waveInProductName))
+        if (ContainsEndpointIdentity(deviceFriendlyName, waveInProductName))
         {
             return 25;
         }
@@ -383,31 +413,33 @@ public sealed class AudioCaptureWorker : ILiveAudioWorker
         return 0;
     }
 
-    private static bool ContainsEither(string left, string right)
+    private static bool ContainsEndpointIdentity(string endpointIdentity, string waveInProductName)
     {
-        return left.Contains(right, StringComparison.OrdinalIgnoreCase) ||
-            right.Contains(left, StringComparison.OrdinalIgnoreCase);
+        return !string.IsNullOrWhiteSpace(waveInProductName) &&
+            !string.IsNullOrWhiteSpace(endpointIdentity) &&
+            endpointIdentity.Contains(waveInProductName, StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool IsEndpointSampleRateSupported(MMDevice endpoint, int sampleRate)
     {
-        int endpointChannels = endpoint.AudioClient.MixFormat.Channels;
-        return IsEndpointSampleRateSupported(endpoint, sampleRate, Channels) ||
-            (endpointChannels != Channels && IsEndpointSampleRateSupported(endpoint, sampleRate, endpointChannels));
+        using AudioClient audioClient = endpoint.AudioClient;
+        int endpointChannels = audioClient.MixFormat.Channels;
+        return IsAudioClientSampleRateSupported(audioClient, sampleRate, Channels) ||
+            (endpointChannels != Channels && IsAudioClientSampleRateSupported(audioClient, sampleRate, endpointChannels));
     }
 
-    private static bool IsEndpointSampleRateSupported(MMDevice endpoint, int sampleRate, int channels)
+    private static bool IsAudioClientSampleRateSupported(AudioClient audioClient, int sampleRate, int channels)
     {
         var pcmFormat = new WaveFormat(sampleRate, 16, channels);
-        if (endpoint.AudioClient.IsFormatSupported(AudioClientShareMode.Shared, pcmFormat) ||
-            endpoint.AudioClient.IsFormatSupported(AudioClientShareMode.Exclusive, pcmFormat))
+        if (audioClient.IsFormatSupported(AudioClientShareMode.Shared, pcmFormat) ||
+            audioClient.IsFormatSupported(AudioClientShareMode.Exclusive, pcmFormat))
         {
             return true;
         }
 
         WaveFormat floatFormat = WaveFormat.CreateIeeeFloatWaveFormat(sampleRate, channels);
-        return endpoint.AudioClient.IsFormatSupported(AudioClientShareMode.Shared, floatFormat) ||
-            endpoint.AudioClient.IsFormatSupported(AudioClientShareMode.Exclusive, floatFormat);
+        return audioClient.IsFormatSupported(AudioClientShareMode.Shared, floatFormat) ||
+            audioClient.IsFormatSupported(AudioClientShareMode.Exclusive, floatFormat);
     }
 
     private static void StopAndDispose(WaveInEvent audioInput)

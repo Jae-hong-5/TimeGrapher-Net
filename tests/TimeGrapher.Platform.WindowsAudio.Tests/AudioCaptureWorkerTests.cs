@@ -31,6 +31,27 @@ public sealed class AudioCaptureWorkerTests
     }
 
     [Fact]
+    public void EndpointMatchesWaveInProductName_RejectsReverseSubstringOnly()
+    {
+        Assert.False(AudioCaptureWorker.EndpointMatchesWaveInProductName(
+            "Microphone Array (Realtek(R) Audio)",
+            "Microphone",
+            "Realtek"));
+    }
+
+    [Fact]
+    public void FindBestEndpointMatchIndex_ReturnsMinusOneForTiedMatches()
+    {
+        var endpoints = new (string EndpointFriendlyName, string DeviceFriendlyName)[]
+        {
+            ("Microphone (USB PnP Sound Device)", "USB PnP Sound Device"),
+            ("Line In (USB PnP Sound Device)", "USB PnP Sound Device"),
+        };
+
+        Assert.Equal(-1, AudioCaptureWorker.FindBestEndpointMatchIndex("USB PnP Sound Device", endpoints));
+    }
+
+    [Fact]
     public void TryStop_TimeoutLeavesWorkerRestoppable()
     {
         if (!OperatingSystem.IsWindows())
