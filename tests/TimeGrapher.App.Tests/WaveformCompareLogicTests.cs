@@ -54,12 +54,15 @@ public sealed class WaveformCompareLogicTests
     [Fact]
     public void LaneLabel_ReportsThePhaseAndTheBeatsOwnAToCPeakInterval()
     {
-        Assert.Equal(
-            "TIC · C +142.5 ms",
-            WaveformCompareLogic.LaneLabel(Segment(isTic: true, aMs: 5.0, cPeakMs: 147.5)));
-        Assert.Equal(
-            "TOC · C —",
-            WaveformCompareLogic.LaneLabel(Segment(isTic: false, cPeakMs: null)));
+        var ticLabel = WaveformCompareLogic.LaneLabel(Segment(isTic: true, aMs: 5.0, cPeakMs: 147.5));
+        Assert.StartsWith("TIC\n", ticLabel);
+        Assert.Contains("A to C: +142.5 ms", ticLabel);
+        Assert.Contains("Amp:", ticLabel);
+
+        var tocLabel = WaveformCompareLogic.LaneLabel(Segment(isTic: false, cPeakMs: null));
+        Assert.StartsWith("TOC\n", tocLabel);
+        Assert.Contains("A to C: —", tocLabel);
+        Assert.Contains("Amp:", tocLabel);
     }
 
     [Fact]

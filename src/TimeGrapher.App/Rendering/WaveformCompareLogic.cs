@@ -65,9 +65,14 @@ internal static class WaveformCompareLogic
     /// each lane's spacing reads against the mean C guide.
     /// </summary>
     public static string LaneLabel(BeatSegment segment) =>
-        (segment.IsTic ? "TIC" : "TOC") + " · C " + (segment.CPeakValid
+        (segment.IsTic ? "TIC" : "TOC") + "\n" +
+        "A to C: " + (segment.CPeakValid
             ? (segment.CPeakOffsetMs - segment.AOffsetMs)
                 .ToString(SignedTenthsMsFormat, CultureInfo.InvariantCulture) + " ms"
+            : VarioReadout.Missing) + "\n" +
+        "Amp: " + (segment.Samples.Length > 0
+            ? (segment.Samples.Span.ToArray().Max() * 360.0)
+                .ToString("F0", CultureInfo.InvariantCulture) + "°"
             : VarioReadout.Missing);
 
     /// <summary>

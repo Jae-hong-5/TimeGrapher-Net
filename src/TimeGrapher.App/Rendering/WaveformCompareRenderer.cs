@@ -40,7 +40,10 @@ internal sealed class WaveformCompareRenderer
     private const double XMinMs = -2.0 * BeatSegmentCapture.PreEventMs;
     private const double XMaxMs = WaveformCompareLogic.TocXOffsetMs
         + WaveformCompareLogic.BeatDisplayWindowMs - BeatSegmentCapture.PreEventMs;
-    private const double LaneLabelXMs = XMinMs + 0.5;
+    /// <summary>Approximate x position for peak in each beat half (ms from A).</summary>
+    private const double PeakOffsetMs = 50.0;
+    /// <summary>X offset from peak for the label placement.</summary>
+    private const double LaneLabelPeakOffsetMs = 10.0;
 
     /// <summary>Lane label top relative to the lane baseline (traces peak at +1.0).</summary>
     private const double LaneLabelYOffset = 1.12;
@@ -252,7 +255,7 @@ internal sealed class WaveformCompareRenderer
             {
                 ticLabel.IsVisible = true;
                 ticLabel.LabelText = WaveformCompareLogic.LaneLabel(ticSeg);
-                ticLabel.Location = new Coordinates(LaneLabelXMs, baseline + LaneLabelYOffset);
+                ticLabel.Location = new Coordinates(PeakOffsetMs + LaneLabelPeakOffsetMs, baseline + LaneLabelYOffset);
             }
 
             if (tocLabel != null)
@@ -260,7 +263,7 @@ internal sealed class WaveformCompareRenderer
                 tocLabel.IsVisible = true;
                 tocLabel.LabelText = WaveformCompareLogic.LaneLabel(tocSeg);
                 tocLabel.Location = new Coordinates(
-                    clipMs + LaneLabelXMs,
+                    clipMs + PeakOffsetMs + LaneLabelPeakOffsetMs,
                     baseline + LaneLabelYOffset);
             }
         }
