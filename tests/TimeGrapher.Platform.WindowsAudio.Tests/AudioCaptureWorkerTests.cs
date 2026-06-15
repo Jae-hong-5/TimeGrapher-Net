@@ -22,6 +22,15 @@ public sealed class AudioCaptureWorkerTests
     }
 
     [Fact]
+    public void EndpointMatchesWaveInProductName_AcceptsTruncatedWinMmNames()
+    {
+        Assert.True(AudioCaptureWorker.EndpointMatchesWaveInProductName(
+            "TimeGrapher(USB PnP Sound Devic",
+            "TimeGrapher(USB PnP Sound Device)",
+            "USB PnP Sound Device"));
+    }
+
+    [Fact]
     public void TryStop_TimeoutLeavesWorkerRestoppable()
     {
         if (!OperatingSystem.IsWindows())
