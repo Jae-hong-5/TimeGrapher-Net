@@ -329,8 +329,11 @@ public sealed class InfoTabRegistryTests
     public void VarioLegendNamesLineStylesForMarkers()
     {
         Grid content = CreateVarioContent();
-        var legend = Assert.IsType<TextBlock>(
+        var legendBox = Assert.IsType<Viewbox>(
             content.Children.Single(child => Grid.GetRow(child) == 7));
+        // The legend scales down only when too narrow, so every glyph stays visible.
+        Assert.Equal(StretchDirection.DownOnly, legendBox.StretchDirection);
+        var legend = Assert.IsType<TextBlock>(legendBox.Child);
         string legendText = string.Concat(legend.Inlines!.OfType<Run>().Select(run => run.Text));
         Run currentSwatch = legend.Inlines!.OfType<Run>()
             .Single(run => run.Text == "Current dashed");

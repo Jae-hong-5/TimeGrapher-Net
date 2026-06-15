@@ -493,7 +493,7 @@ internal sealed partial class InfoTabRegistry
         summaryCard.Bind(Border.BackgroundProperty, summaryCard.GetResourceObservable("PanelBgBrush"));
         summaryCard.Bind(Border.BorderBrushProperty, summaryCard.GetResourceObservable("ChromeBorderBrush"));
 
-        string[] columnHeaders = { "Min", "Max", "Spread (Max−Min)", "Average", "Std dev (σ)", "Current" };
+        string[] columnHeaders = { "Min", "Max", "Max−Min", "Average", "Std dev (σ)", "Current" };
         string?[] columnBrushKeys =
         {
             "VarioMinMaxBrush", "VarioMinMaxBrush", null,
@@ -583,7 +583,7 @@ internal sealed partial class InfoTabRegistry
             FontSize = VarioMinimumFontSize,
             Opacity = 1.0,
             FontWeight = FontWeight.SemiBold,
-            Margin = new Thickness(16, 0, 16, 6),
+            Margin = new Thickness(0),
             TextWrapping = TextWrapping.NoWrap,
         };
         Run Swatch(string text, string brushKey)
@@ -605,6 +605,18 @@ internal sealed partial class InfoTabRegistry
             new Run(" = current"),
         };
 
+        // Scale the one-line legend down only when the window is too narrow to
+        // show every word, so all glyphs stay visible at any width while keeping
+        // the minimum font size whenever there is room.
+        var legendBox = new Viewbox
+        {
+            Child = legend,
+            Stretch = Stretch.Uniform,
+            StretchDirection = StretchDirection.DownOnly,
+            HorizontalAlignment = HorizontalAlignment.Left,
+            Margin = new Thickness(16, 0, 16, 6),
+        };
+
         Grid rateHeader = GaugeHeader("RATE (s/d)", "Acceptable band -10 to +10 s/d", out Border rateBandBadge);
         Grid amplitudeHeader = GaugeHeader("AMPLITUDE (°)", "Acceptable band 270 to 300°", out Border amplitudeBandBadge);
         Border rateReadout = BuildReadoutStrip(rateCells);
@@ -619,7 +631,7 @@ internal sealed partial class InfoTabRegistry
             summaryCard,
             rateHeader, rateReadout, ratePlot,
             amplitudeHeader, amplitudeReadout, amplitudePlot,
-            legend,
+            legendBox,
         };
         for (int i = 0; i < rows.Length; i++)
         {
