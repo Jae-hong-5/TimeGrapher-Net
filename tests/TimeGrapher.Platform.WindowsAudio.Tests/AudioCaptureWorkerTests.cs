@@ -13,6 +13,15 @@ namespace TimeGrapher.Platform.WindowsAudio.Tests;
 public sealed class AudioCaptureWorkerTests
 {
     [Fact]
+    public void GetCandidateSampleRates_ReturnsOnlyRatesAcceptedByDeviceProbe()
+    {
+        IReadOnlyList<int> rates = AudioCaptureWorker.GetCandidateSampleRates(
+            rate => rate is 48000 or 192000);
+
+        Assert.Equal(new[] { 48000, 192000 }, rates);
+    }
+
+    [Fact]
     public void TryStop_TimeoutLeavesWorkerRestoppable()
     {
         if (!OperatingSystem.IsWindows())

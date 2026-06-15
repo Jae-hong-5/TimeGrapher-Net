@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
+using NAudio;
 using NAudio.Wave;
 using TimeGrapher.Core.Shared;
 
@@ -17,6 +18,8 @@ namespace TimeGrapher.Platform.WindowsAudio;
 public sealed class AudioCaptureWorker : ILiveAudioWorker
 {
     private const int Channels = MasterAudioBuffer.Channels; // mono
+    private const WaveInterop.WaveInOutOpenFlags WaveFormatQuery =
+        (WaveInterop.WaveInOutOpenFlags)0x0001;
 
     private readonly MasterAudioBuffer _rawAudio;
 
@@ -292,15 +295,42 @@ public sealed class AudioCaptureWorker : ILiveAudioWorker
         return devices;
     }
 
-    /// <summary>
-    /// Returns the standard sample-rate candidates shown by the UI. NAudio/WinMM does not
-    /// expose the same up-front per-format support probe that Qt used, so Start() remains
-    /// the authoritative validation point for live capture.
-    /// </summary>
     public static IReadOnlyList<int> GetCandidateSampleRates(int deviceNumber)
     {
-        _ = deviceNumber;
-        return AudioSampleRates.Standard;
+        return GetCandidateSampleRates(rate => IsCaptureFormatSupported(deviceNumber, rate));
+    }
+
+    internal static IReadOnlyList<int> GetCandidateSampleRates(Func<int, bool> supportsSampleRate)
+    {
+        IReadOnlyList<int> standardRates = AudioSampleRates.Standard;
+        var supportedRates = new List<int>(standardRates.Count);
+        foreach (int rate in standardRates)
+        {
+            if (supportsSampleRate(rate))
+            {
+                supportedRates.Add(rate);
+            }
+        }
+
+        return supportedRates;
+    }
+
+    private static bool IsCaptureFormatSupported(int deviceNumber, int sampleRate)
+    {
+        WaveFormat format = WaveFormat.CreateIeeeFloatWaveFormat(sampleRate, Channels);
+        MmResult result = WaveInterop.waveInOpen(
+            out IntPtr handle,
+            new IntPtr(deviceNumber),
+            format,
+            null,
+            IntPtr.Zero,
+            WaveFormatQuery);
+        if (handle != IntPtr.Zero)
+        {
+            WaveInterop.waveInClose(handle);
+        }
+
+        return result == MmResult.NoError;
     }
 
     private static void StopAndDispose(WaveInEvent audioInput)
