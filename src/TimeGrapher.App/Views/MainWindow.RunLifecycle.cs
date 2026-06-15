@@ -49,13 +49,15 @@ public partial class MainWindow
             throw new InvalidOperationException("No live audio device is selected.");
         }
 
-        MasterAudioBuffer buffer = mRunSessionController.PrepareInputRun(mCurrentSamplesPerSecond, out ulong runSessionToken);
+        int sampleRate = mRunSelectionResolver.GetSelectedSampleRate(mAvailableRates, mNumberOfRates);
+        mCurrentSamplesPerSecond = sampleRate;
+        MasterAudioBuffer buffer = mRunSessionController.PrepareInputRun(sampleRate, out ulong runSessionToken);
 
         ILiveAudioWorker audioWorker = LiveAudioBackend.CreateWorker(buffer);
         Action captureEndedHandler = () => OnLiveCaptureEnded(runSessionToken);
         audioWorker.CaptureEnded += captureEndedHandler;
         mRunSessionController.AttachInputWorker(audioWorker, runSessionToken, () => audioWorker.CaptureEnded -= captureEndedHandler);
-        audioWorker.Start(deviceNumber, mCurrentSamplesPerSecond, (float)(mViewModel.Gain / 1000.0));
+        audioWorker.Start(deviceNumber, sampleRate, (float)(mViewModel.Gain / 1000.0));
     }
 
     private void OnLiveCaptureEnded(ulong runSessionToken)

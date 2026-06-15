@@ -295,14 +295,21 @@ public sealed class AudioCaptureWorker : ILiveAudioWorker
 
     public static IReadOnlyList<int> GetCandidateSampleRates(int deviceNumber)
     {
-        string waveInProductName = WaveInEvent.GetCapabilities(deviceNumber).ProductName;
-        using MMDevice? endpoint = FindCaptureEndpoint(waveInProductName);
-        if (endpoint == null)
+        try
+        {
+            string waveInProductName = WaveInEvent.GetCapabilities(deviceNumber).ProductName;
+            using MMDevice? endpoint = TryFindCaptureEndpoint(waveInProductName);
+            if (endpoint == null || !TryGetEndpointSampleRates(endpoint, out IReadOnlyList<int> rates))
+            {
+                return Array.Empty<int>();
+            }
+
+            return rates;
+        }
+        catch
         {
             return Array.Empty<int>();
         }
-
-        return GetCandidateSampleRates(rate => IsEndpointSampleRateSupported(endpoint, rate));
     }
 
     internal static IReadOnlyList<int> GetCandidateSampleRates(Func<int, bool> supportsSampleRate)
@@ -328,30 +335,43 @@ public sealed class AudioCaptureWorker : ILiveAudioWorker
         return EndpointMatchScore(waveInProductName, endpointFriendlyName, deviceFriendlyName) > 0;
     }
 
-    private static MMDevice? FindCaptureEndpoint(string waveInProductName)
+    private static MMDevice? TryFindCaptureEndpoint(string waveInProductName)
     {
-        using var enumerator = new MMDeviceEnumerator();
-        MMDeviceCollection endpoints = enumerator.EnumerateAudioEndPoints(DataFlow.Capture, DeviceState.Active);
-        var devices = new List<MMDevice>(endpoints.Count);
-        var identities = new List<(string EndpointFriendlyName, string DeviceFriendlyName)>(endpoints.Count);
-        for (int i = 0; i < endpoints.Count; i++)
+        var devices = new List<MMDevice>();
+        try
         {
-            MMDevice endpoint = endpoints[i];
-            devices.Add(endpoint);
-            identities.Add((endpoint.FriendlyName, endpoint.DeviceFriendlyName));
-        }
-
-        int selectedIndex = FindBestEndpointMatchIndex(waveInProductName, identities);
-        MMDevice? selected = selectedIndex >= 0 ? devices[selectedIndex] : null;
-        for (int i = 0; i < devices.Count; i++)
-        {
-            if (i != selectedIndex)
+            using var enumerator = new MMDeviceEnumerator();
+            MMDeviceCollection endpoints = enumerator.EnumerateAudioEndPoints(DataFlow.Capture, DeviceState.Active);
+            devices.Capacity = endpoints.Count;
+            var identities = new List<(string EndpointFriendlyName, string DeviceFriendlyName)>(endpoints.Count);
+            for (int i = 0; i < endpoints.Count; i++)
             {
-                devices[i].Dispose();
+                MMDevice endpoint = endpoints[i];
+                devices.Add(endpoint);
+                identities.Add((endpoint.FriendlyName, endpoint.DeviceFriendlyName));
             }
-        }
 
-        return selected;
+            int selectedIndex = FindBestEndpointMatchIndex(waveInProductName, identities);
+            MMDevice? selected = selectedIndex >= 0 ? devices[selectedIndex] : null;
+            for (int i = 0; i < devices.Count; i++)
+            {
+                if (i != selectedIndex)
+                {
+                    devices[i].Dispose();
+                }
+            }
+
+            return selected;
+        }
+        catch
+        {
+            foreach (MMDevice device in devices)
+            {
+                device.Dispose();
+            }
+
+            return null;
+        }
     }
 
     internal static int FindBestEndpointMatchIndex(
@@ -420,26 +440,31 @@ public sealed class AudioCaptureWorker : ILiveAudioWorker
             endpointIdentity.Contains(waveInProductName, StringComparison.OrdinalIgnoreCase);
     }
 
-    private static bool IsEndpointSampleRateSupported(MMDevice endpoint, int sampleRate)
+    private static bool TryGetEndpointSampleRates(MMDevice endpoint, out IReadOnlyList<int> rates)
     {
-        using AudioClient audioClient = endpoint.AudioClient;
-        int endpointChannels = audioClient.MixFormat.Channels;
-        return IsAudioClientSampleRateSupported(audioClient, sampleRate, Channels) ||
-            (endpointChannels != Channels && IsAudioClientSampleRateSupported(audioClient, sampleRate, endpointChannels));
+        try
+        {
+            using AudioClient audioClient = endpoint.AudioClient;
+            rates = GetCandidateSampleRates(rate => IsAudioClientSampleRateSupported(audioClient, rate));
+            return true;
+        }
+        catch
+        {
+            rates = Array.Empty<int>();
+            return false;
+        }
     }
 
-    private static bool IsAudioClientSampleRateSupported(AudioClient audioClient, int sampleRate, int channels)
+    private static bool IsAudioClientSampleRateSupported(AudioClient audioClient, int sampleRate)
     {
-        var pcmFormat = new WaveFormat(sampleRate, 16, channels);
-        if (audioClient.IsFormatSupported(AudioClientShareMode.Shared, pcmFormat) ||
-            audioClient.IsFormatSupported(AudioClientShareMode.Exclusive, pcmFormat))
+        var pcmFormat = new WaveFormat(sampleRate, 16, Channels);
+        if (audioClient.IsFormatSupported(AudioClientShareMode.Shared, pcmFormat))
         {
             return true;
         }
 
-        WaveFormat floatFormat = WaveFormat.CreateIeeeFloatWaveFormat(sampleRate, channels);
-        return audioClient.IsFormatSupported(AudioClientShareMode.Shared, floatFormat) ||
-            audioClient.IsFormatSupported(AudioClientShareMode.Exclusive, floatFormat);
+        WaveFormat floatFormat = WaveFormat.CreateIeeeFloatWaveFormat(sampleRate, Channels);
+        return audioClient.IsFormatSupported(AudioClientShareMode.Shared, floatFormat);
     }
 
     private static void StopAndDispose(WaveInEvent audioInput)

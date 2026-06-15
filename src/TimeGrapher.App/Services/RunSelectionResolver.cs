@@ -62,7 +62,16 @@ internal sealed class RunSelectionResolver
     {
         return new SimulationSelection(
             RequireSelectedValue(_simulationBph, _viewModel.SelectedSimBphIndex, "simulation BPH"),
-            RequireSelectedValue(availableSampleRates, availableSampleRateCount, _viewModel.SelectedSampleRateIndex, "sample rate"));
+            GetSelectedSampleRate(availableSampleRates, availableSampleRateCount));
+    }
+
+    public int GetSelectedSampleRate(IReadOnlyList<int> availableSampleRates, int availableSampleRateCount)
+    {
+        return RequireSelectedValue(
+            availableSampleRates,
+            availableSampleRateCount,
+            _viewModel.SelectedSampleRateIndex,
+            "sample rate");
     }
 
     public static int FindValue(IReadOnlyList<int> items, int value)
