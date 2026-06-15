@@ -157,7 +157,7 @@
 **만드는 사람(개발자)**
 - **단일 솔루션·단일 언어** — OS 분기는 오디오 백엔드 경계 한 곳뿐, 나머지는 공유.
 - **안전성·생산성** — GC와 nullable 참조 타입으로 수동 메모리·포인터 버그가 줄고 개발 반복이 빨라집니다.
-- **테스트·CI 단순** — `Core`가 UI·OS에 무의존이라 단위 테스트가 쉽고(현재 471개), 별도 환경
+- **테스트·CI 단순** — `Core`가 UI·OS에 무의존이라 단위 테스트가 쉽고(현재 585개), 별도 환경
   없이 기본 러너에서 검증됩니다.
 
 ## 구조
@@ -248,13 +248,13 @@ classDiagram
 
 ## 테스트 / CI
 
-`dotnet test` 기준 **471개 테스트 전부 통과**(App 238 / Core 217 / WindowsAudio 6 / LinuxAudio 10).
+`dotnet test` 기준 **585개 테스트 전부 통과**(App 289 / Core 280 / WindowsAudio 6 / LinuxAudio 10).
 
 ```mermaid
 pie showData
-    title 테스트 분포 (총 471)
-    "App.Tests" : 238
-    "Core.Tests" : 217
+    title 테스트 분포 (총 585)
+    "App.Tests" : 289
+    "Core.Tests" : 280
     "Platform.WindowsAudio.Tests" : 6
     "Platform.LinuxAudio.Tests" : 10
 ```
@@ -277,7 +277,7 @@ git tag v0.1.0 && git push origin v0.1.0
 | 항목 | 명령 | 상태 |
 |---|---|---|
 | 빌드 | `dotnet build TimeGrapherNet.sln -c Release` | ✅ |
-| 테스트 | `dotnet test TimeGrapherNet.sln -c Release` (471/471) | ✅ |
+| 테스트 | `dotnet test TimeGrapherNet.sln -c Release` (585/585) | ✅ |
 | 검출 검증 | `... TimeGrapher.Verify -- --generated --byte-fixtures` (exit 0) | ✅ |
 | GUI 실행 | `dotnet run --project src/TimeGrapher.App` | ✅ |
 | 배포 — 라즈베리파이 (linux-arm64) | `dotnet publish ... -r linux-arm64 --self-contained true` | ✅ |
