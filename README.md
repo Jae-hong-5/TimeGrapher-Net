@@ -122,7 +122,7 @@ Build on a dev PC (one prepared via the Windows steps above) and copy only the o
 - Analysis display tabs from the current app catalog: **Rate/Scope**, **Sound Print**, **Trace**, **Sweep**, **Vario**, **Beat Error**, **Filter Scope**, **Long-Term**, **Positions**, **Beat Noise**, **Escapement**, **Waveforms**, and **Spectrogram**.
 - The **Positions** tab combines compact position-selection buttons on the left with per-position sequence measurements on the right.
 - Three inputs: **Live** (mic), **Playback** (WAV file), **Sim** (synthetic signal).
-- Records the input to WAV while analyzing.
+- Optionally records the input to WAV while analyzing (offered for Live and Sim runs; Playback only replays an existing file).
 - A console mode to check detection accuracy and audio devices headlessly.
 
 ## Why Avalonia / .NET

@@ -119,7 +119,7 @@
 - 현재 앱 카탈로그 기준 분석 표시 탭: **Rate/Scope**, **Sound Print**, **Trace**, **Sweep**, **Vario**, **Beat Error**, **Filter Scope**, **Long-Term**, **Positions**, **Beat Noise**, **Escapement**, **Waveforms**, **Spectrogram**.
 - **Positions** 탭은 왼쪽에 작은 포지션 선택 버튼, 오른쪽에 포지션별 시퀀스 측정값을 함께 보여줍니다.
 - 입력 3종: **Live**(마이크), **Playback**(WAV 파일 재생), **Sim**(합성 신호).
-- 분석과 동시에 입력을 WAV로 녹음.
+- 분석과 동시에 입력을 WAV로 녹음할 수 있습니다(Live·Sim 실행에서 선택 제공; Playback은 기존 파일을 재생만 함).
 - 화면 없이 검출 정확도·오디오 장치를 점검하는 콘솔 모드.
 
 ## 왜 Avalonia / .NET 인가
