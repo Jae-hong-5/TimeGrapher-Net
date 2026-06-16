@@ -1,5 +1,6 @@
 using ScottPlot;
 using ScottPlot.Plottables;
+using TimeGrapher.App.Rendering;
 using Xunit;
 
 namespace TimeGrapher.App.Tests;
@@ -91,5 +92,28 @@ public sealed class ScottPlotAutoScaleBehaviorTests
         AxisLimits limits = detached.Axes.GetLimits();
         Assert.InRange(limits.Right, 0.9, 2.0);
         Assert.InRange(limits.Left, -1.0, 0.1);
+    }
+
+    [Fact]
+    public void ReviewCursorLayer_UsesRedBoldDashedStyle()
+    {
+        var plot = new Plot();
+        var layer = new ReviewCursorLayer(plot);
+        var palette = new PlotThemePalette(
+            SurfaceBg: 0xFF000000,
+            ScopeBg: 0xFF000000,
+            ScopeGrid: 0xFF000000,
+            TextPrimary: 0xFF000000,
+            TraceWave: 0xFF000000,
+            TraceTick: 0xFF000000,
+            TraceTock: 0xFF000000,
+            VarioBad: 0xFFCC2233);
+
+        layer.ApplyTheme(palette);
+
+        VerticalLine line = plot.GetPlottables<VerticalLine>().Single();
+        Assert.Equal(LinePattern.Dotted, line.LinePattern);
+        Assert.Equal(2, line.LineWidth);
+        Assert.Equal(Color.FromARGB(palette.VarioBad), line.Color);
     }
 }

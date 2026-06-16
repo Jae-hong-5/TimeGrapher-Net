@@ -135,6 +135,14 @@
                        VerticalAlignment="Center" MinWidth="130"
                        Text="{Binding ReviewReadoutText}"
                        ToolTip.Tip="Review cursor position / latest captured time" />
+            <TextBlock Name="ReviewMetricsLabel"
+                       VerticalAlignment="Center"
+                       Margin="14,0,0,0"
+                       FontWeight="Bold"
+                       TextTrimming="CharacterEllipsis"
+                       Foreground="{DynamicResource TextPrimaryBrush}"
+                       Text="{Binding ReviewMetricsText}"
+                       ToolTip.Tip="Rate, amplitude, and beat error at the review cursor" />
           </StackPanel>
           <Slider Name="ReviewSlider" Grid.Row="1"
                   VerticalAlignment="Center"

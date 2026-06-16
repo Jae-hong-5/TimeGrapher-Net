@@ -277,8 +277,17 @@ public sealed class MainWindowViewModelTests
         Assert.False(vm.IsReviewBarVisible);
 
         vm.SetPaused();
+        Assert.False(vm.IsReviewBarVisible);
+
+        vm.SetLongTermTabActive(true);
         Assert.True(vm.IsReviewBarVisible);
         Assert.Contains(nameof(MainWindowViewModel.IsReviewBarVisible), raised);
+
+        vm.SetLongTermTabActive(false);
+        Assert.False(vm.IsReviewBarVisible);
+
+        vm.SetLongTermTabActive(true);
+        Assert.True(vm.IsReviewBarVisible);
 
         vm.SetRunning();
         Assert.False(vm.IsReviewBarVisible);
@@ -423,7 +432,7 @@ public sealed class MainWindowViewModelTests
         Assert.Equal(754.0, vm.ReviewMaximumS);
 
         vm.ReviewCursorTimeS = 83.4;
-        Assert.Equal("REVIEW 01:23 / 12:34", vm.ReviewReadoutText);
+        Assert.Equal("REVIEW 83.4 s (01:23) / 12:34", vm.ReviewReadoutText);
     }
 
     [Fact]
@@ -432,6 +441,7 @@ public sealed class MainWindowViewModelTests
         var vm = CreateViewModel();
         vm.UpdateReviewMaximum(120.0);
         vm.ReviewCursorTimeS = 60.0;
+        vm.UpdateReviewMetricsText("RATE +1.0 s/d   AMP 280°   BEAT ERROR +0.1 ms");
 
         vm.ResetReview();
 
@@ -439,6 +449,7 @@ public sealed class MainWindowViewModelTests
         Assert.Equal(0.0, vm.ReviewMaximumS);
         Assert.Equal(0.0, vm.ReviewSliderValueS);
         Assert.Equal("LIVE 00:00", vm.ReviewReadoutText);
+        Assert.Equal("", vm.ReviewMetricsText);
     }
 
     [Fact]
