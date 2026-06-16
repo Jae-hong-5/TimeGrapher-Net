@@ -14,6 +14,8 @@ internal static class Program
         if (args.Contains("--smoke", StringComparer.Ordinal))
         {
             _ = BuildAvaloniaApp();
+            var app = new App();
+            app.Initialize();
             _ = typeof(AnalysisFrame).Assembly.FullName;
             Console.WriteLine("TimeGrapher.App smoke OK");
             return 0;
