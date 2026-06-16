@@ -66,23 +66,24 @@ internal static class WaveformCompareLogic
     /// Amp = (3600 × λ) / (π × n × t_AC)
     /// where λ = lift angle (degrees), n = beat rate (BPH), t_AC = A-to-C time (seconds).
     /// </summary>
-    public static string LaneLabel(BeatSegment segment, int bph) =>
+    public static string LaneLabel(BeatSegment segment, int bph, double liftAngleDeg) =>
         (segment.IsTic ? "TIC" : "TOC") + "\n" +
         "A to C: " + (segment.CPeakValid
             ? (segment.CPeakOffsetMs - segment.AOffsetMs)
                 .ToString(SignedTenthsMsFormat, CultureInfo.InvariantCulture) + " ms"
             : VarioReadout.Missing) + "\n" +
         "Amp: " + (segment.Samples.Length > 0 && segment.CPeakValid && bph > 0
-            ? CalculateAmplitude(segment, bph).ToString("F1", CultureInfo.InvariantCulture) + "°"
+            ? CalculateAmplitude(segment, bph, liftAngleDeg).ToString("F1", CultureInfo.InvariantCulture) + "°"
             : VarioReadout.Missing);
 
     /// <summary>
     /// Calculate balance wheel amplitude in degrees using:
     /// Amp = (3600 × λ) / (π × n × t_AC)
+    /// where λ = lift angle (degrees from WatchMetrics config),
+    /// n = beat rate (BPH), t_AC = A-to-C time (seconds).
     /// </summary>
-    private static double CalculateAmplitude(BeatSegment segment, int bph)
+    private static double CalculateAmplitude(BeatSegment segment, int bph, double liftAngleDeg)
     {
-        double liftAngleDeg = segment.Samples.Span.ToArray().Max() * 360.0;
         double tACSeconds = (segment.CPeakOffsetMs - segment.AOffsetMs) / 1000.0;
         if (tACSeconds <= 0.0)
         {

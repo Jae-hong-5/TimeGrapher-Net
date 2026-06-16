@@ -260,13 +260,13 @@ internal sealed class WaveformCompareRenderer
             if (ticLabel != null)
             {
                 ticLabel.IsVisible = true;
-                ticLabel.LabelText = WaveformCompareLogic.LaneLabel(ticSeg, history?.Bph ?? 0);
+                ticLabel.LabelText = WaveformCompareLogic.LaneLabel(ticSeg, history?.Bph ?? 0, snapshot.LiftAngleDeg);
             }
 
             if (tocLabel != null)
             {
                 tocLabel.IsVisible = true;
-                tocLabel.LabelText = WaveformCompareLogic.LaneLabel(tocSeg, history?.Bph ?? 0);
+                tocLabel.LabelText = WaveformCompareLogic.LaneLabel(tocSeg, history?.Bph ?? 0, snapshot.LiftAngleDeg);
             }
         }
 
