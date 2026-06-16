@@ -591,7 +591,7 @@ internal sealed class BeatNoiseScopeRenderer
                 sourceSpan, StripPointBudget,
                 (p, points, _, normalized) =>
                 {
-                    x.Add(stripSlot + 0.03 + 0.94 * p / (points - 1.0));
+                    x.Add(BeatNoiseScopeLogic.StripPointX(stripSlot, p, points));
                     y.Add(0.05 + 0.9 * normalized);
                 });
         }

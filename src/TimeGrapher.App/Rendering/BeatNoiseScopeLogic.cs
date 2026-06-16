@@ -60,6 +60,15 @@ internal static class BeatNoiseScopeLogic
     }
 
     /// <summary>
+    /// X of strip point <paramref name="p"/> of <paramref name="points"/> within
+    /// its slot lane (a 0.03..0.97 inset of the unit-wide slot). A single-point
+    /// strip — which the shared sampler can emit — is centered instead of dividing
+    /// by (points - 1), which would write a NaN coordinate and corrupt the plot.
+    /// </summary>
+    public static double StripPointX(int slot, int p, int points) =>
+        slot + 0.03 + 0.94 * (points > 1 ? (double)p / (points - 1) : 0.5);
+
+    /// <summary>
     /// Selection toggle: clicking an occupied slot selects it (the main plot
     /// enlarges that slot's beat), clicking it again — or an empty slot —
     /// returns to following the latest beat. Selection is by slot, so it keeps

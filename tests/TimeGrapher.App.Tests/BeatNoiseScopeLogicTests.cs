@@ -93,6 +93,25 @@ public sealed class BeatNoiseScopeLogicTests
         Assert.Equal(expected, BeatNoiseScopeLogic.StripFractionFromPixel(x, width, leftPadding), precision: 6);
     }
 
+    [Theory]
+    [InlineData(0, 0, 4, 0.03)]   // first point sits at the slot's left inset
+    [InlineData(0, 3, 4, 0.97)]   // last point at the right inset
+    [InlineData(2, 1, 3, 2.5)]    // mid strip, offset by the slot index
+    public void StripPointX_MapsPointsAcrossTheSlotInset(int slot, int p, int points, double expected)
+    {
+        Assert.Equal(expected, BeatNoiseScopeLogic.StripPointX(slot, p, points), precision: 6);
+    }
+
+    [Fact]
+    public void StripPointX_CentersASingleSamplePointInsteadOfDividingByZero()
+    {
+        // The shared sampler can emit one point; p / (points - 1) would divide by
+        // zero and write a NaN x. The lone point is centered in its slot instead.
+        double x = BeatNoiseScopeLogic.StripPointX(slot: 3, p: 0, points: 1);
+        Assert.True(double.IsFinite(x));
+        Assert.Equal(3.0 + 0.03 + 0.94 * 0.5, x, precision: 6);
+    }
+
     [Fact]
     public void Selection_TogglesOnOccupiedSlotsAndClearsOnEmptyOnes()
     {
