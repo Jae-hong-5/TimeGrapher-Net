@@ -86,10 +86,7 @@ public partial class MainWindow
             return;
         }
 
-        // The capture process/device died without a stop request: bring the run
-        // down through the normal stop path, then surface what happened (after
-        // StopRun so the message survives the "Stopped" status).
-        StopRunWithoutReset();
+        mRunCommandService.StopRunAndRefreshDevices();
         mViewModel.StatusText = "Live audio capture ended unexpectedly";
     }
 
