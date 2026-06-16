@@ -218,6 +218,7 @@ class BeatMetricsHistorySnapshot {
     +StatsSummary AmplitudeStats
     +WatchPosition ActivePosition
     +IReadOnlyList~PositionSummary~ Positions
+    +IReadOnlyList~PositionChange~ PositionChanges
 }
 
 class WatchPosition {
@@ -239,6 +240,11 @@ class PositionSummary {
     +StatsSummary Rate
     +StatsSummary Amplitude
     +StatsSummary BeatError
+}
+
+class PositionChange {
+    +double TimeS
+    +WatchPosition Position
 }
 
 class StatsSummary {
@@ -441,7 +447,9 @@ BeatMetricsHistorySnapshot "1" *-- "3" MetricsHistorySeries : rate/amplitude/bea
 BeatMetricsHistorySnapshot "1" *-- "2" StatsSummary : 현재 위치 안정도 통계
 BeatMetricsHistorySnapshot "1" --> "1" WatchPosition : 신규 비트 태깅
 BeatMetricsHistorySnapshot "1" *-- "0..10" PositionSummary : 측정된 위치만
+BeatMetricsHistorySnapshot "1" *-- "0..*" PositionChange : 위치 전환 이력(시작 포함, 시간순)
 PositionSummary "1" --> "1" WatchPosition : 위치 식별
+PositionChange "1" --> "1" WatchPosition : 전환 후 위치
 PositionSummary "1" *-- "3" StatsSummary : rate/amplitude/beat error
 BeatSegmentsSnapshot "1" o-- "0..8" BeatSegment : 최근 비트(최대 8), 오래된 순
 BeatSegmentsSnapshot "1" *-- "1" BeatNoiseAverageSnapshot : Scope 2 레인 상태
@@ -469,6 +477,7 @@ BeatNoiseAverageSnapshot "1" *-- "0..5" BeatNoiseAverageMilestone : 10/20/30/40/
 | `StatsSummary` | `Core.Shared` (`Core.Metrics.RunningStats`가 공급) | 현재 위치 시작 이후 min/max/mean/모집단 σ. 시리즈 데시메이션과 무관한 정확한 비트별 통계(Vario 표시) |
 | `WatchPosition` | `Core.Shared` | NIHS 95-10 / ISO 3158 표준 검사 위치. 내부 enum은 기존 CH/CB/6H/9H/3H/12H 계열 식별자를 유지하지만, 사용자 표시 용어는 요구 그림 기준 DU(다이얼 위)·DD(다이얼 아래)·CR/CU/CL/CD와 CU(R)/CU(L)/CD(L)/CD(R) 중간 포지션까지 총 10단계다 |
 | `PositionSummary` | `Core.Shared` (`BeatMetricsHistory`가 집계) | 위치별 rate/amplitude/부호 비트오차 누적 통계. 측정된 위치만 등장(최대 `WatchPositions.Count`=10) |
+| `PositionChange` | `Core.Shared` (`Core.Metrics.BeatMetricsHistory`가 채움) | 측정 시작 이후 시간순 워치 위치 전환 이력(`TimeS`·`Position`). 첫 항목은 시작 위치를 **첫 플롯 지점(첫 비트)의 경과 시간**에 기록하고(0이 아니라 — Long-Term 그래프 시작 라벨이 첫 그려진 점과 정렬), 이후 각 항목은 새 위치로 돌린 시점의 경과 시간. Long-Term 그래프가 각 전환 지점에 점선 수직선과 위치 이름을 표시(`LongTermPerfRenderer`). 수동 전환 횟수에만 비례해 증가하므로 `WatchPositions.Count` 제한과 무관 |
 | `BeatSegmentsSnapshot`, `BeatSegment` | `Core.Shared` (`Core.Analysis.BeatSegmentCapture`가 생성) | 최근 비트별 엔벨로프 윈도우의 링(최대 8개, `SegmentRingCount`). A/C-peak/C-onset 오프셋과 위상·리프트각 포함. 원파형 min/max(`RawMin`/`RawMax`)는 `RawValid`일 때만 채워진다. 샘플은 캡처의 풀 버퍼를 참조하며 발행 게이트로 불변 보장(Beat-Noise Scope) |
 | `BeatNoiseAverageSnapshot`, `BeatNoiseAverageMilestone` | `Core.Shared` (`Core.Analysis.BeatNoiseAverager`가 생성) | Scope 2 상태. 위상 교대 20ms 평균 레인 2개(의도적으로 trace 1/2로 표기, tic/toc 아님)와 레인별 카운트·ms/point·평균 피크·동결 플래그를 포함한다. Σ 평균화 중 양쪽 레인이 10/20/30/40/50 interval에 도달하면 해당 시점의 평균 trace를 `BeatNoiseAverageMilestone`으로 보존해 Avg Envelope가 Witschi식 중간 평균 변화를 직접 표시한다 |
 
