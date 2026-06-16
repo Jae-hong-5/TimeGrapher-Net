@@ -12,9 +12,18 @@ namespace TimeGrapher.App.Tests;
 public sealed class WaveformCompareLogicTests
 {
     private static BeatSegment Segment(
-        double startTimeS = 0.0, bool isTic = false, double aMs = 5.0, double? cPeakMs = null) => new()
+        double startTimeS = 0.0, bool isTic = false, double aMs = 5.0, double? cPeakMs = null,
+        float samplePeak = 0.0f)
+    {
+        var samples = new float[1600];
+        if (samplePeak != 0.0f)
         {
-            Samples = new float[1600],
+            samples[0] = samplePeak;
+        }
+
+        return new()
+        {
+            Samples = samples,
             MsPerPoint = 0.25,
             StartTimeS = startTimeS,
             IsTic = isTic,
@@ -22,6 +31,7 @@ public sealed class WaveformCompareLogicTests
             CPeakValid = cPeakMs is not null,
             CPeakOffsetMs = cPeakMs ?? 0.0,
         };
+    }
 
     [Fact]
     public void HeaderLine_ReportsTheCurrentRateBeatErrorAndBph()
@@ -58,12 +68,32 @@ public sealed class WaveformCompareLogicTests
         var ticLabel = WaveformCompareLogic.LaneLabel(Segment(isTic: true, aMs: 5.0, cPeakMs: 147.5), bph, liftAngleDeg: 52.0);
         Assert.StartsWith("TIC\n", ticLabel);
         Assert.Contains("A to C: +142.5 ms", ticLabel);
-        Assert.Contains("Amp:", ticLabel);
+        // Amp = (3600 * λ) / (π * n * t_AC) = (3600*52)/(π*18000*0.1425) ≈ 23.2°.
+        Assert.Contains("Amp: 23.2°", ticLabel);
 
         var tocLabel = WaveformCompareLogic.LaneLabel(Segment(isTic: false, cPeakMs: null), bph, liftAngleDeg: 52.0);
         Assert.StartsWith("TOC\n", tocLabel);
         Assert.Contains("A to C: —", tocLabel);
         Assert.Contains("Amp: —", tocLabel);  // No C peak means no amplitude
+    }
+
+    [Fact]
+    public void LaneLabel_AmplitudeUsesTheConfiguredLiftAngleNotTheSampleMagnitude()
+    {
+        // Amp = (3600 * λ) / (π * n * t_AC). λ=52°, n=18000 bph, t_AC = 147.5-5.0 = 142.5 ms
+        // => (3600*52)/(π*18000*0.1425) ≈ 23.2°.
+        Assert.Contains("Amp: 23.2°", WaveformCompareLogic.LaneLabel(
+            Segment(isTic: true, aMs: 5.0, cPeakMs: 147.5, samplePeak: 0.1f), bph: 18000, liftAngleDeg: 52.0));
+
+        // The lift angle is a configured (left-panel) value, not derived from the
+        // captured envelope, so a louder capture must not change the amplitude.
+        Assert.Contains("Amp: 23.2°", WaveformCompareLogic.LaneLabel(
+            Segment(isTic: true, aMs: 5.0, cPeakMs: 147.5, samplePeak: 0.9f), bph: 18000, liftAngleDeg: 52.0));
+
+        // A different configured lift angle scales the amplitude proportionally
+        // (60/52 * 23.2 ≈ 26.8°), proving the configured value reaches the formula.
+        Assert.Contains("Amp: 26.8°", WaveformCompareLogic.LaneLabel(
+            Segment(isTic: true, aMs: 5.0, cPeakMs: 147.5, samplePeak: 0.1f), bph: 18000, liftAngleDeg: 60.0));
     }
 
     [Fact]
