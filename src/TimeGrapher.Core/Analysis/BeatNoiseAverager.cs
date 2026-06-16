@@ -140,8 +140,12 @@ public sealed class BeatNoiseAverager
         }
 
         int index = Array.IndexOf(MilestoneCounts, count);
-        if (index < 0)
+        if (index < 0 || _milestones[index] is not null)
         {
+            // Capture only the first crossing of this threshold: once min(counts)
+            // reaches N the milestone is frozen, so a faster lane racing ahead
+            // while the slower lane stays at N cannot overwrite it with a later,
+            // imbalanced average. The snapshot must reflect the N-interval point.
             return;
         }
 

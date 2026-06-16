@@ -102,6 +102,36 @@ public sealed class BeatNoiseAveragerTests
     }
 
     [Fact]
+    public void Milestone_FreezesAtTheFirstCrossingDespiteAnImbalancedLane()
+    {
+        var averager = new BeatNoiseAverager();
+        averager.SetSigmaEnabled(true);
+
+        // Both lanes reach 10 -> milestone 10 snapshots the 0.2 / 0.4 averages.
+        for (int i = 0; i < 10; i++)
+        {
+            averager.Add(firstLane: true, Trace(0.2f));
+        }
+
+        for (int i = 0; i < 10; i++)
+        {
+            averager.Add(firstLane: false, Trace(0.4f));
+        }
+
+        // The fast lane races ahead while the slow lane stays at 10: Math.Min stays
+        // 10, but the milestone must NOT be overwritten with the later imbalanced
+        // average — it is frozen at the N-interval crossing.
+        for (int i = 0; i < 5; i++)
+        {
+            averager.Add(firstLane: true, Trace(0.9f));
+        }
+
+        BeatNoiseAverageMilestone ten = averager.Snapshot().Milestones.Single(m => m.IntervalCount == 10);
+        Assert.Equal(0.2f, ten.Lane1[0], 6); // not the 0.2..0.9 blend a re-capture would produce
+        Assert.Equal(0.4f, ten.Lane2[0], 6);
+    }
+
+    [Fact]
     public void SigmaOff_LaneHoldsOnlyItsNewestTrace()
     {
         var averager = new BeatNoiseAverager();
