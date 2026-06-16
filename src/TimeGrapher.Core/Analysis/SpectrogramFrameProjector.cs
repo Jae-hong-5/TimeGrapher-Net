@@ -8,7 +8,7 @@ namespace TimeGrapher.Core.Analysis;
 /// raw input blocks (the same span AnalysisWorker hands the detector pipeline).
 /// Each completed hop renders one image column — x = time (wrap-writing recent
 /// window), y = frequency (low at the bottom), color = intensity in dB through
-/// the fixed inferno-like LUT.
+/// the fixed viridis LUT.
 ///
 /// FFT size is the power of two nearest ~21 ms of input (1024 @ 48 kHz,
 /// ~47 Hz/bin), hop = size/2. Display rows cover bins 0..~12 kHz only: watch
@@ -139,10 +139,11 @@ public sealed class SpectrogramFrameProjector
     }
 
     /// <summary>
-    /// Switches the spectrogram colormap to match the UI theme (light = reversed
-    /// inferno) and flags the image for republish. Existing columns are remapped
-    /// in place so the whole window recolors at once, not just new columns.
-    /// Analysis thread only (the SetSoundBackgroundColor recolor flow).
+    /// Theme-toggle hook for the spectrogram. The colormap is one shared viridis
+    /// LUT for both themes, so this does not recolor the pixels (the per-column
+    /// remap is identity) — it only flags a republish so the renderer's empty
+    /// (no-input) background change takes effect. Analysis thread only (the
+    /// SetSoundBackgroundColor recolor flow).
     /// </summary>
     public void SetColormap(bool light)
     {
