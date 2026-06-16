@@ -102,10 +102,7 @@
       </Grid>
     </Border>
 
-    <!-- Pause-and-review bar (above the status bar, only while paused): scrub the
-         review cursor through the captured readings without losing any data.
-         Maximum binds before Value so the slider never coerces the restored
-         cursor against a stale 0..100 default range.
+    <!-- Pause-and-review bar: visible only while paused AND Long-Term tab is active.
          Grid mirrors the main content columns (300,Auto,92,*) so the slider
          aligns horizontally with the graph X-axis above it. -->
     <Border Name="ReviewBar"
@@ -115,11 +112,7 @@
             BorderThickness="0,1,0,0"
             IsVisible="{Binding IsReviewBarVisible}">
       <Grid ColumnDefinitions="300,Auto,92,*">
-        <!-- Column 3: slider + controls aligned with the graph pane above.
-             Outer margin matches TabControl's Margin="8,3,10,10" left/right
-             so the container starts at the same pixel as the graph. -->
         <Grid Grid.Column="3" RowDefinitions="Auto,Auto" Margin="8,2,10,2">
-          <!-- Top row: -1s/+1s left, LIVE + readout right -->
           <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Left">
             <Button Name="ReviewStepBackButton"
                     Content="-1 s" FontSize="11" Padding="6,1"
@@ -143,7 +136,6 @@
                        Text="{Binding ReviewReadoutText}"
                        ToolTip.Tip="Review cursor position / latest captured time" />
           </StackPanel>
-          <!-- Bottom row: slider track aligns with graph DataRect via margin -->
           <Slider Name="ReviewSlider" Grid.Row="1"
                   VerticalAlignment="Center"
                   Margin="{Binding ReviewSliderMargin, FallbackValue='0'}"

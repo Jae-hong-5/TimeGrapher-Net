@@ -55,6 +55,7 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     private double _reviewMinimumS;
     private double _reviewSliderLeftPad;
     private double _reviewSliderRightPad;
+    private bool _isLongTermTabActive;
 
     public MainWindowViewModel(
         Func<Task> startAsync,
@@ -324,8 +325,16 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
         ? $"REVIEW {timeS:F1} s ({FormatStreamTime(timeS)}) / {FormatStreamTime(_reviewMaximumS)}"
         : "LIVE " + FormatStreamTime(_reviewMaximumS);
 
-    /// <summary>The review bar shows only while paused (pause gates new readings; live data is never lost).</summary>
-    public bool IsReviewBarVisible => _runState == RunUiState.Paused;
+    /// <summary>The review bar shows only while paused AND the Long-Term tab is active.</summary>
+    public bool IsReviewBarVisible => _runState == RunUiState.Paused && _isLongTermTabActive;
+
+    /// <summary>Called when the active graphics tab changes; shows/hides the review bar.</summary>
+    public void SetLongTermTabActive(bool active)
+    {
+        if (_isLongTermTabActive == active) return;
+        _isLongTermTabActive = active;
+        OnPropertyChanged(nameof(IsReviewBarVisible));
+    }
 
     /// <summary>
     /// Left/right pixel padding for the review slider so it aligns with the
