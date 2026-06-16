@@ -227,11 +227,11 @@ public sealed class MainWindowViewModelTests
 
         // Default: CH (dial up), already visible before any selection.
         Assert.Equal((int)WatchPosition.CH, vm.SelectedPositionIndex);
-        Assert.Equal("POS CH", vm.PositionLabel);
+        Assert.Equal("POS DU", vm.PositionLabel);
 
         vm.SelectedPositionIndex = (int)WatchPosition.P6H;
 
-        Assert.Equal("POS 6H", vm.PositionLabel);
+        Assert.Equal("POS CL", vm.PositionLabel);
         Assert.Contains(nameof(MainWindowViewModel.SelectedPositionIndex), raised);
         Assert.Contains(nameof(MainWindowViewModel.PositionLabel), raised);
     }

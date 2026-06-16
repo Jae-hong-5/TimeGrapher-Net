@@ -36,16 +36,16 @@ public sealed class WatchPositionsTests
     }
 
     [Theory]
-    [InlineData(WatchPosition.CH, "CH", "Dial up", true, false)]
-    [InlineData(WatchPosition.CB, "CB", "Dial down", true, false)]
-    [InlineData(WatchPosition.P6H, "6H", "Crown left", false, false)]
-    [InlineData(WatchPosition.P9H, "9H", "Crown down", false, false)]
-    [InlineData(WatchPosition.P3H, "3H", "Crown up", false, false)]
-    [InlineData(WatchPosition.P12H, "12H", "Crown right", false, false)]
-    [InlineData(WatchPosition.P6H45, "6H45", "Crown left 45°", false, true)]
-    [InlineData(WatchPosition.P9H45, "9H45", "Crown down 45°", false, true)]
-    [InlineData(WatchPosition.P3H45, "3H45", "Crown up 45°", false, true)]
-    [InlineData(WatchPosition.P12H45, "12H45", "Crown right 45°", false, true)]
+    [InlineData(WatchPosition.CH, "DU", "Dial up", true, false)]
+    [InlineData(WatchPosition.CB, "DD", "Dial down", true, false)]
+    [InlineData(WatchPosition.P6H, "CL", "Crown left", false, false)]
+    [InlineData(WatchPosition.P9H, "CD", "Crown down", false, false)]
+    [InlineData(WatchPosition.P3H, "CU", "Crown up", false, false)]
+    [InlineData(WatchPosition.P12H, "CR", "Crown right", false, false)]
+    [InlineData(WatchPosition.P6H45, "CU(L)", "Crown up-left", false, true)]
+    [InlineData(WatchPosition.P9H45, "CD(L)", "Crown down-left", false, true)]
+    [InlineData(WatchPosition.P3H45, "CU(R)", "Crown up-right", false, true)]
+    [InlineData(WatchPosition.P12H45, "CD(R)", "Crown down-right", false, true)]
     public void NamesAndOrientationFollowTheManualFigure(
         WatchPosition position, string shortName, string longName, bool horizontal, bool intermediate)
     {
