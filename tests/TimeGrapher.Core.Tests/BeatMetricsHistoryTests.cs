@@ -323,6 +323,55 @@ public sealed class BeatMetricsHistoryTests
     }
 
     [Fact]
+    public void PositionChangesOpenAtTheFirstBeatThenRecordEachTurn()
+    {
+        var history = new BeatMetricsHistory();
+        history.Record(BeatUpdate(1, 0.125, rateSPerDay: 5.0));
+
+        // The start entry is stamped at the first beat (0.125), not elapsed 0, so
+        // the Long-Term graph's start label lines up with the first plotted point.
+        IReadOnlyList<PositionChange> opening = history.CurrentSnapshot()!.PositionChanges;
+        PositionChange start = Assert.Single(opening);
+        Assert.Equal(0.125, start.TimeS);
+        Assert.Equal(WatchPosition.CH, start.Position);
+
+        // Turning the watch after data records a change at the turn-command time
+        // (the latest beat time then); stream time may jump afterwards (watch off
+        // the mic while repositioning).
+        history.Record(BeatUpdate(2, 0.250, rateSPerDay: 5.0));
+        history.SetActivePosition(WatchPosition.P6H);
+        history.Record(BeatUpdate(3, 5.250, rateSPerDay: -3.0));
+
+        IReadOnlyList<PositionChange> changes = history.CurrentSnapshot()!.PositionChanges;
+        Assert.Equal(2, changes.Count);
+        Assert.Equal(new PositionChange(0.125, WatchPosition.CH), changes[0]);
+        Assert.Equal(new PositionChange(0.250, WatchPosition.P6H), changes[1]);
+    }
+
+    [Fact]
+    public void PositionChangesFoldPreBeatTurnsIntoTheStartAndClearOnReset()
+    {
+        // Positions chosen before the first beat only set where the run starts;
+        // the start entry records the final pre-beat choice at the first beat.
+        var history = new BeatMetricsHistory();
+        history.SetActivePosition(WatchPosition.P9H);
+        history.SetActivePosition(WatchPosition.P12H);
+        history.Record(BeatUpdate(1, 0.125, rateSPerDay: 5.0));
+
+        Assert.Equal(
+            new PositionChange(0.125, WatchPosition.P12H),
+            Assert.Single(history.CurrentSnapshot()!.PositionChanges));
+
+        history.Reset();
+        history.Record(BeatUpdate(2, 0.300, rateSPerDay: 5.0));
+        // The active position survives reset, so the fresh run opens on it at its
+        // own first beat time.
+        Assert.Equal(
+            new PositionChange(0.300, WatchPosition.P12H),
+            Assert.Single(history.CurrentSnapshot()!.PositionChanges));
+    }
+
+    [Fact]
     public void PositionListStaysBoundedAtTheWatchPositionsCatalog()
     {
         var history = new BeatMetricsHistory();

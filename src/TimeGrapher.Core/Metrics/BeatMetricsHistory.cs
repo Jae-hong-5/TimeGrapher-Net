@@ -36,6 +36,12 @@ public sealed class BeatMetricsHistory
         new PositionAggregate?[WatchPositions.Count];
     private WatchPosition _activePosition = WatchPosition.CH;
 
+    // Chronological position turns since the run started: the first entry is the
+    // starting position (TimeS 0), each later entry the elapsed time of a turn.
+    // Bounded only by how often the user turns the watch (manual, seconds apart),
+    // so its growth is negligible against the per-beat path.
+    private readonly List<PositionChange> _positionChanges = new();
+
     private DerivedTimingMeasures _derived;
     private bool _rateValid;
     private double _rateSPerDay;
@@ -87,6 +93,15 @@ public sealed class BeatMetricsHistory
         _rateStats.Reset();
         _amplitudeStats.Reset();
         _statsStartTimeS = _latestTimeS;
+        // Record the turn on the change timeline only once the run has data: the
+        // start entry is seeded at the first beat (so it lines up with where the
+        // graph begins drawing), and a turn before that beat just changes which
+        // position the start will record.
+        if (_positionChanges.Count > 0)
+        {
+            AppendPositionChange(_latestTimeS, position);
+        }
+
         _dirty = true;
         _publishImmediately = true;
     }
@@ -101,6 +116,12 @@ public sealed class BeatMetricsHistory
 
             if (sample.RateValid)
             {
+                // Seed the start marker at the first point that actually enters a
+                // series, not at the first beat: rate needs two beats, so the
+                // first beat is rate-invalid and the plotted line begins a beat
+                // or two later. Seeding here keeps the start label on the first
+                // drawn point.
+                SeedStartPositionIfNeeded(sample.TimeS);
                 _rate.Add(sample.TimeS, sample.RateSPerDay);
                 _rateStats.Add(sample.RateSPerDay);
                 ActiveAggregate().Rate.Add(sample.RateSPerDay);
@@ -110,6 +131,7 @@ public sealed class BeatMetricsHistory
 
             if (sample.BeatErrorValid)
             {
+                SeedStartPositionIfNeeded(sample.TimeS);
                 _beatError.Add(sample.TimeS, sample.BeatErrorSignedMs);
                 ActiveAggregate().BeatError.Add(sample.BeatErrorSignedMs);
                 _beatErrorValid = true;
@@ -122,6 +144,7 @@ public sealed class BeatMetricsHistory
         if (update.AmplitudeSampleUpdated && update.AmplitudeSample.PairAverageUpdated)
         {
             AmplitudeSample sample = update.AmplitudeSample;
+            SeedStartPositionIfNeeded(sample.TimeS);
             _amplitude.Add(sample.TimeS, sample.PairAverageDeg);
             _amplitudeStats.Add(sample.PairAverageDeg);
             ActiveAggregate().Amplitude.Add(sample.PairAverageDeg);
@@ -148,6 +171,7 @@ public sealed class BeatMetricsHistory
         // The active position is the watch's physical orientation, not run
         // data, so it survives the reset; only its accumulated stats clear.
         Array.Clear(_positionAggregates);
+        _positionChanges.Clear();
         _derived = default;
         _rateValid = false;
         _bph = 0;
@@ -221,6 +245,7 @@ public sealed class BeatMetricsHistory
             AmplitudeStats = Summarize(_amplitudeStats),
             ActivePosition = _activePosition,
             Positions = BuildPositionSummaries(),
+            PositionChanges = _positionChanges.ToArray(),
         };
         _lastSnapshotTimeS = _latestTimeS;
         _dirty = false;
@@ -238,6 +263,32 @@ public sealed class BeatMetricsHistory
     private PositionAggregate ActiveAggregate()
     {
         return _positionAggregates[(int)_activePosition] ??= new PositionAggregate();
+    }
+
+    private void SeedStartPositionIfNeeded(double timeS)
+    {
+        // The run's starting position is stamped at the first point that enters a
+        // plotted series, so the Long-Term graph's start label lines up with the
+        // first drawn point. Turns taken before then have only updated
+        // _activePosition, so the seed records wherever the watch actually started.
+        if (_positionChanges.Count == 0)
+        {
+            _positionChanges.Add(new PositionChange(timeS, _activePosition));
+        }
+    }
+
+    private void AppendPositionChange(double timeS, WatchPosition position)
+    {
+        // Collapse turns that land on the same instant (several positions picked
+        // between two beats, while stream time stands still): the last choice at
+        // that time is the one that took effect.
+        if (_positionChanges.Count > 0 && _positionChanges[^1].TimeS >= timeS)
+        {
+            _positionChanges[^1] = new PositionChange(_positionChanges[^1].TimeS, position);
+            return;
+        }
+
+        _positionChanges.Add(new PositionChange(timeS, position));
     }
 
     private IReadOnlyList<PositionSummary> BuildPositionSummaries()

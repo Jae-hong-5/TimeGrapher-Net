@@ -52,6 +52,10 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     private bool _sigmaAveraging;
     private double? _reviewCursorTimeS;
     private double _reviewMaximumS;
+    private double _reviewMinimumS;
+    private double _reviewSliderLeftPad;
+    private double _reviewSliderRightPad;
+    private bool _isLongTermTabActive;
 
     public MainWindowViewModel(
         Func<Task> startAsync,
@@ -281,7 +285,8 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
         get => _reviewCursorTimeS;
         set
         {
-            double? clamped = value is double timeS ? Math.Clamp(timeS, 0.0, _reviewMaximumS) : null;
+            double min = Math.Min(_reviewMinimumS, _reviewMaximumS);
+            double? clamped = value is double timeS ? Math.Clamp(timeS, min, _reviewMaximumS) : null;
             if (SetProperty(ref _reviewCursorTimeS, clamped))
             {
                 OnPropertyChanged(nameof(ReviewSliderValueS));
@@ -292,6 +297,9 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
 
     /// <summary>Latest captured stream time (s); the review slider's Maximum.</summary>
     public double ReviewMaximumS => _reviewMaximumS;
+
+    /// <summary>First data point time (s); the review slider's Minimum (graph data start).</summary>
+    public double ReviewMinimumS => _reviewMinimumS;
 
     /// <summary>
     /// Slider surface of the cursor: live (null cursor) reads as the latest
@@ -311,13 +319,59 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
         }
     }
 
-    /// <summary>Review-bar readout: "REVIEW 01:23 / 12:34" while scrubbed, "LIVE 12:34" otherwise.</summary>
+    /// <summary>Review-bar readout: "REVIEW 83.0 s (01:23) / 12:34" while scrubbed, "LIVE 12:34" otherwise.
+    /// The seconds value matches the graph X-axis so the user can correlate slider position to graph.</summary>
     public string ReviewReadoutText => _reviewCursorTimeS is double timeS
-        ? "REVIEW " + FormatStreamTime(timeS) + " / " + FormatStreamTime(_reviewMaximumS)
+        ? $"REVIEW {timeS:F1} s ({FormatStreamTime(timeS)}) / {FormatStreamTime(_reviewMaximumS)}"
         : "LIVE " + FormatStreamTime(_reviewMaximumS);
 
-    /// <summary>The review bar shows only while paused (pause gates new readings; live data is never lost).</summary>
-    public bool IsReviewBarVisible => _runState == RunUiState.Paused;
+    /// <summary>The review bar shows only while paused AND the Long-Term tab is active.</summary>
+    public bool IsReviewBarVisible => _runState == RunUiState.Paused && _isLongTermTabActive;
+
+    /// <summary>Called when the active graphics tab changes; shows/hides the review bar.</summary>
+    public void SetLongTermTabActive(bool active)
+    {
+        if (_isLongTermTabActive == active) return;
+        _isLongTermTabActive = active;
+        OnPropertyChanged(nameof(IsReviewBarVisible));
+    }
+
+    /// <summary>
+    /// Left/right pixel padding for the review slider so it aligns with the
+    /// active graph's X-axis data area. Updated by the renderer after layout.
+    /// The slider thumb half-width (3px for 6px thumb) is subtracted so the
+    /// track center (the position indicator) starts at the data area edge.
+    /// </summary>
+    private const double SliderThumbHalfWidth = 3.0;
+
+    public Avalonia.Thickness ReviewSliderMargin =>
+        new(Math.Max(0, _reviewSliderLeftPad - SliderThumbHalfWidth), 0,
+            Math.Max(0, _reviewSliderRightPad - SliderThumbHalfWidth), 2);
+
+    public void UpdateReviewSliderAlignment(double leftPad, double rightPad, double dataMinTimeS)
+    {
+        bool marginChanged = Math.Abs(leftPad - _reviewSliderLeftPad) >= 0.5 ||
+                             Math.Abs(rightPad - _reviewSliderRightPad) >= 0.5;
+        bool minChanged = Math.Abs(dataMinTimeS - _reviewMinimumS) >= 0.01;
+
+        if (!marginChanged && !minChanged)
+        {
+            return;
+        }
+
+        if (marginChanged)
+        {
+            _reviewSliderLeftPad = leftPad;
+            _reviewSliderRightPad = rightPad;
+            OnPropertyChanged(nameof(ReviewSliderMargin));
+        }
+
+        if (minChanged)
+        {
+            _reviewMinimumS = dataMinTimeS;
+            OnPropertyChanged(nameof(ReviewMinimumS));
+        }
+    }
 
     /// <summary>
     /// Grows the captured review range to the newest rendered stream time.
@@ -341,10 +395,12 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     public void ResetReview()
     {
         ReviewCursorTimeS = null;
-        if (_reviewMaximumS != 0.0)
+        if (_reviewMaximumS != 0.0 || _reviewMinimumS != 0.0)
         {
             _reviewMaximumS = 0.0;
+            _reviewMinimumS = 0.0;
             OnPropertyChanged(nameof(ReviewMaximumS));
+            OnPropertyChanged(nameof(ReviewMinimumS));
             OnPropertyChanged(nameof(ReviewSliderValueS));
             OnPropertyChanged(nameof(ReviewReadoutText));
         }
