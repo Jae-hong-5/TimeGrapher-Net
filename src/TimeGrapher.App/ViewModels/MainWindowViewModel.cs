@@ -333,6 +333,12 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     {
         if (_isLongTermTabActive == active) return;
         _isLongTermTabActive = active;
+        if (!active)
+        {
+            // Review scrubbing is a Long-Term-only feature; leaving the tab returns
+            // every other tab to live so a now-hidden cursor can't keep driving them.
+            ReviewCursorTimeS = null;
+        }
         OnPropertyChanged(nameof(IsReviewBarVisible));
     }
 

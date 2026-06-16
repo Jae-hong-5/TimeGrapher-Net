@@ -315,6 +315,23 @@ public sealed class MainWindowViewModelTests
         Assert.Null(vm.ReviewCursorTimeS);
     }
 
+    [Fact]
+    public void LeavingTheLongTermTabClearsTheReviewCursor()
+    {
+        var vm = CreateViewModel();
+        vm.UpdateReviewMaximum(100.0);
+        vm.SetRunning();
+        vm.SetPaused();
+        vm.SetLongTermTabActive(true);
+        vm.ReviewCursorTimeS = 40.0;
+        Assert.Equal(40.0, vm.ReviewCursorTimeS);
+
+        // Switching away from Long-Term hides the review bar, so a leftover cursor
+        // would silently drive the other tabs' renderers; leaving must reset to live.
+        vm.SetLongTermTabActive(false);
+        Assert.Null(vm.ReviewCursorTimeS);
+    }
+
     [Theory]
     [InlineData((int)RunUiState.Stopping)]
     [InlineData((int)RunUiState.Running)]
