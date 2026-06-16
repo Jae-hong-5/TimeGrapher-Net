@@ -153,11 +153,15 @@ internal sealed class WatchPositionDiagram : Control
     private IBrush ResourceBrush(string key)
     {
         // Resolve through this control's ActualThemeVariant so the diagram tracks
-        // the light/dark theme. All four keys are defined in App.axaml, so the
-        // transparent result is a never-hit guard, not an off-palette literal.
-        return this.TryFindResource(key, ActualThemeVariant, out object? value) && value is IBrush brush
-            ? brush
-            : Brushes.Transparent;
+        // the light/dark theme. The keys are defined in App.axaml; a miss is a
+        // programming error surfaced fast (the PlotThemePalette.Lookup pattern),
+        // not masked by a substitute brush.
+        if (this.TryFindResource(key, ActualThemeVariant, out object? value) && value is IBrush brush)
+        {
+            return brush;
+        }
+
+        throw new InvalidOperationException($"Missing theme brush resource '{key}'.");
     }
 
     // The label/hour-mark font follows the app font (App.axaml AppFontFamily)
@@ -179,7 +183,9 @@ internal sealed class WatchPositionDiagram : Control
             return _labelTypeface.Value;
         }
 
-        return Typeface.Default;
+        // AppFontFamily is defined in App.axaml; a miss is a programming error
+        // surfaced fast rather than masked by the platform default typeface.
+        throw new InvalidOperationException("Missing AppFontFamily resource.");
     }
 
     private static void DrawDialWatch(
