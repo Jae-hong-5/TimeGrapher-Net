@@ -102,32 +102,31 @@ public sealed class BeatNoiseAveragerTests
     }
 
     [Fact]
-    public void Milestone_FreezesAtTheFirstCrossingDespiteAnImbalancedLane()
+    public void Milestone_RecordsEachLanesFirstNIntervalAverageEvenWhenLanesAreImbalanced()
     {
         var averager = new BeatNoiseAverager();
         averager.SetSigmaEnabled(true);
 
-        // Both lanes reach 10 -> milestone 10 snapshots the 0.2 / 0.4 averages.
+        // The fast lane completes 10 intervals AND a large 11th outlier before the
+        // slow lane reaches 10 (lanes imbalance in production when a detection gap
+        // skips beats). milestone-10 must hold each lane's first-10-interval average
+        // — the fast lane's 0.2 captured at its 10th, not its 11-interval average
+        // (10*0.2 + 5.0)/11 = 0.6364 that a min-of-counts capture recorded.
         for (int i = 0; i < 10; i++)
         {
             averager.Add(firstLane: true, Trace(0.2f));
         }
+
+        averager.Add(firstLane: true, Trace(5.0f)); // 11th fast-lane trace, after the 10th
+        Assert.Empty(averager.Snapshot().Milestones); // slow lane has not reached 10 yet
 
         for (int i = 0; i < 10; i++)
         {
             averager.Add(firstLane: false, Trace(0.4f));
         }
 
-        // The fast lane races ahead while the slow lane stays at 10: Math.Min stays
-        // 10, but the milestone must NOT be overwritten with the later imbalanced
-        // average — it is frozen at the N-interval crossing.
-        for (int i = 0; i < 5; i++)
-        {
-            averager.Add(firstLane: true, Trace(0.9f));
-        }
-
         BeatNoiseAverageMilestone ten = averager.Snapshot().Milestones.Single(m => m.IntervalCount == 10);
-        Assert.Equal(0.2f, ten.Lane1[0], 6); // not the 0.2..0.9 blend a re-capture would produce
+        Assert.Equal(0.2f, ten.Lane1[0], 6);
         Assert.Equal(0.4f, ten.Lane2[0], 6);
     }
 

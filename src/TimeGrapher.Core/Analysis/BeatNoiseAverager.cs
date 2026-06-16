@@ -33,7 +33,12 @@ public sealed class BeatNoiseAverager
     private readonly double[][] _sums = { new double[LanePoints], new double[LanePoints] };
     private readonly int[] _counts = new int[2];
     private readonly double[] _peakSums = new double[2];
-    private readonly BeatNoiseAverageMilestone?[] _milestones = new BeatNoiseAverageMilestone?[5];
+    // Each lane's averaged trace at the first time IT completes a milestone count
+    // (10/20/30/40/50). A milestone is published only once BOTH lanes have stored
+    // their snapshot, so each lane's milestone trace is exactly its own
+    // first-N-interval average — never a later, imbalanced running average.
+    private readonly IReadOnlyList<float>?[] _lane1Milestones = new IReadOnlyList<float>?[MilestoneCounts.Length];
+    private readonly IReadOnlyList<float>?[] _lane2Milestones = new IReadOnlyList<float>?[MilestoneCounts.Length];
     private bool _sigmaEnabled;
 
     public bool SigmaEnabled => _sigmaEnabled;
@@ -66,7 +71,8 @@ public sealed class BeatNoiseAverager
         _counts[1] = 0;
         _peakSums[0] = 0.0;
         _peakSums[1] = 0.0;
-        Array.Clear(_milestones);
+        Array.Clear(_lane1Milestones);
+        Array.Clear(_lane2Milestones);
     }
 
     /// <summary>
@@ -108,7 +114,7 @@ public sealed class BeatNoiseAverager
 
         _counts[lane]++;
         _peakSums[lane] += peak;
-        CaptureMilestone(Math.Min(_counts[0], _counts[1]));
+        CaptureLaneMilestone(lane);
         return true;
     }
 
@@ -132,39 +138,42 @@ public sealed class BeatNoiseAverager
         Milestones = MilestoneSnapshots(),
     };
 
-    private void CaptureMilestone(int count)
+    private void CaptureLaneMilestone(int lane)
     {
         if (!_sigmaEnabled)
         {
             return;
         }
 
-        int index = Array.IndexOf(MilestoneCounts, count);
-        if (index < 0 || _milestones[index] is not null)
+        // Snapshot a lane the moment IT completes its N-th interval, so the stored
+        // trace is that lane's first-N-interval average regardless of how far ahead
+        // the other lane has run. Count rises by one per add, so each milestone is
+        // hit exactly once; the ??= also guards any future revisit of the count.
+        int index = Array.IndexOf(MilestoneCounts, _counts[lane]);
+        if (index < 0)
         {
-            // Capture only the first crossing of this threshold: once min(counts)
-            // reaches N the milestone is frozen, so a faster lane racing ahead
-            // while the slower lane stays at N cannot overwrite it with a later,
-            // imbalanced average. The snapshot must reflect the N-interval point.
             return;
         }
 
-        _milestones[index] = new BeatNoiseAverageMilestone
-        {
-            IntervalCount = count,
-            Lane1 = LaneAverage(0),
-            Lane2 = LaneAverage(1),
-        };
+        IReadOnlyList<float>?[] laneMilestones = lane == 0 ? _lane1Milestones : _lane2Milestones;
+        laneMilestones[index] ??= LaneAverage(lane);
     }
 
     private IReadOnlyList<BeatNoiseAverageMilestone> MilestoneSnapshots()
     {
+        // Publish a milestone only once both lanes have completed N intervals; each
+        // lane carries its own first-N-interval average.
         var milestones = new List<BeatNoiseAverageMilestone>();
-        for (int i = 0; i < _milestones.Length; i++)
+        for (int i = 0; i < MilestoneCounts.Length; i++)
         {
-            if (_milestones[i] is { } milestone)
+            if (_lane1Milestones[i] is { } lane1 && _lane2Milestones[i] is { } lane2)
             {
-                milestones.Add(milestone);
+                milestones.Add(new BeatNoiseAverageMilestone
+                {
+                    IntervalCount = MilestoneCounts[i],
+                    Lane1 = lane1,
+                    Lane2 = lane2,
+                });
             }
         }
 
