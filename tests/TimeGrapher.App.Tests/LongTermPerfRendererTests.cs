@@ -1,0 +1,545 @@
+using System.Reflection;
+using Avalonia.Controls;
+using ScottPlot.Avalonia;
+using ScottPlot.Interactivity.UserActionResponses;
+using ScottPlot.Plottables;
+using TimeGrapher.App.Rendering;
+using TimeGrapher.App.Tabs;
+using TimeGrapher.Core.Shared;
+using Xunit;
+using PlotColor = ScottPlot.Color;
+
+namespace TimeGrapher.App.Tests;
+
+public sealed class LongTermPerfRendererTests
+{
+    [Fact]
+    public void CreateGraphs_LabelsAcceptableRangeLimits()
+    {
+        var ratePlot = new AvaPlot();
+        var amplitudePlot = new AvaPlot();
+        var beatErrorPlot = new AvaPlot();
+        var renderer = new LongTermPerfRenderer(ratePlot, amplitudePlot, beatErrorPlot, new TextBlock());
+
+        renderer.CreateGraphs();
+
+        ratePlot.Plot.RenderInMemory(900, 220);
+        amplitudePlot.Plot.RenderInMemory(900, 220);
+        beatErrorPlot.Plot.RenderInMemory(900, 220);
+
+        Assert.False(ratePlot.Plot.Axes.Right.TickLabelStyle.IsVisible);
+        Assert.False(amplitudePlot.Plot.Axes.Right.TickLabelStyle.IsVisible);
+        Assert.False(beatErrorPlot.Plot.Axes.Right.TickLabelStyle.IsVisible);
+        Assert.Equal(new[] { "-10", "+10" }, VisibleAcceptTextLabels(ratePlot));
+        Assert.Equal(new[] { "270", "300" }, VisibleAcceptTextLabels(amplitudePlot));
+        Assert.Equal(new[] { "-0.6", "+0.6" }, VisibleAcceptTextLabels(beatErrorPlot));
+        Assert.Empty(AcceptLineLabels(ratePlot));
+        Assert.Empty(AcceptLineLabels(amplitudePlot));
+        Assert.Empty(AcceptLineLabels(beatErrorPlot));
+        AssertLocksMousePanY(ratePlot);
+        AssertLocksMousePanY(amplitudePlot);
+        AssertLocksMousePanY(beatErrorPlot);
+        AssertUpperPaneHidesXAxis(ratePlot);
+        AssertUpperPaneHidesXAxis(amplitudePlot);
+    }
+
+    [Fact]
+    public void CreateGraphs_UsesFullSummaryLabelsAndInitialDayWindow()
+    {
+        var ratePlot = new AvaPlot();
+        var amplitudePlot = new AvaPlot();
+        var beatErrorPlot = new AvaPlot();
+        var verdict = new TextBlock();
+        var rate = new TextBlock();
+        var amplitude = new TextBlock();
+        var beatError = new TextBlock();
+        var renderer = new LongTermPerfRenderer(
+            ratePlot,
+            amplitudePlot,
+            beatErrorPlot,
+            new TextBlock(),
+            new LongTermSummaryControls(verdict, rate, amplitude, beatError));
+
+        renderer.CreateGraphs();
+
+        Assert.Equal("AMPLITUDE —", amplitude.Text);
+        Assert.Equal("BEAT ERROR —", beatError.Text);
+        AssertInitialDayWindow(ratePlot);
+        AssertInitialDayWindow(amplitudePlot);
+        AssertInitialDayWindow(beatErrorPlot);
+    }
+
+    [Fact]
+    public void ApplyTheme_ColorsAcceptableRangeLimitsAndBandsByMeasure()
+    {
+        var ratePlot = new AvaPlot();
+        var amplitudePlot = new AvaPlot();
+        var beatErrorPlot = new AvaPlot();
+        var renderer = new LongTermPerfRenderer(ratePlot, amplitudePlot, beatErrorPlot, new TextBlock());
+        var palette = new PlotThemePalette(
+            SurfaceBg: 0xFF101010,
+            ScopeBg: 0xFF202020,
+            ScopeGrid: 0xFF303030,
+            TextPrimary: 0xFF404040,
+            TraceWave: 0xFF505050,
+            TraceTick: 0xFF116611,
+            TraceTock: 0xFF606060,
+            VarioMinMax: 0xFF2266CC,
+            VarioBad: 0xFFCC2233);
+
+        renderer.CreateGraphs();
+        renderer.ApplyTheme(palette);
+
+        AssertTraceColor(ratePlot, palette.VarioBad);
+        AssertTraceColor(amplitudePlot, palette.VarioMinMax);
+        AssertTraceColor(beatErrorPlot, palette.TraceTick);
+        AssertAcceptColor(ratePlot, -10, palette.VarioBad);
+        AssertAcceptColor(ratePlot, +10, palette.VarioBad);
+        AssertAcceptBandColor(ratePlot, palette.VarioBad);
+        AssertAcceptColor(amplitudePlot, 270, palette.VarioMinMax);
+        AssertAcceptColor(amplitudePlot, 300, palette.VarioMinMax);
+        AssertAcceptBandColor(amplitudePlot, palette.VarioMinMax);
+        AssertAcceptColor(beatErrorPlot, -0.6, palette.TraceTick);
+        AssertAcceptColor(beatErrorPlot, +0.6, palette.TraceTick);
+        AssertAcceptBandColor(beatErrorPlot, palette.TraceTick);
+    }
+
+    [Fact]
+    public void RenderFrame_UpdatesCompactSummaryAndFooter()
+    {
+        var ratePlot = new AvaPlot();
+        var amplitudePlot = new AvaPlot();
+        var beatErrorPlot = new AvaPlot();
+        var footer = new TextBlock();
+        var verdict = new TextBlock();
+        var rate = new TextBlock();
+        var amplitude = new TextBlock();
+        var beatError = new TextBlock();
+        var renderer = new LongTermPerfRenderer(
+            ratePlot,
+            amplitudePlot,
+            beatErrorPlot,
+            footer,
+            new LongTermSummaryControls(verdict, rate, amplitude, beatError));
+
+        renderer.CreateGraphs();
+        renderer.RenderFrame(SampleFrame(), new AnalysisTabRenderContext(48000, 2, ReviewCursorTimeS: 3720.0));
+
+        Assert.Equal("IN TOLERANCE", verdict.Text);
+        Assert.Equal("RATE +1.8 s/d", rate.Text);
+        Assert.Equal("AMPLITUDE 282°", amplitude.Text);
+        Assert.Equal("BEAT ERROR +0.3 ms", beatError.Text);
+        Assert.DoesNotContain("View:", footer.Text);
+        Assert.DoesNotContain("Elapsed", footer.Text);
+        Assert.Contains("Review cursor: 1:02:00", footer.Text);
+
+        renderer.ShowAll();
+        Assert.DoesNotContain("View:", footer.Text);
+
+        renderer.ShowTimeWindow(60 * 60);
+        Assert.DoesNotContain("View:", footer.Text);
+
+        renderer.ZoomIn();
+        Assert.DoesNotContain("View:", footer.Text);
+    }
+
+    [Fact]
+    public void TimeWindowNavigation_ReautoscalesYToDataAndWholeAcceptBand()
+    {
+        var ratePlot = new AvaPlot();
+        var amplitudePlot = new AvaPlot();
+        var beatErrorPlot = new AvaPlot();
+        var renderer = new LongTermPerfRenderer(ratePlot, amplitudePlot, beatErrorPlot, new TextBlock());
+
+        renderer.CreateGraphs();
+        renderer.RenderFrame(SampleFrame(), new AnalysisTabRenderContext(48000, 2));
+        ratePlot.Plot.Axes.SetLimitsY(100, 110);
+        amplitudePlot.Plot.Axes.SetLimitsY(100, 110);
+        beatErrorPlot.Plot.Axes.SetLimitsY(100, 110);
+
+        renderer.ShowTimeWindow(60 * 60);
+
+        AssertIncludes(ratePlot, -10, 10);
+        AssertIncludes(ratePlot, 1.8, 2.0);
+        AssertIncludes(amplitudePlot, 270, 300);
+        AssertIncludes(amplitudePlot, 282.0, 282.0);
+        AssertIncludes(beatErrorPlot, -0.6, 0.6);
+        AssertIncludes(beatErrorPlot, 0.3, 0.3);
+        Assert.True(AcceptBand(amplitudePlot).IsVisible);
+        Assert.True(AcceptBand(beatErrorPlot).IsVisible);
+        Assert.Equal(new[] { "270", "300" }, VisibleAcceptTextLabels(amplitudePlot));
+    }
+
+    [Fact]
+    public void TimeWindowNavigation_PullsNearbyToleranceLimitIntoView()
+    {
+        var ratePlot = new AvaPlot();
+        var amplitudePlot = new AvaPlot();
+        var beatErrorPlot = new AvaPlot();
+        var renderer = new LongTermPerfRenderer(ratePlot, amplitudePlot, beatErrorPlot, new TextBlock());
+
+        renderer.CreateGraphs();
+        renderer.RenderFrame(NearAmplitudeLimitFrame(), new AnalysisTabRenderContext(48000, 2));
+
+        renderer.ShowTimeWindow(60 * 60);
+
+        // The amplitude trace runs just under its 300° max, so that edge is close
+        // enough to be pulled back into view (the hybrid corridor inclusion).
+        AssertIncludes(amplitudePlot, 298.5, 300.0);
+        Assert.True(AcceptBand(amplitudePlot).IsVisible);
+        Assert.Contains("300", VisibleAcceptTextLabels(amplitudePlot));
+    }
+
+    [Fact]
+    public void TimeWindowNavigation_ShowsVisibleAcceptBandWhenAmplitudeRunsAboveLimit()
+    {
+        var ratePlot = new AvaPlot();
+        var amplitudePlot = new AvaPlot();
+        var beatErrorPlot = new AvaPlot();
+        var renderer = new LongTermPerfRenderer(ratePlot, amplitudePlot, beatErrorPlot, new TextBlock());
+
+        renderer.CreateGraphs();
+        renderer.RenderFrame(AboveAmplitudeLimitFrame(), new AnalysisTabRenderContext(48000, 2));
+
+        renderer.ShowTimeWindow(60 * 60);
+
+        var limits = amplitudePlot.Plot.Axes.GetLimits();
+        Assert.True(AcceptBand(amplitudePlot).IsVisible);
+        Assert.True(limits.Bottom <= LongTermAcceptPolicy.Amplitude.Min);
+        Assert.True(limits.Top >= 305.0);
+        Assert.Equal(new[] { "270", "300" }, VisibleAcceptTextLabels(amplitudePlot));
+    }
+
+    [Fact]
+    public void UserXAxisPan_ClampsToFirstDataPoint()
+    {
+        var ratePlot = new AvaPlot();
+        var amplitudePlot = new AvaPlot();
+        var beatErrorPlot = new AvaPlot();
+        var renderer = new LongTermPerfRenderer(ratePlot, amplitudePlot, beatErrorPlot, new TextBlock());
+
+        renderer.CreateGraphs();
+        renderer.RenderFrame(SampleFrame(), new AnalysisTabRenderContext(48000, 2));
+
+        ratePlot.Plot.Axes.SetLimitsX(-1800.0, 1800.0);
+        SyncXAxisFrom(renderer);
+
+        AssertXWindow(ratePlot, 0.0, 3600.0);
+        AssertXWindow(amplitudePlot, 0.0, 3600.0);
+        AssertXWindow(beatErrorPlot, 0.0, 3600.0);
+    }
+
+    [Fact]
+    public void UserXAxisPanToLatest_ReenablesLiveFollow()
+    {
+        var ratePlot = new AvaPlot();
+        var amplitudePlot = new AvaPlot();
+        var beatErrorPlot = new AvaPlot();
+        var renderer = new LongTermPerfRenderer(ratePlot, amplitudePlot, beatErrorPlot, new TextBlock());
+
+        renderer.CreateGraphs();
+        renderer.RenderFrame(FrameWithRange(1, 7200.0), new AnalysisTabRenderContext(48000, 2));
+
+        ratePlot.Plot.Axes.SetLimitsX(0.0, 3600.0);
+        SyncXAxisFrom(renderer);
+        renderer.RenderFrame(FrameWithRange(2, 10800.0), new AnalysisTabRenderContext(48000, 2));
+        AssertXWindow(ratePlot, 0.0, 3600.0);
+
+        ratePlot.Plot.Axes.SetLimitsX(7200.0, 10800.0);
+        SyncXAxisFrom(renderer);
+        renderer.RenderFrame(FrameWithRange(3, 14400.0), new AnalysisTabRenderContext(48000, 2));
+
+        AssertXWindow(ratePlot, 10800.0, 14400.0);
+        AssertXWindow(amplitudePlot, 10800.0, 14400.0);
+        AssertXWindow(beatErrorPlot, 10800.0, 14400.0);
+    }
+
+    [Fact]
+    public void PanRightToLatest_ReenablesLiveFollow()
+    {
+        var ratePlot = new AvaPlot();
+        var amplitudePlot = new AvaPlot();
+        var beatErrorPlot = new AvaPlot();
+        var renderer = new LongTermPerfRenderer(ratePlot, amplitudePlot, beatErrorPlot, new TextBlock());
+
+        renderer.CreateGraphs();
+        renderer.RenderFrame(FrameWithRange(1, 7200.0), new AnalysisTabRenderContext(48000, 2));
+
+        ratePlot.Plot.Axes.SetLimitsX(0.0, 3600.0);
+        SyncXAxisFrom(renderer);
+        renderer.PanRight();
+        renderer.PanRight();
+        renderer.PanRight();
+        renderer.PanRight();
+        renderer.RenderFrame(FrameWithRange(2, 10800.0), new AnalysisTabRenderContext(48000, 2));
+
+        AssertXWindow(ratePlot, 7200.0, 10800.0);
+        AssertXWindow(amplitudePlot, 7200.0, 10800.0);
+        AssertXWindow(beatErrorPlot, 7200.0, 10800.0);
+    }
+
+    [Fact]
+    public void RenderFrame_LeavesPositionMarkerBackgroundTransparent()
+    {
+        var ratePlot = new AvaPlot();
+        var amplitudePlot = new AvaPlot();
+        var beatErrorPlot = new AvaPlot();
+        var renderer = new LongTermPerfRenderer(ratePlot, amplitudePlot, beatErrorPlot, new TextBlock());
+
+        renderer.CreateGraphs();
+        renderer.RenderFrame(FrameWithPositionChange(), new AnalysisTabRenderContext(48000, 2));
+
+        foreach (AvaPlot plot in new[] { ratePlot, amplitudePlot, beatErrorPlot })
+        {
+            VerticalLine marker = plot.Plot.GetPlottables<VerticalLine>()
+                .Single(line => line.LabelText == "DU");
+
+            Assert.Equal(ScottPlot.Colors.Transparent, marker.LabelBackgroundColor);
+        }
+    }
+
+    [Fact]
+    public void CreateGraphs_AppliesReadableElapsedTicksToAllPanes()
+    {
+        var ratePlot = new AvaPlot();
+        var amplitudePlot = new AvaPlot();
+        var beatErrorPlot = new AvaPlot();
+        var renderer = new LongTermPerfRenderer(ratePlot, amplitudePlot, beatErrorPlot, new TextBlock());
+
+        renderer.CreateGraphs();
+        ratePlot.Plot.RenderInMemory(900, 220);
+        amplitudePlot.Plot.RenderInMemory(900, 220);
+        beatErrorPlot.Plot.RenderInMemory(900, 220);
+
+        string[] expected = { "00:00", "06:00", "12:00", "18:00", "24:00" };
+        Assert.Equal(expected, BottomTickLabels(ratePlot));
+        Assert.Equal(expected, BottomTickLabels(amplitudePlot));
+        Assert.Equal(expected, BottomTickLabels(beatErrorPlot));
+    }
+
+    [Fact]
+    public void CreateGraphs_ReservesBottomGapOnUpperPanesSoLabelsAreNotClipped()
+    {
+        var ratePlot = new AvaPlot();
+        var amplitudePlot = new AvaPlot();
+        var beatErrorPlot = new AvaPlot();
+        var renderer = new LongTermPerfRenderer(ratePlot, amplitudePlot, beatErrorPlot, new TextBlock());
+
+        renderer.CreateGraphs();
+        amplitudePlot.Plot.RenderInMemory(900, 220);
+
+        var render = amplitudePlot.Plot.RenderManager.LastRender;
+        Assert.True(
+            render.FigureRect.Bottom - render.DataRect.Bottom >= 10f,
+            $"expected a reserved bottom gap, got {render.FigureRect.Bottom - render.DataRect.Bottom}");
+    }
+
+    private static string[] AcceptLineLabels(AvaPlot plot) =>
+        plot.Plot.GetPlottables<HorizontalLine>()
+            .Where(line => !string.IsNullOrWhiteSpace(line.LabelText))
+            .Select(line => line.LabelText)
+            .ToArray();
+
+    private static string[] VisibleAcceptTextLabels(AvaPlot plot) =>
+        plot.Plot.GetPlottables<Text>()
+            .Where(text => text.IsVisible)
+            .Select(text => text.LabelText)
+            .ToArray();
+
+    private static void AssertTraceColor(AvaPlot plot, uint expected)
+    {
+        Scatter line = plot.Plot.GetPlottables<Scatter>().Single();
+
+        Assert.Equal(PlotColor.FromARGB(expected), line.LineColor);
+    }
+
+    private static void AssertAcceptColor(AvaPlot plot, double y, uint expected)
+    {
+        HorizontalLine line = plot.Plot.GetPlottables<HorizontalLine>()
+            .Single(line => line.Y == y);
+        PlotColor color = PlotColor.FromARGB(expected);
+
+        Assert.Equal(color, line.LineColor);
+        Assert.Contains(plot.Plot.GetPlottables<Text>(), text => text.LabelFontColor == color);
+    }
+
+    private static void AssertLocksMousePanY(AvaPlot plot)
+    {
+        MouseDragPan pan = plot.UserInputProcessor.UserActionResponses
+            .OfType<MouseDragPan>()
+            .Single();
+
+        Assert.True(pan.LockY);
+        Assert.False(pan.LockX);
+    }
+
+    private static void AssertAcceptBandColor(AvaPlot plot, uint expected)
+    {
+        VerticalSpan span = AcceptBand(plot);
+        PlotColor color = PlotColor.FromARGB(expected).WithAlpha(42);
+
+        Assert.Empty(plot.Plot.GetPlottables<HorizontalSpan>());
+        Assert.Equal(color, span.FillStyle.Color);
+        Assert.Equal(0, span.LineStyle.Width);
+    }
+
+    private static VerticalSpan AcceptBand(AvaPlot plot) =>
+        plot.Plot.GetPlottables<VerticalSpan>().Single();
+
+    private static string[] BottomTickLabels(AvaPlot plot) =>
+        plot.Plot.Axes.Bottom.TickGenerator.Ticks
+            .Select(tick => tick.Label)
+            .ToArray();
+
+    private static void AssertInitialDayWindow(AvaPlot plot)
+    {
+        var limits = plot.Plot.Axes.GetLimits();
+
+        Assert.Equal(0.0, limits.Left);
+        Assert.Equal(24 * 60 * 60, limits.Right);
+    }
+
+    private static void AssertXWindow(AvaPlot plot, double left, double right)
+    {
+        var limits = plot.Plot.Axes.GetLimits();
+
+        Assert.Equal(left, limits.Left, 6);
+        Assert.Equal(right, limits.Right, 6);
+    }
+
+    private static void AssertIncludes(AvaPlot plot, double min, double max)
+    {
+        var limits = plot.Plot.Axes.GetLimits();
+
+        Assert.True(limits.Bottom <= min, $"{limits.Bottom} should include {min}");
+        Assert.True(limits.Top >= max, $"{limits.Top} should include {max}");
+    }
+
+    private static void AssertUpperPaneHidesXAxis(AvaPlot plot)
+    {
+        Assert.False(plot.Plot.Axes.Bottom.IsVisible);
+        Assert.False(plot.Plot.Axes.Bottom.TickLabelStyle.IsVisible);
+        Assert.Equal(0, plot.Plot.Axes.Bottom.MajorTickStyle.Length);
+        Assert.Equal(0, plot.Plot.Axes.Bottom.MinorTickStyle.Length);
+        // A small bottom panel is reserved so the lowest left-axis tick label is
+        // not clipped against the pane edge, even with the X axis hidden.
+        Assert.Equal(10f, plot.Plot.Axes.Bottom.MinimumSize);
+    }
+
+    private static AnalysisFrame SampleFrame() => new()
+    {
+        MetricsHistory = new BeatMetricsHistorySnapshot
+        {
+            Version = 1,
+            Rate = Series(new[] { 0.0, 3600.0, 7200.0 }, new[] { 1.0, 2.0, 1.8 }),
+            Amplitude = Series(new[] { 0.0, 3600.0, 7200.0 }, new[] { 281.0, 282.0, 282.0 }),
+            BeatError = Series(new[] { 0.0, 3600.0, 7200.0 }, new[] { 0.2, 0.3, 0.3 }),
+            RateValid = true,
+            RateSPerDay = 1.8,
+            AmplitudeValid = true,
+            AmplitudeDeg = 282.0,
+            BeatErrorValid = true,
+            BeatErrorSignedMs = 0.3,
+            Bph = 21600,
+            LatestTimeS = 18 * 3600 + 42 * 60 + 10,
+        },
+    };
+
+    private static AnalysisFrame NearAmplitudeLimitFrame() => new()
+    {
+        MetricsHistory = new BeatMetricsHistorySnapshot
+        {
+            Version = 1,
+            Rate = Series(new[] { 0.0, 3600.0, 7200.0 }, new[] { 1.0, 2.0, 1.8 }),
+            Amplitude = Series(new[] { 0.0, 3600.0, 7200.0 }, new[] { 298.0, 299.0, 298.5 }),
+            BeatError = Series(new[] { 0.0, 3600.0, 7200.0 }, new[] { 0.2, 0.3, 0.3 }),
+            AmplitudeValid = true,
+            AmplitudeDeg = 298.5,
+            Bph = 21600,
+            LatestTimeS = 7200.0,
+        },
+    };
+
+    private static AnalysisFrame AboveAmplitudeLimitFrame() => new()
+    {
+        MetricsHistory = new BeatMetricsHistorySnapshot
+        {
+            Version = 1,
+            Rate = Series(new[] { 0.0, 3600.0, 7200.0 }, new[] { 1.0, 2.0, 1.8 }),
+            Amplitude = Series(new[] { 0.0, 3600.0, 7200.0 }, new[] { 303.5, 305.0, 304.2 }),
+            BeatError = Series(new[] { 0.0, 3600.0, 7200.0 }, new[] { -0.01, 0.02, -0.01 }),
+            AmplitudeValid = true,
+            AmplitudeDeg = 304.2,
+            Bph = 21600,
+            LatestTimeS = 7200.0,
+        },
+    };
+
+    private static AnalysisFrame FrameWithRange(ulong version, double maxX)
+    {
+        double[] x = new[] { 0.0, maxX / 2.0, maxX };
+
+        return new AnalysisFrame
+        {
+            MetricsHistory = new BeatMetricsHistorySnapshot
+            {
+                Version = version,
+                Rate = Series(x, new[] { 1.0, 1.5, 1.8 }),
+                Amplitude = Series(x, new[] { 281.0, 282.0, 282.0 }),
+                BeatError = Series(x, new[] { 0.2, 0.3, 0.3 }),
+                RateValid = true,
+                RateSPerDay = 1.8,
+                AmplitudeValid = true,
+                AmplitudeDeg = 282.0,
+                BeatErrorValid = true,
+                BeatErrorSignedMs = 0.3,
+                Bph = 21600,
+                LatestTimeS = maxX,
+            },
+        };
+    }
+
+
+    private static AnalysisFrame FrameWithPositionChange()
+    {
+        AnalysisFrame frame = SampleFrame();
+        BeatMetricsHistorySnapshot source = frame.MetricsHistory!;
+
+        frame.MetricsHistory = new BeatMetricsHistorySnapshot
+        {
+            Version = source.Version,
+            Rate = source.Rate,
+            Amplitude = source.Amplitude,
+            BeatError = source.BeatError,
+            RateValid = source.RateValid,
+            RateSPerDay = source.RateSPerDay,
+            AmplitudeValid = source.AmplitudeValid,
+            AmplitudeDeg = source.AmplitudeDeg,
+            BeatErrorValid = source.BeatErrorValid,
+            BeatErrorSignedMs = source.BeatErrorSignedMs,
+            Bph = source.Bph,
+            LatestTimeS = source.LatestTimeS,
+            PositionChanges = new[] { new PositionChange(0.0, WatchPosition.CH) },
+        };
+
+        return frame;
+    }
+
+    private static MetricsHistorySeries Series(double[] x, double[] y) => new()
+    {
+        X = x,
+        Y = y,
+        YMin = y,
+        YMax = y,
+    };
+
+    private static void SyncXAxisFrom(LongTermPerfRenderer renderer)
+    {
+        var method = typeof(LongTermPerfRenderer).GetMethod(
+            "SyncXAxisFrom",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+
+        Assert.NotNull(method);
+        method.Invoke(renderer, new object[] { 0 });
+    }
+}

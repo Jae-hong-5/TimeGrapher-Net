@@ -8,6 +8,12 @@ using TimeGrapher.Core.Shared;
 
 namespace TimeGrapher.App.Rendering;
 
+internal sealed record LongTermSummaryControls(
+    TextBlock Verdict,
+    TextBlock Rate,
+    TextBlock Amplitude,
+    TextBlock BeatError);
+
 /// <summary>
 /// Long-Term Performance Graph: rate, amplitude and beat error over the whole
 /// testing period as three stacked plots, rendered from the cumulative
@@ -25,16 +31,28 @@ namespace TimeGrapher.App.Rendering;
 /// changes, so coalesced or repeated frames cost nothing. The three panes
 /// share one elapsed-time X base, so a user zoom/pan on any pane is linked
 /// onto the other two — all three always read on the same time window, while
-/// Y stays per-measure (each pane has its own units and range).
+/// Y remains auto-scaled per measure (each pane has its own units and range).
 /// </summary>
 internal sealed class LongTermPerfRenderer
 {
     private const byte BandFillAlpha = 44;
+    private const byte AcceptBandFillAlpha = 42;
+    private const double DefaultLiveWindowS = 24 * 60 * 60;
+    private const double PanFraction = 0.25;
+    private const double ZoomInFactor = 0.5;
+    private const double ZoomOutFactor = 2.0;
+    private const double AcceptLabelXInsetFraction = 0.006;
+    private const double DataYPadFraction = 0.14;
+
+    // Bottom panel reserved on the upper/middle panes (their X axis is hidden) so
+    // the lowest left-axis tick label is not clipped against the pane's edge.
+    private const float StackedPaneBottomPadPx = 10f;
 
     private sealed class Pane
     {
         public required AvaPlot Plot { get; init; }
         public required string YLabel { get; init; }
+        public required string AcceptLabelFormat { get; init; }
 
         // Fixed acceptable-range corridor for this measure (s/d, °, ms). Drawn as
         // two dashed reference lines so a glance shows whether the long-term trace
@@ -44,11 +62,14 @@ internal sealed class LongTermPerfRenderer
         public readonly List<double> X = new();
         public readonly List<double> Y = new();
         public readonly List<(double X, double Top, double Bottom)> Band = new();
+        public VerticalSpan? AcceptBand;
         public Scatter? BucketLine;
         public FillY? VariationBand;
         public HorizontalLine? OverallAverage;
         public HorizontalLine? AcceptMin;
         public HorizontalLine? AcceptMax;
+        public Text? AcceptMinLabel;
+        public Text? AcceptMaxLabel;
         public ReviewCursorLayer? Cursor;
 
         // Dashed vertical lines (one per watch-position turn) labelled with the
@@ -61,10 +82,16 @@ internal sealed class LongTermPerfRenderer
     private readonly Pane _beatError;
     private readonly Pane[] _panes;
     private readonly TextBlock _footerText;
+    private readonly LongTermSummaryControls? _summary;
 
     private PlotThemePalette _theme = PlotThemePalette.Current;
     private ulong _lastVersion;
     private bool _followLive = true;
+    private double? _liveWindowS = DefaultLiveWindowS;
+    private BeatMetricsHistorySnapshot? _lastHistory;
+    private double? _lastReviewCursorTimeS;
+    private Action<double>? _visibleWindowCallback;
+    private Action<string>? _reviewMetricsCallback;
 
     // X-axis link: guards the cross-pane SetLimitsX pass against re-entrancy, and
     // coalesces a continuous drag into a single deferred sync (latest source wins).
@@ -84,18 +111,21 @@ internal sealed class LongTermPerfRenderer
         AvaPlot ratePlot,
         AvaPlot amplitudePlot,
         AvaPlot beatErrorPlot,
-        TextBlock footerText)
+        TextBlock footerText,
+        LongTermSummaryControls? summary = null)
     {
-        _rate = new Pane { Plot = ratePlot, YLabel = "Rate (s/d)", Accept = LongTermAcceptPolicy.Rate };
-        _amplitude = new Pane { Plot = amplitudePlot, YLabel = "Amplitude (°)", Accept = LongTermAcceptPolicy.Amplitude };
-        _beatError = new Pane { Plot = beatErrorPlot, YLabel = "Beat error (ms)", Accept = LongTermAcceptPolicy.BeatError };
+        _rate = new Pane { Plot = ratePlot, YLabel = "Rate (s/d)", AcceptLabelFormat = "+0;-0;0", Accept = LongTermAcceptPolicy.Rate };
+        _amplitude = new Pane { Plot = amplitudePlot, YLabel = "Amplitude (°)", AcceptLabelFormat = "0", Accept = LongTermAcceptPolicy.Amplitude };
+        _beatError = new Pane { Plot = beatErrorPlot, YLabel = "Beat Error (ms)", AcceptLabelFormat = "+0.0;-0.0;0.0", Accept = LongTermAcceptPolicy.BeatError };
         _panes = new[] { _rate, _amplitude, _beatError };
         _footerText = footerText;
+        _summary = summary;
 
         for (int i = 0; i < _panes.Length; i++)
         {
             int idx = i;
             AvaPlot plot = _panes[idx].Plot;
+            plot.UserInputProcessor.LeftClickDragPan(true, true, false);
             // Any zoom (wheel), drag (pan / zoom-rectangle, while a button is
             // held), or interaction end re-links the other panes onto this one's
             // X window. PointerPressed just drops live-follow; it changes no axis.
@@ -123,6 +153,16 @@ internal sealed class LongTermPerfRenderer
         _sliderAlignmentCallback = callback;
     }
 
+    public void SetVisibleWindowCallback(Action<double> callback)
+    {
+        _visibleWindowCallback = callback;
+    }
+
+    public void SetReviewMetricsCallback(Action<string> callback)
+    {
+        _reviewMetricsCallback = callback;
+    }
+
     public void ApplyTheme(PlotThemePalette theme)
     {
         _theme = theme;
@@ -132,6 +172,7 @@ internal sealed class LongTermPerfRenderer
         }
 
         ApplySeriesTheme();
+        UpdateSummaryAndFooter();
         RefreshAll();
     }
 
@@ -139,7 +180,11 @@ internal sealed class LongTermPerfRenderer
     {
         _lastVersion = 0;
         _followLive = true;
+        _liveWindowS = DefaultLiveWindowS;
+        _lastHistory = null;
+        _lastReviewCursorTimeS = null;
         _footerText.Text = "";
+        SetPlaceholderSummary();
         // plot.Clear() below drops the marker lines; force the next render to re-add.
         _positionMarkerCount = -1;
 
@@ -159,21 +204,26 @@ internal sealed class LongTermPerfRenderer
             // (which read as the left edge toggling); it self-corrects upward if
             // a later run's labels grow wider.
 
+            pane.AcceptBand = plot.Add.VerticalSpan(pane.Accept.Min, pane.Accept.Max);
+            pane.AcceptBand.LineStyle.Width = 0;
+            pane.AcceptBand.EnableAutoscale = false;
             pane.VariationBand = plot.Add.FillY(pane.Band);
             pane.VariationBand.LineWidth = 0;
             pane.VariationBand.IsVisible = false;
-            // Acceptable-range corridor: two dashed reference lines at the fixed
-            // tolerance bounds. EnableAutoscale stays on (unlike the overall
-            // average) so the corridor is always kept in view — the whole point
-            // is to read the trace against its tolerance, not lose the limits
-            // off-screen when the watch sits comfortably inside the band.
             pane.AcceptMin = plot.Add.HorizontalLine(pane.Accept.Min);
             pane.AcceptMax = plot.Add.HorizontalLine(pane.Accept.Max);
             foreach (HorizontalLine line in new[] { pane.AcceptMin, pane.AcceptMax })
             {
-                line.LineWidth = 1;
+                line.LineWidth = 1.5f;
                 line.LinePattern = LinePattern.Dashed;
+                line.LabelText = string.Empty;
+                line.EnableAutoscale = false;
             }
+            plot.Axes.Right.TickLabelStyle.IsVisible = false;
+            plot.Axes.Right.MajorTickStyle.Length = 0;
+            plot.Axes.Right.MinorTickStyle.Length = 0;
+            pane.AcceptMinLabel = AcceptLabel(plot, pane.Accept.Min, pane.AcceptLabelFormat);
+            pane.AcceptMaxLabel = AcceptLabel(plot, pane.Accept.Max, pane.AcceptLabelFormat);
 
             pane.BucketLine = plot.Add.Scatter(pane.X, pane.Y);
             pane.BucketLine.LineWidth = 2;
@@ -198,11 +248,19 @@ internal sealed class LongTermPerfRenderer
             };
             if (pane != _beatError)
             {
+                pane.Plot.Plot.Axes.Bottom.IsVisible = false;
                 pane.Plot.Plot.Axes.Bottom.TickLabelStyle.IsVisible = false;
+                pane.Plot.Plot.Axes.Bottom.MajorTickStyle.Length = 0;
+                pane.Plot.Plot.Axes.Bottom.MinorTickStyle.Length = 0;
+                // A small reserved bottom panel keeps the lowest left-axis tick
+                // label from being clipped against the pane edge, while the X tick
+                // labels stay hidden (only the bottom pane shows the time axis).
+                pane.Plot.Plot.Axes.Bottom.MinimumSize = StackedPaneBottomPadPx;
             }
         }
 
         ApplySeriesTheme();
+        SetInitialXWindow();
         RefreshAll();
     }
 
@@ -214,13 +272,50 @@ internal sealed class LongTermPerfRenderer
     public void ResetView()
     {
         _followLive = true;
+        _liveWindowS = DefaultLiveWindowS;
         foreach (Pane pane in _panes)
         {
             pane.Plot.Plot.Axes.AutoScale();
+            AutoScaleYIncludingNearbyLimits(pane);
         }
 
+        UpdateSummaryAndFooter();
         RefreshAll();
     }
+
+    public void ShowLive()
+    {
+        _followLive = true;
+        ApplyFollowLiveWindow();
+        UpdateSummaryAndFooter();
+        RefreshAll();
+    }
+
+    public void ShowAll()
+    {
+        _followLive = true;
+        _liveWindowS = null;
+        ApplyFollowLiveWindow();
+        UpdateSummaryAndFooter();
+        RefreshAll();
+    }
+
+    public void ShowTimeWindow(double seconds)
+    {
+        _followLive = true;
+        _liveWindowS = seconds;
+        ApplyFollowLiveWindow();
+        UpdateSummaryAndFooter();
+        RefreshAll();
+    }
+
+    public void ZoomIn() => ZoomX(ZoomInFactor);
+
+    public void ZoomOut() => ZoomX(ZoomOutFactor);
+
+    public void PanLeft() => PanX(-PanFraction);
+
+    public void PanRight() => PanX(PanFraction);
 
     /// <summary>
     /// Links a user zoom/pan on one pane onto the others: drops live-follow and
@@ -259,22 +354,29 @@ internal sealed class LongTermPerfRenderer
         _syncing = true;
         try
         {
-            // The three panes share one elapsed-time X base, so the X limits
-            // transfer directly. Y stays per-pane — each measure has its own
-            // units — auto-scaled to the data now in the shared window.
             AxisLimits limits = _panes[source].Plot.Plot.Axes.GetLimits();
-            for (int i = 0; i < _panes.Length; i++)
+            if (!TryGetDataXRange(out double dataMin, out double dataMax) || dataMax <= dataMin)
             {
-                if (i == source)
-                {
-                    continue;
-                }
-
-                Plot plot = _panes[i].Plot.Plot;
-                plot.Axes.SetLimitsX(limits.Left, limits.Right);
-                plot.Axes.AutoScaleY();
-                _panes[i].Plot.Refresh();
+                _followLive = false;
+                ApplySharedXWindowAndAutoscaleY(limits.Left, limits.Right, refresh: true);
+                return;
             }
+
+            (double left, double right) = ClampWindow(limits.Left, limits.Right, dataMin, dataMax);
+            double span = Math.Max(1.0, right - left);
+            if (IsAtLiveEdge(right, dataMax, span))
+            {
+                _followLive = true;
+                _liveWindowS = span >= dataMax - dataMin ? null : span;
+                double followLeft = _liveWindowS is double windowS
+                    ? Math.Max(dataMin, dataMax - windowS)
+                    : dataMin;
+                ApplySharedXWindowAndAutoscaleY(followLeft, dataMax, refresh: true);
+                return;
+            }
+
+            _followLive = false;
+            ApplySharedXWindowAndAutoscaleY(left, right, refresh: true);
         }
         finally
         {
@@ -286,9 +388,16 @@ internal sealed class LongTermPerfRenderer
     {
         BeatMetricsHistorySnapshot? history = frame.MetricsHistory;
         bool cursorMoved = UpdateReviewCursor(context.ReviewCursorTimeS);
+        _lastReviewCursorTimeS = context.ReviewCursorTimeS;
 
         if (history == null || history.Version == _lastVersion)
         {
+            if (history != null)
+            {
+                _lastHistory = history;
+                UpdateSummaryAndFooter();
+            }
+
             if (cursorMoved)
             {
                 RefreshAll();
@@ -298,6 +407,7 @@ internal sealed class LongTermPerfRenderer
         }
 
         _lastVersion = history.Version;
+        _lastHistory = history;
 
         UpdatePane(_rate, history.Rate);
         UpdatePane(_amplitude, history.Amplitude);
@@ -328,27 +438,10 @@ internal sealed class LongTermPerfRenderer
 
         if (_followLive && hasData)
         {
-            // X is the shared data window; Y stays per-pane (each measure has its
-            // own units), auto-scaled to all data in view. A single point (or all
-            // points at one time, common in the first frames after a reset) gives
-            // a zero-width window, which SetLimitsX cannot represent — fall back
-            // to a plain autoscale until the data spans a real range.
-            bool sharedWindow = xMax > xMin;
-            foreach (Pane pane in _panes)
-            {
-                if (sharedWindow)
-                {
-                    pane.Plot.Plot.Axes.AutoScaleY();
-                    pane.Plot.Plot.Axes.SetLimitsX(xMin, xMax);
-                }
-                else
-                {
-                    pane.Plot.Plot.Axes.AutoScale();
-                }
-            }
+            ApplyFollowLiveWindow(xMin, xMax);
         }
 
-        _footerText.Text = LongTermReadout.Footer(history);
+        UpdateSummaryAndFooter();
         RefreshAll();
     }
 
@@ -370,11 +463,14 @@ internal sealed class LongTermPerfRenderer
     private void AlignLeftEdges()
     {
         float maxPanel = 0f;
+        float maxRightPanel = 0f;
         foreach (Pane pane in _panes)
         {
             RenderDetails render = pane.Plot.Plot.RenderManager.LastRender;
             float panel = render.DataRect.Left - render.FigureRect.Left;
+            float rightPanel = render.FigureRect.Right - render.DataRect.Right;
             if (panel > maxPanel) maxPanel = panel;
+            if (rightPanel > maxRightPanel) maxRightPanel = rightPanel;
         }
 
         if (maxPanel <= 0f)
@@ -390,6 +486,12 @@ internal sealed class LongTermPerfRenderer
             if (maxPanel - pane.Plot.Plot.Axes.Left.MinimumSize > 0.5f)
             {
                 pane.Plot.Plot.Axes.Left.MinimumSize = maxPanel;
+                changed = true;
+            }
+
+            if (maxRightPanel > 0f && maxRightPanel - pane.Plot.Plot.Axes.Right.MinimumSize > 0.5f)
+            {
+                pane.Plot.Plot.Axes.Right.MinimumSize = maxRightPanel;
                 changed = true;
             }
         }
@@ -504,14 +606,12 @@ internal sealed class LongTermPerfRenderer
 
     private void ApplySeriesTheme()
     {
-        // Same measure-to-color mapping the Trace Display uses for rate and
-        // amplitude; beat error takes the remaining trace color.
-        ThemePane(_rate, _theme.TraceTick);
-        ThemePane(_amplitude, _theme.TraceWave);
-        ThemePane(_beatError, _theme.TraceTock);
+        ThemePane(_rate, _theme.VarioBad, _theme.VarioBad);
+        ThemePane(_amplitude, _theme.VarioMinMax, _theme.VarioMinMax);
+        ThemePane(_beatError, _theme.TraceTick, _theme.TraceTick);
     }
 
-    private void ThemePane(Pane pane, uint argb)
+    private void ThemePane(Pane pane, uint argb, uint acceptArgb)
     {
         Color color = Color.FromARGB(argb);
         if (pane.BucketLine != null)
@@ -529,9 +629,17 @@ internal sealed class LongTermPerfRenderer
             pane.OverallAverage.LineColor = Color.FromARGB(_theme.TextPrimary);
         }
 
-        // Tolerance corridor reuses the Vario accept-band edge color, so the
-        // "acceptable range" reads the same across both displays.
-        Color acceptEdge = Color.FromARGB(_theme.VarioAcceptBandEdge);
+        // Tolerance corridors use existing per-measure palette colors so the
+        // attached 3-lane Long-Term graph remains readable without adding new
+        // hard-coded colors.
+        Color acceptEdge = Color.FromARGB(acceptArgb);
+        if (pane.AcceptBand != null)
+        {
+            pane.AcceptBand.FillStyle.Color = acceptEdge.WithAlpha(AcceptBandFillAlpha);
+            pane.AcceptBand.LineStyle.Color = acceptEdge.WithAlpha(0);
+            pane.AcceptBand.LineStyle.Width = 0;
+        }
+
         if (pane.AcceptMin != null)
         {
             pane.AcceptMin.LineColor = acceptEdge;
@@ -540,6 +648,14 @@ internal sealed class LongTermPerfRenderer
         if (pane.AcceptMax != null)
         {
             pane.AcceptMax.LineColor = acceptEdge;
+        }
+
+        foreach (Text? label in new[] { pane.AcceptMinLabel, pane.AcceptMaxLabel })
+        {
+            if (label != null)
+            {
+                label.LabelFontColor = acceptEdge;
+            }
         }
 
         foreach (VerticalLine marker in pane.PositionMarkers)
@@ -626,25 +742,322 @@ internal sealed class LongTermPerfRenderer
         marker.LabelOppositeAxis = true;
         marker.ManualLabelAlignment = Alignment.UpperLeft;
         marker.LabelPixelPadding = new PixelPadding(0, 0, 0, -3);
-        marker.LabelOffsetX = 3;
+        marker.LabelOffsetX = 5;
         marker.LabelFontColor = color;
-        // Transparent label background so the name never masks the trace behind
-        // it (the dashed line plus the bold name stay legible on their own).
+        marker.LabelBold = true;
         marker.LabelBackgroundColor = Colors.Transparent;
     }
 
     /// <summary>
-    /// Formats X-axis tick labels as "mm:ss" so the graph time axis matches the
-    /// review slider readout (which shows both seconds and mm:ss).
+    /// Formats X-axis tick labels as short elapsed time for early runs and
+    /// HH:mm once the Long-Term view reaches hour/day scale.
     /// </summary>
-    private static string ElapsedTickLabel(double seconds)
+    private static string ElapsedTickLabel(double seconds) => LongTermReadout.FormatElapsedTick(seconds);
+
+    private static string AcceptLimitLabel(double value, string format) =>
+        value.ToString(format, System.Globalization.CultureInfo.InvariantCulture);
+
+    private static Text AcceptLabel(Plot plot, double value, string format)
     {
-        int total = Math.Max(0, (int)seconds);
-        return $"{total / 60:00}:{total % 60:00}";
+        Text label = plot.Add.Text(AcceptLimitLabel(value, format), 0.0, value);
+        label.LabelBold = true;
+        label.LabelFontSize = 12;
+        label.Alignment = Alignment.MiddleRight;
+        label.IsVisible = false;
+        return label;
     }
+
+    private void ApplyFollowLiveWindow()
+    {
+        if (TryGetDataXRange(out double xMin, out double xMax))
+        {
+            ApplyFollowLiveWindow(xMin, xMax);
+        }
+    }
+
+    private void ApplyFollowLiveWindow(double xMin, double xMax)
+    {
+        // A single point gives a zero-width window, which SetLimitsX cannot
+        // represent. Plain autoscale keeps the first reading visible until a real
+        // time range exists.
+        if (xMax <= xMin)
+        {
+            SetInitialXWindow();
+            return;
+        }
+
+        double left = _liveWindowS is double windowS
+            ? Math.Max(xMin, xMax - windowS)
+            : xMin;
+        SetSharedXWindow(left, xMax);
+    }
+
+    private void SetInitialXWindow() => SetSharedXWindow(0.0, DefaultLiveWindowS);
+
+    private void ZoomX(double factor)
+    {
+        if (!TryGetDataXRange(out double dataMin, out double dataMax) || dataMax <= dataMin)
+        {
+            return;
+        }
+
+        AxisLimits current = _rate.Plot.Plot.Axes.GetLimits();
+        double currentSpan = current.Right > current.Left
+            ? current.Right - current.Left
+            : dataMax - dataMin;
+        double span = currentSpan * factor;
+        double center = (current.Left + current.Right) / 2.0;
+        if (current.Right <= current.Left)
+        {
+            center = dataMax;
+        }
+
+        SetManualXWindow(center - span / 2.0, center + span / 2.0, dataMin, dataMax);
+    }
+
+    private void PanX(double fraction)
+    {
+        if (!TryGetDataXRange(out double dataMin, out double dataMax) || dataMax <= dataMin)
+        {
+            return;
+        }
+
+        AxisLimits current = _rate.Plot.Plot.Axes.GetLimits();
+        double span = current.Right > current.Left
+            ? current.Right - current.Left
+            : dataMax - dataMin;
+        double shift = span * fraction;
+        SetManualXWindow(current.Left + shift, current.Right + shift, dataMin, dataMax);
+    }
+
+    private void SetManualXWindow(double left, double right, double dataMin, double dataMax)
+    {
+        (left, right) = ClampWindow(left, right, dataMin, dataMax);
+        double span = Math.Max(1.0, right - left);
+        _followLive = IsAtLiveEdge(right, dataMax, span);
+        _liveWindowS = _followLive && span >= dataMax - dataMin ? null : span;
+
+        if (_followLive)
+        {
+            double followLeft = _liveWindowS is double windowS
+                ? Math.Max(dataMin, dataMax - windowS)
+                : dataMin;
+            SetSharedXWindow(followLeft, dataMax);
+        }
+        else
+        {
+            SetSharedXWindow(left, right);
+        }
+
+        UpdateSummaryAndFooter();
+        RefreshAll();
+    }
+
+    private void SetSharedXWindow(double left, double right)
+    {
+        ApplySharedXWindowAndAutoscaleY(left, right, refresh: false);
+    }
+
+    private void ApplySharedXWindowAndAutoscaleY(double left, double right, bool refresh)
+    {
+        (double[] tickValues, string[] tickLabels) = LongTermReadout.ElapsedTicks(left, right);
+        _visibleWindowCallback?.Invoke(Math.Max(0.0, right - left));
+        foreach (Pane pane in _panes)
+        {
+            pane.Plot.Plot.Axes.Bottom.SetTicks(tickValues, tickLabels);
+            pane.Plot.Plot.Axes.SetLimitsX(left, right);
+            AutoScaleYIncludingNearbyLimits(pane);
+            UpdateAcceptVisuals(pane, left, right);
+            if (refresh)
+            {
+                pane.Plot.Refresh();
+            }
+        }
+    }
+
+    private void AutoScaleYIncludingNearbyLimits(Pane pane)
+    {
+        Plot plot = pane.Plot.Plot;
+        AxisLimits limits = plot.Axes.GetLimits();
+        if (!TryGetVisibleYRange(pane, limits.Left, limits.Right, out double dataLo, out double dataHi))
+        {
+            SetYLimits(plot, pane.Accept.Min, pane.Accept.Max);
+            return;
+        }
+
+        SetYLimits(
+            plot,
+            Math.Min(dataLo, pane.Accept.Min),
+            Math.Max(dataHi, pane.Accept.Max));
+    }
+
+    private static bool TryGetVisibleYRange(
+        Pane pane,
+        double left,
+        double right,
+        out double min,
+        out double max)
+    {
+        min = double.MaxValue;
+        max = double.MinValue;
+        for (int i = 0; i < pane.X.Count; i++)
+        {
+            double x = pane.X[i];
+            if (x < left || x > right)
+            {
+                continue;
+            }
+
+            double yMin = pane.Band.Count > i ? pane.Band[i].Bottom : pane.Y[i];
+            double yMax = pane.Band.Count > i ? pane.Band[i].Top : pane.Y[i];
+            if (yMin < min) min = yMin;
+            if (yMax > max) max = yMax;
+        }
+
+        return min <= max;
+    }
+
+    private static void SetYLimits(Plot plot, double min, double max)
+    {
+        double span = Math.Max(max - min, 1.0);
+        double pad = span * DataYPadFraction;
+        plot.Axes.SetLimitsY(min - pad, max + pad);
+    }
+
+    private static void UpdateAcceptVisuals(Pane pane, double left, double right)
+    {
+        AxisLimits limits = pane.Plot.Plot.Axes.GetLimits();
+        bool minVisible = IsVisibleY(limits, pane.Accept.Min);
+        bool maxVisible = IsVisibleY(limits, pane.Accept.Max);
+        bool acceptIntersectsViewport = pane.Accept.Min <= limits.Top && pane.Accept.Max >= limits.Bottom;
+        if (pane.AcceptBand != null)
+        {
+            pane.AcceptBand.IsVisible = acceptIntersectsViewport;
+        }
+
+        double x = right - Math.Max(1.0, right - left) * AcceptLabelXInsetFraction;
+        SetAcceptLabel(pane.AcceptMinLabel, x, pane.Accept.Min, minVisible, Alignment.LowerRight);
+        SetAcceptLabel(pane.AcceptMaxLabel, x, pane.Accept.Max, maxVisible, Alignment.UpperRight);
+    }
+
+    private static bool IsVisibleY(AxisLimits limits, double y) =>
+        y >= limits.Bottom && y <= limits.Top;
+
+    private static void SetAcceptLabel(Text? label, double x, double y, bool visible, Alignment alignment)
+    {
+        if (label == null)
+        {
+            return;
+        }
+
+        label.Location = new Coordinates(x, y);
+        label.Alignment = alignment;
+        label.IsVisible = visible;
+    }
+
+    private static (double Left, double Right) ClampWindow(
+        double left,
+        double right,
+        double dataMin,
+        double dataMax)
+    {
+        double dataSpan = dataMax - dataMin;
+        double span = Math.Max(1.0, right - left);
+        if (span >= dataSpan)
+        {
+            return (dataMin, dataMax);
+        }
+
+        if (left < dataMin)
+        {
+            right += dataMin - left;
+            left = dataMin;
+        }
+
+        if (right > dataMax)
+        {
+            left -= right - dataMax;
+            right = dataMax;
+        }
+
+        return (Math.Max(dataMin, left), Math.Min(dataMax, right));
+    }
+
+    private static bool IsAtLiveEdge(double right, double dataMax, double span)
+    {
+        double tolerance = Math.Max(1.0, span * 0.001);
+        return right >= dataMax - tolerance;
+    }
+
+    private void SetPlaceholderSummary()
+    {
+        if (_summary == null)
+        {
+            return;
+        }
+
+        _summary.Verdict.Text = "COLLECTING";
+        _summary.Rate.Text = "RATE " + VarioReadout.Missing;
+        _summary.Amplitude.Text = "AMPLITUDE " + VarioReadout.Missing;
+        _summary.BeatError.Text = "BEAT ERROR " + VarioReadout.Missing;
+        ApplySummaryTheme("COLLECTING");
+        _reviewMetricsCallback?.Invoke("");
+    }
+
+    private void UpdateSummaryAndFooter()
+    {
+        if (_lastHistory == null)
+        {
+            SetPlaceholderSummary();
+            return;
+        }
+
+        BeatMetricsHistorySnapshot history = _lastHistory;
+        if (_summary != null)
+        {
+            string verdict = LongTermReadout.Verdict(history);
+            _summary.Verdict.Text = verdict;
+            _summary.Rate.Text = LongTermReadout.CurrentRate(history);
+            _summary.Amplitude.Text = LongTermReadout.CurrentAmplitude(history);
+            _summary.BeatError.Text = LongTermReadout.CurrentBeatError(history);
+            ApplySummaryTheme(verdict);
+        }
+
+        _footerText.Text = LongTermReadout.Footer(history, _lastReviewCursorTimeS);
+        _reviewMetricsCallback?.Invoke(LongTermReadout.ReviewMetrics(history, _lastReviewCursorTimeS));
+    }
+
+    private void ApplySummaryTheme(string verdict)
+    {
+        if (_summary == null)
+        {
+            return;
+        }
+
+        _summary.Verdict.Foreground = Brush(verdict switch
+        {
+            "IN TOLERANCE" => _theme.TraceTick,
+            "CHECK" => _theme.VarioWarn,
+            _ => _theme.VarioPending,
+        });
+        _summary.Rate.Foreground = Brush(_theme.VarioBad);
+        _summary.Amplitude.Foreground = Brush(_theme.VarioMinMax);
+        _summary.BeatError.Foreground = Brush(_theme.TraceTick);
+    }
+
+    private static Avalonia.Media.SolidColorBrush Brush(uint argb) =>
+        new(ToAvaloniaColor(argb));
+
+    private static Avalonia.Media.Color ToAvaloniaColor(uint argb) =>
+        Avalonia.Media.Color.FromArgb(
+            (byte)(argb >> 24),
+            (byte)(argb >> 16),
+            (byte)(argb >> 8),
+            (byte)argb);
 
     private void ApplyPlotTheme(Plot plot)
     {
         PlotThemeHelper.Apply(plot, _theme);
+        plot.FigureBackground.Color = Color.FromARGB(_theme.ScopeBg);
     }
 }
