@@ -56,7 +56,9 @@ public sealed class BeatNoiseScopeLogicTests
     [InlineData(0.0, 0)]
     [InlineData(0.99, 7)]
     [InlineData(0.5, 4)]
-    [InlineData(1.0, 7)] // clamped at the edge
+    [InlineData(1.0, 7)] // the right edge still maps to the newest slot
+    [InlineData(-0.03125, -1)] // a click on the reserved left axis selects nothing
+    [InlineData(1.5, -1)] // beyond the right edge selects nothing
     public void StripSlotFromFraction_MapsTheLaneWidthOntoSlots(double fraction, int expectedSlot)
     {
         Assert.Equal(expectedSlot, BeatNoiseScopeLogic.StripSlotFromFraction(fraction));

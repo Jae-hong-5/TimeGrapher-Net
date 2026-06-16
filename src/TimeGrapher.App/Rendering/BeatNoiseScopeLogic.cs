@@ -28,9 +28,17 @@ internal static class BeatNoiseScopeLogic
     public static int SlotForSegmentIndex(int segmentIndex, int segmentCount) =>
         StripCount - segmentCount + segmentIndex;
 
-    /// <summary>Slot hit from the pointer's horizontal fraction across the strip lane data area.</summary>
+    /// <summary>
+    /// Slot hit from the pointer's horizontal fraction across the strip lane data
+    /// area, or -1 when the click is outside it. A click on the reserved left axis
+    /// yields a negative fraction and must select nothing rather than clamp onto
+    /// the oldest slot; a fraction of exactly 1.0 (the right edge) still maps to
+    /// the newest slot.
+    /// </summary>
     public static int StripSlotFromFraction(double fraction) =>
-        Math.Clamp((int)(fraction * StripCount), 0, StripCount - 1);
+        fraction < 0.0 || fraction > 1.0
+            ? -1
+            : Math.Clamp((int)(fraction * StripCount), 0, StripCount - 1);
 
     public static int StripSampleCount(
         BeatNoiseScopeViewMode viewMode,

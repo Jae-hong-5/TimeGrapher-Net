@@ -357,6 +357,13 @@ internal sealed class BeatNoiseScopeRenderer
         }
 
         int slot = BeatNoiseScopeLogic.StripSlotFromFraction(fraction);
+        if (slot < 0)
+        {
+            // Click outside the strip data area (e.g. on the reserved left axis):
+            // keep the current selection rather than jumping to the oldest slot.
+            return;
+        }
+
         _selectedSlot = _viewMode == BeatNoiseScopeViewMode.AverageAndStrip
             ? NextAveragePairSelection(_selectedSlot, slot, snapshot.Segments.Count)
             : BeatNoiseScopeLogic.NextSelection(_selectedSlot, slot, snapshot.Segments.Count);
