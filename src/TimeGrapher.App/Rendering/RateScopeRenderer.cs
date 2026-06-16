@@ -225,10 +225,21 @@ internal sealed class RateScopeRenderer
         WatchPosition? position = frame.MetricsHistory?.ActivePosition;
         if (position.HasValue && position != _lastScopePosition)
         {
+            bool isPositionChange = _lastScopePosition.HasValue;
             _lastScopePosition = position;
             _scopeFollowLive = true;
             _scopeWindowSeconds = DefaultScopeWindowSeconds;
             _scopeAutoY = true;
+
+            // Core cleared its rate buffers; drop the previous position's points
+            // now so they don't linger on the plot until the first post-reset rate
+            // sample arrives (~2 s of re-lock). Skip on the initial frame, where
+            // there is nothing to clear and the rate axis is already empty.
+            if (isPositionChange)
+            {
+                ClearSeriesData(_rateX, _rateY);
+                _ratePlot.Refresh();
+            }
         }
 
         bool scopeUpdated = ReplaceScopeSeries(frame);
