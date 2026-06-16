@@ -61,19 +61,36 @@ internal static class WaveformCompareLogic
 
     /// <summary>
     /// Per-lane label: the alternating phase the segment was captured on plus
-    /// that beat's own A→C peak interval (em dash while the C is missing), so
-    /// each lane's spacing reads against the mean C guide.
+    /// that beat's own A→C peak interval (em dash while the C is missing), and
+    /// the calculated balance wheel amplitude using:
+    /// Amp = (3600 × λ) / (π × n × t_AC)
+    /// where λ = lift angle (degrees), n = beat rate (BPH), t_AC = A-to-C time (seconds).
     /// </summary>
-    public static string LaneLabel(BeatSegment segment) =>
+    public static string LaneLabel(BeatSegment segment, int bph) =>
         (segment.IsTic ? "TIC" : "TOC") + "\n" +
         "A to C: " + (segment.CPeakValid
             ? (segment.CPeakOffsetMs - segment.AOffsetMs)
                 .ToString(SignedTenthsMsFormat, CultureInfo.InvariantCulture) + " ms"
             : VarioReadout.Missing) + "\n" +
-        "Amp: " + (segment.Samples.Length > 0
-            ? (segment.Samples.Span.ToArray().Max() * 360.0)
-                .ToString("F0", CultureInfo.InvariantCulture) + "°"
+        "Amp: " + (segment.Samples.Length > 0 && segment.CPeakValid && bph > 0
+            ? CalculateAmplitude(segment, bph).ToString("F1", CultureInfo.InvariantCulture) + "°"
             : VarioReadout.Missing);
+
+    /// <summary>
+    /// Calculate balance wheel amplitude in degrees using:
+    /// Amp = (3600 × λ) / (π × n × t_AC)
+    /// </summary>
+    private static double CalculateAmplitude(BeatSegment segment, int bph)
+    {
+        double liftAngleDeg = segment.Samples.Span.ToArray().Max() * 360.0;
+        double tACSeconds = (segment.CPeakOffsetMs - segment.AOffsetMs) / 1000.0;
+        if (tACSeconds <= 0.0)
+        {
+            return 0.0;
+        }
+
+        return (3600.0 * liftAngleDeg) / (Math.PI * bph * tACSeconds);
+    }
 
     /// <summary>
     /// Mean A→C peak interval (ms) across the shown lanes — the cross-beat

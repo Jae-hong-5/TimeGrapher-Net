@@ -866,6 +866,11 @@ internal sealed partial class InfoTabRegistry
 
         var renderer = new LongTermPerfRenderer(ratePlot, amplitudePlot, beatErrorPlot, footerText);
 
+        if (context.ViewModel is { } vm)
+        {
+            renderer.SetSliderAlignmentCallback(vm.UpdateReviewSliderAlignment);
+        }
+
         grid.Children.Add(CreatePinnedResetViewButton("Re-enable live auto-scaling on all three graphs", row: 0, renderer.ResetView));
 
         var consumer = new LongTermPerfFrameConsumer(renderer);
@@ -1463,7 +1468,7 @@ internal sealed partial class InfoTabRegistry
         toolbar.Children.Add(averageModeButton);
 
         // 20 / 200 / 400 ms range selector; the active range renders disabled
-        // (the Scope Sweep 1x/2x/4x button pattern).
+        // (the Scope Sweep 1x/2x/3x button pattern).
         int[] ranges = { 20, 200, 400 };
         var rangeButtons = new Button[ranges.Length];
 

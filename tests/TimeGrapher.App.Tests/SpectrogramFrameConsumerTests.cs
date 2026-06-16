@@ -43,6 +43,66 @@ public sealed class SpectrogramFrameConsumerTests
     }
 
     [Fact]
+    public void ObserveFrameTakesTheProducerMonotonicColumnCount()
+    {
+        var consumer = new SpectrogramFrameConsumer(CreateRenderer());
+
+        // The renderer's window crop needs the monotonic count of source columns
+        // written this run; the producer stamps it on the frame as an absolute
+        // value (not a delta), so the consumer reads it straight through — robust
+        // to coalesced publishes and buffer wraps that a modulo live-column delta
+        // would alias and undercount (which truncated the window on a late switch).
+        consumer.ObserveFrame(new AnalysisFrame
+        {
+            SpectrogramImageUpdated = true,
+            SpectrogramImage = new PixelBuffer(4, 2),
+            SpectrogramLiveColumn = 2,
+            SpectrogramTotalColumns = 2,
+        });
+        Assert.Equal(2L, consumer.TotalColumns);
+
+        // A later publish well past a buffer wrap: the absolute total is taken as-is.
+        consumer.ObserveFrame(new AnalysisFrame
+        {
+            SpectrogramImageUpdated = true,
+            SpectrogramImage = new PixelBuffer(4, 2),
+            SpectrogramLiveColumn = 1, // 4001 % 4 == 1, a wrapped live column
+            SpectrogramTotalColumns = 4001,
+        });
+        Assert.Equal(4001L, consumer.TotalColumns);
+
+        consumer.Reset(new AnalysisTabResetContext(48000, 10, 250));
+        Assert.Equal(0L, consumer.TotalColumns);
+    }
+
+    [Fact]
+    public void ObserveFrameProcessesANewPublishThatReusesAPooledBuffer()
+    {
+        var consumer = new SpectrogramFrameConsumer(CreateRenderer());
+
+        // The projector rotates a fixed buffer pool, so a later publish can land on
+        // the same PixelBuffer object as an earlier one. Dedup is by frame identity,
+        // not buffer identity, so the new publish still updates the count/metadata.
+        var pooled = new PixelBuffer(8, 2);
+
+        consumer.ObserveFrame(new AnalysisFrame
+        {
+            SpectrogramImageUpdated = true,
+            SpectrogramImage = pooled,
+            SpectrogramTotalColumns = 2,
+        });
+        Assert.Equal(2L, consumer.TotalColumns);
+
+        consumer.ObserveFrame(new AnalysisFrame
+        {
+            SpectrogramImageUpdated = true,
+            SpectrogramImage = pooled, // same buffer object, new publish
+            SpectrogramTotalColumns = 5,
+        });
+        Assert.Equal(5L, consumer.TotalColumns);
+    }
+
+    [Fact]
     public void TryRemapKeptImageMirrorsKeptImageOnlyWhenTheThemeChanges()
     {
         var renderer = CreateRenderer();

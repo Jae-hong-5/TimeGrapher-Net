@@ -265,7 +265,7 @@ public sealed class MainWindowViewModelTests
     }
 
     [Fact]
-    public void ReviewBarShowsOnlyWhilePaused()
+    public void ReviewBarShowsOnlyWhilePausedOnTheLongTermTab()
     {
         var vm = CreateViewModel();
         var raised = new List<string?>();
@@ -273,13 +273,23 @@ public sealed class MainWindowViewModelTests
 
         Assert.False(vm.IsReviewBarVisible);
 
+        // Paused but no Long-Term tab active yet: still hidden (the bar is gated on both).
         vm.SetRunning();
+        vm.SetPaused();
         Assert.False(vm.IsReviewBarVisible);
 
-        vm.SetPaused();
+        // Paused AND the Long-Term tab active: visible.
+        vm.SetLongTermTabActive(true);
         Assert.True(vm.IsReviewBarVisible);
         Assert.Contains(nameof(MainWindowViewModel.IsReviewBarVisible), raised);
 
+        // Leaving the Long-Term tab hides it again even while paused.
+        vm.SetLongTermTabActive(false);
+        Assert.False(vm.IsReviewBarVisible);
+
+        // Resuming hides it.
+        vm.SetLongTermTabActive(true);
+        Assert.True(vm.IsReviewBarVisible);
         vm.SetRunning();
         Assert.False(vm.IsReviewBarVisible);
     }
@@ -423,7 +433,7 @@ public sealed class MainWindowViewModelTests
         Assert.Equal(754.0, vm.ReviewMaximumS);
 
         vm.ReviewCursorTimeS = 83.4;
-        Assert.Equal("REVIEW 01:23 / 12:34", vm.ReviewReadoutText);
+        Assert.Equal("REVIEW 83.4 s (01:23) / 12:34", vm.ReviewReadoutText);
     }
 
     [Fact]

@@ -79,6 +79,83 @@ public sealed class BeatNoiseAveragerTests
         Assert.Equal(new[] { 10, 20 }, twenty.Milestones.Select(m => m.IntervalCount));
         Assert.Equal(0.4f, twenty.Milestones[1].Lane1[0], 6);
         Assert.Equal(0.6f, twenty.Milestones[1].Lane2[0], 6);
+
+        // Advance both lanes in lockstep from 20 to the 50/50 freeze, capturing the
+        // remaining 30/40/50 milestones (each milestone is published once BOTH lanes
+        // have completed that interval count, each carrying its own first-N average).
+        for (int i = 0; i < 30; i++)
+        {
+            averager.Add(firstLane: true, Trace(0.6f));
+            averager.Add(firstLane: false, Trace(0.6f));
+        }
+
+        BeatNoiseAverageSnapshot fifty = averager.Snapshot();
+        Assert.Equal(new[] { 10, 20, 30, 40, 50 }, fifty.Milestones.Select(m => m.IntervalCount));
+        Assert.True(fifty.Frozen);
+        // The final 50-interval milestone equals the frozen lane averages.
+        Assert.Equal(fifty.Lane1[0], fifty.Milestones[4].Lane1[0], 6);
+        Assert.Equal(fifty.Lane2[0], fifty.Milestones[4].Lane2[0], 6);
+
+        // Frozen: extra beats neither advance the lanes nor add a sixth milestone.
+        Assert.False(averager.Add(firstLane: true, Trace(0.9f)));
+        Assert.Equal(5, averager.Snapshot().Milestones.Count);
+    }
+
+    [Fact]
+    public void Milestone_RecordsEachLanesFirstNIntervalAverageEvenWhenLanesAreImbalanced()
+    {
+        var averager = new BeatNoiseAverager();
+        averager.SetSigmaEnabled(true);
+
+        // The fast lane completes 10 intervals AND a large 11th outlier before the
+        // slow lane reaches 10 (lanes imbalance in production when a detection gap
+        // skips beats). milestone-10 must hold each lane's first-10-interval average
+        // — the fast lane's 0.2 captured at its 10th, not its 11-interval average
+        // (10*0.2 + 5.0)/11 = 0.6364 that a min-of-counts capture recorded.
+        for (int i = 0; i < 10; i++)
+        {
+            averager.Add(firstLane: true, Trace(0.2f));
+        }
+
+        averager.Add(firstLane: true, Trace(5.0f)); // 11th fast-lane trace, after the 10th
+        Assert.Empty(averager.Snapshot().Milestones); // slow lane has not reached 10 yet
+
+        for (int i = 0; i < 10; i++)
+        {
+            averager.Add(firstLane: false, Trace(0.4f));
+        }
+
+        BeatNoiseAverageMilestone ten = averager.Snapshot().Milestones.Single(m => m.IntervalCount == 10);
+        Assert.Equal(0.2f, ten.Lane1[0], 6);
+        Assert.Equal(0.4f, ten.Lane2[0], 6);
+    }
+
+    [Fact]
+    public void SigmaToggle_ClearsAPartialMilestoneSoNoCrossEpochPairingOccurs()
+    {
+        var averager = new BeatNoiseAverager();
+        averager.SetSigmaEnabled(true);
+
+        // Lane 1 stores its milestone-10 snapshot, but lane 2 has not reached 10, so
+        // nothing is published yet (the partial sits in the per-lane store).
+        for (int i = 0; i < 10; i++)
+        {
+            averager.Add(firstLane: true, Trace(0.2f));
+        }
+
+        Assert.Empty(averager.Snapshot().Milestones);
+
+        // A sigma toggle resets the cycle; the stored lane-1 partial must be cleared.
+        // Otherwise a lane-2 arrival at 10 in the NEW epoch would pair across epochs
+        // and emit a milestone-10 assembled from two different measurement cycles.
+        averager.SetSigmaEnabled(false);
+        averager.SetSigmaEnabled(true);
+        for (int i = 0; i < 10; i++)
+        {
+            averager.Add(firstLane: false, Trace(0.4f));
+        }
+
+        Assert.Empty(averager.Snapshot().Milestones);
     }
 
     [Fact]

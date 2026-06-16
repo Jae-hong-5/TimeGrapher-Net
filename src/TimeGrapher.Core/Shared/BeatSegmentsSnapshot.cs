@@ -122,7 +122,7 @@ public sealed class BeatNoiseAverageSnapshot
     public double Lane1MeanPeak { get; init; }
     public double Lane2MeanPeak { get; init; }
 
-    /// <summary>Saved Σ averages when either lane reaches 10/20/30/40/50 intervals.</summary>
+    /// <summary>Saved Σ averages when both lanes reach 10/20/30/40/50 intervals (keyed on the slower lane's count).</summary>
     public IReadOnlyList<BeatNoiseAverageMilestone> Milestones { get; init; } = Array.Empty<BeatNoiseAverageMilestone>();
 }
 
