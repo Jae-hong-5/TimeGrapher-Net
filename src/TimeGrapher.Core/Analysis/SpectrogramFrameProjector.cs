@@ -11,9 +11,8 @@ namespace TimeGrapher.Core.Analysis;
 /// the fixed viridis LUT.
 ///
 /// FFT size is the power of two nearest ~21 ms of input (1024 @ 48 kHz,
-/// ~47 Hz/bin), hop = size/2. Display rows cover bins 0..~12 kHz only: watch
-/// tick/tock acoustics concentrate in the low kHz, so the upper half of the
-/// Nyquist range would waste vertical resolution on empty band.
+/// ~47 Hz/bin), hop = size/2. Display rows cover the full spectrum DC..Nyquist
+/// (the y axis tops out at sampleRate / 2).
 ///
 /// Publishing copies the working image into a fixed three-buffer pool (the
 /// SoundPrintFrameProjector pattern — SAP performance tactic: maintain multiple
@@ -31,9 +30,6 @@ public sealed class SpectrogramFrameProjector
 
     /// <summary>Analysis window length (s) rounded to the nearest power-of-two sample count.</summary>
     private const double WindowSeconds = 0.021;
-
-    /// <summary>Top of the display band; watch acoustics concentrate below this.</summary>
-    public const double MaxDisplayFrequencyHz = 12000.0;
 
     /// <summary>dB floor of the color scale (quiet end). 0 dB = full-scale sinusoid.</summary>
     public const double DbFloor = -70.0;
@@ -93,7 +89,7 @@ public sealed class SpectrogramFrameProjector
         _hop = _fftSize / 2;
         _columnSeconds = (double)_hop / sampleRate;
 
-        int rows = Math.Min(_fftSize / 2, (int)(MaxDisplayFrequencyHz * _fftSize / sampleRate)) + 1;
+        int rows = _fftSize / 2 + 1; // full spectrum: DC..Nyquist (sampleRate / 2)
         int width = (int)Math.Ceiling(DisplaySeconds * (double)sampleRate / _hop);
         _image = new PixelBuffer(width, rows);
         _image.Fill(_activeLut[0]);

@@ -14,6 +14,7 @@ public sealed class SpectrogramFrameConsumerTests
     private static SpectrogramRenderer CreateRenderer() => new(
         new Image(),
         new Image(),
+        new[] { new TextBlock(), new TextBlock(), new TextBlock(), new TextBlock(), new TextBlock(), new TextBlock(), new TextBlock() },
         new[] { new TextBlock(), new TextBlock(), new TextBlock(), new TextBlock(), new TextBlock(), new TextBlock() },
         new TextBlock(),
         new Border());

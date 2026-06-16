@@ -21,7 +21,7 @@ public sealed class SpectrogramFrameProjectorTests
 
         Assert.Equal(1024, projector.FftSize);   // pow2 nearest 21 ms @ 48 kHz
         Assert.Equal(512, projector.HopSize);
-        Assert.Equal(257, projector.Height);     // bins 0..12 kHz inclusive
+        Assert.Equal(513, projector.Height);     // bins 0..Nyquist (sampleRate / 2) inclusive
         Assert.Equal(938, projector.Width);      // 10 s of hop columns
     }
 
