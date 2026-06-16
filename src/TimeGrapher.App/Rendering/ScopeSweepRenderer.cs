@@ -88,7 +88,7 @@ internal sealed class ScopeSweepRenderer
     /// <summary>
     /// Re-arms live auto-fitting after a pan/zoom (the one-way follow-live
     /// latch otherwise sticks until the session restarts — which also hid the
-    /// rest of a longer window after a 1x→4x sweep change mid-pan).
+    /// rest of a longer window after a 1x→3x sweep change mid-pan).
     /// </summary>
     public void ResetView()
     {
