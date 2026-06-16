@@ -151,6 +151,20 @@ internal sealed class MultiFilterScopeRenderer
                 }
             };
 
+            // ScottPlot's built-in double-click toggles the benchmark overlay, and
+            // it counts two quick drags as a double-click — so fast panning keeps
+            // flashing it on. Drop that response and instead toggle the benchmark
+            // only on a genuine Avalonia double-tap (which a drag, having moved,
+            // never raises).
+            _plots[idx].UserInputProcessor.UserActionResponses.RemoveAll(
+                response => response.GetType().Name.Contains("Benchmark", StringComparison.Ordinal));
+            _plots[idx].DoubleTapped += (_, _) =>
+            {
+                Plot plot = _plots[idx].Plot;
+                plot.Benchmark.IsVisible = !plot.Benchmark.IsVisible;
+                _plots[idx].Refresh();
+            };
+
             // The default right-click "Auto Scale" fits only the clicked lane,
             // which breaks the shared timestamp window. Replace the menu with an
             // all-lanes auto scale routed through ResetView so every lane fits
