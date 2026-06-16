@@ -165,7 +165,7 @@ all four targets** (nothing is executed, so no emulation is needed).
 **For developers**
 - **One solution, one language** — the only per-OS divergence is at the audio-backend boundary; everything else is shared.
 - **Safety & productivity** — GC and nullable reference types cut out whole classes of manual-memory/pointer bugs and speed up iteration.
-- **Simple tests & CI** — `Core` has no UI/OS dependencies, so unit testing is easy (currently 659
+- **Simple tests & CI** — `Core` has no UI/OS dependencies, so unit testing is easy (currently 660
   tests) and runs on stock runners with no special setup.
 
 ## Architecture
@@ -295,12 +295,12 @@ Package versions are managed centrally in `Directory.Packages.props` and pinned 
 
 ## Tests / CI
 
-**All 659 tests pass** under `dotnet test` (App 349 / Core 286 / WindowsAudio 11 / LinuxAudio 13).
+**All 660 tests pass** under `dotnet test` (App 350 / Core 286 / WindowsAudio 11 / LinuxAudio 13).
 
 ```mermaid
 pie showData
-    title Test distribution (659 total)
-    "App.Tests" : 349
+    title Test distribution (660 total)
+    "App.Tests" : 350
     "Core.Tests" : 286
     "Platform.WindowsAudio.Tests" : 11
     "Platform.LinuxAudio.Tests" : 13
@@ -326,7 +326,7 @@ git tag v0.1.0 && git push origin v0.1.0
 | Item | Command | Status |
 |---|---|---|
 | Build | `dotnet build TimeGrapherNet.sln -c Release` | ✅ |
-| Test | `dotnet test TimeGrapherNet.sln -c Release` (659/659) | ✅ |
+| Test | `dotnet test TimeGrapherNet.sln -c Release` (660/660) | ✅ |
 | Detection check | `... TimeGrapher.Verify -- --generated --byte-fixtures` (exit 0) | ✅ |
 | GUI run | `dotnet run --project src/TimeGrapher.App` | ✅ |
 | Deploy — Raspberry Pi (linux-arm64) | `dotnet publish ... -r linux-arm64 --self-contained true` | ✅ |
