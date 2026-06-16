@@ -6,7 +6,10 @@ namespace TimeGrapher.Core.Analysis;
 
 public sealed class ScopeRateFrameProjector
 {
-    private const int ScopeSnapshotSeconds = 2;
+    // Seconds of scope waveform retained/published. Capture decimation scales with
+    // this (stride grows so the snapshot stays ~point-budget sized regardless of
+    // duration), so a longer window stays memory-bounded but coarser per second.
+    private const int ScopeSnapshotSeconds = 30;
 
     private readonly int _sampleRate;
     private readonly bool _useCOnset;
