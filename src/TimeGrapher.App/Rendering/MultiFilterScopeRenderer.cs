@@ -96,6 +96,11 @@ internal sealed class MultiFilterScopeRenderer
     // label the bottom axis in seconds with one tick per second.
     private int _sampleRate;
 
+    // Visible window length. The producer retains a longer buffer
+    // (MultiFilterFrameProjector.WindowSeconds), so the shown window's left edge
+    // always sits on retained data and the rolling trim churn stays off-screen.
+    private const double DisplayWindowSeconds = 1.0;
+
     public MultiFilterScopeRenderer(IReadOnlyList<AvaPlot> plots)
     {
         if (plots.Count != MultiFilterScopeLanes.All.Count)
@@ -524,8 +529,13 @@ internal sealed class MultiFilterScopeRenderer
         _sampleRate = context.SampleRate;
         if (_x[0].Count > 0)
         {
-            _dataMinX = _x[0][0];
+            // The view extent is the most recent DisplayWindowSeconds, not the
+            // whole retained buffer: the older retained columns stay off the left
+            // as lead-in so the visible left edge always has signal. Clamp to the
+            // oldest available so an early (not-yet-full) run still fills in.
             _dataMaxX = _x[0][^1];
+            double displaySamples = DisplayWindowSeconds * _sampleRate;
+            _dataMinX = Math.Max(_x[0][0], _dataMaxX - displaySamples);
             _hasDataExtent = true;
         }
 
@@ -546,11 +556,12 @@ internal sealed class MultiFilterScopeRenderer
 
             if (updated && _x[i].Count > 0 && _followLive)
             {
-                // Auto-follow shows the whole retained buffer (oldest..latest),
-                // advancing as the window rolls, with Y fit at the shared zoom.
-                // When not following (the user zoomed/panned), X is kept inside
-                // the data by the axis rule and Y is left to the user's pan.
-                _plots[i].Plot.Axes.SetLimitsX(_x[i][0], _x[i][^1]);
+                // Auto-follow shows the recent display window (the retained buffer
+                // extends further left as off-screen lead-in), advancing as it
+                // rolls, with Y fit at the shared zoom. When not following (the
+                // user zoomed/panned), X is kept inside the data by the axis rule
+                // and Y is left to the user's pan.
+                _plots[i].Plot.Axes.SetLimitsX(_dataMinX, _dataMaxX);
                 ApplyY(i);
             }
 
