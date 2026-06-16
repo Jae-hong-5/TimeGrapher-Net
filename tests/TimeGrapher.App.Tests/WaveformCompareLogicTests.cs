@@ -55,12 +55,12 @@ public sealed class WaveformCompareLogicTests
     public void LaneLabel_ReportsThePhaseAndTheBeatsOwnAToCPeakInterval()
     {
         int bph = 18000;  // Test with 18000 BPH
-        var ticLabel = WaveformCompareLogic.LaneLabel(Segment(isTic: true, aMs: 5.0, cPeakMs: 147.5), bph);
+        var ticLabel = WaveformCompareLogic.LaneLabel(Segment(isTic: true, aMs: 5.0, cPeakMs: 147.5), bph, liftAngleDeg: 52.0);
         Assert.StartsWith("TIC\n", ticLabel);
         Assert.Contains("A to C: +142.5 ms", ticLabel);
         Assert.Contains("Amp:", ticLabel);
 
-        var tocLabel = WaveformCompareLogic.LaneLabel(Segment(isTic: false, cPeakMs: null), bph);
+        var tocLabel = WaveformCompareLogic.LaneLabel(Segment(isTic: false, cPeakMs: null), bph, liftAngleDeg: 52.0);
         Assert.StartsWith("TOC\n", tocLabel);
         Assert.Contains("A to C: —", tocLabel);
         Assert.Contains("Amp: —", tocLabel);  // No C peak means no amplitude
