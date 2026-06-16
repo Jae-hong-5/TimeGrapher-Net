@@ -21,7 +21,7 @@ There are two ways to get started — **(A) download a prebuilt release** (run i
 
 ### (A) Download a release (recommended — no build)
 
-Download the self-contained bundle for your OS from the [Releases page](https://github.com/lgcmu2026-team5/TimeGrapher-Net/releases). No .NET SDK install required.
+Download the single-file, self-contained bundle for your OS from the [Releases page](https://github.com/lgcmu2026-team5/TimeGrapher-Net/releases). No .NET SDK install required.
 
 - **Windows** — extract `TimeGrapher-<tag>-win-x64.zip` and run `TimeGrapher.App.exe`.
 - **Raspberry Pi 5** — extract `TimeGrapher-<tag>-linux-arm64.tar.gz` and run `./install.sh` (see the Raspberry Pi section below).
@@ -61,7 +61,7 @@ Assumes a clean machine with nothing installed. Follow the steps for your OS.
 
 #### Raspberry Pi 5 (ARM64)
 
-Distributed as a self-contained package, so **the Pi needs no .NET install.**
+Distributed as a single-file, self-contained package, so **the Pi needs no .NET install.**
 Build on a dev PC (one prepared via the Windows steps above) and copy only the output to the Pi.
 
 > 💡 Why a different CPU is fine: the build output isn't x64 machine code but a bundle of
@@ -86,6 +86,10 @@ Build on a dev PC (one prepared via the Windows steps above) and copy only the o
    ```powershell
    dotnet publish src/TimeGrapher.App/TimeGrapher.App.csproj -c Release -r linux-arm64 --self-contained true -o publish
    ```
+
+   The Release RID publish defaults in `TimeGrapher.App.csproj` make this a single-file
+   output: `publish/TimeGrapher.App` contains the managed app, platform backend, and
+   .NET runtime bundle.
 
 3. **Copy to the Pi and run**
 
@@ -143,7 +147,7 @@ all four targets** (nothing is executed, so no emulation is needed).
 | Per-arch build | swap the `-r` value | a **cross-compile toolchain + sysroot** per target (aarch64-gcc, MSVC ARM64 …) |
 | UI framework | NuGet resolves it per RID automatically | build/obtain **Qt per architecture** (ARM Linux is often built from source) |
 | Native deps | automatic per-RID NuGet assets (e.g. SkiaSharp `.dll`/`.so`) | compile/obtain each library for the target ABI yourself (vcpkg·Conan) |
-| Bundling | one `--self-contained` | gather libraries/plugins and fix rpath with `windeployqt`/`linuxdeployqt` |
+| Bundling | one single-file `--self-contained` publish | gather libraries/plugins and fix rpath with `windeployqt`/`linuxdeployqt` |
 | CI | four targets on two stock GitHub runners | per-target environment setup + usually **ARM runners or QEMU emulation** to run/test |
 
 > This repo's multi-arch release (win-x64 · win-arm64 · linux-x64 · linux-arm64) took, in practice,
@@ -152,8 +156,8 @@ all four targets** (nothing is executed, so no emulation is needed).
 ### 2. Usability
 
 **For users (end users)**
-- **Self-contained distribution** — download and run, no .NET install. On Windows extract and run
-  the `.exe`; on the Raspberry Pi, one `./install.sh`.
+- **Single-file self-contained distribution** — download and run, no .NET install. On Windows
+  extract and run the `.exe`; on the Raspberry Pi, one `./install.sh`.
 - **Four official binaries** — Windows x64/ARM and Linux x64/ARM64, served straight from Releases.
 - **Consistent modern UI** — the Avalonia Fluent theme gives the same look across OSes, with
   real-time graphs via ScottPlot.
@@ -308,9 +312,10 @@ GitHub Actions (`.github/workflows/ci.yml`) runs the following on every push and
 `main`, across Ubuntu and Windows — build & test, WAV detection verification, and Raspberry Pi/Windows deployment-artifact generation.
 
 Releases are handled by a separate workflow (`.github/workflows/release.yml`). Pushing a `v*` tag
-(or a manual dispatch) builds the win-x64 · win-arm64 · linux-x64 · linux-arm64 self-contained
-bundles (`.zip`/`.tar.gz` + `.sha256`) and publishes them as a GitHub Release (release notes
-auto-generated; tags containing `-`, e.g. `v0.1.0-rc.1`, are marked prerelease). To cut a release:
+(or a manual dispatch) builds the win-x64 · win-arm64 · linux-x64 · linux-arm64 single-file,
+self-contained bundles (`.zip`/`.tar.gz` + `.sha256`) and publishes them as a GitHub Release
+(release notes auto-generated; tags containing `-`, e.g. `v0.1.0-rc.1`, are marked prerelease).
+To cut a release:
 
 ```bash
 git tag v0.1.0 && git push origin v0.1.0

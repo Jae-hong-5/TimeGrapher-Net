@@ -61,23 +61,42 @@ jobs:
         run: dotnet restore src/TimeGrapher.App/TimeGrapher.App.csproj --locked-mode
 
       - name: Publish Linux x64 app
-        run: dotnet publish src/TimeGrapher.App/TimeGrapher.App.csproj -c Release -r linux-x64 --self-contained true --no-restore -o artifacts/TimeGrapher.App-linux-x64 /p:RestoreLockedMode=false
+        run: >
+          dotnet publish src/TimeGrapher.App/TimeGrapher.App.csproj
+          -c Release
+          -r linux-x64
+          --self-contained true
+          --no-restore
+          -p:RestoreLockedMode=false
+          -p:PublishTrimmed=false
+          -p:PublishSingleFile=true
+          -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:EnableCompressionInSingleFile=true
+          -p:DebugType=None
+          -p:DebugSymbols=false
+          -o artifacts/TimeGrapher.App-linux-x64
 
       - name: Check Linux x64 publish boundary
         shell: pwsh
         run: |
           $out = "artifacts/TimeGrapher.App-linux-x64"
-          $required = @(
-            "TimeGrapher.App",
-            "TimeGrapher.App.dll",
-            "TimeGrapher.App.runtimeconfig.json",
-            "TimeGrapher.Core.dll",
-            "TimeGrapher.Platform.LinuxAudio.dll"
-          )
+          $required = @("TimeGrapher.App")
           foreach ($name in $required) {
             $path = Join-Path $out $name
             if (-not (Test-Path $path)) {
               throw "Missing Linux publish artifact: $name"
+            }
+          }
+          $forbidden = @(
+            "TimeGrapher.App.dll",
+            "TimeGrapher.App.deps.json",
+            "TimeGrapher.App.runtimeconfig.json",
+            "TimeGrapher.Core.dll",
+            "TimeGrapher.Platform.LinuxAudio.dll"
+          )
+          foreach ($name in $forbidden) {
+            if (Test-Path (Join-Path $out $name)) {
+              throw "Linux single-file publish unexpectedly contains $name"
             }
           }
           if (Test-Path (Join-Path $out "TimeGrapher.Platform.WindowsAudio.dll")) {
@@ -90,23 +109,42 @@ jobs:
           artifacts/TimeGrapher.App-linux-x64/TimeGrapher.App --smoke
 
       - name: Publish Linux arm64 app
-        run: dotnet publish src/TimeGrapher.App/TimeGrapher.App.csproj -c Release -r linux-arm64 --self-contained true --no-restore -o artifacts/TimeGrapher.App-linux-arm64 /p:RestoreLockedMode=false
+        run: >
+          dotnet publish src/TimeGrapher.App/TimeGrapher.App.csproj
+          -c Release
+          -r linux-arm64
+          --self-contained true
+          --no-restore
+          -p:RestoreLockedMode=false
+          -p:PublishTrimmed=false
+          -p:PublishSingleFile=true
+          -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:EnableCompressionInSingleFile=true
+          -p:DebugType=None
+          -p:DebugSymbols=false
+          -o artifacts/TimeGrapher.App-linux-arm64
 
       - name: Check Linux arm64 publish boundary
         shell: pwsh
         run: |
           $out = "artifacts/TimeGrapher.App-linux-arm64"
-          $required = @(
-            "TimeGrapher.App",
-            "TimeGrapher.App.dll",
-            "TimeGrapher.App.runtimeconfig.json",
-            "TimeGrapher.Core.dll",
-            "TimeGrapher.Platform.LinuxAudio.dll"
-          )
+          $required = @("TimeGrapher.App")
           foreach ($name in $required) {
             $path = Join-Path $out $name
             if (-not (Test-Path $path)) {
               throw "Missing Linux publish artifact: $name"
+            }
+          }
+          $forbidden = @(
+            "TimeGrapher.App.dll",
+            "TimeGrapher.App.deps.json",
+            "TimeGrapher.App.runtimeconfig.json",
+            "TimeGrapher.Core.dll",
+            "TimeGrapher.Platform.LinuxAudio.dll"
+          )
+          foreach ($name in $forbidden) {
+            if (Test-Path (Join-Path $out $name)) {
+              throw "Linux single-file publish unexpectedly contains $name"
             }
           }
           if (Test-Path (Join-Path $out "TimeGrapher.Platform.WindowsAudio.dll")) {
@@ -155,23 +193,42 @@ jobs:
         run: dotnet restore src/TimeGrapher.App/TimeGrapher.App.csproj --locked-mode
 
       - name: Publish Windows app
-        run: dotnet publish src/TimeGrapher.App/TimeGrapher.App.csproj -c Release -r win-x64 --self-contained false --no-restore -o artifacts/TimeGrapher.App-win-x64 /p:RestoreLockedMode=false
+        run: >
+          dotnet publish src/TimeGrapher.App/TimeGrapher.App.csproj
+          -c Release
+          -r win-x64
+          --self-contained true
+          --no-restore
+          -p:RestoreLockedMode=false
+          -p:PublishTrimmed=false
+          -p:PublishSingleFile=true
+          -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:EnableCompressionInSingleFile=true
+          -p:DebugType=None
+          -p:DebugSymbols=false
+          -o artifacts/TimeGrapher.App-win-x64
 
       - name: Check publish artifact
         shell: pwsh
         run: |
           $out = "artifacts/TimeGrapher.App-win-x64"
-          $required = @(
-            "TimeGrapher.App.exe",
-            "TimeGrapher.App.dll",
-            "TimeGrapher.App.runtimeconfig.json",
-            "TimeGrapher.Core.dll",
-            "TimeGrapher.Platform.WindowsAudio.dll"
-          )
+          $required = @("TimeGrapher.App.exe")
           foreach ($name in $required) {
             $path = Join-Path $out $name
             if (-not (Test-Path $path)) {
               throw "Missing publish artifact: $name"
+            }
+          }
+          $forbidden = @(
+            "TimeGrapher.App.dll",
+            "TimeGrapher.App.deps.json",
+            "TimeGrapher.App.runtimeconfig.json",
+            "TimeGrapher.Core.dll",
+            "TimeGrapher.Platform.WindowsAudio.dll"
+          )
+          foreach ($name in $forbidden) {
+            if (Test-Path (Join-Path $out $name)) {
+              throw "Windows single-file publish unexpectedly contains $name"
             }
           }
           if (Test-Path (Join-Path $out "TimeGrapher.Platform.LinuxAudio.dll")) {

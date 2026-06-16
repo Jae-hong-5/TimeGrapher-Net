@@ -1,7 +1,7 @@
 name: Release
 
-# Build self-contained release archives for every target RID and attach them to
-# a GitHub Release. Targets:
+# Build single-file, self-contained release archives for every target RID and
+# attach them to a GitHub Release. Targets:
 #   win-x64      → Windows x64
 #   win-arm64    → Windows on ARM
 #   linux-x64    → Ubuntu/Debian/most glibc desktops & servers (x64)
@@ -135,26 +135,36 @@ jobs:
           -r $env:RID
           --self-contained true
           --no-restore
-          /p:RestoreLockedMode=false
-          /p:PublishTrimmed=false
-          /p:PublishSingleFile=false
-          /p:Version=$env:VERSION
+          -p:RestoreLockedMode=false
+          -p:PublishTrimmed=false
+          -p:PublishSingleFile=true
+          -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:EnableCompressionInSingleFile=true
+          -p:DebugType=None
+          -p:DebugSymbols=false
+          -p:Version=$env:VERSION
           -o $env:PUBLISH_DIR
 
       - name: Verify publish payload
         shell: pwsh
         run: |
           $out = $env:PUBLISH_DIR
-          $required = @(
-            "TimeGrapher.App.exe",
+          $required = @("TimeGrapher.App.exe")
+          foreach ($name in $required) {
+            if (-not (Test-Path (Join-Path $out $name))) {
+              throw "Missing $env:RID publish artifact: $name"
+            }
+          }
+          $forbidden = @(
             "TimeGrapher.App.dll",
+            "TimeGrapher.App.deps.json",
             "TimeGrapher.App.runtimeconfig.json",
             "TimeGrapher.Core.dll",
             "TimeGrapher.Platform.WindowsAudio.dll"
           )
-          foreach ($name in $required) {
-            if (-not (Test-Path (Join-Path $out $name))) {
-              throw "Missing $env:RID publish artifact: $name"
+          foreach ($name in $forbidden) {
+            if (Test-Path (Join-Path $out $name)) {
+              throw "Windows single-file publish unexpectedly contains $name"
             }
           }
           if (Test-Path (Join-Path $out "TimeGrapher.Platform.LinuxAudio.dll")) {
@@ -243,10 +253,14 @@ jobs:
             -r "$RID" \
             --self-contained true \
             --no-restore \
-            /p:RestoreLockedMode=false \
-            /p:PublishTrimmed=false \
-            /p:PublishSingleFile=false \
-            /p:Version="$VERSION" \
+            -p:RestoreLockedMode=false \
+            -p:PublishTrimmed=false \
+            -p:PublishSingleFile=true \
+            -p:IncludeNativeLibrariesForSelfExtract=true \
+            -p:EnableCompressionInSingleFile=true \
+            -p:DebugType=None \
+            -p:DebugSymbols=false \
+            -p:Version="$VERSION" \
             -o "$PUBLISH_DIR"
 
       - name: Verify publish payload
@@ -255,10 +269,6 @@ jobs:
           set -euo pipefail
           required=(
             "TimeGrapher.App"
-            "TimeGrapher.App.dll"
-            "TimeGrapher.App.runtimeconfig.json"
-            "TimeGrapher.Core.dll"
-            "TimeGrapher.Platform.LinuxAudio.dll"
           )
           for name in "${required[@]}"; do
             if [ ! -f "$PUBLISH_DIR/$name" ]; then
@@ -266,13 +276,22 @@ jobs:
               exit 1
             fi
           done
+          forbidden=(
+            "TimeGrapher.App.dll"
+            "TimeGrapher.App.deps.json"
+            "TimeGrapher.App.runtimeconfig.json"
+            "TimeGrapher.Core.dll"
+            "TimeGrapher.Platform.LinuxAudio.dll"
+          )
+          for name in "${forbidden[@]}"; do
+            if [ -f "$PUBLISH_DIR/$name" ]; then
+              echo "::error::Linux single-file publish unexpectedly contains $name"
+              exit 1
+            fi
+          done
           if [ -f "$PUBLISH_DIR/TimeGrapher.Platform.WindowsAudio.dll" ]; then
             echo "::error::Linux publish unexpectedly contains WindowsAudio"
             exit 1
-          fi
-          # ScottPlot renders via SkiaSharp; warn (don't fail) if the native blob is absent.
-          if [ ! -f "$PUBLISH_DIR/libSkiaSharp.so" ]; then
-            echo "::warning::libSkiaSharp.so not found in $RID publish output; ScottPlot rendering may fail."
           fi
 
       - name: Smoke test published app

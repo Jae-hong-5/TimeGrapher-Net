@@ -18,6 +18,16 @@
       identical behavior on any-locale machines.
     -->
     <InvariantGlobalization>true</InvariantGlobalization>
+    <!--
+      Release RID publishes are the user-facing bundles. Keep them as single-file
+      launchers so release archives do not expose the managed DLL graph.
+      Trimming stays off because the UI/plot stack uses reflection and native assets.
+    -->
+    <SelfContained Condition="'$(Configuration)' == 'Release' and '$(RuntimeIdentifier)' != ''">true</SelfContained>
+    <PublishSingleFile Condition="'$(Configuration)' == 'Release' and '$(RuntimeIdentifier)' != ''">true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract Condition="'$(Configuration)' == 'Release' and '$(RuntimeIdentifier)' != ''">true</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile Condition="'$(Configuration)' == 'Release' and '$(RuntimeIdentifier)' != ''">true</EnableCompressionInSingleFile>
+    <PublishTrimmed>false</PublishTrimmed>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(RuntimeIdentifier)' == ''">
@@ -56,5 +66,12 @@
   <ItemGroup Condition="'$(RuntimeIdentifier)' == '' Or $(RuntimeIdentifier.StartsWith('linux'))">
     <ProjectReference Include="..\TimeGrapher.Platform.LinuxAudio\TimeGrapher.Platform.LinuxAudio.csproj" />
   </ItemGroup>
+
+  <Target Name="RemoveReleasePublishSymbols" AfterTargets="Publish" Condition="'$(Configuration)' == 'Release' and '$(RuntimeIdentifier)' != ''">
+    <ItemGroup>
+      <ReleasePublishSymbols Include="$(PublishDir)*.pdb" />
+    </ItemGroup>
+    <Delete Files="@(ReleasePublishSymbols)" />
+  </Target>
 
 </Project>

@@ -20,7 +20,7 @@
 
 ### (A) 릴리즈 내려받기 (권장 — 빌드 불필요)
 
-[Releases 페이지](https://github.com/lgcmu2026-team5/TimeGrapher-Net/releases)에서 OS에 맞는 자기 완결형(self-contained) 묶음을 내려받습니다. .NET SDK는 설치하지 않아도 됩니다.
+[Releases 페이지](https://github.com/lgcmu2026-team5/TimeGrapher-Net/releases)에서 OS에 맞는 단일 파일 자기 완결형(self-contained) 묶음을 내려받습니다. .NET SDK는 설치하지 않아도 됩니다.
 
 - **Windows** — `TimeGrapher-<태그>-win-x64.zip`을 풀고 `TimeGrapher.App.exe`를 실행합니다.
 - **라즈베리파이 5** — `TimeGrapher-<태그>-linux-arm64.tar.gz`를 풀고 `./install.sh`를 실행합니다(아래 라즈베리파이 절 참고).
@@ -60,7 +60,7 @@
 
 #### 라즈베리파이 5 (ARM64)
 
-자기 완결형(self-contained) 패키지로 배포하므로 **Pi에는 .NET을 설치하지 않아도 됩니다.**
+단일 파일 자기 완결형(self-contained) 패키지로 배포하므로 **Pi에는 .NET을 설치하지 않아도 됩니다.**
 빌드는 개발 PC(위 Windows 절차로 준비된 PC)에서 하고, 결과물만 Pi로 복사합니다.
 
 > 💡 CPU가 달라도 되는 이유: 빌드 결과물은 x64 기계어가 아니라 **CPU 중립 IL 코드 + ARM64용 .NET
@@ -84,6 +84,10 @@
    ```powershell
    dotnet publish src/TimeGrapher.App/TimeGrapher.App.csproj -c Release -r linux-arm64 --self-contained true -o publish
    ```
+
+   `TimeGrapher.App.csproj`의 Release RID publish 기본값 때문에 이 명령은 단일 파일
+   출력(`publish/TimeGrapher.App`)을 만듭니다. 그 안에 관리 코드 앱, 플랫폼 백엔드,
+   .NET 런타임 묶음이 포함됩니다.
 
 3. **Pi로 복사 후 실행**
 
@@ -140,7 +144,7 @@
 | 아키텍처별 빌드 | `-r` 값만 교체 | 타깃마다 **크로스 컴파일 툴체인 + sysroot** (aarch64-gcc, MSVC ARM64 …) |
 | UI 프레임워크 | NuGet이 RID별로 자동 해결 | **Qt를 아키텍처마다** 빌드/조달 (ARM 리눅스는 직접 빌드하는 경우가 많음) |
 | 네이티브 의존성 | NuGet RID 자산 자동 (예: SkiaSharp `.dll`/`.so`) | 라이브러리마다 타깃 ABI로 직접 컴파일/조달 (vcpkg·Conan) |
-| 배포 묶기 | `--self-contained` 한 번 | `windeployqt`/`linuxdeployqt`로 라이브러리·플러그인 수집, rpath 보정 |
+| 배포 묶기 | 단일 파일 `--self-contained` publish 한 번 | `windeployqt`/`linuxdeployqt`로 라이브러리·플러그인 수집, rpath 보정 |
 | CI | GitHub 기본 러너 2종으로 4개 타깃 | 타깃별 환경 구성 + 실행·테스트엔 보통 **ARM 러너나 QEMU 에뮬레이션** |
 
 > 이 저장소의 멀티 아키텍처 릴리즈(win-x64·win-arm64·linux-x64·linux-arm64)는 실제로
@@ -149,7 +153,7 @@
 ### 2. 사용성
 
 **받는 사람(엔드 유저)**
-- **자기 완결형 배포** — .NET 설치 없이 받아서 바로 실행. Windows는 압축 풀고 `.exe`,
+- **단일 파일 자기 완결형 배포** — .NET 설치 없이 받아서 바로 실행. Windows는 압축 풀고 `.exe`,
   라즈베리파이는 `./install.sh` 한 번.
 - **공식 바이너리 4종** — Windows x64/ARM, Linux x64/ARM64를 Releases에서 직접 제공.
 - **일관된 현대 UI** — Avalonia Fluent 테마로 OS가 달라도 같은 화면, ScottPlot으로 실시간 그래프.
@@ -301,7 +305,7 @@ GitHub Actions(`.github/workflows/ci.yml`)는 `main` 대상 push/PR마다 Ubuntu
 다음을 자동 실행합니다 — 빌드·테스트, WAV 검출 검증, 라즈베리파이·Windows용 배포 산출물 생성.
 
 릴리즈는 CI와 별개의 워크플로(`.github/workflows/release.yml`)가 담당합니다. `v*` 태그를
-푸시하면(또는 수동 dispatch) win-x64·win-arm64·linux-x64·linux-arm64 자기 완결형 묶음(`.zip`/`.tar.gz` + `.sha256`)을
+푸시하면(또는 수동 dispatch) win-x64·win-arm64·linux-x64·linux-arm64 단일 파일 자기 완결형 묶음(`.zip`/`.tar.gz` + `.sha256`)을
 만들어 GitHub Release로 게시합니다(릴리즈 노트 자동 생성, `-`가 든 태그(예: `v0.1.0-rc.1`)는 프리릴리즈로 표시). 릴리즈를 만들려면:
 
 ```bash

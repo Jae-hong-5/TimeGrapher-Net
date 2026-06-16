@@ -2,8 +2,9 @@
 
 **English** · [한국어](README.ko.md)
 
-The release's `TimeGrapher-<version>-linux-<arch>.tar.gz` ships this README, the app
-binary, the icon (`AppIcon-256.png`), and the installer script (`install.sh`).
+The release's `TimeGrapher-<version>-linux-<arch>.tar.gz` ships this README, the
+single-file app launcher, the icon (`AppIcon-256.png`), and the installer script
+(`install.sh`).
 
 ## 1. Quick install (recommended)
 
@@ -27,12 +28,13 @@ cd ~/timegrapher
   generated `TimeGrapher.desktop` launcher (or the desktop shortcut) instead.
 - Headless/SSH check: `./TimeGrapher.App --smoke` (self-check without a GUI; exit code 0 on success).
 
-Being a self-contained build, **no .NET runtime install is needed.** Sections 2 and 3
-below are for doing what `install.sh` automates by hand, or for troubleshooting.
+Being a single-file, self-contained build, **no .NET runtime install is needed.**
+Sections 2 and 3 below are for doing what `install.sh` automates by hand, or for
+troubleshooting.
 
 ## 2. Runtime dependencies (manual — once on a fresh Pi OS)
 
-The self-contained bundle includes the .NET runtime but not the system X11/font
+The self-contained executable includes the .NET runtime but not the system X11/font
 libraries. If no window appears or fonts are missing, install them:
 
 ```bash

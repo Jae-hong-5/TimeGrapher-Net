@@ -2,7 +2,7 @@
 
 [English](README.md) · **한국어**
 
-릴리즈의 `TimeGrapher-<버전>-linux-<arch>.tar.gz`에는 이 README, 앱 바이너리,
+릴리즈의 `TimeGrapher-<버전>-linux-<arch>.tar.gz`에는 이 README, 단일 파일 앱 런처,
 아이콘(`AppIcon-256.png`), 설치 스크립트(`install.sh`)가 함께 들어 있다.
 
 ## 1. 빠른 설치 (권장)
@@ -26,12 +26,12 @@ cd ~/timegrapher
   `TimeGrapher.desktop` 런처(또는 바탕화면 숏컷)를 쓰면 된다.
 - 헤드리스/SSH 점검: `./TimeGrapher.App --smoke` (GUI 없이 자가점검, 성공 시 종료코드 0).
 
-self-contained 빌드라 **.NET 런타임은 설치할 필요 없다.** 아래 2·3번은 `install.sh`가
-자동으로 하는 일을 수동으로 하거나 문제를 진단할 때 참고하는 내용이다.
+단일 파일 self-contained 빌드라 **.NET 런타임은 설치할 필요 없다.** 아래 2·3번은
+`install.sh`가 자동으로 하는 일을 수동으로 하거나 문제를 진단할 때 참고하는 내용이다.
 
 ## 2. 런타임 의존성 (수동 — 신선한 Pi OS에서 한 번만)
 
-self-contained 번들은 .NET 런타임은 포함하지만 시스템 X11/폰트 라이브러리는 포함하지
+single-file 실행파일은 .NET 런타임은 포함하지만 시스템 X11/폰트 라이브러리는 포함하지
 않는다. 창이 안 뜨거나 폰트가 안 보이면 설치한다:
 
 ```bash
