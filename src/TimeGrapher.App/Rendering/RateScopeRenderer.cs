@@ -444,7 +444,7 @@ internal sealed class RateScopeRenderer
             Scatter sc = rate.Add.Scatter(_rateX[i], _rateY[i]);
             sc.LineWidth = 0;
             sc.MarkerShape = MarkerShape.FilledCircle;
-            sc.MarkerSize = 3;
+            sc.MarkerSize = 6;
             sc.MarkerColor = Color.FromARGB(ThemeColor(spec));
             sc.LegendText = spec.Name;
             _ratePlots.Add(sc);
