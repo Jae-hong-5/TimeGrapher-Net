@@ -44,6 +44,7 @@ internal sealed class RateScopeRenderer
     private bool _scopeFollowLive = true;
     private double _rateErrorYScale;
     private int _rateDataPoints;
+    private int _sampleRate = 44100;
 
     public RateScopeRenderer(AvaPlot scopePlot, AvaPlot ratePlot, string textFontFamily)
     {
@@ -83,9 +84,12 @@ internal sealed class RateScopeRenderer
         scope.Clear();
         ApplyPlotTheme(scope);
         scope.YLabel("Amplitude");
-        scope.XLabel("Time");
+        scope.XLabel("Time (ms)");
         scope.Axes.SetLimitsY(0, 0.1);
-        HideXTickLabels(scope);
+        scope.Axes.Bottom.TickGenerator = new ScottPlot.TickGenerators.NumericAutomatic
+        {
+            LabelFormatter = ScopeTickToMs
+        };
         ClearSeriesData(_scopeX, _scopeY);
         DropScopeMarkerPool();
         AddScopePlottables();
@@ -97,10 +101,9 @@ internal sealed class RateScopeRenderer
         rate.Clear();
         ApplyPlotTheme(rate);
         rate.YLabel("Rate Error (ms)");
-        rate.XLabel("Time");
+        rate.XLabel("Beat Index");
         rate.Axes.SetLimitsY(-rateErrorYScale, rateErrorYScale);
         rate.Axes.SetLimitsX(0, rateDataPoints);
-        HideXTickLabels(rate);
         ClearSeriesData(_rateX, _rateY);
         AddRatePlottables();
         rate.ShowLegend();
@@ -138,6 +141,7 @@ internal sealed class RateScopeRenderer
 
     public void RenderFrame(AnalysisFrame frame, AnalysisTabRenderContext context)
     {
+        _sampleRate = context.SampleRate;
         bool scopeUpdated = ReplaceScopeSeries(frame);
         bool rateUpdated = ReplaceRateSeries(frame);
         // Review cursor on the waveform pane only: its x base is absolute sample
@@ -346,9 +350,10 @@ internal sealed class RateScopeRenderer
     }
 
 
-    private static void HideXTickLabels(Plot plot)
+    private string ScopeTickToMs(double sampleTick)
     {
-        plot.Axes.Bottom.TickLabelStyle.IsVisible = false;
+        double ms = sampleTick / Math.Max(1, _sampleRate) * 1000.0;
+        return ms.ToString("F0");
     }
 
     /// <summary>Pool cleanup for paths that already detached everything via Plot.Clear().</summary>
