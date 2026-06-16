@@ -43,6 +43,38 @@ public sealed class SpectrogramFrameConsumerTests
     }
 
     [Fact]
+    public void ObserveFrameAccumulatesMonotonicColumnCountAcrossSourceWrap()
+    {
+        var consumer = new SpectrogramFrameConsumer(CreateRenderer());
+
+        // ObserveFrame runs for every publish even while the tab is inactive, so
+        // the monotonic source-column count must keep advancing across the source
+        // buffer wrapping — not collapse back to the modulo write column (the bug
+        // that truncated the window on a late tab switch). Width 4 wraps quickly;
+        // each publish carries a distinct buffer (the pool never repeats a ref).
+        void Publish(int liveColumn)
+        {
+            consumer.ObserveFrame(new AnalysisFrame
+            {
+                SpectrogramImageUpdated = true,
+                SpectrogramImage = new PixelBuffer(4, 2),
+                SpectrogramLiveColumn = liveColumn,
+            });
+        }
+
+        Publish(2);            // first publish: 2 columns written so far
+        Assert.Equal(2L, consumer.TotalColumns);
+
+        Publish(3);            // +1
+        Publish(0);            // wraps width 4: 3 -> 0 is +1, not -3
+        Publish(2);            // +2
+        Assert.Equal(6L, consumer.TotalColumns);
+
+        consumer.Reset(new AnalysisTabResetContext(48000, 10, 250));
+        Assert.Equal(0L, consumer.TotalColumns);
+    }
+
+    [Fact]
     public void TryRemapKeptImageMirrorsKeptImageOnlyWhenTheThemeChanges()
     {
         var renderer = CreateRenderer();
