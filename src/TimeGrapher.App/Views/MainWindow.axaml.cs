@@ -147,6 +147,10 @@ public partial class MainWindow : Window
         mViewModel.PropertyChanged += OnRunControlPropertyChanged;
         mViewModel.PropertyChanged += OnReviewCursorPropertyChanged;
         GraphicsTabWidget.SelectionChanged += OnGraphicsTabSelectionChanged;
+        // Seed the Long-Term-active state from the initial selection: SelectionChanged
+        // is not guaranteed to fire for the default tab, so the review bar's gating
+        // would otherwise stay wrong until the first manual tab switch.
+        mViewModel.SetLongTermTabActive(ActiveInfoTabId() == InfoTabCatalog.LongTermPerfTabId);
 
         LoadBph();
         LoadSimBph();
