@@ -669,8 +669,9 @@ internal sealed class LongTermPerfRenderer
     /// <summary>
     /// Reconciles the dashed position-change markers with the snapshot's change
     /// list. Position turns are manual (seconds apart) and the list only grows,
-    /// so a rebuild on a changed count is cheap; the start entry (TimeS 0) gives
-    /// every run a labelled marker even when the watch is never turned.
+    /// so a rebuild on a changed count is cheap; the start entry (stamped at the
+    /// first plotted point, not 0) gives every run a labelled marker even when
+    /// the watch is never turned.
     /// </summary>
     private void UpdatePositionMarkers(IReadOnlyList<PositionChange> changes)
     {

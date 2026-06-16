@@ -37,7 +37,8 @@ public sealed class BeatMetricsHistory
     private WatchPosition _activePosition = WatchPosition.CH;
 
     // Chronological position turns since the run started: the first entry is the
-    // starting position (TimeS 0), each later entry the elapsed time of a turn.
+    // starting position, stamped at the first plotted point (not TimeS 0; see
+    // SeedStartPositionIfNeeded), each later entry the elapsed time of a turn.
     // Bounded only by how often the user turns the watch (manual, seconds apart),
     // so its growth is negligible against the per-beat path.
     private readonly List<PositionChange> _positionChanges = new();
@@ -94,9 +95,9 @@ public sealed class BeatMetricsHistory
         _amplitudeStats.Reset();
         _statsStartTimeS = _latestTimeS;
         // Record the turn on the change timeline only once the run has data: the
-        // start entry is seeded at the first beat (so it lines up with where the
-        // graph begins drawing), and a turn before that beat just changes which
-        // position the start will record.
+        // start entry is seeded at the first plotted point, not the first beat (so
+        // it lines up with where the graph begins drawing), and a turn before that
+        // point just changes which position the start will record.
         if (_positionChanges.Count > 0)
         {
             AppendPositionChange(_latestTimeS, position);

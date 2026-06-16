@@ -244,7 +244,7 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
         set => SetProperty(ref _pllEventVeto, value);
     }
 
-    /// <summary>Scope Sweep window length as a multiple of the beat period (1x / 2x / 4x).</summary>
+    /// <summary>Scope Sweep window length as a multiple of the beat period (1x / 2x / 3x).</summary>
     public int SweepMultiple
     {
         get => _sweepMultiple;
@@ -336,6 +336,12 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     {
         if (_isLongTermTabActive == active) return;
         _isLongTermTabActive = active;
+        if (!active)
+        {
+            // Review scrubbing is a Long-Term-only feature; leaving the tab returns
+            // every other tab to live so a now-hidden cursor can't keep driving them.
+            ReviewCursorTimeS = null;
+        }
         OnPropertyChanged(nameof(IsReviewBarVisible));
     }
 

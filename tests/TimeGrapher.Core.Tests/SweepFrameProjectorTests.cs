@@ -199,16 +199,16 @@ public sealed class SweepFrameProjectorTests
         projector.Project(Update(ImpulseBlock(12000, 1.0f, 0, 6000), 0UL));
         Assert.Equal(1.0, Snapshot(projector).Y[0]);
 
-        projector.SetSweepMultiple(4);
+        projector.SetSweepMultiple(3);
         projector.Project(Update(Array.Empty<float>(), 12000UL));
 
         GraphSeriesFrame series = Snapshot(projector);
         Assert.All(series.Y, y => Assert.Equal(0.0, y));
 
-        // 4x window (tick-tick interval) = 1000 ms (2 × 4 × 125 ms):
-        // the bin centers now span ~0..1000 ms.
-        double binWidthMs = 1000.0 / SweepFrameProjector.SweepBinBudget;
-        Assert.Equal(1000.0 - binWidthMs / 2.0, series.X[^1], 6);
+        // 3x window (tick-tick interval) = 750 ms (2 × 3 × 125 ms), the largest
+        // multiple the Scope Sweep selector offers; bin centers span ~0..750 ms.
+        double binWidthMs = 750.0 / SweepFrameProjector.SweepBinBudget;
+        Assert.Equal(750.0 - binWidthMs / 2.0, series.X[^1], 6);
     }
 
     [Fact]
@@ -274,7 +274,7 @@ public sealed class SweepFrameProjectorTests
         Assert.Same(first.X, rebuilt.X);
 
         // A retune (different sweep multiple) invalidates the cached axis.
-        projector.SetSweepMultiple(4);
+        projector.SetSweepMultiple(3);
         projector.Project(Update(Array.Empty<float>(), 15000UL));
         GraphSeriesFrame retuned = Snapshot(projector);
         Assert.NotSame(rebuilt.X, retuned.X);

@@ -30,6 +30,9 @@ internal sealed class SpectrogramRenderer
 
     private readonly Image _spectrogramImage;
     private readonly Image _legendImage;
+    // Frequency-axis labels (top..bottom), filled to span 0..Nyquist once a frame
+    // gives the column duration (Nyquist = (rows - 1) / (2 * columnSeconds)).
+    private readonly TextBlock[] _freqLabels;
     private readonly TextBlock[] _timeLabels;
     private readonly TextBlock _timeCaption;
 
@@ -44,7 +47,6 @@ internal sealed class SpectrogramRenderer
     // Latest published image and its windowing metadata, kept so a selector change
     // re-seeds the sweep without waiting for the next frame.
     private PixelBuffer? _lastImage;
-    private int _lastLiveColumn;
     private double _lastColumnSeconds;
     private double _lastBeatPeriodS;
 
@@ -62,9 +64,10 @@ internal sealed class SpectrogramRenderer
     private int _sweepCols = -1;
     private int _sweepHead;
 
-    // Monotonic count of source columns written since the run started, accumulated
-    // from the live-column delta each publish. total % cols gives the sweep head;
-    // total bounds how many columns of real (received) data exist.
+    // Monotonic count of source columns written since the run started, supplied by
+    // the consumer (which observes every publish, even while the tab is inactive).
+    // total % cols gives the sweep head; total bounds how many columns of real
+    // (received) data exist.
     private long _totalColumns;
 
     // The scope-background color the empty (no-input) region is painted with, kept
@@ -74,12 +77,14 @@ internal sealed class SpectrogramRenderer
     public SpectrogramRenderer(
         Image spectrogramImage,
         Image legendImage,
+        TextBlock[] freqLabels,
         TextBlock[] timeLabels,
         TextBlock timeCaption,
         Control currentLine)
     {
         _spectrogramImage = spectrogramImage;
         _legendImage = legendImage;
+        _freqLabels = freqLabels;
         _timeLabels = timeLabels;
         _timeCaption = timeCaption;
         _currentLine = currentLine;
@@ -141,7 +146,6 @@ internal sealed class SpectrogramRenderer
         _sweepCols = -1;
         _sweepHead = 0;
         _totalColumns = 0;
-        _lastLiveColumn = 0;
         _lastBeatOnsetS = 0.0;
 
         // Always drop the previous run's image — with the tab hidden the bounds are
@@ -160,27 +164,22 @@ internal sealed class SpectrogramRenderer
     }
 
     /// <summary>
-    /// Stores the latest published image and its windowing metadata, advances the
-    /// total-column count by the live-column delta, and re-crops the view. UI
-    /// thread only.
+    /// Stores the latest published image and its windowing metadata, takes the
+    /// monotonic source-column count the consumer accumulated, and re-crops the
+    /// view. UI thread only.
     /// </summary>
-    public void RenderWindowed(PixelBuffer image, int liveColumn, double columnSeconds, double beatPeriodS, double beatOnsetS)
+    /// <remarks>
+    /// <paramref name="totalColumns"/> is the monotonic count of source columns
+    /// written since the run started. The consumer owns it because its
+    /// ObserveFrame sees every publish, even while the Spectrogram tab is
+    /// inactive — so switching to the tab after the 10 s source buffer has
+    /// wrapped still shows the full recent window instead of losing history
+    /// (reconstructing it here from the modulo write column would undercount).
+    /// </remarks>
+    public void RenderWindowed(PixelBuffer image, long totalColumns, double columnSeconds, double beatPeriodS, double beatOnsetS)
     {
-        int sourceWidth = image.Width;
-        if (_lastImage == null)
-        {
-            // First publish of the run: liveColumn columns have been written so
-            // far (the source has not wrapped within one publish interval).
-            _totalColumns = liveColumn;
-        }
-        else
-        {
-            int delta = ((liveColumn - _lastLiveColumn) % sourceWidth + sourceWidth) % sourceWidth;
-            _totalColumns += delta;
-        }
-
+        _totalColumns = totalColumns;
         _lastImage = image;
-        _lastLiveColumn = liveColumn;
         _lastColumnSeconds = columnSeconds;
         _lastBeatPeriodS = beatPeriodS;
         _lastBeatOnsetS = beatOnsetS;
@@ -206,7 +205,28 @@ internal sealed class SpectrogramRenderer
 
         PixelBufferBitmap.UpdateImage(_spectrogramImage, _sweepBuffer!);
         UpdateTimeAxis(cols * _lastColumnSeconds); // label the window actually shown
+        UpdateFrequencyAxis(height);
         UpdateCurrentLine();
+    }
+
+    // Labels the frequency axis 0..Nyquist (sampleRate / 2). The image's top row
+    // is the Nyquist bin, so with rows = fftSize/2 + 1 and columnSeconds = hop /
+    // sampleRate, Nyquist = (rows - 1) / (2 * columnSeconds). Labels run top
+    // (Nyquist) to bottom (0), evenly spaced like their fixed slot positions.
+    private void UpdateFrequencyAxis(int rows)
+    {
+        if (rows < 2 || _lastColumnSeconds <= 0.0)
+        {
+            return;
+        }
+
+        double nyquistHz = (rows - 1) / (2.0 * _lastColumnSeconds);
+        int last = _freqLabels.Length - 1;
+        for (int i = 0; i < _freqLabels.Length; i++)
+        {
+            double hz = nyquistHz * (last - i) / last; // i = 0 is the top (Nyquist)
+            _freqLabels[i].Text = hz >= 1000.0 ? $"{hz / 1000.0:0} kHz" : $"{hz:0} Hz";
+        }
     }
 
     // Positions the live-head marker over the image at the sweep head column

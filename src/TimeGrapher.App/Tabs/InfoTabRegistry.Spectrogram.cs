@@ -55,14 +55,13 @@ internal sealed partial class InfoTabRegistry
             return tick;
         }
 
-        // Frequency axis: a label + tick every 2 kHz across the projector's
-        // 0..12 kHz display band, low at the bottom. Labels and ticks sit at the
-        // top edge of (count-1) equal rows so each lands on its exact frequency
-        // fraction (the last one at the bottom edge). The ticks live in a thin
-        // strip between the labels and the image.
-        const double topHz = SpectrogramFrameProjector.MaxDisplayFrequencyHz;
-        const double stepHz = 2000.0;
-        int freqTickCount = (int)(topHz / stepHz) + 1;
+        // Frequency axis: evenly spaced label + tick slots, low at the bottom.
+        // The Hz values span 0..Nyquist (sampleRate / 2) and depend on the run's
+        // sample rate, so the renderer fills them once a frame arrives; the slots
+        // are created empty here. Labels and ticks sit at the top edge of
+        // (count-1) equal rows so each lands on its exact frequency fraction (the
+        // last at the bottom edge). The ticks live in a thin strip beside the labels.
+        const int freqTickCount = 7;
         string freqRows = string.Join(",", Enumerable.Repeat("*", freqTickCount - 1));
         var axisGrid = new Grid
         {
@@ -70,17 +69,18 @@ internal sealed partial class InfoTabRegistry
             RowDefinitions = new RowDefinitions(freqRows),
         };
         var freqTickStrip = new Grid { RowDefinitions = new RowDefinitions(freqRows) };
+        var freqLabels = new TextBlock[freqTickCount];
         for (int i = 0; i < freqTickCount; i++)
         {
-            double hz = topHz - i * stepHz; // top (12 kHz) down to 0 Hz
             bool last = i == freqTickCount - 1;
             int row = last ? freqTickCount - 2 : i;
             VerticalAlignment va = last ? VerticalAlignment.Bottom : VerticalAlignment.Top;
 
-            TextBlock label = Label(hz >= 1000.0 ? $"{hz / 1000.0:0} kHz" : $"{hz:0} Hz");
+            TextBlock label = Label(string.Empty);
             label.HorizontalAlignment = HorizontalAlignment.Right;
             label.VerticalAlignment = va;
             Grid.SetRow(label, row);
+            freqLabels[i] = label;
             axisGrid.Children.Add(label);
 
             Rectangle tick = Tick(6, 1, HorizontalAlignment.Right, va);
@@ -178,14 +178,17 @@ internal sealed partial class InfoTabRegistry
         var currentLine = new Rectangle
         {
             Width = 2,
-            Fill = Brushes.Red,
             HorizontalAlignment = HorizontalAlignment.Left,
             VerticalAlignment = VerticalAlignment.Stretch,
             IsHitTestVisible = false,
             IsVisible = false,
         };
+        // Live-head color flows from App.axaml like the themed tick fills above
+        // (never hardcoded); ChromeAccentBrush is the theme's red accent and
+        // adapts to the light/dark variant.
+        currentLine.Bind(Shape.FillProperty, currentLine.GetResourceObservable("ChromeAccentBrush"));
 
-        var renderer = new SpectrogramRenderer(image, legendImage, timeLabels, timeAxisCaption, currentLine);
+        var renderer = new SpectrogramRenderer(image, legendImage, freqLabels, timeLabels, timeAxisCaption, currentLine);
 
         // Time-window toolbar (the Qt original's Last Beat / Seconds selector). The
         // mode buttons follow the Scope Sweep "active option disabled" pattern; the

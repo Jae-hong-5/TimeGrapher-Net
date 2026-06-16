@@ -34,7 +34,7 @@ public sealed class AnalysisWorker : IDisposable
         public int SoundImageHeight = 0;
         public int ScopeSnapshotPointBudget = 8000;
         public uint SoundImageBackgroundColor = 0xFFFFFFFFu;
-        /// <summary>Light UI theme -> reversed (light-background) spectrogram colormap.</summary>
+        /// <summary>True under the light UI theme. The spectrogram colormap is one shared viridis LUT for both themes; only the empty (no-input) background follows this.</summary>
         public bool SpectrogramLightColormap = false;
         public ISampleWriter? SampleWriter = null;
     }
@@ -69,12 +69,6 @@ public sealed class AnalysisWorker : IDisposable
     private readonly AutoResetEvent _wakeup = new(false);
     private volatile bool _stopRequested = false;
     private volatile bool _completionRequested = false;
-
-    // Set on a watch-position change (UI thread) and applied on the analysis
-    // thread to restart the scope/rate graphs from the new position. The detector
-    // keeps its beat lock; only the graph accumulation and rate metrics reset.
-    private volatile bool _resetGraphsRequested;
-    private WatchPosition _lastActivePosition = WatchPosition.CH;
 
     // Theme recolor request from another thread (e.g. UI theme toggle); applied on
     // the analysis thread between frames so it never races the pixel buffer.
@@ -161,14 +155,6 @@ public sealed class AnalysisWorker : IDisposable
     /// </summary>
     public void SetActivePosition(WatchPosition position)
     {
-        // A real turn restarts the scope/rate graphs from the new position; the
-        // request is applied on the analysis thread (see HandleInputDataCore).
-        if (position != _lastActivePosition)
-        {
-            _lastActivePosition = position;
-            _resetGraphsRequested = true;
-        }
-
         _beatMetricsProjector.SetActivePosition(position);
     }
 
@@ -209,10 +195,11 @@ public sealed class AnalysisWorker : IDisposable
     }
 
     /// <summary>
-    /// Request a spectrogram colormap switch (light = reversed inferno) on a UI
-    /// theme toggle. Applied on the analysis thread between frames (the
-    /// SetSoundBackgroundColor flow) so it never races the pixel buffer.
-    /// Callable from any thread.
+    /// Request a spectrogram republish on a UI theme toggle. The colormap is one
+    /// shared viridis LUT for both themes, so only the empty (no-input) background
+    /// changes; applied on the analysis thread between frames (the
+    /// SetSoundBackgroundColor flow) so it never races the pixel buffer. Callable
+    /// from any thread.
     /// </summary>
     public void SetSpectrogramColormap(bool light)
     {
@@ -321,16 +308,6 @@ public sealed class AnalysisWorker : IDisposable
 
     private void HandleInputDataCore(bool stopInterruptible)
     {
-        // Apply a pending graph reset (watch-position change) on the analysis
-        // thread before any block is processed, so the new position's samples fill
-        // a fresh scope/rate graph. Detector sync is left intact.
-        if (_resetGraphsRequested)
-        {
-            _resetGraphsRequested = false;
-            _pipeline.ResetMetrics();
-            _scopeRateProjector.Reset();
-        }
-
         var processingTimer = Stopwatch.StartNew();
         MasterAudioBufferSnapshot snapshot = _rawAudio.GetSnapshot();
         ulong sourceSampleEnd = snapshot.TotalSamplesWritten;

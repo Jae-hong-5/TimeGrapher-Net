@@ -81,7 +81,7 @@ cat > ~/.local/share/applications/TimeGrapher.App.desktop <<EOF
 [Desktop Entry]
 Type=Application
 Name=TimeGrapher
-Exec=$HOME/timegrapher/TimeGrapher.App
+Exec="$HOME/timegrapher/TimeGrapher.App"
 Icon=$HOME/.local/share/icons/timegrapher.png
 StartupWMClass=TimeGrapher.App
 Categories=Utility;

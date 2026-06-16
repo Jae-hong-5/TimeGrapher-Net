@@ -101,16 +101,6 @@ public sealed class DetectorMetricsEngine
         _metrics.Reset();
     }
 
-    /// <summary>
-    /// Restarts the rate/amplitude metrics (rate-plot buffers, RLS smoothing,
-    /// derived measures) without disturbing detector sync, so the watch keeps its
-    /// beat lock while the graphs restart. Analysis thread only.
-    /// </summary>
-    public void ResetMetrics()
-    {
-        _metrics.Reset();
-    }
-
     public DetectorMetricsBlockUpdate Process(ReadOnlySpan<float> block)
     {
         _detector.Process(block, _result);

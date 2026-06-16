@@ -78,8 +78,11 @@ internal sealed class AnalysisFrameRenderScheduler
             replacement.SpectrogramImage ??= displaced.SpectrogramImage;
             // The windowing metadata travels with the image: without it the
             // consumer sees ColumnSeconds = 0 and skips the crop, so coalesced
-            // frames would stop updating the spectrogram (choppy under load).
+            // frames would stop updating the spectrogram (choppy under load). The
+            // monotonic total travels too so the renderer's column count never
+            // aliases across coalesced publishes (it is absolute, not a delta).
             replacement.SpectrogramLiveColumn = displaced.SpectrogramLiveColumn;
+            replacement.SpectrogramTotalColumns = displaced.SpectrogramTotalColumns;
             replacement.SpectrogramColumnSeconds = displaced.SpectrogramColumnSeconds;
             replacement.SpectrogramBeatPeriodS = displaced.SpectrogramBeatPeriodS;
         }

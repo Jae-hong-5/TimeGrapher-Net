@@ -21,7 +21,7 @@ public sealed class SpectrogramFrameProjectorTests
 
         Assert.Equal(1024, projector.FftSize);   // pow2 nearest 21 ms @ 48 kHz
         Assert.Equal(512, projector.HopSize);
-        Assert.Equal(257, projector.Height);     // bins 0..12 kHz inclusive
+        Assert.Equal(513, projector.Height);     // bins 0..Nyquist (sampleRate / 2) inclusive
         Assert.Equal(938, projector.Width);      // 10 s of hop columns
     }
 
@@ -81,6 +81,25 @@ public sealed class SpectrogramFrameProjectorTests
         var forced = new AnalysisFrame();
         projector.AppendSnapshot(forced, force: true);
         Assert.True(forced.SpectrogramImageUpdated);
+    }
+
+    [Fact]
+    public void AppendSnapshot_ReportsMonotonicColumnCountAcrossTheBufferWrap()
+    {
+        var projector = new SpectrogramFrameProjector(SampleRate);
+
+        // Feed more than the 10 s wrap buffer holds so the live column wraps but the
+        // monotonic total keeps climbing past Width — the renderer relies on this
+        // absolute count instead of reconstructing it from the modulo live column.
+        FeedSine(projector, frequencyHz: 1000.0, amplitude: 0.5, seconds: 11.0);
+
+        var frame = new AnalysisFrame();
+        projector.AppendSnapshot(frame, force: true);
+
+        Assert.True(frame.SpectrogramTotalColumns > projector.Width,
+            "the monotonic total must climb past the wrap-buffer width");
+        // total % width is exactly the live (next-to-write) column.
+        Assert.Equal(frame.SpectrogramLiveColumn, (int)(frame.SpectrogramTotalColumns % projector.Width));
     }
 
     [Fact]
