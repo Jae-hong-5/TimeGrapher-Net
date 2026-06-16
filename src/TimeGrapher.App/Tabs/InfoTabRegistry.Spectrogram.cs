@@ -178,12 +178,15 @@ internal sealed partial class InfoTabRegistry
         var currentLine = new Rectangle
         {
             Width = 2,
-            Fill = Brushes.Red,
             HorizontalAlignment = HorizontalAlignment.Left,
             VerticalAlignment = VerticalAlignment.Stretch,
             IsHitTestVisible = false,
             IsVisible = false,
         };
+        // Live-head color flows from App.axaml like the themed tick fills above
+        // (never hardcoded); ChromeAccentBrush is the theme's red accent and
+        // adapts to the light/dark variant.
+        currentLine.Bind(Shape.FillProperty, currentLine.GetResourceObservable("ChromeAccentBrush"));
 
         var renderer = new SpectrogramRenderer(image, legendImage, timeLabels, timeAxisCaption, currentLine);
 
