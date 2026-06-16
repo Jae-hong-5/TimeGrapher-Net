@@ -13,7 +13,9 @@ namespace TimeGrapher.App.Rendering;
 /// testing period as three stacked plots, rendered from the cumulative
 /// BeatMetricsHistorySnapshot the frame already carries. Each pane shows the
 /// bucket-average line, a shaded YMin–YMax band (the range of typical
-/// variation) and a dashed overall-average line; the footer reports the
+/// variation), a dashed overall-average line and a dashed acceptable-range
+/// corridor (two limit lines per measure, from LongTermAcceptPolicy) so the
+/// trace can be read against its tolerance at a glance; the footer reports the
 /// overall averages, elapsed time and current resolution. Long durations need
 /// no special handling here: the Core DecimatingSeries halves its resolution
 /// whenever its fixed capacity fills, so one plotted point inherently spans
@@ -33,12 +35,20 @@ internal sealed class LongTermPerfRenderer
     {
         public required AvaPlot Plot { get; init; }
         public required string YLabel { get; init; }
+
+        // Fixed acceptable-range corridor for this measure (s/d, °, ms). Drawn as
+        // two dashed reference lines so a glance shows whether the long-term trace
+        // stays in tolerance; the values come from LongTermAcceptPolicy.
+        public required (double Min, double Max) Accept { get; init; }
+
         public readonly List<double> X = new();
         public readonly List<double> Y = new();
         public readonly List<(double X, double Top, double Bottom)> Band = new();
         public Scatter? BucketLine;
         public FillY? VariationBand;
         public HorizontalLine? OverallAverage;
+        public HorizontalLine? AcceptMin;
+        public HorizontalLine? AcceptMax;
         public ReviewCursorLayer? Cursor;
 
         // Dashed vertical lines (one per watch-position turn) labelled with the
@@ -76,9 +86,9 @@ internal sealed class LongTermPerfRenderer
         AvaPlot beatErrorPlot,
         TextBlock footerText)
     {
-        _rate = new Pane { Plot = ratePlot, YLabel = "Rate (s/d)" };
-        _amplitude = new Pane { Plot = amplitudePlot, YLabel = "Amplitude (°)" };
-        _beatError = new Pane { Plot = beatErrorPlot, YLabel = "Beat error (ms)" };
+        _rate = new Pane { Plot = ratePlot, YLabel = "Rate (s/d)", Accept = LongTermAcceptPolicy.Rate };
+        _amplitude = new Pane { Plot = amplitudePlot, YLabel = "Amplitude (°)", Accept = LongTermAcceptPolicy.Amplitude };
+        _beatError = new Pane { Plot = beatErrorPlot, YLabel = "Beat error (ms)", Accept = LongTermAcceptPolicy.BeatError };
         _panes = new[] { _rate, _amplitude, _beatError };
         _footerText = footerText;
 
@@ -152,6 +162,19 @@ internal sealed class LongTermPerfRenderer
             pane.VariationBand = plot.Add.FillY(pane.Band);
             pane.VariationBand.LineWidth = 0;
             pane.VariationBand.IsVisible = false;
+            // Acceptable-range corridor: two dashed reference lines at the fixed
+            // tolerance bounds. EnableAutoscale stays on (unlike the overall
+            // average) so the corridor is always kept in view — the whole point
+            // is to read the trace against its tolerance, not lose the limits
+            // off-screen when the watch sits comfortably inside the band.
+            pane.AcceptMin = plot.Add.HorizontalLine(pane.Accept.Min);
+            pane.AcceptMax = plot.Add.HorizontalLine(pane.Accept.Max);
+            foreach (HorizontalLine line in new[] { pane.AcceptMin, pane.AcceptMax })
+            {
+                line.LineWidth = 1;
+                line.LinePattern = LinePattern.Dashed;
+            }
+
             pane.BucketLine = plot.Add.Scatter(pane.X, pane.Y);
             pane.BucketLine.LineWidth = 2;
             pane.BucketLine.MarkerStyle.IsVisible = false;
@@ -504,6 +527,19 @@ internal sealed class LongTermPerfRenderer
         if (pane.OverallAverage != null)
         {
             pane.OverallAverage.LineColor = Color.FromARGB(_theme.TextPrimary);
+        }
+
+        // Tolerance corridor reuses the Vario accept-band edge color, so the
+        // "acceptable range" reads the same across both displays.
+        Color acceptEdge = Color.FromARGB(_theme.VarioAcceptBandEdge);
+        if (pane.AcceptMin != null)
+        {
+            pane.AcceptMin.LineColor = acceptEdge;
+        }
+
+        if (pane.AcceptMax != null)
+        {
+            pane.AcceptMax.LineColor = acceptEdge;
         }
 
         foreach (VerticalLine marker in pane.PositionMarkers)
