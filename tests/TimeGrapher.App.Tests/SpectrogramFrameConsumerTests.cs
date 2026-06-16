@@ -43,35 +43,63 @@ public sealed class SpectrogramFrameConsumerTests
     }
 
     [Fact]
-    public void ObserveFrameAccumulatesMonotonicColumnCountAcrossSourceWrap()
+    public void ObserveFrameTakesTheProducerMonotonicColumnCount()
     {
         var consumer = new SpectrogramFrameConsumer(CreateRenderer());
 
-        // ObserveFrame runs for every publish even while the tab is inactive, so
-        // the monotonic source-column count must keep advancing across the source
-        // buffer wrapping — not collapse back to the modulo write column (the bug
-        // that truncated the window on a late tab switch). Width 4 wraps quickly;
-        // each publish carries a distinct buffer (the pool never repeats a ref).
-        void Publish(int liveColumn)
+        // The renderer's window crop needs the monotonic count of source columns
+        // written this run; the producer stamps it on the frame as an absolute
+        // value (not a delta), so the consumer reads it straight through — robust
+        // to coalesced publishes and buffer wraps that a modulo live-column delta
+        // would alias and undercount (which truncated the window on a late switch).
+        consumer.ObserveFrame(new AnalysisFrame
         {
-            consumer.ObserveFrame(new AnalysisFrame
-            {
-                SpectrogramImageUpdated = true,
-                SpectrogramImage = new PixelBuffer(4, 2),
-                SpectrogramLiveColumn = liveColumn,
-            });
-        }
-
-        Publish(2);            // first publish: 2 columns written so far
+            SpectrogramImageUpdated = true,
+            SpectrogramImage = new PixelBuffer(4, 2),
+            SpectrogramLiveColumn = 2,
+            SpectrogramTotalColumns = 2,
+        });
         Assert.Equal(2L, consumer.TotalColumns);
 
-        Publish(3);            // +1
-        Publish(0);            // wraps width 4: 3 -> 0 is +1, not -3
-        Publish(2);            // +2
-        Assert.Equal(6L, consumer.TotalColumns);
+        // A later publish well past a buffer wrap: the absolute total is taken as-is.
+        consumer.ObserveFrame(new AnalysisFrame
+        {
+            SpectrogramImageUpdated = true,
+            SpectrogramImage = new PixelBuffer(4, 2),
+            SpectrogramLiveColumn = 1, // 4001 % 4 == 1, a wrapped live column
+            SpectrogramTotalColumns = 4001,
+        });
+        Assert.Equal(4001L, consumer.TotalColumns);
 
         consumer.Reset(new AnalysisTabResetContext(48000, 10, 250));
         Assert.Equal(0L, consumer.TotalColumns);
+    }
+
+    [Fact]
+    public void ObserveFrameProcessesANewPublishThatReusesAPooledBuffer()
+    {
+        var consumer = new SpectrogramFrameConsumer(CreateRenderer());
+
+        // The projector rotates a fixed buffer pool, so a later publish can land on
+        // the same PixelBuffer object as an earlier one. Dedup is by frame identity,
+        // not buffer identity, so the new publish still updates the count/metadata.
+        var pooled = new PixelBuffer(8, 2);
+
+        consumer.ObserveFrame(new AnalysisFrame
+        {
+            SpectrogramImageUpdated = true,
+            SpectrogramImage = pooled,
+            SpectrogramTotalColumns = 2,
+        });
+        Assert.Equal(2L, consumer.TotalColumns);
+
+        consumer.ObserveFrame(new AnalysisFrame
+        {
+            SpectrogramImageUpdated = true,
+            SpectrogramImage = pooled, // same buffer object, new publish
+            SpectrogramTotalColumns = 5,
+        });
+        Assert.Equal(5L, consumer.TotalColumns);
     }
 
     [Fact]

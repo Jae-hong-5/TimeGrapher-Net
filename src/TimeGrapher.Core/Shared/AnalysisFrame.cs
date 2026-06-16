@@ -225,11 +225,14 @@ public sealed class AnalysisFrame
 
     /// <summary>
     /// Spectrogram windowing metadata for the UI time-window selector (Last Beat /
-    /// Seconds): the wrap-buffer's live-edge column (next to write), the time each
-    /// image column spans, and the latest locked beat period (0 before sync). The
-    /// renderer crops the most recent window from the published image with these.
+    /// Seconds): the wrap-buffer's live-edge column (next to write), the monotonic
+    /// count of columns written since the run started (so the renderer never has to
+    /// reconstruct it from the modulo live column — robust to coalesced frames and
+    /// buffer wraps), the time each image column spans, and the latest locked beat
+    /// period (0 before sync). The renderer crops the most recent window with these.
     /// </summary>
     public int SpectrogramLiveColumn;
+    public long SpectrogramTotalColumns;
     public double SpectrogramColumnSeconds;
     public double SpectrogramBeatPeriodS;
 

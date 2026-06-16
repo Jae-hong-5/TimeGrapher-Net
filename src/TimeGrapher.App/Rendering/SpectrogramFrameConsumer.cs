@@ -8,15 +8,16 @@ namespace TimeGrapher.App.Rendering;
 internal sealed class SpectrogramFrameConsumer : IAnalysisFrameConsumer, IThemedFrameConsumer
 {
     private readonly SpectrogramRenderer _renderer;
-    // The worker buffer that produced the displayed image. A theme toggle
-    // replaces _latestSpectrogramImage with a remapped copy while this keeps
-    // pointing at the original, so a re-routed kept frame (same pooled buffer)
-    // is recognized and cannot restore the old-colormap image.
-    private PixelBuffer? _latestSourceImage;
+    // The last analysis frame whose spectrogram update was processed. Dedup is by
+    // frame identity, NOT buffer identity: the projector rotates a fixed buffer
+    // pool, so a new publish can reuse an earlier PixelBuffer object — keying on
+    // the buffer would skip that publish and freeze the column count. The active
+    // tab also observes the same frame twice (router + RenderFrame); this skips
+    // the second pass, and a re-routed kept frame cannot restore a theme-remapped
+    // _latestSpectrogramImage.
+    private AnalysisFrame? _lastObservedFrame;
     private PixelBuffer? _latestSpectrogramImage;
-    private int _latestLiveColumn;
     private long _totalColumns;
-    private bool _hasObservedColumn;
     private double _latestColumnSeconds;
     private double _latestBeatPeriodS;
     private double _latestBeatOnsetS;
@@ -31,8 +32,9 @@ internal sealed class SpectrogramFrameConsumer : IAnalysisFrameConsumer, IThemed
 
     internal PixelBuffer? LatestSpectrogramImage => _latestSpectrogramImage;
 
-    // Monotonic count of source columns observed since the last Reset; the value
-    // handed to the renderer so a late tab switch keeps the full recent window.
+    // The producer's monotonic source-column count from the latest observed
+    // publish; handed to the renderer so a late tab switch keeps the full recent
+    // window (it is absolute, so coalesced frames and buffer wraps never alias it).
     internal long TotalColumns => _totalColumns;
 
     public void Initialize(AnalysisTabResetContext context)
@@ -44,12 +46,10 @@ internal sealed class SpectrogramFrameConsumer : IAnalysisFrameConsumer, IThemed
     public void Reset(AnalysisTabResetContext context)
     {
         _ = context;
-        _latestSourceImage = null;
+        _lastObservedFrame = null;
         _latestSpectrogramImage = null;
         _latestBeatOnsetS = 0.0;
         _totalColumns = 0;
-        _hasObservedColumn = false;
-        _latestLiveColumn = 0;
         _renderer.Reset();
     }
 
@@ -103,34 +103,20 @@ internal sealed class SpectrogramFrameConsumer : IAnalysisFrameConsumer, IThemed
             _latestBeatOnsetS = last.StartTimeS + last.AOffsetMs / 1000.0;
         }
 
-        // A re-routed kept frame carries the same pooled buffer reference (the
-        // publish pool never repeats a reference on consecutive publishes), so
-        // re-observing it must not overwrite a theme-remapped copy with the
-        // old-colormap original.
+        // Process each delivered spectrogram publish once, keyed on the frame
+        // object: a re-routed kept frame (or the active tab's second observe per
+        // frame) is the same instance and must not re-run, while a genuinely new
+        // publish that reuses a pooled buffer object is a different frame and must.
         if (frame.SpectrogramImageUpdated && frame.SpectrogramImage != null &&
-            !ReferenceEquals(frame.SpectrogramImage, _latestSourceImage))
+            !ReferenceEquals(frame, _lastObservedFrame))
         {
-            // Accumulate the monotonic source-column count from the live-column
-            // delta. ObserveFrame runs for every published frame (even while the
-            // tab is inactive), so this stays correct across a late tab switch and
-            // the 10 s source buffer wrapping — the renderer must not reconstruct
-            // it from the modulo write column, which would undercount and drop
-            // visible history.
-            int liveColumn = frame.SpectrogramLiveColumn;
-            int sourceWidth = frame.SpectrogramImage.Width;
-            if (!_hasObservedColumn)
-            {
-                _totalColumns = liveColumn;
-                _hasObservedColumn = true;
-            }
-            else if (sourceWidth > 0)
-            {
-                _totalColumns += ((liveColumn - _latestLiveColumn) % sourceWidth + sourceWidth) % sourceWidth;
-            }
-
-            _latestSourceImage = frame.SpectrogramImage;
+            // The monotonic column count is the producer's absolute value (not a
+            // delta), so a late tab switch, coalesced/dropped publishes, and the
+            // 10 s source buffer wrapping never undercount it — the renderer crops
+            // the correct recent window from it.
+            _lastObservedFrame = frame;
             _latestSpectrogramImage = frame.SpectrogramImage;
-            _latestLiveColumn = liveColumn;
+            _totalColumns = frame.SpectrogramTotalColumns;
             _latestColumnSeconds = frame.SpectrogramColumnSeconds;
             _latestBeatPeriodS = frame.SpectrogramBeatPeriodS;
         }

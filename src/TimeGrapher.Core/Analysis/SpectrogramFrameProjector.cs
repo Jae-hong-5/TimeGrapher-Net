@@ -79,6 +79,7 @@ public sealed class SpectrogramFrameProjector
     private bool _light;
     private int _fifoFill;
     private int _writeColumn;
+    private long _totalColumns;
     private int _nextPublishBuffer;
     private int _publishIntervalScale = 1;
     private bool _livePreviewEnabled = true;
@@ -197,6 +198,7 @@ public sealed class SpectrogramFrameProjector
             frame.SpectrogramImage = snapshot;
             frame.SpectrogramImageUpdated = true;
             frame.SpectrogramLiveColumn = _writeColumn;
+            frame.SpectrogramTotalColumns = _totalColumns;
             frame.SpectrogramColumnSeconds = _columnSeconds;
             _recolorPending = false;
             _publishTimer.Restart();
@@ -237,6 +239,7 @@ public sealed class SpectrogramFrameProjector
         }
 
         _writeColumn = (_writeColumn + 1) % width;
+        _totalColumns++; // monotonic count of columns written this run (live column = _totalColumns % width)
     }
 
     /// <summary>

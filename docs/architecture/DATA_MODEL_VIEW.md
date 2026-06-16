@@ -116,6 +116,7 @@ class AnalysisFrame {
     +bool SoundImageUpdated
     +bool SpectrogramImageUpdated
     +int SpectrogramLiveColumn
+    +long SpectrogramTotalColumns
     +double SpectrogramColumnSeconds
     +double SpectrogramBeatPeriodS
     +bool ForegroundStatsUpdated
