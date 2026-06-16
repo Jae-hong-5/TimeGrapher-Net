@@ -53,6 +53,28 @@ public sealed class ScopeRateFrameProjector
         _strideScale = Math.Max(1, scale);
     }
 
+    /// <summary>
+    /// Clears the accumulated scope window, markers, latest rate snapshots and the
+    /// graph-tick origin so the scope/rate graphs restart from the beginning
+    /// (e.g. on a watch-position change). Analysis thread only.
+    /// </summary>
+    public void Reset()
+    {
+        _scopeWindowX.Clear();
+        _scopeWindowPcm.Clear();
+        _scopeWindowThreshold.Clear();
+        _scopeWindowVerticalMarkers.Clear();
+        _scopeWindowHorizontalMarkers.Clear();
+        _scopeWindowTextMarkers.Clear();
+        _latestTicRateSeries = null;
+        _latestTocRateSeries = null;
+        _latestResultsText = "";
+        _hasLatestResultsText = false;
+        _localGraphTicks = 0;
+        _lastA = 0.0;
+        _haveLastA = false;
+    }
+
     public void Project(DetectorMetricsBlockUpdate update, AnalysisFrame frame)
     {
         DetectorResultSnapshot result = update.Result;

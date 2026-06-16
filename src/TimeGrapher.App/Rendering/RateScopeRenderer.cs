@@ -66,6 +66,9 @@ internal sealed class RateScopeRenderer
     // Keeps the X view inside the held data [oldest .. now] so pan/zoom-out can't
     // drag past the graph start/end; its bounds are refreshed each frame.
     private ScopeXBoundaryRule? _scopeXBoundary;
+    // Last watch position seen; a change means Core restarted the scope/rate
+    // graphs, so the view re-arms to the live default.
+    private WatchPosition? _lastScopePosition;
     // True while the Y axis auto-fits the waveform; a Ctrl+wheel vertical zoom
     // turns it off so the manual Y range sticks (Reset View re-arms it).
     private bool _scopeAutoY = true;
@@ -215,6 +218,19 @@ internal sealed class RateScopeRenderer
     public void RenderFrame(AnalysisFrame frame, AnalysisTabRenderContext context)
     {
         _sampleRate = context.SampleRate;
+
+        // A position change restarts the Core scope/rate graphs; return the view
+        // to the live default so the fresh data shows from the beginning even if
+        // it was panned/zoomed.
+        WatchPosition? position = frame.MetricsHistory?.ActivePosition;
+        if (position.HasValue && position != _lastScopePosition)
+        {
+            _lastScopePosition = position;
+            _scopeFollowLive = true;
+            _scopeWindowSeconds = DefaultScopeWindowSeconds;
+            _scopeAutoY = true;
+        }
+
         bool scopeUpdated = ReplaceScopeSeries(frame);
         bool rateUpdated = ReplaceRateSeries(frame);
         // Review cursor on the waveform pane only: its x base is absolute sample
