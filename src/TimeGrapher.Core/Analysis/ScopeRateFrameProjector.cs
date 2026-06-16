@@ -31,6 +31,12 @@ public sealed class ScopeRateFrameProjector
     private GraphSeriesFrame? _latestTocRateSeries;
     private string _latestResultsText = "";
     private ulong _localGraphTicks;
+    // The detector keeps its absolute sample counter across a position-change
+    // Reset() (its beat lock is intentionally preserved), while the scope window
+    // restarts its local X at each Reset(). This is the absolute graph-tick count
+    // at the last Reset(); absolute event samples are rebased onto the current
+    // local window by subtracting it, so markers stay aligned with the PCM trace.
+    private ulong _graphTickOrigin;
     private double _lastA;
     private bool _haveLastA;
     private bool _hasLatestResultsText;
@@ -70,6 +76,7 @@ public sealed class ScopeRateFrameProjector
         _latestTocRateSeries = null;
         _latestResultsText = "";
         _hasLatestResultsText = false;
+        _graphTickOrigin += _localGraphTicks;
         _localGraphTicks = 0;
         _lastA = 0.0;
         _haveLastA = false;
@@ -96,11 +103,11 @@ public sealed class ScopeRateFrameProjector
         {
             if (eventUpdate.Event.Type == TgEventType.A)
             {
-                AppendAEventMarker(eventUpdate.EventSample, eventUpdate.Event.PeakValue);
+                AppendAEventMarker(LocalEventX(eventUpdate.EventSample), eventUpdate.Event.PeakValue);
             }
             else if (eventUpdate.Event.Type == TgEventType.C)
             {
-                AppendCEventMarker(eventUpdate.Event, eventUpdate.EventSample);
+                AppendCEventMarker(eventUpdate.Event, LocalEventX(eventUpdate.EventSample));
             }
             else
             {
@@ -112,7 +119,7 @@ public sealed class ScopeRateFrameProjector
         {
             if (eventUpdate.Event.Type == TgEventType.C)
             {
-                AppendCMetricText(eventUpdate.Event, eventUpdate.EventSample, eventUpdate.MetricsUpdate);
+                AppendCMetricText(eventUpdate.Event, LocalEventX(eventUpdate.EventSample), eventUpdate.MetricsUpdate);
             }
             AppendMetricsUpdate(eventUpdate.MetricsUpdate, frame);
         }
@@ -160,6 +167,9 @@ public sealed class ScopeRateFrameProjector
             frame.AddRateSeries(_latestTocRateSeries);
         }
     }
+
+    // Rebase an absolute detector event sample onto the current local scope window.
+    private double LocalEventX(double eventSample) => eventSample - _graphTickOrigin;
 
     private void AppendAEventMarker(double eventSample, float peakValue)
     {
