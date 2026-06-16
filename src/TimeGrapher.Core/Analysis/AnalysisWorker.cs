@@ -70,6 +70,12 @@ public sealed class AnalysisWorker : IDisposable
     private volatile bool _stopRequested = false;
     private volatile bool _completionRequested = false;
 
+    // Set on a watch-position change (UI thread) and applied on the analysis
+    // thread to restart the scope/rate graphs from the new position. The detector
+    // keeps its beat lock; only the graph accumulation and rate metrics reset.
+    private volatile bool _resetGraphsRequested;
+    private WatchPosition _lastActivePosition = WatchPosition.CH;
+
     // Theme recolor request from another thread (e.g. UI theme toggle); applied on
     // the analysis thread between frames so it never races the pixel buffer.
     private readonly object _recolorLock = new();
@@ -155,6 +161,14 @@ public sealed class AnalysisWorker : IDisposable
     /// </summary>
     public void SetActivePosition(WatchPosition position)
     {
+        // A real turn restarts the scope/rate graphs from the new position; the
+        // request is applied on the analysis thread (see HandleInputDataCore).
+        if (position != _lastActivePosition)
+        {
+            _lastActivePosition = position;
+            _resetGraphsRequested = true;
+        }
+
         _beatMetricsProjector.SetActivePosition(position);
     }
 
@@ -307,6 +321,16 @@ public sealed class AnalysisWorker : IDisposable
 
     private void HandleInputDataCore(bool stopInterruptible)
     {
+        // Apply a pending graph reset (watch-position change) on the analysis
+        // thread before any block is processed, so the new position's samples fill
+        // a fresh scope/rate graph. Detector sync is left intact.
+        if (_resetGraphsRequested)
+        {
+            _resetGraphsRequested = false;
+            _pipeline.ResetMetrics();
+            _scopeRateProjector.Reset();
+        }
+
         var processingTimer = Stopwatch.StartNew();
         MasterAudioBufferSnapshot snapshot = _rawAudio.GetSnapshot();
         ulong sourceSampleEnd = snapshot.TotalSamplesWritten;

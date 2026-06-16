@@ -44,6 +44,15 @@ public sealed record PositionSummary(
     StatsSummary BeatError);
 
 /// <summary>
+/// One watch test-position change recorded during the run: the elapsed stream
+/// time (s) at which measurements began being tagged with <see cref="Position"/>.
+/// The first entry is the run's starting position (TimeS = 0); each later entry
+/// marks a turn to a new position. Carried in chronological order so the
+/// Long-Term graph can mark each turn against the elapsed-time axis.
+/// </summary>
+public readonly record struct PositionChange(double TimeS, WatchPosition Position);
+
+/// <summary>
 /// Cumulative beat-metrics history snapshot carried by every frame. Because the
 /// render scheduler coalesces frames latest-wins, per-beat data must accumulate in
 /// Core and travel as a cumulative snapshot: dropping intermediate frames then
@@ -101,4 +110,14 @@ public sealed class BeatMetricsHistorySnapshot
     /// Rebuilt together with the snapshot.
     /// </summary>
     public IReadOnlyList<PositionSummary> Positions { get; init; } = Array.Empty<PositionSummary>();
+
+    /// <summary>
+    /// Chronological watch-position changes since measurement start. The first
+    /// entry is the run's starting position (TimeS = 0); each later entry marks
+    /// the elapsed time at which the watch was turned to a new position. The
+    /// Long-Term graph draws a dashed vertical line plus the position name at
+    /// each entry so position turns read against the rate/amplitude/beat-error
+    /// trends.
+    /// </summary>
+    public IReadOnlyList<PositionChange> PositionChanges { get; init; } = Array.Empty<PositionChange>();
 }

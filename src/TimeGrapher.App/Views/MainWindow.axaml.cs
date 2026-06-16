@@ -381,11 +381,14 @@ public partial class MainWindow : Window
         // transient signals — survives the tab switch and renders right after.
         mFrameRenderScheduler.ResetTiming();
 
+        string activeTab = ActiveInfoTabId();
+        mViewModel.SetLongTermTabActive(activeTab == InfoTabCatalog.LongTermPerfTabId);
+
         AnalysisFrame? frame = mLastAnalysisFrame;
         if (frame != null && frame.SessionId == mRunSessionController.AnalysisSessionId)
         {
             mGraphFrameRenderer.UpdateResults(frame);
-            mFrameRouter.Route(frame, ActiveInfoTabId(), BuildTabRenderContext(frame));
+            mFrameRouter.Route(frame, activeTab, BuildTabRenderContext(frame));
         }
     }
 
