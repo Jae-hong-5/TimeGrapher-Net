@@ -92,6 +92,10 @@ internal sealed class MultiFilterScopeRenderer
     private double _dataMaxX;
     private bool _hasDataExtent;
 
+    // Sample rate of the current run (X is in absolute sample ticks), used to
+    // label the bottom axis in seconds with one tick per second.
+    private int _sampleRate;
+
     public MultiFilterScopeRenderer(IReadOnlyList<AvaPlot> plots)
     {
         if (plots.Count != MultiFilterScopeLanes.All.Count)
@@ -184,7 +188,11 @@ internal sealed class MultiFilterScopeRenderer
             _lastSeries[i] = null;
             ApplyPlotTheme(plot);
             plot.YLabel(MultiFilterScopeLanes.All[i].Label);
-            plot.Axes.Bottom.TickLabelStyle.IsVisible = false;
+            // Time ruler: a minor tick every 0.1 s, a longer major tick every
+            // 0.5 s, and a number label only on whole seconds. Same on every lane.
+            plot.Axes.Bottom.TickLabelStyle.IsVisible = true;
+            plot.Axes.Bottom.MinorTickStyle.Length = 3;
+            plot.Axes.Bottom.MajorTickStyle.Length = 6;
             _scatters[i] = plot.Add.Scatter(_x[i], _y[i]);
             _scatters[i]!.LineWidth = 1;
             _scatters[i]!.MarkerStyle.IsVisible = false;
@@ -231,6 +239,8 @@ internal sealed class MultiFilterScopeRenderer
         {
             _plots[i].Plot.Axes.AutoScale();
             ApplyY(i);
+            AxisLimits limits = _plots[i].Plot.Axes.GetLimits();
+            ApplyTimeTicks(i, limits.Left, limits.Right);
         }
 
         RefreshAll();
@@ -335,6 +345,7 @@ internal sealed class MultiFilterScopeRenderer
             {
                 _plots[i].Plot.Axes.SetLimitsX(left, right);
                 ApplyY(i);
+                ApplyTimeTicks(i, left, right);
                 _plots[i].Refresh();
             }
         }
@@ -342,6 +353,43 @@ internal sealed class MultiFilterScopeRenderer
         {
             _syncing = false;
         }
+    }
+
+    /// <summary>
+    /// Puts a time ruler on the lane's bottom axis: a minor tick every 0.1 s, a
+    /// longer major tick every 0.5 s, and a seconds label on whole seconds only
+    /// (X is absolute sample ticks, so 0.1 s = 0.1 * sampleRate). All lanes share
+    /// the same positions for aligned gridlines. No-op before the rate is known.
+    /// </summary>
+    private void ApplyTimeTicks(int lane, double left, double right)
+    {
+        if (_sampleRate <= 0)
+        {
+            return;
+        }
+
+        double minorStep = 0.1 * _sampleRate;
+        var ticks = new ScottPlot.TickGenerators.NumericManual();
+        long firstTenth = (long)Math.Ceiling(left / minorStep - 1e-6);
+        long lastTenth = (long)Math.Floor(right / minorStep + 1e-6);
+        for (long tenth = firstTenth; tenth <= lastTenth; tenth++)
+        {
+            double position = tenth * minorStep;
+            if (tenth % 10 == 0)
+            {
+                ticks.AddMajor(position, $"{tenth / 10}s"); // whole second — labeled
+            }
+            else if (tenth % 5 == 0)
+            {
+                ticks.AddMajor(position, string.Empty); // 0.5 s — longer mark, no label
+            }
+            else
+            {
+                ticks.AddMinor(position); // 0.1 s — short mark
+            }
+        }
+
+        _plots[lane].Plot.Axes.Bottom.TickGenerator = ticks;
     }
 
     /// <summary>Largest absolute sample in a lane's current display buffer (its data peak).</summary>
@@ -459,6 +507,7 @@ internal sealed class MultiFilterScopeRenderer
 
     public void RenderFrame(AnalysisFrame frame, AnalysisTabRenderContext context)
     {
+        _sampleRate = context.SampleRate;
         if (_x[0].Count > 0)
         {
             _dataMinX = _x[0][0];
@@ -493,6 +542,8 @@ internal sealed class MultiFilterScopeRenderer
 
             if (updated || cursorMoved)
             {
+                AxisLimits limits = _plots[i].Plot.Axes.GetLimits();
+                ApplyTimeTicks(i, limits.Left, limits.Right);
                 _plots[i].Refresh();
             }
         }
