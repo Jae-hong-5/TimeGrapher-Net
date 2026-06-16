@@ -6,7 +6,10 @@ namespace TimeGrapher.Core.Analysis;
 
 public sealed class ScopeRateFrameProjector
 {
-    private const int ScopeSnapshotSeconds = 2;
+    // Seconds of scope waveform retained/published. Capture decimation scales with
+    // this (stride grows so the snapshot stays ~point-budget sized regardless of
+    // duration), so a longer window stays memory-bounded but coarser per second.
+    private const int ScopeSnapshotSeconds = 30;
 
     private readonly int _sampleRate;
     private readonly bool _useCOnset;
@@ -48,6 +51,28 @@ public sealed class ScopeRateFrameProjector
     public void SetScopeStrideScale(int scale)
     {
         _strideScale = Math.Max(1, scale);
+    }
+
+    /// <summary>
+    /// Clears the accumulated scope window, markers, latest rate snapshots and the
+    /// graph-tick origin so the scope/rate graphs restart from the beginning
+    /// (e.g. on a watch-position change). Analysis thread only.
+    /// </summary>
+    public void Reset()
+    {
+        _scopeWindowX.Clear();
+        _scopeWindowPcm.Clear();
+        _scopeWindowThreshold.Clear();
+        _scopeWindowVerticalMarkers.Clear();
+        _scopeWindowHorizontalMarkers.Clear();
+        _scopeWindowTextMarkers.Clear();
+        _latestTicRateSeries = null;
+        _latestTocRateSeries = null;
+        _latestResultsText = "";
+        _hasLatestResultsText = false;
+        _localGraphTicks = 0;
+        _lastA = 0.0;
+        _haveLastA = false;
     }
 
     public void Project(DetectorMetricsBlockUpdate update, AnalysisFrame frame)

@@ -40,6 +40,10 @@ internal sealed class LongTermPerfRenderer
         public FillY? VariationBand;
         public HorizontalLine? OverallAverage;
         public ReviewCursorLayer? Cursor;
+
+        // Dashed vertical lines (one per watch-position turn) labelled with the
+        // position name; rebuilt only when the change count grows.
+        public readonly List<VerticalLine> PositionMarkers = new();
     }
 
     private readonly Pane _rate;
@@ -57,6 +61,14 @@ internal sealed class LongTermPerfRenderer
     private bool _syncing;
     private bool _syncPending;
     private int _syncSource;
+
+    // Number of position turns the markers currently reflect; -1 forces a rebuild
+    // (CreateGraphs clears the plots, so the marker lines must be re-added).
+    private int _positionMarkerCount = -1;
+
+    // Optional callback to report the plot area's left/right pixel offsets and
+    // data minimum time so the review slider aligns with the graph X-axis.
+    private Action<double, double, double>? _sliderAlignmentCallback;
 
     public LongTermPerfRenderer(
         AvaPlot ratePlot,
@@ -91,6 +103,16 @@ internal sealed class LongTermPerfRenderer
         }
     }
 
+    /// <summary>
+    /// Registers a callback that receives (leftPad, rightPad) pixel offsets of the
+    /// plot data area relative to the AvaPlot control bounds. The review slider
+    /// uses these to align its track with the graph X-axis.
+    /// </summary>
+    public void SetSliderAlignmentCallback(Action<double, double, double> callback)
+    {
+        _sliderAlignmentCallback = callback;
+    }
+
     public void ApplyTheme(PlotThemePalette theme)
     {
         _theme = theme;
@@ -108,6 +130,8 @@ internal sealed class LongTermPerfRenderer
         _lastVersion = 0;
         _followLive = true;
         _footerText.Text = "";
+        // plot.Clear() below drops the marker lines; force the next render to re-add.
+        _positionMarkerCount = -1;
 
         foreach (Pane pane in _panes)
         {
@@ -116,8 +140,14 @@ internal sealed class LongTermPerfRenderer
             pane.X.Clear();
             pane.Y.Clear();
             pane.Band.Clear();
+            pane.PositionMarkers.Clear();
             ApplyPlotTheme(plot);
             plot.YLabel(pane.YLabel);
+            // NOTE: deliberately do NOT reset Axes.Left.MinimumSize here. Once
+            // AlignLeftEdges has settled it on the widest natural panel, keeping
+            // it across Reset avoids a natural→aligned jump on every Reset press
+            // (which read as the left edge toggling); it self-corrects upward if
+            // a later run's labels grow wider.
 
             pane.VariationBand = plot.Add.FillY(pane.Band);
             pane.VariationBand.LineWidth = 0;
@@ -135,7 +165,19 @@ internal sealed class LongTermPerfRenderer
         }
 
         // One shared time axis label on the bottom pane keeps the stack compact.
-        _beatError.Plot.Plot.XLabel("Elapsed (s)");
+        // Upper panes hide their X tick labels to avoid redundancy.
+        _beatError.Plot.Plot.XLabel("Elapsed");
+        foreach (Pane pane in _panes)
+        {
+            pane.Plot.Plot.Axes.Bottom.TickGenerator = new ScottPlot.TickGenerators.NumericAutomatic
+            {
+                LabelFormatter = ElapsedTickLabel
+            };
+            if (pane != _beatError)
+            {
+                pane.Plot.Plot.Axes.Bottom.TickLabelStyle.IsVisible = false;
+            }
+        }
 
         ApplySeriesTheme();
         RefreshAll();
@@ -237,17 +279,138 @@ internal sealed class LongTermPerfRenderer
         UpdatePane(_rate, history.Rate);
         UpdatePane(_amplitude, history.Amplitude);
         UpdatePane(_beatError, history.BeatError);
+        UpdatePositionMarkers(history.PositionChanges);
 
-        if (_followLive)
+        // Shared X window taken from the actual plotted data, not each pane's
+        // autoscaled limits: early in a run a pane may still be empty (rate needs
+        // two beats, amplitude needs a pair), and an empty pane's autoscale would
+        // otherwise pollute a union of per-pane limits with a default range and
+        // skew every pane's X until all three fill — the start-only misalignment
+        // that a Reset View (clean autoscale) hid.
+        bool hasData = TryGetDataXRange(out double xMin, out double xMax);
+
+        // Pin every start marker to the shared first point so the starting-
+        // position line is identical across the three panes and sits at the left
+        // edge, regardless of which series began first.
+        if (hasData)
         {
             foreach (Pane pane in _panes)
             {
-                pane.Plot.Plot.Axes.AutoScale();
+                if (pane.PositionMarkers.Count > 0)
+                {
+                    pane.PositionMarkers[0].X = xMin;
+                }
+            }
+        }
+
+        if (_followLive && hasData)
+        {
+            // X is the shared data window; Y stays per-pane (each measure has its
+            // own units), auto-scaled to all data in view. A single point (or all
+            // points at one time, common in the first frames after a reset) gives
+            // a zero-width window, which SetLimitsX cannot represent — fall back
+            // to a plain autoscale until the data spans a real range.
+            bool sharedWindow = xMax > xMin;
+            foreach (Pane pane in _panes)
+            {
+                if (sharedWindow)
+                {
+                    pane.Plot.Plot.Axes.AutoScaleY();
+                    pane.Plot.Plot.Axes.SetLimitsX(xMin, xMax);
+                }
+                else
+                {
+                    pane.Plot.Plot.Axes.AutoScale();
+                }
             }
         }
 
         _footerText.Text = LongTermReadout.Footer(history);
         RefreshAll();
+    }
+
+    /// <summary>
+    /// Equalizes the three panes' left data-area edge so the same elapsed time
+    /// sits at the same screen x on every pane. Each pane's Y tick labels have a
+    /// different width (rate "0" vs amplitude "304.5" vs beat error "0.02"),
+    /// which otherwise offsets the plot area and makes the stacked graphs — and
+    /// the position markers — look misaligned. Reads the actual rendered pixels,
+    /// so it is DPI-correct.
+    ///
+    /// The target is the widest pane's left-axis PANEL width (DataRect.Left minus
+    /// the figure's left margin), not DataRect.Left itself: DataRect.Left includes
+    /// the margin, and feeding that back into MinimumSize (a panel size) overshot
+    /// by the margin every render, which read as the left edge toggling on each
+    /// Reset. With the panel width the fixed point is exact — MinimumSize settles
+    /// on the widest natural panel and the per-pane guard then leaves it alone.
+    /// </summary>
+    private void AlignLeftEdges()
+    {
+        float maxPanel = 0f;
+        foreach (Pane pane in _panes)
+        {
+            RenderDetails render = pane.Plot.Plot.RenderManager.LastRender;
+            float panel = render.DataRect.Left - render.FigureRect.Left;
+            if (panel > maxPanel) maxPanel = panel;
+        }
+
+        if (maxPanel <= 0f)
+        {
+            return; // nothing rendered yet
+        }
+
+        // Only widen panes that are below the target; the guard makes this a fixed
+        // point (a pane already at the target is skipped), so there is no feedback.
+        bool changed = false;
+        foreach (Pane pane in _panes)
+        {
+            if (maxPanel - pane.Plot.Plot.Axes.Left.MinimumSize > 0.5f)
+            {
+                pane.Plot.Plot.Axes.Left.MinimumSize = maxPanel;
+                changed = true;
+            }
+        }
+
+        // Refresh directly (not RefreshAll) so this does not recurse.
+        if (changed)
+        {
+            foreach (Pane pane in _panes)
+            {
+                pane.Plot.Refresh();
+            }
+        }
+
+        // Report the data area offsets so the review slider can align with the X-axis.
+        ReportSliderAlignment();
+    }
+
+    private void ReportSliderAlignment()
+    {
+        if (_sliderAlignmentCallback == null)
+        {
+            return;
+        }
+
+        // Use the bottom pane (beat error) — it has the X-axis label and its
+        // DataRect represents the visible X span.
+        RenderDetails render = _beatError.Plot.Plot.RenderManager.LastRender;
+        if (render.DataRect.Width <= 0)
+        {
+            return;
+        }
+
+        double leftPad = render.DataRect.Left - render.FigureRect.Left;
+        double rightPad = render.FigureRect.Right - render.DataRect.Right;
+
+        // Report the first data point time so the slider Minimum matches the
+        // graph X-axis start (data may not begin at 0 due to accumulation delay).
+        double dataMin = 0.0;
+        if (TryGetDataXRange(out double xMin, out _))
+        {
+            dataMin = xMin;
+        }
+
+        _sliderAlignmentCallback(leftPad, rightPad, dataMin);
     }
 
     private static void UpdatePane(Pane pane, MetricsHistorySeries series)
@@ -309,6 +472,11 @@ internal sealed class LongTermPerfRenderer
         {
             pane.Plot.Refresh();
         }
+
+        // Run after the refresh so each pane's LastRender reflects its current Y
+        // label widths — including the empty post-Reset state, where the panes
+        // would otherwise keep mismatched left edges until the next data frame.
+        AlignLeftEdges();
     }
 
     private void ApplySeriesTheme()
@@ -338,7 +506,105 @@ internal sealed class LongTermPerfRenderer
             pane.OverallAverage.LineColor = Color.FromARGB(_theme.TextPrimary);
         }
 
+        foreach (VerticalLine marker in pane.PositionMarkers)
+        {
+            StylePositionMarker(marker);
+        }
+
         pane.Cursor?.ApplyTheme(_theme);
+    }
+
+    /// <summary>
+    /// Reconciles the dashed position-change markers with the snapshot's change
+    /// list. Position turns are manual (seconds apart) and the list only grows,
+    /// so a rebuild on a changed count is cheap; the start entry (TimeS 0) gives
+    /// every run a labelled marker even when the watch is never turned.
+    /// </summary>
+    private void UpdatePositionMarkers(IReadOnlyList<PositionChange> changes)
+    {
+        if (changes.Count == _positionMarkerCount)
+        {
+            return;
+        }
+
+        _positionMarkerCount = changes.Count;
+        foreach (Pane pane in _panes)
+        {
+            Plot plot = pane.Plot.Plot;
+            foreach (VerticalLine marker in pane.PositionMarkers)
+            {
+                plot.Remove(marker);
+            }
+
+            pane.PositionMarkers.Clear();
+
+            foreach (PositionChange change in changes)
+            {
+                VerticalLine marker = plot.Add.VerticalLine(change.TimeS);
+                marker.LabelText = change.Position.ShortName();
+                StylePositionMarker(marker);
+                pane.PositionMarkers.Add(marker);
+            }
+        }
+    }
+
+    /// <summary>
+    /// First/last plotted X across every non-empty pane (the panes' series can
+    /// begin and end a beat or two apart). Returns false when no pane has data
+    /// yet, so callers leave the axes untouched rather than scale to an empty
+    /// range.
+    /// </summary>
+    private bool TryGetDataXRange(out double xMin, out double xMax)
+    {
+        xMin = double.MaxValue;
+        xMax = double.MinValue;
+        foreach (Pane pane in _panes)
+        {
+            if (pane.X.Count > 0)
+            {
+                if (pane.X[0] < xMin) xMin = pane.X[0];
+                if (pane.X[^1] > xMax) xMax = pane.X[^1];
+            }
+        }
+
+        return xMin <= xMax;
+    }
+
+    private void StylePositionMarker(VerticalLine marker)
+    {
+        // Dashed so it reads distinctly from the dotted review cursor; the
+        // markers must never participate in autoscale (the start line sits at the
+        // first plotted point and would otherwise drag the data window).
+        Color color = Color.FromARGB(_theme.TextPrimary);
+        marker.LinePattern = LinePattern.Dashed;
+        marker.LineWidth = 1;
+        marker.LineColor = color;
+        marker.EnableAutoscale = false;
+
+        // Anchor the label at the top edge of the data area, then pull it a few
+        // pixels DOWN inside it (negative top padding: ScottPlot draws the
+        // opposite-axis label at DataRect.Top - PixelPadding.Top). UpperLeft puts
+        // the text's top-left at the anchor, so the name hangs below the top edge
+        // and sits to the RIGHT of the dashed line; LabelOffsetX adds a small gap.
+        // ManualLabelAlignment is required: RenderLast overwrites LabelAlignment.
+        marker.LabelOppositeAxis = true;
+        marker.ManualLabelAlignment = Alignment.UpperLeft;
+        marker.LabelPixelPadding = new PixelPadding(0, 0, 0, -3);
+        marker.LabelOffsetX = 3;
+        marker.LabelFontColor = color;
+        // Transparent label background so the name never masks the trace behind
+        // it (the dashed line plus the bold name stay legible on their own).
+        marker.LabelBackgroundColor = Colors.Transparent;
+    }
+
+    /// <summary>
+    /// Formats X-axis tick labels as "mm:ss" so the graph time axis matches the
+    /// review slider readout (which shows both seconds and mm:ss).
+    /// </summary>
+    private static string ElapsedTickLabel(double seconds)
+    {
+        int total = Math.Max(0, (int)seconds);
+        return $"{total / 60:00}:{total % 60:00}";
     }
 
     private void ApplyPlotTheme(Plot plot)
