@@ -1463,7 +1463,7 @@ internal sealed partial class InfoTabRegistry
         toolbar.Children.Add(averageModeButton);
 
         // 20 / 200 / 400 ms range selector; the active range renders disabled
-        // (the Scope Sweep 1x/2x/4x button pattern).
+        // (the Scope Sweep 1x/2x/3x button pattern).
         int[] ranges = { 20, 200, 400 };
         var rangeButtons = new Button[ranges.Length];
 
