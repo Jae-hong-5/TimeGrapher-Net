@@ -327,6 +327,13 @@ public sealed class AudioCaptureWorker : ILiveAudioWorker
         return supportedRates;
     }
 
+    internal static IReadOnlyList<int> GetCandidateSampleRates(
+        int mixChannels,
+        Func<int, int, bool> supportsSampleRate)
+    {
+        return GetCandidateSampleRates(rate => supportsSampleRate(rate, mixChannels));
+    }
+
     internal static bool EndpointMatchesWaveInProductName(
         string waveInProductName,
         string endpointFriendlyName,
@@ -445,7 +452,10 @@ public sealed class AudioCaptureWorker : ILiveAudioWorker
         try
         {
             using AudioClient audioClient = endpoint.AudioClient;
-            rates = GetCandidateSampleRates(rate => IsAudioClientSampleRateSupported(audioClient, rate));
+            int mixChannels = audioClient.MixFormat.Channels;
+            rates = GetCandidateSampleRates(
+                mixChannels,
+                (rate, channels) => IsAudioClientSampleRateSupported(audioClient, rate, channels));
             return true;
         }
         catch
@@ -455,9 +465,9 @@ public sealed class AudioCaptureWorker : ILiveAudioWorker
         }
     }
 
-    private static bool IsAudioClientSampleRateSupported(AudioClient audioClient, int sampleRate)
+    private static bool IsAudioClientSampleRateSupported(AudioClient audioClient, int sampleRate, int channels)
     {
-        WaveFormat floatFormat = WaveFormat.CreateIeeeFloatWaveFormat(sampleRate, Channels);
+        WaveFormat floatFormat = WaveFormat.CreateIeeeFloatWaveFormat(sampleRate, channels);
         return audioClient.IsFormatSupported(AudioClientShareMode.Shared, floatFormat);
     }
 

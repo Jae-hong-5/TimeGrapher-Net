@@ -22,6 +22,22 @@ public sealed class AudioCaptureWorkerTests
     }
 
     [Fact]
+    public void GetCandidateSampleRates_ProbesEndpointMixChannelCount()
+    {
+        var probedChannels = new List<int>();
+        IReadOnlyList<int> rates = AudioCaptureWorker.GetCandidateSampleRates(
+            mixChannels: 2,
+            (rate, channels) =>
+            {
+                probedChannels.Add(channels);
+                return rate == 48000 && channels == 2;
+            });
+
+        Assert.Equal(new[] { 48000 }, rates);
+        Assert.All(probedChannels, channels => Assert.Equal(2, channels));
+    }
+
+    [Fact]
     public void EndpointMatchesWaveInProductName_AcceptsTruncatedWinMmNames()
     {
         Assert.True(AudioCaptureWorker.EndpointMatchesWaveInProductName(
