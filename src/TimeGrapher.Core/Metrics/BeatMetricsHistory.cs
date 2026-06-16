@@ -95,9 +95,9 @@ public sealed class BeatMetricsHistory
         _amplitudeStats.Reset();
         _statsStartTimeS = _latestTimeS;
         // Record the turn on the change timeline only once the run has data: the
-        // start entry is seeded at the first beat (so it lines up with where the
-        // graph begins drawing), and a turn before that beat just changes which
-        // position the start will record.
+        // start entry is seeded at the first plotted point, not the first beat (so
+        // it lines up with where the graph begins drawing), and a turn before that
+        // point just changes which position the start will record.
         if (_positionChanges.Count > 0)
         {
             AppendPositionChange(_latestTimeS, position);

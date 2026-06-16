@@ -47,7 +47,7 @@ public sealed record PositionSummary(
 /// One watch test-position change recorded during the run: the elapsed stream
 /// time (s) at which measurements began being tagged with <see cref="Position"/>.
 /// The first entry is the run's starting position, stamped at the first plotted
-/// point's elapsed time (the first beat, not 0); each later entry marks a turn
+/// point's elapsed time (the first sample to enter a series, not 0); each later entry marks a turn
 /// to a new position. Carried in chronological order so the Long-Term graph can
 /// mark each turn against the elapsed-time axis.
 /// </summary>
@@ -115,7 +115,7 @@ public sealed class BeatMetricsHistorySnapshot
     /// <summary>
     /// Chronological watch-position changes since measurement start. The first
     /// entry is the run's starting position, stamped at the first plotted point's
-    /// elapsed time (the first beat, not 0); each later entry marks the elapsed
+    /// elapsed time (the first sample to enter a series, not 0); each later entry marks the elapsed
     /// time at which the watch was turned to a new position. The
     /// Long-Term graph draws a dashed vertical line plus the position name at
     /// each entry so position turns read against the rate/amplitude/beat-error
