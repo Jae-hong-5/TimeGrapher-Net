@@ -79,6 +79,26 @@ public sealed class BeatNoiseAveragerTests
         Assert.Equal(new[] { 10, 20 }, twenty.Milestones.Select(m => m.IntervalCount));
         Assert.Equal(0.4f, twenty.Milestones[1].Lane1[0], 6);
         Assert.Equal(0.6f, twenty.Milestones[1].Lane2[0], 6);
+
+        // Advance both lanes in lockstep from 20 to the 50/50 freeze, capturing the
+        // remaining 30/40/50 milestones (a milestone fires when the slower lane
+        // reaches the threshold — Math.Min of the two counts).
+        for (int i = 0; i < 30; i++)
+        {
+            averager.Add(firstLane: true, Trace(0.6f));
+            averager.Add(firstLane: false, Trace(0.6f));
+        }
+
+        BeatNoiseAverageSnapshot fifty = averager.Snapshot();
+        Assert.Equal(new[] { 10, 20, 30, 40, 50 }, fifty.Milestones.Select(m => m.IntervalCount));
+        Assert.True(fifty.Frozen);
+        // The final 50-interval milestone equals the frozen lane averages.
+        Assert.Equal(fifty.Lane1[0], fifty.Milestones[4].Lane1[0], 6);
+        Assert.Equal(fifty.Lane2[0], fifty.Milestones[4].Lane2[0], 6);
+
+        // Frozen: extra beats neither advance the lanes nor add a sixth milestone.
+        Assert.False(averager.Add(firstLane: true, Trace(0.9f)));
+        Assert.Equal(5, averager.Snapshot().Milestones.Count);
     }
 
     [Fact]
