@@ -81,8 +81,8 @@ public sealed class BeatNoiseAveragerTests
         Assert.Equal(0.6f, twenty.Milestones[1].Lane2[0], 6);
 
         // Advance both lanes in lockstep from 20 to the 50/50 freeze, capturing the
-        // remaining 30/40/50 milestones (a milestone fires when the slower lane
-        // reaches the threshold — Math.Min of the two counts).
+        // remaining 30/40/50 milestones (each milestone is published once BOTH lanes
+        // have completed that interval count, each carrying its own first-N average).
         for (int i = 0; i < 30; i++)
         {
             averager.Add(firstLane: true, Trace(0.6f));
@@ -128,6 +128,34 @@ public sealed class BeatNoiseAveragerTests
         BeatNoiseAverageMilestone ten = averager.Snapshot().Milestones.Single(m => m.IntervalCount == 10);
         Assert.Equal(0.2f, ten.Lane1[0], 6);
         Assert.Equal(0.4f, ten.Lane2[0], 6);
+    }
+
+    [Fact]
+    public void SigmaToggle_ClearsAPartialMilestoneSoNoCrossEpochPairingOccurs()
+    {
+        var averager = new BeatNoiseAverager();
+        averager.SetSigmaEnabled(true);
+
+        // Lane 1 stores its milestone-10 snapshot, but lane 2 has not reached 10, so
+        // nothing is published yet (the partial sits in the per-lane store).
+        for (int i = 0; i < 10; i++)
+        {
+            averager.Add(firstLane: true, Trace(0.2f));
+        }
+
+        Assert.Empty(averager.Snapshot().Milestones);
+
+        // A sigma toggle resets the cycle; the stored lane-1 partial must be cleared.
+        // Otherwise a lane-2 arrival at 10 in the NEW epoch would pair across epochs
+        // and emit a milestone-10 assembled from two different measurement cycles.
+        averager.SetSigmaEnabled(false);
+        averager.SetSigmaEnabled(true);
+        for (int i = 0; i < 10; i++)
+        {
+            averager.Add(firstLane: false, Trace(0.4f));
+        }
+
+        Assert.Empty(averager.Snapshot().Milestones);
     }
 
     [Fact]
