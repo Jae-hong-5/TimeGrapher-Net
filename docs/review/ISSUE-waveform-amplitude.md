@@ -71,9 +71,38 @@ private static double CalculateAmplitude(BeatSegment segment, int bph)
 
 ## 7. 수정 시 활용 가능한 in-repo 정답 자원
 
-1. `snapshot.LiftAngleDeg` (`BeatSegmentsSnapshot.cs:148`) — 설정된 실제 lift angle, 이미 `RenderLanes`까지 도달.
+1. `snapshot.LiftAngleDeg` (`BeatSegmentsSnapshot.cs:148`) — 설정된 실제 lift angle, 이미 `RenderLanes`까지 도달 (= 좌측 패널 "Lift Angle" 입력값, 출처는 §7.1 참조).
 2. `WatchMetrics.Amplitude(liftAngle, t1, bph)` (`WatchMetrics.cs:220-223`) — 검증된 정식 진폭 함수(Core, UI 비의존).
 3. `AmplitudeSample.PairAverageDeg` (Long-Term 그래프가 이미 그리는 값) — 재계산 없이 그대로 표시하는 선택지.
+
+## 7.1 `snapshot.LiftAngleDeg`의 출처 — 좌측 패널 "Lift Angle" 입력칸과 동일
+
+`snapshot.LiftAngleDeg`는 새로 배선해야 할 값이 아니라, **앱 좌측 설정 패널의 "Lift Angle" 입력칸에서 사용자가 정하는 바로 그 값**이다. 즉 정답 lift angle은 이미 `RenderLanes`가 받는 snapshot 안에 들어와 있다.
+
+- UI 컨트롤: `MainWindow.axaml:151`의 `ScrollViewer Grid.Column="0"`(좌측 패널) 안, BPH 바로 아래 (`:264-270`):
+
+  ```xml
+  <NumericUpDown Name="LiftAngleSpinBox"
+                 IsEnabled="{Binding AreRunParametersEnabled}"
+                 Value="{Binding LiftAngle, Mode=TwoWay}"
+                 FormatString="0'°'" Minimum="30" Maximum="70" Increment="1" />
+  ```
+
+  사용자 편집 가능, **범위 30~70°, 기본 52°**, 측정 중이 아닐 때(`AreRunParametersEnabled`)만 변경 가능.
+
+- 값 전달 경로 (좌측 패널 → snapshot):
+
+  ```
+  LiftAngleSpinBox (Value, TwoWay)
+    → MainWindowViewModel.LiftAngle        (cs:180; 기본 _liftAngle = 52m @:40, decimal)
+    → MainWindow.axaml.cs:411  LiftAngle: (double)mViewModel.LiftAngle
+    → AnalysisRunSettings.LiftAngle (:10)  → config.LiftAngle
+    → AnalysisWorker.cs:115                 → BeatSegmentCapture ctor liftAngleDeg (:168)
+    → _liftAngleDeg (:173)                  → BeatSegmentsSnapshot.LiftAngleDeg (:328)
+  ```
+
+- 함의: `RenderLanes`가 받는 snapshot에는 이미 사용자 설정 lift angle이 정확히 들어 있으므로, 수정안 (A)는 **새 데이터 배선 없이** `snapshot.LiftAngleDeg`를 `λ`로 넘기기만 하면 된다.
+- 주의: `AnalysisWorker.cs:24` / `WatchMetrics.cs:22`의 `52.0`은 config 구조체 기본값/폴백이며, `Verify`(`Program.cs:106`)·`Benchmark`(`AnalysisBenchmarkRunner.cs:87`) 같은 헤드리스 경로만 `52.0`을 하드코딩한다. 실제 GUI 실행은 패널 값을 사용한다.
 
 ## 8. 수정 방향 후보 (새 세션이 판단)
 
