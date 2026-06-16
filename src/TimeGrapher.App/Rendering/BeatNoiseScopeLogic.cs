@@ -28,9 +28,17 @@ internal static class BeatNoiseScopeLogic
     public static int SlotForSegmentIndex(int segmentIndex, int segmentCount) =>
         StripCount - segmentCount + segmentIndex;
 
-    /// <summary>Slot hit from the pointer's horizontal fraction across the strip lane data area.</summary>
+    /// <summary>
+    /// Slot hit from the pointer's horizontal fraction across the strip lane data
+    /// area, or -1 when the click is outside it. A click on the reserved left axis
+    /// yields a negative fraction and must select nothing rather than clamp onto
+    /// the oldest slot; a fraction of exactly 1.0 (the right edge) still maps to
+    /// the newest slot.
+    /// </summary>
     public static int StripSlotFromFraction(double fraction) =>
-        Math.Clamp((int)(fraction * StripCount), 0, StripCount - 1);
+        fraction < 0.0 || fraction > 1.0
+            ? -1
+            : Math.Clamp((int)(fraction * StripCount), 0, StripCount - 1);
 
     public static int StripSampleCount(
         BeatNoiseScopeViewMode viewMode,
@@ -50,6 +58,15 @@ internal static class BeatNoiseScopeLogic
         double dataWidth = width - leftPadding;
         return dataWidth > 0.0 ? (x - leftPadding) / dataWidth : 0.0;
     }
+
+    /// <summary>
+    /// X of strip point <paramref name="p"/> of <paramref name="points"/> within
+    /// its slot lane (a 0.03..0.97 inset of the unit-wide slot). A single-point
+    /// strip — which the shared sampler can emit — is centered instead of dividing
+    /// by (points - 1), which would write a NaN coordinate and corrupt the plot.
+    /// </summary>
+    public static double StripPointX(int slot, int p, int points) =>
+        slot + 0.03 + 0.94 * (points > 1 ? (double)p / (points - 1) : 0.5);
 
     /// <summary>
     /// Selection toggle: clicking an occupied slot selects it (the main plot

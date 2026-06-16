@@ -357,6 +357,13 @@ internal sealed class BeatNoiseScopeRenderer
         }
 
         int slot = BeatNoiseScopeLogic.StripSlotFromFraction(fraction);
+        if (slot < 0)
+        {
+            // Click outside the strip data area (e.g. on the reserved left axis):
+            // keep the current selection rather than jumping to the oldest slot.
+            return;
+        }
+
         _selectedSlot = _viewMode == BeatNoiseScopeViewMode.AverageAndStrip
             ? NextAveragePairSelection(_selectedSlot, slot, snapshot.Segments.Count)
             : BeatNoiseScopeLogic.NextSelection(_selectedSlot, slot, snapshot.Segments.Count);
@@ -584,7 +591,7 @@ internal sealed class BeatNoiseScopeRenderer
                 sourceSpan, StripPointBudget,
                 (p, points, _, normalized) =>
                 {
-                    x.Add(stripSlot + 0.03 + 0.94 * p / (points - 1.0));
+                    x.Add(BeatNoiseScopeLogic.StripPointX(stripSlot, p, points));
                     y.Add(0.05 + 0.9 * normalized);
                 });
         }

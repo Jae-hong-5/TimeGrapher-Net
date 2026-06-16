@@ -210,7 +210,7 @@ flowchart TB
 ### 검증 결과
 
 - **`Analysis`**는 `Detection`, `Detection.Scoring`, `Metrics`, `Imaging`, `AudioIo`, `Shared`를 모두 사용한다. `Detection.Scoring` 의존은 `AnalysisWorker`, `DetectorMetricsEngine`, `BeatEventGateHost`에서 확인된다.
-- **`Detection`**(`Detector`, `TgDetector`, `Bph` 등)은 다른 `Core` 하위모듈을 사용하지 않는다. 같은 부모 아래의 `Detection.Scoring`도 참조하지 않으므로 `Detection → Detection.Scoring` 엣지는 없다.
+- **`Detection`**(`TgDetector`, `TgDetectorCore`, `Bph` 등)은 다른 `Core` 하위모듈을 사용하지 않는다. 같은 부모 아래의 `Detection.Scoring`도 참조하지 않으므로 `Detection → Detection.Scoring` 엣지는 없다.
 - **`Detection.Scoring`**(`IBeatEventGate`, `PllMatchGate`, `BeatCandidate`, `BeatWindowFeatures`)은 자기 네임스페이스 타입만 쓰고 `Shared`조차 참조하지 않는 리프다.
 - **`Sim`**의 `DetectionScorer`는 `Detection`을 사용하지 않는다(이름에 보이는 `usedDetection`은 지역 변수). `Sim`은 `Shared`만 사용한다.
 - **`AudioIo`·`Metrics`·`Imaging`**은 각각 `Shared`만 사용한다.

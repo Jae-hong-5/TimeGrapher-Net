@@ -67,10 +67,10 @@ internal sealed class WatchPositionDiagram : Control
         base.Render(context);
 
         WatchPositionDiagramPose pose = Pose(Position);
-        var textBrush = ResourceBrush("TextPrimaryBrush", Brushes.Black);
-        var borderBrush = ResourceBrush("ChromeBorderBrush", Brushes.Gray);
-        var accentBrush = ResourceBrush("ChromeAccentBrush", Brushes.Firebrick);
-        var panelBrush = ResourceBrush("PanelBgBrush", Brushes.WhiteSmoke);
+        var textBrush = ResourceBrush("TextPrimaryBrush");
+        var borderBrush = ResourceBrush("ChromeBorderBrush");
+        var accentBrush = ResourceBrush("ChromeAccentBrush");
+        var panelBrush = ResourceBrush("PanelBgBrush");
 
         WatchPositionDiagramLayout layout = Layout(Bounds.Size, pose, ShowLabels);
 
@@ -150,11 +150,42 @@ internal sealed class WatchPositionDiagram : Control
             imageBottom);
     }
 
-    private IBrush ResourceBrush(string key, IBrush fallback)
+    private IBrush ResourceBrush(string key)
     {
-        return Application.Current?.TryGetResource(key, null, out object? value) == true && value is IBrush brush
-            ? brush
-            : fallback;
+        // Resolve through this control's ActualThemeVariant so the diagram tracks
+        // the light/dark theme. The keys are defined in App.axaml; a miss is a
+        // programming error surfaced fast (the PlotThemePalette.Lookup pattern),
+        // not masked by a substitute brush.
+        if (this.TryFindResource(key, ActualThemeVariant, out object? value) && value is IBrush brush)
+        {
+            return brush;
+        }
+
+        throw new InvalidOperationException($"Missing theme brush resource '{key}'.");
+    }
+
+    // The label/hour-mark font follows the app font (App.axaml AppFontFamily)
+    // instead of the platform default, so the diagram reads in the same typeface
+    // as the rest of the UI. Resolved once; the app font does not change at run time.
+    private static Typeface? _labelTypeface;
+
+    private static Typeface LabelTypeface()
+    {
+        if (_labelTypeface is { } cached)
+        {
+            return cached;
+        }
+
+        if (Application.Current?.TryGetResource("AppFontFamily", null, out object? value) == true &&
+            value is FontFamily fontFamily)
+        {
+            _labelTypeface = new Typeface(fontFamily);
+            return _labelTypeface.Value;
+        }
+
+        // AppFontFamily is defined in App.axaml; a miss is a programming error
+        // surfaced fast rather than masked by the platform default typeface.
+        throw new InvalidOperationException("Missing AppFontFamily resource.");
     }
 
     private static void DrawDialWatch(
@@ -332,7 +363,7 @@ internal sealed class WatchPositionDiagram : Control
             text,
             System.Globalization.CultureInfo.InvariantCulture,
             FlowDirection.LeftToRight,
-            Typeface.Default,
+            LabelTypeface(),
             size,
             brush);
         IDisposable? transformState = null;

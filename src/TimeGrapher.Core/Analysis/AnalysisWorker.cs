@@ -34,7 +34,7 @@ public sealed class AnalysisWorker : IDisposable
         public int SoundImageHeight = 0;
         public int ScopeSnapshotPointBudget = 8000;
         public uint SoundImageBackgroundColor = 0xFFFFFFFFu;
-        /// <summary>Light UI theme -> reversed (light-background) spectrogram colormap.</summary>
+        /// <summary>True under the light UI theme. The spectrogram colormap is one shared viridis LUT for both themes; only the empty (no-input) background follows this.</summary>
         public bool SpectrogramLightColormap = false;
         public ISampleWriter? SampleWriter = null;
     }
@@ -209,10 +209,11 @@ public sealed class AnalysisWorker : IDisposable
     }
 
     /// <summary>
-    /// Request a spectrogram colormap switch (light = reversed inferno) on a UI
-    /// theme toggle. Applied on the analysis thread between frames (the
-    /// SetSoundBackgroundColor flow) so it never races the pixel buffer.
-    /// Callable from any thread.
+    /// Request a spectrogram republish on a UI theme toggle. The colormap is one
+    /// shared viridis LUT for both themes, so only the empty (no-input) background
+    /// changes; applied on the analysis thread between frames (the
+    /// SetSoundBackgroundColor flow) so it never races the pixel buffer. Callable
+    /// from any thread.
     /// </summary>
     public void SetSpectrogramColormap(bool light)
     {

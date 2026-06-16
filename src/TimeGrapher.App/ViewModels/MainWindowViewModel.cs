@@ -243,7 +243,7 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
         set => SetProperty(ref _pllEventVeto, value);
     }
 
-    /// <summary>Scope Sweep window length as a multiple of the beat period (1x / 2x / 4x).</summary>
+    /// <summary>Scope Sweep window length as a multiple of the beat period (1x / 2x / 3x).</summary>
     public int SweepMultiple
     {
         get => _sweepMultiple;
