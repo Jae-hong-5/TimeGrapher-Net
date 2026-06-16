@@ -46,7 +46,6 @@ internal sealed class RateScopeRenderer
     private int _rateDataPoints;
     private int _sampleRate = 44100;
 
-    private WatchPosition? _lastScopePosition;
     public RateScopeRenderer(AvaPlot scopePlot, AvaPlot ratePlot, string textFontFamily)
     {
         _scopePlot = scopePlot;
@@ -143,27 +142,6 @@ internal sealed class RateScopeRenderer
     public void RenderFrame(AnalysisFrame frame, AnalysisTabRenderContext context)
     {
         _sampleRate = context.SampleRate;
-
-        // A position change restarts the Core scope/rate graphs; return the view
-        // to the live default so the fresh data shows from the beginning even if
-        // it was panned/zoomed.
-        WatchPosition? position = frame.MetricsHistory?.ActivePosition;
-        if (position.HasValue && position != _lastScopePosition)
-        {
-            bool isPositionChange = _lastScopePosition.HasValue;
-            _lastScopePosition = position;
-            _scopeFollowLive = true;
-
-            // Core cleared its rate buffers; drop the previous position's points
-            // now so they don't linger on the plot until the first post-reset rate
-            // sample arrives (~2 s of re-lock). Skip on the initial frame, where
-            // there is nothing to clear and the rate axis is already empty.
-            if (isPositionChange)
-            {
-                ClearSeriesData(_rateX, _rateY);
-                _ratePlot.Refresh();
-            }
-        }
 
         bool scopeUpdated = ReplaceScopeSeries(frame);
         bool rateUpdated = ReplaceRateSeries(frame);
