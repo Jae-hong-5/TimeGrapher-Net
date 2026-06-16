@@ -55,8 +55,59 @@ public sealed class InfoTabRegistryTests
         Assert.Single(positionStrip.ColumnDefinitions);
         Assert.Equal(WatchPositions.Count, positionStrip.RowDefinitions.Count);
         Assert.Equal(WatchPositions.Count, buttons.Length);
-        WatchPositionDiagram diagram = Assert.Single(Descendants(content).OfType<WatchPositionDiagram>());
-        Assert.Equal(WatchPosition.CH, diagram.Position);
+        WatchPositionDiagram[] diagrams = Descendants(content).OfType<WatchPositionDiagram>().ToArray();
+        WatchPositionDiagram activeDiagram = Assert.Single(diagrams);
+
+        Assert.Equal(WatchPosition.CH, activeDiagram.Position);
+        Assert.False(activeDiagram.ShowLabels);
+        Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "POSITION MAP");
+        Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "Crown down-right");
+        Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "AMPLITUDE");
+        Assert.DoesNotContain(Descendants(content).OfType<TextBlock>(), text => text.Text == "AMP");
+        Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "POSITION CONSISTENCY");
+        Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "COLLECTING");
+        Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
+            text.Text == "DU: 0/30 beats. Keep measuring this position.");
+        Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
+            text.Text == "Required: D 0/3 positions · Balance-wheel 0/2 vertical · V/H 0V+0H (need 1V+1H)");
+        Assert.Contains(Descendants(content).OfType<Button>(), button => Equals(button.Content, "View criteria ▾"));
+        Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
+            text.Text == "Worst - best across positions.");
+        Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
+            text.Text == "Vertical mean - horizontal mean.");
+        Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
+            text.Text == "Mean of measured positions.");
+        Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
+            text.Text == "Verdict starts at 3 positions with 30+ beats. Later qualified positions update the result.");
+        Assert.All(
+            Descendants(content).OfType<TextBlock>().Where(PositionTextHasLocalFontSize),
+            text => Assert.True(text.FontSize >= 14.0, $"{text.Text} uses {text.FontSize}px"));
+        Grid tableGrid = Assert.Single(Descendants(content).OfType<Grid>(), grid =>
+            grid.ColumnDefinitions.Count == 5 &&
+            grid.Children.OfType<TextBlock>().Any(text => text.Text == "POS"));
+        Assert.Equal(WatchPositions.Count + 1, tableGrid.RowDefinitions.Count);
+        Border[] mapTiles = Descendants(content)
+            .OfType<Border>()
+            .Where(border => border.Classes.Contains("PositionMapTile"))
+            .ToArray();
+        Assert.Equal(WatchPositions.Count, mapTiles.Length);
+        Assert.All(mapTiles, tile =>
+        {
+            Assert.True(tile.ClipToBounds);
+            Assert.Equal(46, tile.Height);
+            TextBlock[] tileText = Descendants(tile).OfType<TextBlock>().ToArray();
+            Assert.Equal(2, tileText.Length);
+        });
+        Assert.Contains(Descendants(content).OfType<Border>(), border => border.Classes.Contains("PositionResultPanel"));
+        Assert.Contains(Descendants(content).OfType<Border>(), border =>
+            border.Classes.Contains("PositionResultBadge") &&
+            border.Classes.Contains("pending"));
+        Border[] summaryGroups = Descendants(content)
+            .OfType<Border>()
+            .Where(border => border.Classes.Contains("PositionResultGroup"))
+            .ToArray();
+        Assert.Equal(3, summaryGroups.Length);
+        Assert.Equal(2, summaryGroups.Count(group => group.Classes.Contains("primary")));
         for (int i = 0; i < buttons.Length; i++)
         {
             Assert.Equal(i, Grid.GetRow(buttons[i]));
@@ -88,7 +139,7 @@ public sealed class InfoTabRegistryTests
                     ActivePosition = WatchPosition.P6H,
                 },
             },
-            InfoTabCatalog.RateScopeTabId,
+            InfoTabCatalog.TestPositionsTabId,
             new AnalysisTabRenderContext(48000, 2));
 
         Assert.Contains("active", buttons[(int)WatchPosition.P6H].Classes);
@@ -98,6 +149,150 @@ public sealed class InfoTabRegistryTests
                 registration => registration.Definition.Id == InfoTabCatalog.TestPositionsTabId).TabItem.Content))
             .OfType<WatchPositionDiagram>());
         Assert.Equal(WatchPosition.P6H, diagram.Position);
+    }
+
+    [Fact]
+    public void PositionCriteriaFlyoutExplainsDiagnosticBasisAndMeaning()
+    {
+        var tabControl = new TabControl();
+        var positionStrip = new Grid();
+        InfoTabRegistry registry = InfoTabRegistry.FromCatalog(tabControl, positionStrip, "Arial");
+        var content = Assert.IsType<Grid>(registry.Registrations.Single(
+            registration => registration.Definition.Id == InfoTabCatalog.TestPositionsTabId).TabItem.Content);
+        Button criteriaButton = Descendants(content)
+            .OfType<Button>()
+            .Single(button => Equals(button.Content, "View criteria ▾"));
+
+        Assert.True(criteriaButton.FontSize >= 14.0);
+        Assert.True(criteriaButton.MinWidth >= 148);
+        Assert.True(criteriaButton.MinHeight >= 32);
+        var flyout = Assert.IsType<Flyout>(criteriaButton.Flyout);
+        Assert.Equal(PlacementMode.BottomEdgeAlignedRight, flyout.Placement);
+        var panel = Assert.IsType<StackPanel>(flyout.Content);
+        Assert.True(panel.Width <= 380);
+        TextBlock[] textBlocks = panel.Children.OfType<TextBlock>().ToArray();
+
+        Assert.Contains(textBlocks, text => text.Text == "Position criteria");
+        Assert.Contains(textBlocks, text => text.Text == "D Spread");
+        Assert.Contains(textBlocks, text => text.Text == "Balance-wheel");
+        Assert.Contains(textBlocks, text => text.Text == "V/H Balance");
+        Assert.Contains(textBlocks, text =>
+            text.Text == "Meaning: high positional variation. It does not identify the mechanical cause by itself.");
+        Assert.Contains(textBlocks, text =>
+            text.Text == "Meaning: possible balance-wheel centering or balancing issue.");
+        Assert.Contains(textBlocks, text =>
+            text.Text == "Meaning: vertical-vs-horizontal bias. Treat it separately from balance-wheel unbalance.");
+        Assert.All(textBlocks.Where(text => text.TextWrapping == TextWrapping.Wrap), text =>
+        {
+            Assert.True(text.MaxWidth <= 340);
+            Assert.Equal(TextWrapping.Wrap, text.TextWrapping);
+        });
+    }
+
+    [Fact]
+    public void PositionResultPanelUpdatesConsistencyVerdictFromSequenceSpread()
+    {
+        var tabControl = new TabControl();
+        var positionStrip = new Grid();
+        InfoTabRegistry registry = InfoTabRegistry.FromCatalog(tabControl, positionStrip, "Arial");
+        var content = Assert.IsType<Grid>(registry.Registrations.Single(
+            registration => registration.Definition.Id == InfoTabCatalog.TestPositionsTabId).TabItem.Content);
+        AnalysisFrameRouter router = registry.CreateRouter();
+
+        router.Route(
+            Frame(
+                version: 1,
+                activePosition: WatchPosition.CH,
+                Position(WatchPosition.CH, rate: 0.0, amplitude: 300.0, count: 117)),
+            InfoTabCatalog.TestPositionsTabId,
+            new AnalysisTabRenderContext(48000, 2));
+
+        Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
+            text.Text == "1/3 positions ready. Measure another position to 30 beats.");
+        Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
+            text.Text == "Required: D 1/3 positions · Balance-wheel 0/2 vertical · V/H 0V+1H (need 1V+1H)");
+        Assert.Contains(ResultBadges(content), badge => badge.Classes.Contains("pending"));
+
+        router.Route(
+            Frame(
+                version: 2,
+                activePosition: WatchPosition.P6H,
+                Position(WatchPosition.CH, rate: 0.0, amplitude: 300.0, count: 30),
+                Position(WatchPosition.P6H, rate: 2.0, amplitude: 301.0, count: 30)),
+            InfoTabCatalog.TestPositionsTabId,
+            new AnalysisTabRenderContext(48000, 2));
+
+        Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
+            text.Text == "2/3 positions ready. Measure another position to 30 beats.");
+        Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
+            text.Text == "Required: D 2/3 positions · Balance-wheel 1/2 vertical · V/H 1V+1H (need 1V+1H)");
+        Assert.Contains(ResultBadges(content), badge => badge.Classes.Contains("pending"));
+
+        router.Route(
+            Frame(
+                version: 3,
+                activePosition: WatchPosition.P12H,
+                Position(WatchPosition.CH, rate: 0.0, amplitude: 300.0, count: 30),
+                Position(WatchPosition.P6H, rate: 2.0, amplitude: 301.0, count: 30),
+                Position(WatchPosition.P3H, rate: 1.0, amplitude: 301.0, count: 30)),
+            InfoTabCatalog.TestPositionsTabId,
+            new AnalysisTabRenderContext(48000, 2));
+
+        Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "COLLECTING");
+        Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
+            text.Text == "CR: 0/30 beats. Keep measuring this position.");
+        Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
+            text.Text == "Required: D 3/3 positions · Balance-wheel 2/2 vertical · V/H 2V+1H (need 1V+1H)");
+        Assert.Contains(ResultBadges(content), badge => badge.Classes.Contains("pending"));
+
+        router.Route(
+            Frame(
+                version: 4,
+                activePosition: WatchPosition.P12H,
+                Position(WatchPosition.CH, rate: 0.0, amplitude: 300.0, count: 30),
+                Position(WatchPosition.P6H, rate: 2.0, amplitude: 301.0, count: 30),
+                Position(WatchPosition.P3H, rate: 1.0, amplitude: 301.0, count: 30),
+                Position(WatchPosition.P12H, rate: 3.0, amplitude: 301.0, count: 5)),
+            InfoTabCatalog.TestPositionsTabId,
+            new AnalysisTabRenderContext(48000, 2));
+
+        Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
+            text.Text == "CR: 5/30 beats. Keep measuring this position.");
+        Assert.Contains(ResultBadges(content), badge => badge.Classes.Contains("pending"));
+
+        router.Route(
+            Frame(
+                version: 5,
+                activePosition: WatchPosition.P12H,
+                Position(WatchPosition.CH, rate: 0.0, amplitude: 300.0, count: 30),
+                Position(WatchPosition.P6H, rate: 2.0, amplitude: 301.0, count: 30),
+                Position(WatchPosition.P3H, rate: 1.0, amplitude: 301.0, count: 30),
+                Position(WatchPosition.P12H, rate: 3.0, amplitude: 301.0, count: 30)),
+            InfoTabCatalog.TestPositionsTabId,
+            new AnalysisTabRenderContext(48000, 2));
+
+        Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "OK");
+        Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
+            text.Text == "4 positions ready. Spread is within 15 s/d.");
+        Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
+            text.Text == "Required: D 4/3 positions · Balance-wheel 3/2 vertical · V/H 3V+1H (need 1V+1H)");
+        Assert.Contains(ResultBadges(content), badge => badge.Classes.Contains("ok"));
+
+        router.Route(
+            Frame(
+                version: 6,
+                activePosition: WatchPosition.P12H,
+                Position(WatchPosition.CH, rate: 0.0, amplitude: 300.0, count: 30),
+                Position(WatchPosition.P6H, rate: 2.0, amplitude: 301.0, count: 30),
+                Position(WatchPosition.P3H, rate: 1.0, amplitude: 301.0, count: 30),
+                Position(WatchPosition.P12H, rate: 30.0, amplitude: 301.0, count: 30)),
+            InfoTabCatalog.TestPositionsTabId,
+            new AnalysisTabRenderContext(48000, 2));
+
+        Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "CHECK");
+        Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
+            text.Text == "4 positions ready. Spread is above 15 s/d.");
+        Assert.Contains(ResultBadges(content), badge => badge.Classes.Contains("warn"));
     }
 
     [Fact]
@@ -378,6 +573,46 @@ public sealed class InfoTabRegistryTests
             .OfType<Border>()
             .Single(border => border.Child is TextBlock { Text: var value } && value == text);
     }
+
+    private static IEnumerable<Border> ResultBadges(Control content)
+    {
+        return Descendants(content)
+            .OfType<Border>()
+            .Where(border => border.Classes.Contains("PositionResultBadge"));
+    }
+
+    private static bool PositionTextHasLocalFontSize(TextBlock text)
+    {
+        return !string.IsNullOrWhiteSpace(text.Text) &&
+            text.FontSize > 0.0;
+    }
+
+    private static AnalysisFrame Frame(
+        ulong version,
+        WatchPosition activePosition,
+        params PositionSummary[] positions) => new()
+    {
+        MetricsHistory = new BeatMetricsHistorySnapshot
+        {
+            Version = version,
+            ActivePosition = activePosition,
+            Positions = positions,
+        },
+    };
+
+    private static StatsSummary Stats(double mean, long count = 10) =>
+        new(Valid: true, Min: mean, Max: mean, Mean: mean, Sigma: 0.0, Count: count);
+
+    private static PositionSummary Position(
+        WatchPosition position,
+        double? rate = null,
+        double? amplitude = null,
+        double? beatError = null,
+        long count = 10) => new(
+        position,
+        rate is double r ? Stats(r, count) : default,
+        amplitude is double a ? Stats(a, count / 2) : default,
+        beatError is double b ? Stats(b, count) : default);
 
     private static string[] ReadoutValues(Grid content, int row)
     {

@@ -63,7 +63,7 @@ flowchart LR
 
 ### Positions 탭과 위치 입력
 
-- `Positions`는 단일 탭(`InfoTabCatalog.TestPositionsTabId`, 제목 `Positions`)으로 active position diagram과 시퀀스 측정 표를 담는다.
+- `Positions`는 단일 탭(`InfoTabCatalog.TestPositionsTabId`, 제목 `Positions`)으로 active position diagram, 시퀀스 측정 표, 포지션 맵, X/D/VH 요약 카드를 담는다. 탭 카탈로그의 위치와 순서는 변경하지 않고 탭 내부 표시만 확장한다.
 - `InfoTabRegistry.CreateTestPositionsRegistration`이 탭 콘텐츠를 구성하면서, 왼쪽 설정 패널과 탭 영역 사이에 항상 보이는 1열 위치 선택기(`PositionButtonGrid`)를 채운다.
 - `TestPositionsFrameConsumer.ObserveFrame`은 매 프레임마다 위치 선택기를 갱신하고, `RenderFrame`은 Positions 탭이 활성일 때만 시퀀스 표를 갱신한다. 둘 다 동일한 `BeatMetricsHistorySnapshot`을 읽는다.
 - 위치 입력 흐름: 버튼 클릭 → `MainWindowViewModel.SelectedPositionIndex` 갱신 → `MainWindow.axaml.cs`가 해당 속성 변경을 관찰 → `RunSessionController.SetActivePosition`으로 `WatchPosition`을 실행 중인 `AnalysisWorker`에 전달.

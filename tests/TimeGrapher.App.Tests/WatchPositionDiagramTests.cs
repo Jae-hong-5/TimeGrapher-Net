@@ -49,6 +49,18 @@ public sealed class WatchPositionDiagramTests
         Assert.True(crownBottom <= primaryLabelTop - 8.0);
     }
 
+    [Fact]
+    public void LayoutUsesLabelSpaceForImageWhenLabelsAreHidden()
+    {
+        WatchPositionDiagramPose pose = WatchPositionDiagram.Pose(WatchPosition.P12H);
+
+        WatchPositionDiagramLayout labeled = WatchPositionDiagram.Layout(new Size(176, 140), pose);
+        WatchPositionDiagramLayout unlabeled = WatchPositionDiagram.Layout(new Size(176, 140), pose, showLabels: false);
+
+        Assert.True(unlabeled.Side > labeled.Side);
+        Assert.True(unlabeled.ImageBottom > labeled.ImageBottom);
+    }
+
     [Theory]
     [InlineData(WatchPosition.P12H, 0.0, 0, -1)]
     [InlineData(WatchPosition.P3H, 270.0, -1, 0)]

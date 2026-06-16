@@ -33,15 +33,27 @@ internal sealed class WatchPositionDiagram : Control
             nameof(Position),
             WatchPosition.CH);
 
+    public static readonly StyledProperty<bool> ShowLabelsProperty =
+        AvaloniaProperty.Register<WatchPositionDiagram, bool>(
+            nameof(ShowLabels),
+            true);
+
     public WatchPosition Position
     {
         get => GetValue(PositionProperty);
         set => SetValue(PositionProperty, value);
     }
 
+    public bool ShowLabels
+    {
+        get => GetValue(ShowLabelsProperty);
+        set => SetValue(ShowLabelsProperty, value);
+    }
+
     static WatchPositionDiagram()
     {
         AffectsRender<WatchPositionDiagram>(PositionProperty);
+        AffectsRender<WatchPositionDiagram>(ShowLabelsProperty);
     }
 
     public WatchPositionDiagram()
@@ -60,7 +72,7 @@ internal sealed class WatchPositionDiagram : Control
         var accentBrush = ResourceBrush("ChromeAccentBrush", Brushes.Firebrick);
         var panelBrush = ResourceBrush("PanelBgBrush", Brushes.WhiteSmoke);
 
-        WatchPositionDiagramLayout layout = Layout(Bounds.Size, pose);
+        WatchPositionDiagramLayout layout = Layout(Bounds.Size, pose, ShowLabels);
 
         if (pose.IsFlat)
         {
@@ -79,14 +91,17 @@ internal sealed class WatchPositionDiagram : Control
                 textBrush);
         }
 
-        DrawCenteredText(context, pose.PrimaryLabel, layout.PrimaryLabelFontSize, layout.PrimaryLabelCenter, accentBrush);
-        DrawCenteredText(
-            context,
-            pose.SecondaryLabel,
-            layout.SecondaryLabelFontSize,
-            layout.SecondaryLabelCenter,
-            textBrush,
-            SecondaryLabelOpacity);
+        if (ShowLabels)
+        {
+            DrawCenteredText(context, pose.PrimaryLabel, layout.PrimaryLabelFontSize, layout.PrimaryLabelCenter, accentBrush);
+            DrawCenteredText(
+                context,
+                pose.SecondaryLabel,
+                layout.SecondaryLabelFontSize,
+                layout.SecondaryLabelCenter,
+                textBrush,
+                SecondaryLabelOpacity);
+        }
     }
 
     internal static WatchPositionDiagramPose Pose(WatchPosition position) => position switch
@@ -104,13 +119,19 @@ internal sealed class WatchPositionDiagram : Control
         _ => throw new ArgumentOutOfRangeException(nameof(position), position, null),
     };
 
-    internal static WatchPositionDiagramLayout Layout(Size size, WatchPositionDiagramPose pose)
+    internal static WatchPositionDiagramLayout Layout(Size size, WatchPositionDiagramPose pose, bool showLabels = true)
     {
         double width = Math.Max(1.0, size.Width);
         double height = Math.Max(1.0, size.Height);
-        double secondaryY = Math.Max(SecondaryLabelFontSize * 0.5, height - 12.0);
-        double primaryY = Math.Max(PrimaryLabelFontSize * 0.5, secondaryY - 21.0);
-        double primaryLabelTop = primaryY - PrimaryLabelFontSize * 0.5;
+        double secondaryY = showLabels
+            ? Math.Max(SecondaryLabelFontSize * 0.5, height - 12.0)
+            : height + SecondaryLabelFontSize;
+        double primaryY = showLabels
+            ? Math.Max(PrimaryLabelFontSize * 0.5, secondaryY - 21.0)
+            : height + PrimaryLabelFontSize;
+        double primaryLabelTop = showLabels
+            ? primaryY - PrimaryLabelFontSize * 0.5
+            : height - ImageTopPadding;
         double imageBottom = Math.Max(ImageTopPadding + 52.0, primaryLabelTop - ImageLabelGap);
         double imageHeight = Math.Max(52.0, imageBottom - ImageTopPadding);
 

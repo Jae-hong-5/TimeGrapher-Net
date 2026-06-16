@@ -21,6 +21,7 @@ internal sealed record InfoTabRegistration(
 internal sealed partial class InfoTabRegistry
 {
     private const double VarioMinimumFontSize = 16.0;
+    private const double PositionMinimumFontSize = 14.0;
 
     private delegate InfoTabRegistration InfoTabFactory(
         InfoTabDefinition definition,
@@ -915,9 +916,10 @@ internal sealed partial class InfoTabRegistry
         var diagram = new WatchPositionDiagram
         {
             Position = initialPosition,
-            Width = 176,
-            Height = 156,
-            Margin = new Thickness(8, 4, 4, 4),
+            ShowLabels = false,
+            Width = 236,
+            Height = 126,
+            Margin = new Thickness(0, 4, 0, 0),
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Top,
         };
@@ -938,70 +940,472 @@ internal sealed partial class InfoTabRegistry
             };
         }
 
-        // Sequence results table (POS | RATE | AMP | BEAT ERR | BEATS, one row
-        // per measured position, the active position's row highlighted) above
-        // the X / D / vertical-vs-horizontal summary block; the accent banner
-        // reports the balance-wheel unbalance hint. The renderer fills the
-        // table from the cumulative snapshot's PositionSummary list.
         Border alertBanner = CreateAlertBanner(out TextBlock alertText);
 
         var tableGrid = new Grid
         {
             ColumnDefinitions = new ColumnDefinitions("*,*,*,*,*"),
-            Margin = new Thickness(8, 4),
+            Margin = new Thickness(10, 4, 0, 0),
             VerticalAlignment = VerticalAlignment.Top,
         };
 
-        var summaryText = new TextBlock
-        {
-            FontSize = 12,
-            Margin = new Thickness(8, 2),
-        };
-        var explanationText = new TextBlock
-        {
-            FontSize = 11,
-            Opacity = 0.65,
-            Margin = new Thickness(8, 0, 8, 3),
-            TextWrapping = Avalonia.Media.TextWrapping.Wrap,
-            Text = "X = mean of all measured positions · D = max−min spread · " +
-                   "DVH = vertical minus horizontal rate mean. A rate spread above " +
-                   "15 s/d among the hanging positions hints at balance-wheel unbalance.",
-        };
+        Border activePanel = CreateActivePositionPanel(
+            diagram,
+            out TextBlock activePositionText,
+            out TextBlock activeOrientationText);
+        Grid positionMap = CreatePositionMap(out IReadOnlyList<PositionMapTileControls> positionMapTiles);
+        Border resultPanel = CreatePositionResultPanel(
+            out Border consistencyBadge,
+            out TextBlock consistencyVerdictText,
+            out TextBlock consistencyDetailText,
+            out TextBlock consistencyGuideText,
+            out TextBlock averageRateText,
+            out TextBlock averageAmplitudeText,
+            out TextBlock spreadRateText,
+            out TextBlock spreadAmplitudeText,
+            out TextBlock verticalRateText,
+            out TextBlock horizontalRateText,
+            out TextBlock verticalHorizontalDeltaText);
+        var dashboardControls = new PositionSequenceDashboardControls(
+            activePositionText,
+            activeOrientationText,
+            positionMapTiles,
+            consistencyBadge,
+            consistencyVerdictText,
+            consistencyDetailText,
+            consistencyGuideText,
+            averageRateText,
+            averageAmplitudeText,
+            spreadRateText,
+            spreadAmplitudeText,
+            verticalRateText,
+            horizontalRateText,
+            verticalHorizontalDeltaText);
 
-        var overviewGrid = new Grid
+        var topGrid = new Grid
         {
-            ColumnDefinitions = new ColumnDefinitions("Auto,*"),
+            ColumnDefinitions = new ColumnDefinitions("276,*"),
             RowDefinitions = new RowDefinitions("*"),
         };
-        Grid.SetColumn(diagram, 0);
+        Grid.SetColumn(activePanel, 0);
         Grid.SetColumn(tableGrid, 1);
-        overviewGrid.Children.Add(diagram);
-        overviewGrid.Children.Add(tableGrid);
+        topGrid.Children.Add(activePanel);
+        topGrid.Children.Add(tableGrid);
 
         var sequenceGrid = new Grid
         {
-            RowDefinitions = new RowDefinitions("Auto,*,Auto,Auto"),
+            RowDefinitions = new RowDefinitions("Auto,Auto,Auto,Auto"),
             Margin = new Thickness(4, 4, 8, 4),
         };
         Grid.SetRow(alertBanner, 0);
-        Grid.SetRow(overviewGrid, 1);
-        Grid.SetRow(summaryText, 2);
-        Grid.SetRow(explanationText, 3);
+        Grid.SetRow(topGrid, 1);
+        Grid.SetRow(positionMap, 2);
+        Grid.SetRow(resultPanel, 3);
         sequenceGrid.Children.Add(alertBanner);
-        sequenceGrid.Children.Add(overviewGrid);
-        sequenceGrid.Children.Add(summaryText);
-        sequenceGrid.Children.Add(explanationText);
+        sequenceGrid.Children.Add(topGrid);
+        sequenceGrid.Children.Add(positionMap);
+        sequenceGrid.Children.Add(resultPanel);
 
         if (CreateWaitingOverlay(context.ViewModel) is { } overlay)
         {
             Grid.SetRow(overlay, 1);
+            Grid.SetRowSpan(overlay, 4);
             sequenceGrid.Children.Add(overlay);
         }
 
-        var sequenceRenderer = new MultiPositionSeqRenderer(tableGrid, alertBanner, alertText, summaryText);
+        var sequenceRenderer = new MultiPositionSeqRenderer(
+            tableGrid,
+            alertBanner,
+            alertText,
+            dashboardControls,
+            initialPosition);
         var consumer = new TestPositionsFrameConsumer(positionRenderer, sequenceRenderer);
         return new InfoTabRegistration(definition, CreateTabItem(definition, sequenceGrid), consumer);
     }
+
+    private static Border CreateActivePositionPanel(
+        WatchPositionDiagram diagram,
+        out TextBlock activePositionText,
+        out TextBlock activeOrientationText)
+    {
+        activePositionText = new TextBlock
+        {
+            FontSize = 28,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            TextAlignment = TextAlignment.Center,
+        };
+        activeOrientationText = new TextBlock
+        {
+            FontSize = 15,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            TextAlignment = TextAlignment.Center,
+        };
+
+        var stack = new StackPanel
+        {
+            Spacing = 2,
+            Children =
+            {
+                CreatePositionSectionHeader("ACTIVE"),
+                diagram,
+                activePositionText,
+                activeOrientationText,
+            },
+        };
+
+        return new Border
+        {
+            Classes = { "PositionPanel" },
+            Padding = new Thickness(10, 8),
+            Margin = new Thickness(4, 0, 10, 0),
+            Child = stack,
+        };
+    }
+
+    private static Grid CreatePositionMap(out IReadOnlyList<PositionMapTileControls> positionMapTiles)
+    {
+        var tiles = new List<PositionMapTileControls>(WatchPositions.Count);
+        var tileGrid = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions("*,*,*,*,*"),
+            RowDefinitions = new RowDefinitions("50,50"),
+            VerticalAlignment = VerticalAlignment.Top,
+        };
+
+        IReadOnlyList<WatchPosition> positions = WatchPositions.All;
+        for (int i = 0; i < positions.Count; i++)
+        {
+            WatchPosition position = positions[i];
+            var tile = new Border
+            {
+                Classes = { "PositionMapTile" },
+                Margin = new Thickness(4, 2),
+                Padding = new Thickness(8, 3),
+                Height = 46,
+                ClipToBounds = true,
+                Child = new StackPanel
+                {
+                    Spacing = 1,
+                    Children =
+                    {
+                        new TextBlock
+                        {
+                            Text = position.ShortName(),
+                            FontSize = 16,
+                            HorizontalAlignment = HorizontalAlignment.Center,
+                            TextAlignment = TextAlignment.Center,
+                        },
+                        new TextBlock
+                        {
+                            Text = position.LongName(),
+                            FontSize = PositionMinimumFontSize,
+                            Opacity = 0.82,
+                            HorizontalAlignment = HorizontalAlignment.Center,
+                            TextAlignment = TextAlignment.Center,
+                            TextWrapping = Avalonia.Media.TextWrapping.Wrap,
+                        },
+                    },
+                },
+            };
+            ToolTip.SetTip(tile, position.LongName());
+            Grid.SetColumn(tile, i % 5);
+            Grid.SetRow(tile, i / 5);
+            tileGrid.Children.Add(tile);
+            tiles.Add(new PositionMapTileControls(position, tile));
+        }
+
+        var map = new Grid
+        {
+            RowDefinitions = new RowDefinitions("Auto,*"),
+            Margin = new Thickness(4, 4, 0, 2),
+        };
+        TextBlock header = CreatePositionSectionHeader("POSITION MAP");
+        Grid.SetRow(header, 0);
+        Grid.SetRow(tileGrid, 1);
+        map.Children.Add(header);
+        map.Children.Add(tileGrid);
+
+        positionMapTiles = tiles;
+        return map;
+    }
+
+    private static Border CreatePositionResultPanel(
+        out Border consistencyBadge,
+        out TextBlock consistencyVerdictText,
+        out TextBlock consistencyDetailText,
+        out TextBlock consistencyGuideText,
+        out TextBlock averageRateText,
+        out TextBlock averageAmplitudeText,
+        out TextBlock spreadRateText,
+        out TextBlock spreadAmplitudeText,
+        out TextBlock verticalRateText,
+        out TextBlock horizontalRateText,
+        out TextBlock verticalHorizontalDeltaText)
+    {
+        averageRateText = CreatePositionSummaryValue();
+        averageAmplitudeText = CreatePositionSummaryValue();
+        spreadRateText = CreatePositionSummaryValue();
+        spreadAmplitudeText = CreatePositionSummaryValue();
+        verticalRateText = CreatePositionSummaryValue();
+        horizontalRateText = CreatePositionSummaryValue();
+        verticalHorizontalDeltaText = CreatePositionSummaryValue();
+        consistencyVerdictText = new TextBlock
+        {
+            FontSize = 22,
+            FontWeight = FontWeight.Bold,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            TextAlignment = TextAlignment.Center,
+        };
+        consistencyDetailText = new TextBlock
+        {
+            FontSize = PositionMinimumFontSize,
+            Opacity = 0.82,
+            VerticalAlignment = VerticalAlignment.Center,
+            TextWrapping = TextWrapping.Wrap,
+        };
+        consistencyBadge = new Border
+        {
+            Classes = { "PositionResultBadge" },
+            MinWidth = 136,
+            Padding = new Thickness(16, 5),
+            Child = consistencyVerdictText,
+        };
+        consistencyGuideText = new TextBlock
+        {
+            FontSize = PositionMinimumFontSize,
+            FontWeight = FontWeight.Bold,
+            Opacity = 0.9,
+            TextWrapping = TextWrapping.Wrap,
+            Margin = new Thickness(0, 0, 0, 4),
+        };
+
+        var criteriaButton = new Button
+        {
+            Content = "View criteria ▾",
+            FontSize = PositionMinimumFontSize,
+            MinWidth = 148,
+            MinHeight = 32,
+            Padding = new Thickness(10, 3, 10, 3),
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(8, 0, 8, 0),
+            Flyout = new Flyout
+            {
+                Placement = PlacementMode.BottomEdgeAlignedRight,
+                Content = BuildPositionCriteria(),
+            },
+        };
+
+        var header = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions("220,*,Auto,Auto"),
+            Margin = new Thickness(0, 0, 0, 6),
+        };
+        var title = new TextBlock
+        {
+            Text = "POSITION CONSISTENCY",
+            FontSize = 17,
+            FontWeight = FontWeight.Bold,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        consistencyDetailText.Margin = new Thickness(14, 0, 16, 0);
+        Grid.SetColumn(title, 0);
+        Grid.SetColumn(consistencyDetailText, 1);
+        Grid.SetColumn(criteriaButton, 2);
+        Grid.SetColumn(consistencyBadge, 3);
+        header.Children.Add(title);
+        header.Children.Add(consistencyDetailText);
+        header.Children.Add(criteriaButton);
+        header.Children.Add(consistencyBadge);
+
+        var metrics = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions("*,*,*"),
+            Margin = new Thickness(0, 0, 0, 4),
+        };
+        Border spreadGroup = CreatePositionResultGroup(
+            "D SPREAD",
+            "Worst - best across positions.",
+            ("RATE", spreadRateText),
+            ("AMPLITUDE", spreadAmplitudeText));
+        Border vhGroup = CreatePositionResultGroup(
+            "V/H BALANCE",
+            "Vertical mean - horizontal mean.",
+            ("VERT", verticalRateText),
+            ("HORIZ", horizontalRateText),
+            ("DVH", verticalHorizontalDeltaText));
+        Border averageGroup = CreatePositionResultGroup(
+            "X AVERAGE",
+            "Mean of measured positions.",
+            ("RATE", averageRateText),
+            ("AMPLITUDE", averageAmplitudeText));
+        spreadGroup.Classes.Add("primary");
+        vhGroup.Classes.Add("primary");
+
+        Grid.SetColumn(spreadGroup, 0);
+        Grid.SetColumn(vhGroup, 1);
+        Grid.SetColumn(averageGroup, 2);
+        metrics.Children.Add(spreadGroup);
+        metrics.Children.Add(vhGroup);
+        metrics.Children.Add(averageGroup);
+
+        var explanationText = new TextBlock
+        {
+            FontSize = PositionMinimumFontSize,
+            Opacity = 0.9,
+            TextWrapping = TextWrapping.Wrap,
+            Text = "Verdict starts at 3 positions with 30+ beats. Later qualified positions update the result.",
+        };
+
+        var panelGrid = new Grid
+        {
+            RowDefinitions = new RowDefinitions("Auto,Auto,Auto,Auto"),
+        };
+        Grid.SetRow(header, 0);
+        Grid.SetRow(consistencyGuideText, 1);
+        Grid.SetRow(metrics, 2);
+        Grid.SetRow(explanationText, 3);
+        panelGrid.Children.Add(header);
+        panelGrid.Children.Add(consistencyGuideText);
+        panelGrid.Children.Add(metrics);
+        panelGrid.Children.Add(explanationText);
+
+        return new Border
+        {
+            Classes = { "PositionResultPanel" },
+            Padding = new Thickness(16, 8),
+            Margin = new Thickness(4, 2, 8, 2),
+            Child = panelGrid,
+        };
+    }
+
+    private static Border CreatePositionResultGroup(
+        string title,
+        string description,
+        params (string Label, TextBlock Value)[] metrics)
+    {
+        var stack = new StackPanel { Spacing = 2 };
+        stack.Children.Add(new TextBlock
+        {
+            Text = title,
+            FontSize = 15,
+            Opacity = 0.9,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            TextAlignment = TextAlignment.Center,
+        });
+        stack.Children.Add(new TextBlock
+        {
+            Text = description,
+            FontSize = PositionMinimumFontSize,
+            Opacity = 0.76,
+            TextAlignment = TextAlignment.Center,
+            TextWrapping = TextWrapping.Wrap,
+        });
+        foreach ((string label, TextBlock value) in metrics)
+        {
+            stack.Children.Add(CreatePositionMetricRow(label, value));
+        }
+
+        return new Border
+        {
+            Classes = { "PositionResultGroup" },
+            Padding = new Thickness(12, 5),
+            Margin = new Thickness(0, 0, 12, 0),
+            Child = stack,
+        };
+    }
+
+    private static Grid CreatePositionMetricRow(string label, TextBlock value)
+    {
+        var row = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions("112,*"),
+        };
+        var labelText = new TextBlock
+        {
+            Text = label,
+            FontSize = PositionMinimumFontSize,
+            Opacity = 0.78,
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(0, 0, 8, 0),
+        };
+        Grid.SetColumn(labelText, 0);
+        Grid.SetColumn(value, 1);
+        row.Children.Add(labelText);
+        row.Children.Add(value);
+        return row;
+    }
+
+    private static Control BuildPositionCriteria()
+    {
+        const double threshold = SequenceSummary.UnbalanceVerticalRateSpreadSPerDay;
+
+        TextBlock Title(string text) => new()
+        {
+            Text = text,
+            FontWeight = FontWeight.Bold,
+            FontSize = PositionMinimumFontSize,
+            Margin = new Thickness(0, 6, 0, 2),
+        };
+
+        TextBlock Rule(string text, string brushKey)
+        {
+            var rule = new TextBlock
+            {
+                Text = text,
+                FontSize = PositionMinimumFontSize,
+                Margin = new Thickness(0, 1, 0, 1),
+                MaxWidth = 340,
+                TextWrapping = TextWrapping.Wrap,
+            };
+            rule.Bind(TextBlock.ForegroundProperty, rule.GetResourceObservable(brushKey));
+            return rule;
+        }
+
+        var panel = new StackPanel { Margin = new Thickness(12), Width = 380, MaxWidth = 380 };
+        panel.Children.Add(new TextBlock
+        {
+            Text = "Position criteria",
+            FontWeight = FontWeight.Bold,
+            FontSize = PositionMinimumFontSize,
+        });
+        panel.Children.Add(new TextBlock
+        {
+            Text = "A qualified position has a rate result with 30+ beats. The final verdict starts after 3 qualified positions and updates as later positions qualify.",
+            FontSize = PositionMinimumFontSize,
+            Opacity = 0.75,
+            TextWrapping = TextWrapping.Wrap,
+            MaxWidth = 340,
+            Margin = new Thickness(0, 2, 0, 0),
+        });
+        panel.Children.Add(Title("D Spread"));
+        panel.Children.Add(Rule($"Basis: max - min rate across all qualified positions. CHECK above {threshold:0} s/d.", "VarioWarnBrush"));
+        panel.Children.Add(Rule("Meaning: high positional variation. It does not identify the mechanical cause by itself.", "TextPrimaryBrush"));
+        panel.Children.Add(Title("Balance-wheel"));
+        panel.Children.Add(Rule($"Basis: vertical spread across 2+ full vertical positions. CHECK above {threshold:0} s/d.", "VarioWarnBrush"));
+        panel.Children.Add(Rule("Meaning: possible balance-wheel centering or balancing issue.", "TextPrimaryBrush"));
+        panel.Children.Add(Title("V/H Balance"));
+        panel.Children.Add(Rule("Basis: vertical mean - horizontal mean; needs at least 1 vertical and 1 horizontal position.", "VarioWarnBrush"));
+        panel.Children.Add(Rule("Meaning: vertical-vs-horizontal bias. Treat it separately from balance-wheel unbalance.", "TextPrimaryBrush"));
+        return panel;
+    }
+
+    private static TextBlock CreatePositionSectionHeader(string text) => new()
+    {
+        Text = text,
+        FontSize = PositionMinimumFontSize,
+        Opacity = 0.75,
+        HorizontalAlignment = HorizontalAlignment.Center,
+        TextAlignment = TextAlignment.Center,
+    };
+
+    private static TextBlock CreatePositionSummaryValue() => new()
+    {
+        FontSize = 22,
+        FontWeight = FontWeight.Bold,
+        HorizontalAlignment = HorizontalAlignment.Right,
+        TextAlignment = TextAlignment.Right,
+    };
 
     private static InfoTabRegistration CreateBeatNoiseScopeRegistration(
         InfoTabDefinition definition,
