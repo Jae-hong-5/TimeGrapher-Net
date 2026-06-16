@@ -27,25 +27,25 @@
         <figcaption class="en">Fig 1. Top-left = single-beat detail (A/C markers); bottom-left = last-8-beats strip; right = phase-alternated average traces.</figcaption>
       </figure>
 
-      <h2>용도 · Purpose</h2>
+      <h2><span class="ko">용도</span><span class="sep"> · </span><span class="en">Purpose</span></h2>
       <p class="ko">탈진기 충격(A·C)의 모양과 위치가 일정한지, 매 비트가 같은 프로파일을 그리는지 확인합니다.</p>
       <p class="en">Checks whether the escapement impulses (A/C) have a consistent shape/position and whether each beat draws the same profile.</p>
 
-      <h2>무엇이 보이나 · What's shown</h2>
+      <h2><span class="ko">무엇이 보이나</span><span class="sep"> · </span><span class="en">What's shown</span></h2>
       <ul>
         <li><span class="ko"><b>Scope 1 (메인, 좌상)</b> — X = ms(범위 20·200·400 중 선택), Y = 엔벨로프(기본) 또는 RAW 양극 파형. 세로 마커: A 온셋(초록 점선), C 피크(빨강 점선), C 온셋(빨강 점). 라벨 예: <code>A 0.0 ms</code>, <code>C peak X.X ms</code>. 위에 <code>LIFT X.X°</code>.</span><span class="en"><b>Scope 1 (main, top-left)</b> — X = ms (range 20/200/400), Y = envelope (default) or RAW bipolar. Vertical markers: A onset (green dashed), C peak (red dashed), C onset (red dotted). Labels e.g. <code>A 0.0 ms</code>, <code>C peak X.X ms</code>; <code>LIFT X.X°</code> above.</span></li>
         <li><span class="ko"><b>스트립 (좌하)</b> — 최근 8비트를 옆으로 나열. 클릭하면 그 비트가 메인에 확대됩니다.</span><span class="en"><b>Strip (bottom-left)</b> — the last 8 beats side by side; click one to enlarge it in the main plot.</span></li>
         <li><span class="ko"><b>Scope 2 (평균, 우)</b> — 위상 교대 두 평균 트레이스(trace 1·trace 2). 아래 읽기: <code>TRACE 1 avg … · TRACE 2 avg … | Σ 진행</code>(예: <code>Σ 23/50 · 22/50</code>, <code>Σ complete</code>, <code>Σ off</code>).</span><span class="en"><b>Scope 2 (average, right)</b> — two phase-alternated average traces (trace 1/2). Readout: <code>TRACE 1 avg … · TRACE 2 avg … | Σ progress</code> (e.g. <code>Σ 23/50 · 22/50</code>, <code>Σ complete</code>, <code>Σ off</code>).</span></li>
       </ul>
 
-      <h2>읽는 법 · How to read</h2>
+      <h2><span class="ko">읽는 법</span><span class="sep"> · </span><span class="en">How to read</span></h2>
       <ul>
         <li><span class="ko">메인 플롯에서 A·C 마커 간 간격이 매 비트 일정하면 좋습니다.</span><span class="en">Consistent A↔C marker spacing across beats is good.</span></li>
         <li><span class="ko">스트립의 8비트가 서로 비슷한 모양이면 반복성이 높습니다(좁고 또렷한 프로파일).</span><span class="en">If the 8 beats in the strip look alike, repeatability is high (narrow, crisp profile).</span></li>
         <li><span class="ko">Scope 2의 두 평균이 수렴(Σ 진행이 채워짐)하면 안정적인 평균 프로파일을 얻은 것입니다.</span><span class="en">As the two averages converge (Σ progress fills), you have a stable averaged profile.</span></li>
       </ul>
 
-      <h2>옵션 · Options</h2>
+      <h2><span class="ko">옵션</span><span class="sep"> · </span><span class="en">Options</span></h2>
       <ul>
         <li><span class="ko"><b>범위(ms)</b> — 20 / 200 / 400 중 선택해 메인 가로 범위를 바꿉니다.</span><span class="en"><b>Range (ms)</b> — choose 20 / 200 / 400 for the main horizontal span.</span></li>
         <li><span class="ko"><b>RAW</b> — 정류 엔벨로프 대신 실제 양극 파형을 봅니다(가능할 때).</span><span class="en"><b>RAW</b> — show the real bipolar waveform instead of the rectified envelope (when available).</span></li>

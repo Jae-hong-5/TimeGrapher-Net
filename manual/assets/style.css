@@ -81,6 +81,13 @@ body {
   display: inline-block; width: 20px; color: var(--text-muted); font-variant-numeric: tabular-nums;
 }
 
+.nav-foot {
+  padding: 12px 18px; margin-top: 6px;
+  border-top: 1px solid var(--border);
+  font-size: 11px; color: var(--text-muted); line-height: 1.5;
+}
+.nav-foot b { color: var(--text); font-weight: 700; }
+
 .content { flex: 1 1 auto; min-width: 0; }
 .content-inner { max-width: var(--maxw); margin: 0 auto; padding: 28px 40px 90px; }
 
@@ -206,16 +213,31 @@ dl.kv dd { margin: 0; }
 
 /* ---------- bilingual toggle ---------- */
 .en { color: var(--text-muted); }
-.en::before {
-  content: "EN"; font-size: 10px; font-weight: 700; color: var(--accent);
-  border: 1px solid var(--accent); padding: 0 3px; margin-right: 6px; vertical-align: 1px;
+
+/* symmetric KO / EN badges — only meaningful in side-by-side (both) mode */
+.ko::before, .en::before {
+  font-size: 10px; font-weight: 700; padding: 0 3px; margin-right: 6px;
+  vertical-align: 1px; border: 1px solid currentColor;
 }
+.ko::before { content: "KO"; color: var(--tic); }
+.en::before { content: "EN"; color: var(--accent); }
+
+/* hide the other language per selected mode */
 body.show-ko .en { display: none; }
 body.show-en .ko { display: none; }
 body.show-en .en { color: var(--text); }
+
+/* in a single-language mode the badge is redundant — drop it */
+body.show-ko .ko::before { display: none; }
 body.show-en .en::before { display: none; }
 
-/* in side-by-side default, dim EN a touch but keep readable */
+/* headings & table headers carry no badge; a "·" separator shows only in both mode */
+:is(h1, h2, h3) .ko::before, :is(h1, h2, h3) .en::before,
+th .ko::before, th .en::before { display: none; }
+.sep { color: var(--text-muted); }
+body.show-ko .sep, body.show-en .sep { display: none; }
+
+/* keep block-level EN paragraphs on their own line */
 li > .en, p.en { display: block; }
 
 @media (max-width: 860px) {

@@ -27,20 +27,20 @@
         <figcaption class="en">Fig 1. Top = rate-error scatter; bottom = rectified-waveform scope.</figcaption>
       </figure>
 
-      <h2>용도 · Purpose</h2>
+      <h2><span class="ko">용도</span><span class="sep"> · </span><span class="en">Purpose</span></h2>
       <p class="ko">신호가 제대로 검출되는지(스코프)와, 검출된 똑·딱이 얼마나 정확한 박자인지(레이트)를 동시에 확인합니다. 측정을 시작하면 가장 먼저 보는 화면입니다.</p>
       <p class="en">Confirms that the signal is being detected (scope) and how accurately the detected tics/tocs are timed (rate) — the first screen you check when a run starts.</p>
 
-      <h2>무엇이 보이나 · What's shown</h2>
+      <h2><span class="ko">무엇이 보이나</span><span class="sep"> · </span><span class="en">What's shown</span></h2>
       <table>
-        <thead><tr><th></th><th>X축</th><th>Y축</th><th>계열 · Series</th></tr></thead>
+        <thead><tr><th></th><th><span class="ko">X축</span><span class="sep"> · </span><span class="en">X</span></th><th><span class="ko">Y축</span><span class="sep"> · </span><span class="en">Y</span></th><th><span class="ko">계열</span><span class="sep"> · </span><span class="en">Series</span></th></tr></thead>
         <tbody>
-          <tr><td><b>레이트 (위)<br>Rate (top)</b></td><td>비트 인덱스 · beat index</td><td>Rate Error (ms), 0 중심 대칭</td><td><span class="pill tic">Tic Rate</span> 초록 점 · <span class="pill toc">Toc Rate</span> 빨강 점</td></tr>
-          <tr><td><b>스코프 (아래)<br>Scope (bottom)</b></td><td>Time (자동 스크롤)</td><td>Amplitude (0–0.1)</td><td>파란 선 <code>Rectified</code> 정류 파형 · 빨간 선 <code>Trigger</code> 검출 임계값 · 똑/딱 검출 마커</td></tr>
+          <tr><td><b><span class="ko">레이트 (위)</span><span class="en">Rate (top)</span></b></td><td><span class="ko">비트 인덱스</span><span class="en">beat index</span></td><td>Rate Error (ms), 0 중심 대칭</td><td><span class="pill tic">Tic Rate</span> 초록 점 · <span class="pill toc">Toc Rate</span> 빨강 점</td></tr>
+          <tr><td><b><span class="ko">스코프 (아래)</span><span class="en">Scope (bottom)</span></b></td><td>Time (자동 스크롤)</td><td>Amplitude (0–0.1)</td><td>파란 선 <code>Rectified</code> 정류 파형 · 빨간 선 <code>Trigger</code> 검출 임계값 · 똑/딱 검출 마커</td></tr>
         </tbody>
       </table>
 
-      <h2>읽는 법 · How to read</h2>
+      <h2><span class="ko">읽는 법</span><span class="sep"> · </span><span class="en">How to read</span></h2>
       <ul>
         <li><span class="ko"><b>스코프</b> — 주기적인 봉우리가 빨간 <code>Trigger</code> 선을 또렷이 넘으면 검출이 잘 되는 상태입니다. 봉우리가 트리거에 못 미치면 <a href="../controls.html#run">Gain</a>을 올리세요.</span><span class="en"><b>Scope</b> — periodic peaks should clearly cross the red <code>Trigger</code> line for reliable detection. If they don't, raise the <a href="../controls.html#run">Gain</a>.</span></li>
         <li><span class="ko"><b>레이트</b> — 초록·빨강 점이 0 근처에 모이면 정시·안정. 위/아래로 흩어지면 불안정, 한쪽으로 치우치면 빠르거나 느린 상태입니다.</span><span class="en"><b>Rate</b> — green/red dots clustered near 0 = on-time and stable. Wide scatter = unstable; a consistent offset = running fast or slow.</span></li>
@@ -50,7 +50,7 @@
         <p class="en"><b>Good</b>: regular peaks over the trigger + dots hugging the 0 line. <b>Bad</b>: weak waveform (missed detection) or widely scattered dots.</p>
       </div>
 
-      <h2>옵션 · Options &amp; tips</h2>
+      <h2><span class="ko">옵션</span><span class="sep"> · </span><span class="en">Options &amp; tips</span></h2>
       <ul>
         <li><span class="ko">스코프를 세로로 팬/줌하면 라이브 추적이 멈춥니다. 다시 따라가려면 뷰를 리셋(전체로 줌아웃)하세요.</span><span class="en">Panning/zooming the scope vertically freezes live-follow; reset the view (zoom fully out) to re-arm it.</span></li>
         <li><span class="ko">파형이 작으면 <a href="../controls.html#misc">Scope Scale</a>로 키워 볼 수 있습니다(검출에는 영향 없음).</span><span class="en">Use <a href="../controls.html#misc">Scope Scale</a> to magnify a small waveform (display only).</span></li>

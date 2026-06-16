@@ -28,6 +28,9 @@
     { f: "graphs/spectrogram.html",  n: 13, t: "Spectrogram" }
   ];
 
+  /* Manual build date — bump this when regenerating the manual/screenshots. */
+  var BUILD_DATE = "2026-06-15";
+
   var inGraphs = /\/graphs\//.test(location.pathname);
   var prefix = inGraphs ? "../" : "";
   var here = location.pathname.split("/").pop() || "index.html";
@@ -49,7 +52,8 @@
       "<div class=\"nav-group\"><h4>시작 · Getting started</h4>" +
       START.map(link).join("") + "</div>" +
       "<div class=\"nav-group\"><h4>그래프 · Graphs</h4>" +
-      GRAPHS.map(link).join("") + "</div>";
+      GRAPHS.map(link).join("") + "</div>" +
+      "<div class=\"nav-foot\"><b>빌드 · Build</b><br>" + BUILD_DATE + "</div>";
     el.innerHTML = html;
   }
 
