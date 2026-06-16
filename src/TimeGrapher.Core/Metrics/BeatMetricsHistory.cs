@@ -37,7 +37,8 @@ public sealed class BeatMetricsHistory
     private WatchPosition _activePosition = WatchPosition.CH;
 
     // Chronological position turns since the run started: the first entry is the
-    // starting position (TimeS 0), each later entry the elapsed time of a turn.
+    // starting position, stamped at the first plotted point (not TimeS 0; see
+    // SeedStartPositionIfNeeded), each later entry the elapsed time of a turn.
     // Bounded only by how often the user turns the watch (manual, seconds apart),
     // so its growth is negligible against the per-beat path.
     private readonly List<PositionChange> _positionChanges = new();
