@@ -1,6 +1,8 @@
+using Avalonia.Threading;
 using ScottPlot;
 using ScottPlot.Avalonia;
 using ScottPlot.Plottables;
+using ScottPlot.Rendering;
 using TimeGrapher.App.Tabs;
 using TimeGrapher.Core.Shared;
 
@@ -46,14 +48,64 @@ internal sealed class RateScopeRenderer
     private int _rateDataPoints;
     private int _sampleRate = 44100;
 
+    // Default live scope window shown on screen (500 ms) and the maximum span the
+    // user may zoom out to (2 s). The Core retains 2 s of scope history
+    // (ScopeRateFrameProjector.ScopeSnapshotSeconds), so 2 s is also the hard
+    // zoom-out ceiling enforced by ScopeXViewBoundsRule.
+    private const double DefaultScopeWindowSeconds = 0.5;
+    private const double MaxScopeWindowSeconds = 2.0;
+
+    // Fixed scope axis panel sizes (px). Locking the bottom/left axis sizes keeps
+    // the data area constant: otherwise ScottPlot resizes the plot when the tick
+    // labels change (e.g. a time label scrolls out of view, or the Y autoscale
+    // gains/loses a digit), which makes the whole graph grow/shrink.
+    private const float ScopeLeftAxisSizePx = 52.0f;
+    private const float ScopeBottomAxisSizePx = 42.0f;
+
+    // Live drawn-data extent on the scope X base (oldest..newest retained tick),
+    // refreshed each frame. ScopeXViewBoundsRule confines the X view to it so a
+    // pan/zoom stops at the data edges — no empty margin, start point pinned to
+    // the data — while still allowing the user to move within the retained window.
+    private double _dataMinX;
+    private double _dataMaxX;
+    private bool _hasDataExtent;
+
+    // Coalescing gate for the deferred tick refresh after a user pan/zoom: a drag
+    // fires PointerMoved many times per second, but only one deferred recompute
+    // needs to be queued (it reads the latest limits when it runs).
+    private bool _scopeAxisRefreshPending;
     public RateScopeRenderer(AvaPlot scopePlot, AvaPlot ratePlot, string textFontFamily)
     {
         _scopePlot = scopePlot;
         _ratePlot = ratePlot;
         _textFontFamily = textFontFamily;
 
-        _scopePlot.PointerWheelChanged += (_, _) => _scopeFollowLive = false;
+        // Keep the default ScottPlot interactions: drag to swipe/pan and wheel zoom
+        // (including the Shift/Ctrl modifiers). Any user pan/zoom drops live-follow
+        // so the view holds where the user left it; the ScopeXViewBoundsRule then
+        // clamps that view to the retained data extent, so a pan/zoom can never drag
+        // the X-axis start point past the data ("move, but the start stays pinned to
+        // the data") — the Multi-Filter Scope behavior.
+        // Any user pan/zoom drops live-follow so the view holds where the user left
+        // it; the ScopeXViewBoundsRule then clamps that view to the retained data
+        // extent. After the interaction we re-lay the fixed 0.2 s time ruler over
+        // the new X range — ScottPlot's NumericManual is a fixed tick set, so it
+        // must be regenerated when the user zoom/pan changes the range (otherwise
+        // the newly revealed span shows no time labels on zoom-out).
+        _scopePlot.PointerWheelChanged += (_, _) =>
+        {
+            _scopeFollowLive = false;
+            ScheduleScopeAxisRefresh();
+        };
         _scopePlot.PointerPressed += (_, _) => _scopeFollowLive = false;
+        _scopePlot.PointerReleased += (_, _) => ScheduleScopeAxisRefresh();
+        _scopePlot.PointerMoved += (_, e) =>
+        {
+            if (e.GetCurrentPoint(_scopePlot).Properties.IsLeftButtonPressed)
+            {
+                ScheduleScopeAxisRefresh();
+            }
+        };
 
         GraphSeriesDefinition[] graphSeries = InfoTabCatalog.RateScope.GraphSeries.ToArray();
         _scopeSeries = graphSeries.Where(series => series.RenderMode == GraphSeriesRenderMode.Line).ToArray();
@@ -84,18 +136,29 @@ internal sealed class RateScopeRenderer
         scope.Clear();
         ApplyPlotTheme(scope);
         scope.YLabel("Amplitude");
-        scope.XLabel("Time (ms)");
+        scope.XLabel("Time (s)");
         scope.Axes.SetLimitsY(0, 0.1);
-        scope.Axes.Bottom.TickGenerator = new ScottPlot.TickGenerators.NumericAutomatic
-        {
-            LabelFormatter = ScopeTickToMs
-        };
+        // Fixed-interval time ruler (matches the Multi-Filter Scope): a minor tick
+        // every 0.1 s, a longer major tick every 0.5 s, and a number label only on
+        // whole seconds. The exact tick positions are (re)generated per window in
+        // ApplyScopeTimeTicks; here we only fix the tick mark styling.
+        scope.Axes.Bottom.TickLabelStyle.IsVisible = true;
+        scope.Axes.Bottom.MinorTickStyle.Length = 3;
+        scope.Axes.Bottom.MajorTickStyle.Length = 6;
+        // Lock the axis panel sizes so the data area never resizes when tick labels
+        // appear/disappear (scrolling time labels, Y autoscale digit changes).
+        scope.Axes.Left.MinimumSize = ScopeLeftAxisSizePx;
+        scope.Axes.Left.MaximumSize = ScopeLeftAxisSizePx;
+        scope.Axes.Bottom.MinimumSize = ScopeBottomAxisSizePx;
+        scope.Axes.Bottom.MaximumSize = ScopeBottomAxisSizePx;
         ClearSeriesData(_scopeX, _scopeY);
         DropScopeMarkerPool();
         AddScopePlottables();
         _scopeReviewCursor = AddReviewCursor(scope);
         scope.ShowLegend();
-        PlotAxisRules.ClampLeftEdgeToZero(scope);
+        _hasDataExtent = false;
+        scope.Axes.Rules.Clear();
+        scope.Axes.Rules.Add(new ScopeXViewBoundsRule(this, scope.Axes.Bottom));
 
         Plot rate = _ratePlot.Plot;
         rate.Clear();
@@ -125,7 +188,9 @@ internal sealed class RateScopeRenderer
         DropScopeMarkerPool();
         AddScopePlottables();
         _scopeReviewCursor = AddReviewCursor(scope);
-        PlotAxisRules.ClampLeftEdgeToZero(scope);
+        _hasDataExtent = false;
+        scope.Axes.Rules.Clear();
+        scope.Axes.Rules.Add(new ScopeXViewBoundsRule(this, scope.Axes.Bottom));
         _scopePlot.Refresh();
 
         Plot rate = _ratePlot.Plot;
@@ -160,13 +225,26 @@ internal sealed class RateScopeRenderer
         if (scopeUpdated)
         {
             UpdateScopeMarkers(frame.VerticalMarkers, frame.HorizontalMarkers, frame.TextMarkers);
+
+            // Refresh the drawn-data extent every frame (even while panned) so the
+            // bounds rule confines pan/zoom to the current [oldest .. now] range and
+            // the X-axis start point stays pinned to the data.
+            _dataMaxX = frame.GraphTickEnd;
+            _dataMinX = ScopeOldestTick();
+            _hasDataExtent = _dataMaxX > _dataMinX;
+
             if (_scopeFollowLive)
             {
-                double width = (double)context.SampleRate / Math.Max(1, context.ScopeScale);
+                // Default 500 ms live window; the user can zoom out to at most 2 s
+                // (ScopeXViewBoundsRule caps the span at the retained extent).
+                double width = DefaultScopeWindowSeconds * context.SampleRate;
                 double end = frame.GraphTickEnd;
                 _scopePlot.Plot.Axes.SetLimitsX(end - width, end);
                 _scopePlot.Plot.Axes.AutoScaleY();
             }
+
+            // Re-lay the fixed 1 s ruler over whatever X range is now shown.
+            ApplyScopeTimeTicks();
         }
 
         if (scopeUpdated || cursorMoved)
@@ -206,7 +284,99 @@ internal sealed class RateScopeRenderer
     {
         _scopeFollowLive = true;
         _scopePlot.Plot.Axes.AutoScale();
+        ApplyScopeTimeTicks();
         _scopePlot.Refresh();
+    }
+
+    /// <summary>Oldest sample tick currently held across the scope series (0 when empty).</summary>
+    private double ScopeOldestTick()
+    {
+        double oldest = double.MaxValue;
+        for (int i = 0; i < _scopeX.Length; i++)
+        {
+            if (_scopeX[i].Count > 0 && _scopeX[i][0] < oldest)
+            {
+                oldest = _scopeX[i][0];
+            }
+        }
+
+        return oldest == double.MaxValue ? 0.0 : oldest;
+    }
+
+    /// <summary>
+    /// Confines the scope's X view to the live drawn-data extent
+    /// (<see cref="_dataMinX"/>..<see cref="_dataMaxX"/>), refreshed each frame. A
+    /// pan/zoom-out that would carry the view past either end is shifted back inside
+    /// (span preserved); a view wider than the data snaps to the full range. This
+    /// lets the user swipe/zoom within the retained window while the X-axis start
+    /// point can never drift off the data. No data yet (Max ≤ Min) is a no-op.
+    /// </summary>
+    private sealed class ScopeXViewBoundsRule : IAxisRule
+    {
+        private readonly RateScopeRenderer _owner;
+        private readonly IXAxis _xAxis;
+
+        public ScopeXViewBoundsRule(RateScopeRenderer owner, IXAxis xAxis)
+        {
+            _owner = owner;
+            _xAxis = xAxis;
+        }
+
+        public void Apply(RenderPack rp, bool beforeLayout)
+        {
+            if (!_owner._hasDataExtent)
+            {
+                return;
+            }
+
+            double min = _owner._dataMinX;
+            double max = _owner._dataMaxX;
+            double extent = max - min;
+            if (extent <= 0.0)
+            {
+                return;
+            }
+
+            // Largest visible span = the smaller of the retained data and the 2 s
+            // zoom-out ceiling, so the user can never show more than 2 s at once.
+            double cap = Math.Min(extent, MaxScopeWindowSeconds * _owner._sampleRate);
+
+            double left = _xAxis.Range.Min;
+            double right = _xAxis.Range.Max;
+            double span = right - left;
+            if (span <= 0.0)
+            {
+                return;
+            }
+
+            if (span >= cap)
+            {
+                right = max;
+                left = max - cap;
+            }
+            else
+            {
+                if (left < min)
+                {
+                    left = min;
+                    right = min + span;
+                }
+
+                if (right > max)
+                {
+                    right = max;
+                    left = max - span;
+                }
+
+                if (left < min)
+                {
+                    left = min;
+                }
+            }
+
+            _xAxis.Range.Min = left;
+            _xAxis.Range.Max = right;
+        }
     }
 
     private bool ReplaceScopeSeries(AnalysisFrame frame)
@@ -351,10 +521,71 @@ internal sealed class RateScopeRenderer
     }
 
 
-    private string ScopeTickToMs(double sampleTick)
+    /// <summary>
+    /// Lays a fixed-interval time ruler over the scope's current X view (X is in
+    /// absolute sample ticks): a minor tick every 0.1 s and a labeled major tick
+    /// every 0.2 s (label in seconds, one decimal). The uniform spacing keeps the
+    /// grid stable regardless of the live window length. No-op before the sample
+    /// rate is known.
+    /// </summary>
+    /// <summary>
+    /// Re-lays the scope time ruler and refreshes after a user pan/zoom. Deferred to
+    /// the UI thread so ScottPlot has applied the new X limits before they are read,
+    /// and coalesced so a continuous drag queues a single recompute (latest wins).
+    /// </summary>
+    private void ScheduleScopeAxisRefresh()
     {
-        double ms = sampleTick / Math.Max(1, _sampleRate) * 1000.0;
-        return ms.ToString("F0");
+        if (_scopeAxisRefreshPending)
+        {
+            return;
+        }
+
+        _scopeAxisRefreshPending = true;
+        Dispatcher.UIThread.Post(
+            () =>
+            {
+                _scopeAxisRefreshPending = false;
+                ApplyScopeTimeTicks();
+                _scopePlot.Refresh();
+            },
+            DispatcherPriority.Background);
+    }
+
+    private void ApplyScopeTimeTicks()
+    {
+        if (_sampleRate <= 0)
+        {
+            return;
+        }
+
+        AxisLimits limits = _scopePlot.Plot.Axes.GetLimits();
+        double left = limits.Left;
+        double right = limits.Right;
+        if (double.IsNaN(left) || double.IsNaN(right) || right <= left)
+        {
+            return;
+        }
+
+        double minorStep = 0.1 * _sampleRate;
+        var ticks = new ScottPlot.TickGenerators.NumericManual();
+        long firstTenth = (long)Math.Ceiling(left / minorStep - 1e-6);
+        long lastTenth = (long)Math.Floor(right / minorStep + 1e-6);
+        for (long tenth = firstTenth; tenth <= lastTenth; tenth++)
+        {
+            double position = tenth * minorStep;
+            if (tenth % 2 == 0)
+            {
+                // Labeled major tick every 0.2 s.
+                string label = (tenth / 10.0).ToString("0.0", System.Globalization.CultureInfo.InvariantCulture) + "s";
+                ticks.AddMajor(position, label);
+            }
+            else
+            {
+                ticks.AddMinor(position); // 0.1 s — short mark, no label
+            }
+        }
+
+        _scopePlot.Plot.Axes.Bottom.TickGenerator = ticks;
     }
 
     /// <summary>Pool cleanup for paths that already detached everything via Plot.Clear().</summary>
