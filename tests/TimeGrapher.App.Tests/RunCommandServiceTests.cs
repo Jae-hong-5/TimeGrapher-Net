@@ -324,6 +324,58 @@ public sealed class RunCommandServiceTests
     }
 
     [Fact]
+    public void StopAndRefreshDevicesStopsLiveWithoutResettingRunState()
+    {
+        MainWindowViewModel vm = CreateViewModel();
+        vm.SetRunning();
+        vm.StatusText = "Running";
+        var operations = new FakeRunCommandOperations
+        {
+            CurrentMode = RunCommandMode.Live,
+            HasActiveWorker = true,
+        };
+        var service = new RunCommandService(vm, operations);
+
+        service.StopRunAndRefreshDevices();
+
+        Assert.Equal(1, operations.StopLiveCalls);
+        Assert.Equal(1, operations.CloseAudioCalls);
+        Assert.Equal(1, operations.InvalidateRunSessionCalls);
+        Assert.Equal(1, operations.RefreshDevicesCalls);
+        Assert.Equal(0, operations.ResetRunStateCalls);
+        Assert.Equal(RunUiState.Stopped, vm.RunState);
+        Assert.Equal("Stopped", vm.StatusText);
+    }
+
+    [Fact]
+    public void StopAndRefreshDevicesWaitsUntilStopCompletesBeforeRefreshing()
+    {
+        MainWindowViewModel vm = CreateViewModel();
+        vm.SetRunning();
+        vm.StatusText = "Running";
+        var operations = new FakeRunCommandOperations
+        {
+            CurrentMode = RunCommandMode.Live,
+            StopLiveOutcome = RunCommandStopOutcome.Stopping,
+        };
+        var service = new RunCommandService(vm, operations);
+
+        service.StopRunAndRefreshDevices();
+
+        Assert.Equal(RunUiState.StopFailed, vm.RunState);
+        Assert.Equal(0, operations.RefreshDevicesCalls);
+        Assert.Equal(0, operations.InvalidateRunSessionCalls);
+
+        operations.StopLiveOutcome = RunCommandStopOutcome.Stopped;
+        service.StopRunWithoutReset();
+
+        Assert.Equal(RunUiState.Stopped, vm.RunState);
+        Assert.Equal(1, operations.RefreshDevicesCalls);
+        Assert.Equal(1, operations.InvalidateRunSessionCalls);
+        Assert.Equal(0, operations.ResetRunStateCalls);
+    }
+
+    [Fact]
     public void ResetWhileStoppedClearsRunStateAndRefreshesDevices()
     {
         MainWindowViewModel vm = CreateViewModel();

@@ -41,6 +41,11 @@ internal sealed partial class RunCommandService
         CurrentState.StopRunWithoutReset(this);
     }
 
+    public void StopRunAndRefreshDevices()
+    {
+        CurrentState.StopRunAndRefreshDevices(this);
+    }
+
     public void Reset()
     {
         CurrentState.Reset(this);
@@ -117,6 +122,11 @@ internal sealed partial class RunCommandService
     private void StopOnly()
     {
         BeginStop(PendingStopIntent.StopOnly);
+    }
+
+    private void StopAndRefreshDevices()
+    {
+        BeginStop(PendingStopIntent.RefreshDevicesAfterStop);
     }
 
     private void ResetFromPaused()
@@ -253,6 +263,11 @@ internal sealed partial class RunCommandService
             return;
         }
 
+        if (intent == PendingStopIntent.RefreshDevicesAfterStop)
+        {
+            _operations.RefreshDevices();
+        }
+
         _viewModel.StatusText = "Stopped";
     }
 
@@ -268,5 +283,6 @@ internal sealed partial class RunCommandService
         None,
         StopOnly,
         ResetAfterStop,
+        RefreshDevicesAfterStop,
     }
 }
