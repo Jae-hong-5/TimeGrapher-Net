@@ -28,9 +28,28 @@ internal static class BeatNoiseScopeLogic
     public static int SlotForSegmentIndex(int segmentIndex, int segmentCount) =>
         StripCount - segmentCount + segmentIndex;
 
-    /// <summary>Slot hit from the pointer's horizontal fraction across the frameless strip lane.</summary>
+    /// <summary>Slot hit from the pointer's horizontal fraction across the strip lane data area.</summary>
     public static int StripSlotFromFraction(double fraction) =>
         Math.Clamp((int)(fraction * StripCount), 0, StripCount - 1);
+
+    public static int StripSampleCount(
+        BeatNoiseScopeViewMode viewMode,
+        int rangeMs,
+        int segmentSampleCount,
+        double msPerPoint)
+    {
+        double windowMs = viewMode == BeatNoiseScopeViewMode.AverageAndStrip
+            ? BeatNoiseAverager.LaneWindowMs
+            : rangeMs;
+        int requested = (int)Math.Ceiling(windowMs / msPerPoint);
+        return Math.Min(segmentSampleCount, requested);
+    }
+
+    public static double StripFractionFromPixel(double x, double width, double leftPadding)
+    {
+        double dataWidth = width - leftPadding;
+        return dataWidth > 0.0 ? (x - leftPadding) / dataWidth : 0.0;
+    }
 
     /// <summary>
     /// Selection toggle: clicking an occupied slot selects it (the main plot
@@ -125,4 +144,10 @@ internal static class BeatNoiseScopeLogic
         double windowMs = segment.MsPerPoint * segment.Samples.Length;
         return offsetMs >= 0.0 && offsetMs <= windowMs ? offsetMs : null;
     }
+}
+
+public enum BeatNoiseScopeViewMode
+{
+    EnvelopeAndStrip,
+    AverageAndStrip
 }

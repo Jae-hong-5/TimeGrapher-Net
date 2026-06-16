@@ -14,11 +14,11 @@ namespace TimeGrapher.App.Rendering;
 ///
 /// Scope 1: the selected-or-latest beat segment on the main plot (X in ms,
 /// clipped to the 20/200/400 ms range), with pooled A / C-peak / C-onset
-/// marker lines and an optional bipolar RAW view. By default the main trace is
-/// the rectified envelope; RAW instead draws the real un-rectified waveform as
-/// its per-point min/max outlines (the actual bipolar signal, symmetric about
-/// zero — not a mirror of the envelope), falling back to the negated envelope
-/// only when the producer fed no raw. The frameless strip lane below compresses
+/// marker lines. By default the main trace draws the real un-rectified RAW
+/// waveform as its per-point min/max outlines (the actual bipolar signal,
+/// symmetric about zero — not a mirror of the envelope); the Envelope toggle
+/// shows the rectified envelope for readability and raw-unavailable segments
+/// fall back to the negated envelope. The aligned strip lane below compresses
 /// the 8 most recent beats side by side; pressing a strip selects it (a pooled
 /// span highlights the slot).
 ///
@@ -37,6 +37,8 @@ internal sealed class BeatNoiseScopeRenderer
     public const int DefaultRangeMs = 400;
 
     private const int StripPointBudget = 200;
+    private const float StripLeftAxisSizePx = 50.0f;
+    private const byte StripDividerAlpha = 140;
     private const double Lane2Baseline = 0.0;
     private const double Lane1Baseline = 1.2;
     private const byte SelectionFillAlpha = 48;
@@ -59,22 +61,34 @@ internal sealed class BeatNoiseScopeRenderer
 
     private Scatter? _mainScatter;
     private Scatter? _mirrorScatter;
-    private VerticalLine? _aMarker;
-    private VerticalLine? _cPeakMarker;
+    private readonly List<VerticalLine> _dynamicAMarkers = new();
+    private readonly List<VerticalLine> _dynamicCPeakMarkers = new();
     private VerticalLine? _cOnsetMarker;
     private ReviewCursorLayer? _reviewCursor;
     private readonly Scatter?[] _stripScatters;
+    private readonly VerticalLine?[] _stripDividers;
+    private readonly VerticalLine?[] _stripAMarkers;
+    private readonly VerticalLine?[] _stripCMarkers;
     private HorizontalSpan? _selectionSpan;
     private Scatter? _lane1Scatter;
     private Scatter? _lane2Scatter;
+    private readonly List<double>[] _lane1MilestoneX = new List<double>[5];
+    private readonly List<double>[] _lane1MilestoneY = new List<double>[5];
+    private readonly List<double>[] _lane2MilestoneX = new List<double>[5];
+    private readonly List<double>[] _lane2MilestoneY = new List<double>[5];
+    private readonly Scatter?[] _lane1MilestoneScatters = new Scatter?[5];
+    private readonly Scatter?[] _lane2MilestoneScatters = new Scatter?[5];
 
     private PlotThemePalette _theme = PlotThemePalette.Current;
     private ulong _lastVersion;
     private int _rangeMs = DefaultRangeMs;
-    private bool _showRawWaveform;
+    private bool _showAbsoluteValue;
     private int? _selectedSlot;
     private BeatSegmentsSnapshot? _lastSnapshot;
+    private BeatNoiseScopeViewMode _viewMode = BeatNoiseScopeViewMode.EnvelopeAndStrip;
     private double? _lastCursorTimeS;
+    private double? _mainYLower;
+    private double? _mainYUpper;
 
     public BeatNoiseScopeRenderer(
         AvaPlot mainPlot,
@@ -92,14 +106,68 @@ internal sealed class BeatNoiseScopeRenderer
         _stripX = new List<double>[BeatNoiseScopeLogic.StripCount];
         _stripY = new List<double>[BeatNoiseScopeLogic.StripCount];
         _stripScatters = new Scatter?[BeatNoiseScopeLogic.StripCount];
+        _stripDividers = new VerticalLine?[BeatNoiseScopeLogic.StripCount - 1];
+        _stripAMarkers = new VerticalLine?[BeatNoiseScopeLogic.StripCount];
+        _stripCMarkers = new VerticalLine?[BeatNoiseScopeLogic.StripCount];
         for (int i = 0; i < BeatNoiseScopeLogic.StripCount; i++)
         {
             _stripX[i] = new List<double>();
             _stripY[i] = new List<double>();
         }
+
+        for (int i = 0; i < 5; i++)
+        {
+            _lane1MilestoneX[i] = new List<double>();
+            _lane1MilestoneY[i] = new List<double>();
+            _lane2MilestoneX[i] = new List<double>();
+            _lane2MilestoneY[i] = new List<double>();
+        }
+
+        _stripPlot.UserInputProcessor.Disable();
     }
 
     public int RangeMs => _rangeMs;
+
+    public BeatNoiseScopeViewMode ViewMode => _viewMode;
+
+    private void ClearMilestoneLines()
+    {
+        for (int i = 0; i < 5; i++)
+        {
+            _lane1MilestoneX[i].Clear();
+            _lane1MilestoneY[i].Clear();
+            _lane2MilestoneX[i].Clear();
+            _lane2MilestoneY[i].Clear();
+            if (_lane1MilestoneScatters[i] != null)
+            {
+                _lane1MilestoneScatters[i]!.IsVisible = false;
+            }
+
+            if (_lane2MilestoneScatters[i] != null)
+            {
+                _lane2MilestoneScatters[i]!.IsVisible = false;
+            }
+        }
+    }
+
+    public void SetViewMode(BeatNoiseScopeViewMode mode)
+    {
+        if (_viewMode == mode)
+        {
+            return;
+        }
+
+        _viewMode = mode;
+        ApplyRangeLimits();
+        if (_lastSnapshot is { } snapshot)
+        {
+            RenderMain(snapshot);
+            RenderStrips(snapshot);
+            RenderAverageView(snapshot);
+        }
+
+        RefreshAll();
+    }
 
     public void ApplyTheme(PlotThemePalette theme)
     {
@@ -117,6 +185,9 @@ internal sealed class BeatNoiseScopeRenderer
         _lastSnapshot = null;
         _selectedSlot = null;
         _lastCursorTimeS = null;
+        _mainYLower = null;
+        _mainYUpper = null;
+        ClearMilestoneLines();
         _liftText.Text = "LIFT —";
         _averageText.Text = BeatNoiseScopeLogic.AverageLine(BeatNoiseAverageSnapshot.Empty);
 
@@ -126,7 +197,7 @@ internal sealed class BeatNoiseScopeRenderer
         _mainY.Clear();
         _mainYMirror.Clear();
         ApplyPlotTheme(main);
-        main.YLabel("Envelope");
+        main.Axes.Left.TickLabelStyle.IsVisible = false;
         main.XLabel("ms");
         _mainScatter = main.Add.Scatter(_mainX, _mainY);
         _mainScatter.LineWidth = 1;
@@ -134,22 +205,37 @@ internal sealed class BeatNoiseScopeRenderer
         _mirrorScatter = main.Add.Scatter(_mainX, _mainYMirror);
         _mirrorScatter.LineWidth = 1;
         _mirrorScatter.MarkerStyle.IsVisible = false;
-        _mirrorScatter.IsVisible = _showRawWaveform;
-        _aMarker = AddMarker(main, LinePattern.Dashed);
-        _cPeakMarker = AddMarker(main, LinePattern.Dashed);
+        _mirrorScatter.IsVisible = !_showAbsoluteValue;
+        _dynamicAMarkers.Clear();
+        _dynamicCPeakMarkers.Clear();
         _cOnsetMarker = AddMarker(main, LinePattern.Dotted);
         _reviewCursor = AddCursor(main);
         ApplyRangeLimits();
         PlotAxisRules.ClampLeftEdgeToZero(main);
+        main.Axes.Left.MinimumSize = StripLeftAxisSizePx;
+        main.Axes.Left.MaximumSize = StripLeftAxisSizePx;
 
-        // Frameless strip lane: the data area fills the whole control, so a
-        // pointer x-fraction maps directly onto the 8 slots.
+        // Keep the strip visually minimal while reserving the same left axis
+        // width as the plot above it, so the data areas line up.
         Plot strip = _stripPlot.Plot;
         strip.Clear();
         ApplyPlotTheme(strip);
-        strip.Layout.Frameless();
+        strip.XLabel("ms");
         strip.Grid.IsVisible = false;
+        strip.Axes.Bottom.TickLabelStyle.IsVisible = false;
+        strip.Axes.Left.TickLabelStyle.IsVisible = false;
+        strip.Axes.Right.TickLabelStyle.IsVisible = false;
+        strip.Axes.Top.TickLabelStyle.IsVisible = false;
+        strip.Axes.Left.MinimumSize = StripLeftAxisSizePx;
+        strip.Axes.Left.MaximumSize = StripLeftAxisSizePx;
         strip.Axes.SetLimits(0, BeatNoiseScopeLogic.StripCount, 0, 1);
+        for (int i = 0; i < _stripDividers.Length; i++)
+        {
+            _stripDividers[i] = strip.Add.VerticalLine(i + 1.0);
+            _stripDividers[i]!.LineWidth = 2;
+            _stripDividers[i]!.EnableAutoscale = false;
+        }
+
         _selectionSpan = strip.Add.HorizontalSpan(0.0, 1.0);
         _selectionSpan.IsVisible = false;
         for (int i = 0; i < BeatNoiseScopeLogic.StripCount; i++)
@@ -159,26 +245,46 @@ internal sealed class BeatNoiseScopeRenderer
             _stripScatters[i] = strip.Add.Scatter(_stripX[i], _stripY[i]);
             _stripScatters[i]!.LineWidth = 1;
             _stripScatters[i]!.MarkerStyle.IsVisible = false;
+            _stripAMarkers[i] = strip.Add.VerticalLine(0.0);
+            _stripAMarkers[i]!.LineWidth = 1;
+            _stripAMarkers[i]!.LinePattern = LinePattern.Dashed;
+            _stripAMarkers[i]!.IsVisible = false;
+            _stripAMarkers[i]!.EnableAutoscale = false;
+            _stripCMarkers[i] = strip.Add.VerticalLine(0.0);
+            _stripCMarkers[i]!.LineWidth = 1;
+            _stripCMarkers[i]!.LinePattern = LinePattern.Dotted;
+            _stripCMarkers[i]!.IsVisible = false;
+            _stripCMarkers[i]!.EnableAutoscale = false;
         }
 
         Plot average = _averagePlot.Plot;
         average.Clear();
+        for (int i = 0; i < 5; i++)
+        {
+            _lane1MilestoneScatters[i] = null;
+            _lane2MilestoneScatters[i] = null;
+        }
         _lane1X.Clear();
         _lane1Y.Clear();
         _lane2X.Clear();
         _lane2Y.Clear();
         ApplyPlotTheme(average);
-        average.YLabel("trace 2   ·   trace 1");
         average.XLabel("ms");
         average.Axes.Left.TickLabelStyle.IsVisible = false;
+
         _lane1Scatter = average.Add.Scatter(_lane1X, _lane1Y);
         _lane1Scatter.LineWidth = 1;
         _lane1Scatter.MarkerStyle.IsVisible = false;
+        _lane1Scatter.LegendText = "Trace 1";
         _lane2Scatter = average.Add.Scatter(_lane2X, _lane2Y);
         _lane2Scatter.LineWidth = 1;
         _lane2Scatter.MarkerStyle.IsVisible = false;
+        _lane2Scatter.LegendText = "Trace 2";
+        average.ShowLegend();
         average.Axes.SetLimits(0, BeatNoiseAverager.LaneWindowMs, -0.1, Lane1Baseline + 1.15);
         PlotAxisRules.ClampLeftEdgeToZero(average);
+        average.Axes.Left.MinimumSize = StripLeftAxisSizePx;
+        average.Axes.Left.MaximumSize = StripLeftAxisSizePx;
 
         ApplySeriesTheme();
         RefreshAll();
@@ -202,22 +308,26 @@ internal sealed class BeatNoiseScopeRenderer
         if (_lastSnapshot is { } snapshot)
         {
             RenderMain(snapshot);
+            RenderStrips(snapshot);
         }
 
         _mainPlot.Refresh();
+        _stripPlot.Refresh();
     }
 
-    public void SetRawWaveform(bool enabled)
+    public void SetAbsoluteValue(bool enabled)
     {
-        if (_showRawWaveform == enabled)
+        if (_showAbsoluteValue == enabled)
         {
             return;
         }
 
-        _showRawWaveform = enabled;
+        _showAbsoluteValue = enabled;
+        _mainYLower = null;
+        _mainYUpper = null;
         if (_mirrorScatter != null)
         {
-            _mirrorScatter.IsVisible = enabled;
+            _mirrorScatter.IsVisible = !enabled;
         }
 
         if (_lastSnapshot is { } snapshot)
@@ -228,7 +338,13 @@ internal sealed class BeatNoiseScopeRenderer
         _mainPlot.Refresh();
     }
 
-    /// <summary>Strip-lane press at the given horizontal fraction (0..1) of the control.</summary>
+    public void SelectStripAtPixel(double x, double width)
+    {
+        double fraction = BeatNoiseScopeLogic.StripFractionFromPixel(x, width, StripLeftAxisSizePx);
+        SelectStripAtFraction(fraction);
+    }
+
+    /// <summary>Strip-lane press at the given horizontal fraction (0..1) of the data area.</summary>
     public void SelectStripAtFraction(double fraction)
     {
         if (_lastSnapshot is not { } snapshot)
@@ -237,8 +353,11 @@ internal sealed class BeatNoiseScopeRenderer
         }
 
         int slot = BeatNoiseScopeLogic.StripSlotFromFraction(fraction);
-        _selectedSlot = BeatNoiseScopeLogic.NextSelection(_selectedSlot, slot, snapshot.Segments.Count);
+        _selectedSlot = _viewMode == BeatNoiseScopeViewMode.AverageAndStrip
+            ? NextAveragePairSelection(_selectedSlot, slot, snapshot.Segments.Count)
+            : BeatNoiseScopeLogic.NextSelection(_selectedSlot, slot, snapshot.Segments.Count);
         RenderMain(snapshot);
+        RenderAverageView(snapshot);
         UpdateSelectionSpan(snapshot);
         // The review cursor's offset is relative to the DISPLAYED segment's
         // window start; changing the selection while paused must recompute it
@@ -247,6 +366,7 @@ internal sealed class BeatNoiseScopeRenderer
         UpdateReviewCursor(_lastCursorTimeS);
         _mainPlot.Refresh();
         _stripPlot.Refresh();
+        _averagePlot.Refresh();
     }
 
     public void RenderFrame(AnalysisFrame frame, AnalysisTabRenderContext context)
@@ -272,9 +392,26 @@ internal sealed class BeatNoiseScopeRenderer
         _lastVersion = snapshot.Version;
         RenderMain(snapshot);
         RenderStrips(snapshot);
-        RenderAverage(snapshot.Average);
+        RenderAverageView(snapshot);
         _liftText.Text = BeatNoiseScopeLogic.LiftText(snapshot.LiftAngleDeg);
         RefreshAll();
+    }
+
+    private VerticalLine GetOrCreateMarker(List<VerticalLine> pool, Plot plot, LinePattern pattern, uint colorArgb)
+    {
+        foreach (var marker in pool)
+        {
+            if (!marker.IsVisible) return marker;
+        }
+
+        var newMarker = plot.Add.VerticalLine(0.0);
+        newMarker.LineWidth = 1;
+        newMarker.LinePattern = pattern;
+        newMarker.LineColor = ScottPlot.Color.FromARGB(colorArgb);
+        newMarker.IsVisible = false;
+        newMarker.EnableAutoscale = false;
+        pool.Add(newMarker);
+        return newMarker;
     }
 
     private void RenderMain(BeatSegmentsSnapshot snapshot)
@@ -284,17 +421,16 @@ internal sealed class BeatNoiseScopeRenderer
         _mainY.Clear();
         _mainYMirror.Clear();
 
+        foreach (var m in _dynamicAMarkers) m.IsVisible = false;
+        foreach (var m in _dynamicCPeakMarkers) m.IsVisible = false;
+
         if (segment == null)
         {
-            SetMarker(_aMarker, null);
-            SetMarker(_cPeakMarker, null);
             SetMarker(_cOnsetMarker, null);
             return;
         }
 
-        // RAW on + raw available: the real bipolar waveform (max up, min down).
-        // Otherwise the rectified envelope, mirrored below zero only when RAW is on.
-        if (_showRawWaveform && segment.RawValid)
+        if (!_showAbsoluteValue && segment.RawValid)
         {
             RenderMainRaw(segment);
         }
@@ -303,8 +439,29 @@ internal sealed class BeatNoiseScopeRenderer
             RenderMainEnvelope(segment);
         }
 
-        SetMarker(_aMarker, segment.AOffsetMs);
-        SetMarker(_cPeakMarker, segment.CPeakValid ? segment.CPeakOffsetMs : null);
+        double windowStartS = segment.StartTimeS;
+        if (snapshot.Markers.Count > 0)
+        {
+            foreach (BeatNoiseMarker eventMarker in snapshot.Markers)
+            {
+                double x = (eventMarker.TimeS - windowStartS) * 1000.0;
+                AddMainMarker(eventMarker.Kind, x);
+            }
+        }
+        else
+        {
+            foreach (BeatSegment other in snapshot.Segments)
+            {
+                double relA = (other.StartTimeS + other.AOffsetMs / 1000.0 - windowStartS) * 1000.0;
+                AddMainMarker(BeatNoiseMarkerKind.A, relA);
+                if (other.CPeakValid)
+                {
+                    double relC = (other.StartTimeS + other.CPeakOffsetMs / 1000.0 - windowStartS) * 1000.0;
+                    AddMainMarker(BeatNoiseMarkerKind.CPeak, relC);
+                }
+            }
+        }
+
         SetMarker(_cOnsetMarker, segment.COnsetValid ? segment.COnsetOffsetMs : null);
     }
 
@@ -336,7 +493,7 @@ internal sealed class BeatNoiseScopeRenderer
         }
 
         double yMax = rangeAbsMax * 1.1;
-        _mainPlot.Plot.Axes.SetLimitsY(-yMax, yMax);
+        ExpandMainYLimits(-yMax, yMax);
     }
 
     private void RenderMainEnvelope(BeatSegment segment)
@@ -362,7 +519,27 @@ internal sealed class BeatNoiseScopeRenderer
         }
 
         double yMax = rangeMax * 1.1;
-        _mainPlot.Plot.Axes.SetLimitsY(_showRawWaveform ? -yMax : -0.02 * yMax, yMax);
+        ExpandMainYLimits(_showAbsoluteValue ? -0.02 * yMax : -yMax, yMax);
+    }
+
+    private void ExpandMainYLimits(double requiredLower, double requiredUpper)
+    {
+        if (_mainYLower is not double lower || _mainYUpper is not double upper)
+        {
+            _mainYLower = requiredLower;
+            _mainYUpper = requiredUpper;
+            _mainPlot.Plot.Axes.SetLimitsY(requiredLower, requiredUpper);
+            return;
+        }
+
+        double nextLower = Math.Min(lower, requiredLower);
+        double nextUpper = Math.Max(upper, requiredUpper);
+        if (nextLower != lower || nextUpper != upper)
+        {
+            _mainYLower = nextLower;
+            _mainYUpper = nextUpper;
+            _mainPlot.Plot.Axes.SetLimitsY(nextLower, nextUpper);
+        }
     }
 
     private void RenderStrips(BeatSegmentsSnapshot snapshot)
@@ -377,14 +554,28 @@ internal sealed class BeatNoiseScopeRenderer
             int index = BeatNoiseScopeLogic.SegmentIndexForSlot(slot, snapshot.Segments.Count);
             if (index < 0)
             {
+                SetStripAMarker(slot, null, 0.0);
+                SetStripCMarker(slot, null, 0.0);
                 continue;
             }
+
+            BeatSegment segment = snapshot.Segments[index];
+            ReadOnlySpan<float> sourceSpan = segment.Samples.Span;
+            int sampleCount = BeatNoiseScopeLogic.StripSampleCount(
+                _viewMode, _rangeMs, sourceSpan.Length, segment.MsPerPoint);
+            if (sampleCount < sourceSpan.Length)
+            {
+                sourceSpan = sourceSpan.Slice(0, sampleCount);
+            }
+
+            SetStripCMarker(slot, segment, sampleCount * segment.MsPerPoint);
+            SetStripAMarker(slot, segment, sampleCount * segment.MsPerPoint);
 
             // Compress each segment into its slot via the shared strip-lane
             // sampling policy (max-decimate + per-segment peak normalization).
             int stripSlot = slot;
             EnvelopeLaneSampler.MaxDecimateNormalized(
-                snapshot.Segments[index].Samples.Span, StripPointBudget,
+                sourceSpan, StripPointBudget,
                 (p, points, _, normalized) =>
                 {
                     x.Add(stripSlot + 0.03 + 0.94 * p / (points - 1.0));
@@ -402,18 +593,37 @@ internal sealed class BeatNoiseScopeRenderer
             return;
         }
 
-        bool visible = _selectedSlot is int slot
-            && BeatNoiseScopeLogic.SegmentIndexForSlot(slot, snapshot.Segments.Count) >= 0;
+        int? selectedSlot = _selectedSlot;
+        bool visible = selectedSlot.HasValue && (_viewMode == BeatNoiseScopeViewMode.AverageAndStrip
+            ? SegmentForSlot(snapshot, selectedSlot.Value) != null || SegmentForSlot(snapshot, selectedSlot.Value + 1) != null
+            : BeatNoiseScopeLogic.SegmentIndexForSlot(selectedSlot.Value, snapshot.Segments.Count) >= 0);
         _selectionSpan.IsVisible = visible;
-        if (visible)
+        if (visible && selectedSlot.HasValue)
         {
-            _selectionSpan.X1 = _selectedSlot!.Value;
-            _selectionSpan.X2 = _selectedSlot.Value + 1;
+            int slot = selectedSlot.Value;
+            _selectionSpan.X1 = slot;
+            _selectionSpan.X2 = _viewMode == BeatNoiseScopeViewMode.AverageAndStrip
+                ? Math.Min(slot + 2, BeatNoiseScopeLogic.StripCount)
+                : slot + 1;
         }
+    }
+
+    private void RenderAverageView(BeatSegmentsSnapshot snapshot)
+    {
+        if (_viewMode == BeatNoiseScopeViewMode.AverageAndStrip
+            && _selectedSlot is int slot)
+        {
+            ClearMilestoneLines();
+            RenderSelectedAverageEnvelopePair(snapshot, slot);
+            return;
+        }
+
+        RenderAverage(snapshot.Average);
     }
 
     private void RenderAverage(BeatNoiseAverageSnapshot average)
     {
+        _averagePlot.Plot.Axes.SetLimits(0, BeatNoiseAverager.LaneWindowMs, -0.1, Lane1Baseline + 1.15);
         // One shared scale across both lanes so their relative amplitude shows.
         double max = 0.0;
         foreach (float value in average.Lane1)
@@ -437,9 +647,153 @@ internal sealed class BeatNoiseScopeRenderer
             max = 1.0;
         }
 
+        RenderMilestones(average, max);
         FillLane(_lane1X, _lane1Y, average.Lane1, average.MsPerPoint, Lane1Baseline, max);
         FillLane(_lane2X, _lane2Y, average.Lane2, average.MsPerPoint, Lane2Baseline, max);
         _averageText.Text = BeatNoiseScopeLogic.AverageLine(average);
+    }
+
+    private void RenderSelectedAverageEnvelopePair(BeatSegmentsSnapshot snapshot, int pairStartSlot)
+    {
+        _lane1X.Clear();
+        _lane1Y.Clear();
+        _lane2X.Clear();
+        _lane2Y.Clear();
+
+        BeatSegment? trace1 = SegmentForSlot(snapshot, pairStartSlot);
+        BeatSegment? trace2 = SegmentForSlot(snapshot, pairStartSlot + 1);
+        double max = Math.Max(MaxSegmentValue(trace1), MaxSegmentValue(trace2));
+        if (max <= 0.0)
+        {
+            max = 1.0;
+        }
+
+        if (trace1 != null)
+        {
+            FillSelectedLane(_lane1X, _lane1Y, trace1, Lane1Baseline, max);
+        }
+
+        if (trace2 != null)
+        {
+            FillSelectedLane(_lane2X, _lane2Y, trace2, Lane2Baseline, max);
+        }
+
+        _averageText.Text = "TRACE 1 selected odd strip · TRACE 2 selected even strip";
+        _averagePlot.Plot.Axes.SetLimits(0, BeatNoiseAverager.LaneWindowMs, -0.1, Lane1Baseline + 1.15);
+    }
+
+    private void AddMainMarker(BeatNoiseMarkerKind kind, double x)
+    {
+        if (x < 0.0 || x > _rangeMs)
+        {
+            return;
+        }
+
+        List<VerticalLine> pool = kind == BeatNoiseMarkerKind.A
+            ? _dynamicAMarkers
+            : _dynamicCPeakMarkers;
+        LinePattern pattern = kind == BeatNoiseMarkerKind.A
+            ? LinePattern.Dashed
+            : LinePattern.Dotted;
+        uint color = kind == BeatNoiseMarkerKind.A
+            ? _theme.TraceTick
+            : _theme.TraceTock;
+        VerticalLine marker = GetOrCreateMarker(pool, _mainPlot.Plot, pattern, color);
+        marker.X = x;
+        marker.IsVisible = true;
+    }
+
+    private static BeatSegment? SegmentForSlot(BeatSegmentsSnapshot snapshot, int slot)
+    {
+        int index = BeatNoiseScopeLogic.SegmentIndexForSlot(slot, snapshot.Segments.Count);
+        return index >= 0 ? snapshot.Segments[index] : null;
+    }
+
+    private static double MaxSegmentValue(BeatSegment? segment)
+    {
+        if (segment == null)
+        {
+            return 0.0;
+        }
+
+        ReadOnlySpan<float> samples = SelectedAverageSamples(segment);
+        double max = 0.0;
+        foreach (float value in samples)
+        {
+            if (value > max)
+            {
+                max = value;
+            }
+        }
+
+        return max;
+    }
+
+    private static void FillSelectedLane(List<double> x, List<double> y, BeatSegment segment, double baseline, double scale)
+    {
+        ReadOnlySpan<float> samples = SelectedAverageSamples(segment);
+        for (int i = 0; i < samples.Length; i++)
+        {
+            x.Add(i * segment.MsPerPoint);
+            y.Add(baseline + samples[i] / scale);
+        }
+    }
+
+    private static ReadOnlySpan<float> SelectedAverageSamples(BeatSegment segment)
+    {
+        ReadOnlySpan<float> samples = segment.Samples.Span;
+        int sampleCount = BeatNoiseScopeLogic.StripSampleCount(
+            BeatNoiseScopeViewMode.AverageAndStrip, DefaultRangeMs, samples.Length, segment.MsPerPoint);
+        return sampleCount < samples.Length ? samples.Slice(0, sampleCount) : samples;
+    }
+
+    private void RenderMilestones(BeatNoiseAverageSnapshot average, double scale)
+    {
+        EnsureMilestoneScatters();
+        ClearMilestoneLines();
+        for (int i = 0; i < average.Milestones.Count && i < 5; i++)
+        {
+            BeatNoiseAverageMilestone milestone = average.Milestones[i];
+            FillLane(_lane1MilestoneX[i], _lane1MilestoneY[i], milestone.Lane1, average.MsPerPoint, Lane1Baseline, scale);
+            FillLane(_lane2MilestoneX[i], _lane2MilestoneY[i], milestone.Lane2, average.MsPerPoint, Lane2Baseline, scale);
+            if (_lane1MilestoneScatters[i] != null)
+            {
+                _lane1MilestoneScatters[i]!.IsVisible = milestone.Lane1.Count > 0;
+                _lane1MilestoneScatters[i]!.LegendText = milestone.IntervalCount + " avg Trace 1";
+            }
+
+            if (_lane2MilestoneScatters[i] != null)
+            {
+                _lane2MilestoneScatters[i]!.IsVisible = milestone.Lane2.Count > 0;
+                _lane2MilestoneScatters[i]!.LegendText = milestone.IntervalCount + " avg Trace 2";
+            }
+        }
+    }
+
+    private void EnsureMilestoneScatters()
+    {
+        for (int i = 0; i < 5; i++)
+        {
+            if (_lane1MilestoneScatters[i] == null)
+            {
+                Scatter s1 = _averagePlot.Plot.Add.Scatter(_lane1MilestoneX[i], _lane1MilestoneY[i]);
+                s1.LineWidth = 1;
+                s1.MarkerStyle.IsVisible = false;
+                s1.IsVisible = false;
+                _lane1MilestoneScatters[i] = s1;
+            }
+
+            if (_lane2MilestoneScatters[i] == null)
+            {
+                Scatter s2 = _averagePlot.Plot.Add.Scatter(_lane2MilestoneX[i], _lane2MilestoneY[i]);
+                s2.LineWidth = 1;
+                s2.MarkerStyle.IsVisible = false;
+                s2.IsVisible = false;
+                _lane2MilestoneScatters[i] = s2;
+            }
+        }
+
+        ApplySeriesTheme();
     }
 
     private static void FillLane(
@@ -452,6 +806,56 @@ internal sealed class BeatNoiseScopeRenderer
         {
             x.Add(i * msPerPoint);
             y.Add(baseline + lane[i] / scale);
+        }
+    }
+
+    private static int? NextAveragePairSelection(int? currentSlot, int clickedSlot, int segmentCount)
+    {
+        int pairStartSlot = clickedSlot - clickedSlot % 2;
+        bool occupied = BeatNoiseScopeLogic.SegmentIndexForSlot(pairStartSlot, segmentCount) >= 0
+            || BeatNoiseScopeLogic.SegmentIndexForSlot(pairStartSlot + 1, segmentCount) >= 0;
+        if (!occupied)
+        {
+            return null;
+        }
+
+        return currentSlot == pairStartSlot ? null : pairStartSlot;
+    }
+
+    private void SetStripAMarker(int slot, BeatSegment? segment, double windowMs)
+    {
+        VerticalLine? marker = _stripAMarkers[slot];
+        if (marker == null) return;
+
+        bool visible = _viewMode == BeatNoiseScopeViewMode.EnvelopeAndStrip
+            && segment != null
+            && segment.AOffsetMs >= 0.0
+            && segment.AOffsetMs <= windowMs
+            && windowMs > 0.0;
+        marker.IsVisible = visible;
+        if (visible)
+        {
+            marker.X = slot + 0.03 + 0.94 * segment!.AOffsetMs / windowMs;
+        }
+    }
+
+    private void SetStripCMarker(int slot, BeatSegment? segment, double windowMs)
+    {
+        VerticalLine? marker = _stripCMarkers[slot];
+        if (marker == null)
+        {
+            return;
+        }
+
+        bool visible = _viewMode == BeatNoiseScopeViewMode.EnvelopeAndStrip
+            && segment is { CPeakValid: true }
+            && segment.CPeakOffsetMs >= 0.0
+            && segment.CPeakOffsetMs <= windowMs
+            && windowMs > 0.0;
+        marker.IsVisible = visible;
+        if (visible)
+        {
+            marker.X = slot + 0.03 + 0.94 * segment!.CPeakOffsetMs / windowMs;
         }
     }
 
@@ -520,14 +924,14 @@ internal sealed class BeatNoiseScopeRenderer
 
         // A = tick green, C = tock red: the same themed event color mapping the
         // scope markers use (RateScopeRenderer.ThemeColor).
-        if (_aMarker != null)
+        foreach (var marker in _dynamicAMarkers)
         {
-            _aMarker.LineColor = Color.FromARGB(_theme.TraceTick);
+            marker.LineColor = Color.FromARGB(_theme.TraceTick);
         }
 
-        if (_cPeakMarker != null)
+        foreach (var marker in _dynamicCPeakMarkers)
         {
-            _cPeakMarker.LineColor = Color.FromARGB(_theme.TraceTock);
+            marker.LineColor = Color.FromARGB(_theme.TraceTock);
         }
 
         if (_cOnsetMarker != null)
@@ -540,6 +944,30 @@ internal sealed class BeatNoiseScopeRenderer
             if (strip != null)
             {
                 strip.LineColor = Color.FromARGB(_theme.TraceWave);
+            }
+        }
+
+        foreach (VerticalLine? divider in _stripDividers)
+        {
+            if (divider != null)
+            {
+                divider.LineColor = Color.FromARGB(_theme.TextPrimary).WithAlpha(StripDividerAlpha);
+            }
+        }
+
+        foreach (VerticalLine? marker in _stripAMarkers)
+        {
+            if (marker != null)
+            {
+                marker.LineColor = Color.FromARGB(_theme.TraceTick);
+            }
+        }
+
+        foreach (VerticalLine? marker in _stripCMarkers)
+        {
+            if (marker != null)
+            {
+                marker.LineColor = Color.FromARGB(_theme.TraceTock);
             }
         }
 
@@ -559,6 +987,23 @@ internal sealed class BeatNoiseScopeRenderer
         {
             _lane2Scatter.LineColor = Color.FromARGB(_theme.TraceTock);
         }
+
+        for (int i = 0; i < 5; i++)
+        {
+            byte alpha = (byte)(55 + (i * 25));
+            if (_lane1MilestoneScatters[i] != null)
+            {
+                _lane1MilestoneScatters[i]!.LineColor = Color.FromARGB(_theme.TraceTick).WithAlpha(alpha);
+            }
+            if (_lane2MilestoneScatters[i] != null)
+            {
+                _lane2MilestoneScatters[i]!.LineColor = Color.FromARGB(_theme.TraceTock).WithAlpha(alpha);
+            }
+        }
+
+        _averagePlot.Plot.Legend.BackgroundColor = Color.FromARGB(_theme.ScopeBg);
+        _averagePlot.Plot.Legend.FontColor = Color.FromARGB(_theme.TextPrimary);
+        _averagePlot.Plot.Legend.OutlineColor = Color.FromARGB(_theme.ScopeGrid);
 
         _reviewCursor?.ApplyTheme(_theme);
     }

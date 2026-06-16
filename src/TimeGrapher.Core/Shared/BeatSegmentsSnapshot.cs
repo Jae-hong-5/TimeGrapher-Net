@@ -13,6 +13,20 @@ namespace TimeGrapher.Core.Shared;
 /// cache a segment across snapshots.
 /// </para>
 /// </summary>
+public enum BeatNoiseMarkerKind
+{
+    A,
+    CPeak,
+}
+
+public sealed class BeatNoiseMarker
+{
+    /// <summary>Absolute stream time of this marker, in seconds.</summary>
+    public double TimeS { get; init; }
+
+    public BeatNoiseMarkerKind Kind { get; init; }
+}
+
 public sealed class BeatSegment
 {
     /// <summary>Decimated envelope of the window (rectified, so values are non-negative).</summary>
@@ -73,6 +87,13 @@ public sealed class BeatSegment
 /// on which lane. Traces are immutable copies built per lane update (per beat
 /// at most), shared across frames with the surrounding snapshot.
 /// </summary>
+public sealed class BeatNoiseAverageMilestone
+{
+    public int IntervalCount { get; init; }
+    public IReadOnlyList<float> Lane1 { get; init; } = Array.Empty<float>();
+    public IReadOnlyList<float> Lane2 { get; init; } = Array.Empty<float>();
+}
+
 public sealed class BeatNoiseAverageSnapshot
 {
     public static readonly BeatNoiseAverageSnapshot Empty = new();
@@ -100,6 +121,9 @@ public sealed class BeatNoiseAverageSnapshot
     /// <summary>Mean of the per-interval envelope peaks of each lane (the plan's per-axis average amplitude).</summary>
     public double Lane1MeanPeak { get; init; }
     public double Lane2MeanPeak { get; init; }
+
+    /// <summary>Saved Σ averages when either lane reaches 10/20/30/40/50 intervals.</summary>
+    public IReadOnlyList<BeatNoiseAverageMilestone> Milestones { get; init; } = Array.Empty<BeatNoiseAverageMilestone>();
 }
 
 /// <summary>
@@ -116,6 +140,9 @@ public sealed class BeatSegmentsSnapshot
 
     /// <summary>Completed segments, oldest first (bounded by the capture's segment ring).</summary>
     public IReadOnlyList<BeatSegment> Segments { get; init; } = Array.Empty<BeatSegment>();
+
+    /// <summary>A/C event markers in absolute stream time, covering the completed segment windows.</summary>
+    public IReadOnlyList<BeatNoiseMarker> Markers { get; init; } = Array.Empty<BeatNoiseMarker>();
 
     /// <summary>Lift angle (deg) the producing analysis run was configured with.</summary>
     public double LiftAngleDeg { get; init; }

@@ -62,6 +62,35 @@ public sealed class BeatNoiseScopeLogicTests
         Assert.Equal(expectedSlot, BeatNoiseScopeLogic.StripSlotFromFraction(fraction));
     }
 
+    [Theory]
+    [InlineData(BeatNoiseScopeViewMode.EnvelopeAndStrip, 20, 1600, 0.25, 80)]
+    [InlineData(BeatNoiseScopeViewMode.EnvelopeAndStrip, 200, 1600, 0.25, 800)]
+    [InlineData(BeatNoiseScopeViewMode.EnvelopeAndStrip, 400, 1600, 0.25, 1600)]
+    [InlineData(BeatNoiseScopeViewMode.EnvelopeAndStrip, 400, 1000, 0.25, 1000)]
+    [InlineData(BeatNoiseScopeViewMode.AverageAndStrip, 20, 1600, 0.25, 80)]
+    [InlineData(BeatNoiseScopeViewMode.AverageAndStrip, 400, 1600, 0.25, 80)]
+    public void StripSampleCount_FollowsViewModeAndClampsToSegment(
+        BeatNoiseScopeViewMode mode,
+        int rangeMs,
+        int segmentSampleCount,
+        double msPerPoint,
+        int expectedCount)
+    {
+        Assert.Equal(
+            expectedCount,
+            BeatNoiseScopeLogic.StripSampleCount(mode, rangeMs, segmentSampleCount, msPerPoint));
+    }
+
+    [Theory]
+    [InlineData(50.0, 850.0, 50.0, 0.0)]
+    [InlineData(450.0, 850.0, 50.0, 0.5)]
+    [InlineData(850.0, 850.0, 50.0, 1.0)]
+    [InlineData(25.0, 850.0, 50.0, -0.03125)]
+    public void StripFractionFromPixel_MapsOnlyTheDataArea(double x, double width, double leftPadding, double expected)
+    {
+        Assert.Equal(expected, BeatNoiseScopeLogic.StripFractionFromPixel(x, width, leftPadding), precision: 6);
+    }
+
     [Fact]
     public void Selection_TogglesOnOccupiedSlotsAndClearsOnEmptyOnes()
     {

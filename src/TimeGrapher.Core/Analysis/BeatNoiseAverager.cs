@@ -28,9 +28,12 @@ public sealed class BeatNoiseAverager
     /// <summary>Intervals per lane after which the averaging cycle completes.</summary>
     public const int IntervalsPerLane = 50;
 
+    private static readonly int[] MilestoneCounts = { 10, 20, 30, 40, 50 };
+
     private readonly double[][] _sums = { new double[LanePoints], new double[LanePoints] };
     private readonly int[] _counts = new int[2];
     private readonly double[] _peakSums = new double[2];
+    private readonly BeatNoiseAverageMilestone?[] _milestones = new BeatNoiseAverageMilestone?[5];
     private bool _sigmaEnabled;
 
     public bool SigmaEnabled => _sigmaEnabled;
@@ -63,6 +66,7 @@ public sealed class BeatNoiseAverager
         _counts[1] = 0;
         _peakSums[0] = 0.0;
         _peakSums[1] = 0.0;
+        Array.Clear(_milestones);
     }
 
     /// <summary>
@@ -104,6 +108,7 @@ public sealed class BeatNoiseAverager
 
         _counts[lane]++;
         _peakSums[lane] += peak;
+        CaptureMilestone(Math.Min(_counts[0], _counts[1]));
         return true;
     }
 
@@ -124,7 +129,43 @@ public sealed class BeatNoiseAverager
         Lane2 = LaneAverage(1),
         Lane1MeanPeak = _counts[0] > 0 ? _peakSums[0] / _counts[0] : 0.0,
         Lane2MeanPeak = _counts[1] > 0 ? _peakSums[1] / _counts[1] : 0.0,
+        Milestones = MilestoneSnapshots(),
     };
+
+    private void CaptureMilestone(int count)
+    {
+        if (!_sigmaEnabled)
+        {
+            return;
+        }
+
+        int index = Array.IndexOf(MilestoneCounts, count);
+        if (index < 0)
+        {
+            return;
+        }
+
+        _milestones[index] = new BeatNoiseAverageMilestone
+        {
+            IntervalCount = count,
+            Lane1 = LaneAverage(0),
+            Lane2 = LaneAverage(1),
+        };
+    }
+
+    private IReadOnlyList<BeatNoiseAverageMilestone> MilestoneSnapshots()
+    {
+        var milestones = new List<BeatNoiseAverageMilestone>();
+        for (int i = 0; i < _milestones.Length; i++)
+        {
+            if (_milestones[i] is { } milestone)
+            {
+                milestones.Add(milestone);
+            }
+        }
+
+        return milestones;
+    }
 
     private IReadOnlyList<float> LaneAverage(int lane)
     {

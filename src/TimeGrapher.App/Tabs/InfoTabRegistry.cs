@@ -1411,13 +1411,13 @@ internal sealed partial class InfoTabRegistry
         InfoTabDefinition definition,
         InfoTabFactoryContext context)
     {
-        // Scope 1: toolbar (range / RAW / Σ / lift angle), the enlarged
-        // selected-or-latest beat, and the frameless strip lane of the 8 most
+        // Scope 1: toolbar (mode / range / absolute-value toggle / Σ / lift angle), the enlarged
+        // selected-or-latest beat, and the aligned strip lane of the 8 most
         // recent beats. Scope 2: the two averaged lanes above their readout.
         var mainPlot = new AvaPlot();
         var stripPlot = new AvaPlot
         {
-            Height = 72,
+            Height = 208,
         };
         var averagePlot = new AvaPlot();
 
@@ -1442,6 +1442,25 @@ internal sealed partial class InfoTabRegistry
             Spacing = 4,
             Margin = new Thickness(8, 4),
         };
+
+        var envelopeModeButton = new Button
+        {
+            Content = "Beat Scope",
+            Padding = new Thickness(8, 2, 8, 2),
+            FontSize = 11,
+        };
+        ToolTip.SetTip(envelopeModeButton, "Show beat-noise waveform + Strip mode (absolute-value display controlled separately)");
+        toolbar.Children.Add(envelopeModeButton);
+
+        var averageModeButton = new Button
+        {
+            Content = "Avg Envelope",
+            Padding = new Thickness(8, 2, 8, 2),
+            FontSize = 11,
+            Margin = new Thickness(0, 0, 8, 0),
+        };
+        ToolTip.SetTip(averageModeButton, "Show Average Envelope + Strip mode");
+        toolbar.Children.Add(averageModeButton);
 
         // 20 / 200 / 400 ms range selector; the active range renders disabled
         // (the Scope Sweep 1x/2x/4x button pattern).
@@ -1477,16 +1496,16 @@ internal sealed partial class InfoTabRegistry
 
         UpdateRangeButtonStates();
 
-        var rawToggle = new ToggleButton
+        var absoluteToggle = new ToggleButton
         {
-            Content = "RAW",
+            Content = "ABS",
             Padding = new Thickness(8, 2, 8, 2),
             FontSize = 11,
             Margin = new Thickness(8, 0, 0, 0),
         };
-        ToolTip.SetTip(rawToggle, "Show the real un-rectified bipolar waveform (min/max), not the rectified envelope");
-        rawToggle.IsCheckedChanged += (_, _) => renderer.SetRawWaveform(rawToggle.IsChecked == true);
-        toolbar.Children.Add(rawToggle);
+        ToolTip.SetTip(absoluteToggle, "On: show rectified absolute-value envelope. Off: show real bipolar waveform (min/max).");
+        absoluteToggle.IsCheckedChanged += (_, _) => renderer.SetAbsoluteValue(absoluteToggle.IsChecked == true);
+        toolbar.Children.Add(absoluteToggle);
 
         // Σ writes the shared SigmaAveraging view-model property; MainWindow
         // forwards the change to the running analysis worker (the
@@ -1508,28 +1527,56 @@ internal sealed partial class InfoTabRegistry
             }
         };
         toolbar.Children.Add(sigmaToggle);
+
         toolbar.Children.Add(liftText);
 
-        // Strip-lane hit test: the plot is frameless, so the slot follows from
-        // the press position's horizontal fraction across the control.
+        // Strip-lane hit test maps the pointer through the aligned data area,
+        // excluding the reserved left axis width used to match the top plot.
         stripPlot.PointerPressed += (_, e) =>
         {
             if (stripPlot.Bounds.Width > 0)
             {
-                renderer.SelectStripAtFraction(e.GetPosition(stripPlot).X / stripPlot.Bounds.Width);
+                renderer.SelectStripAtPixel(e.GetPosition(stripPlot).X, stripPlot.Bounds.Width);
             }
         };
 
         var grid = new Grid
         {
-            RowDefinitions = new RowDefinitions("Auto,2*,Auto,*,Auto"),
+            RowDefinitions = new RowDefinitions("Auto,*,Auto,Auto"),
         };
-        Control[] rows = { toolbar, mainPlot, stripPlot, averagePlot, averageText };
+        Control[] rows = { toolbar, mainPlot, stripPlot, averageText };
         for (int i = 0; i < rows.Length; i++)
         {
             Grid.SetRow(rows[i], i);
             grid.Children.Add(rows[i]);
         }
+
+        // Put averagePlot in the same row as mainPlot
+        Grid.SetRow(averagePlot, 1);
+        grid.Children.Add(averagePlot);
+
+        void ApplyViewMode(BeatNoiseScopeViewMode mode)
+        {
+            bool isAverageMode = mode == BeatNoiseScopeViewMode.AverageAndStrip;
+            renderer.SetViewMode(mode);
+            envelopeModeButton.IsEnabled = isAverageMode;
+            averageModeButton.IsEnabled = !isAverageMode;
+
+            foreach (var button in rangeButtons)
+            {
+                button.IsVisible = !isAverageMode;
+            }
+
+            absoluteToggle.IsVisible = !isAverageMode;
+            mainPlot.IsVisible = !isAverageMode;
+            averagePlot.IsVisible = isAverageMode;
+            averageText.IsVisible = isAverageMode;
+            sigmaToggle.IsVisible = isAverageMode;
+        }
+
+        envelopeModeButton.Click += (_, _) => ApplyViewMode(BeatNoiseScopeViewMode.EnvelopeAndStrip);
+        averageModeButton.Click += (_, _) => ApplyViewMode(BeatNoiseScopeViewMode.AverageAndStrip);
+        ApplyViewMode(BeatNoiseScopeViewMode.EnvelopeAndStrip);
 
         if (CreateWaitingOverlay(context.ViewModel) is { } overlay)
         {

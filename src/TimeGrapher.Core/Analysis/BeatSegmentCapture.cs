@@ -145,6 +145,7 @@ public sealed class BeatSegmentCapture
     private readonly CompletedSegment[] _completed = new CompletedSegment[SegmentRingCount];
     private int _completedHead;
     private int _completedCount;
+    private readonly List<BeatNoiseMarker> _markers = new();
 
     // Scope 2 lane averaging over the first LaneWindowMs of each window,
     // decimated into a reused scratch buffer (no per-beat allocation). The Σ
@@ -238,10 +239,12 @@ public sealed class BeatSegmentCapture
 
             if (eventUpdate.Event.Type == TgEventType.A)
             {
+                AddMarker(eventUpdate.EventSample, BeatNoiseMarkerKind.A);
                 OpenSegment(eventUpdate);
             }
             else if (eventUpdate.Event.Type == TgEventType.C)
             {
+                AddMarker(eventUpdate.Event.SampleIndex + eventUpdate.Event.SubSampleOffset, BeatNoiseMarkerKind.CPeak);
                 AttachCEvent(eventUpdate.Event);
             }
         }
@@ -306,10 +309,22 @@ public sealed class BeatSegmentCapture
             });
         }
 
+        IReadOnlyList<BeatNoiseMarker> markers = Array.Empty<BeatNoiseMarker>();
+        if (segments.Count > 0)
+        {
+            double startS = segments[0].StartTimeS;
+            double endS = segments[^1].StartTimeS + WindowMs / 1000.0;
+            markers = _markers
+                .Where(marker => marker.TimeS >= startS && marker.TimeS <= endS)
+                .ToArray();
+            _markers.RemoveAll(marker => marker.TimeS < startS);
+        }
+
         _snapshot = new BeatSegmentsSnapshot
         {
             Version = _version,
             Segments = segments,
+            Markers = markers,
             LiftAngleDeg = _liftAngleDeg,
             Average = _averager.Snapshot(),
         };
@@ -370,6 +385,15 @@ public sealed class BeatSegmentCapture
         }
 
         _envelopeEndSample = start + (ulong)length;
+    }
+
+    private void AddMarker(double sample, BeatNoiseMarkerKind kind)
+    {
+        _markers.Add(new BeatNoiseMarker
+        {
+            TimeS = sample / _sampleRate,
+            Kind = kind,
+        });
     }
 
     private void OpenSegment(DetectedEventUpdate eventUpdate)

@@ -46,6 +46,42 @@ public sealed class BeatNoiseAveragerTests
     }
 
     [Fact]
+    public void SigmaOn_CapturesTenTwentyThirtyFortyFiftyMilestoneAverages()
+    {
+        var averager = new BeatNoiseAverager();
+        averager.SetSigmaEnabled(true);
+
+        for (int i = 0; i < 10; i++)
+        {
+            averager.Add(firstLane: true, Trace(0.2f));
+            averager.Add(firstLane: false, Trace(0.4f));
+        }
+
+        BeatNoiseAverageSnapshot ten = averager.Snapshot();
+        Assert.Single(ten.Milestones);
+        Assert.Equal(10, ten.Milestones[0].IntervalCount);
+        Assert.Equal(0.2f, ten.Milestones[0].Lane1[0], 6);
+        Assert.Equal(0.4f, ten.Milestones[0].Lane2[0], 6);
+
+        for (int i = 0; i < 10; i++)
+        {
+            averager.Add(firstLane: true, Trace(0.6f));
+        }
+
+        Assert.Single(averager.Snapshot().Milestones);
+
+        for (int i = 0; i < 10; i++)
+        {
+            averager.Add(firstLane: false, Trace(0.8f));
+        }
+
+        BeatNoiseAverageSnapshot twenty = averager.Snapshot();
+        Assert.Equal(new[] { 10, 20 }, twenty.Milestones.Select(m => m.IntervalCount));
+        Assert.Equal(0.4f, twenty.Milestones[1].Lane1[0], 6);
+        Assert.Equal(0.6f, twenty.Milestones[1].Lane2[0], 6);
+    }
+
+    [Fact]
     public void SigmaOff_LaneHoldsOnlyItsNewestTrace()
     {
         var averager = new BeatNoiseAverager();
@@ -103,6 +139,7 @@ public sealed class BeatNoiseAveragerTests
         Assert.Equal(0, snapshot.Lane2Count);
         Assert.Empty(snapshot.Lane1);
         Assert.Empty(snapshot.Lane2);
+        Assert.Empty(snapshot.Milestones);
 
         // No change: no reset.
         Assert.False(averager.SetSigmaEnabled(false));
