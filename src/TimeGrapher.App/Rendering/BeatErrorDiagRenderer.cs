@@ -18,6 +18,10 @@ namespace TimeGrapher.App.Rendering;
 /// </summary>
 internal sealed class BeatErrorDiagRenderer
 {
+    private const float TraceMarkerSize = 6.0f;
+    private const double MinimumBeatWindow = 40.0;
+    private const double BeatWindowPadding = 8.0;
+
     private readonly AvaPlot _tracePlot;
     private readonly Border _alertBanner;
     private readonly TextBlock _alertText;
@@ -75,7 +79,7 @@ internal sealed class BeatErrorDiagRenderer
         trace.YLabel("Rate Error (ms)");
         trace.XLabel("Beat");
         trace.Axes.SetLimitsY(-rateErrorYScale, rateErrorYScale);
-        trace.Axes.SetLimitsX(0, rateDataPoints);
+        trace.Axes.SetLimitsX(0, Math.Min(rateDataPoints, MinimumBeatWindow));
         trace.Axes.Bottom.TickLabelStyle.IsVisible = false;
         for (int i = 0; i < _rateSeries.Length; i++)
         {
@@ -117,6 +121,7 @@ internal sealed class BeatErrorDiagRenderer
 
         if (rateUpdated)
         {
+            UpdateAdaptiveXLimits();
             _tracePlot.Refresh();
         }
     }
@@ -169,11 +174,31 @@ internal sealed class BeatErrorDiagRenderer
             Scatter sc = trace.Add.Scatter(_rateX[i], _rateY[i]);
             sc.LineWidth = 0;
             sc.MarkerShape = MarkerShape.FilledCircle;
-            sc.MarkerSize = 3;
+            sc.MarkerSize = TraceMarkerSize;
             sc.MarkerColor = Color.FromARGB(ThemeColor(spec));
             sc.LegendText = spec.Name;
             _ratePlots.Add(sc);
         }
+    }
+
+    private void UpdateAdaptiveXLimits()
+    {
+        double maxBeat = 0.0;
+        foreach (List<double> seriesX in _rateX)
+        {
+            foreach (double x in seriesX)
+            {
+                if (x > maxBeat)
+                {
+                    maxBeat = x;
+                }
+            }
+        }
+
+        double visibleMax = Math.Min(
+            _rateDataPoints,
+            Math.Max(MinimumBeatWindow, Math.Ceiling(maxBeat + BeatWindowPadding)));
+        _tracePlot.Plot.Axes.SetLimitsX(0, visibleMax);
     }
 
     private void ApplySeriesTheme()

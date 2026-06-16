@@ -41,6 +41,8 @@ internal sealed class BeatNoiseScopeRenderer
     private const byte StripDividerAlpha = 140;
     private const double Lane2Baseline = 0.0;
     private const double Lane1Baseline = 1.2;
+    private const double MinimumValidCSeparationMs = 4.0;
+    private const double MinimumUsablePeakValue = 0.12;
     private const byte SelectionFillAlpha = 48;
 
     private readonly AvaPlot _mainPlot;
@@ -64,6 +66,7 @@ internal sealed class BeatNoiseScopeRenderer
     private readonly List<VerticalLine> _dynamicAMarkers = new();
     private readonly List<VerticalLine> _dynamicCPeakMarkers = new();
     private VerticalLine? _cOnsetMarker;
+    private Text? _weakSignalLabel;
     private ReviewCursorLayer? _reviewCursor;
     private readonly Scatter?[] _stripScatters;
     private readonly VerticalLine?[] _stripDividers;
@@ -209,6 +212,7 @@ internal sealed class BeatNoiseScopeRenderer
         _dynamicAMarkers.Clear();
         _dynamicCPeakMarkers.Clear();
         _cOnsetMarker = AddMarker(main, LinePattern.Dotted);
+        _weakSignalLabel = AddWeakSignalLabel(main);
         _reviewCursor = AddCursor(main);
         ApplyRangeLimits();
         PlotAxisRules.ClampLeftEdgeToZero(main);
@@ -427,6 +431,7 @@ internal sealed class BeatNoiseScopeRenderer
         if (segment == null)
         {
             SetMarker(_cOnsetMarker, null);
+            SetWeakSignalVisible(true);
             return;
         }
 
@@ -463,6 +468,7 @@ internal sealed class BeatNoiseScopeRenderer
         }
 
         SetMarker(_cOnsetMarker, segment.COnsetValid ? segment.COnsetOffsetMs : null);
+        SetWeakSignalVisible(!HasUsableCMarker(segment));
     }
 
     private void RenderMainRaw(BeatSegment segment)
@@ -889,6 +895,37 @@ internal sealed class BeatNoiseScopeRenderer
         return marker;
     }
 
+    private static bool HasUsableCMarker(BeatSegment segment)
+    {
+        return segment.PeakValue >= MinimumUsablePeakValue
+            && segment.CPeakValid
+            && segment.CPeakOffsetMs - segment.AOffsetMs >= MinimumValidCSeparationMs;
+    }
+
+    private Text AddWeakSignalLabel(Plot plot)
+    {
+        Text label = plot.Add.Text("WEAK SIGNAL", 0.0, 0.0);
+        label.LabelFontSize = 13;
+        label.LabelBold = true;
+        label.Alignment = Alignment.UpperRight;
+        label.IsVisible = false;
+        return label;
+    }
+
+    private void SetWeakSignalVisible(bool visible)
+    {
+        if (_weakSignalLabel == null)
+        {
+            return;
+        }
+
+        _weakSignalLabel.IsVisible = visible;
+        if (visible)
+        {
+            _weakSignalLabel.Location = new Coordinates(_rangeMs, _mainYUpper ?? 1.0);
+        }
+    }
+
     private static void SetMarker(VerticalLine? marker, double? x)
     {
         if (marker == null)
@@ -937,6 +974,11 @@ internal sealed class BeatNoiseScopeRenderer
         if (_cOnsetMarker != null)
         {
             _cOnsetMarker.LineColor = Color.FromARGB(_theme.TraceTock);
+        }
+
+        if (_weakSignalLabel != null)
+        {
+            _weakSignalLabel.LabelFontColor = Color.FromARGB(_theme.VarioWarn);
         }
 
         foreach (Scatter? strip in _stripScatters)

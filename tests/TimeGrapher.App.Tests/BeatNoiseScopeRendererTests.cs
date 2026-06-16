@@ -322,6 +322,144 @@ public sealed class BeatNoiseScopeRendererTests
     }
 
     [Fact]
+    public void MainScopeShowsWeakSignalWhenCMarkerIsMissing()
+    {
+        var mainPlot = new AvaPlot();
+        var renderer = new BeatNoiseScopeRenderer(
+            mainPlot, new AvaPlot(), new AvaPlot(), new TextBlock(), new TextBlock());
+        renderer.CreateGraphs();
+
+        var frame = new AnalysisFrame
+        {
+            BeatSegments = new BeatSegmentsSnapshot
+            {
+                Version = 1,
+                Segments = new[]
+                {
+                    new BeatSegment
+                    {
+                        Samples = new float[] { 0.2f, 0.5f },
+                        MsPerPoint = 0.25,
+                        AOffsetMs = 0.0,
+                        CPeakValid = false,
+                    },
+                },
+            },
+        };
+
+        renderer.RenderFrame(frame, new AnalysisTabRenderContext(SampleRate: 48000, ScopeScale: 1));
+
+        Text weakSignal = mainPlot.Plot.GetPlottables<Text>()
+            .Single(text => text.LabelText == "WEAK SIGNAL");
+        Assert.True(weakSignal.IsVisible);
+    }
+
+    [Fact]
+    public void MainScopeHidesWeakSignalWhenCMarkerIsValid()
+    {
+        var mainPlot = new AvaPlot();
+        var renderer = new BeatNoiseScopeRenderer(
+            mainPlot, new AvaPlot(), new AvaPlot(), new TextBlock(), new TextBlock());
+        renderer.CreateGraphs();
+
+        var frame = new AnalysisFrame
+        {
+            BeatSegments = new BeatSegmentsSnapshot
+            {
+                Version = 1,
+                Segments = new[]
+                {
+                    new BeatSegment
+                    {
+                        Samples = new float[] { 0.2f, 0.5f },
+                        MsPerPoint = 0.25,
+                        AOffsetMs = 0.0,
+                        PeakValue = 0.5f,
+                        CPeakValid = true,
+                        CPeakOffsetMs = 8.0,
+                    },
+                },
+            },
+        };
+
+        renderer.RenderFrame(frame, new AnalysisTabRenderContext(SampleRate: 48000, ScopeScale: 1));
+
+        Text weakSignal = mainPlot.Plot.GetPlottables<Text>()
+            .Single(text => text.LabelText == "WEAK SIGNAL");
+        Assert.False(weakSignal.IsVisible);
+    }
+
+    [Fact]
+    public void MainScopeShowsWeakSignalWhenCMarkerIsTooCloseToA()
+    {
+        var mainPlot = new AvaPlot();
+        var renderer = new BeatNoiseScopeRenderer(
+            mainPlot, new AvaPlot(), new AvaPlot(), new TextBlock(), new TextBlock());
+        renderer.CreateGraphs();
+
+        var frame = new AnalysisFrame
+        {
+            BeatSegments = new BeatSegmentsSnapshot
+            {
+                Version = 1,
+                Segments = new[]
+                {
+                    new BeatSegment
+                    {
+                        Samples = new float[] { 0.2f, 0.5f },
+                        MsPerPoint = 0.25,
+                        AOffsetMs = 5.0,
+                        PeakValue = 0.5f,
+                        CPeakValid = true,
+                        CPeakOffsetMs = 6.5,
+                    },
+                },
+            },
+        };
+
+        renderer.RenderFrame(frame, new AnalysisTabRenderContext(SampleRate: 48000, ScopeScale: 1));
+
+        Text weakSignal = mainPlot.Plot.GetPlottables<Text>()
+            .Single(text => text.LabelText == "WEAK SIGNAL");
+        Assert.True(weakSignal.IsVisible);
+    }
+
+    [Fact]
+    public void MainScopeShowsWeakSignalWhenPeakIsTooLow()
+    {
+        var mainPlot = new AvaPlot();
+        var renderer = new BeatNoiseScopeRenderer(
+            mainPlot, new AvaPlot(), new AvaPlot(), new TextBlock(), new TextBlock());
+        renderer.CreateGraphs();
+
+        var frame = new AnalysisFrame
+        {
+            BeatSegments = new BeatSegmentsSnapshot
+            {
+                Version = 1,
+                Segments = new[]
+                {
+                    new BeatSegment
+                    {
+                        Samples = new float[] { 0.02f, 0.04f },
+                        MsPerPoint = 0.25,
+                        AOffsetMs = 5.0,
+                        PeakValue = 0.08f,
+                        CPeakValid = true,
+                        CPeakOffsetMs = 40.0,
+                    },
+                },
+            },
+        };
+
+        renderer.RenderFrame(frame, new AnalysisTabRenderContext(SampleRate: 48000, ScopeScale: 1));
+
+        Text weakSignal = mainPlot.Plot.GetPlottables<Text>()
+            .Single(text => text.LabelText == "WEAK SIGNAL");
+        Assert.True(weakSignal.IsVisible);
+    }
+
+    [Fact]
     public void AverageEnvelopeRendersMilestoneSnapshots()
     {
         var averagePlot = new AvaPlot();
