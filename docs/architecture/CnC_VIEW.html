@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>TimeGrapherNet — Component-and-Connector View (UML)</title>
+<style>
+  :root{
+    --call:#1f4e8c; --event:#c2410c; --shared:#15803d;
+    --async:#7c3aed; --pub:#0891b2; --bind:#6b7280;
+    --ink:#0f172a; --muted:#475569; --line:#cbd5e1;
+    --ui:#eff6ff; --uib:#93c5fd; --in:#f0fdf4; --inb:#86efac;
+    --an:#faf5ff; --anb:#c4b5fd; --buf:#fffbeb; --bufb:#fcd34d;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; padding:32px 24px 64px;
+    font-family:"Segoe UI",system-ui,-apple-system,Roboto,"Malgun Gothic",sans-serif;
+    color:var(--ink); background:#f8fafc; line-height:1.6;
+  }
+  main{max-width:1560px;margin:0 auto}
+  h1{font-size:26px;margin:0 0 4px}
+  h2{font-size:19px;margin:36px 0 10px;border-bottom:2px solid var(--line);padding-bottom:6px}
+  .sub{color:var(--muted);margin:0 0 8px}
+  p{margin:8px 0}
+  code{background:#eef2f7;border-radius:4px;padding:1px 5px;font-size:13px;
+       font-family:"Cascadia Code",Consolas,"SF Mono",monospace}
+  .card{background:#fff;border:1px solid var(--line);border-radius:12px;
+        padding:18px 20px;box-shadow:0 1px 2px rgba(15,23,42,.05)}
+  .diagram-wrap{overflow-x:auto}
+  svg{display:block;margin:0 auto;font-family:inherit}
+  table{border-collapse:collapse;width:100%;font-size:13.5px;margin-top:8px}
+  th,td{border:1px solid var(--line);padding:7px 9px;text-align:left;vertical-align:top}
+  th{background:#f1f5f9}
+  tbody tr:nth-child(even){background:#fafcff}
+  .legend{display:flex;flex-wrap:wrap;gap:14px 26px;margin-top:6px}
+  .legend .item{display:flex;align-items:center;gap:9px;font-size:13px}
+  .sw{width:34px;height:0;border-top-width:3px;border-top-style:solid;flex:0 0 auto}
+  .badge{display:inline-block;font-size:12px;font-weight:600;border-radius:5px;
+         padding:1px 7px;color:#fff}
+  .note{background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:12px 16px;font-size:13.5px}
+  .gloss{font-style:italic;color:var(--muted)}
+</style>
+</head>
+<body>
+<main>
+
+  <h1>TimeGrapherNet — Component-and-Connector View</h1>
+  <p class="sub">Notation: <strong>UML Component Diagram</strong> · runtime components &amp; typed connectors across three concurrent threads</p>
+
+  <div class="note">
+    이 다이어그램은 C&amp;C 뷰를 <strong>UML 컴포넌트 다이어그램</strong>으로 표현한다.
+    <code>«component»</code> 박스는 런타임 인스턴스, <strong>롤리팝/소켓</strong>은 제공/요구 인터페이스,
+    <code>«thread»</code> 패키지(폴더 모양)는 동시 실행 스레드,
+    점선 화살표는 <code>«event»·«async-dispatch»·«binding»</code> 의존, 실선 화살표는 <code>«call-return»</code> 호출이다.
+    원통은 <code>«shared-data»</code> 저장소다. 같은 내용의 Markdown 본은 <code>CnC_VIEW.md</code> / <code>CnC_VIEW_EN.md</code>.
+  </div>
+
+  <h2>UML Component Diagram</h2>
+  <div class="card diagram-wrap">
+  <svg viewBox="0 0 1520 1050" width="1520" height="1050" role="img"
+       aria-label="UML component diagram of TimeGrapherNet runtime components and connectors">
+    <defs>
+      <marker id="aCall" markerWidth="11" markerHeight="11" refX="9" refY="4" orient="auto">
+        <path d="M0,0 L9,4 L0,8 Z" fill="#1f4e8c"/></marker>
+      <marker id="aEvent" markerWidth="12" markerHeight="12" refX="9" refY="4" orient="auto">
+        <path d="M0,0 L9,4 L0,8" fill="none" stroke="#c2410c" stroke-width="1.6"/></marker>
+      <marker id="aShared" markerWidth="11" markerHeight="11" refX="9" refY="4" orient="auto">
+        <path d="M0,0 L9,4 L0,8 Z" fill="#15803d"/></marker>
+      <marker id="aAsync" markerWidth="11" markerHeight="11" refX="9" refY="4" orient="auto">
+        <path d="M0,0 L9,4 L0,8 Z" fill="#7c3aed"/></marker>
+      <marker id="aPub" markerWidth="11" markerHeight="11" refX="9" refY="4" orient="auto">
+        <path d="M0,0 L9,4 L0,8 Z" fill="#0891b2"/></marker>
+      <marker id="aBind" markerWidth="12" markerHeight="12" refX="9" refY="4" orient="auto">
+        <path d="M0,0 L9,4 L0,8" fill="none" stroke="#6b7280" stroke-width="1.6"/></marker>
+    </defs>
+
+    <style>
+      .pkg{fill-opacity:.55;stroke-width:1.5}
+      .pkglbl{font-size:13px;font-weight:700;fill:#334155}
+      .comp{stroke:#334155;stroke-width:1.5;fill:#fff;rx:9}
+      .cname{font-size:14px;font-weight:700;fill:#0f172a}
+      .cstereo{font-size:11px;fill:#64748b;font-style:italic}
+      .cnote{font-size:11px;fill:#475569}
+      .iflbl{font-size:10.5px;fill:#334155}
+      .conn{fill:none;stroke-width:2}
+      .clbl{font-size:11px;font-weight:600}
+      .stereo{font-size:10.5px;font-style:italic}
+      .call{stroke:#1f4e8c} .event{stroke:#c2410c;stroke-dasharray:6 4}
+      .shared{stroke:#15803d} .async{stroke:#7c3aed} .pub{stroke:#0891b2}
+      .bind{stroke:#6b7280;stroke-dasharray:4 4}
+    </style>
+
+    <!-- ===== Packages (UML «thread») ===== -->
+    <!-- UI thread -->
+    <g>
+      <path class="pkg" fill="#eff6ff" stroke="#93c5fd" d="M70,120 h220 v18 h1180 v312 h-1400 z"/>
+      <rect class="pkg" x="70" y="120" width="220" height="18" fill="#eff6ff" stroke="#93c5fd"/>
+      <text class="pkglbl" x="84" y="133">«thread»  UI thread</text>
+      <text class="cnote" x="300" y="133" font-size="12">presentation · run coordination</text>
+    </g>
+    <!-- Input thread -->
+    <g>
+      <path class="pkg" fill="#f0fdf4" stroke="#86efac" d="M70,500 h220 v18 h360 v172 h-580 z"/>
+      <rect class="pkg" x="70" y="500" width="220" height="18" fill="#f0fdf4" stroke="#86efac"/>
+      <text class="pkglbl" x="84" y="513">«thread»  Input thread</text>
+    </g>
+    <!-- Analysis thread -->
+    <g>
+      <path class="pkg" fill="#faf5ff" stroke="#c4b5fd" d="M70,740 h220 v18 h1180 v270 h-1400 z"/>
+      <rect class="pkg" x="70" y="740" width="220" height="18" fill="#faf5ff" stroke="#c4b5fd"/>
+      <text class="pkglbl" x="84" y="753">«thread»  Analysis thread</text>
+      <text class="cnote" x="300" y="753" font-size="12">detection · metrics · projection</text>
+    </g>
+
+    <!-- ===== Actor (User) ===== -->
+    <g stroke="#0f172a" stroke-width="1.6" fill="none">
+      <circle cx="210" cy="46" r="11"/>
+      <line x1="210" y1="57" x2="210" y2="84"/>
+      <line x1="192" y1="66" x2="228" y2="66"/>
+      <line x1="210" y1="84" x2="196" y2="102"/>
+      <line x1="210" y1="84" x2="224" y2="102"/>
+    </g>
+    <text x="242" y="62" font-size="12" font-weight="700" fill="#0f172a">User</text>
+
+    <!-- ===== Row 1 UI ===== -->
+    <!-- RunCommandService 120,190 215x78 -->
+    <g>
+      <rect class="comp" x="120" y="190" width="215" height="78"/>
+      <g stroke="#475569" stroke-width="1.2" fill="#e2e8f0">
+        <rect x="311" y="198" width="18" height="13"/><rect x="305" y="200" width="9" height="4"/><rect x="305" y="206" width="9" height="4"/>
+      </g>
+      <text class="cstereo" x="130" y="210">«component»</text>
+      <text class="cname" x="130" y="228">RunCommandService</text>
+      <text class="cnote" x="130" y="246">run state machine · State</text>
+    </g>
+    <!-- RunSessionController 405,190 235x78 -->
+    <g>
+      <rect class="comp" x="405" y="190" width="235" height="78"/>
+      <g stroke="#475569" stroke-width="1.2" fill="#e2e8f0">
+        <rect x="616" y="198" width="18" height="13"/><rect x="610" y="200" width="9" height="4"/><rect x="610" y="206" width="9" height="4"/>
+      </g>
+      <text class="cstereo" x="415" y="210">«component»</text>
+      <text class="cname" x="415" y="228">RunSessionController</text>
+      <text class="cnote" x="415" y="246">session token · attach/stop</text>
+    </g>
+    <!-- LiveAudioBackend 720,190 215x78 -->
+    <g>
+      <rect class="comp" x="720" y="190" width="215" height="78"/>
+      <g stroke="#475569" stroke-width="1.2" fill="#e2e8f0">
+        <rect x="911" y="198" width="18" height="13"/><rect x="905" y="200" width="9" height="4"/><rect x="905" y="206" width="9" height="4"/>
+      </g>
+      <text class="cstereo" x="730" y="210">«component»</text>
+      <text class="cname" x="730" y="228">LiveAudioBackend</text>
+      <text class="cnote" x="730" y="246">platform backend select</text>
+    </g>
+
+    <!-- ===== Row 2 UI ===== -->
+    <!-- FrameRenderScheduler 120,330 235x78 -->
+    <g>
+      <rect class="comp" x="120" y="330" width="235" height="78"/>
+      <g stroke="#475569" stroke-width="1.2" fill="#e2e8f0">
+        <rect x="331" y="338" width="18" height="13"/><rect x="325" y="340" width="9" height="4"/><rect x="325" y="346" width="9" height="4"/>
+      </g>
+      <text class="cstereo" x="130" y="350">«component»</text>
+      <text class="cname" x="130" y="368">FrameRenderScheduler</text>
+      <text class="cnote" x="130" y="386">latest-frame coalesce · drop</text>
+    </g>
+    <!-- AnalysisFrameRouter 410,330 220x78 -->
+    <g>
+      <rect class="comp" x="410" y="330" width="220" height="78"/>
+      <g stroke="#475569" stroke-width="1.2" fill="#e2e8f0">
+        <rect x="606" y="338" width="18" height="13"/><rect x="600" y="340" width="9" height="4"/><rect x="600" y="346" width="9" height="4"/>
+      </g>
+      <text class="cstereo" x="420" y="350">«component»</text>
+      <text class="cname" x="420" y="368">AnalysisFrameRouter</text>
+      <text class="cnote" x="420" y="386">+ GraphFrameRenderer</text>
+    </g>
+    <!-- Tab frame consumers 735,330 235x78 -->
+    <g>
+      <rect class="comp" x="735" y="330" width="235" height="78"/>
+      <g stroke="#475569" stroke-width="1.2" fill="#e2e8f0">
+        <rect x="946" y="338" width="18" height="13"/><rect x="940" y="340" width="9" height="4"/><rect x="940" y="346" width="9" height="4"/>
+      </g>
+      <text class="cstereo" x="745" y="350">«component» (N)</text>
+      <text class="cname" x="745" y="368">Tab frame consumers</text>
+      <text class="cnote" x="745" y="386">IAnalysisFrameConsumer</text>
+    </g>
+    <!-- MainWindowViewModel 1055,330 215x78 -->
+    <g>
+      <rect class="comp" x="1055" y="330" width="215" height="78"/>
+      <g stroke="#475569" stroke-width="1.2" fill="#e2e8f0">
+        <rect x="1246" y="338" width="18" height="13"/><rect x="1240" y="340" width="9" height="4"/><rect x="1240" y="346" width="9" height="4"/>
+      </g>
+      <text class="cstereo" x="1065" y="350">«component»</text>
+      <text class="cname" x="1065" y="368">MainWindowViewModel</text>
+      <text class="cnote" x="1065" y="386">UI state</text>
+    </g>
+
+    <!-- ===== Input worker 120,535 490x85 ===== -->
+    <g>
+      <rect class="comp" x="120" y="535" width="490" height="85"/>
+      <g stroke="#475569" stroke-width="1.2" fill="#e2e8f0">
+        <rect x="586" y="543" width="18" height="13"/><rect x="580" y="545" width="9" height="4"/><rect x="580" y="551" width="9" height="4"/>
+      </g>
+      <text class="cstereo" x="130" y="555">«component»  (one of)</text>
+      <text class="cname" x="130" y="575">Live capture / Playback / Sim worker</text>
+      <text class="cnote" x="130" y="595">provides IAudioInputWorker</text>
+    </g>
+    <!-- provided interface lollipop (IAudioInputWorker) on top -->
+    <line x1="560" y1="535" x2="560" y2="514" stroke="#334155" stroke-width="1.4"/>
+    <circle cx="560" cy="507" r="7" fill="#fff" stroke="#334155" stroke-width="1.6"/>
+    <text class="iflbl" x="572" y="510">IAudioInputWorker</text>
+
+    <!-- ===== Shared-data buffer (cylinder) 740..990, y590..690 ===== -->
+    <g>
+      <path d="M740,605 a125,15 0 0 1 250,0 v70 a125,15 0 0 1 -250,0 z"
+            fill="#fffbeb" stroke="#b45309" stroke-width="1.6"/>
+      <path d="M740,605 a125,15 0 0 0 250,0" fill="none" stroke="#b45309" stroke-width="1.6"/>
+      <text class="cstereo" x="865" y="635" text-anchor="middle" fill="#92400e">«shared-data»</text>
+      <text class="cname" x="865" y="653" text-anchor="middle">MasterAudioBuffer</text>
+      <text class="cnote" x="865" y="671" text-anchor="middle" fill="#92400e">shared ring buffer</text>
+    </g>
+
+    <!-- ===== Analysis: Worker, Pipeline, Gate ===== -->
+    <!-- AnalysisWorker 120,800 255x92 -->
+    <g>
+      <rect class="comp" x="120" y="800" width="255" height="92"/>
+      <g stroke="#475569" stroke-width="1.2" fill="#e2e8f0">
+        <rect x="351" y="808" width="18" height="13"/><rect x="345" y="810" width="9" height="4"/><rect x="345" y="816" width="9" height="4"/>
+      </g>
+      <text class="cstereo" x="130" y="820">«component»</text>
+      <text class="cname" x="130" y="838">AnalysisWorker</text>
+      <text class="cnote" x="130" y="856">AutoResetEvent wait loop</text>
+      <text class="cnote" x="130" y="872">publishes AnalysisFrameReady</text>
+    </g>
+    <!-- Core pipeline 440,790 340x112 -->
+    <g>
+      <rect class="comp" x="440" y="790" width="340" height="112"/>
+      <g stroke="#475569" stroke-width="1.2" fill="#e2e8f0">
+        <rect x="756" y="798" width="18" height="13"/><rect x="750" y="800" width="9" height="4"/><rect x="750" y="806" width="9" height="4"/>
+      </g>
+      <text class="cstereo" x="452" y="810">«component»</text>
+      <text class="cname" x="452" y="828">Core pipeline</text>
+      <text class="cnote" x="452" y="846">DetectorMetricsEngine</text>
+      <text class="cnote" x="452" y="862">Detection · Metrics · Imaging</text>
+      <text class="cnote" x="452" y="878">· Frame projectors</text>
+    </g>
+    <!-- IBeatEventGate 850,790 310x112 (socket / extension point, dashed) -->
+    <g>
+      <rect x="850" y="790" width="310" height="112" rx="9" fill="#fff"
+            stroke="#7c3aed" stroke-width="1.6" stroke-dasharray="7 5"/>
+      <g stroke="#7c3aed" stroke-width="1.2" fill="#ede9fe">
+        <rect x="1136" y="798" width="18" height="13"/><rect x="1130" y="800" width="9" height="4"/><rect x="1130" y="806" width="9" height="4"/>
+      </g>
+      <text class="cstereo" x="862" y="810" fill="#7c3aed">«component» «socket»</text>
+      <text class="cname" x="862" y="828">IBeatEventGate</text>
+      <text class="cnote" x="862" y="846">injected extension point</text>
+      <text class="cnote" x="862" y="862">PllMatchGate / (future) ONNX</text>
+    </g>
+    <!-- provided interface lollipop on Gate left -->
+    <line x1="850" y1="846" x2="828" y2="846" stroke="#334155" stroke-width="1.4"/>
+    <circle cx="822" cy="846" r="7" fill="#fff" stroke="#334155" stroke-width="1.6"/>
+
+    <!-- ===================== CONNECTORS ===================== -->
+    <!-- C9a User -> RunCmd -->
+    <path class="conn call" d="M210,104 L235,186" marker-end="url(#aCall)"/>
+    <text class="stereo" x="250" y="148" fill="#1f4e8c">«call-return»</text>
+    <text class="clbl call" x="250" y="162">Start/Pause/Reset</text>
+
+    <!-- C9b RunCmd -> Session -->
+    <path class="conn call" d="M335,229 L401,229" marker-end="url(#aCall)"/>
+    <!-- C9c Session -> Backend -->
+    <path class="conn call" d="M640,229 L716,229" marker-end="url(#aCall)"/>
+    <text class="stereo" x="645" y="221" fill="#1f4e8c">select backend</text>
+
+    <!-- C9d Backend -> InputWorker (depends on provided IAudioInputWorker) -->
+    <path class="conn call" d="M827,268 L827,298 L660,298 L660,470 L560,470 L560,505" marker-end="url(#aCall)"/>
+    <text class="stereo" x="575" y="455" fill="#1f4e8c">«call-return»</text>
+    <text class="clbl call" x="575" y="469">create / Start</text>
+
+    <!-- C1 InputWorker -> Buffer (shared-data write) -->
+    <path class="conn shared" d="M610,575 L760,575 L760,599" marker-end="url(#aShared)"/>
+    <text class="clbl shared" x="620" y="552">WriteSamples</text>
+    <text class="stereo" x="620" y="564" fill="#15803d">«shared-data»</text>
+
+    <!-- C1 Worker -> Buffer (shared-data read) -->
+    <path class="conn shared" d="M300,800 L300,730 L865,730 L865,692" marker-end="url(#aShared)"/>
+    <text class="stereo" x="480" y="719" fill="#15803d">«shared-data»  CopyAnalysisSamples (read)</text>
+
+    <!-- C2 InputWorker -> Session (event DataReady) right-margin loop -->
+    <path class="conn event" d="M610,560 L1490,560 L1490,160 L522,160 L522,186" marker-end="url(#aEvent)"/>
+    <text class="clbl event" x="1380" y="540">DataReady</text>
+    <text class="stereo" x="1380" y="552" fill="#c2410c">«event»</text>
+
+    <!-- C3 Session -> Worker (call-return NotifyDataReady wakeup) -->
+    <path class="conn call" d="M522,268 L522,298 L700,298 L700,710 L247,710 L247,798" marker-end="url(#aCall)"/>
+    <text class="stereo" x="150" y="776" fill="#1f4e8c">«call-return»</text>
+    <text class="clbl call" x="150" y="790">NotifyDataReady</text>
+
+    <!-- C4 Worker -> Pipeline (call-return Process) -->
+    <path class="conn call" d="M375,846 L436,846" marker-end="url(#aCall)"/>
+    <text class="stereo" x="385" y="838" fill="#1f4e8c">Process</text>
+
+    <!-- C5 Pipeline -> Gate (depends on provided IBeatEventGate) -->
+    <path class="conn call" d="M780,846 L831,846" marker-end="url(#aCall)"/>
+    <text class="stereo" x="730" y="772" fill="#1f4e8c">«call-return» Evaluate (veto)</text>
+
+    <!-- C6 Worker -> Scheduler (event AnalysisFrameReady) left-margin loop -->
+    <path class="conn event" d="M150,800 L40,800 L40,430 L237,430 L237,410" marker-end="url(#aEvent)"/>
+    <text class="stereo" x="22" y="616" fill="#c2410c" transform="rotate(-90 22 616)">«event» AnalysisFrameReady</text>
+
+    <!-- C7 Scheduler -> Router (async-dispatch) -->
+    <path class="conn async" d="M355,369 L406,369" marker-end="url(#aAsync)"/>
+    <text class="stereo" x="200" y="316" fill="#7c3aed">«async-dispatch» UIThread.Post</text>
+
+    <!-- C8 Router -> Consumers (publish-subscribe) -->
+    <path class="conn pub" d="M630,369 L731,369" marker-end="url(#aPub)"/>
+    <circle cx="723" cy="369" r="6" fill="#fff" stroke="#0891b2" stroke-width="1.6"/>
+    <text class="stereo" x="455" y="324" fill="#0891b2">«publish-subscribe»</text>
+
+    <!-- Router -> ViewModel (call-return) over the top -->
+    <path class="conn call" d="M520,330 L520,312 L1162,312 L1162,328" marker-end="url(#aCall)"/>
+    <text class="stereo" x="980" y="306" fill="#1f4e8c">«call-return»</text>
+
+    <!-- ViewModel -> Consumers (binding) -->
+    <path class="conn bind" d="M1055,369 L975,369" marker-end="url(#aBind)"/>
+    <text class="stereo" x="985" y="386" fill="#6b7280">«binding»</text>
+
+  </svg>
+  </div>
+
+  <h2>Notation Legend (UML → C&amp;C)</h2>
+  <div class="card">
+    <div class="legend">
+      <span class="item"><span class="sw" style="border-top-color:var(--call)"></span><b>call-return</b> — synchronous call (solid)</span>
+      <span class="item"><span class="sw" style="border-top-color:var(--event);border-top-style:dashed"></span><b>event</b> — async notify (dashed)</span>
+      <span class="item"><span class="sw" style="border-top-color:var(--shared)"></span><b>shared-data</b> — buffer access</span>
+      <span class="item"><span class="sw" style="border-top-color:var(--async)"></span><b>async-dispatch</b> — thread marshal</span>
+      <span class="item"><span class="sw" style="border-top-color:var(--pub)"></span><b>publish-subscribe</b> — fan-out</span>
+      <span class="item"><span class="sw" style="border-top-color:var(--bind);border-top-style:dashed"></span><b>binding</b> — UI data bind</span>
+    </div>
+    <p class="gloss" style="margin-top:12px">
+      UML elements used: <b>«component»</b> box with the two-tab component icon · <b>lollipop ○</b> = provided interface ·
+      <b>socket ⊃</b> = required interface (lollipop+socket joined = assembly connector) ·
+      <b>«thread» package</b> (folder shape) = a concurrent thread · <b>cylinder</b> = «shared-data» store ·
+      <b>dashed box</b> = «socket» extension point (runtime-injected). Each thread boundary is crossed only by
+      the dashed <b>event</b> and <b>async-dispatch</b> connectors plus the <b>shared-data</b> store.
+    </p>
+  </div>
+
+  <h2>Component Catalog</h2>
+  <div class="card">
+  <table>
+    <thead><tr><th>Component</th><th>Thread</th><th>Runtime responsibility</th><th>Code location</th></tr></thead>
+    <tbody>
+      <tr><td><code>RunCommandService</code></td><td>UI</td><td>Run-lifecycle state machine (State): Stopped/Starting/Running/Paused/Stopping/StopFailed</td><td><code>Services/RunCommandService.cs</code></td></tr>
+      <tr><td><code>RunSessionController</code></td><td>UI</td><td>Issues session tokens, attaches/stops workers, relays <code>DataReady</code>→<code>NotifyDataReady</code>, creates the shared buffer</td><td><code>Services/RunSessionController.cs</code></td></tr>
+      <tr><td><code>LiveAudioBackend</code></td><td>UI</td><td>Selects/creates the OS-specific live worker via <code>#if</code> constants</td><td><code>Audio/LiveAudioBackend.cs</code></td></tr>
+      <tr><td>Input worker</td><td><b>Input</b></td><td>Produces blocks from one source — <code>AudioCaptureWorker</code> (Win/NAudio), <code>LinuxLiveAudioWorker</code>, <code>PlaybackWorker</code>, <code>SimWorker</code></td><td><code>Platform.*</code>, <code>Core/AudioIo</code>, <code>Core/Sim</code></td></tr>
+      <tr><td><code>MasterAudioBuffer</code></td><td>(shared)</td><td>Audio ring buffer written by the input thread, read by the analysis thread</td><td><code>Core/Shared/MasterAudioBuffer.cs</code></td></tr>
+      <tr><td><code>AnalysisWorker</code></td><td><b>Analysis</b></td><td><code>AutoResetEvent</code> wait loop, one frame per block, publishes <code>AnalysisFrameReady</code></td><td><code>Core/Analysis/AnalysisWorker.cs</code></td></tr>
+      <tr><td>Core pipeline</td><td>Analysis</td><td><code>DetectorMetricsEngine</code> orchestrates detection, metrics, imaging, frame projection</td><td><code>Core/Analysis · Detection · Metrics · Imaging</code></td></tr>
+      <tr><td><code>IBeatEventGate</code> socket</td><td>Analysis</td><td>Veto-only gate at the metrics choke point; currently <code>PllMatchGate</code>, future ONNX gate injected here</td><td><code>Core/Detection/Scoring</code></td></tr>
+      <tr><td><code>AnalysisFrameRenderScheduler</code></td><td>UI</td><td>Keeps only the latest frame (coalesce) and meters dropped excess</td><td><code>Services/AnalysisFrameRenderScheduler.cs</code></td></tr>
+      <tr><td><code>AnalysisFrameRouter</code> + <code>GraphFrameRenderer</code></td><td>UI</td><td><code>ObserveFrame</code> to all consumers, <code>RenderFrame</code> only to the active tab</td><td><code>Tabs/AnalysisFrameRouter.cs</code></td></tr>
+      <tr><td>Tab frame consumers</td><td>UI</td><td>Per-tab graph/image rendering (<code>IAnalysisFrameConsumer</code>)</td><td><code>Rendering/</code>, <code>Tabs/</code></td></tr>
+      <tr><td><code>MainWindowViewModel</code></td><td>UI</td><td>Holds and binds UI state (run state, selected position, review bar…)</td><td><code>ViewModels/MainWindowViewModel.cs</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h2>Connector Catalog</h2>
+  <div class="card">
+  <table>
+    <thead><tr><th>#</th><th>Connector</th><th>Type</th><th>Endpoints (producer → consumer)</th><th>Role</th></tr></thead>
+    <tbody>
+      <tr><td>C1</td><td><code>MasterAudioBuffer</code> access</td><td><span class="badge" style="background:var(--shared)">shared-data</span></td><td>input worker → analysis worker</td><td>Producer-consumer ring buffer; temporally decouples input from analysis</td></tr>
+      <tr><td>C2</td><td><code>DataReady</code></td><td><span class="badge" style="background:var(--event)">event</span></td><td>input worker → <code>RunSessionController</code></td><td>"New block available"; stale callbacks filtered by session token</td></tr>
+      <tr><td>C3</td><td><code>NotifyDataReady</code></td><td><span class="badge" style="background:var(--call)">call-return</span></td><td><code>RunSessionController</code> → <code>AnalysisWorker</code></td><td>Sets the <code>AutoResetEvent</code> to wake the analysis thread</td></tr>
+      <tr><td>C4</td><td><code>Process(block)</code></td><td><span class="badge" style="background:var(--call)">call-return</span></td><td><code>AnalysisWorker</code> → Core pipeline</td><td>Synchronous detection · metrics · frame projection</td></tr>
+      <tr><td>C5</td><td>gate <code>Evaluate</code></td><td><span class="badge" style="background:var(--call)">call-return</span></td><td>pipeline → <code>IBeatEventGate</code></td><td>Veto-only beat-event gating (injected interface)</td></tr>
+      <tr><td>C6</td><td><code>AnalysisFrameReady</code></td><td><span class="badge" style="background:var(--event)">event</span></td><td><code>AnalysisWorker</code> → <code>FrameRenderScheduler</code></td><td>Publishes the finished frame from the analysis thread</td></tr>
+      <tr><td>C7</td><td><code>Dispatcher.UIThread.Post</code></td><td><span class="badge" style="background:var(--async)">async-dispatch</span></td><td>scheduler → UI thread</td><td>Marshals analysis thread → UI thread</td></tr>
+      <tr><td>C8</td><td><code>Route</code></td><td><span class="badge" style="background:var(--pub)">publish-subscribe</span></td><td>router → N consumers</td><td><code>ObserveFrame</code> to all, <code>RenderFrame</code> to the active tab</td></tr>
+      <tr><td>C9</td><td>run commands</td><td><span class="badge" style="background:var(--call)">call-return</span></td><td>User → RunCommandService → RunSessionController → Backend/worker</td><td>Start/Pause/Reset create, start, stop workers</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h2>Constraints &amp; Rationale</h2>
+  <div class="card">
+  <table>
+    <thead><tr><th>Constraint</th><th>Rationale (view · tactic)</th></tr></thead>
+    <tbody>
+      <tr><td>Core components <b>do not call</b> UI/platform components</td><td><code>AnalysisWorker</code>/pipeline only <b>publish</b> <code>AnalysisFrameReady</code> and know no consumer — Core no-dependency principle (Module Uses View)</td></tr>
+      <tr><td>Thread boundaries crossed <b>only by event + shared-data + async-dispatch</b></td><td>No cross-thread direct method call; UI updates always via <code>Dispatcher.UIThread.Post</code></td></tr>
+      <tr><td>Input↔analysis <b>decoupled by a shared buffer</b></td><td><code>introduce concurrency</code> tactic: detection is not delayed when the UI is slow (SAP Tactics §5.1)</td></tr>
+      <tr><td>Late events <b>discarded by session token</b></td><td><code>timestamp</code> tactic: <code>_runSessionToken</code>/<code>AnalysisSessionId</code> block stale callbacks (SAP Tactics)</td></tr>
+      <tr><td>Frame back-pressure <b>keeps only the latest</b></td><td><code>AnalysisFrameRenderScheduler</code> drops excess; <code>Route</code> renders only the active tab — <code>schedule resources</code> · <code>limit event response</code></td></tr>
+      <tr><td>Detection gate <b>injected as a socket</b></td><td><code>IBeatEventGate</code> is runtime-injected, adding no new project edge to Core (future ONNX-gate extension point)</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p class="gloss" style="margin-top:26px">
+    Companion documents — Markdown: <code>CnC_VIEW.md</code> (KO) · <code>CnC_VIEW_EN.md</code> (EN). Related views:
+    Module Decomposition / Uses, Layered, MVC, Run Lifecycle Sequence, SAP Tactics Analysis (all under <code>docs/architecture/</code>).
+  </p>
+
+</main>
+</body>
+</html>
