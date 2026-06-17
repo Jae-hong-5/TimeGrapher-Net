@@ -139,9 +139,9 @@ internal sealed class RateScopeRenderer
         scope.XLabel("Time (s)");
         scope.Axes.SetLimitsY(0, 0.1);
         // Fixed-interval time ruler (matches the Multi-Filter Scope): a minor tick
-        // every 0.1 s, a longer major tick every 0.5 s, and a number label only on
-        // whole seconds. The exact tick positions are (re)generated per window in
-        // ApplyScopeTimeTicks; here we only fix the tick mark styling.
+        // every 0.1 s and a labeled major tick every 0.2 s. The exact tick positions
+        // are (re)generated per window in ApplyScopeTimeTicks; here we only fix the
+        // tick mark styling.
         scope.Axes.Bottom.TickLabelStyle.IsVisible = true;
         scope.Axes.Bottom.MinorTickStyle.Length = 3;
         scope.Axes.Bottom.MajorTickStyle.Length = 6;
@@ -243,7 +243,7 @@ internal sealed class RateScopeRenderer
                 _scopePlot.Plot.Axes.AutoScaleY();
             }
 
-            // Re-lay the fixed 1 s ruler over whatever X range is now shown.
+            // Re-lay the fixed 0.2 s ruler over whatever X range is now shown.
             ApplyScopeTimeTicks();
         }
 
