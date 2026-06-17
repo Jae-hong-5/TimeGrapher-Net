@@ -194,6 +194,7 @@ internal sealed class MultiFilterScopeRenderer
     public void CreateGraphs()
     {
         _followLive = true;
+        _hasDataExtent = false;
         _yZoom = DefaultYZoom;
         _yOffset = 0.0;
         for (int i = 0; i < _plots.Length; i++)
@@ -527,6 +528,26 @@ internal sealed class MultiFilterScopeRenderer
     public void RenderFrame(AnalysisFrame frame, AnalysisTabRenderContext context)
     {
         _sampleRate = context.SampleRate;
+
+        // Replace each lane's data first, so the live extent below is computed
+        // from THIS frame's data. Computing it before the replace would window on
+        // the previous frame (one frame stale) and leave the first frame after a
+        // reset at the empty 0..0 extent.
+        var updated = new bool[_plots.Length];
+        for (int i = 0; i < _plots.Length; i++)
+        {
+            GraphSeriesFrame? laneSeries = SeriesDataReducer.FindSeries(
+                frame.ScopeSeries, MultiFilterScopeLanes.All[i].SeriesId);
+            updated[i] = !ReferenceEquals(laneSeries, _lastSeries[i]) &&
+                SeriesDataReducer.TryReplaceSeriesData(
+                    laneSeries, _x[i], _y[i], MultiFilterFrameProjector.FilterPointBudget);
+            if (updated[i])
+            {
+                _lastSeries[i] = laneSeries;
+                UpdateMirror(i);
+            }
+        }
+
         if (_x[0].Count > 0)
         {
             // The view extent is the most recent DisplayWindowSeconds, not the
@@ -538,23 +559,16 @@ internal sealed class MultiFilterScopeRenderer
             _dataMinX = Math.Max(_x[0][0], _dataMaxX - displaySamples);
             _hasDataExtent = true;
         }
+        else
+        {
+            _hasDataExtent = false;
+        }
 
         for (int i = 0; i < _plots.Length; i++)
         {
-            GraphSeriesFrame? laneSeries = SeriesDataReducer.FindSeries(
-                frame.ScopeSeries, MultiFilterScopeLanes.All[i].SeriesId);
-            bool updated = !ReferenceEquals(laneSeries, _lastSeries[i]) &&
-                SeriesDataReducer.TryReplaceSeriesData(
-                    laneSeries, _x[i], _y[i], MultiFilterFrameProjector.FilterPointBudget);
-            if (updated)
-            {
-                _lastSeries[i] = laneSeries;
-                UpdateMirror(i);
-            }
-
             bool cursorMoved = UpdateReviewCursor(i, context);
 
-            if (updated && _x[i].Count > 0 && _followLive)
+            if (updated[i] && _x[i].Count > 0 && _followLive)
             {
                 // Auto-follow shows the recent display window (the retained buffer
                 // extends further left as off-screen lead-in), advancing as it
@@ -565,7 +579,7 @@ internal sealed class MultiFilterScopeRenderer
                 ApplyY(i);
             }
 
-            if (updated || cursorMoved)
+            if (updated[i] || cursorMoved)
             {
                 AxisLimits limits = _plots[i].Plot.Axes.GetLimits();
                 ApplyTimeTicks(i, limits.Left, limits.Right);
