@@ -4,6 +4,10 @@
 
 > 입력 모드는 코드 기준의 `RunCommandMode`에 맞춰 `Live`, `Playback`, `Simulation` 세 갈래로 둔다. 사용자 관점의 "측정 종료"는 현재 UI에서 별도 Stop 버튼이 아니라 실행 중단/리셋, Playback/Simulation 자연 종료, Live 캡처 비정상 종료, 창 종료 경로를 통해 수행된다.
 
+## 추상화 수준
+
+다이어그램은 동작을 설명하는 데 필요한 세로줄만 남긴다. `MainWindowViewModel`, `RunCommandService`, `RunCommandOperations`, `LiveAudioBackend`는 모두 App 계층의 시작/중지 조정 책임으로 묶고, 렌더링과 녹음 저장 세부 경로는 제외한다. Playback의 WAV 파일 선택은 입력 소스 선택이므로 남긴다.
+
 ## 시퀀스 다이어그램
 
 ```mermaid
@@ -11,83 +15,38 @@
 sequenceDiagram
 
     actor User as User
-    participant App as "TimeGrapher.App<br/>Program/MainWindow"
-    participant VM as "MainWindowViewModel"
-    participant Cmd as "RunCommandService<br/>(State Pattern)"
-    participant Ops as "RunCommandOperations"
+    participant App as "App layer<br/>MainWindow/ViewModel/RunCommandService"
     participant Sess as "RunSessionController"
-    participant Backend as "LiveAudioBackend"
-    participant Input as "IAudioInputWorker<br/>Live/Playback/Simulation"
+    participant Input as "Input worker<br/>Live/Playback/Simulation"
     participant Buffer as "MasterAudioBuffer"
     participant Analysis as "AnalysisWorker"
     participant Core as "Core pipeline<br/>Detection/Metrics/Projectors"
-    participant Render as "Render scheduler<br/>Frame router/tabs"
-    participant Writer as "Optional WAV writer"
 
     User->>App: 프로그램 실행
     activate App
-    App->>VM: ViewModel, commands, services 구성
-    activate VM
-    VM-->>App: 초기 UI 상태 준비
-    deactivate VM
-    App->>Backend: LoadAudioDevices()
-    activate Backend
-    Backend-->>App: Live devices + Playback + Simulation sources
-    deactivate Backend
-    App->>VM: 입력 장치와 샘플레이트 표시
-    activate VM
-    VM-->>App: 바인딩 상태 갱신
-    deactivate VM
+    App->>App: UI, ViewModel, command/service 구성
+    activate App
+    deactivate App
+    App->>App: Live devices + Playback + Simulation source 목록 구성
+    activate App
+    deactivate App
     deactivate App
 
-    User->>VM: Start 선택
-    activate VM
-    VM->>App: PlayPauseCommand -> StartRunAsync()
+    User->>App: Start 선택
     activate App
-    App->>Cmd: StartAsync()
-    activate Cmd
-    Cmd->>VM: RunState = Starting<br/>Status = "Starting"
-    activate VM
-    VM-->>Cmd: 상태 갱신 완료
-    deactivate VM
-    Cmd->>Ops: CurrentMode 조회
-    activate Ops
-    Ops-->>Cmd: mode
-    deactivate Ops
+    App->>App: RunState = Starting<br/>CurrentMode 결정
+    activate App
+    deactivate App
 
     alt Live mode
-        Cmd->>Ops: ConfigureLiveAudio()
-        activate Ops
-        Ops->>Backend: ConfigurePreferredInput()
-        activate Backend
-        Backend-->>Ops: preferred input configured
-        deactivate Backend
-        Ops-->>Cmd: live audio configured
-        deactivate Ops
-        Cmd->>Ops: StartLiveAsync()
-        activate Ops
-        Ops->>App: LiveStart()
-        activate App
-        App->>App: 선택된 live device/rate 검증
+        App->>App: live backend 설정<br/>device/rate/gain 검증
         activate App
         deactivate App
-
-        opt 사용자가 녹음 저장을 선택한 경우
-            App->>Writer: RecordingSessionService.TryStartAsync()
-            activate Writer
-            Writer-->>App: ISampleWriter
-            deactivate Writer
-        end
-
         App->>Sess: PrepareInputRun(sampleRate)
         activate Sess
-        Sess->>Sess: 새 runSessionToken 발급
+        Sess->>Sess: runSessionToken 발급
         activate Sess
         deactivate Sess
-        Sess->>Render: resetBeforeRun / clear stale frames
-        activate Render
-        Render-->>Sess: renderer reset
-        deactivate Render
         Sess->>Buffer: new MasterAudioBuffer(sampleRate)
         activate Buffer
         Buffer-->>Sess: buffer
@@ -102,28 +61,12 @@ sequenceDiagram
         deactivate Analysis
         Sess-->>App: buffer + runSessionToken
         deactivate Sess
-        App->>Backend: CreateWorker(buffer)
-        activate Backend
-        Backend-->>App: WindowsAudio 또는 LinuxAudio worker
-        deactivate Backend
-        App->>Sess: AttachInputWorker(worker, token)
-        activate Sess
-        Sess-->>App: DataReady handler attached
-        deactivate Sess
-        App->>Input: Start(device, sampleRate, gain)
+        App->>Input: create live worker<br/>Start(device, sampleRate, gain)
         activate Input
         Input-->>App: capture thread started
         deactivate Input
-        App-->>Ops: started = true
-        deactivate App
-        Ops-->>Cmd: started = true
-        deactivate Ops
 
     else Playback mode
-        Cmd->>Ops: StartPlaybackAsync()
-        activate Ops
-        Ops->>App: PlaybackStart()
-        activate App
         App->>User: WAV 파일 선택 요청
         User-->>App: WAV 파일 선택
         App->>App: 이전 live audio 상태 저장<br/>Playback source/rate 적용
@@ -131,7 +74,7 @@ sequenceDiagram
         deactivate App
         App->>Sess: PrepareInputRun(sampleRate)
         activate Sess
-        Sess->>Sess: 새 runSessionToken 발급
+        Sess->>Sess: runSessionToken 발급
         activate Sess
         deactivate Sess
         Sess->>Buffer: new MasterAudioBuffer(sampleRate)
@@ -148,45 +91,18 @@ sequenceDiagram
         deactivate Analysis
         Sess-->>App: buffer + runSessionToken
         deactivate Sess
-        App->>Input: new PlaybackWorker(buffer, rate)
-        activate Input
-        Input-->>App: playback worker
-        deactivate Input
-        App->>Sess: AttachInputWorker(worker, token)
-        activate Sess
-        Sess-->>App: DataReady handler attached
-        deactivate Sess
-        App->>Input: Start(filePath)
+        App->>Input: new PlaybackWorker(buffer, rate)<br/>Start(filePath)
         activate Input
         Input-->>App: playback thread started
         deactivate Input
-        App-->>Ops: started = true
-        deactivate App
-        Ops-->>Cmd: started = true
-        deactivate Ops
 
     else Simulation mode
-        Cmd->>Ops: StartSimulationAsync()
-        activate Ops
-        Ops->>App: SimStart()
-        activate App
-        App->>App: WatchSynthStreamConfig 구성
-        activate App
-        deactivate App
-
-        opt 사용자가 녹음 저장을 선택한 경우
-            App->>Writer: RecordingSessionService.TryStartAsync()
-            activate Writer
-            Writer-->>App: ISampleWriter
-            deactivate Writer
-        end
-
-        App->>App: 이전 live audio 상태 저장<br/>Simulation source/rate 적용
+        App->>App: WatchSynthStreamConfig 구성<br/>Simulation source/rate 적용
         activate App
         deactivate App
         App->>Sess: PrepareInputRun(sampleRate)
         activate Sess
-        Sess->>Sess: 새 runSessionToken 발급
+        Sess->>Sess: runSessionToken 발급
         activate Sess
         deactivate Sess
         Sess->>Buffer: new MasterAudioBuffer(sampleRate)
@@ -203,33 +119,16 @@ sequenceDiagram
         deactivate Analysis
         Sess-->>App: buffer + runSessionToken
         deactivate Sess
-        App->>Input: new SimWorker(buffer, rate)
-        activate Input
-        Input-->>App: sim worker
-        deactivate Input
-        App->>Sess: AttachInputWorker(worker, token)
-        activate Sess
-        Sess-->>App: DataReady handler attached
-        deactivate Sess
-        App->>Input: Start(config)
+        App->>Input: new SimWorker(buffer, rate)<br/>Start(config)
         activate Input
         Input-->>App: sim thread started
         deactivate Input
-        App-->>Ops: started = true
-        deactivate App
-        Ops-->>Cmd: started = true
-        deactivate Ops
     end
 
-    Cmd->>VM: RunState = Running<br/>Status = "Running"
-    activate VM
-    VM-->>Cmd: 상태 갱신 완료
-    deactivate VM
-    Cmd-->>App: StartAsync 완료
-    deactivate Cmd
-    App-->>VM: command 완료
+    App->>App: RunState = Running<br/>Status = "Running"
+    activate App
     deactivate App
-    deactivate VM
+    deactivate App
 
     loop 측정 중: 입력 block마다
         activate Input
@@ -238,6 +137,8 @@ sequenceDiagram
         Buffer-->>Input: samples stored
         deactivate Buffer
         Input-->>Sess: DataReady
+        deactivate Input
+
         activate Sess
         Sess->>Sess: runSessionToken 확인
         activate Sess
@@ -246,135 +147,62 @@ sequenceDiagram
         activate Analysis
         Analysis-->>Sess: wakeup signaled
         deactivate Analysis
-        Sess-->>Input: callback accepted
         deactivate Sess
-        deactivate Input
 
         activate Analysis
         Analysis->>Buffer: CopyAnalysisSamples()
         activate Buffer
         Buffer-->>Analysis: analysis block
         deactivate Buffer
-        opt 녹음 writer가 있을 때
-            Analysis->>Writer: Write(block)
-            activate Writer
-            Writer-->>Analysis: queued
-            deactivate Writer
-        end
         Analysis->>Core: Process(block)
         activate Core
-        Core-->>Analysis: Detection / metrics / projected frame data
+        Core-->>Analysis: detection / metrics / projected frame data
         deactivate Core
         Analysis-->>App: AnalysisFrameReady(frame)
         activate App
-        App->>Render: schedule latest frame
-        activate Render
-        Render->>VM: status/readout 갱신
-        activate VM
-        VM-->>Render: 상태 갱신 완료
-        deactivate VM
-        Render->>User: 활성 탭 렌더링
-        Render-->>App: render queued/applied
-        deactivate Render
-        App-->>Analysis: frame observed
+        App->>App: 최신 frame으로 UI 상태/화면 갱신
+        activate App
+        deactivate App
+        App-->>Analysis: frame accepted
         deactivate App
         deactivate Analysis
     end
 
     alt 사용자가 측정 종료를 요청한 경우
-        User->>VM: Pause 후 Reset 또는 내부 stop 요청
-        activate VM
-        VM->>App: TogglePause/Reset command
+        User->>App: Pause 후 Reset 또는 내부 stop 요청
         activate App
-        App->>Cmd: Reset() 또는 StopRunWithoutReset()
-        activate Cmd
-        Cmd->>VM: RunState = Stopping
-        activate VM
-        VM-->>Cmd: 상태 갱신 완료
-        deactivate VM
-        Cmd->>Ops: StopMode(CurrentMode)
-        activate Ops
-
-        alt Live stop
-            Ops->>Sess: StopInputWorker("Audio")
-            activate Sess
-            Sess->>Input: TryStop(timeout)
-            activate Input
-            Input-->>Sess: stopped
-            deactivate Input
-            Sess-->>Ops: input stopped
-            deactivate Sess
-        else Playback stop
-            Ops->>Sess: StopInputWorker("Playback")
-            activate Sess
-            Sess->>Input: TryStop(timeout)
-            activate Input
-            Input-->>Sess: stopped
-            deactivate Input
-            Sess-->>Ops: input stopped
-            deactivate Sess
-        else Simulation stop
-            Ops->>Sess: StopInputWorker("Sim")
-            activate Sess
-            Sess->>Input: TryStop(timeout)
-            activate Input
-            Input-->>Sess: stopped
-            deactivate Input
-            Sess-->>Ops: input stopped
-            deactivate Sess
-        end
-
-        Ops->>Sess: StopAnalysisThread()
+        App->>App: RunState = Stopping
+        activate App
+        deactivate App
+        App->>Sess: StopInputWorker(CurrentMode)
+        activate Sess
+        Sess->>Input: TryStop(timeout)
+        activate Input
+        Input-->>Sess: stopped
+        deactivate Input
+        Sess-->>App: input stopped
+        deactivate Sess
+        App->>Sess: StopAnalysisThread()
         activate Sess
         Sess->>Analysis: TryStop(timeout)
         activate Analysis
         Analysis-->>Sess: stopped
         deactivate Analysis
-        Sess-->>Ops: analysis stopped
+        Sess-->>App: analysis stopped
         deactivate Sess
-        Ops-->>Cmd: stop outcome
-        deactivate Ops
-
-        opt 녹음 writer가 있을 때
-            Cmd->>Ops: CloseAudio()
-            activate Ops
-            Ops->>Writer: CloseAudio()
-            activate Writer
-            Writer-->>Ops: closed
-            deactivate Writer
-            Ops-->>Cmd: closed
-            deactivate Ops
-        end
-
-        Cmd->>Ops: InvalidateRunSession()
-        activate Ops
-        Ops->>Sess: InvalidateRunSession()
+        App->>Sess: InvalidateRunSession()
         activate Sess
-        Sess-->>Ops: token advanced
+        Sess-->>App: token advanced
         deactivate Sess
-        Ops-->>Cmd: invalidated
-        deactivate Ops
-
         opt Playback 또는 Simulation이면
-            Cmd->>Ops: RestorePlaybackOrSimulationAudioState()
-            activate Ops
-            Ops->>App: RestorePlaybackOrSimulationAudioState()
+            App->>App: RestorePlaybackOrSimulationAudioState()
             activate App
-            App-->>Ops: restored
             deactivate App
-            Ops-->>Cmd: restored
-            deactivate Ops
         end
-
-        Cmd->>VM: RunState = Stopped<br/>Status = "Stopped" 또는 "Reset"
-        activate VM
-        VM-->>Cmd: 상태 갱신 완료
-        deactivate VM
-        Cmd-->>App: stop/reset 완료
-        deactivate Cmd
-        App-->>VM: command 완료
+        App->>App: RunState = Stopped<br/>Status = "Stopped" 또는 "Reset"
+        activate App
         deactivate App
-        deactivate VM
+        deactivate App
 
     else Playback/Simulation 입력이 자연 종료된 경우
         Input-->>App: DoneReadingFile / SimDone
@@ -387,11 +215,7 @@ sequenceDiagram
         activate Sess
         Sess-->>App: token advanced
         deactivate Sess
-        App->>VM: RunState = Stopping
-        activate VM
-        VM-->>App: 상태 갱신 완료
-        deactivate VM
-        App->>Sess: StopInputWorker(...)
+        App->>Sess: StopInputWorker(Playback/Simulation)
         activate Sess
         Sess->>Input: TryStop(timeout)
         activate Input
@@ -415,19 +239,12 @@ sequenceDiagram
         deactivate Analysis
         Sess-->>App: analysis completed
         deactivate Sess
-        opt 녹음 writer가 있을 때
-            App->>Writer: AudioCloseCheck()
-            activate Writer
-            Writer-->>App: closed
-            deactivate Writer
-        end
         App->>App: RestorePlaybackOrSimulationAudioState()
         activate App
         deactivate App
-        App->>VM: RunState = Stopped<br/>Status = "Stopped"
-        activate VM
-        VM-->>App: 상태 갱신 완료
-        deactivate VM
+        App->>App: RunState = Stopped<br/>Status = "Stopped"
+        activate App
+        deactivate App
         deactivate App
 
     else Live capture가 예기치 않게 종료된 경우
@@ -437,42 +254,28 @@ sequenceDiagram
         activate Sess
         Sess-->>App: current
         deactivate Sess
-        App->>Cmd: StopRunAndRefreshDevices()
-        activate Cmd
-        Cmd->>Ops: StopLive()
-        activate Ops
-        Ops->>Sess: StopInputWorker("Audio")
+        App->>Sess: StopInputWorker("Audio")
         activate Sess
         Sess->>Input: TryStop(timeout)
         activate Input
         Input-->>Sess: stopped
         deactivate Input
-        Sess-->>Ops: input stopped
+        Sess-->>App: input stopped
         deactivate Sess
-        Ops->>Sess: StopAnalysisThread()
+        App->>Sess: StopAnalysisThread()
         activate Sess
         Sess->>Analysis: TryStop(timeout)
         activate Analysis
         Analysis-->>Sess: stopped
         deactivate Analysis
-        Sess-->>Ops: analysis stopped
+        Sess-->>App: analysis stopped
         deactivate Sess
-        Ops-->>Cmd: stopped
-        deactivate Ops
-        Cmd->>Ops: RefreshDevices()
-        activate Ops
-        Ops->>App: LoadAudioDevices()
+        App->>App: RefreshDevices()
         activate App
-        App-->>Ops: devices refreshed
         deactivate App
-        Ops-->>Cmd: refreshed
-        deactivate Ops
-        Cmd->>VM: RunState = Stopped<br/>Status = "Live audio capture ended unexpectedly"
-        activate VM
-        VM-->>Cmd: 상태 갱신 완료
-        deactivate VM
-        Cmd-->>App: recovery stop 완료
-        deactivate Cmd
+        App->>App: RunState = Stopped<br/>Status = "Live audio capture ended unexpectedly"
+        activate App
+        deactivate App
         deactivate App
     end
 
@@ -501,12 +304,6 @@ sequenceDiagram
     deactivate Analysis
     Sess-->>App: analysis stopped
     deactivate Sess
-    opt 녹음 writer가 있을 때
-        App->>Writer: AudioCloseCheck() / Dispose()
-        activate Writer
-        Writer-->>App: closed/disposed
-        deactivate Writer
-    end
     App-->>User: 프로세스 종료
     deactivate App
 ```
@@ -516,7 +313,7 @@ sequenceDiagram
 | 표기 | 의미 |
 |---|---|
 | `alt` | 하나의 실행 trace 안에서 조건에 따라 갈라지는 입력 모드 또는 종료 경로 |
-| `opt` | 녹음 저장처럼 선택되었을 때만 실행되는 조건부 상호작용 |
+| `opt` | Playback/Simulation에서만 필요한 상태 복원처럼 조건부로 실행되는 상호작용 |
 | `loop` | 입력 worker가 오디오 block을 쓰고 분석 worker가 frame을 만드는 반복 흐름 |
 | `activate` / `deactivate` | 호출을 수행하는 동안의 focus of control 세로 막대. Mermaid 기본 테마 변수로 전체 막대 색만 통일한다 |
 | `RunSessionController`의 token 확인 | 오래된 입력 콜백이 새 실행 세션을 깨뜨리지 않게 하는 timestamp tactic |
@@ -535,5 +332,5 @@ sequenceDiagram
 ## 아키텍처 해석
 
 - Layered View 기준으로 App은 UI/controller 계층에서 Core와 플랫폼 어댑터를 사용하고, Core는 App/UI/플랫폼을 알지 않는다.
-- MVC View 기준으로 사용자 입력은 View/Controller(`MainWindow`, `RunCommandService`)에서 처리되고, 분석 데이터는 Model 역할의 Core와 `MainWindowViewModel`을 거쳐 View/Renderer에 표시된다.
-- SAP tactics 기준으로 실행 세션 token은 `timestamp`, 입력/분석/렌더 분리는 `introduce concurrency`, 최신 frame만 렌더링하는 경로는 `limit event response`, 실행 상태 객체는 State Pattern에 해당한다.
+- MVC View 기준으로 사용자 입력은 App 계층(`MainWindow`, `MainWindowViewModel`, `RunCommandService`)에서 조정되고, 분석 데이터는 Core와 `AnalysisWorker`를 거쳐 App 계층에 전달된다.
+- SAP tactics 기준으로 실행 세션 token은 `timestamp`, 입력/분석 분리는 `introduce concurrency`, 실행 상태 객체는 State Pattern에 해당한다.
