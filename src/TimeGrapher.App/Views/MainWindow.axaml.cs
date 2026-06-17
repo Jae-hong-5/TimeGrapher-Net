@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -241,6 +242,23 @@ public partial class MainWindow : Window
     private static PlotThemePalette PlotThemeFor(ThemeVariant theme)
     {
         return PlotThemePalette.FromResources(theme);
+    }
+
+    private void OnHelpTitleBarButtonClick(object? sender, RoutedEventArgs e)
+    {
+        Process.Start(new ProcessStartInfo
+        {
+            FileName = "https://lgcmu2026-team5.github.io/TimeGrapher-Net/manual/",
+            UseShellExecute = true,
+        });
+    }
+
+    private void OnSettingsTitleBarButtonClick(object? sender, RoutedEventArgs e)
+    {
+        // Static run options moved out of the tab strip into this popup; it shares
+        // the MainWindow view-model so toggles reach the same run-settings flow.
+        var settingsWindow = new SettingsWindow { DataContext = mViewModel };
+        _ = settingsWindow.ShowDialog(this);
     }
 
     private void OnMaximizeWindowButtonClick(object? sender, RoutedEventArgs e)

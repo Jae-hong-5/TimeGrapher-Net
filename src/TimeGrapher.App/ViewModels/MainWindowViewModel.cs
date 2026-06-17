@@ -29,6 +29,9 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     private RunUiState _runState = RunUiState.Stopped;
     private bool _modeAllowsSampleRate = true;
     private bool _modeAllowsGain = true;
+    // Simulation is not the default source (the app opens on Live), so the
+    // simulation knobs start disabled until the Simulation source is selected.
+    private bool _modeAllowsSimulationParams;
     private string _statusText = "";
     private string _latencyText = "";
     private bool _isAwaitingBeatSync;
@@ -101,6 +104,10 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     public bool IsResetEnabled => _runState is RunUiState.Stopped or RunUiState.Paused or RunUiState.Stopping or RunUiState.StopFailed;
 
     public bool IsSampleRateEnabled => AreRunParametersEnabled && _modeAllowsSampleRate;
+
+    // Simulation parameters configure the simulated source and only apply before a
+    // run starts, so Live/Playback (and any active run) leave them disabled.
+    public bool AreSimulationParametersEnabled => AreRunParametersEnabled && _modeAllowsSimulationParams;
 
     // Gain is a live knob (both platform workers forward SetVolume mid-capture,
     // matching the Qt original's slider), so it is gated by mode only, not by
@@ -446,6 +453,17 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(IsGainEnabled));
     }
 
+    public void SetModeAllowsSimulationParameters(bool value)
+    {
+        if (_modeAllowsSimulationParams == value)
+        {
+            return;
+        }
+
+        _modeAllowsSimulationParams = value;
+        OnPropertyChanged(nameof(AreSimulationParametersEnabled));
+    }
+
     public void SetInputDeviceNames(IEnumerable<string> values) => ReplaceItems(InputDeviceNames, values);
 
     public void SetSampleRateLabels(IEnumerable<string> values) => ReplaceItems(SampleRateLabels, values);
@@ -492,6 +510,7 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(IsPlayPauseEnabled));
         OnPropertyChanged(nameof(IsResetEnabled));
         OnPropertyChanged(nameof(IsSampleRateEnabled));
+        OnPropertyChanged(nameof(AreSimulationParametersEnabled));
         OnPropertyChanged(nameof(PlayPauseButtonText));
         OnPropertyChanged(nameof(IsPlayPauseButtonShowingPause));
         OnPropertyChanged(nameof(IsPlayPauseButtonShowingPlay));

@@ -556,7 +556,7 @@ public sealed class WatchMetrics
         string beatErrorText = beatErrorValid ? Mark(ArgFixed(beatError, 4, 1)) : "----";
         string amplitudeText = amplitudeValid ? Mark(ArgLong(QRound64(amplitude), 3)) : "---";
 
-        return "RATE " + rateError + " s/d | AMPLITUDE " + amplitudeText + "°" +
+        return "ERROR RATE " + rateError + " s/d | AMPLITUDE " + amplitudeText + "°" +
                " | BEAT ERROR " + beatErrorText + " ms | BEAT " + beatsPerHour + " bph";
     }
 

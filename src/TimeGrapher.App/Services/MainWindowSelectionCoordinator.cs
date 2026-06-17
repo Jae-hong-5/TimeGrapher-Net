@@ -143,6 +143,7 @@ internal sealed class MainWindowSelectionCoordinator
 
         _viewModel.SetModeAllowsSampleRate(RunCommandModePolicies.AllowsSelectableSampleRate(mode));
         _viewModel.SetModeAllowsGain(RunCommandModePolicies.AllowsGain(mode));
+        _viewModel.SetModeAllowsSimulationParameters(RunCommandModePolicies.AllowsSimulationParameters(mode));
         _operations.PopulateSampleRates(deviceNumber);
     }
 

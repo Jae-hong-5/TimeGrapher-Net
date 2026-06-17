@@ -1,3 +1,4 @@
+using System.Globalization;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
@@ -32,7 +33,6 @@ public sealed class AppXamlLoadTests
             "VarioGoodColor",
             "VarioWarnColor",
             "VarioBadColor",
-            "VarioPendingColor",
         };
 
         foreach (ThemeVariant theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
@@ -42,6 +42,54 @@ public sealed class AppXamlLoadTests
                 Assert.True(app.TryGetResource(key, theme, out object? value), key);
                 Assert.IsType<Color>(value);
             }
+        }
+    }
+
+    [Fact]
+    public void AppResourcesUseChromeBorderForSharedPendingGray()
+    {
+        var app = new App();
+        app.Initialize();
+
+        foreach (ThemeVariant theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
+        {
+            Assert.True(app.TryGetResource("ChromeBorderColor", theme, out object? color), theme.ToString());
+            Assert.IsType<Color>(color);
+
+            Assert.True(app.TryGetResource("ChromeBorderBrush", theme, out object? brush), theme.ToString());
+            Assert.IsAssignableFrom<ISolidColorBrush>(brush);
+
+            Assert.False(app.TryGetResource("VarioPendingColor", theme, out _), theme.ToString());
+            Assert.False(app.TryGetResource("VarioPendingBrush", theme, out _), theme.ToString());
+        }
+
+        bool pendingTextUsesPrimary = app.Styles
+            .OfType<Style>()
+            .Where(style => style.Selector?.ToString() == "Border.PositionResultBadge.pending TextBlock")
+            .SelectMany(style => style.Setters)
+            .OfType<Setter>()
+            .Any(setter => setter.Property == TextBlock.ForegroundProperty);
+
+        Assert.True(
+            pendingTextUsesPrimary,
+            "Pending badges reuse ChromeBorderBrush, so their text must use TextPrimaryBrush for contrast.");
+    }
+
+    [Fact]
+    public void AppResourcesExposeSecondaryTextBrush()
+    {
+        // The title-bar results readout colors its labels/units with TextSecondaryBrush
+        // (muted but readable). A missing token would silently fall back to invisible.
+        var app = new App();
+        app.Initialize();
+
+        foreach (ThemeVariant theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
+        {
+            Assert.True(app.TryGetResource("TextSecondaryColor", theme, out object? color), theme.ToString());
+            Assert.IsType<Color>(color);
+
+            Assert.True(app.TryGetResource("TextSecondaryBrush", theme, out object? brush), theme.ToString());
+            Assert.IsAssignableFrom<ISolidColorBrush>(brush);
         }
     }
 
@@ -73,5 +121,41 @@ public sealed class AppXamlLoadTests
         Assert.True(
             bordersSquared,
             "App.axaml must keep a `Border { CornerRadius=0 }` style so plain Borders render square.");
+    }
+
+    [Fact]
+    public void TitleBarIconButtonsUseSquareWindowControlSize()
+    {
+        var app = new App();
+        app.Initialize();
+        Style style = app.Styles
+            .OfType<Style>()
+            .Single(style => style.Selector?.ToString() == "Button.TitleBarIconButton");
+
+        Assert.Equal(36.0, SetterDouble(SetterValue(style, Button.WidthProperty)));
+        Assert.Equal(36.0, SetterDouble(SetterValue(style, Button.HeightProperty)));
+        Assert.Equal(36.0, SetterDouble(SetterValue(style, Button.MinWidthProperty)));
+        Assert.Equal(36.0, SetterDouble(SetterValue(style, Button.MaxWidthProperty)));
+        Assert.Equal(36.0, SetterDouble(SetterValue(style, Button.MinHeightProperty)));
+        Assert.Equal(36.0, SetterDouble(SetterValue(style, Button.MaxHeightProperty)));
+    }
+
+    private static object? SetterValue(Style style, AvaloniaProperty property)
+    {
+        return style.Setters
+            .OfType<Setter>()
+            .Single(setter => setter.Property == property)
+            .Value;
+    }
+
+    private static double SetterDouble(object? value)
+    {
+        return value switch
+        {
+            double d => d,
+            int i => i,
+            string s => double.Parse(s, CultureInfo.InvariantCulture),
+            _ => throw new InvalidOperationException($"Unexpected setter value '{value}'."),
+        };
     }
 }

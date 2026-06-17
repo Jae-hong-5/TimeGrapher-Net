@@ -5,6 +5,7 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using TimeGrapher.App.Rendering;
 using TimeGrapher.App.Tabs;
+using TimeGrapher.App.ViewModels;
 using TimeGrapher.Core.Shared;
 using Xunit;
 

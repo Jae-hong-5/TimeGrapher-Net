@@ -333,7 +333,7 @@ internal sealed class VarioRenderer
         VarioVerdictLevel.Good => ToAvaloniaColor(_theme.VarioGood),
         VarioVerdictLevel.Warn => ToAvaloniaColor(_theme.VarioWarn),
         VarioVerdictLevel.Bad => ToAvaloniaColor(_theme.VarioBad),
-        _ => ToAvaloniaColor(_theme.VarioPending),
+        _ => ToAvaloniaColor(_theme.ChromeBorder),
     };
 
     private static Avalonia.Media.Color ToAvaloniaColor(uint argb) =>

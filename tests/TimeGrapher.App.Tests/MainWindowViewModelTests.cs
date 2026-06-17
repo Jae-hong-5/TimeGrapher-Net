@@ -17,6 +17,7 @@ public sealed class MainWindowViewModelTests
         Assert.True(vm.AreRunParametersEnabled);
         Assert.True(vm.IsSampleRateEnabled);
         Assert.True(vm.IsGainEnabled);
+        Assert.False(vm.AreSimulationParametersEnabled); // app opens on the Live source
         Assert.Equal("Start", vm.PlayPauseButtonText);
         Assert.True(vm.IsPlayPauseButtonShowingPlay);
         Assert.False(vm.IsPlayPauseButtonShowingPause);
@@ -152,6 +153,25 @@ public sealed class MainWindowViewModelTests
 
         Assert.True(vm.IsSampleRateEnabled);
         Assert.True(vm.IsGainEnabled);
+    }
+
+    [Fact]
+    public void SimulationParametersRequireStoppedStateAndSimulationSource()
+    {
+        var vm = CreateViewModel();
+
+        // Stopped but a non-simulation source (Live/Playback) keeps them disabled.
+        Assert.True(vm.AreRunParametersEnabled);
+        Assert.False(vm.AreSimulationParametersEnabled);
+
+        vm.SetModeAllowsSimulationParameters(true);
+        Assert.True(vm.AreSimulationParametersEnabled);
+
+        vm.SetRunning();
+        Assert.False(vm.AreSimulationParametersEnabled); // disabled while a run is active
+
+        vm.SetStopped();
+        Assert.True(vm.AreSimulationParametersEnabled);
     }
 
     [Fact]

@@ -110,9 +110,9 @@ public sealed class DetectorScenarioTests
         Assert.Equal(TgSyncStatus.Synced, uFast.Result.SyncStatus);
         Assert.Equal(TgSyncStatus.Synced, uSlow.Result.SyncStatus);
 
-        double rFast = Field(fast, "RATE ");
-        double rSlow = Field(slow, "RATE ");
-        double rClean = Field(clean, "RATE ");
+        double rFast = Field(fast, "ERROR RATE ");
+        double rSlow = Field(slow, "ERROR RATE ");
+        double rClean = Field(clean, "ERROR RATE ");
 
         Assert.True(rFast * rSlow < 0.0, $"fast={rFast} slow={rSlow} should differ in sign");
         Assert.True(Math.Abs(rFast) > 5.0 && Math.Abs(rSlow) > 5.0, $"fast={rFast} slow={rSlow}");

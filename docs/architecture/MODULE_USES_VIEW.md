@@ -96,7 +96,7 @@ flowchart TB
     subgraph App["TimeGrapher.App"]
         direction TB
         Program["Program / 앱 시작<br/>부트스트랩, 시작 옵션, 실행 설정"]
-        Views["Views<br/>MainWindow, SplashWindow"]
+        Views["Views<br/>MainWindow, SettingsWindow, SplashWindow"]
         ViewModels["ViewModels<br/>UI 상태, 커맨드"]
         Services["Services<br/>실행, 선택, 녹음, 다이얼로그"]
         Audio["Audio<br/>백엔드 선택, 스모크/벤치마크"]

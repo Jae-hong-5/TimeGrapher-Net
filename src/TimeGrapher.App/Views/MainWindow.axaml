@@ -5,6 +5,7 @@
         Icon="/Assets/App/AppIcon-256.png"
         Width="1280" Height="750"
         MinWidth="900" MinHeight="560">
+  <Border BorderBrush="{DynamicResource ChromeAccentBrush}" BorderThickness="1">
   <Grid RowDefinitions="36,*" Background="{DynamicResource SurfaceBgBrush}">
     <Border Grid.Row="0"
             Background="{DynamicResource SurfaceBgBrush}"
@@ -38,12 +39,38 @@
                   Classes="TitleBarIconButton"
                   Click="OnThemeToggleButtonClick"
                   ToolTip.Tip="Toggle theme">
-            <Grid Width="16" Height="16">
-              <Ellipse Width="16" Height="16" StrokeThickness="2" />
-              <Canvas Width="16" Height="16">
-                <Path Data="M8,2 A6,6 0 0 1 8,14 Z" />
-              </Canvas>
-            </Grid>
+            <Viewbox Width="18" Height="18">
+              <Grid Width="16" Height="16">
+                <Ellipse Width="16" Height="16" StrokeThickness="2" />
+                <Canvas Width="16" Height="16">
+                  <Path Data="M8,2 A6,6 0 0 1 8,14 Z" />
+                </Canvas>
+              </Grid>
+            </Viewbox>
+          </Button>
+          <Button Name="HelpTitleBarButton"
+                  Classes="TitleBarIconButton"
+                  Click="OnHelpTitleBarButtonClick"
+                  ToolTip.Tip="Help">
+            <Viewbox Width="18" Height="18">
+              <Grid Width="16" Height="16">
+                <Ellipse Width="16" Height="16" StrokeThickness="2" />
+                <Viewbox Width="6" Height="10"
+                         HorizontalAlignment="Center" VerticalAlignment="Center">
+                  <Path Stretch="Uniform"
+                        Data="M7 5.5C7.2 3.9 8.5 3 10 3C11.8 3 13 4.1 13 5.7C13 6.8 12.4 7.5 11.4 8.1C10.6 8.6 10.2 9 10.2 10H8.4C8.4 8.8 8.9 8.1 9.9 7.5C10.7 7 11.1 6.6 11.1 5.8C11.1 5 10.6 4.5 9.9 4.5C9.1 4.5 8.6 4.9 8.5 5.5H7ZM8.4 13H10.4V11.2H8.4V13Z" />
+                </Viewbox>
+              </Grid>
+            </Viewbox>
+          </Button>
+          <Button Name="SettingsTitleBarButton"
+                  Classes="TitleBarIconButton"
+                  Click="OnSettingsTitleBarButtonClick"
+                  ToolTip.Tip="Settings">
+            <Viewbox Width="19" Height="19">
+              <Path Stretch="Uniform"
+                    Data="M19.43 12.98C19.47 12.66 19.5 12.34 19.5 12C19.5 11.66 19.47 11.33 19.42 11L21.54 9.34L19.54 5.88L17.04 6.88C16.5 6.46 15.93 6.12 15.3 5.86L14.92 3.2H10.92L10.54 5.86C9.91 6.12 9.33 6.47 8.8 6.88L6.3 5.88L4.3 9.34L6.42 11C6.37 11.33 6.34 11.66 6.34 12C6.34 12.34 6.37 12.66 6.42 12.98L4.3 14.66L6.3 18.12L8.8 17.12C9.33 17.53 9.91 17.88 10.54 18.14L10.92 20.8H14.92L15.3 18.14C15.93 17.88 16.5 17.54 17.04 17.12L19.54 18.12L21.54 14.66L19.43 12.98ZM12.92 15.5A3.5 3.5 0 1 1 12.92 8.5A3.5 3.5 0 0 1 12.92 15.5Z" />
+            </Viewbox>
           </Button>
           <Button Name="MinimizeWindowButton"
                   Classes="TitleBarIconButton"
@@ -284,7 +311,7 @@
                            VerticalAlignment="Center" HorizontalAlignment="Center" FontWeight="Bold" Text="BPH" />
                 <ComboBox Name="SimBPHComboBox" Grid.Row="0" Grid.Column="1"
                           HorizontalAlignment="Stretch"
-                          IsEnabled="{Binding AreRunParametersEnabled}"
+                          IsEnabled="{Binding AreSimulationParametersEnabled}"
                           ItemsSource="{Binding SimBphLabels}"
                           SelectedIndex="{Binding SelectedSimBphIndex, Mode=TwoWay}"
                           FontWeight="Bold" />
@@ -292,7 +319,7 @@
                 <TextBlock Name="SimErrorRateLabel" Grid.Row="1" Grid.Column="0"
                            VerticalAlignment="Center" HorizontalAlignment="Center" FontWeight="Bold" Text="Error Rate" />
                 <NumericUpDown Name="SimErrorRateSpinBox" Grid.Row="1" Grid.Column="1"
-                               IsEnabled="{Binding AreRunParametersEnabled}"
+                               IsEnabled="{Binding AreSimulationParametersEnabled}"
                                Value="{Binding SimErrorRate, Mode=TwoWay}"
                                FontWeight="Bold" FormatString="0' s/d'"
                                Minimum="-999" Maximum="999" Increment="1" />
@@ -300,7 +327,7 @@
                 <TextBlock Name="SimAmpLabel" Grid.Row="2" Grid.Column="0"
                            VerticalAlignment="Center" HorizontalAlignment="Center" FontWeight="Bold" Text="Amplitude" />
                 <NumericUpDown Name="SimAmplitudeSpinBox" Grid.Row="2" Grid.Column="1"
-                               IsEnabled="{Binding AreRunParametersEnabled}"
+                               IsEnabled="{Binding AreSimulationParametersEnabled}"
                                Value="{Binding SimAmplitude, Mode=TwoWay}"
                                FontWeight="Bold" FormatString="0'°'"
                                Minimum="100" Maximum="360" Increment="1" />
@@ -308,14 +335,14 @@
                 <TextBlock Name="SimBeatErrorLabel" Grid.Row="3" Grid.Column="0"
                            VerticalAlignment="Center" HorizontalAlignment="Center" FontWeight="Bold" Text="Beat Error" />
                 <NumericUpDown Name="SimBeatErrorSpinBox" Grid.Row="3" Grid.Column="1"
-                               IsEnabled="{Binding AreRunParametersEnabled}"
+                               IsEnabled="{Binding AreSimulationParametersEnabled}"
                                Value="{Binding SimBeatError, Mode=TwoWay}"
                                FontWeight="Bold" FormatString="0.0' ms'"
                                Minimum="-10" Maximum="10" Increment="0.1" />
 
                 <CheckBox Name="RealisticCheckBox" Grid.Row="4" Grid.ColumnSpan="2"
                           HorizontalAlignment="Right"
-                          IsEnabled="{Binding AreRunParametersEnabled}"
+                          IsEnabled="{Binding AreSimulationParametersEnabled}"
                           FontWeight="Bold" Content="Realistic" IsChecked="{Binding Realistic, Mode=TwoWay}" />
               </Grid>
             </StackPanel>
@@ -328,7 +355,7 @@
               <TextBlock Name="MiscLabel"
                          Classes="SectionHeader"
                          Text="Misc. Parameters" />
-              <Grid ColumnDefinitions="132,*" RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="6" ColumnSpacing="8">
+              <Grid ColumnDefinitions="132,*" RowDefinitions="Auto,Auto" RowSpacing="6" ColumnSpacing="8">
                 <TextBlock Name="HighPassLabel" Grid.Row="0" Grid.Column="0"
                            VerticalAlignment="Center" HorizontalAlignment="Center" FontWeight="Bold" Text="High Pass Cutoff" />
                 <TextBox Name="HighLineEdit" Grid.Row="0" Grid.Column="1"
@@ -341,17 +368,6 @@
                                Minimum="1" Maximum="8" Increment="1"
                                Value="{Binding ScopeScale, Mode=TwoWay}" />
 
-                <CheckBox Name="UseConsetCheckBox" Grid.Row="2" Grid.ColumnSpan="2"
-                          HorizontalAlignment="Right"
-                          IsEnabled="{Binding AreRunParametersEnabled}"
-                          FontWeight="Bold" Content="C Event Use Onset Amplitude"
-                          IsChecked="{Binding UseCOnset, Mode=TwoWay}" />
-
-                <CheckBox Name="PllEventVetoCheckBox" Grid.Row="3" Grid.ColumnSpan="2"
-                          HorizontalAlignment="Right"
-                          IsEnabled="{Binding AreRunParametersEnabled}"
-                          FontWeight="Bold" Content="PLL Event Veto (impulse rejection)"
-                          IsChecked="{Binding PllEventVeto, Mode=TwoWay}" />
               </Grid>
             </StackPanel>
           </Border>
@@ -376,4 +392,5 @@
     </Grid>
     </DockPanel>
   </Grid>
+  </Border>
 </Window>

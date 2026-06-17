@@ -19,6 +19,7 @@ public sealed class MainWindowSelectionCoordinatorTests
         Assert.Equal(RunCommandMode.Playback, coordinator.CurrentMode);
         Assert.False(vm.IsSampleRateEnabled);
         Assert.False(vm.IsGainEnabled);
+        Assert.False(vm.AreSimulationParametersEnabled);
         Assert.Equal(new[] { -1 }, operations.PopulatedDeviceNumbers);
     }
 
@@ -35,6 +36,7 @@ public sealed class MainWindowSelectionCoordinatorTests
         Assert.Equal(RunCommandMode.Simulation, coordinator.CurrentMode);
         Assert.True(vm.IsSampleRateEnabled);
         Assert.False(vm.IsGainEnabled);
+        Assert.True(vm.AreSimulationParametersEnabled);
         Assert.Equal(new[] { -1 }, operations.PopulatedDeviceNumbers);
     }
 
@@ -51,6 +53,7 @@ public sealed class MainWindowSelectionCoordinatorTests
         Assert.Equal(RunCommandMode.Live, coordinator.CurrentMode);
         Assert.True(vm.IsSampleRateEnabled);
         Assert.True(vm.IsGainEnabled);
+        Assert.False(vm.AreSimulationParametersEnabled);
         Assert.Equal(new[] { 7 }, operations.PopulatedDeviceNumbers);
     }
 

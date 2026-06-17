@@ -225,6 +225,7 @@ internal sealed partial class RunCommandService
         RunCommandMode mode = _operations.CurrentMode;
         _viewModel.SetModeAllowsSampleRate(RunCommandModePolicies.AllowsSelectableSampleRate(mode));
         _viewModel.SetModeAllowsGain(RunCommandModePolicies.AllowsGain(mode));
+        _viewModel.SetModeAllowsSimulationParameters(RunCommandModePolicies.AllowsSimulationParameters(mode));
         _viewModel.SetStopped();
     }
 

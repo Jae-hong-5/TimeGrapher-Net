@@ -18,7 +18,12 @@ internal sealed class GraphFrameRenderer
     /// (fixed-width) so the readout never shifts when real values replace the dashes.
     /// </summary>
     public const string PlaceholderResults =
-        "RATE ------ s/d | AMPLITUDE ---° | BEAT ERROR ---- ms | BEAT ----- bph";
+        "ERROR RATE ------ s/d | AMPLITUDE ---° | BEAT ERROR ---- ms | BEAT ----- bph";
+    private const string ValueReadoutBrushKey = "ChromeAccentBrush";
+    // Labels/units use the muted-but-readable secondary text brush: ChromeBorderBrush
+    // (a faint hairline tint) was near-invisible, while the primary text brush read as
+    // too heavy next to the accent values.
+    private const string FixedReadoutBrushKey = "TextSecondaryBrush";
 
     private readonly IReadOnlyList<IAnalysisFrameConsumer> _consumers;
     private readonly TextBlock _results;
@@ -52,8 +57,8 @@ internal sealed class GraphFrameRenderer
     /// <summary>
     /// Renders <paramref name="text"/> into the results readout, coloring the spans wrapped in
     /// WatchMetrics value markers ('{' … '}') with the accent brush and stripping the markers.
-    /// Label text and dash placeholders keep the default foreground. Rebuilds the inline runs
-    /// only when the text actually changes, so repeated identical updates cost nothing.
+    /// Fixed label/unit text uses the secondary text brush; separators and dash placeholders inherit
+    /// the default foreground. Rebuilds the inline runs only when the text actually changes.
     /// </summary>
     public void SetResults(string text)
     {
@@ -85,13 +90,16 @@ internal sealed class GraphFrameRenderer
 
             if (i > segmentStart)
             {
-                var run = new Run(text.Substring(segmentStart, i - segmentStart));
                 if (accent)
                 {
-                    run.Bind(TextElement.ForegroundProperty, run.GetResourceObservable("ChromeAccentBrush"));
+                    var run = new Run(text.Substring(segmentStart, i - segmentStart));
+                    run.Bind(TextElement.ForegroundProperty, target.GetResourceObservable(ValueReadoutBrushKey));
+                    inlines.Add(run);
                 }
-
-                inlines.Add(run);
+                else
+                {
+                    AddFixedReadoutRuns(target, inlines, text.Substring(segmentStart, i - segmentStart));
+                }
             }
 
             if (i < text.Length)
@@ -101,6 +109,39 @@ internal sealed class GraphFrameRenderer
 
             segmentStart = i + 1;
         }
+    }
+
+    private static void AddFixedReadoutRuns(TextBlock target, InlineCollection inlines, string segment)
+    {
+        int segmentStart = 0;
+        bool currentUsesFixedBrush = UsesFixedReadoutBrush(segment[0]);
+        for (int i = 1; i <= segment.Length; i++)
+        {
+            bool boundary = i == segment.Length
+                || UsesFixedReadoutBrush(segment[i]) != currentUsesFixedBrush;
+            if (!boundary)
+            {
+                continue;
+            }
+
+            var run = new Run(segment.Substring(segmentStart, i - segmentStart));
+            if (currentUsesFixedBrush)
+            {
+                run.Bind(TextElement.ForegroundProperty, target.GetResourceObservable(FixedReadoutBrushKey));
+            }
+
+            inlines.Add(run);
+            if (i < segment.Length)
+            {
+                segmentStart = i;
+                currentUsesFixedBrush = UsesFixedReadoutBrush(segment[i]);
+            }
+        }
+    }
+
+    private static bool UsesFixedReadoutBrush(char c)
+    {
+        return c != '|' && c != '-';
     }
 
     public void ApplyTheme(PlotThemePalette theme)

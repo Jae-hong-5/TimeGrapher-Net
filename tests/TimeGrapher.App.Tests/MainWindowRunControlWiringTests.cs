@@ -39,6 +39,76 @@ public sealed class MainWindowRunControlWiringTests
     }
 
     [Fact]
+    public void TitleBarPlacesHelpAndSettingsBetweenThemeAndMinimizeButtons()
+    {
+        XDocument document = XDocument.Load(FindSourceFile("src/TimeGrapher.App/Views/MainWindow.axaml"));
+
+        string?[] titleBarButtonNames = document.Descendants()
+            .Where(element => element.Name.LocalName == "Button")
+            .Select(element => element.Attribute("Name")?.Value)
+            .Where(name => name is not null)
+            .Take(6)
+            .ToArray();
+
+        Assert.Equal(
+            new[]
+            {
+                "ThemeToggleButton",
+                "HelpTitleBarButton",
+                "SettingsTitleBarButton",
+                "MinimizeWindowButton",
+                "MaximizeWindowButton",
+                "CloseWindowButton",
+            },
+            titleBarButtonNames);
+
+        XElement settingsButton = FindNamedElement(document, "SettingsTitleBarButton");
+        XElement helpButton = FindNamedElement(document, "HelpTitleBarButton");
+
+        // The gear opens the standalone Settings popup; Help opens the online manual.
+        Assert.Equal("TitleBarIconButton", settingsButton.Attribute("Classes")?.Value);
+        Assert.Equal("Settings", settingsButton.Attribute("ToolTip.Tip")?.Value);
+        Assert.Equal("OnSettingsTitleBarButtonClick", settingsButton.Attribute("Click")?.Value);
+        Assert.Equal("Viewbox", FindOnlyChild(settingsButton, "Viewbox").Name.LocalName);
+        Assert.Single(settingsButton.Descendants(), element => element.Name.LocalName == "Path");
+        Assert.DoesNotContain(settingsButton.Descendants(), element => element.Name.LocalName == "Image");
+
+        Assert.Equal("TitleBarIconButton", helpButton.Attribute("Classes")?.Value);
+        Assert.Equal("Help", helpButton.Attribute("ToolTip.Tip")?.Value);
+        Assert.Equal("OnHelpTitleBarButtonClick", helpButton.Attribute("Click")?.Value);
+        Assert.Equal("Viewbox", FindOnlyChild(helpButton, "Viewbox").Name.LocalName);
+        Assert.Single(helpButton.Descendants(), element => element.Name.LocalName == "Ellipse");
+        Assert.Single(helpButton.Descendants(), element => element.Name.LocalName == "Path");
+        Assert.DoesNotContain(helpButton.Descendants(), element => element.Name.LocalName == "Image");
+    }
+
+    [Fact]
+    public void SettingsPopupBindsTheMovedRunOptionCheckboxes()
+    {
+        XDocument document = XDocument.Load(FindSourceFile("src/TimeGrapher.App/Views/SettingsWindow.axaml"));
+
+        XElement[] checkBoxes = document.Descendants()
+            .Where(element => element.Name.LocalName == "CheckBox")
+            .ToArray();
+
+        Assert.Equal(
+            new[] { "UseConsetCheckBox", "PllEventVetoCheckBox" },
+            checkBoxes.Select(checkBox => checkBox.Attribute("Name")?.Value).ToArray());
+        Assert.Equal(
+            new[] { "C Event Use Onset Amplitude", "PLL Event Veto (impulse rejection)" },
+            checkBoxes.Select(checkBox => checkBox.Attribute("Content")?.Value).ToArray());
+
+        // Each option round-trips through the shared MainWindowViewModel and is
+        // gated by the same run-parameters flag the left panel uses.
+        Assert.Equal(
+            new[] { "{Binding UseCOnset, Mode=TwoWay}", "{Binding PllEventVeto, Mode=TwoWay}" },
+            checkBoxes.Select(checkBox => checkBox.Attribute("IsChecked")?.Value).ToArray());
+        Assert.All(
+            checkBoxes,
+            checkBox => Assert.Equal("{Binding AreRunParametersEnabled}", checkBox.Attribute("IsEnabled")?.Value));
+    }
+
+    [Fact]
     public void InitialPlaybackDirectoryUsesBundledSampleFolder()
     {
         string root = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
@@ -63,6 +133,12 @@ public sealed class MainWindowRunControlWiringTests
     {
         return document.Descendants()
             .Single(element => element.Attribute("Name")?.Value == name);
+    }
+
+    private static XElement FindOnlyChild(XElement element, string localName)
+    {
+        return element.Elements()
+            .Single(child => child.Name.LocalName == localName);
     }
 
     private static string FindSourceFile(string relativePath)

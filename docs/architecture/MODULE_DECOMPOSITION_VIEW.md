@@ -11,7 +11,7 @@ flowchart TB
 
         subgraph App["TimeGrapher.App/"]
             direction TB
-            AppViews["Views/<br/>MainWindow(부분 클래스), SplashWindow"]
+            AppViews["Views/<br/>MainWindow(부분 클래스), SettingsWindow, SplashWindow"]
             AppViewModels["ViewModels/<br/>MainWindowViewModel,<br/>RelayCommand/AsyncRelayCommand"]
             AppServices["Services/<br/>실행 수명주기, 선택,<br/>녹음, 대화상자"]
             AppTabs["Tabs/<br/>InfoTabCatalog/Registry,<br/>프레임 라우팅"]

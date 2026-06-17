@@ -168,6 +168,17 @@ public sealed class InfoTabCatalogTests
     }
 
     [Fact]
+    public void SpectrogramIsTheLastCatalogTab()
+    {
+        // The Settings tab was removed (its run options moved to the gear-button
+        // popup), so Spectrogram is now the final analysis-display tab.
+        InfoTabDefinition tab = InfoTabCatalog.All.Last();
+
+        Assert.Equal(InfoTabCatalog.SpectrogramTabId, tab.Id);
+        Assert.Equal(InfoTabKind.Spectrogram, tab.Kind);
+    }
+
+    [Fact]
     public void EveryKindAppearsExactlyOnce()
     {
         // Derived invariants instead of hardcoded counts (which this wave had

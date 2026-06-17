@@ -17,7 +17,7 @@ public sealed class WatchMetricsResultsTests
     {
         string r = WatchMetrics.BuildResults(false, 0, false, 0.0, false, 0.0, false, 0.0);
 
-        Assert.Equal("RATE ------ s/d | AMPLITUDE ---° | BEAT ERROR ---- ms | BEAT ----- bph", r);
+        Assert.Equal("ERROR RATE ------ s/d | AMPLITUDE ---° | BEAT ERROR ---- ms | BEAT ----- bph", r);
         // Dashes are placeholders, not numbers, so they carry no accent markers.
         Assert.DoesNotContain(S, r);
         Assert.DoesNotContain(E, r);
@@ -29,7 +29,7 @@ public sealed class WatchMetricsResultsTests
         string r = WatchMetrics.BuildResults(true, 21600, true, 1.2, true, 0.3, true, 271);
 
         Assert.Equal(
-            $"RATE {S}  +1.2{E} s/d | AMPLITUDE {S}271{E}° | BEAT ERROR {S} 0.3{E} ms | BEAT {S}21600{E} bph",
+            $"ERROR RATE {S}  +1.2{E} s/d | AMPLITUDE {S}271{E}° | BEAT ERROR {S} 0.3{E} ms | BEAT {S}21600{E} bph",
             r);
     }
 

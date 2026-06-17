@@ -19,4 +19,9 @@ internal static class RunCommandModePolicies
     {
         return mode == RunCommandMode.Live;
     }
+
+    public static bool AllowsSimulationParameters(RunCommandMode mode)
+    {
+        return mode == RunCommandMode.Simulation;
+    }
 }

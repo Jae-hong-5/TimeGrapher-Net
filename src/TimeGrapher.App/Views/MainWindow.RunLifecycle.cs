@@ -270,6 +270,7 @@ public partial class MainWindow
         RunCommandMode mode = CurrentMode();
         mViewModel.SetModeAllowsSampleRate(RunCommandModePolicies.AllowsSelectableSampleRate(mode));
         mViewModel.SetModeAllowsGain(RunCommandModePolicies.AllowsGain(mode));
+        mViewModel.SetModeAllowsSimulationParameters(RunCommandModePolicies.AllowsSimulationParameters(mode));
         mViewModel.SetStopped();
     }
 
