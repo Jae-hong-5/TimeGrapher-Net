@@ -1,7 +1,9 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Threading.Tasks;
 
 using TimeGrapher.App.Audio;
 using TimeGrapher.App.Services;
@@ -38,6 +40,11 @@ public partial class MainWindow
 
         var deviceNames = new List<string>();
         mInputDeviceNumbers.Clear();
+        // Fresh cache instance per enumeration: a still-running pre-warm from a
+        // previous enumeration keeps writing to its own (now-orphaned) instance, so
+        // it can't pollute the new cache with stale rates for a reused device number.
+        var probeCache = new ConcurrentDictionary<int, IReadOnlyList<int>>();
+        _sampleRateProbeCache = probeCache;
 
         int renameLen = RenameAudioDevices.Length;
         for (int dev = 0; dev < inputDevices.Count; dev++)
@@ -61,6 +68,24 @@ public partial class MainWindow
         mInputDeviceNumbers.Add(-1);
         deviceNames.Add(SIMULATION_SOURCE);
         mInputDeviceNumbers.Add(-1);
+
+        // Pre-warm the per-device probe cache off the UI thread so a later device
+        // selection (and the rate restore after a Playback/Sim run) reads cached
+        // rates instantly instead of running the per-rate probe on the UI thread.
+        int[] liveDeviceNumbers = mInputDeviceNumbers.Where(number => number >= 0).Distinct().ToArray();
+        if (liveDeviceNumbers.Length > 0)
+        {
+            Task.Run(() =>
+            {
+                foreach (int number in liveDeviceNumbers)
+                {
+                    // Warm the instance captured for this enumeration, not the live
+                    // field, so a later re-enumeration's swap orphans this task.
+                    probeCache.GetOrAdd(number, LiveAudioBackend.GetCandidateSampleRates);
+                }
+            });
+        }
+
         using (mSelectionCoordinator.SuppressEvents())
         {
             mViewModel.SetInputDeviceNames(deviceNames);
@@ -167,6 +192,17 @@ public partial class MainWindow
         return labels;
     }
 
+    // Per-device probe cache: the supported-rate probe is stable for a device
+    // during a session and (on Linux) spawns a process per rate, so cache it and
+    // pre-warm it off the UI thread (see LoadAudioDevices). PopulateSampleRates
+    // stays synchronous — Start and the Playback/Sim rate-restore read these rates
+    // immediately after a device change — but reads the cache instead of probing,
+    // so a (warmed) selection never freezes the UI thread.
+    private ConcurrentDictionary<int, IReadOnlyList<int>> _sampleRateProbeCache = new();
+
+    private IReadOnlyList<int> ProbeSampleRates(int deviceNumber) =>
+        _sampleRateProbeCache.GetOrAdd(deviceNumber, LiveAudioBackend.GetCandidateSampleRates);
+
     private void PopulateSampleRates(int deviceNumber)
     {
         IReadOnlyList<int> standardRates = AudioSampleRates.Standard;
@@ -185,8 +221,9 @@ public partial class MainWindow
         }
         else
         {
-            IReadOnlyList<int> supported = LiveAudioBackend.GetCandidateSampleRates(deviceNumber);
-            // Capture backend startup remains the authoritative validation point.
+            // Cached (and usually pre-warmed), so this stays instant on the UI
+            // thread. Capture backend startup remains the authoritative validation.
+            IReadOnlyList<int> supported = ProbeSampleRates(deviceNumber);
             foreach (int rate in standardRates)
             {
                 if (supported.Contains(rate) && mNumberOfRates < mAvailableRates.Length)
