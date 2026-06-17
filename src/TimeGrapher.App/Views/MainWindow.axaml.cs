@@ -459,7 +459,6 @@ public partial class MainWindow : Window
     {
         return new AnalysisTabRenderContext(
             SampleRate: FrameSampleRate(frame),
-            ScopeScale: Math.Max(1, (int)mViewModel.ScopeScale),
             ReviewCursorTimeS: mViewModel.ReviewCursorTimeS);
     }
 

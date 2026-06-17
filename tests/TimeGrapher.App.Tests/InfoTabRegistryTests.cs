@@ -137,7 +137,7 @@ public sealed class InfoTabRegistryTests
                 },
             },
             InfoTabCatalog.TestPositionsTabId,
-            new AnalysisTabRenderContext(48000, 2));
+            new AnalysisTabRenderContext(48000));
 
         Assert.Contains("active", buttons[(int)WatchPosition.P6H].Classes);
         Assert.DoesNotContain("active", buttons[(int)WatchPosition.CH].Classes);
@@ -202,7 +202,7 @@ public sealed class InfoTabRegistryTests
                 activePosition: WatchPosition.CH,
                 Position(WatchPosition.CH, rate: 0.0, amplitude: 300.0, count: 117)),
             InfoTabCatalog.TestPositionsTabId,
-            new AnalysisTabRenderContext(48000, 2));
+            new AnalysisTabRenderContext(48000));
 
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
             text.Text == "1/3 positions ready. Measure another position to 30 beats.");
@@ -217,7 +217,7 @@ public sealed class InfoTabRegistryTests
                 Position(WatchPosition.CH, rate: 0.0, amplitude: 300.0, count: 30),
                 Position(WatchPosition.P6H, rate: 2.0, amplitude: 301.0, count: 30)),
             InfoTabCatalog.TestPositionsTabId,
-            new AnalysisTabRenderContext(48000, 2));
+            new AnalysisTabRenderContext(48000));
 
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
             text.Text == "2/3 positions ready. Measure another position to 30 beats.");
@@ -233,7 +233,7 @@ public sealed class InfoTabRegistryTests
                 Position(WatchPosition.P6H, rate: 2.0, amplitude: 301.0, count: 30),
                 Position(WatchPosition.P3H, rate: 1.0, amplitude: 301.0, count: 30)),
             InfoTabCatalog.TestPositionsTabId,
-            new AnalysisTabRenderContext(48000, 2));
+            new AnalysisTabRenderContext(48000));
 
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "COLLECTING");
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
@@ -251,7 +251,7 @@ public sealed class InfoTabRegistryTests
                 Position(WatchPosition.P3H, rate: 1.0, amplitude: 301.0, count: 30),
                 Position(WatchPosition.P12H, rate: 3.0, amplitude: 301.0, count: 5)),
             InfoTabCatalog.TestPositionsTabId,
-            new AnalysisTabRenderContext(48000, 2));
+            new AnalysisTabRenderContext(48000));
 
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
             text.Text == "CR: 5/30 beats. Keep measuring this position.");
@@ -266,7 +266,7 @@ public sealed class InfoTabRegistryTests
                 Position(WatchPosition.P3H, rate: 1.0, amplitude: 301.0, count: 30),
                 Position(WatchPosition.P12H, rate: 3.0, amplitude: 301.0, count: 30)),
             InfoTabCatalog.TestPositionsTabId,
-            new AnalysisTabRenderContext(48000, 2));
+            new AnalysisTabRenderContext(48000));
 
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "OK");
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
@@ -284,7 +284,7 @@ public sealed class InfoTabRegistryTests
                 Position(WatchPosition.P3H, rate: 1.0, amplitude: 301.0, count: 30),
                 Position(WatchPosition.P12H, rate: 30.0, amplitude: 301.0, count: 30)),
             InfoTabCatalog.TestPositionsTabId,
-            new AnalysisTabRenderContext(48000, 2));
+            new AnalysisTabRenderContext(48000));
 
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "CHECK");
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
@@ -510,7 +510,7 @@ public sealed class InfoTabRegistryTests
                     BeatErrorSignedMs = 0.3,
                 },
             },
-            new AnalysisTabRenderContext(48000, 2, ReviewCursorTimeS: 12.0));
+            new AnalysisTabRenderContext(48000, ReviewCursorTimeS: 12.0));
 
         Assert.Equal("RATE -2.0 s/d   AMP 281°   BEAT ERROR +0.2 ms", vm.ReviewMetricsText);
     }
@@ -545,7 +545,7 @@ public sealed class InfoTabRegistryTests
                     AmplitudeStats = new StatsSummary(true, 275.0, 285.0, 280.0, 2.0, 10),
                 },
             },
-            new AnalysisTabRenderContext(48000, 2));
+            new AnalysisTabRenderContext(48000));
 
         Assert.True(rateBadge.IsVisible);
         Assert.True(amplitudeBadge.IsVisible);
@@ -572,7 +572,7 @@ public sealed class InfoTabRegistryTests
                     AmplitudeStats = new StatsSummary(true, 192.0, 216.0, 203.0, 5.2, 200),
                 },
             },
-            new AnalysisTabRenderContext(48000, 2));
+            new AnalysisTabRenderContext(48000));
 
         Assert.Equal(
             new[] { "-8.1 s/d", "+4.2 s/d", "+6.3 s/d", "1.65 s/d", "+2.7 s/d", "14.4 s/d" },

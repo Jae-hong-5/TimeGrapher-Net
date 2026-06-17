@@ -123,7 +123,7 @@ public sealed class LongTermPerfRendererTests
             new LongTermSummaryControls(verdict, rate, amplitude, beatError));
 
         renderer.CreateGraphs();
-        renderer.RenderFrame(SampleFrame(), new AnalysisTabRenderContext(48000, 2, ReviewCursorTimeS: 3720.0));
+        renderer.RenderFrame(SampleFrame(), new AnalysisTabRenderContext(48000, ReviewCursorTimeS: 3720.0));
 
         Assert.Equal("IN TOLERANCE", verdict.Text);
         Assert.Equal("RATE +1.8 s/d", rate.Text);
@@ -152,7 +152,7 @@ public sealed class LongTermPerfRendererTests
         var renderer = new LongTermPerfRenderer(ratePlot, amplitudePlot, beatErrorPlot, new TextBlock());
 
         renderer.CreateGraphs();
-        renderer.RenderFrame(SampleFrame(), new AnalysisTabRenderContext(48000, 2));
+        renderer.RenderFrame(SampleFrame(), new AnalysisTabRenderContext(48000));
         ratePlot.Plot.Axes.SetLimitsY(100, 110);
         amplitudePlot.Plot.Axes.SetLimitsY(100, 110);
         beatErrorPlot.Plot.Axes.SetLimitsY(100, 110);
@@ -179,7 +179,7 @@ public sealed class LongTermPerfRendererTests
         var renderer = new LongTermPerfRenderer(ratePlot, amplitudePlot, beatErrorPlot, new TextBlock());
 
         renderer.CreateGraphs();
-        renderer.RenderFrame(NearAmplitudeLimitFrame(), new AnalysisTabRenderContext(48000, 2));
+        renderer.RenderFrame(NearAmplitudeLimitFrame(), new AnalysisTabRenderContext(48000));
 
         renderer.ShowTimeWindow(60 * 60);
 
@@ -199,7 +199,7 @@ public sealed class LongTermPerfRendererTests
         var renderer = new LongTermPerfRenderer(ratePlot, amplitudePlot, beatErrorPlot, new TextBlock());
 
         renderer.CreateGraphs();
-        renderer.RenderFrame(AboveAmplitudeLimitFrame(), new AnalysisTabRenderContext(48000, 2));
+        renderer.RenderFrame(AboveAmplitudeLimitFrame(), new AnalysisTabRenderContext(48000));
 
         renderer.ShowTimeWindow(60 * 60);
 
@@ -219,7 +219,7 @@ public sealed class LongTermPerfRendererTests
         var renderer = new LongTermPerfRenderer(ratePlot, amplitudePlot, beatErrorPlot, new TextBlock());
 
         renderer.CreateGraphs();
-        renderer.RenderFrame(SampleFrame(), new AnalysisTabRenderContext(48000, 2));
+        renderer.RenderFrame(SampleFrame(), new AnalysisTabRenderContext(48000));
 
         ratePlot.Plot.Axes.SetLimitsX(-1800.0, 1800.0);
         SyncXAxisFrom(renderer);
@@ -238,16 +238,16 @@ public sealed class LongTermPerfRendererTests
         var renderer = new LongTermPerfRenderer(ratePlot, amplitudePlot, beatErrorPlot, new TextBlock());
 
         renderer.CreateGraphs();
-        renderer.RenderFrame(FrameWithRange(1, 7200.0), new AnalysisTabRenderContext(48000, 2));
+        renderer.RenderFrame(FrameWithRange(1, 7200.0), new AnalysisTabRenderContext(48000));
 
         ratePlot.Plot.Axes.SetLimitsX(0.0, 3600.0);
         SyncXAxisFrom(renderer);
-        renderer.RenderFrame(FrameWithRange(2, 10800.0), new AnalysisTabRenderContext(48000, 2));
+        renderer.RenderFrame(FrameWithRange(2, 10800.0), new AnalysisTabRenderContext(48000));
         AssertXWindow(ratePlot, 0.0, 3600.0);
 
         ratePlot.Plot.Axes.SetLimitsX(7200.0, 10800.0);
         SyncXAxisFrom(renderer);
-        renderer.RenderFrame(FrameWithRange(3, 14400.0), new AnalysisTabRenderContext(48000, 2));
+        renderer.RenderFrame(FrameWithRange(3, 14400.0), new AnalysisTabRenderContext(48000));
 
         AssertXWindow(ratePlot, 10800.0, 14400.0);
         AssertXWindow(amplitudePlot, 10800.0, 14400.0);
@@ -263,7 +263,7 @@ public sealed class LongTermPerfRendererTests
         var renderer = new LongTermPerfRenderer(ratePlot, amplitudePlot, beatErrorPlot, new TextBlock());
 
         renderer.CreateGraphs();
-        renderer.RenderFrame(FrameWithRange(1, 7200.0), new AnalysisTabRenderContext(48000, 2));
+        renderer.RenderFrame(FrameWithRange(1, 7200.0), new AnalysisTabRenderContext(48000));
 
         ratePlot.Plot.Axes.SetLimitsX(0.0, 3600.0);
         SyncXAxisFrom(renderer);
@@ -271,7 +271,7 @@ public sealed class LongTermPerfRendererTests
         renderer.PanRight();
         renderer.PanRight();
         renderer.PanRight();
-        renderer.RenderFrame(FrameWithRange(2, 10800.0), new AnalysisTabRenderContext(48000, 2));
+        renderer.RenderFrame(FrameWithRange(2, 10800.0), new AnalysisTabRenderContext(48000));
 
         AssertXWindow(ratePlot, 7200.0, 10800.0);
         AssertXWindow(amplitudePlot, 7200.0, 10800.0);
@@ -287,7 +287,7 @@ public sealed class LongTermPerfRendererTests
         var renderer = new LongTermPerfRenderer(ratePlot, amplitudePlot, beatErrorPlot, new TextBlock());
 
         renderer.CreateGraphs();
-        renderer.RenderFrame(FrameWithPositionChange(), new AnalysisTabRenderContext(48000, 2));
+        renderer.RenderFrame(FrameWithPositionChange(), new AnalysisTabRenderContext(48000));
 
         foreach (AvaPlot plot in new[] { ratePlot, amplitudePlot, beatErrorPlot })
         {

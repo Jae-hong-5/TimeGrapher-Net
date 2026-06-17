@@ -8,5 +8,4 @@ namespace TimeGrapher.App.Tabs;
 /// </summary>
 internal sealed record AnalysisTabRenderContext(
     int SampleRate,
-    int ScopeScale,
     double? ReviewCursorTimeS = null);

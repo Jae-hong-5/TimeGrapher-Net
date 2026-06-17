@@ -38,7 +38,7 @@ public sealed class VarioRendererThemeTests
         var readouts = new VarioReadoutControls(BuildCells(), BuildCells());
         var renderer = new VarioRenderer(ratePlot, amplitudePlot, summary, bandBadges, readouts, "Arial");
         renderer.CreateGraphs();
-        renderer.RenderFrame(SampleFrame(), new AnalysisTabRenderContext(48000, 2));
+        renderer.RenderFrame(SampleFrame(), new AnalysisTabRenderContext(48000));
 
         PlotThemePalette dark = Palette(text: 0xFFAABBCC);
         renderer.ApplyTheme(dark);
@@ -70,7 +70,7 @@ public sealed class VarioRendererThemeTests
 
         renderer.CreateGraphs();
         renderer.ApplyTheme(dark);
-        renderer.RenderFrame(ServiceFrame(), new AnalysisTabRenderContext(48000, 2));
+        renderer.RenderFrame(ServiceFrame(), new AnalysisTabRenderContext(48000));
 
         LinePlot averageLine = ratePlot.Plot.GetPlottables<LinePlot>()
             .Single(line => line.LineWidth == 4);

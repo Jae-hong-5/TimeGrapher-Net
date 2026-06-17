@@ -58,7 +58,7 @@ public sealed class EscapementAnalyzerObservePathTests
         // The observe path only accumulates; it must not render the readout.
         Assert.Equal(VarioReadout.Missing, valueTexts[meanSigmaIndex].Text);
 
-        consumer.RenderFrame(latest, new AnalysisTabRenderContext(SampleRate: 48000, ScopeScale: 1));
+        consumer.RenderFrame(latest, new AnalysisTabRenderContext(SampleRate: 48000));
 
         // n=3 needs the two observe-only beats (a render-only feed of the
         // latest snapshot would read n=1), and the catch-up re-feed of the

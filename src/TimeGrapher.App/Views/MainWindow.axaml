@@ -363,19 +363,12 @@
               <TextBlock Name="MiscLabel"
                          Classes="SectionHeader"
                          Text="Misc. Parameters" />
-              <Grid ColumnDefinitions="132,*" RowDefinitions="Auto,Auto" RowSpacing="6" ColumnSpacing="8">
+              <Grid ColumnDefinitions="132,*" RowDefinitions="Auto" RowSpacing="6" ColumnSpacing="8">
                 <TextBlock Name="HighPassLabel" Grid.Row="0" Grid.Column="0"
                            VerticalAlignment="Center" HorizontalAlignment="Center" FontWeight="Bold" Text="High Pass Cutoff" />
                 <TextBox Name="HighLineEdit" Grid.Row="0" Grid.Column="1"
                          IsEnabled="{Binding AreRunParametersEnabled}"
                          Text="{Binding HighPassCutoffText, Mode=TwoWay}" />
-
-                <TextBlock Name="ScopeScaleLabel" Grid.Row="1" Grid.Column="0"
-                           VerticalAlignment="Center" HorizontalAlignment="Center" FontWeight="Bold" Text="Scope Scale" />
-                <NumericUpDown Name="ScopeScaleSpinBox" Grid.Row="1" Grid.Column="1"
-                               Minimum="1" Maximum="8" Increment="1"
-                               Value="{Binding ScopeScale, Mode=TwoWay}" />
-
               </Grid>
             </StackPanel>
           </Border>

@@ -41,7 +41,7 @@ public sealed class EscapementAnalyzerRendererTests
             },
         };
 
-        renderer.RenderFrame(frame, new AnalysisTabRenderContext(SampleRate: 48000, ScopeScale: 1));
+        renderer.RenderFrame(frame, new AnalysisTabRenderContext(SampleRate: 48000));
 
         AxisLimits limits = plot.Plot.Axes.GetLimits();
         Assert.InRange(limits.Top, 0.87, 0.89);

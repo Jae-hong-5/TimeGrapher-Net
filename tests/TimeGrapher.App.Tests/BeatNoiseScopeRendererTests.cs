@@ -38,7 +38,7 @@ public sealed class BeatNoiseScopeRendererTests
             },
         };
 
-        renderer.RenderFrame(frame, new AnalysisTabRenderContext(SampleRate: 48000, ScopeScale: 1));
+        renderer.RenderFrame(frame, new AnalysisTabRenderContext(SampleRate: 48000));
 
         AxisLimits limits = mainPlot.Plot.Axes.GetLimits();
         Assert.InRange(limits.Top, 0.87, 0.89);
@@ -68,7 +68,7 @@ public sealed class BeatNoiseScopeRendererTests
                 Version = 1,
                 Segments = new[] { large },
             },
-        }, new AnalysisTabRenderContext(SampleRate: 48000, ScopeScale: 1));
+        }, new AnalysisTabRenderContext(SampleRate: 48000));
         AxisLimits initial = mainPlot.Plot.Axes.GetLimits();
 
         var small = new BeatSegment
@@ -86,7 +86,7 @@ public sealed class BeatNoiseScopeRendererTests
                 Version = 2,
                 Segments = new[] { small },
             },
-        }, new AnalysisTabRenderContext(SampleRate: 48000, ScopeScale: 1));
+        }, new AnalysisTabRenderContext(SampleRate: 48000));
         AxisLimits afterSmall = mainPlot.Plot.Axes.GetLimits();
 
         Assert.Equal(initial.Bottom, afterSmall.Bottom);
@@ -116,7 +116,7 @@ public sealed class BeatNoiseScopeRendererTests
                 Version = 1,
                 Segments = new[] { small },
             },
-        }, new AnalysisTabRenderContext(SampleRate: 48000, ScopeScale: 1));
+        }, new AnalysisTabRenderContext(SampleRate: 48000));
         AxisLimits initial = mainPlot.Plot.Axes.GetLimits();
 
         var large = new BeatSegment
@@ -134,7 +134,7 @@ public sealed class BeatNoiseScopeRendererTests
                 Version = 2,
                 Segments = new[] { large },
             },
-        }, new AnalysisTabRenderContext(SampleRate: 48000, ScopeScale: 1));
+        }, new AnalysisTabRenderContext(SampleRate: 48000));
         AxisLimits afterLarge = mainPlot.Plot.Axes.GetLimits();
 
         Assert.True(afterLarge.Bottom < initial.Bottom);
@@ -170,7 +170,7 @@ public sealed class BeatNoiseScopeRendererTests
             },
         };
 
-        renderer.RenderFrame(frame, new AnalysisTabRenderContext(SampleRate: 48000, ScopeScale: 1));
+        renderer.RenderFrame(frame, new AnalysisTabRenderContext(SampleRate: 48000));
 
         AxisLimits limits = mainPlot.Plot.Axes.GetLimits();
         Assert.InRange(limits.Top, 9.89, 9.91);
@@ -218,10 +218,10 @@ public sealed class BeatNoiseScopeRendererTests
         };
         var frame = new AnalysisFrame { BeatSegments = snapshot };
 
-        renderer.RenderFrame(frame, new AnalysisTabRenderContext(SampleRate: 48000, ScopeScale: 1));
+        renderer.RenderFrame(frame, new AnalysisTabRenderContext(SampleRate: 48000));
 
         renderer.SetViewMode(BeatNoiseScopeViewMode.AverageAndStrip);
-        renderer.RenderFrame(frame, new AnalysisTabRenderContext(SampleRate: 48000, ScopeScale: 1));
+        renderer.RenderFrame(frame, new AnalysisTabRenderContext(SampleRate: 48000));
 
         Assert.Equal(BeatNoiseScopeViewMode.AverageAndStrip, renderer.ViewMode);
     }
@@ -255,7 +255,7 @@ public sealed class BeatNoiseScopeRendererTests
             },
         };
 
-        renderer.RenderFrame(frame, new AnalysisTabRenderContext(SampleRate: 48000, ScopeScale: 1));
+        renderer.RenderFrame(frame, new AnalysisTabRenderContext(SampleRate: 48000));
 
         VerticalLine mainCMarker = mainPlot.Plot.GetPlottables<VerticalLine>()
             .Single(line => line.IsVisible && line.X == segment.CPeakOffsetMs && Equals(line.LinePattern, LinePattern.Dotted));
@@ -295,7 +295,7 @@ public sealed class BeatNoiseScopeRendererTests
             },
         };
 
-        renderer.RenderFrame(frame, new AnalysisTabRenderContext(SampleRate: 48000, ScopeScale: 1));
+        renderer.RenderFrame(frame, new AnalysisTabRenderContext(SampleRate: 48000));
         renderer.SetViewMode(BeatNoiseScopeViewMode.AverageAndStrip);
 
         Assert.InRange(averagePlot.Plot.Axes.GetLimits().Top, 2.34, 2.36);
@@ -347,7 +347,7 @@ public sealed class BeatNoiseScopeRendererTests
             },
         };
 
-        renderer.RenderFrame(frame, new AnalysisTabRenderContext(SampleRate: 48000, ScopeScale: 1));
+        renderer.RenderFrame(frame, new AnalysisTabRenderContext(SampleRate: 48000));
 
         Text weakSignal = mainPlot.Plot.GetPlottables<Text>()
             .Single(text => text.LabelText == "WEAK SIGNAL");
@@ -382,7 +382,7 @@ public sealed class BeatNoiseScopeRendererTests
             },
         };
 
-        renderer.RenderFrame(frame, new AnalysisTabRenderContext(SampleRate: 48000, ScopeScale: 1));
+        renderer.RenderFrame(frame, new AnalysisTabRenderContext(SampleRate: 48000));
 
         Text weakSignal = mainPlot.Plot.GetPlottables<Text>()
             .Single(text => text.LabelText == "WEAK SIGNAL");
@@ -417,7 +417,7 @@ public sealed class BeatNoiseScopeRendererTests
             },
         };
 
-        renderer.RenderFrame(frame, new AnalysisTabRenderContext(SampleRate: 48000, ScopeScale: 1));
+        renderer.RenderFrame(frame, new AnalysisTabRenderContext(SampleRate: 48000));
 
         Text weakSignal = mainPlot.Plot.GetPlottables<Text>()
             .Single(text => text.LabelText == "WEAK SIGNAL");
@@ -452,7 +452,7 @@ public sealed class BeatNoiseScopeRendererTests
             },
         };
 
-        renderer.RenderFrame(frame, new AnalysisTabRenderContext(SampleRate: 48000, ScopeScale: 1));
+        renderer.RenderFrame(frame, new AnalysisTabRenderContext(SampleRate: 48000));
 
         Text weakSignal = mainPlot.Plot.GetPlottables<Text>()
             .Single(text => text.LabelText == "WEAK SIGNAL");
@@ -498,7 +498,7 @@ public sealed class BeatNoiseScopeRendererTests
             }
         };
 
-        renderer.RenderFrame(new AnalysisFrame { BeatSegments = snapshot }, new AnalysisTabRenderContext(48000, 1));
+        renderer.RenderFrame(new AnalysisFrame { BeatSegments = snapshot }, new AnalysisTabRenderContext(48000));
 
         Scatter[] visibleScatters = averagePlot.Plot.GetPlottables<Scatter>()
             .Where(scatter => scatter.IsVisible)

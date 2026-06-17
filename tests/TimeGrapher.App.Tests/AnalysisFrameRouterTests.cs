@@ -14,7 +14,7 @@ public sealed class AnalysisFrameRouterTests
         var soundPrint = new FakeConsumer(InfoTabCatalog.SoundPrintTabId);
         var router = new AnalysisFrameRouter(new IAnalysisFrameConsumer[] { rateScope, soundPrint });
 
-        router.Route(new AnalysisFrame(), InfoTabCatalog.SoundPrintTabId, new AnalysisTabRenderContext(48000, 2));
+        router.Route(new AnalysisFrame(), InfoTabCatalog.SoundPrintTabId, new AnalysisTabRenderContext(48000));
 
         Assert.Equal(0, rateScope.RenderCount);
         Assert.Equal(1, soundPrint.RenderCount);
@@ -31,7 +31,7 @@ public sealed class AnalysisFrameRouterTests
 
         // The null-cursor (pause-exit) path renders every tab so no inactive
         // tab keeps a dead dotted cursor after a stop from a scrubbed pause.
-        router.RenderToAll(new AnalysisFrame(), new AnalysisTabRenderContext(48000, 2, ReviewCursorTimeS: null));
+        router.RenderToAll(new AnalysisFrame(), new AnalysisTabRenderContext(48000, ReviewCursorTimeS: null));
 
         Assert.Equal(1, rateScope.RenderCount);
         Assert.Equal(1, soundPrint.RenderCount);

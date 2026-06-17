@@ -47,7 +47,6 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     private decimal _simBeatError;
     private bool _realistic = true;
     private string _highPassCutoffText = "200";
-    private decimal _scopeScale = 2m;
     private bool _useCOnset;
     private bool _pllEventVeto;
     private int _sweepMultiple = 2;
@@ -225,12 +224,6 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     {
         get => _highPassCutoffText;
         set => SetProperty(ref _highPassCutoffText, value);
-    }
-
-    public decimal ScopeScale
-    {
-        get => _scopeScale;
-        set => SetProperty(ref _scopeScale, value);
     }
 
     public bool UseCOnset
