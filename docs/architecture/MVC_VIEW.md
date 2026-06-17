@@ -18,6 +18,10 @@ flowchart LR
         SelectionServices["선택/대화상자 서비스<br/>MainWindowSelectionCoordinator,<br/>PlaybackFileService,<br/>MainWindowDialogService"]
         RecordingServices["녹음 서비스<br/>RecordingSessionService,<br/>QueuedRecordingWriter"]
         AudioController["오디오 제어<br/>LiveAudioBackend,<br/>AudioSmokeRunner"]
+        MainWindowController ~~~ RunServices
+        RunServices ~~~ SelectionServices
+        SelectionServices ~~~ RecordingServices
+        RecordingServices ~~~ AudioController
     end
 
     subgraph Model["Model - 응용/도메인 데이터 캡슐화"]
