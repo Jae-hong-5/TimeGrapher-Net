@@ -79,6 +79,10 @@ internal sealed class WaveformCompareRenderer
     // Toc x-offset (= the last rendered clipMs) so the review cursor shifts toc
     // segments into the right half exactly as the lanes/guides are drawn.
     private double _lastClipMs = WaveformCompareLogic.BeatDisplayWindowMs;
+    // The segments actually drawn this render (a same-phase pair hides its older
+    // duplicate). Mean-C guides/labels and the review cursor read this set, not the
+    // raw snapshot, so they never reflect a beat that was not shown. Oldest-first.
+    private IReadOnlyList<BeatSegment> _visibleSegments = Array.Empty<BeatSegment>();
 
     public WaveformCompareRenderer(AvaPlot plot, TextBlock headerText, string textFontFamily)
     {
@@ -114,6 +118,7 @@ internal sealed class WaveformCompareRenderer
         _lastVersion = 0;
         _lastHistoryVersion = 0;
         _lastSnapshot = null;
+        _visibleSegments = Array.Empty<BeatSegment>();
         _headerText.Text = WaveformCompareLogic.HeaderLine(null);
 
         Plot plot = _plot.Plot;
@@ -175,14 +180,17 @@ internal sealed class WaveformCompareRenderer
             _lastSnapshot = snapshot;
         }
 
-        bool changed = UpdateReviewCursor(context.ReviewCursorTimeS);
-
+        bool changed = false;
         if (snapshot != null && snapshot.Version != _lastVersion)
         {
             _lastVersion = snapshot.Version;
             RenderLanes(snapshot, frame.MetricsHistory);
             changed = true;
         }
+
+        // Map the cursor after RenderLanes refreshes the visible-segment set so it
+        // never points at a same-phase beat that was not drawn.
+        changed |= UpdateReviewCursor(context.ReviewCursorTimeS);
 
         if (changed)
         {
@@ -279,9 +287,14 @@ internal sealed class WaveformCompareRenderer
             }
         }
 
+        // Mean-C guides/labels and the cursor use only the segments actually drawn
+        // (a same-phase pair hides its older duplicate), so they never reflect a
+        // beat that was not shown.
+        _visibleSegments = WaveformCompareLogic.VisibleSegments(segments);
+
         // Position lane labels below each lane's mean C position with 10ms right margin
-        double? ticMeanCOffsetMs = WaveformCompareLogic.MeanCPeakOffsetMs(segments, ticOnly: true);
-        double? tocMeanCOffsetMs = WaveformCompareLogic.MeanCPeakOffsetMs(segments, ticOnly: false);
+        double? ticMeanCOffsetMs = WaveformCompareLogic.MeanCPeakOffsetMs(_visibleSegments, ticOnly: true);
+        double? tocMeanCOffsetMs = WaveformCompareLogic.MeanCPeakOffsetMs(_visibleSegments, ticOnly: false);
 
         for (int lane = 0; lane < pairCount; lane++)
         {
@@ -306,7 +319,7 @@ internal sealed class WaveformCompareRenderer
             }
         }
 
-        UpdateGuides(segments, pairCount, clipMs);
+        UpdateGuides(_visibleSegments, pairCount, clipMs);
         _plot.Plot.Axes.SetLimitsX(XMinMs, xMaxMs);
         _plot.Plot.Axes.SetLimitsY(-0.1, YTop(pairCount));
     }
@@ -370,7 +383,7 @@ internal sealed class WaveformCompareRenderer
 
         double? offsetMs = WaveformCompareLogic.CursorOffsetMs(
             reviewCursorTimeS,
-            _lastSnapshot?.Segments ?? Array.Empty<BeatSegment>(),
+            _visibleSegments,
             _lastClipMs);
         return _reviewCursor.Update(offsetMs);
     }

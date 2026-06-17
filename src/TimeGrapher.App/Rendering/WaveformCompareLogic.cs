@@ -121,6 +121,41 @@ internal static class WaveformCompareLogic
     }
 
     /// <summary>
+    /// The segments actually drawn for the comparison lanes, using the same
+    /// newest-first pairing the renderer uses (<see cref="AssignPairHalves"/> per
+    /// pair). A same-phase pair contributes only its newer segment, so the older
+    /// duplicate is excluded. Returned oldest-first so the mean-C guides and the
+    /// review cursor see exactly the beats on screen — never a hidden one.
+    /// </summary>
+    public static IReadOnlyList<BeatSegment> VisibleSegments(IReadOnlyList<BeatSegment> segments)
+    {
+        var visible = new List<BeatSegment>(segments.Count);
+        for (int lane = 0; lane < PairLanes; lane++)
+        {
+            int idxLast = segments.Count - 1 - lane * 2;
+            int idxFirst = idxLast - 1;
+            if (idxFirst < 0)
+            {
+                continue;
+            }
+
+            (BeatSegment? tic, BeatSegment? toc) = AssignPairHalves(segments[idxFirst], segments[idxLast]);
+            if (tic is BeatSegment ticSeg)
+            {
+                visible.Add(ticSeg);
+            }
+
+            if (toc is BeatSegment tocSeg)
+            {
+                visible.Add(tocSeg);
+            }
+        }
+
+        visible.Sort((a, b) => a.StartTimeS.CompareTo(b.StartTimeS));
+        return visible;
+    }
+
+    /// <summary>
     /// Mean A→C peak interval (ms) across the shown lanes — the cross-beat
     /// consistency reference the guide marker draws. Null until any lane
     /// carries a valid C peak. When <paramref name="ticOnly"/> is not null,

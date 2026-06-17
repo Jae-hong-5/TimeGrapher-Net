@@ -146,6 +146,49 @@ public sealed class WaveformCompareLogicTests
     }
 
     [Fact]
+    public void VisibleSegments_NormalAlternatingPairsShowEverySegment()
+    {
+        var segs = new[]
+        {
+            Segment(startTimeS: 1.0, isTic: true),
+            Segment(startTimeS: 2.0, isTic: false),
+            Segment(startTimeS: 3.0, isTic: true),
+            Segment(startTimeS: 4.0, isTic: false),
+        };
+
+        var visible = WaveformCompareLogic.VisibleSegments(segs);
+
+        Assert.Equal(4, visible.Count);
+        Assert.Equal(1.0, visible[0].StartTimeS);
+        Assert.Equal(2.0, visible[1].StartTimeS);
+        Assert.Equal(3.0, visible[2].StartTimeS);
+        Assert.Equal(4.0, visible[3].StartTimeS);
+    }
+
+    [Fact]
+    public void VisibleSegments_SamePhasePairHidesTheOlderDuplicate()
+    {
+        // Newest pair (3.0 tic, 4.0 tic) is same-phase after a skipped beat: the
+        // older 3.0 is hidden and 4.0 kept; the older pair (1.0/2.0) is normal, so
+        // both stay. Result is oldest-first without 3.0 — the set the cursor and
+        // mean-C guides now read, so they never reference the hidden beat.
+        var segs = new[]
+        {
+            Segment(startTimeS: 1.0, isTic: true),
+            Segment(startTimeS: 2.0, isTic: false),
+            Segment(startTimeS: 3.0, isTic: true),
+            Segment(startTimeS: 4.0, isTic: true),
+        };
+
+        var visible = WaveformCompareLogic.VisibleSegments(segs);
+
+        Assert.Equal(3, visible.Count);
+        Assert.Equal(1.0, visible[0].StartTimeS);
+        Assert.Equal(2.0, visible[1].StartTimeS);
+        Assert.Equal(4.0, visible[2].StartTimeS);
+    }
+
+    [Fact]
     public void MeanCPeakOffset_AveragesOnlyTheLanesWithAValidCPeak()
     {
         var segments = new[]
