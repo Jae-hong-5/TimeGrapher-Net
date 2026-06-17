@@ -66,7 +66,7 @@ public sealed class WaveformCompareLogicTests
     {
         int bph = 18000;  // Test with 18000 BPH
         var ticLabel = WaveformCompareLogic.LaneLabel(Segment(isTic: true, aMs: 5.0, cPeakMs: 147.5), bph, liftAngleDeg: 52.0);
-        Assert.Equal("TIC\nA to C: +142.5 ms\nAmp: 23.2°", ticLabel);
+        Assert.Equal("TIC\nA to C: +142.5 ms\nAmp: 66.2°", ticLabel);
 
         var tocLabel = WaveformCompareLogic.LaneLabel(Segment(isTic: false, cPeakMs: null), bph, liftAngleDeg: 52.0);
         Assert.Equal("TOC\nA to C: —\nAmp: —", tocLabel);
@@ -75,24 +75,25 @@ public sealed class WaveformCompareLogicTests
     [Fact]
     public void LaneLabel_AmplitudeUsesTheConfiguredLiftAngleNotTheSampleMagnitude()
     {
-        // Amp = (3600 * λ) / (π * n * t_AC). λ=52°, n=18000 bph, t_AC = 147.5-5.0 = 142.5 ms
-        // => (3600*52)/(π*18000*0.1425) ≈ 23.2°.
+        // Amp uses the canonical escapement formula WatchMetrics.Amplitude
+        // (lift / sin), shared with every other readout. λ=52°, n=18000 bph,
+        // t_AC = 147.5-5.0 = 142.5 ms => 52 / sin(2π·0.1425/0.4) ≈ 66.2°.
         Assert.Equal(
-            "TIC\nA to C: +142.5 ms\nAmp: 23.2°",
+            "TIC\nA to C: +142.5 ms\nAmp: 66.2°",
             WaveformCompareLogic.LaneLabel(
                 Segment(isTic: true, aMs: 5.0, cPeakMs: 147.5, samplePeak: 0.1f), bph: 18000, liftAngleDeg: 52.0));
 
         // The lift angle is a configured (left-panel) value, not derived from the
         // captured envelope, so a louder capture must not change the amplitude.
         Assert.Equal(
-            "TIC\nA to C: +142.5 ms\nAmp: 23.2°",
+            "TIC\nA to C: +142.5 ms\nAmp: 66.2°",
             WaveformCompareLogic.LaneLabel(
                 Segment(isTic: true, aMs: 5.0, cPeakMs: 147.5, samplePeak: 0.9f), bph: 18000, liftAngleDeg: 52.0));
 
         // A different configured lift angle scales the amplitude proportionally
-        // (60/52 * 23.2 ≈ 26.8°), proving the configured value reaches the formula.
+        // (60/52 * 66.2 ≈ 76.4°), proving the configured value reaches the formula.
         Assert.Equal(
-            "TIC\nA to C: +142.5 ms\nAmp: 26.8°",
+            "TIC\nA to C: +142.5 ms\nAmp: 76.4°",
             WaveformCompareLogic.LaneLabel(
                 Segment(isTic: true, aMs: 5.0, cPeakMs: 147.5, samplePeak: 0.1f), bph: 18000, liftAngleDeg: 60.0));
     }
@@ -121,15 +122,26 @@ public sealed class WaveformCompareLogicTests
     [Fact]
     public void CursorOffset_MapsStreamTimeOntoTheAAlignedAxis()
     {
-        // One 400 ms window starting at 10.0 s with A at +5 ms.
-        var segments = new[] { Segment(startTimeS: 10.0) };
+        // One 400 ms tic window starting at 10.0 s with A at +5 ms; a tic stays on
+        // the left half, so no toc x-offset is applied.
+        var segments = new[] { Segment(startTimeS: 10.0, isTic: true) };
 
-        Assert.Equal(45.0, WaveformCompareLogic.CursorOffsetMs(10.05, segments)!.Value, 6);
-        Assert.Equal(-5.0, WaveformCompareLogic.CursorOffsetMs(10.0, segments)!.Value, 6);
-        Assert.Null(WaveformCompareLogic.CursorOffsetMs(9.9, segments));   // before the window
-        Assert.Null(WaveformCompareLogic.CursorOffsetMs(10.5, segments));  // after the window
-        Assert.Null(WaveformCompareLogic.CursorOffsetMs(null, segments));  // live
-        Assert.Null(WaveformCompareLogic.CursorOffsetMs(10.05, Array.Empty<BeatSegment>()));
+        Assert.Equal(45.0, WaveformCompareLogic.CursorOffsetMs(10.05, segments, 200.0)!.Value, 6);
+        Assert.Equal(-5.0, WaveformCompareLogic.CursorOffsetMs(10.0, segments, 200.0)!.Value, 6);
+        Assert.Null(WaveformCompareLogic.CursorOffsetMs(9.9, segments, 200.0));   // before the window
+        Assert.Null(WaveformCompareLogic.CursorOffsetMs(10.5, segments, 200.0));  // after the window
+        Assert.Null(WaveformCompareLogic.CursorOffsetMs(null, segments, 200.0));  // live
+        Assert.Null(WaveformCompareLogic.CursorOffsetMs(10.05, Array.Empty<BeatSegment>(), 200.0));
+    }
+
+    [Fact]
+    public void CursorOffset_TocSegmentShiftsIntoTheRightHalf()
+    {
+        // A toc segment renders shifted right by the toc x-offset, so its cursor
+        // offset is tocXOffsetMs + the A-relative offset (200 + 45).
+        var segments = new[] { Segment(startTimeS: 10.0, isTic: false) };
+
+        Assert.Equal(245.0, WaveformCompareLogic.CursorOffsetMs(10.05, segments, 200.0)!.Value, 6);
     }
 
     [Fact]
@@ -137,11 +149,11 @@ public sealed class WaveformCompareLogicTests
     {
         var segments = new[]
         {
-            Segment(startTimeS: 10.0),
-            Segment(startTimeS: 10.125),
+            Segment(startTimeS: 10.0, isTic: true),
+            Segment(startTimeS: 10.125, isTic: true),
         };
 
         // 10.2 s lies in both windows; the newest lane wins.
-        Assert.Equal(70.0, WaveformCompareLogic.CursorOffsetMs(10.2, segments)!.Value, 6);
+        Assert.Equal(70.0, WaveformCompareLogic.CursorOffsetMs(10.2, segments, 200.0)!.Value, 6);
     }
 }

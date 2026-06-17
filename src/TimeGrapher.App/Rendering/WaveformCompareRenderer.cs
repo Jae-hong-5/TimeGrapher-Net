@@ -40,11 +40,6 @@ internal sealed class WaveformCompareRenderer
     private const double XMinMs = -2.0 * BeatSegmentCapture.PreEventMs;
     private const double XMaxMs = WaveformCompareLogic.TocXOffsetMs
         + WaveformCompareLogic.BeatDisplayWindowMs - BeatSegmentCapture.PreEventMs;
-    /// <summary>Approximate x position for peak in each beat half (ms from A).</summary>
-    private const double PeakOffsetMs = 50.0;
-    /// <summary>X offset from peak for the label placement.</summary>
-    private const double LaneLabelPeakOffsetMs = 10.0;
-
     /// <summary>Lane label top relative to the lane baseline (traces peak at +1.0).</summary>
     private const double LaneLabelYOffset = 1.12;
 
@@ -84,6 +79,9 @@ internal sealed class WaveformCompareRenderer
     private ulong _lastVersion;
     private ulong _lastHistoryVersion;
     private BeatSegmentsSnapshot? _lastSnapshot;
+    // Toc x-offset (= the last rendered clipMs) so the review cursor shifts toc
+    // segments into the right half exactly as the lanes/guides are drawn.
+    private double _lastClipMs = WaveformCompareLogic.BeatDisplayWindowMs;
 
     public WaveformCompareRenderer(AvaPlot plot, TextBlock headerText, string textFontFamily)
     {
@@ -222,6 +220,7 @@ internal sealed class WaveformCompareRenderer
             : WaveformCompareLogic.BeatDisplayWindowMs;
         double clipMs = Math.Min(WaveformCompareLogic.BeatDisplayWindowMs, beatPeriodMs);
         double xMaxMs = 2 * clipMs;
+        _lastClipMs = clipMs;
 
         for (int lane = 0; lane < WaveformCompareLogic.PairLanes; lane++)
         {
@@ -361,7 +360,8 @@ internal sealed class WaveformCompareRenderer
 
         double? offsetMs = WaveformCompareLogic.CursorOffsetMs(
             reviewCursorTimeS,
-            _lastSnapshot?.Segments ?? Array.Empty<BeatSegment>());
+            _lastSnapshot?.Segments ?? Array.Empty<BeatSegment>(),
+            _lastClipMs);
         return _reviewCursor.Update(offsetMs);
     }
 

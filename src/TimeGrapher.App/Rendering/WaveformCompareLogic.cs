@@ -1,5 +1,6 @@
 using System.Globalization;
 using TimeGrapher.Core.Analysis;
+using TimeGrapher.Core.Metrics;
 using TimeGrapher.Core.Shared;
 
 namespace TimeGrapher.App.Rendering;
@@ -62,9 +63,10 @@ internal static class WaveformCompareLogic
     /// <summary>
     /// Per-lane label: the alternating phase the segment was captured on plus
     /// that beat's own A→C peak interval (em dash while the C is missing), and
-    /// the calculated balance wheel amplitude using:
-    /// Amp = (3600 × λ) / (π × n × t_AC)
-    /// where λ = lift angle (degrees), n = beat rate (BPH), t_AC = A-to-C time (seconds).
+    /// the calculated balance-wheel amplitude. The amplitude uses the canonical
+    /// escapement formula <see cref="WatchMetrics.Amplitude"/> shared with every
+    /// other readout, so the lane label matches the Vario/Trace/sequence value
+    /// for the same beat.
     /// </summary>
     public static string LaneLabel(BeatSegment segment, int bph, double liftAngleDeg) =>
         (segment.IsTic ? "TIC" : "TOC") + "\n" +
@@ -77,10 +79,11 @@ internal static class WaveformCompareLogic
             : VarioReadout.Missing);
 
     /// <summary>
-    /// Calculate balance wheel amplitude in degrees using:
-    /// Amp = (3600 × λ) / (π × n × t_AC)
-    /// where λ = lift angle (degrees from WatchMetrics config),
-    /// n = beat rate (BPH), t_AC = A-to-C time (seconds).
+    /// Balance-wheel amplitude (degrees) from the A→C peak interval, via the
+    /// canonical escapement formula <see cref="WatchMetrics.Amplitude"/>
+    /// (lift angle / sin) — the single amplitude source of truth across the app,
+    /// rather than a small-angle linear approximation that would diverge from the
+    /// Vario/Trace/sequence readouts at lower amplitudes.
     /// </summary>
     private static double CalculateAmplitude(BeatSegment segment, int bph, double liftAngleDeg)
     {
@@ -90,7 +93,7 @@ internal static class WaveformCompareLogic
             return 0.0;
         }
 
-        return (3600.0 * liftAngleDeg) / (Math.PI * bph * tACSeconds);
+        return WatchMetrics.Amplitude(liftAngleDeg, tACSeconds, bph);
     }
 
     /// <summary>
@@ -128,10 +131,13 @@ internal static class WaveformCompareLogic
     /// Review-cursor contract on the lane plot: the x-domain is milliseconds
     /// relative to each lane's A onset, so the scrubbed stream time maps to its
     /// A-relative offset in the newest lane whose window contains it (windows
-    /// overlap; the newest is the lane a viewer reads first). Null hides the
+    /// overlap; the newest is the lane a viewer reads first). A toc segment is
+    /// rendered shifted into the right half, so its cursor offset is shifted by
+    /// <paramref name="tocXOffsetMs"/> to land on the toc half. Null hides the
     /// cursor (live, no lanes, or a time outside every window).
     /// </summary>
-    public static double? CursorOffsetMs(double? reviewCursorTimeS, IReadOnlyList<BeatSegment> segments)
+    public static double? CursorOffsetMs(double? reviewCursorTimeS, IReadOnlyList<BeatSegment> segments,
+        double tocXOffsetMs)
     {
         if (reviewCursorTimeS is not double timeS)
         {
@@ -145,7 +151,8 @@ internal static class WaveformCompareLogic
             double windowMs = segment.MsPerPoint * segment.Samples.Length;
             if (offsetMs >= 0.0 && offsetMs <= windowMs)
             {
-                return offsetMs - segment.AOffsetMs;
+                double aRelativeMs = offsetMs - segment.AOffsetMs;
+                return segment.IsTic ? aRelativeMs : tocXOffsetMs + aRelativeMs;
             }
         }
 
