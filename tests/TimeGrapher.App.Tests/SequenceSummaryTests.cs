@@ -180,8 +180,8 @@ public sealed class SequenceSummaryTests
         SequenceSummary summary = SequenceSummary.Compute(new[]
         {
             Position(WatchPosition.CH, rate: 0.0),
-            Position(WatchPosition.P6H, rate: -10.0),
-            Position(WatchPosition.P12H, rate: 8.0),
+            Position(WatchPosition.P6H, rate: -10.0, count: 30),
+            Position(WatchPosition.P12H, rate: 8.0, count: 30),
         });
 
         Assert.Equal(18.0, summary.VerticalRateSpreadSPerDay!.Value, 12);
@@ -196,8 +196,8 @@ public sealed class SequenceSummaryTests
         SequenceSummary summary = SequenceSummary.Compute(new[]
         {
             Position(WatchPosition.CH, rate: 20.0),
-            Position(WatchPosition.P6H, rate: -1.0),
-            Position(WatchPosition.P12H, rate: 1.0),
+            Position(WatchPosition.P6H, rate: -1.0, count: 30),
+            Position(WatchPosition.P12H, rate: 1.0, count: 30),
         });
 
         Assert.Equal(2.0, summary.VerticalRateSpreadSPerDay!.Value, 12);
@@ -210,8 +210,8 @@ public sealed class SequenceSummaryTests
     {
         SequenceSummary summary = SequenceSummary.Compute(new[]
         {
-            Position(WatchPosition.P6H, rate: 0.0),
-            Position(WatchPosition.P12H, rate: SequenceSummary.UnbalanceVerticalRateSpreadSPerDay),
+            Position(WatchPosition.P6H, rate: 0.0, count: 30),
+            Position(WatchPosition.P12H, rate: SequenceSummary.UnbalanceVerticalRateSpreadSPerDay, count: 30),
         });
 
         Assert.False(summary.UnbalanceSuspected);
@@ -222,7 +222,23 @@ public sealed class SequenceSummaryTests
     {
         SequenceSummary summary = SequenceSummary.Compute(new[]
         {
-            Position(WatchPosition.P6H, rate: 99.0),
+            Position(WatchPosition.P6H, rate: 99.0, count: 30),
+        });
+
+        Assert.Null(summary.VerticalRateSpreadSPerDay);
+        Assert.False(summary.UnbalanceSuspected);
+    }
+
+    [Fact]
+    public void Compute_UnbalanceNeedsQualifiedVerticalPositions()
+    {
+        // Two hanging positions with a large rate spread but too few beats to
+        // qualify: the unbalance heuristic stays silent until both reach the
+        // verdict beat count, matching the consistency verdict's qualification.
+        SequenceSummary summary = SequenceSummary.Compute(new[]
+        {
+            Position(WatchPosition.P6H, rate: -10.0, count: 10),
+            Position(WatchPosition.P12H, rate: 8.0, count: 10),
         });
 
         Assert.Null(summary.VerticalRateSpreadSPerDay);

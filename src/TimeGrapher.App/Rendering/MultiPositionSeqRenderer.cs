@@ -187,6 +187,22 @@ internal sealed class MultiPositionSeqRenderer
             return;
         }
 
+        // The guide advertises the balance-wheel requirement (vertical positions
+        // and a 1V+1H spread), so the verdict must actually enforce it before
+        // reporting OK/CHECK — otherwise an all-horizontal qualified set reads "OK"
+        // while the guide still shows the vertical requirement unmet.
+        int qualifiedVertical = qualifiedRows.Count(row =>
+            !row.Position.IsHorizontal() && !row.Position.IsIntermediate());
+        int qualifiedHorizontal = qualifiedRows.Count(row => row.Position.IsHorizontal());
+        if (qualifiedVertical < MinVerticalPositionsForBalanceWheelVerdict || qualifiedHorizontal < 1)
+        {
+            _dashboard.ConsistencyVerdictText.Text = "COLLECTING";
+            _dashboard.ConsistencyDetailText.Text =
+                $"Need {MinVerticalPositionsForBalanceWheelVerdict} vertical and 1 horizontal position; have {qualifiedVertical}V/{qualifiedHorizontal}H qualified.";
+            _dashboard.ConsistencyBadge.Classes.Add(ResultPendingClass);
+            return;
+        }
+
         double? qualifiedRateSpread = Spread(qualifiedRows.Select(row => row.RateSPerDay!.Value));
         double? qualifiedVerticalSpread = Spread(qualifiedRows
             .Where(row => !row.Position.IsHorizontal() && !row.Position.IsIntermediate())

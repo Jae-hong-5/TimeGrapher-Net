@@ -298,6 +298,36 @@ public sealed class InfoTabRegistryTests
     }
 
     [Fact]
+    public void PositionResultPanelRequiresVerticalAndHorizontalPositionsBeforeOk()
+    {
+        var tabControl = new TabControl();
+        var positionStrip = new Grid();
+        InfoTabRegistry registry = InfoTabRegistry.FromCatalog(tabControl, positionStrip, "Arial");
+        var content = Assert.IsType<Grid>(registry.Registrations.Single(
+            registration => registration.Definition.Id == InfoTabCatalog.TestPositionsTabId).TabItem.Content);
+        AnalysisFrameRouter router = registry.CreateRouter();
+
+        // Three qualified positions with the active one settled, but only one is
+        // vertical: the balance-wheel requirement the guide advertises (>=2
+        // vertical, 1 horizontal) is unmet, so the verdict stays COLLECTING
+        // instead of reporting OK on an all-but-one-horizontal set.
+        router.Route(
+            Frame(
+                version: 1,
+                activePosition: WatchPosition.P6H,
+                Position(WatchPosition.CH, rate: 0.0, amplitude: 300.0, count: 30),
+                Position(WatchPosition.CB, rate: 0.0, amplitude: 300.0, count: 30),
+                Position(WatchPosition.P6H, rate: 2.0, amplitude: 301.0, count: 30)),
+            InfoTabCatalog.TestPositionsTabId,
+            new AnalysisTabRenderContext(48000));
+
+        Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "COLLECTING");
+        Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
+            text.Text == "Need 2 vertical and 1 horizontal position; have 1V/2H qualified.");
+        Assert.Contains(ResultBadges(content), badge => badge.Classes.Contains("pending"));
+    }
+
+    [Fact]
     public void VarioSummaryShowsVerdictsWithoutNumericSublines()
     {
         Grid content = CreateVarioContent();

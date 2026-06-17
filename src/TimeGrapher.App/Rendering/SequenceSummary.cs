@@ -44,8 +44,9 @@ internal sealed record SequenceSummary(
     /// Unbalance-hint threshold (heuristic): the Witschi training course reads
     /// "large rate variations between different vertical test positions" as
     /// balance-wheel unbalance (action: centering/balancing). This project
-    /// flags the hint once the rate spread across the measured hanging
-    /// positions exceeds 15 s/d.
+    /// flags the hint once the rate spread across the qualified hanging
+    /// positions (those with at least <see cref="VarioVerdict.MinSamples"/>
+    /// beats) exceeds 15 s/d.
     /// </summary>
     public const double UnbalanceVerticalRateSpreadSPerDay = 15.0;
 
@@ -56,16 +57,18 @@ internal sealed record SequenceSummary(
         var amplitudeMeans = new List<double>(positions.Count);
         var verticalRateMeans = new List<double>(positions.Count);
         var horizontalRateMeans = new List<double>(positions.Count);
+        var qualifiedVerticalRateMeans = new List<double>(positions.Count);
 
         foreach (PositionSummary position in positions)
         {
+            long beats = Math.Max(position.Rate.Count,
+                Math.Max(position.Amplitude.Count, position.BeatError.Count));
             rows.Add(new SequencePositionRow(
                 position.Position,
                 position.Rate.Valid ? position.Rate.Mean : null,
                 position.Amplitude.Valid ? position.Amplitude.Mean : null,
                 position.BeatError.Valid ? position.BeatError.Mean : null,
-                Math.Max(position.Rate.Count,
-                    Math.Max(position.Amplitude.Count, position.BeatError.Count))));
+                beats));
 
             if (position.Rate.Valid)
             {
@@ -75,8 +78,22 @@ internal sealed record SequenceSummary(
                 // heuristic, which the manual defines over full positions only.
                 if (!position.Position.IsIntermediate())
                 {
-                    (position.Position.IsHorizontal() ? horizontalRateMeans : verticalRateMeans)
-                        .Add(position.Rate.Mean);
+                    if (position.Position.IsHorizontal())
+                    {
+                        horizontalRateMeans.Add(position.Rate.Mean);
+                    }
+                    else
+                    {
+                        verticalRateMeans.Add(position.Rate.Mean);
+                        // The unbalance heuristic is a verdict-grade judgment, so it
+                        // only counts vertical positions with enough beats to qualify
+                        // (the same threshold the consistency verdict uses), not every
+                        // position that has merely recorded a first sample.
+                        if (beats >= VarioVerdict.MinSamples)
+                        {
+                            qualifiedVerticalRateMeans.Add(position.Rate.Mean);
+                        }
+                    }
                 }
             }
 
@@ -88,7 +105,7 @@ internal sealed record SequenceSummary(
 
         double? verticalRateMean = Mean(verticalRateMeans);
         double? horizontalRateMean = Mean(horizontalRateMeans);
-        double? verticalRateSpread = Spread(verticalRateMeans);
+        double? verticalRateSpread = Spread(qualifiedVerticalRateMeans);
 
         return new SequenceSummary(
             rows,
