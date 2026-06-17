@@ -31,16 +31,16 @@ public enum WatchPosition
     /// <summary>Vertical, 12 o'clock up = crown right.</summary>
     P12H = 5,
 
-    /// <summary>Intermediate, 6 o'clock up tilted 45° toward dial-up.</summary>
+    /// <summary>Intermediate diagonal: crown up-left (ShortName CU(L)).</summary>
     P6H45 = 6,
 
-    /// <summary>Intermediate, 9 o'clock up tilted 45° toward dial-up.</summary>
+    /// <summary>Intermediate diagonal: crown down-left (ShortName CD(L)).</summary>
     P9H45 = 7,
 
-    /// <summary>Intermediate, 3 o'clock up tilted 45° toward dial-up.</summary>
+    /// <summary>Intermediate diagonal: crown up-right (ShortName CU(R)).</summary>
     P3H45 = 8,
 
-    /// <summary>Intermediate, 12 o'clock up tilted 45° toward dial-up.</summary>
+    /// <summary>Intermediate diagonal: crown down-right (ShortName CD(R)).</summary>
     P12H45 = 9,
 }
 
