@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.Documents;
 using Avalonia.Layout;
 using Avalonia.Media;
+using ScottPlot.Avalonia;
 using TimeGrapher.App.Rendering;
 using TimeGrapher.App.Tabs;
 using TimeGrapher.App.ViewModels;
@@ -454,6 +455,67 @@ public sealed class InfoTabRegistryTests
     }
 
     [Fact]
+    public void LongTermTabUsesCompactShortWindowNavigation()
+    {
+        Grid content = CreateLongTermContent();
+        var header = Assert.IsType<Grid>(
+            content.Children.Single(child => Grid.GetRow(child) == 0));
+        string[] buttons = Descendants(header)
+            .OfType<Button>()
+            .Select(button => button.Content?.ToString() ?? string.Empty)
+            .ToArray();
+
+        Assert.Equal(new[] { "1h", "3h", "6h", "‹", "›" }, buttons);
+        Assert.DoesNotContain(Descendants(header).OfType<TextBlock>(), text => text.Text == "24H LONG-TERM");
+        Assert.Contains(Descendants(header).OfType<TextBlock>(), text => text.Text == "COLLECTING");
+        Assert.Contains(Descendants(header).OfType<TextBlock>(), text => text.Text == "RATE —");
+        Assert.DoesNotContain(Descendants(header).OfType<Button>(), button => button.Classes.Contains("active"));
+        Assert.DoesNotContain(Descendants(header).OfType<TextBlock>(), text => text.Text?.Contains("Elapsed", StringComparison.Ordinal) == true);
+        Assert.Empty(header.RowDefinitions);
+        Assert.Equal(5, content.RowDefinitions.Count);
+        Assert.Equal(new Thickness(0, 0, 0, -8), Assert.IsType<AvaPlot>(
+            content.Children.Single(child => Grid.GetRow(child) == 1)).Margin);
+        Assert.Equal(new Thickness(0, -8, 0, -8), Assert.IsType<AvaPlot>(
+            content.Children.Single(child => Grid.GetRow(child) == 2)).Margin);
+        Assert.Equal(new Thickness(0, -8, 0, 0), Assert.IsType<AvaPlot>(
+            content.Children.Single(child => Grid.GetRow(child) == 3)).Margin);
+        Assert.DoesNotContain(Descendants(content).OfType<TextBlock>(), text =>
+            text.Text?.StartsWith("Shaded band =", StringComparison.Ordinal) == true);
+    }
+
+    [Fact]
+    public void LongTermTabReportsReviewMetricsToViewModel()
+    {
+        var tabControl = new TabControl();
+        var vm = new MainWindowViewModel(() => Task.CompletedTask, () => { }, () => { });
+        InfoTabRegistry registry = InfoTabRegistry.FromCatalog(tabControl, new Grid(), "Arial", vm);
+        IAnalysisFrameConsumer consumer = registry.Consumers.Single(
+            consumer => consumer.TabId == InfoTabCatalog.LongTermPerfTabId);
+
+        consumer.Initialize(new AnalysisTabResetContext(48000, 10, 250));
+        consumer.RenderFrame(
+            new AnalysisFrame
+            {
+                MetricsHistory = new BeatMetricsHistorySnapshot
+                {
+                    Version = 1,
+                    Rate = Series(new[] { 0.0, 10.0, 20.0 }, new[] { -1.0, -2.0, -3.0 }),
+                    Amplitude = Series(new[] { 0.0, 10.0, 20.0 }, new[] { 280.0, 281.0, 282.0 }),
+                    BeatError = Series(new[] { 0.0, 10.0, 20.0 }, new[] { 0.1, 0.2, 0.3 }),
+                    RateValid = true,
+                    RateSPerDay = -3.0,
+                    AmplitudeValid = true,
+                    AmplitudeDeg = 282.0,
+                    BeatErrorValid = true,
+                    BeatErrorSignedMs = 0.3,
+                },
+            },
+            new AnalysisTabRenderContext(48000, 2, ReviewCursorTimeS: 12.0));
+
+        Assert.Equal("RATE -2.0 s/d   AMP 281°   BEAT ERROR +0.2 ms", vm.ReviewMetricsText);
+    }
+
+    [Fact]
     public void VarioAcceptableBandBadgesAppearOnlyAfterMeasurementStarts()
     {
         InfoTabRegistration registration = CreateVarioRegistration();
@@ -531,13 +593,13 @@ public sealed class InfoTabRegistryTests
         var legend = Assert.IsType<TextBlock>(legendBox.Child);
         string legendText = string.Concat(legend.Inlines!.OfType<Run>().Select(run => run.Text));
         Run currentSwatch = legend.Inlines!.OfType<Run>()
-            .Single(run => run.Text == "Current dashed");
+            .Single(run => run.Text == "Red dashed");
 
         Assert.Contains("Amber band", legendText);
         Assert.Contains("acceptable band", legendText);
         Assert.Contains("Blue solid", legendText);
         Assert.Contains("Red solid", legendText);
-        Assert.Contains("Current dashed", legendText);
+        Assert.Contains("Red dashed", legendText);
         Assert.IsAssignableFrom<IBrush>(currentSwatch.GetValue(TextElement.ForegroundProperty));
         Assert.Equal(TextWrapping.NoWrap, legend.TextWrapping);
     }
@@ -545,6 +607,14 @@ public sealed class InfoTabRegistryTests
     private static Grid CreateVarioContent()
     {
         return Assert.IsType<Grid>(CreateVarioRegistration().TabItem.Content);
+    }
+
+    private static Grid CreateLongTermContent()
+    {
+        var tabControl = new TabControl();
+        InfoTabRegistry registry = InfoTabRegistry.FromCatalog(tabControl, new Grid(), "Arial");
+        return Assert.IsType<Grid>(registry.Registrations.Single(
+            registration => registration.Definition.Id == InfoTabCatalog.LongTermPerfTabId).TabItem.Content);
     }
 
     private static InfoTabRegistration CreateVarioRegistration()
@@ -591,6 +661,14 @@ public sealed class InfoTabRegistryTests
 
     private static StatsSummary Stats(double mean, long count = 10) =>
         new(Valid: true, Min: mean, Max: mean, Mean: mean, Sigma: 0.0, Count: count);
+
+    private static MetricsHistorySeries Series(double[] x, double[] y) => new()
+    {
+        X = x,
+        Y = y,
+        YMin = y,
+        YMax = y,
+    };
 
     private static PositionSummary Position(
         WatchPosition position,

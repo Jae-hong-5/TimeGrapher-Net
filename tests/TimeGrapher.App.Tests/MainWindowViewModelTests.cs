@@ -479,6 +479,7 @@ public sealed class MainWindowViewModelTests
         var vm = CreateViewModel();
         vm.UpdateReviewMaximum(120.0);
         vm.ReviewCursorTimeS = 60.0;
+        vm.UpdateReviewMetricsText("RATE +1.0 s/d   AMP 280°   BEAT ERROR +0.1 ms");
 
         vm.ResetReview();
 
@@ -486,6 +487,7 @@ public sealed class MainWindowViewModelTests
         Assert.Equal(0.0, vm.ReviewMaximumS);
         Assert.Equal(0.0, vm.ReviewSliderValueS);
         Assert.Equal("LIVE 00:00", vm.ReviewReadoutText);
+        Assert.Equal("", vm.ReviewMetricsText);
     }
 
     [Fact]

@@ -30,6 +30,9 @@ internal sealed class SpectrogramRenderer
 
     private readonly Image _spectrogramImage;
     private readonly Image _legendImage;
+    // Frequency-axis labels (top..bottom), filled to span 0..Nyquist once a frame
+    // gives the column duration (Nyquist = (rows - 1) / (2 * columnSeconds)).
+    private readonly TextBlock[] _freqLabels;
     private readonly TextBlock[] _timeLabels;
     private readonly TextBlock _timeCaption;
 
@@ -74,12 +77,14 @@ internal sealed class SpectrogramRenderer
     public SpectrogramRenderer(
         Image spectrogramImage,
         Image legendImage,
+        TextBlock[] freqLabels,
         TextBlock[] timeLabels,
         TextBlock timeCaption,
         Control currentLine)
     {
         _spectrogramImage = spectrogramImage;
         _legendImage = legendImage;
+        _freqLabels = freqLabels;
         _timeLabels = timeLabels;
         _timeCaption = timeCaption;
         _currentLine = currentLine;
@@ -200,7 +205,28 @@ internal sealed class SpectrogramRenderer
 
         PixelBufferBitmap.UpdateImage(_spectrogramImage, _sweepBuffer!);
         UpdateTimeAxis(cols * _lastColumnSeconds); // label the window actually shown
+        UpdateFrequencyAxis(height);
         UpdateCurrentLine();
+    }
+
+    // Labels the frequency axis 0..Nyquist (sampleRate / 2). The image's top row
+    // is the Nyquist bin, so with rows = fftSize/2 + 1 and columnSeconds = hop /
+    // sampleRate, Nyquist = (rows - 1) / (2 * columnSeconds). Labels run top
+    // (Nyquist) to bottom (0), evenly spaced like their fixed slot positions.
+    private void UpdateFrequencyAxis(int rows)
+    {
+        if (rows < 2 || _lastColumnSeconds <= 0.0)
+        {
+            return;
+        }
+
+        double nyquistHz = (rows - 1) / (2.0 * _lastColumnSeconds);
+        int last = _freqLabels.Length - 1;
+        for (int i = 0; i < _freqLabels.Length; i++)
+        {
+            double hz = nyquistHz * (last - i) / last; // i = 0 is the top (Nyquist)
+            _freqLabels[i].Text = hz >= 1000.0 ? $"{hz / 1000.0:0} kHz" : $"{hz:0} Hz";
+        }
     }
 
     // Positions the live-head marker over the image at the sweep head column

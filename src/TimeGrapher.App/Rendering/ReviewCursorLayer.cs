@@ -20,14 +20,14 @@ internal sealed class ReviewCursorLayer
     {
         _line = plot.Add.VerticalLine(0.0);
         _line.LinePattern = LinePattern.Dotted;
-        _line.LineWidth = 1;
+        _line.LineWidth = 2;
         _line.IsVisible = false;
         _line.EnableAutoscale = false;
     }
 
     public void ApplyTheme(PlotThemePalette theme)
     {
-        _line.Color = Color.FromARGB(theme.TextPrimary);
+        _line.Color = Color.FromARGB(theme.VarioBad);
     }
 
     /// <summary>

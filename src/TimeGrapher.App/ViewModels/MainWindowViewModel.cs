@@ -58,6 +58,7 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     private double _reviewMinimumS;
     private double _reviewSliderLeftPad;
     private double _reviewSliderRightPad;
+    private string _reviewMetricsText = "";
     private bool _isLongTermTabActive;
 
     public MainWindowViewModel(
@@ -332,6 +333,8 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
         ? $"REVIEW {timeS:F1} s ({FormatStreamTime(timeS)}) / {FormatStreamTime(_reviewMaximumS)}"
         : "LIVE " + FormatStreamTime(_reviewMaximumS);
 
+    public string ReviewMetricsText => _reviewMetricsText;
+
     /// <summary>The review bar shows only while paused AND the Long-Term tab is active.</summary>
     public bool IsReviewBarVisible => _runState == RunUiState.Paused && _isLongTermTabActive;
 
@@ -386,6 +389,17 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
         }
     }
 
+    public void UpdateReviewMetricsText(string text)
+    {
+        if (text == _reviewMetricsText)
+        {
+            return;
+        }
+
+        _reviewMetricsText = text;
+        OnPropertyChanged(nameof(ReviewMetricsText));
+    }
+
     /// <summary>
     /// Grows the captured review range to the newest rendered stream time.
     /// Monotonic within a session: late or history-less frames never shrink the
@@ -408,6 +422,7 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     public void ResetReview()
     {
         ReviewCursorTimeS = null;
+        UpdateReviewMetricsText("");
         if (_reviewMaximumS != 0.0 || _reviewMinimumS != 0.0)
         {
             _reviewMaximumS = 0.0;

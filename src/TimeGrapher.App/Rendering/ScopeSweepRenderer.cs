@@ -68,7 +68,7 @@ internal sealed class ScopeSweepRenderer
         _sweepY.Clear();
         _lastSweepSeries = null;
         ApplyPlotTheme(sweep);
-        sweep.YLabel("Amplitude");
+        sweep.YLabel("Magnitude");
         sweep.XLabel("Sweep (ms)");
         _sweepScatter = sweep.Add.Scatter(_sweepX, _sweepY);
         _sweepScatter.LineWidth = 1;

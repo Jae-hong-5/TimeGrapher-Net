@@ -594,7 +594,7 @@ internal sealed partial class InfoTabRegistry
             run.Bind(TextElement.ForegroundProperty, run.GetResourceObservable(brushKey));
             return run;
         }
-        var currentSwatch = Swatch("Current dashed", "TextPrimaryBrush");
+        var currentSwatch = Swatch("Red dashed", "VarioBadBrush");
         legend.Inlines = new InlineCollection
         {
             Swatch("Amber band", "VarioAcceptBandEdgeBrush"),
@@ -827,32 +827,135 @@ internal sealed partial class InfoTabRegistry
         InfoTabDefinition definition,
         InfoTabFactoryContext context)
     {
-        // Three stacked panes (rate / amplitude / beat error over elapsed time)
-        // above the overall-average footer and a one-line legend.
+        // Three stacked panes over compact 24-hour summary/navigation chrome.
+        // The top strip is touch-friendly for Raspberry Pi use, while the old
+        // explanatory legend is folded into the graph styling and quiet footer so
+        // the plots keep as much vertical room as possible.
         var ratePlot = new AvaPlot();
         var amplitudePlot = new AvaPlot();
         var beatErrorPlot = new AvaPlot();
+        ratePlot.Margin = new Thickness(0, 0, 0, -8);
+        amplitudePlot.Margin = new Thickness(0, -8, 0, -8);
+        beatErrorPlot.Margin = new Thickness(0, -8, 0, 0);
+
+        TextBlock SummaryValue(string text, double fontSize = 14) => new()
+        {
+            Text = text,
+            FontSize = fontSize,
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(0, 0, 12, 0),
+        };
+
+        var verdictText = SummaryValue("COLLECTING", 14);
+        var rateText = SummaryValue("RATE —");
+        var amplitudeText = SummaryValue("AMPLITUDE —");
+        var beatErrorText = SummaryValue("BEAT ERROR —");
+
+        var summaryRow = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 2,
+            VerticalAlignment = VerticalAlignment.Center,
+            ClipToBounds = true,
+        };
+        summaryRow.Children.Add(verdictText);
+        summaryRow.Children.Add(rateText);
+        summaryRow.Children.Add(amplitudeText);
+        summaryRow.Children.Add(beatErrorText);
+
+        var summaryControls = new LongTermSummaryControls(
+            verdictText,
+            rateText,
+            amplitudeText,
+            beatErrorText);
 
         var footerText = new TextBlock
         {
             FontSize = 12,
-            Margin = new Thickness(8, 2),
+            Margin = new Thickness(8, 0, 8, 2),
+            Opacity = 0.82,
         };
-        var legendText = new TextBlock
+
+        var renderer = new LongTermPerfRenderer(
+            ratePlot,
+            amplitudePlot,
+            beatErrorPlot,
+            footerText,
+            summaryControls);
+
+        const string windowActiveClass = "active";
+        var windowButtons = new List<(Button Button, double Seconds)>();
+
+        Button NavButton(string content, string tooltip, Action onClick)
         {
-            FontSize = 11,
-            Opacity = 0.65,
-            Margin = new Thickness(8, 0, 8, 3),
-            TextWrapping = Avalonia.Media.TextWrapping.Wrap,
-            Text = "Shaded band = range of typical variation (bucket min–max) · solid = bucket average · " +
-                   "dashed = overall average. Resolution coarsens automatically as the run grows (see footer).",
+            var button = new Button
+            {
+                Content = content,
+                MinWidth = 36,
+                MinHeight = 30,
+                Padding = new Thickness(7, 2, 7, 2),
+                FontSize = 12,
+            };
+            button.Classes.Add("PositionButton");
+            ToolTip.SetTip(button, tooltip);
+            button.Click += (_, _) => onClick();
+            return button;
+        }
+
+        Button WindowButton(string content, double seconds, string tooltip)
+        {
+            Button button = NavButton(content, tooltip, () => renderer.ShowTimeWindow(seconds));
+            windowButtons.Add((button, seconds));
+            return button;
+        }
+
+        void UpdateWindowButtons(double seconds)
+        {
+            foreach ((Button button, double target) in windowButtons)
+            {
+                bool active = Math.Abs(seconds - target) <= Math.Max(1.0, target * 0.01);
+                if (active && !button.Classes.Contains(windowActiveClass))
+                {
+                    button.Classes.Add(windowActiveClass);
+                }
+                else if (!active)
+                {
+                    button.Classes.Remove(windowActiveClass);
+                }
+            }
+        }
+
+        var navigation = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 3,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Center,
         };
+        navigation.Children.Add(WindowButton("1h", 60 * 60, "Show the latest 1 hour"));
+        navigation.Children.Add(WindowButton("3h", 3 * 60 * 60, "Show the latest 3 hours"));
+        navigation.Children.Add(WindowButton("6h", 6 * 60 * 60, "Show the latest 6 hours"));
+        navigation.Children.Add(NavButton("‹", "Pan earlier", renderer.PanLeft));
+        navigation.Children.Add(NavButton("›", "Pan later", renderer.PanRight));
+        renderer.SetVisibleWindowCallback(UpdateWindowButtons);
+        UpdateWindowButtons(24 * 60 * 60);
+
+        var headerGrid = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions("*,Auto"),
+            Margin = new Thickness(8, 1, 8, 2),
+            ClipToBounds = true,
+        };
+        Grid.SetColumn(summaryRow, 0);
+        Grid.SetColumn(navigation, 1);
+        headerGrid.Children.Add(summaryRow);
+        headerGrid.Children.Add(navigation);
 
         var grid = new Grid
         {
-            RowDefinitions = new RowDefinitions("*,*,*,Auto,Auto"),
+            RowDefinitions = new RowDefinitions("Auto,*,*,*,Auto"),
         };
-        Control[] rows = { ratePlot, amplitudePlot, beatErrorPlot, footerText, legendText };
+        Control[] rows = { headerGrid, ratePlot, amplitudePlot, beatErrorPlot, footerText };
         for (int i = 0; i < rows.Length; i++)
         {
             Grid.SetRow(rows[i], i);
@@ -861,18 +964,15 @@ internal sealed partial class InfoTabRegistry
 
         if (CreateWaitingOverlay(context.ViewModel) is { } overlay)
         {
-            Grid.SetRow(overlay, 0);
+            Grid.SetRow(overlay, 1);
             grid.Children.Add(overlay);
         }
-
-        var renderer = new LongTermPerfRenderer(ratePlot, amplitudePlot, beatErrorPlot, footerText);
 
         if (context.ViewModel is { } vm)
         {
             renderer.SetSliderAlignmentCallback(vm.UpdateReviewSliderAlignment);
+            renderer.SetReviewMetricsCallback(vm.UpdateReviewMetricsText);
         }
-
-        grid.Children.Add(CreatePinnedResetViewButton("Re-enable live auto-scaling on all three graphs", row: 0, renderer.ResetView));
 
         var consumer = new LongTermPerfFrameConsumer(renderer);
         return new InfoTabRegistration(definition, CreateTabItem(definition, grid), consumer);

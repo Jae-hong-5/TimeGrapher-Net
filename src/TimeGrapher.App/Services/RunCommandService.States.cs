@@ -10,6 +10,8 @@ internal sealed partial class RunCommandService
 
         void StopRunWithoutReset(RunCommandService service);
 
+        void StopRunAndRefreshDevices(RunCommandService service);
+
         void Reset(RunCommandService service);
     }
 
@@ -27,6 +29,11 @@ internal sealed partial class RunCommandService
         }
 
         public virtual void StopRunWithoutReset(RunCommandService service)
+        {
+            _ = service;
+        }
+
+        public virtual void StopRunAndRefreshDevices(RunCommandService service)
         {
             _ = service;
         }
@@ -70,6 +77,11 @@ internal sealed partial class RunCommandService
         {
             service.StopOnly();
         }
+
+        public override void StopRunAndRefreshDevices(RunCommandService service)
+        {
+            service.StopAndRefreshDevices();
+        }
     }
 
     private sealed class PausedState : RunCommandState
@@ -84,6 +96,11 @@ internal sealed partial class RunCommandService
         public override void StopRunWithoutReset(RunCommandService service)
         {
             service.StopOnly();
+        }
+
+        public override void StopRunAndRefreshDevices(RunCommandService service)
+        {
+            service.StopAndRefreshDevices();
         }
 
         public override void Reset(RunCommandService service)

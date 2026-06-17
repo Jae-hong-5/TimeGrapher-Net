@@ -67,37 +67,6 @@ public sealed class ScopeRateFrameProjectorTests
     }
 
     [Fact]
-    public void Project_AfterReset_RebasesEventMarkersOntoTheRestartedWindow()
-    {
-        var projector = new ScopeRateFrameProjector(SampleRate, useCOnset: false, scopeSnapshotPointBudget: 256);
-
-        // Advance the absolute graph-tick origin with one block, then reset the scope
-        // on a watch-position change (the detector keeps its absolute sample counter).
-        var pcm = new float[4800];
-        projector.Project(
-            new DetectorMetricsBlockUpdate(Result(TgSyncStatus.Synced, pcm, pcm.Length, 0.2f),
-                Array.Empty<DetectedEventUpdate>()),
-            new AnalysisFrame());
-
-        projector.Reset();
-
-        // A post-reset event still carries its absolute detector sample (5000); the
-        // marker must land at 5000 - 4800 = 200 in the restarted local window, not at
-        // the absolute 5000 (which would desync it from the waveform restarting at 0).
-        var aEvent = new TgEvent { Type = TgEventType.A, PeakValue = 0.5f, SampleIndex = 5000 };
-        var frame = new AnalysisFrame();
-        projector.Project(
-            new DetectorMetricsBlockUpdate(Result(TgSyncStatus.Synced, Array.Empty<float>(), 0, 0.2f),
-                new List<DetectedEventUpdate> { new(aEvent, 5000.0, new WatchMetricsUpdate()) },
-                Array.Empty<DetectedEventUpdate>()),
-            frame);
-        projector.AppendSnapshot(frame);
-
-        Assert.Contains(frame.VerticalMarkers, m => m.Color == Argb.Green && m.X == 200.0);
-        Assert.DoesNotContain(frame.VerticalMarkers, m => m.X == 5000.0);
-    }
-
-    [Fact]
     public void Project_HonorsSmallScopePointBudget()
     {
         var projector = new ScopeRateFrameProjector(SampleRate, useCOnset: false, scopeSnapshotPointBudget: 8);

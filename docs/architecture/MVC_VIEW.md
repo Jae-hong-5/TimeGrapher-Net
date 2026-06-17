@@ -60,7 +60,7 @@ flowchart LR
 - `GraphFrameRenderer`는 모든 consumer를 `Initialize`/`Reset`하고 공용 수치 결과 readout을 소유한다.
 - 프레임 전달 시 `AnalysisFrameRouter.Route`는 모든 consumer에 `ObserveFrame`을 호출한 뒤, 활성 탭의 consumer에만 `RenderFrame`을 호출한다.
 - `RenderToAll`은 pause 종료 시 리뷰 커서를 모든 탭에서 한 번에 지우는 fan-out 전용 경로다(렌더만 수행; 보관 프레임은 이미 모든 consumer가 `ObserveFrame`으로 관찰했음).
-- 정적 실행 옵션(`UseCOnset`, `PllEventVeto`)은 더 이상 탭이 아니라 타이틀바 톱니바퀴 버튼(`SettingsTitleBarButton`)이 여는 별도 팝업 창 `SettingsWindow`에 있다. 이 창은 `MainWindow`의 `MainWindowViewModel`을 DataContext로 공유해 체크박스 토글이 동일한 실행-설정 흐름(`AreRunParametersEnabled` 게이트 포함)에 그대로 반영되며, 분석 프레임 라우팅에는 참여하지 않는다. 따라서 카탈로그 탭 수가 14개에서 13개로 줄었다.
+- 정적 실행 옵션(`UseCOnset`, `PllEventVeto`)은 더 이상 탭이 아니라 타이틀바 톱니바퀴 버튼(`SettingsTitleBarButton`)이 여는 별도 팝업 창 `SettingsWindow`에 있다. 이 창은 `MainWindow`의 `MainWindowViewModel`을 DataContext로 공유해 체크박스 토글이 동일한 실행-설정 흐름(`AreRunParametersEnabled` 게이트 포함)에 그대로 반영되며, 분석 프레임 라우팅에는 참여하지 않는다. 따라서 이 설정은 더 이상 분석 표시 탭이 아니며, 카탈로그는 13개 탭을 유지한다.
 - 리뷰 바는 **일시정지 중이면서 Long-Term 탭이 활성일 때만** 보인다(`MainWindowViewModel.IsReviewBarVisible => RunState==Paused && _isLongTermTabActive`). 탭 전환 시 `MainWindow`가 `SetLongTermTabActive(activeTab == LongTermPerfTabId)`로 토글하고, 렌더러가 `UpdateReviewSliderAlignment(...)`로 리뷰 슬라이더(`ReviewSliderMargin`/`ReviewMinimumS`)를 Long-Term 그래프 X축 데이터 영역에 맞춘다. Long-Term 그래프는 `BeatMetricsHistorySnapshot.PositionChanges`를 경과시간 축의 점선 위치-전환 마커로 그린다(`LongTermPerfRenderer`).
 
 ### Positions 탭과 위치 입력
@@ -68,7 +68,7 @@ flowchart LR
 - `Positions`는 단일 탭(`InfoTabCatalog.TestPositionsTabId`, 제목 `Positions`)으로 active position diagram, 시퀀스 측정 표, 포지션 맵, X/D/VH 요약 카드를 담는다. 탭 카탈로그의 위치와 순서는 변경하지 않고 탭 내부 표시만 확장한다.
 - `InfoTabRegistry.CreateTestPositionsRegistration`이 탭 콘텐츠를 구성하면서, 왼쪽 설정 패널과 탭 영역 사이에 항상 보이는 1열 위치 선택기(`PositionButtonGrid`)를 채운다.
 - `TestPositionsFrameConsumer.ObserveFrame`은 매 프레임마다 위치 선택기를 갱신하고, `RenderFrame`은 Positions 탭이 활성일 때만 시퀀스 표를 갱신한다. 둘 다 동일한 `BeatMetricsHistorySnapshot`을 읽는다.
-- 위치 입력 흐름: 버튼 클릭 → `MainWindowViewModel.SelectedPositionIndex` 갱신 → `MainWindow.axaml.cs`가 해당 속성 변경을 관찰 → `RunSessionController.SetActivePosition`으로 `WatchPosition`을 실행 중인 `AnalysisWorker`에 전달. 위치가 바뀌면 `AnalysisWorker`가 분석 스레드에서 스코프/레이트 그래프와 레이트 메트릭을 리셋(`DetectorMetricsEngine.ResetMetrics`/`ScopeRateFrameProjector.Reset`)해 새 위치 샘플이 빈 그래프에 쌓이게 하되 검출기의 비트 락은 유지한다.
+- 위치 입력 흐름: 버튼 클릭 → `MainWindowViewModel.SelectedPositionIndex` 갱신 → `MainWindow.axaml.cs`가 해당 속성 변경을 관찰 → `RunSessionController.SetActivePosition`으로 `WatchPosition`을 실행 중인 `AnalysisWorker`에 전달. 전달된 위치는 이후 메트릭 스냅샷의 active position과 위치별 집계에 반영되며, 스코프/레이트 그래프와 검출기 비트 락은 유지된다.
 
 ### 실행 생명주기 (State Pattern)
 
