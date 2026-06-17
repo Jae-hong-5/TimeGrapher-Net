@@ -486,6 +486,11 @@ public sealed class AnalysisWorker : IDisposable
         };
 
         DetectorMetricsBlockUpdate flushUpdate = _pipeline.Flush();
+        if (flushUpdate.Result.SyncStatus == TgSyncStatus.Synced &&
+            flushUpdate.Result.MeasuredPeriodS > 0.0)
+        {
+            _latestBeatPeriodS = flushUpdate.Result.MeasuredPeriodS;
+        }
         _scopeRateProjector.Project(flushUpdate, frame);
         _soundPrintProjector.Project(flushUpdate);
         _beatMetricsProjector.Project(flushUpdate);
@@ -494,6 +499,12 @@ public sealed class AnalysisWorker : IDisposable
         _scopeRateProjector.AppendSnapshot(frame);
         _soundPrintProjector.AppendSnapshot(frame, force: true);
         _spectrogramProjector.AppendSnapshot(frame, force: true);
+        if (frame.SpectrogramImageUpdated)
+        {
+            // Mirror the steady path: the frozen "Last Beat" view needs the locked
+            // beat period (0 = unsynced) on this final forced spectrogram frame too.
+            frame.SpectrogramBeatPeriodS = _latestBeatPeriodS;
+        }
         _beatMetricsProjector.AppendSnapshot(frame);
         _beatSegmentCapture.AppendSnapshot(frame);
         _sweepProjector.AppendSnapshot(frame, force: true);
