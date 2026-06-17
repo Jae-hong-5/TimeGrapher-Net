@@ -44,7 +44,9 @@ public sealed class WatchMetricsResultsTests
 
         Assert.Equal(small.Length, large.Length);
         Assert.Equal(small.Length, huge.Length);
-        Assert.Contains($"{S}+286.0{E}", huge);
+        Assert.Equal(
+            $"ERROR RATE {S}+286.0{E} s/d | AMPLITUDE {S}181{E}° | BEAT ERROR {S} 0.0{E} ms | BEAT {S}21600{E} bph",
+            huge);
     }
 
     [Fact]
@@ -53,21 +55,20 @@ public sealed class WatchMetricsResultsTests
         string positive = WatchMetrics.BuildResults(false, 0, true, 5.0, false, 0.0, false, 0.0);
         string negative = WatchMetrics.BuildResults(false, 0, true, -5.0, false, 0.0, false, 0.0);
 
-        Assert.Contains($"{S}  +5.0{E}", positive);
-        Assert.Contains($"{S}  -5.0{E}", negative);
-    }
-
-    [Fact]
-    public void DegreeSignIsAlwaysPresent()
-    {
-        Assert.Contains("°", WatchMetrics.BuildResults(false, 0, false, 0.0, false, 0.0, false, 0.0));
-        Assert.Contains("°", WatchMetrics.BuildResults(true, 21600, true, 1.2, true, 0.3, true, 271));
+        Assert.Equal(
+            $"ERROR RATE {S}  +5.0{E} s/d | AMPLITUDE ---° | BEAT ERROR ---- ms | BEAT ----- bph",
+            positive);
+        Assert.Equal(
+            $"ERROR RATE {S}  -5.0{E} s/d | AMPLITUDE ---° | BEAT ERROR ---- ms | BEAT ----- bph",
+            negative);
     }
 
     [Fact]
     public void AmplitudeRoundsHalfAwayFromZero()
     {
         string r = WatchMetrics.BuildResults(false, 0, false, 0.0, false, 0.0, true, 270.5);
-        Assert.Contains($"{S}271{E}", r);
+        Assert.Equal(
+            $"ERROR RATE ------ s/d | AMPLITUDE {S}271{E}° | BEAT ERROR ---- ms | BEAT ----- bph",
+            r);
     }
 }

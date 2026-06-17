@@ -118,12 +118,12 @@ public sealed class WatchSynthImpulseNoiseTests
     }
 
     [Theory]
-    [InlineData(-1.0, 0.5, 4500.0, 2.0)]   // negative rate
-    [InlineData(60.0, 0.5, 4500.0, 2.0)]   // rate above cap
-    [InlineData(2.0, 1.5, 4500.0, 2.0)]    // amplitude out of range
-    [InlineData(2.0, 0.5, 50.0, 2.0)]      // frequency below floor
-    [InlineData(2.0, 0.5, 4500.0, 0.0)]    // decay not positive
-    public void InvalidImpulseConfig_IsRejected(double rate, double amp, double freq, double decayMs)
+    [InlineData(-1.0, 0.5, 4500.0, 2.0, "impulse_noise_rate_per_second must be 0..50")]   // negative rate
+    [InlineData(60.0, 0.5, 4500.0, 2.0, "impulse_noise_rate_per_second must be 0..50")]   // rate above cap
+    [InlineData(2.0, 1.5, 4500.0, 2.0, "impulse_noise_peak_amplitude must be 0..1 normalized PCM")]    // amplitude out of range
+    [InlineData(2.0, 0.5, 50.0, 2.0, "impulse_noise_freq_hz must be 100..0.45*sample_rate")]      // frequency below floor
+    [InlineData(2.0, 0.5, 4500.0, 0.0, "impulse_noise_decay_ms must be >0 and <=50 ms")]    // decay not positive
+    public void InvalidImpulseConfig_IsRejected(double rate, double amp, double freq, double decayMs, string expectedError)
     {
         WatchSynthStreamConfig cfg = WatchSynthStreamConfig.Clean();
         cfg.ImpulseNoiseRatePerSecond = rate;
@@ -132,7 +132,7 @@ public sealed class WatchSynthImpulseNoiseTests
         cfg.ImpulseNoiseDecayMs = decayMs;
 
         Assert.False(WatchSynthStream.ValidateConfig(cfg, out string err));
-        Assert.Contains("impulse_noise", err);
+        Assert.Equal(expectedError, err);
     }
 
     private static List<WatchSynthStreamEvent> CollectEvents(WatchSynthStreamConfig cfg, int seconds)

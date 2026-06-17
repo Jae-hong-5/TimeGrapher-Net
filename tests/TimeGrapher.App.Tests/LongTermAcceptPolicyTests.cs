@@ -34,8 +34,15 @@ public sealed class LongTermAcceptPolicyTests
     [Fact]
     public void EveryCorridor_HasMinBelowMax()
     {
-        Assert.True(LongTermAcceptPolicy.Rate.Min < LongTermAcceptPolicy.Rate.Max);
-        Assert.True(LongTermAcceptPolicy.Amplitude.Min < LongTermAcceptPolicy.Amplitude.Max);
-        Assert.True(LongTermAcceptPolicy.BeatError.Min < LongTermAcceptPolicy.BeatError.Max);
+        AssertCorridorHasMinBelowMax("rate", LongTermAcceptPolicy.Rate);
+        AssertCorridorHasMinBelowMax("amplitude", LongTermAcceptPolicy.Amplitude);
+        AssertCorridorHasMinBelowMax("beat error", LongTermAcceptPolicy.BeatError);
+    }
+
+    private static void AssertCorridorHasMinBelowMax(string name, (double Min, double Max) corridor)
+    {
+        Assert.True(
+            corridor.Min < corridor.Max,
+            $"{name} corridor min {corridor.Min} should be below max {corridor.Max}");
     }
 }

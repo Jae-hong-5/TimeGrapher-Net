@@ -60,7 +60,7 @@ public sealed class RunCommandServiceTests
 
         await service.StartAsync();
 
-        Assert.Contains("CleanupFailedStart", operations.Calls);
+        Assert.Equal(new[] { "StartPlaybackAsync", "CleanupFailedStart", "ShowStartFailureAsync" }, operations.Calls);
         Assert.Equal(new[] { "bad file" }, operations.StartFailureMessages);
         Assert.Equal(RunUiState.Stopped, vm.RunState);
         Assert.Equal("Failed to start", vm.StatusText);

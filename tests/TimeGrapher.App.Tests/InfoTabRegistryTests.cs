@@ -127,6 +127,7 @@ public sealed class InfoTabRegistryTests
         Button[] buttons = positionStrip.Children.OfType<Button>().ToArray();
         AnalysisFrameRouter router = registry.CreateRouter();
 
+        Assert.Equal(WatchPositions.Count, buttons.Length);
         router.Route(
             new AnalysisFrame
             {
@@ -139,8 +140,12 @@ public sealed class InfoTabRegistryTests
             InfoTabCatalog.TestPositionsTabId,
             new AnalysisTabRenderContext(48000));
 
-        Assert.Contains("active", buttons[(int)WatchPosition.P6H].Classes);
-        Assert.DoesNotContain("active", buttons[(int)WatchPosition.CH].Classes);
+        Assert.Equal(
+            new[] { WatchPosition.P6H },
+            buttons
+                .Select((button, index) => (button, index))
+                .Where(item => item.button.Classes.Contains("active"))
+                .Select(item => (WatchPosition)item.index));
         WatchPositionDiagram diagram = Assert.Single(Descendants(
             Assert.IsType<Grid>(registry.Registrations.Single(
                 registration => registration.Definition.Id == InfoTabCatalog.TestPositionsTabId).TabItem.Content))
@@ -595,11 +600,9 @@ public sealed class InfoTabRegistryTests
         Run currentSwatch = legend.Inlines!.OfType<Run>()
             .Single(run => run.Text == "Red dashed");
 
-        Assert.Contains("Amber band", legendText);
-        Assert.Contains("acceptable band", legendText);
-        Assert.Contains("Blue solid", legendText);
-        Assert.Contains("Red solid", legendText);
-        Assert.Contains("Red dashed", legendText);
+        Assert.Equal(
+            "Amber band = acceptable band   Blue solid = measured min/max   Red solid = average   Red dashed = current",
+            legendText);
         Assert.IsAssignableFrom<IBrush>(currentSwatch.GetValue(TextElement.ForegroundProperty));
         Assert.Equal(TextWrapping.NoWrap, legend.TextWrapping);
     }

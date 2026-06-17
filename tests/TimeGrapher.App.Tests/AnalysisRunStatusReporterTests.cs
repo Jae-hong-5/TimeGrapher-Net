@@ -16,8 +16,10 @@ public sealed class AnalysisRunStatusReporterTests
 
         AnalysisRunStatusReporter.Report report = reporter.Describe(frame, droppedFrames: 0, SampleRate);
 
-        Assert.NotNull(report.StatusText);
-        Assert.Contains("FPS:60", report.StatusText);
+        Assert.Equal(
+            "Backgroud Audio Thread Average - FPS:60, SPS:48000, SPF: 800 " +
+            "Foregroud Audio Handler Average - FPS:0, SPS:0, SPF: 0",
+            report.StatusText);
         Assert.Null(report.ConsoleWarning);
     }
 
@@ -41,8 +43,7 @@ public sealed class AnalysisRunStatusReporterTests
 
         AnalysisRunStatusReporter.Report report = reporter.Describe(frame, 0, SampleRate);
 
-        Assert.Contains("overrun", report.StatusText);
-        Assert.Contains("1234", report.StatusText);
+        Assert.Equal("Audio input overrun: dropped 1234 samples before analysis", report.StatusText);
     }
 
     [Fact]
@@ -53,7 +54,7 @@ public sealed class AnalysisRunStatusReporterTests
 
         AnalysisRunStatusReporter.Report report = reporter.Describe(frame, 0, SampleRate);
 
-        Assert.Contains("Analysis lag", report.StatusText);
+        Assert.Equal("Analysis lag: 1000 ms (48000 samples), processing 5.0 ms", report.StatusText);
     }
 
     [Fact]
@@ -66,8 +67,7 @@ public sealed class AnalysisRunStatusReporterTests
 
         AnalysisRunStatusReporter.Report report = reporter.Describe(frame, 0, SampleRate);
 
-        Assert.Contains("quality reduced", report.StatusText);
-        Assert.Contains("2/3", report.StatusText);
+        Assert.Equal("Deadline pressure: rendering quality reduced (level 2/3)", report.StatusText);
     }
 
     [Fact]
@@ -78,8 +78,7 @@ public sealed class AnalysisRunStatusReporterTests
         AnalysisRunStatusReporter.Report report = reporter.Describe(new AnalysisFrame(), droppedFrames: 3, SampleRate);
 
         Assert.Null(report.StatusText);
-        Assert.Contains("coalesced", report.ConsoleWarning);
-        Assert.Contains("3", report.ConsoleWarning);
+        Assert.Equal("UI render coalesced 3 analysis frame(s)", report.ConsoleWarning);
     }
 
     [Fact]
@@ -92,7 +91,9 @@ public sealed class AnalysisRunStatusReporterTests
         reporter.Reset();
         AnalysisRunStatusReporter.Report afterReset = reporter.Describe(frame, 0, SampleRate);
 
-        // After reset the same stats look new again -> a status line is re-emitted.
-        Assert.NotNull(afterReset.StatusText);
+        Assert.Equal(
+            "Backgroud Audio Thread Average - FPS:60, SPS:48000, SPF: 800 " +
+            "Foregroud Audio Handler Average - FPS:0, SPS:0, SPF: 0",
+            afterReset.StatusText);
     }
 }

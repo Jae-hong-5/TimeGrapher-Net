@@ -55,8 +55,7 @@ public sealed class TraceDisplayLogicTests
 
         Assert.True(state.RateSlow);
         Assert.False(state.AmplitudeOutOfRange);
-        Assert.Contains("running late", state.Message);
-        Assert.Contains("-12.3", state.Message);
+        Assert.Equal("Watch is running late (-12.3 s/d)", state.Message);
     }
 
     [Fact]
@@ -89,8 +88,7 @@ public sealed class TraceDisplayLogicTests
 
         Assert.True(state.RateSlow);
         Assert.True(state.AmplitudeOutOfRange);
-        Assert.Contains("running late", state.Message);
-        Assert.Contains("240", state.Message);
+        Assert.Equal("Watch is running late (-5.0 s/d)  |  Amplitude 240° outside normal range 270–300°", state.Message);
     }
 
     [Fact]

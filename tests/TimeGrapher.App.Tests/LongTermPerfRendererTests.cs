@@ -131,7 +131,7 @@ public sealed class LongTermPerfRendererTests
         Assert.Equal("BEAT ERROR +0.3 ms", beatError.Text);
         Assert.DoesNotContain("View:", footer.Text);
         Assert.DoesNotContain("Elapsed", footer.Text);
-        Assert.Contains("Review cursor: 1:02:00", footer.Text);
+        Assert.Equal("Point spacing: 1.0 h/pt   Review cursor: 1:02:00", footer.Text);
 
         renderer.ShowAll();
         Assert.DoesNotContain("View:", footer.Text);
@@ -187,7 +187,7 @@ public sealed class LongTermPerfRendererTests
         // enough to be pulled back into view (the hybrid corridor inclusion).
         AssertIncludes(amplitudePlot, 298.5, 300.0);
         Assert.True(AcceptBand(amplitudePlot).IsVisible);
-        Assert.Contains("300", VisibleAcceptTextLabels(amplitudePlot));
+        Assert.Equal(new[] { "270", "300" }, VisibleAcceptTextLabels(amplitudePlot));
     }
 
     [Fact]

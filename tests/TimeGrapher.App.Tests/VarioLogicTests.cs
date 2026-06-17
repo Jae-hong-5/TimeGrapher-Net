@@ -74,39 +74,35 @@ public sealed class VarioLogicTests
     public void ForRate_ClassifiesPendingInRangeUnstableAndOutOfRange()
     {
         var few = new StatsSummary(Valid: true, Min: 0, Max: 0, Mean: 0, Sigma: 0, Count: 5);
-        Assert.Equal(VarioVerdictLevel.Pending, VarioVerdict.ForRate(few, -10, 10).Level);
+        Assert.Equal(VarioVerdict.Measuring, VarioVerdict.ForRate(few, -10, 10));
 
         var stable = new StatsSummary(true, -2, 4, 1.0, 1.0, 200);
-        Assert.Equal(VarioVerdictLevel.Good, VarioVerdict.ForRate(stable, -10, 10).Level);
+        Assert.Equal(new VarioVerdict("Stable · in range", VarioVerdictLevel.Good), VarioVerdict.ForRate(stable, -10, 10));
 
         var jittery = new StatsSummary(true, -9, 9, 1.0, 5.0, 200);
-        Assert.Equal(VarioVerdictLevel.Warn, VarioVerdict.ForRate(jittery, -10, 10).Level);
+        Assert.Equal(new VarioVerdict("In range · unstable", VarioVerdictLevel.Warn), VarioVerdict.ForRate(jittery, -10, 10));
 
         var fast = new StatsSummary(true, 8, 20, 15.0, 2.0, 200);
-        VarioVerdict fastVerdict = VarioVerdict.ForRate(fast, -10, 10);
-        Assert.Equal(VarioVerdictLevel.Bad, fastVerdict.Level);
-        Assert.Contains("Fast", fastVerdict.Text);
+        Assert.Equal(new VarioVerdict("Fast · out of range", VarioVerdictLevel.Bad), VarioVerdict.ForRate(fast, -10, 10));
 
         var slow = new StatsSummary(true, -20, -8, -15.0, 2.0, 200);
-        Assert.Contains("Slow", VarioVerdict.ForRate(slow, -10, 10).Text);
+        Assert.Equal(new VarioVerdict("Slow · out of range", VarioVerdictLevel.Bad), VarioVerdict.ForRate(slow, -10, 10));
     }
 
     [Fact]
     public void ForAmplitude_ClassifiesHealthyLowHighAndService()
     {
         var healthy = new StatsSummary(true, 275, 295, 285.0, 4.0, 200);
-        Assert.Equal(VarioVerdictLevel.Good, VarioVerdict.ForAmplitude(healthy, 270, 300).Level);
+        Assert.Equal(new VarioVerdict("Healthy", VarioVerdictLevel.Good), VarioVerdict.ForAmplitude(healthy, 270, 300));
 
         var slightlyLow = new StatsSummary(true, 240, 260, 250.0, 4.0, 200);
-        Assert.Equal(VarioVerdictLevel.Warn, VarioVerdict.ForAmplitude(slightlyLow, 270, 300).Level);
+        Assert.Equal(new VarioVerdict("Slightly low", VarioVerdictLevel.Warn), VarioVerdict.ForAmplitude(slightlyLow, 270, 300));
 
         var high = new StatsSummary(true, 305, 315, 310.0, 4.0, 200);
-        Assert.Equal(VarioVerdictLevel.Warn, VarioVerdict.ForAmplitude(high, 270, 300).Level);
+        Assert.Equal(new VarioVerdict("High", VarioVerdictLevel.Warn), VarioVerdict.ForAmplitude(high, 270, 300));
 
         var service = new StatsSummary(true, 190, 215, 200.0, 5.0, 200);
-        VarioVerdict serviceVerdict = VarioVerdict.ForAmplitude(service, 270, 300);
-        Assert.Equal(VarioVerdictLevel.Bad, serviceVerdict.Level);
-        Assert.Contains("service", serviceVerdict.Text);
+        Assert.Equal(new VarioVerdict("Low · service", VarioVerdictLevel.Bad), VarioVerdict.ForAmplitude(service, 270, 300));
     }
 
     [Fact]

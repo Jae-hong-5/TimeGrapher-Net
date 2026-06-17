@@ -177,15 +177,17 @@ public sealed class WatchMetricsDerivedMeasuresTests
         sample += 375.0 / 1000.0 * SampleRate;
         results = FeedAThenCAndGetResults(metrics, sample);
 
-        Assert.Contains("BEAT ERROR ---- ms", results);
+        Assert.Equal(
+            $"ERROR RATE ------ s/d | AMPLITUDE {WatchMetrics.ValueSpanStart} 55{WatchMetrics.ValueSpanEnd}° | BEAT ERROR ---- ms | BEAT {WatchMetrics.ValueSpanStart}28800{WatchMetrics.ValueSpanEnd} bph",
+            results);
 
         sample += 125.0 / 1000.0 * SampleRate;
         results = FeedAThenCAndGetResults(metrics, sample);
         sample += 125.0 / 1000.0 * SampleRate;
         results = FeedAThenCAndGetResults(metrics, sample);
 
-        Assert.Contains(
-            $"BEAT ERROR {WatchMetrics.ValueSpanStart} 0.0{WatchMetrics.ValueSpanEnd} ms",
+        Assert.Equal(
+            $"ERROR RATE ------ s/d | AMPLITUDE {WatchMetrics.ValueSpanStart} 55{WatchMetrics.ValueSpanEnd}° | BEAT ERROR {WatchMetrics.ValueSpanStart} 0.0{WatchMetrics.ValueSpanEnd} ms | BEAT {WatchMetrics.ValueSpanStart}28800{WatchMetrics.ValueSpanEnd} bph",
             results);
     }
 

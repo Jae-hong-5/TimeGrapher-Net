@@ -51,8 +51,10 @@ public sealed class SeriesDataReducerTests
             Replace = false,
         };
 
-        Assert.Throws<InvalidOperationException>(() =>
+        InvalidOperationException ex = Assert.Throws<InvalidOperationException>(() =>
             SeriesDataReducer.TryReplaceSeriesData(series, new List<double>(), new List<double>(), targetPointBudget: 10));
+
+        Assert.Equal("Graph series 'scope.pcm' must be a replace snapshot.", ex.Message);
     }
 
     [Fact]

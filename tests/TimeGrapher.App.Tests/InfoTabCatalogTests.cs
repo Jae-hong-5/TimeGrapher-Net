@@ -12,7 +12,7 @@ public sealed class InfoTabCatalogTests
         string[] tabIds = InfoTabCatalog.All.Select(tab => tab.Id).ToArray();
 
         Assert.Equal(tabIds.Length, tabIds.Distinct(StringComparer.Ordinal).Count());
-        Assert.All(InfoTabCatalog.All, tab => Assert.True(tab.RefreshIntervalMs > 0));
+        Assert.All(InfoTabCatalog.All, tab => Assert.InRange(tab.RefreshIntervalMs, 1, int.MaxValue));
     }
 
     [Fact]
@@ -31,7 +31,7 @@ public sealed class InfoTabCatalogTests
 
         Assert.True(tab.UsesGraphSnapshots);
         Assert.All(requiredIds, id => Assert.Contains(id, seriesIds));
-        Assert.All(tab.GraphSeries, series => Assert.True(series.TargetPointBudget > 0));
+        Assert.All(tab.GraphSeries, series => Assert.InRange(series.TargetPointBudget, 1, int.MaxValue));
     }
 
     [Fact]

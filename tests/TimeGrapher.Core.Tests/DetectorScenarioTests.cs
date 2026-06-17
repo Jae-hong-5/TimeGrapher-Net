@@ -204,7 +204,8 @@ public sealed class DetectorScenarioTests
         (DerivedTimingMeasures clean, _) =
             FeedCapturingDerived(NewEngine(sr, true, 0), new WatchSynthStream(Synth(sr, bph, 0.0, 0.0)), sr, 12);
 
-        Assert.True(slow.AvgPeriodValid && slow.DiffPeriodValid);
+        Assert.True(slow.AvgPeriodValid);
+        Assert.True(slow.DiffPeriodValid);
         Assert.InRange(slow.AvgPeriodMs, 0.02, 0.12);
         Assert.InRange(slow.DiffPeriodMs, 0.02, 0.12);
         Assert.True(Math.Abs(clean.AvgPeriodMs) < 0.02, $"clean AvgPeriod {clean.AvgPeriodMs} should be near zero");

@@ -56,7 +56,8 @@ public sealed class FftTests
         Assert.Equal(0.75 * n, real[0], 9);
         for (int bin = 1; bin < n; bin++)
         {
-            Assert.True(Math.Abs(real[bin]) < 1e-9 && Math.Abs(imag[bin]) < 1e-9);
+            Assert.True(Math.Abs(real[bin]) < 1e-9, $"real[{bin}] should be near zero, actual {real[bin]}");
+            Assert.True(Math.Abs(imag[bin]) < 1e-9, $"imag[{bin}] should be near zero, actual {imag[bin]}");
         }
     }
 
@@ -135,7 +136,14 @@ public sealed class FftTests
     [Fact]
     public void Forward_RejectsNonPowerOfTwoAndMismatchedLengths()
     {
-        Assert.Throws<ArgumentException>(() => Fft.Forward(new double[100], new double[100]));
-        Assert.Throws<ArgumentException>(() => Fft.Forward(new double[128], new double[64]));
+        ArgumentException nonPowerOfTwo = Assert.Throws<ArgumentException>(() =>
+            Fft.Forward(new double[100], new double[100]));
+        ArgumentException mismatchedLengths = Assert.Throws<ArgumentException>(() =>
+            Fft.Forward(new double[128], new double[64]));
+
+        Assert.Equal("real", nonPowerOfTwo.ParamName);
+        Assert.Equal("Length must be a power of two. (Parameter 'real')", nonPowerOfTwo.Message);
+        Assert.Equal("imag", mismatchedLengths.ParamName);
+        Assert.Equal("real and imag must have the same length. (Parameter 'imag')", mismatchedLengths.Message);
     }
 }

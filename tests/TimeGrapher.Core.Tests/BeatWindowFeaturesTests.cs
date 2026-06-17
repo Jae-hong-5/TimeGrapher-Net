@@ -72,7 +72,10 @@ public sealed class BeatWindowFeaturesTests
     [Fact]
     public void UndersizedFeatureSpan_Throws()
     {
-        Assert.Throws<ArgumentException>(() =>
+        ArgumentException ex = Assert.Throws<ArgumentException>(() =>
             BeatWindowFeatures.Extract(new float[16], new float[BeatWindowFeatures.Points - 1]));
+
+        Assert.Equal("features", ex.ParamName);
+        Assert.Contains($"features must hold {BeatWindowFeatures.Points} points", ex.Message, StringComparison.Ordinal);
     }
 }

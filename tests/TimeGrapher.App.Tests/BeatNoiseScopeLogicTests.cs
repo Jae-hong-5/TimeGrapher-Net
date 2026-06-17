@@ -160,11 +160,7 @@ public sealed class BeatNoiseScopeLogicTests
         };
 
         string line = BeatNoiseScopeLogic.AverageLine(average);
-        Assert.Contains("TRACE 1", line);
-        Assert.Contains("TRACE 2", line);
-        Assert.Contains("0.382", line);
-        Assert.Contains("0.391", line);
-        Assert.Contains("Σ 23/50 · 22/50", line);
+        Assert.Equal("TRACE 1 (top) avg 0.382 · TRACE 2 avg 0.391   |   Σ 23/50 · 22/50", line);
     }
 
     [Fact]

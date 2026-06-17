@@ -37,37 +37,37 @@ public sealed class BeatErrorDiagnosticsTests
     }
 
     [Theory]
-    [InlineData(691.2, false)]  // slope exactly 1.0 ms/beat at 28800 bph: on the line, no fault
-    [InlineData(700.0, true)]   // just past 45 degrees
-    [InlineData(-700.0, true)]  // magnitude rule: negative slope faults too
-    [InlineData(10.0, false)]
-    public void Evaluate_MajorFaultFiresBeyond45DegreeSlope(double rateSPerDay, bool expectFault)
+    [InlineData(691.2, (int)BeatErrorDiagState.Normal, null)]  // slope exactly 1.0 ms/beat at 28800 bph: on the line, no fault
+    [InlineData(700.0, (int)BeatErrorDiagState.MajorFault, "MAJOR FAULT: trace slope +1.01 ms/beat exceeds the 45° limit (±1.0 ms/beat)")]
+    [InlineData(-700.0, (int)BeatErrorDiagState.MajorFault, "MAJOR FAULT: trace slope -1.01 ms/beat exceeds the 45° limit (±1.0 ms/beat)")]
+    [InlineData(10.0, (int)BeatErrorDiagState.Normal, null)]
+    public void Evaluate_MajorFaultFiresBeyond45DegreeSlope(
+        double rateSPerDay,
+        int expectedState,
+        string? expectedMessage)
     {
         BeatErrorDiagnosis diagnosis = BeatErrorDiagnostics.Evaluate(
             Snapshot(rateValid: true, rate: rateSPerDay));
 
-        Assert.Equal(expectFault, diagnosis.State == BeatErrorDiagState.MajorFault);
-        if (expectFault)
-        {
-            Assert.Contains("MAJOR FAULT", diagnosis.Message);
-        }
+        Assert.Equal((BeatErrorDiagState)expectedState, diagnosis.State);
+        Assert.Equal(expectedMessage, diagnosis.Message);
     }
 
     [Theory]
-    [InlineData(0.6, false)]   // boundary value is still acceptable
-    [InlineData(0.7, true)]
-    [InlineData(-0.7, true)]   // separation is a magnitude
-    [InlineData(0.0, false)]
-    public void Evaluate_SeparationAlertFiresOutsideAcceptableRange(double beatErrorMs, bool expectAlert)
+    [InlineData(0.6, (int)BeatErrorDiagState.Normal, null)]   // boundary value is still acceptable
+    [InlineData(0.7, (int)BeatErrorDiagState.SeparationAlert, "Tic/toc separation +0.70 ms exceeds the acceptable ±0.6 ms")]
+    [InlineData(-0.7, (int)BeatErrorDiagState.SeparationAlert, "Tic/toc separation -0.70 ms exceeds the acceptable ±0.6 ms")]
+    [InlineData(0.0, (int)BeatErrorDiagState.Normal, null)]
+    public void Evaluate_SeparationAlertFiresOutsideAcceptableRange(
+        double beatErrorMs,
+        int expectedState,
+        string? expectedMessage)
     {
         BeatErrorDiagnosis diagnosis = BeatErrorDiagnostics.Evaluate(
             Snapshot(beatErrorValid: true, beatErrorMs: beatErrorMs));
 
-        Assert.Equal(expectAlert, diagnosis.State == BeatErrorDiagState.SeparationAlert);
-        if (expectAlert)
-        {
-            Assert.Contains("separation", diagnosis.Message);
-        }
+        Assert.Equal((BeatErrorDiagState)expectedState, diagnosis.State);
+        Assert.Equal(expectedMessage, diagnosis.Message);
     }
 
     [Fact]

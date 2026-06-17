@@ -20,7 +20,9 @@ public sealed class DspTests
         hpf.Process(input, output, input.Length);
 
         Assert.Equal(1.0f, output[0], 5);          // no prior state -> first sample passes through
-        Assert.True(Math.Abs(output[^1]) < 1e-3f); // sustained DC decays toward zero
+        Assert.True(
+            Math.Abs(output[^1]) < 1e-3f,
+            $"sustained DC should decay toward zero, actual final sample was {output[^1]}");
     }
 
     [Fact]
@@ -48,8 +50,10 @@ public sealed class DspTests
 
         env.Process(input, output, input.Length);
 
-        Assert.All(output, v => Assert.True(v >= 0.0f));  // full-wave rectified
-        Assert.True(Math.Abs(output[^1] - 1.0f) < 1e-3f); // converges to |x| = 1
+        Assert.All(output, v => Assert.True(v >= 0.0f, $"envelope emitted a negative sample {v}"));
+        Assert.True(
+            Math.Abs(output[^1] - 1.0f) < 1e-3f,
+            $"envelope should converge to |x| = 1, actual final sample was {output[^1]}");
     }
 
     [Fact]
@@ -59,8 +63,10 @@ public sealed class DspTests
         var output = new float[3];
         env.Process(new[] { 1.0f, 1.0f, 1.0f }, output, 3);
 
-        Assert.True(output[0] > 0.0f && output[0] < 1.0f); // first step is partial (smoothed)
-        Assert.True(output[1] > output[0]);
-        Assert.True(output[2] > output[1]);
+        Assert.True(
+            output[0] > 0.0f && output[0] < 1.0f,
+            $"first smoothed step should be between 0 and 1, actual value was {output[0]}");
+        Assert.True(output[1] > output[0], $"second sample {output[1]} should exceed first {output[0]}");
+        Assert.True(output[2] > output[1], $"third sample {output[2]} should exceed second {output[1]}");
     }
 }

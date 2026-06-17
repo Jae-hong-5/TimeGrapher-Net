@@ -67,8 +67,7 @@ public sealed class MultiFilterFrameProjectorTests
         {
             GraphSeriesFrame series = Series(frame, id);
             Assert.True(series.Replace);
-            Assert.True(series.X.Count > 0);
-            Assert.True(series.X.Count <= MultiFilterFrameProjector.FilterPointBudget);
+            Assert.InRange(series.X.Count, 1, MultiFilterFrameProjector.FilterPointBudget);
             Assert.Equal(series.X.Count, series.Y.Count);
             // One shared X list across the four views (same decimation grid).
             Assert.Same(f0.X, series.X);

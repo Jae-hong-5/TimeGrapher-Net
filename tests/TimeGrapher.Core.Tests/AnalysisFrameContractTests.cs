@@ -39,7 +39,7 @@ public sealed class AnalysisFrameContractTests
 
         Assert.True(pcm.Replace);
         Assert.True(threshold.Replace);
-        Assert.True(pcm.X.Count > 0);
+        Assert.NotEmpty(pcm.X);
         Assert.Equal(pcm.X.Count, pcm.Y.Count);
         Assert.Equal(threshold.X.Count, threshold.Y.Count);
     }
@@ -70,7 +70,7 @@ public sealed class AnalysisFrameContractTests
         AnalysisFrame frame = Assert.IsType<AnalysisFrame>(capturedFrame);
         GraphSeriesFrame pcm = Assert.Single(frame.ScopeSeries, series => series.Id == AnalysisGraphSeries.ScopePcm);
 
-        Assert.True(pcm.X.Count <= pointBudget);
+        Assert.InRange(pcm.X.Count, 1, pointBudget);
     }
 
     [Fact]
@@ -110,8 +110,8 @@ public sealed class AnalysisFrameContractTests
 
         AnalysisFrame frame = Assert.IsType<AnalysisFrame>(capturedFrame);
 
-        Assert.True(frame.PendingSamples > 0);
-        Assert.True(frame.ProcessingElapsedMs >= 0);
+        Assert.InRange(frame.PendingSamples, 1UL, ulong.MaxValue);
+        Assert.InRange(frame.ProcessingElapsedMs, 0.0, double.MaxValue);
         Assert.Contains(frame.RateSeries, series => series.Id == AnalysisGraphSeries.RateTic && series.Replace);
         Assert.Contains(frame.RateSeries, series => series.Id == AnalysisGraphSeries.RateToc && series.Replace);
         Assert.True(frame.MetricsUpdate.ResultsUpdated);

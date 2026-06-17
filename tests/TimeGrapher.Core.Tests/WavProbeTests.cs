@@ -87,8 +87,10 @@ public sealed class WavProbeTests
     {
         using TempWavFile file = TempWavFile.Create(WavProbe.WaveFormatIeeeFloat, channels: 1, sampleRate: 44100, bitsPerSample: 32, dataBytes: 16);
 
-        Assert.Throws<InvalidDataException>(() =>
+        InvalidDataException ex = Assert.Throws<InvalidDataException>(() =>
             WavFileReader.ReadMonoFloat(file.Path, WavAcceptanceProfile.PlaybackFloatMonoStandardRates));
+
+        Assert.Equal("WavFileReader: WAV format rejected by acceptance profile", ex.Message);
     }
 
     [Fact]

@@ -37,6 +37,7 @@ public sealed class LinuxLiveAudioWorker : ILiveAudioWorker
     private ulong _sampleCount;
     private float _volume = 1.0f;
     private string _processErrorPrefix = "pw-record";
+    private Func<Process, TimeSpan, bool>? _waitForExitOverride;
     private volatile bool _paused;
     private volatile bool _stopRequested;
 
@@ -325,6 +326,11 @@ public sealed class LinuxLiveAudioWorker : ILiveAudioWorker
         StartProcess(startInfo, PcmSampleFormat.Int16LittleEndian, startInfo.FileName, startupProbeTimeoutMs);
     }
 
+    internal void InstallWaitForExitForTests(Func<Process, TimeSpan, bool> waitForExit)
+    {
+        _waitForExitOverride = waitForExit;
+    }
+
     private void StartProcess(
         ProcessStartInfo startInfo,
         PcmSampleFormat sampleFormat,
@@ -411,7 +417,7 @@ public sealed class LinuxLiveAudioWorker : ILiveAudioWorker
         {
             process.WaitForExit();
         }
-        else if (!process.WaitForExit(timeout))
+        else if (!WaitForExit(process, timeout))
         {
             // Keep the process and reader threads so a later stop attempt can
             // re-wait and finish teardown instead of disposing a live process.
@@ -429,6 +435,12 @@ public sealed class LinuxLiveAudioWorker : ILiveAudioWorker
         _stderrThread = null;
         process.Dispose();
         return true;
+    }
+
+    private bool WaitForExit(Process process, TimeSpan timeout)
+    {
+        Func<Process, TimeSpan, bool>? waitOverride = _waitForExitOverride;
+        return waitOverride?.Invoke(process, timeout) ?? process.WaitForExit(timeout);
     }
 
     public void Dispose()

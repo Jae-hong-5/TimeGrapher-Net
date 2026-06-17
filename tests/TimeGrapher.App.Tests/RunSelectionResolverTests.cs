@@ -43,7 +43,8 @@ public sealed class RunSelectionResolverTests
 
         vm.SelectedAveragingPeriodIndex = -1;
 
-        Assert.Throws<InvalidOperationException>(() => resolver.GetAnalysisSelection());
+        InvalidOperationException ex = Assert.Throws<InvalidOperationException>(() => resolver.GetAnalysisSelection());
+        Assert.Equal("No valid averaging period is selected.", ex.Message);
     }
 
     [Fact]
@@ -63,7 +64,9 @@ public sealed class RunSelectionResolverTests
 
         vm.SelectedSampleRateIndex = 2;
 
-        Assert.Throws<InvalidOperationException>(() => resolver.GetSimulationSelection(availableSampleRates, availableSampleRateCount: 2));
+        InvalidOperationException ex = Assert.Throws<InvalidOperationException>(() =>
+            resolver.GetSimulationSelection(availableSampleRates, availableSampleRateCount: 2));
+        Assert.Equal("No valid sample rate is selected.", ex.Message);
     }
 
     [Fact]
@@ -79,13 +82,15 @@ public sealed class RunSelectionResolverTests
         Assert.Equal(96000, validRate);
 
         vm.SelectedSampleRateIndex = -1;
-        Assert.Throws<InvalidOperationException>(
+        InvalidOperationException negativeIndex = Assert.Throws<InvalidOperationException>(
             () => resolver.GetSelectedSampleRate(availableSampleRates, availableSampleRateCount: 2));
+        Assert.Equal("No valid sample rate is selected.", negativeIndex.Message);
         Assert.False(resolver.TryGetSelectedSampleRate(availableSampleRates, availableSampleRateCount: 2, out _));
 
         vm.SelectedSampleRateIndex = 0;
-        Assert.Throws<InvalidOperationException>(
+        InvalidOperationException emptyAdvertisedRates = Assert.Throws<InvalidOperationException>(
             () => resolver.GetSelectedSampleRate(availableSampleRates, availableSampleRateCount: 0));
+        Assert.Equal("No valid sample rate is selected.", emptyAdvertisedRates.Message);
         Assert.False(resolver.TryGetSelectedSampleRate(availableSampleRates, availableSampleRateCount: 0, out _));
     }
 

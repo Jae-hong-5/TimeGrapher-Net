@@ -175,18 +175,23 @@ card 4: CA7 [Cubilux CA7], device 0: USB Audio [USB Audio]
             ? "ping 127.0.0.1 -n 30 > nul"
             : "sleep 30");
         worker.StartCaptureProcessForTests(BuildStartInfo(fileName, args));
-
-        bool stoppedImmediately = worker.TryStop(TimeSpan.Zero);
-        if (stoppedImmediately)
+        int waitCalls = 0;
+        worker.InstallWaitForExitForTests((process, timeout) =>
         {
-            // The child exited faster than the zero-length wait; the timeout
-            // path was not exercisable in this run.
-            return;
-        }
+            if (Interlocked.Increment(ref waitCalls) == 1)
+            {
+                return false;
+            }
 
-        // The timed-out stop must leave the worker re-stoppable: a retry waits
-        // for the same (already killed) process and completes teardown.
+            return process.WaitForExit(timeout);
+        });
+
+        Assert.False(
+            worker.TryStop(TimeSpan.Zero),
+            "The zero-length wait should exercise the timed-out stop path instead of silently passing.");
+
         Assert.True(worker.TryStop(TimeSpan.FromSeconds(5)));
+        Assert.Equal(2, waitCalls);
     }
 
     [Fact]
@@ -196,20 +201,10 @@ card 4: CA7 [Cubilux CA7], device 0: USB Audio [USB Audio]
         using var captureEnded = new ManualResetEventSlim(initialState: false);
         worker.CaptureEnded += captureEnded.Set;
 
-        // Child outlives the 250 ms startup probe, then exits on its own (~1s).
         (string fileName, string[] args) = ShellCommand(OperatingSystem.IsWindows()
-            ? "ping 127.0.0.1 -n 2 > nul"
-            : "sleep 1");
-        try
-        {
-            worker.StartCaptureProcessForTests(BuildStartInfo(fileName, args));
-        }
-        catch (InvalidOperationException)
-        {
-            // The child exited inside the probe window (loaded machine); the
-            // late-exit scenario was not exercisable in this run.
-            return;
-        }
+            ? "ping 127.0.0.1 -n 3 > nul"
+            : "sleep 2");
+        worker.StartCaptureProcessForTests(BuildStartInfo(fileName, args));
 
         Assert.True(captureEnded.Wait(TimeSpan.FromSeconds(10)));
     }
@@ -243,7 +238,7 @@ card 4: CA7 [Cubilux CA7], device 0: USB Audio [USB Audio]
         InvalidOperationException ex = Assert.Throws<InvalidOperationException>(
             () => worker.StartCaptureProcessForTests(BuildStartInfo(fileName, args), startupProbeTimeoutMs: 5000));
 
-        Assert.Contains("boom", ex.Message);
+        Assert.Equal(fileName + " exited: boom", ex.Message);
     }
 
     private static ProcessStartInfo BuildStartInfo(string fileName, string[] arguments)

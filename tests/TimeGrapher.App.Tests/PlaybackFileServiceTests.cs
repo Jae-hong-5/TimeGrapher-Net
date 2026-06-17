@@ -30,7 +30,7 @@ public sealed class PlaybackFileServiceTests
         PlaybackFileSelectionResult result = await service.SelectPlaybackFileAsync("C:\\start");
 
         Assert.False(result.Selected);
-        Assert.Contains("could not be opened", result.StatusMessage);
+        Assert.Equal($"File {missing} could not be opened", result.StatusMessage);
         Assert.Equal(2, dialogs.OpenPickerCalls);
     }
 
@@ -46,7 +46,7 @@ public sealed class PlaybackFileServiceTests
             PlaybackFileSelectionResult result = await service.SelectPlaybackFileAsync(Path.GetTempPath());
 
             Assert.False(result.Selected);
-            Assert.Contains("Not a standard-rate", result.StatusMessage);
+            Assert.Equal($"File {path} Not a standard-rate, single channel 32-bit Float WAV file", result.StatusMessage);
             Assert.Equal(new[] { ("Error", "Invalid PCM Wave File") }, dialogs.Errors);
             Assert.Equal(2, dialogs.OpenPickerCalls);
         }

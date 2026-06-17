@@ -37,7 +37,7 @@ public sealed class ScopeRateFrameProjectorTests
 
         Assert.True(frame.BeatSynced);
         Assert.True(pcmSeries.Replace);
-        Assert.True(pcmSeries.X.Count > 0 && pcmSeries.X.Count <= 256);
+        Assert.InRange(pcmSeries.X.Count, 1, 256);
         Assert.Equal(pcmSeries.X.Count, pcmSeries.Y.Count);
         Assert.All(threshold.Y, y => Assert.Equal(0.2, y, 5));
     }
@@ -81,7 +81,7 @@ public sealed class ScopeRateFrameProjectorTests
         projector.AppendSnapshot(frame);
 
         GraphSeriesFrame pcmSeries = Assert.Single(frame.ScopeSeries, s => s.Id == AnalysisGraphSeries.ScopePcm);
-        Assert.True(pcmSeries.X.Count <= 8);
+        Assert.InRange(pcmSeries.X.Count, 1, 8);
     }
 
     [Fact]

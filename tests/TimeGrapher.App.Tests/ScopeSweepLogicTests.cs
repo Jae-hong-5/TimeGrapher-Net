@@ -26,9 +26,7 @@ public sealed class ScopeSweepLogicTests
 
         string line = ScopeSweepReadout.ReferenceLine(snapshot);
 
-        Assert.Contains("RATE -3.2 s/d", line);
-        Assert.Contains("AMP 282°", line);
-        Assert.Contains("BEAT ERR +0.46 ms", line);
+        Assert.Equal("RATE -3.2 s/d   |   AMP 282°   |   BEAT ERR +0.46 ms", line);
     }
 
     [Fact]
@@ -39,9 +37,7 @@ public sealed class ScopeSweepLogicTests
 
         foreach (string line in new[] { empty, invalid })
         {
-            Assert.Contains("RATE " + VarioReadout.Missing, line);
-            Assert.Contains("AMP " + VarioReadout.Missing, line);
-            Assert.Contains("BEAT ERR " + VarioReadout.Missing, line);
+            Assert.Equal("RATE —   |   AMP —   |   BEAT ERR —", line);
         }
     }
 

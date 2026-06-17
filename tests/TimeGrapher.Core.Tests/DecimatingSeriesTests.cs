@@ -108,10 +108,13 @@ public sealed class DecimatingSeriesTests
     }
 
     [Theory]
-    [InlineData(1)]
-    [InlineData(3)]
-    public void RejectsInvalidCapacity(int capacity)
+    [InlineData(1, "Capacity must be at least 2.")]
+    [InlineData(3, "Capacity must be even so point pairs merge cleanly.")]
+    public void RejectsInvalidCapacity(int capacity, string expectedMessage)
     {
-        Assert.Throws<ArgumentOutOfRangeException>(() => new DecimatingSeries(capacity));
+        ArgumentOutOfRangeException ex = Assert.Throws<ArgumentOutOfRangeException>(() => new DecimatingSeries(capacity));
+
+        Assert.Equal("capacity", ex.ParamName);
+        Assert.Contains(expectedMessage, ex.Message, StringComparison.Ordinal);
     }
 }
