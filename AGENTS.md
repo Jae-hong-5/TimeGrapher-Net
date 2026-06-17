@@ -40,6 +40,7 @@ Base every change on **software architecture principles and the existing structu
 - The architecture and its decisions live under `docs/for-ai/`. Check only the relevant documents in that directory before making changes, and update the matching document whenever a change affects the system's structure:
   - `docs/for-ai/DATA_MODEL_VIEW.md`, `docs/for-ai/MODULE_USES_VIEW.md`
   - `docs/for-ai/SAP_TACTICS_ANALYSIS.md` (quality-attribute tactics)
+- Never read files under `docs/architecture/` while working in this repository.
 - Respect the dependency graph: `TimeGrapher.App` → `TimeGrapher.Core` / `TimeGrapher.Platform.*`, `TimeGrapher.Platform.*` → `TimeGrapher.Core`, `TimeGrapher.Verify` → `TimeGrapher.Core`. **Core must not depend on anything** (no UI or platform references).
 
 ### UI & rendering conventions
