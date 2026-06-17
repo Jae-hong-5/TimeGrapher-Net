@@ -376,7 +376,7 @@ public partial class MainWindow
             Console.Error.WriteLine("SetAudioDevice Failed");
         }
 
-        if (!SetAudioRate(mRateBeforePlaybackOrSim))
+        if (!SetAudioRate(selection.SampleRate))
         {
             Console.Error.WriteLine("SetAudioRate Failed");
         }
