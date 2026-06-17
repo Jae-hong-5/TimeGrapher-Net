@@ -246,11 +246,22 @@ public partial class MainWindow : Window
 
     private void OnHelpTitleBarButtonClick(object? sender, RoutedEventArgs e)
     {
-        Process.Start(new ProcessStartInfo
+        try
         {
-            FileName = "https://lgcmu2026-team5.github.io/TimeGrapher-Net/manual/",
-            UseShellExecute = true,
-        });
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "https://lgcmu2026-team5.github.io/TimeGrapher-Net/manual/",
+                UseShellExecute = true,
+            });
+        }
+        catch (Exception ex)
+        {
+            // No registered URL handler (common on a bare Linux/Raspberry Pi
+            // desktop) would otherwise throw out of the click handler — surface it
+            // instead of letting it crash the UI.
+            Console.Error.WriteLine("Opening the manual URL failed: " + ex.Message);
+            mViewModel.StatusText = "Could not open the manual in a browser.";
+        }
     }
 
     private void OnSettingsTitleBarButtonClick(object? sender, RoutedEventArgs e)
