@@ -48,12 +48,12 @@
                  Classes="SectionHeader"
                  HorizontalAlignment="Left" />
       <CheckBox Name="UseConsetCheckBox"
-                Content="C Event Use Onset Amplitude"
+                Content="C Event Use Onset Timing"
                 FontWeight="Bold"
                 HorizontalAlignment="Left"
                 IsEnabled="{Binding AreRunParametersEnabled}"
                 IsChecked="{Binding UseCOnset, Mode=TwoWay}"
-                ToolTip.Tip="Use C-event onset amplitude instead of peak amplitude" />
+                ToolTip.Tip="Time the C event from its onset instead of its peak" />
       <CheckBox Name="PllEventVetoCheckBox"
                 Content="PLL Event Veto (impulse rejection)"
                 FontWeight="Bold"

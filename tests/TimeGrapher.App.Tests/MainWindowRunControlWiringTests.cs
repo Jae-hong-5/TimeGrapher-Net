@@ -95,7 +95,7 @@ public sealed class MainWindowRunControlWiringTests
             new[] { "UseConsetCheckBox", "PllEventVetoCheckBox" },
             checkBoxes.Select(checkBox => checkBox.Attribute("Name")?.Value).ToArray());
         Assert.Equal(
-            new[] { "C Event Use Onset Amplitude", "PLL Event Veto (impulse rejection)" },
+            new[] { "C Event Use Onset Timing", "PLL Event Veto (impulse rejection)" },
             checkBoxes.Select(checkBox => checkBox.Attribute("Content")?.Value).ToArray());
 
         // Each option round-trips through the shared MainWindowViewModel and is
