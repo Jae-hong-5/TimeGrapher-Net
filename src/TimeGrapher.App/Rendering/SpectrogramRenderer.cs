@@ -64,6 +64,18 @@ internal sealed class SpectrogramRenderer
     private int _sweepCols = -1;
     private int _sweepHead;
 
+    // Incremental-rebuild trackers: the state the current _sweepBuffer already
+    // reflects. When a render only advanced the column count (same window, phase
+    // shift, theme background and buffer size), copying just the new columns is
+    // identical to re-cropping the whole window — so the trackers let us skip the
+    // full O(cols x height) recopy. -1 total forces a full rebuild.
+    private long _renderedTotal = -1;
+    private long _renderedShift;
+    private uint _renderedEmptyColor;
+    // Set when the source pixels were recolored (theme toggle) without the column
+    // count advancing, so the next render must fully re-crop rather than append.
+    private bool _forceFullRebuild;
+
     // Monotonic count of source columns written since the run started, supplied by
     // the consumer (which observes every publish, even while the tab is inactive).
     // total % cols gives the sweep head; total bounds how many columns of real
@@ -116,7 +128,11 @@ internal sealed class SpectrogramRenderer
     {
         _light = light;
         _emptyColor = PlotThemePalette.Current.ScopeBg;
-        RenderCurrent();
+        // A recolor changes the source pixels without advancing the column count,
+        // so the next render must fully re-crop — the incremental append would
+        // otherwise keep the old colormap. The consumer re-publishes the recolored
+        // image via RenderWindowed right after this; rebuild the legend here.
+        _forceFullRebuild = true;
         InitializeLegend();
     }
 
@@ -146,6 +162,7 @@ internal sealed class SpectrogramRenderer
         _sweepCols = -1;
         _sweepHead = 0;
         _totalColumns = 0;
+        _renderedTotal = -1; // force a full rebuild on the next render
         _lastBeatOnsetS = 0.0;
 
         // Always drop the previous run's image — with the tab hidden the bounds are
@@ -258,13 +275,7 @@ internal sealed class SpectrogramRenderer
     // shrinking keeps the most recent, neither restarts the sweep.
     private void RebuildView(int cols, int sourceWidth, int height)
     {
-        if (_sweepBuffer == null || _sweepBuffer.Width != cols || _sweepBuffer.Height != height)
-        {
-            _sweepBuffer = new PixelBuffer(cols, height);
-        }
-
-        _emptyColor = PlotThemePalette.Current.ScopeBg;
-        _sweepBuffer.Fill(_emptyColor);
+        uint emptyColor = PlotThemePalette.Current.ScopeBg;
 
         // Last Beat phase-locks to the real A onset (re-read each beat) so the beat
         // stays put: shifting the sweep phase by (onset column − cols/2) centers
@@ -276,21 +287,68 @@ internal sealed class SpectrogramRenderer
         }
 
         long total = _totalColumns;
-        long firstColumn = Math.Max(0, total - cols); // only the most recent cols exist
         uint[] source = _lastImage!.Pixels;
-        uint[] target = _sweepBuffer.Pixels;
-        for (long c = firstColumn; c < total; c++)
+
+        bool sizeChanged = _sweepBuffer == null || _sweepBuffer.Width != cols || _sweepBuffer.Height != height;
+        // Append only the newly-arrived columns when the window, phase shift, theme
+        // background and buffer size are unchanged and the count only advanced;
+        // otherwise re-crop the whole window. A retained view column then holds the
+        // latest source column for its phase, so appending matches a full crop.
+        // Exception: when cols == sourceWidth the window wraps fully and includes
+        // the projector's moving live-edge cursor column (DrawLiveEdgeCursor paints
+        // the next write column), which mutates a retained column between renders —
+        // so re-crop fully there. For cols < sourceWidth the cursor is off-window.
+        bool canAppend = !sizeChanged
+            && !_forceFullRebuild
+            && cols < sourceWidth
+            && _renderedTotal >= 0
+            && total >= _renderedTotal
+            && shift == _renderedShift
+            && emptyColor == _renderedEmptyColor;
+
+        if (sizeChanged)
         {
-            int viewColumn = (int)(((c - shift) % cols + cols) % cols);
-            int sourceColumn = (int)(c % sourceWidth);
-            for (int y = 0; y < height; y++)
+            _sweepBuffer = new PixelBuffer(cols, height);
+        }
+
+        uint[] target = _sweepBuffer!.Pixels;
+        if (!canAppend)
+        {
+            _sweepBuffer.Fill(emptyColor);
+            long firstColumn = Math.Max(0, total - cols); // only the most recent cols exist
+            for (long c = firstColumn; c < total; c++)
             {
-                target[y * cols + viewColumn] = source[y * sourceWidth + sourceColumn];
+                WriteSweepColumn(source, target, c, shift, cols, sourceWidth, height);
+            }
+        }
+        else
+        {
+            // Going back at most cols covers a burst of several columns arriving
+            // between renders; nothing is copied when total is unchanged.
+            long firstNew = Math.Max(_renderedTotal, total - cols);
+            for (long c = firstNew; c < total; c++)
+            {
+                WriteSweepColumn(source, target, c, shift, cols, sourceWidth, height);
             }
         }
 
+        _emptyColor = emptyColor;
         _sweepCols = cols;
         _sweepHead = (int)(((total - shift) % cols + cols) % cols); // live edge: next column to write
+        _renderedTotal = total;
+        _renderedShift = shift;
+        _renderedEmptyColor = emptyColor;
+        _forceFullRebuild = false;
+    }
+
+    private static void WriteSweepColumn(uint[] source, uint[] target, long c, long shift, int cols, int sourceWidth, int height)
+    {
+        int viewColumn = (int)(((c - shift) % cols + cols) % cols);
+        int sourceColumn = (int)(c % sourceWidth);
+        for (int y = 0; y < height; y++)
+        {
+            target[y * cols + viewColumn] = source[y * sourceWidth + sourceColumn];
+        }
     }
 
     private double CurrentWindowSeconds()
