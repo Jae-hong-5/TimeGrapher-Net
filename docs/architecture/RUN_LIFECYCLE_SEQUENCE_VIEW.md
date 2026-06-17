@@ -2,7 +2,7 @@
 
 이 문서는 TimeGrapherNet의 프로그램 실행부터 입력 모드 선택, 측정 시작, 측정 종료, 프로그램 종료까지의 대표 상호작용 trace를 sequence diagram으로 보여준다. 구조 전체를 모두 나열하는 문서가 아니라, `35 Behavior - intro, sequence diagram, activity diagram, BPMN.pdf`의 sequence diagram 기준처럼 객체 간 상호작용의 특정 흐름과 가능한 대안 경로를 함께 표현한다.
 
-> 입력 모드는 코드 기준의 `RunCommandMode`에 맞춰 `Live`, `Playback`, `Simulation` 세 갈래로 둔다. 사용자 관점의 "측정 종료"는 현재 UI에서 별도 Stop 버튼이 아니라 실행 중단/리셋, Playback/Simulation 자연 종료, Live 캡처 비정상 종료, 창 종료 경로를 통해 수행된다.
+> 입력 모드는 코드 기준의 `RunCommandMode`에 맞춰 `Live`, `Playback`, `Simulation` 세 갈래로 둔다. 사용자 관점의 "측정 종료"는 현재 UI에서 별도 Stop 버튼이 아니라 실행 중단/리셋, Playback/Simulation 자연 종료, 창 종료 경로를 통해 수행된다.
 
 ## 추상화 수준
 
@@ -247,36 +247,6 @@ sequenceDiagram
         deactivate App
         deactivate App
 
-    else Live capture가 예기치 않게 종료된 경우
-        Input-->>App: CaptureEnded
-        activate App
-        App->>Sess: IsCurrentRunSession(token)
-        activate Sess
-        Sess-->>App: current
-        deactivate Sess
-        App->>Sess: StopInputWorker("Audio")
-        activate Sess
-        Sess->>Input: TryStop(timeout)
-        activate Input
-        Input-->>Sess: stopped
-        deactivate Input
-        Sess-->>App: input stopped
-        deactivate Sess
-        App->>Sess: StopAnalysisThread()
-        activate Sess
-        Sess->>Analysis: TryStop(timeout)
-        activate Analysis
-        Analysis-->>Sess: stopped
-        deactivate Analysis
-        Sess-->>App: analysis stopped
-        deactivate Sess
-        App->>App: RefreshDevices()
-        activate App
-        deactivate App
-        App->>App: RunState = Stopped<br/>Status = "Live audio capture ended unexpectedly"
-        activate App
-        deactivate App
-        deactivate App
     end
 
     User->>App: 프로그램 종료
