@@ -101,10 +101,31 @@
       </dl>
 
       <h2 id="positions"><span class="ko">포지션 스트립</span><span class="sep"> · </span><span class="en">Position strip</span></h2>
-      <p class="ko">왼쪽 패널과 그래프 사이의 세로 버튼 묶음입니다. 시계를 놓은 <b>자세</b>(문자판 위/아래, 3시·6시·9시·12시가 아래 등)를 고릅니다. 표준 시계 검사는 여러 자세에서 측정해 균형을 보는데, 여기서 고른 자세가 측정값에 라벨로 붙고 <a href="graphs/positions.html">Positions</a> 그래프의 해당 행에 누적됩니다. 현재 자세는 창 아래 <b>상태 바</b>에도 표시됩니다.</p>
-      <p class="en">The vertical button group between the panel and the graphs. It selects the watch's <b>test position</b> (dial up/down, 3/6/9/12 o'clock down, etc.). Standard watch testing measures several positions to check balance; the position you pick here labels the readings and accumulates into the matching row of the <a href="graphs/positions.html">Positions</a> graph. The active position also shows in the <b>status bar</b>.</p>
-      <p class="note ko" style="padding:10px 14px">자세 코드는 NIHS 95-10 / ISO 3158 표준을 따릅니다(예: 6H = 6시 방향이 아래로 매달린 자세).</p>
-      <p class="note en" style="padding:10px 14px">Position codes follow NIHS 95-10 / ISO 3158 (e.g. 6H = the 6-o'clock side hanging down).</p>
+      <p class="ko">왼쪽 패널과 그래프 사이의 세로 버튼 묶음입니다. 시계를 놓은 <b>자세</b>(문자판 위/아래, 또는 6·9·3·12시 방향이 위로 향하는 수직 자세 등)를 고릅니다. 표준 시계 검사는 여러 자세에서 측정해 균형을 보는데, 여기서 고른 자세가 측정값에 라벨로 붙고 <a href="graphs/positions.html">Positions</a> 그래프의 해당 행에 누적됩니다. 현재 자세는 창 아래 <b>상태 바</b>에도 표시됩니다.</p>
+      <p class="en">The vertical button group between the panel and the graphs. It selects the watch's <b>test position</b> (dial up/down, or 6/9/3/12 o'clock up, etc.). Standard watch testing measures several positions to check balance; the position you pick here labels the readings and accumulates into the matching row of the <a href="graphs/positions.html">Positions</a> graph. The active position also shows in the <b>status bar</b>.</p>
+      <p class="note ko" style="padding:10px 14px">자세 코드는 <b>NIHS 95-10 / ISO 3158</b> 표준을 따릅니다. 앞의 6개(CH·CB·6H·9H·3H·12H)가 기본 자세이고, <b>45° 항목</b>(6H45·9H45·3H45·12H45)은 그 사이의 대각선 중간 자세로 필요할 때만 씁니다. 괄호 안 약어(DU·CL 등)가 NIHS/ISO 표기입니다.</p>
+      <p class="note en" style="padding:10px 14px">Position codes follow <b>NIHS 95-10 / ISO 3158</b>. The first six (CH·CB·6H·9H·3H·12H) are the standard positions; the <b>45° entries</b> (6H45·9H45·3H45·12H45) are diagonal intermediate positions used when needed. The codes in parentheses (DU, CL, …) are the NIHS/ISO designations.</p>
+
+      <table>
+        <thead><tr>
+          <th><span class="ko">기호</span><span class="sep"> · </span><span class="en">Code</span></th>
+          <th><span class="ko">프랑스어 원어</span><span class="sep"> · </span><span class="en">French</span></th>
+          <th><span class="ko">영어 의미</span><span class="sep"> · </span><span class="en">English (NIHS/ISO)</span></th>
+          <th><span class="ko">실제 시계의 상태</span><span class="sep"> · </span><span class="en">Orientation</span></th>
+        </tr></thead>
+        <tbody>
+          <tr><td><b>CH</b></td><td>Cadran Haut</td><td>Dial Up (DU)</td><td><span class="ko">문자판이 위를 봄 (평평하게 눕힘)</span><span class="en">Dial faces up — watch lying flat</span></td></tr>
+          <tr><td><b>CB</b></td><td>Cadran Bas</td><td>Dial Down (DD)</td><td><span class="ko">뒷뚜껑이 위를 봄 (엎어놓음)</span><span class="en">Caseback up — watch lying face-down</span></td></tr>
+          <tr><td><b>6H</b></td><td>6h Haut</td><td>Crown Left (CL)</td><td><span class="ko">6시 방향이 위로 향함 = 용두가 왼쪽 (세움)</span><span class="en">6 o'clock up = crown to the left (hanging)</span></td></tr>
+          <tr><td><b>9H</b></td><td>9h Haut</td><td>Crown Down (CD)</td><td><span class="ko">9시 방향이 위로 향함 = 용두가 아래</span><span class="en">9 o'clock up = crown points down</span></td></tr>
+          <tr><td><b>3H</b></td><td>3h Haut</td><td>Crown Up (CU)</td><td><span class="ko">3시 방향이 위로 향함 = 용두(크라운)가 하늘을 향함 (가장 흔한 자세)</span><span class="en">3 o'clock up = crown points up (the most common position)</span></td></tr>
+          <tr><td><b>12H</b></td><td>12h Haut</td><td>Crown Right (CR)</td><td><span class="ko">12시 방향이 위로 향함 = 용두가 오른쪽</span><span class="en">12 o'clock up = crown to the right</span></td></tr>
+          <tr><td><b>6H45</b></td><td>6h45 Haut</td><td>Crown up-left · CU(L)</td><td><span class="ko">대각선 중간 자세 — 용두가 위-왼쪽</span><span class="en">Diagonal intermediate — crown up-left</span></td></tr>
+          <tr><td><b>9H45</b></td><td>9h45 Haut</td><td>Crown down-left · CD(L)</td><td><span class="ko">대각선 중간 자세 — 용두가 아래-왼쪽</span><span class="en">Diagonal intermediate — crown down-left</span></td></tr>
+          <tr><td><b>3H45</b></td><td>3h45 Haut</td><td>Crown up-right · CU(R)</td><td><span class="ko">대각선 중간 자세 — 용두가 위-오른쪽</span><span class="en">Diagonal intermediate — crown up-right</span></td></tr>
+          <tr><td><b>12H45</b></td><td>12h45 Haut</td><td>Crown down-right · CD(R)</td><td><span class="ko">대각선 중간 자세 — 용두가 아래-오른쪽</span><span class="en">Diagonal intermediate — crown down-right</span></td></tr>
+        </tbody>
+      </table>
 
       <h2 id="status"><span class="ko">상태 바</span><span class="sep"> · </span><span class="en">Status bar (창 아래)</span></h2>
       <p class="ko">창 맨 아래 줄. 왼쪽부터:</p>
