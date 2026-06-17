@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Windows.Input;
+using TimeGrapher.Core.Analysis;
 using TimeGrapher.Core.Shared;
 
 namespace TimeGrapher.App.ViewModels;
@@ -49,7 +50,7 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     private string _highPassCutoffText = "200";
     private bool _useCOnset;
     private bool _pllEventVeto;
-    private int _sweepMultiple = 2;
+    private int _sweepMultiple = SweepFrameProjector.DefaultSweepMultiple;
     private int _selectedPositionIndex; // 0 = WatchPosition.CH (dial up)
     private bool _sigmaAveraging;
     private double? _reviewCursorTimeS;
