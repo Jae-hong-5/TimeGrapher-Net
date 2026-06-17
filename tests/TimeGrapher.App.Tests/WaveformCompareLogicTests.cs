@@ -99,6 +99,19 @@ public sealed class WaveformCompareLogicTests
     }
 
     [Fact]
+    public void LaneLabel_AmplitudeIsMissingWhenOutOfRange()
+    {
+        // A C peak near the half-oscillation period drives the canonical amplitude
+        // toward its sin zero-crossing (>= 360 deg / non-finite), which the canonical
+        // readout suppresses as missing. The lane label matches by showing the dash
+        // rather than a garbage number. bph=28800 -> half period 125 ms; t_AC=125 ms.
+        Assert.Equal(
+            "TIC\nA to C: +125.0 ms\nAmp: —",
+            WaveformCompareLogic.LaneLabel(
+                Segment(isTic: true, aMs: 5.0, cPeakMs: 130.0, samplePeak: 0.1f), bph: 28800, liftAngleDeg: 52.0));
+    }
+
+    [Fact]
     public void MeanCPeakOffset_AveragesOnlyTheLanesWithAValidCPeak()
     {
         var segments = new[]
@@ -142,6 +155,20 @@ public sealed class WaveformCompareLogicTests
         var segments = new[] { Segment(startTimeS: 10.0, isTic: false) };
 
         Assert.Equal(245.0, WaveformCompareLogic.CursorOffsetMs(10.05, segments, 200.0)!.Value, 6);
+    }
+
+    [Fact]
+    public void CursorOffset_HidesWhenScrubbedBeyondTheRenderedClip()
+    {
+        // Each half is rendered only out to the clip (tocXOffsetMs = 200 ms) even
+        // though the captured window is wider, so a scrub past the clip has no drawn
+        // signal and the cursor hides instead of pointing at a blank area.
+        var segments = new[] { Segment(startTimeS: 10.0, isTic: true) };
+
+        // offset 230 ms (A+225) is past the 200 ms clip (rendered bound 205 ms).
+        Assert.Null(WaveformCompareLogic.CursorOffsetMs(10.23, segments, 200.0));
+        // ...but a scrub within the clip still shows the cursor.
+        Assert.Equal(45.0, WaveformCompareLogic.CursorOffsetMs(10.05, segments, 200.0)!.Value, 6);
     }
 
     [Fact]

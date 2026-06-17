@@ -75,7 +75,8 @@ internal static class WaveformCompareLogic
                 .ToString(SignedTenthsMsFormat, CultureInfo.InvariantCulture) + " ms"
             : VarioReadout.Missing) + "\n" +
         "Amp: " + (segment.Samples.Length > 0 && segment.CPeakValid && bph > 0
-            ? CalculateAmplitude(segment, bph, liftAngleDeg).ToString("F1", CultureInfo.InvariantCulture) + "°"
+            && CalculateAmplitude(segment, bph, liftAngleDeg) is double amp
+            ? amp.ToString("F1", CultureInfo.InvariantCulture) + "°"
             : VarioReadout.Missing);
 
     /// <summary>
@@ -83,17 +84,24 @@ internal static class WaveformCompareLogic
     /// canonical escapement formula <see cref="WatchMetrics.Amplitude"/>
     /// (lift angle / sin) — the single amplitude source of truth across the app,
     /// rather than a small-angle linear approximation that would diverge from the
-    /// Vario/Trace/sequence readouts at lower amplitudes.
+    /// Vario/Trace/sequence readouts at lower amplitudes. Returns null for an
+    /// out-of-range result (>= 360°, or the non-finite value a C near the
+    /// half-oscillation period produces), applying the same validity cap as
+    /// <see cref="WatchMetrics"/> so the lane shows '—' exactly where the other
+    /// readouts do.
     /// </summary>
-    private static double CalculateAmplitude(BeatSegment segment, int bph, double liftAngleDeg)
+    private static double? CalculateAmplitude(BeatSegment segment, int bph, double liftAngleDeg)
     {
         double tACSeconds = (segment.CPeakOffsetMs - segment.AOffsetMs) / 1000.0;
         if (tACSeconds <= 0.0)
         {
-            return 0.0;
+            return null;
         }
 
-        return WatchMetrics.Amplitude(liftAngleDeg, tACSeconds, bph);
+        double amplitude = WatchMetrics.Amplitude(liftAngleDeg, tACSeconds, bph);
+        // Canonical validity cap (WatchMetrics.ComputeAmplitude): "< 360" also
+        // rejects +inf and NaN, since neither is less than 360.
+        return amplitude < 360.0 ? amplitude : (double?)null;
     }
 
     /// <summary>
@@ -148,8 +156,10 @@ internal static class WaveformCompareLogic
         {
             BeatSegment segment = segments[i];
             double offsetMs = (timeS - segment.StartTimeS) * 1000.0;
-            double windowMs = segment.MsPerPoint * segment.Samples.Length;
-            if (offsetMs >= 0.0 && offsetMs <= windowMs)
+            // Each half is rendered only out to the clip (tocXOffsetMs), not the
+            // full captured window, so accept the cursor only where signal is drawn.
+            double renderedWindowMs = tocXOffsetMs + segment.AOffsetMs;
+            if (offsetMs >= 0.0 && offsetMs <= renderedWindowMs)
             {
                 double aRelativeMs = offsetMs - segment.AOffsetMs;
                 return segment.IsTic ? aRelativeMs : tocXOffsetMs + aRelativeMs;
