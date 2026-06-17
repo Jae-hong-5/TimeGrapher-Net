@@ -1,6 +1,6 @@
 # 모듈 분해 뷰
 
-이 문서는 TimeGrapherNet의 **소스 코드 모듈만** 디렉터리 트리 그대로 보여준다. 박스 이름은 실제 프로젝트/폴더명이고, 중첩은 폴더 포함 관계를 따른다. 비(非)소스 항목은 모두 제외한다: 빌드 산출물(`artifacts/`·`bin/`·`obj/`), 문서·배포·샘플·CI(`docs/`·`deploy/`·`sample/`·`.github/`), 저장소 루트 파일(`*.sln`·`global.json`·`Directory.*.props`·`*.md`), 그리고 각 프로젝트의 리소스 `Assets/`·생성된 `Properties/`(AssemblyInfo)·루트 진입 파일(`Program.cs`·`App.axaml(.cs)` 등).
+이 문서는 TimeGrapherNet의 **소스 코드 모듈만** 디렉터리 트리 그대로 보여준다. 박스 이름은 실제 프로젝트/폴더명이고, 중첩은 폴더 포함 관계를 따른다. 비(非)소스 항목은 모두 제외한다: 빌드 산출물(`artifacts/`·`bin/`·`obj/`), 문서·배포·샘플·CI(`docs/`·`deploy/`·`sample/`·`.github/`), 저장소 루트 파일(`*.sln`·`global.json`·`Directory.*.props`·`*.md`), 그리고 각 프로젝트의 리소스 `Assets/`·생성된 `Properties/`(AssemblyInfo), 그리고 `TimeGrapher.App`의 루트 진입 파일(`Program.cs`·`App.axaml(.cs)`·`AppStartupOptions.cs` 등).
 
 ## 분해 다이어그램
 

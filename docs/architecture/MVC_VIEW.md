@@ -61,7 +61,7 @@ flowchart LR
 - 프레임 전달 시 `AnalysisFrameRouter.Route`는 모든 consumer에 `ObserveFrame`을 호출한 뒤, 활성 탭의 consumer에만 `RenderFrame`을 호출한다.
 - `RenderToAll`은 pause 종료 시 리뷰 커서를 모든 탭에서 한 번에 지우는 fan-out 전용 경로다(렌더만 수행; 보관 프레임은 이미 모든 consumer가 `ObserveFrame`으로 관찰했음).
 - 정적 실행 옵션(`UseCOnset`, `PllEventVeto`)은 더 이상 탭이 아니라 타이틀바 톱니바퀴 버튼(`SettingsTitleBarButton`)이 여는 별도 팝업 창 `SettingsWindow`에 있다. 이 창은 `MainWindow`의 `MainWindowViewModel`을 DataContext로 공유해 체크박스 토글이 동일한 실행-설정 흐름(`AreRunParametersEnabled` 게이트 포함)에 그대로 반영되며, 분석 프레임 라우팅에는 참여하지 않는다. 따라서 이 설정은 더 이상 분석 표시 탭이 아니며, 카탈로그는 13개 탭을 유지한다.
-- 리뷰 바는 **일시정지 중이면서 Long-Term 탭이 활성일 때만** 보인다(`MainWindowViewModel.IsReviewBarVisible => RunState==Paused && _isLongTermTabActive`). 탭 전환 시 `MainWindow`가 `SetLongTermTabActive(activeTab == LongTermPerfTabId)`로 토글하고, 렌더러가 `UpdateReviewSliderAlignment(...)`로 리뷰 슬라이더(`ReviewSliderMargin`/`ReviewMinimumS`)를 Long-Term 그래프 X축 데이터 영역에 맞춘다. Long-Term 그래프는 `BeatMetricsHistorySnapshot.PositionChanges`를 경과시간 축의 점선 위치-전환 마커로 그린다(`LongTermPerfRenderer`).
+- 리뷰 바는 **일시정지 중이면서 Long-Term 탭이 활성일 때만** 보인다(`MainWindowViewModel.IsReviewBarVisible => RunState==Paused && _isLongTermTabActive`). 탭 전환 시 `MainWindow`가 `SetLongTermTabActive(activeTab == LongTermPerfTabId)`로 토글하고, 렌더러가 Long-Term 그래프 X축 데이터 영역의 패드를 계산해 뷰모델 콜백 `UpdateReviewSliderAlignment(...)`를 호출하면, 뷰모델이 리뷰 슬라이더(`ReviewSliderMargin`/`ReviewMinimumS`)를 그 영역에 맞춘다. Long-Term 그래프는 `BeatMetricsHistorySnapshot.PositionChanges`를 경과시간 축의 파선(dashed) 위치-전환 마커로 그린다(`LongTermPerfRenderer`).
 
 ### Positions 탭과 위치 입력
 
