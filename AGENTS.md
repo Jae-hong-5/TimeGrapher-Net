@@ -29,7 +29,7 @@
   한글 설명 계속...
   ```
 
-- When a change affects the architecture or a design pattern, state in the body **which architectural theory or tactic it is based on**, and update the corresponding view document under `docs/architecture/` when needed.
+- When a change affects the architecture or a design pattern, state in the body **which architectural theory or tactic it is based on**, and update the corresponding view document under `docs/for-ai/` when needed.
 
 ## Principles
 
@@ -37,9 +37,9 @@ Base every change on **software architecture principles and the existing structu
 
 ### Architecture & documentation
 
-- The architecture and its decisions live under `docs/architecture/`. Check the relevant views before making changes, and update the matching document whenever a change affects the system's structure:
-  - `docs/architecture/MODULE_DECOMPOSITION_VIEW.md`, `docs/architecture/MODULE_USES_VIEW.md`, `docs/architecture/LAYERED_VIEW.md`, `docs/architecture/MVC_VIEW.md`, `docs/architecture/DATA_MODEL_VIEW.md`
-  - `docs/architecture/SAP_TACTICS_ANALYSIS.md` (quality-attribute tactics)
+- The architecture and its decisions live under `docs/for-ai/`. Check only the relevant documents in that directory before making changes, and update the matching document whenever a change affects the system's structure:
+  - `docs/for-ai/DATA_MODEL_VIEW.md`, `docs/for-ai/MODULE_USES_VIEW.md`
+  - `docs/for-ai/SAP_TACTICS_ANALYSIS.md` (quality-attribute tactics)
 - Respect the dependency graph: `TimeGrapher.App` → `TimeGrapher.Core` / `TimeGrapher.Platform.*`, `TimeGrapher.Platform.*` → `TimeGrapher.Core`, `TimeGrapher.Verify` → `TimeGrapher.Core`. **Core must not depend on anything** (no UI or platform references).
 
 ### UI & rendering conventions
