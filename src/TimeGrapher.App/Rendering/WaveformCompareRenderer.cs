@@ -40,9 +40,6 @@ internal sealed class WaveformCompareRenderer
     private const double XMinMs = -2.0 * BeatSegmentCapture.PreEventMs;
     private const double XMaxMs = WaveformCompareLogic.TocXOffsetMs
         + WaveformCompareLogic.BeatDisplayWindowMs - BeatSegmentCapture.PreEventMs;
-    /// <summary>Lane label top relative to the lane baseline (traces peak at +1.0).</summary>
-    private const double LaneLabelYOffset = 1.12;
-
     /// <summary>Headroom above the top lane's normalized peak.</summary>
     private const double YHeadroom = 1.15;
 
@@ -244,28 +241,41 @@ internal sealed class WaveformCompareRenderer
                 continue;
             }
 
-            BeatSegment segA = segments[idxFirst];
-            BeatSegment segB = segments[idxLast];
-            BeatSegment ticSeg = segA.IsTic ? segA : segB;
-            BeatSegment tocSeg = segA.IsTic ? segB : segA;
+            // Assign each segment to its real half; a skipped beat can make the
+            // pair the same phase, in which case one half is empty rather than a
+            // beat drawn in the wrong half / mislabeled.
+            (BeatSegment? ticSeg, BeatSegment? tocSeg) = WaveformCompareLogic.AssignPairHalves(
+                segments[idxFirst], segments[idxLast]);
 
             double baseline = (WaveformCompareLogic.PairLanes - 1 - lane)
                               * WaveformCompareLogic.LaneSpacing;
 
-            FillLane(ticSeg, baseline, _laneX[lane], _laneY[lane], xOffset: 0.0, clipMs);
-            FillLane(tocSeg, baseline, _tocX[lane],  _tocY[lane],
-                     xOffset: clipMs, clipMs);
+            if (ticSeg is BeatSegment ticSegment)
+            {
+                FillLane(ticSegment, baseline, _laneX[lane], _laneY[lane], xOffset: 0.0, clipMs);
+            }
+
+            if (tocSeg is BeatSegment tocSegment)
+            {
+                FillLane(tocSegment, baseline, _tocX[lane], _tocY[lane], xOffset: clipMs, clipMs);
+            }
 
             if (ticLabel != null)
             {
-                ticLabel.IsVisible = true;
-                ticLabel.LabelText = WaveformCompareLogic.LaneLabel(ticSeg, history?.Bph ?? 0, snapshot.LiftAngleDeg);
+                ticLabel.IsVisible = ticSeg is BeatSegment;
+                if (ticSeg is BeatSegment ticForLabel)
+                {
+                    ticLabel.LabelText = WaveformCompareLogic.LaneLabel(ticForLabel, history?.Bph ?? 0, snapshot.LiftAngleDeg);
+                }
             }
 
             if (tocLabel != null)
             {
-                tocLabel.IsVisible = true;
-                tocLabel.LabelText = WaveformCompareLogic.LaneLabel(tocSeg, history?.Bph ?? 0, snapshot.LiftAngleDeg);
+                tocLabel.IsVisible = tocSeg is BeatSegment;
+                if (tocSeg is BeatSegment tocForLabel)
+                {
+                    tocLabel.LabelText = WaveformCompareLogic.LaneLabel(tocForLabel, history?.Bph ?? 0, snapshot.LiftAngleDeg);
+                }
             }
         }
 

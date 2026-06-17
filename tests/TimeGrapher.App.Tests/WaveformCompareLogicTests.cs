@@ -112,6 +112,40 @@ public sealed class WaveformCompareLogicTests
     }
 
     [Fact]
+    public void AssignPairHalves_PlacesEachSegmentInItsRealHalf()
+    {
+        BeatSegment tic = Segment(isTic: true);
+        BeatSegment toc = Segment(isTic: false);
+
+        var (t1, c1) = WaveformCompareLogic.AssignPairHalves(older: tic, newer: toc);
+        Assert.Same(tic, t1);
+        Assert.Same(toc, c1);
+
+        var (t2, c2) = WaveformCompareLogic.AssignPairHalves(older: toc, newer: tic);
+        Assert.Same(tic, t2);
+        Assert.Same(toc, c2);
+    }
+
+    [Fact]
+    public void AssignPairHalves_SamePhasePairKeepsTheNewerAndLeavesTheOtherHalfEmpty()
+    {
+        // A skipped beat can make a pair the same phase; the newer segment keeps
+        // its real half and the missing phase is null (drawn empty), so nothing
+        // lands in the wrong half or gets mislabeled.
+        BeatSegment olderTic = Segment(isTic: true, cPeakMs: 100.0);
+        BeatSegment newerTic = Segment(isTic: true, cPeakMs: 110.0);
+        var (tic, toc) = WaveformCompareLogic.AssignPairHalves(older: olderTic, newer: newerTic);
+        Assert.Same(newerTic, tic);
+        Assert.Null(toc);
+
+        BeatSegment olderToc = Segment(isTic: false, cPeakMs: 100.0);
+        BeatSegment newerToc = Segment(isTic: false, cPeakMs: 110.0);
+        var (tic2, toc2) = WaveformCompareLogic.AssignPairHalves(older: olderToc, newer: newerToc);
+        Assert.Null(tic2);
+        Assert.Same(newerToc, toc2);
+    }
+
+    [Fact]
     public void MeanCPeakOffset_AveragesOnlyTheLanesWithAValidCPeak()
     {
         var segments = new[]

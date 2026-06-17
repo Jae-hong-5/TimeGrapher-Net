@@ -105,6 +105,22 @@ internal static class WaveformCompareLogic
     }
 
     /// <summary>
+    /// Assigns the two segments of a comparison lane to their tic (left) / toc
+    /// (right) halves by each segment's own phase. Consecutive captures normally
+    /// alternate, but a skipped beat can make a pair the same phase; in that case
+    /// the half for the missing phase is null (drawn empty) and the newer segment
+    /// keeps its real half, so a beat is never drawn in the wrong half or
+    /// mislabeled — and the review cursor, which maps by real phase, stays
+    /// consistent. <paramref name="older"/> precedes <paramref name="newer"/>.
+    /// </summary>
+    public static (BeatSegment? Tic, BeatSegment? Toc) AssignPairHalves(BeatSegment older, BeatSegment newer)
+    {
+        BeatSegment? tic = newer.IsTic ? newer : (older.IsTic ? older : (BeatSegment?)null);
+        BeatSegment? toc = !newer.IsTic ? newer : (!older.IsTic ? older : (BeatSegment?)null);
+        return (tic, toc);
+    }
+
+    /// <summary>
     /// Mean A→C peak interval (ms) across the shown lanes — the cross-beat
     /// consistency reference the guide marker draws. Null until any lane
     /// carries a valid C peak. When <paramref name="ticOnly"/> is not null,
