@@ -138,7 +138,7 @@
             BorderBrush="{DynamicResource ChromeBorderBrush}"
             BorderThickness="0,1,0,0"
             IsVisible="{Binding IsReviewBarVisible}">
-      <Grid ColumnDefinitions="300,Auto,72,*">
+      <Grid ColumnDefinitions="300,Auto,92,*">
         <Grid Grid.Column="3" RowDefinitions="Auto,Auto" Margin="8,2,10,2">
           <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Left">
             <Button Name="ReviewStepBackButton"
@@ -182,7 +182,7 @@
       </Grid>
     </Border>
 
-    <Grid ColumnDefinitions="300,Auto,72,*">
+    <Grid ColumnDefinitions="300,Auto,92,*">
       <ScrollViewer Grid.Column="0"
                     HorizontalScrollBarVisibility="Disabled"
                     VerticalScrollBarVisibility="Disabled"

@@ -211,7 +211,6 @@ flowchart TB
 ### 검증 결과
 
 - **`Analysis`**는 `Detection`, `Detection.Scoring`, `Metrics`, `Imaging`, `AudioIo`, `Shared`를 모두 사용한다. `Detection.Scoring` 의존은 `AnalysisWorker`, `DetectorMetricsEngine`, `BeatEventGateHost`에서 확인된다.
-- **tic/toc rate-error 시리즈(`RateTic`/`RateToc`) 생산 위치**: `ScopeRateFrameProjector`가 아니라 `BeatMetricsFrameProjector`가 발행한다(위치별 `RateErrorRing`에서, 매 프레임). 위치 인식이 이미 `BeatMetricsHistory` 한 곳에만 들어와 있어 위치별 rate-error 트레이스를 한 소유자에서 만들 수 있기 때문이다. `BeatMetricsFrameProjector`는 wrap 스케일·링 슬롯 수를 `DetectorMetricsEngine`(`RateErrorYScale`/`MaxRateDataPoints`)에서 받아 전역 링과 동일하게 wrap한다 — `Analysis` 내부 의존이며 새 프로젝트 간 엣지는 만들지 않는다. App의 `RateScopeRenderer`(rate 창)·`BeatErrorDiagRenderer`는 여전히 `frame.RateSeries`만 읽고, `TraceDisplayRenderer`만 스냅샷의 `ActivePositionRate`/`ActivePositionAmplitude`로 소스를 바꾼다.
 - **`Detection`**(`TgDetector`, `TgDetectorCore`, `Bph` 등)은 다른 `Core` 하위모듈을 사용하지 않는다. 같은 부모 아래의 `Detection.Scoring`도 참조하지 않으므로 `Detection → Detection.Scoring` 엣지는 없다.
 - **`Detection.Scoring`**(`IBeatEventGate`, `PllMatchGate`, `BeatCandidate`, `BeatWindowFeatures`)은 `Shared`를 참조하지 않지만 리프는 아니다 — `BeatCandidate`가 후보 컨텍스트로 `Detection`의 `TgEvent`를 담으므로 `Detection.Scoring → Detection` 의존이 있다(`IBeatEventGate`/`PllMatchGate`/`BeatWindowFeatures`는 자기 네임스페이스 타입만 사용).
 - **`Sim`**의 `DetectionScorer`는 `Detection`을 사용하지 않는다(이름에 보이는 `usedDetection`은 지역 변수). `Sim`은 `Shared`만 사용한다.

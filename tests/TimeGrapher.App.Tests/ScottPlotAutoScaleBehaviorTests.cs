@@ -95,43 +95,6 @@ public sealed class ScottPlotAutoScaleBehaviorTests
     }
 
     [Fact]
-    public void ExpandToInclude_HoldsTheFloorForSmallDataButExpandsForLarge()
-    {
-        // Small signal: never zoom in tighter than the floor.
-        Assert.Equal((-7.0, 7.0), PlotAxisRules.ExpandToInclude(-0.5, 0.6, -7.0, 7.0));
-        // Larger-than-floor signal: keep the wider auto-fit on both sides.
-        Assert.Equal((-10.0, 12.0), PlotAxisRules.ExpandToInclude(-10.0, 12.0, -7.0, 7.0));
-        // Mixed: floor the small side, keep the large side.
-        Assert.Equal((-9.0, 7.0), PlotAxisRules.ExpandToInclude(-9.0, 2.0, -7.0, 7.0));
-    }
-
-    [Fact]
-    public void EnsureMinimumYRange_HoldsThePaneOpenToTheFloorForSmallData()
-    {
-        var plot = new Plot();
-        plot.Add.Scatter(new double[] { 0, 1, 2 }, new double[] { -0.3, 0.2, 0.5 }); // small wander
-        plot.Axes.AutoScale();
-        PlotAxisRules.EnsureMinimumYRange(plot, -7.0, 7.0);
-
-        AxisLimits lim = plot.Axes.GetLimits();
-        Assert.True(lim.Bottom <= -7.0, $"bottom {lim.Bottom}");
-        Assert.True(lim.Top >= 7.0, $"top {lim.Top}");
-    }
-
-    [Fact]
-    public void EnsureMinimumYRange_KeepsTheWiderFitWhenDataExceedsTheFloor()
-    {
-        var plot = new Plot();
-        plot.Add.Scatter(new double[] { 0, 1 }, new double[] { -12.0, 15.0 });
-        plot.Axes.AutoScale();
-        PlotAxisRules.EnsureMinimumYRange(plot, -7.0, 7.0);
-
-        AxisLimits lim = plot.Axes.GetLimits();
-        Assert.True(lim.Bottom <= -12.0, $"bottom {lim.Bottom}");
-        Assert.True(lim.Top >= 15.0, $"top {lim.Top}");
-    }
-
-    [Fact]
     public void ReviewCursorLayer_UsesRedBoldDashedStyle()
     {
         var plot = new Plot();

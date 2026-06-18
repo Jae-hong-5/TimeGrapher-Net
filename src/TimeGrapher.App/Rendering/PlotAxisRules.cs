@@ -17,28 +17,6 @@ internal static class PlotAxisRules
     public static void ClampLeftEdgeToZero(Plot plot) => ClampLeftEdge(plot, 0);
 
     /// <summary>
-    /// Expands an autoscaled Y range so it always spans at least
-    /// [<paramref name="minBottom"/>, <paramref name="maxTop"/>]: autoscale may grow
-    /// the range when the data exceeds the floor, but never zoom in tighter, so a
-    /// small signal is not magnified into apparent chaos. Pure for unit testing.
-    /// </summary>
-    public static (double Bottom, double Top) ExpandToInclude(
-        double autoBottom, double autoTop, double minBottom, double maxTop)
-        => (Math.Min(autoBottom, minBottom), Math.Max(autoTop, maxTop));
-
-    /// <summary>
-    /// Applies <see cref="ExpandToInclude"/> to a plot's current Y limits — call
-    /// right after AutoScale. The auto-fit is kept whenever the data is taller than
-    /// the floor; otherwise the view is held open to the floor.
-    /// </summary>
-    public static void EnsureMinimumYRange(Plot plot, double minBottom, double maxTop)
-    {
-        AxisLimits limits = plot.Axes.GetLimits();
-        (double bottom, double top) = ExpandToInclude(limits.Bottom, limits.Top, minBottom, maxTop);
-        plot.Axes.SetLimitsY(bottom, top);
-    }
-
-    /// <summary>
     /// Installs a rule that floors the X view's left edge at <paramref name="minLeft"/>
     /// on every render. Clears existing rules first so repeated CreateGraphs
     /// calls do not accumulate duplicates.

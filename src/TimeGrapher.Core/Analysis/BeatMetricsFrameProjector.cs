@@ -11,33 +11,12 @@ namespace TimeGrapher.Core.Analysis;
 /// </summary>
 public sealed class BeatMetricsFrameProjector
 {
-    private readonly BeatMetricsHistory _history;
-
-    /// <summary>
-    /// The rate-error wrap scale and ring slot count come from the same
-    /// <see cref="WatchMetrics"/> configuration the global ring uses, so the
-    /// per-position tic/toc rate-error trace reproduces the global trace exactly.
-    /// </summary>
-    public BeatMetricsFrameProjector(double rateErrorYScale, int rateErrorRingCapacity)
-    {
-        _history = new BeatMetricsHistory(
-            rateErrorYScale: rateErrorYScale,
-            rateErrorRingCapacity: rateErrorRingCapacity);
-    }
+    private readonly BeatMetricsHistory _history = new();
 
     // Written from any thread (UI position buttons), applied analysis-side at
     // the start of the next Project pass (the SweepFrameProjector knob pattern).
     private volatile int _requestedPosition = (int)WatchPosition.CH;
     private volatile bool _positionAggregateResetRequested;
-
-    // Cached RateTic/RateToc wrappers. The history returns the same raw series
-    // instance while the active ring is unchanged, so we rebuild the frame wrapper
-    // only when that instance changes — every frame still carries the latest trace,
-    // shared (not re-copied) in between.
-    private GraphSeriesFrame? _ticSeries;
-    private GraphSeriesFrame? _tocSeries;
-    private MetricsHistorySeries? _ticSource;
-    private MetricsHistorySeries? _tocSource;
 
     /// <summary>
     /// Requests the watch test position subsequent beats are tagged with.
@@ -78,28 +57,5 @@ public sealed class BeatMetricsFrameProjector
     public void AppendSnapshot(AnalysisFrame frame)
     {
         frame.MetricsHistory = _history.CurrentSnapshot();
-
-        // The Rate Scope (rate-error pane) and Beat Error tabs draw the active
-        // position's tic/toc rate-error trace. Unlike the throttled history
-        // snapshot, this is published on every frame so the traces stay as live as
-        // they were when sourced from the global WatchMetrics ring (the
-        // ScopeRateFrameProjector no longer emits these series). Both series are
-        // always emitted as Replace series — an empty one clears the prior
-        // position's trace when switching to a never-measured position.
-        _history.CurrentActiveRateError(out MetricsHistorySeries tic, out MetricsHistorySeries toc);
-        frame.AddRateSeries(WrapRateSeries(AnalysisGraphSeries.RateTic, tic, ref _ticSeries, ref _ticSource));
-        frame.AddRateSeries(WrapRateSeries(AnalysisGraphSeries.RateToc, toc, ref _tocSeries, ref _tocSource));
-    }
-
-    private static GraphSeriesFrame WrapRateSeries(
-        string id, MetricsHistorySeries source, ref GraphSeriesFrame? cached, ref MetricsHistorySeries? cachedSource)
-    {
-        if (cached is null || !ReferenceEquals(source, cachedSource))
-        {
-            cached = new GraphSeriesFrame { Id = id, X = source.X, Y = source.Y, Replace = true };
-            cachedSource = source;
-        }
-
-        return cached;
     }
 }

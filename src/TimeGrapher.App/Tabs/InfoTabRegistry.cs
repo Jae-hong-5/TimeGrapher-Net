@@ -984,13 +984,12 @@ internal sealed partial class InfoTabRegistry
     {
         IReadOnlyList<WatchPosition> positions = WatchPositions.All;
         var buttons = new Button[positions.Count];
-        // Fixed square button width (≈ the button's vertical size at the initial
-        // window). The strip column in MainWindow.axaml is sized to this + margins.
-        const double positionButtonWidth = 60.0;
         Grid buttonGrid = context.PositionButtonGrid;
         buttonGrid.Children.Clear();
         buttonGrid.ColumnDefinitions = new ColumnDefinitions("*");
         buttonGrid.RowDefinitions = new RowDefinitions(string.Join(",", Enumerable.Repeat("*", positions.Count)));
+        buttonGrid.MinWidth = 76;
+        buttonGrid.MaxWidth = 92;
         buttonGrid.VerticalAlignment = VerticalAlignment.Stretch;
 
         for (int i = 0; i < positions.Count; i++)
@@ -1008,11 +1007,7 @@ internal sealed partial class InfoTabRegistry
             {
                 Content = shortText,
                 Classes = { "PositionButton" },
-                // Fixed width = the button's vertical size at the initial window, so
-                // the box is square; centered in the (now narrow) strip column. The
-                // height still tracks the strip (VerticalAlignment.Stretch).
-                Width = positionButtonWidth,
-                HorizontalAlignment = HorizontalAlignment.Center,
+                HorizontalAlignment = HorizontalAlignment.Stretch,
                 VerticalAlignment = VerticalAlignment.Stretch,
                 Margin = new Thickness(2),
                 Padding = new Thickness(4, 3),

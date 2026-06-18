@@ -17,9 +17,15 @@ public sealed class ScopeRateFrameProjector
     private readonly List<ScopeVerticalMarker> _scopeWindowVerticalMarkers = new();
     private readonly List<ScopeHorizontalMarker> _scopeWindowHorizontalMarkers = new();
     private readonly List<ScopeTextMarker> _scopeWindowTextMarkers = new();
-    // The tic/toc rate-error trace (RateTic/RateToc) is now published per watch
-    // position by BeatMetricsFrameProjector; this projector keeps only the scope
-    // waveform, event markers and the title-bar results text.
+    // Latest tic/toc rate series as immutable snapshots. Rate data changes only on
+    // beat events (~8 Hz at 28800 BPH) while frames are produced per audio block
+    // (50-100 Hz), so the snapshot is rebuilt once per actual update and the SAME
+    // object is reattached to the frames in between — every frame still carries
+    // the full latest bundle, without re-copying 250-point lists per frame.
+    // Consumers only read GraphSeriesFrame (init-only, IReadOnlyList), so sharing
+    // one instance across frames is safe.
+    private GraphSeriesFrame? _latestTicRateSeries;
+    private GraphSeriesFrame? _latestTocRateSeries;
     private string _latestResultsText = "";
     private ulong _localGraphTicks;
     private double _lastA;
@@ -118,6 +124,16 @@ public sealed class ScopeRateFrameProjector
         {
             frame.MetricsUpdate.SetResults(_latestResultsText);
         }
+
+        if (_latestTicRateSeries != null)
+        {
+            frame.AddRateSeries(_latestTicRateSeries);
+        }
+
+        if (_latestTocRateSeries != null)
+        {
+            frame.AddRateSeries(_latestTocRateSeries);
+        }
     }
 
     private void AppendAEventMarker(double eventSample, float peakValue)
@@ -194,10 +210,28 @@ public sealed class ScopeRateFrameProjector
 
     private void AppendMetricsUpdate(WatchMetricsUpdate update, AnalysisFrame frame)
     {
-        // The tic/toc rate-error series are now published per watch position by
-        // BeatMetricsFrameProjector (from frame.RateSeries); this projector only
-        // forwards the title-bar results text. (No consumer reads the per-frame
-        // MetricsUpdate tic/toc arrays, so they are no longer copied here.)
+        if (update.TicRateUpdated)
+        {
+            _latestTicRateSeries = new GraphSeriesFrame
+            {
+                Id = AnalysisGraphSeries.RateTic,
+                X = new List<double>(update.XTic),
+                Y = new List<double>(update.YTic),
+                Replace = true,
+            };
+            frame.MetricsUpdate.SetTicRate(update.XTic, update.YTic);
+        }
+        if (update.TocRateUpdated)
+        {
+            _latestTocRateSeries = new GraphSeriesFrame
+            {
+                Id = AnalysisGraphSeries.RateToc,
+                X = new List<double>(update.XToc),
+                Y = new List<double>(update.YToc),
+                Replace = true,
+            };
+            frame.MetricsUpdate.SetTocRate(update.XToc, update.YToc);
+        }
         if (update.ResultsUpdated)
         {
             _latestResultsText = update.ResultsText;

@@ -561,9 +561,8 @@ public sealed class WatchMetrics
     }
 
     // MainWindow::WrapInToRange: fmod into the range, adding the range size
-    // when the remainder is negative (C# '%' on doubles == C fmod). Shared with
-    // BeatMetricsHistory's per-position rate-error ring so both wrap identically.
-    internal static double WrapIntoRange(double number, double lowerBound, double upperBound)
+    // when the remainder is negative (C# '%' on doubles == C fmod).
+    private double WrapIntoRange(double number, double lowerBound, double upperBound)
     {
         double rangeWidth = upperBound - lowerBound;
         double wrapped = (number - lowerBound) % rangeWidth;

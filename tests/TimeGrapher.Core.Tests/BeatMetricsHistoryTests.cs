@@ -25,20 +25,6 @@ public sealed class BeatMetricsHistoryTests
         return update;
     }
 
-    // A beat carrying a specific (un-wrapped) rate error and tic/toc phase, used to
-    // exercise the per-position rate-error rings. RateValid is independent of the
-    // ring: the ring records every synced beat, the s/d series only RateValid ones.
-    private static WatchMetricsUpdate RateErrorBeat(
-        ulong beat, double timeS, double rateErrorMs, bool isTic, bool rateValid = true)
-    {
-        var update = new WatchMetricsUpdate();
-        update.SetBeatTimingSample(new BeatTimingSample(
-            beat, timeS, IsTic: isTic, RateErrorMs: rateErrorMs,
-            RateValid: rateValid, RateSPerDay: 0.0,
-            BeatErrorValid: false, BeatErrorSignedMs: 0.0, Bph: 28800));
-        return update;
-    }
-
     private static WatchMetricsUpdate AmplitudeUpdate(double timeS, double pairDeg)
     {
         var update = new WatchMetricsUpdate();
@@ -255,7 +241,7 @@ public sealed class BeatMetricsHistoryTests
     [Fact]
     public void ProjectorPassesWithAnUnchangedPositionKnobShareTheSnapshot()
     {
-        var projector = new BeatMetricsFrameProjector(rateErrorYScale: 10.0, rateErrorRingCapacity: 250);
+        var projector = new BeatMetricsFrameProjector();
         var result = new DetectorResultSnapshot(
             TgSyncStatus.Synced, 28800, 0.125, Array.Empty<TgEvent>(),
             Array.Empty<float>(), 0, 0UL, false, false, false, 0f, 0f, 0f, 0f);
@@ -426,7 +412,7 @@ public sealed class BeatMetricsHistoryTests
     [Fact]
     public void ProjectorAppliesTheVolatilePositionKnobOnProject()
     {
-        var projector = new BeatMetricsFrameProjector(rateErrorYScale: 10.0, rateErrorRingCapacity: 250);
+        var projector = new BeatMetricsFrameProjector();
         var result = new DetectorResultSnapshot(
             TgSyncStatus.Synced, 28800, 0.125, Array.Empty<TgEvent>(),
             Array.Empty<float>(), 0, 0UL, false, false, false, 0f, 0f, 0f, 0f);
@@ -451,7 +437,7 @@ public sealed class BeatMetricsHistoryTests
     [Fact]
     public void ProjectorAppliesTheVolatileAggregateResetOnProject()
     {
-        var projector = new BeatMetricsFrameProjector(rateErrorYScale: 10.0, rateErrorRingCapacity: 250);
+        var projector = new BeatMetricsFrameProjector();
         var result = new DetectorResultSnapshot(
             TgSyncStatus.Synced, 28800, 0.125, Array.Empty<TgEvent>(),
             Array.Empty<float>(), 0, 0UL, false, false, false, 0f, 0f, 0f, 0f);
@@ -481,7 +467,7 @@ public sealed class BeatMetricsHistoryTests
     [Fact]
     public void ProjectorAttachesSnapshotToFrame()
     {
-        var projector = new BeatMetricsFrameProjector(rateErrorYScale: 10.0, rateErrorRingCapacity: 250);
+        var projector = new BeatMetricsFrameProjector();
         var result = new DetectorResultSnapshot(
             TgSyncStatus.Synced, 28800, 0.125, Array.Empty<TgEvent>(),
             Array.Empty<float>(), 0, 0UL, false, false, false, 0f, 0f, 0f, 0f);
@@ -497,273 +483,5 @@ public sealed class BeatMetricsHistoryTests
 
         Assert.NotNull(frame.MetricsHistory);
         Assert.Equal(new[] { 5.0 }, frame.MetricsHistory!.Rate.Y);
-    }
-
-    [Fact]
-    public void ActivePositionSeriesResumeOnReturnWithRebasedElapsedAndNoLeakage()
-    {
-        var history = new BeatMetricsHistory();
-        history.Record(BeatUpdate(1, 1.0, rateSPerDay: 1.0));
-        history.Record(BeatUpdate(2, 2.0, rateSPerDay: 2.0));
-
-        history.SetActivePosition(WatchPosition.P6H);
-        history.Record(BeatUpdate(3, 2.5, rateSPerDay: -3.0));
-        history.Record(BeatUpdate(4, 3.0, rateSPerDay: -7.0));
-
-        history.SetActivePosition(WatchPosition.CH);
-        history.Record(BeatUpdate(5, 3.5, rateSPerDay: 9.0));
-
-        BeatMetricsHistorySnapshot? snapshot = history.CurrentSnapshot();
-
-        // Returning to CH resumes (appends to) its earlier series — 3 CH beats,
-        // not a fresh 1 — and carries none of P6H's points (no cross-position leak).
-        Assert.Equal(new[] { 1.0, 2.0, 9.0 }, snapshot!.ActivePositionRate.Y);
-        // On a re-based elapsed axis that excludes the time spent at P6H, so the
-        // resumed point continues right after the first visit (1.0, 2.0 → 2.5),
-        // not at the absolute stream time (3.5).
-        Assert.Equal(new[] { 1.0, 2.0, 2.5 }, snapshot.ActivePositionRate.X);
-    }
-
-    [Fact]
-    public void RateErrorTraceRecordsEverySyncedBeatAndWrapsToScale()
-    {
-        var history = new BeatMetricsHistory(); // ±10 ms scale, 250-slot ring
-        // A rate-invalid beat (the first one or two per phase) must still produce a
-        // ring point, matching the global WatchMetrics ring; +12 ms wraps to -8 ms.
-        history.Record(RateErrorBeat(1, 0.125, rateErrorMs: 12.0, isTic: true, rateValid: false));
-        history.Record(RateErrorBeat(2, 0.250, rateErrorMs: -3.0, isTic: false));
-
-        history.CurrentActiveRateError(out MetricsHistorySeries tic, out MetricsHistorySeries toc);
-
-        Assert.Equal(new[] { -8.0 }, tic.Y);  // WrapIntoRange(12, -10, 10)
-        Assert.Equal(new[] { 0.0 }, tic.X);    // first ring slot
-        Assert.Equal(new[] { -3.0 }, toc.Y);   // within range, unchanged
-    }
-
-    [Fact]
-    public void RateErrorTraceIsPerPositionAndEmptyForANeverMeasuredPosition()
-    {
-        var history = new BeatMetricsHistory();
-        history.Record(RateErrorBeat(1, 0.125, rateErrorMs: 2.0, isTic: true));
-
-        // Switching to a never-measured position publishes an empty trace (which
-        // clears the prior position's trace, not a null that leaves it stale).
-        history.SetActivePosition(WatchPosition.P9H);
-        history.CurrentActiveRateError(out MetricsHistorySeries tic, out MetricsHistorySeries toc);
-        Assert.Empty(tic.Y);
-        Assert.Empty(toc.Y);
-
-        // Returning to CH shows CH's retained ring again (resume, not restart).
-        history.SetActivePosition(WatchPosition.CH);
-        history.CurrentActiveRateError(out MetricsHistorySeries ticBack, out _);
-        Assert.Equal(new[] { 2.0 }, ticBack.Y);
-    }
-
-    [Fact]
-    public void PerPositionStoresClearOnReset()
-    {
-        var history = new BeatMetricsHistory();
-        history.Record(BeatUpdate(1, 0.125, rateSPerDay: 5.0));
-        history.Record(RateErrorBeat(2, 0.250, rateErrorMs: 2.0, isTic: false));
-        Assert.NotEmpty(history.CurrentSnapshot()!.ActivePositionRate.Y);
-
-        history.Reset();
-
-        Assert.Null(history.CurrentSnapshot()); // no beats since reset
-        history.CurrentActiveRateError(out MetricsHistorySeries tic, out MetricsHistorySeries toc);
-        Assert.Empty(tic.Y);
-        Assert.Empty(toc.Y);
-    }
-
-    [Fact]
-    public void ProjectorPublishesActivePositionRateErrorTraceOnTheFrame()
-    {
-        var projector = new BeatMetricsFrameProjector(rateErrorYScale: 10.0, rateErrorRingCapacity: 250);
-        var result = new DetectorResultSnapshot(
-            TgSyncStatus.Synced, 28800, 0.125, Array.Empty<TgEvent>(),
-            Array.Empty<float>(), 0, 0UL, false, false, false, 0f, 0f, 0f, 0f);
-        projector.Project(new DetectorMetricsBlockUpdate(result, new List<DetectedEventUpdate>
-        {
-            new(new TgEvent { Type = TgEventType.A }, 6000.0, RateErrorBeat(1, 0.125, rateErrorMs: 12.0, isTic: true)),
-        }));
-        var frame = new AnalysisFrame();
-        projector.AppendSnapshot(frame);
-
-        GraphSeriesFrame tic = Assert.Single(frame.RateSeries, s => s.Id == AnalysisGraphSeries.RateTic);
-        Assert.True(tic.Replace);
-        Assert.Equal(new[] { -8.0 }, tic.Y); // +12 ms wrapped to the ±10 scale
-    }
-
-    [Fact]
-    public void ProjectorReusesTheActiveRateErrorTraceUntilTheNextBeat()
-    {
-        var projector = new BeatMetricsFrameProjector(rateErrorYScale: 10.0, rateErrorRingCapacity: 250);
-        var result = new DetectorResultSnapshot(
-            TgSyncStatus.Synced, 28800, 0.125, Array.Empty<TgEvent>(),
-            Array.Empty<float>(), 0, 0UL, false, false, false, 0f, 0f, 0f, 0f);
-
-        projector.Project(new DetectorMetricsBlockUpdate(result, new List<DetectedEventUpdate>
-        {
-            new(new TgEvent { Type = TgEventType.A }, 6000.0, RateErrorBeat(1, 0.125, rateErrorMs: 2.0, isTic: true)),
-        }));
-        var frame1 = new AnalysisFrame();
-        projector.AppendSnapshot(frame1);
-        GraphSeriesFrame tic1 = Assert.Single(frame1.RateSeries, s => s.Id == AnalysisGraphSeries.RateTic);
-
-        // A pass with no beats reuses the same immutable trace instance.
-        projector.Project(new DetectorMetricsBlockUpdate(result, Array.Empty<DetectedEventUpdate>()));
-        var frame2 = new AnalysisFrame();
-        projector.AppendSnapshot(frame2);
-        GraphSeriesFrame tic2 = Assert.Single(frame2.RateSeries, s => s.Id == AnalysisGraphSeries.RateTic);
-        Assert.Same(tic1, tic2);
-
-        // A new beat rebuilds it.
-        projector.Project(new DetectorMetricsBlockUpdate(result, new List<DetectedEventUpdate>
-        {
-            new(new TgEvent { Type = TgEventType.A }, 12000.0, RateErrorBeat(2, 0.250, rateErrorMs: 3.0, isTic: true)),
-        }));
-        var frame3 = new AnalysisFrame();
-        projector.AppendSnapshot(frame3);
-        GraphSeriesFrame tic3 = Assert.Single(frame3.RateSeries, s => s.Id == AnalysisGraphSeries.RateTic);
-        Assert.NotSame(tic1, tic3);
-    }
-
-    [Fact]
-    public void RateErrorRingsAreIsolatedBetweenTwoMeasuredPositions()
-    {
-        var history = new BeatMetricsHistory();
-        // CH measures a tic (+12 → wraps to -8) and a toc (-3).
-        history.Record(RateErrorBeat(1, 1.0, rateErrorMs: 12.0, isTic: true, rateValid: false));
-        history.Record(RateErrorBeat(2, 1.1, rateErrorMs: -3.0, isTic: false));
-
-        // P6H measures DISTINCT tic/toc values.
-        history.SetActivePosition(WatchPosition.P6H);
-        history.Record(RateErrorBeat(3, 2.0, rateErrorMs: 4.0, isTic: true));
-        history.Record(RateErrorBeat(4, 2.1, rateErrorMs: 5.0, isTic: false));
-        history.CurrentActiveRateError(out MetricsHistorySeries p6Tic, out MetricsHistorySeries p6Toc);
-        Assert.Equal(new[] { 4.0 }, p6Tic.Y);
-        Assert.Equal(new[] { 5.0 }, p6Toc.Y);
-
-        // Back to CH: its rings are intact and carry NONE of P6H's values — proving
-        // per-position isolation a single global ring would not provide.
-        history.SetActivePosition(WatchPosition.CH);
-        history.CurrentActiveRateError(out MetricsHistorySeries chTic, out MetricsHistorySeries chToc);
-        Assert.Equal(new[] { -8.0 }, chTic.Y);
-        Assert.Equal(new[] { -3.0 }, chToc.Y);
-    }
-
-    [Fact]
-    public void RateErrorRingWrapsInPlacePastCapacity()
-    {
-        var ring = new RateErrorRing(capacity: 3);
-        ring.AddOrOverwrite(10.0);
-        ring.AddOrOverwrite(11.0);
-        ring.AddOrOverwrite(12.0); // full: X = [0,1,2], Y = [10,11,12]
-        ring.AddOrOverwrite(13.0); // overwrites slot 0
-        ring.AddOrOverwrite(14.0); // overwrites slot 1
-
-        var x = new List<double>();
-        var y = new List<double>();
-        ring.SnapshotTo(x, y);
-
-        Assert.Equal(3, ring.Count);                  // stays bounded at capacity
-        Assert.Equal(new[] { 0.0, 1.0, 2.0 }, x);     // X fixed at slot indices
-        Assert.Equal(new[] { 13.0, 14.0, 12.0 }, y);  // oldest two slots overwritten in place
-    }
-
-    [Fact]
-    public void ResetPositionAggregatesClearsPerPositionSeriesRingsAndReAnchorsElapsed()
-    {
-        var history = new BeatMetricsHistory();
-        history.Record(BeatUpdate(1, 1.0, rateSPerDay: 5.0));               // CH rate series + tic ring
-        history.Record(RateErrorBeat(2, 2.0, rateErrorMs: 4.0, isTic: false)); // CH toc ring
-        Assert.NotEmpty(history.CurrentSnapshot()!.ActivePositionRate.Y);
-
-        history.ResetPositionAggregates();
-        history.Record(BeatUpdate(3, 2.5, rateSPerDay: 6.0));               // first post-reset beat
-
-        BeatMetricsHistorySnapshot snapshot = history.CurrentSnapshot()!;
-        // Per-position series dropped the pre-reset points and resumed, re-anchored
-        // to the reset moment (x = 2.5 − 2.0 = 0.5), not the absolute stream time.
-        Assert.Equal(new[] { 6.0 }, snapshot.ActivePositionRate.Y);
-        Assert.Equal(new[] { 0.5 }, snapshot.ActivePositionRate.X);
-        // The toc rate-error ring was cleared too (the pre-reset toc point is gone).
-        history.CurrentActiveRateError(out _, out MetricsHistorySeries toc);
-        Assert.Empty(toc.Y);
-    }
-
-    [Fact]
-    public void ActivePositionAmplitudeResumesOnReturnWithoutLeakage()
-    {
-        var history = new BeatMetricsHistory();
-        history.Record(AmplitudeUpdate(1.0, pairDeg: 280.0));
-        history.Record(AmplitudeUpdate(2.0, pairDeg: 282.0));
-
-        history.SetActivePosition(WatchPosition.P6H);
-        history.Record(AmplitudeUpdate(2.5, pairDeg: 250.0));
-
-        history.SetActivePosition(WatchPosition.CH);
-        history.Record(AmplitudeUpdate(3.0, pairDeg: 284.0));
-
-        // CH amplitude resumed (3 points) with none of P6H's 250.
-        Assert.Equal(new[] { 280.0, 282.0, 284.0 }, history.CurrentSnapshot()!.ActivePositionAmplitude.Y);
-    }
-
-    [Fact]
-    public void PerPositionSeriesDecimateIndependentlyAndStayBounded()
-    {
-        var history = new BeatMetricsHistory(seriesCapacity: 4);
-        for (int i = 0; i < 50; i++)
-        {
-            history.Record(BeatUpdate((ulong)(i + 1), i * 0.1, rateSPerDay: 1.0)); // CH overfills + compacts
-        }
-
-        history.SetActivePosition(WatchPosition.P6H);
-        history.Record(BeatUpdate(100, 100.0, rateSPerDay: 9.0));
-
-        // P6H sees only its own single point, not CH's 50.
-        Assert.Equal(new[] { 9.0 }, history.CurrentSnapshot()!.ActivePositionRate.Y);
-
-        // CH's series stayed bounded by its own capacity and kept only CH's value.
-        history.SetActivePosition(WatchPosition.CH);
-        MetricsHistorySeries ch = history.CurrentSnapshot()!.ActivePositionRate;
-        Assert.InRange(ch.Y.Count, 1, 4);
-        Assert.All(ch.Y, v => Assert.Equal(1.0, v)); // no P6H 9.0 leaked across positions
-    }
-
-    [Fact]
-    public void ProjectorPublishesRateTicForARateInvalidFirstBeatWhileSeriesEmpty()
-    {
-        var projector = new BeatMetricsFrameProjector(rateErrorYScale: 10.0, rateErrorRingCapacity: 250);
-        var result = new DetectorResultSnapshot(
-            TgSyncStatus.Synced, 28800, 0.125, Array.Empty<TgEvent>(),
-            Array.Empty<float>(), 0, 0UL, false, false, false, 0f, 0f, 0f, 0f);
-
-        // First synced beat: s/d rate not valid yet, but the rate-error trace must show it.
-        projector.Project(new DetectorMetricsBlockUpdate(result, new List<DetectedEventUpdate>
-        {
-            new(new TgEvent { Type = TgEventType.A }, 6000.0, RateErrorBeat(1, 0.125, rateErrorMs: 2.0, isTic: true, rateValid: false)),
-        }));
-        var frame = new AnalysisFrame();
-        projector.AppendSnapshot(frame);
-
-        GraphSeriesFrame tic = Assert.Single(frame.RateSeries, s => s.Id == AnalysisGraphSeries.RateTic);
-        Assert.Equal(new[] { 2.0 }, tic.Y);                        // trace present despite rate-invalid
-        Assert.Empty(frame.MetricsHistory!.ActivePositionRate.Y);  // s/d series still empty
-    }
-
-    [Fact]
-    public void RateInvalidOnlyBeatDoesNotCreateAnEmptyPositionSummary()
-    {
-        var history = new BeatMetricsHistory();
-        // A synced beat with no valid rate/beat-error/amplitude statistic feeds only
-        // the rate-error ring; it must not surface an all-empty PositionSummary.
-        history.Record(RateErrorBeat(1, 0.125, rateErrorMs: 2.0, isTic: true, rateValid: false));
-
-        BeatMetricsHistorySnapshot snapshot = history.CurrentSnapshot()!;
-        Assert.Empty(snapshot.Positions);
-        // ...but the active position's rate-error trace is still published.
-        history.CurrentActiveRateError(out MetricsHistorySeries tic, out _);
-        Assert.Equal(new[] { 2.0 }, tic.Y);
     }
 }
