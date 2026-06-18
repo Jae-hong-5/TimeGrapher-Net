@@ -75,6 +75,21 @@ public sealed class BeatMetricsHistorySnapshot
     /// <summary>Signed beat error (ms) over elapsed time (s).</summary>
     public MetricsHistorySeries BeatError { get; init; } = MetricsHistorySeries.Empty;
 
+    /// <summary>
+    /// Current watch position's rate (s/d) over its re-based elapsed time (s): the
+    /// Trace tab's rate graph. Re-based means each position's own accumulated
+    /// measuring time, so a position's trace stays contiguous across revisits.
+    /// Empty until the active position has a measurement.
+    /// </summary>
+    public MetricsHistorySeries ActivePositionRate { get; init; } = MetricsHistorySeries.Empty;
+
+    /// <summary>
+    /// Current watch position's amplitude tic/toc pair averages (deg) over its
+    /// re-based elapsed time (s): the Trace tab's amplitude graph. Empty until the
+    /// active position has a measurement.
+    /// </summary>
+    public MetricsHistorySeries ActivePositionAmplitude { get; init; } = MetricsHistorySeries.Empty;
+
     public DerivedTimingMeasures Derived { get; init; }
 
     /// <summary>Latest instantaneous readings (the "current" column of stability views).</summary>

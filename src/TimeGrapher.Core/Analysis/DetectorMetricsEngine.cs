@@ -63,16 +63,26 @@ public sealed record DetectorResultSnapshot(
 public sealed class DetectorMetricsEngine
 {
     private readonly DetectorMetricsEngineConfig _config;
+    private readonly WatchMetricsConfig _metricsConfig;
     private readonly WatchMetrics _metrics;
     private readonly TgDetector _detector;
     private readonly BeatEventGateHost? _gate;
     private readonly TgResult _result = new();
     private uint _syncLossCount;
 
+    /// <summary>
+    /// The rate-error wrap scale (±s/d-equivalent ms) the tic/toc rate-error trace
+    /// uses; exposed so a per-position rate-error trace can wrap on the same scale.
+    /// </summary>
+    public double RateErrorYScale => _metricsConfig.RateErrorYScale;
+
+    /// <summary>The tic/toc rate-error ring slot count; exposed for per-position rings.</summary>
+    public int MaxRateDataPoints => _metricsConfig.MaxRateDataPoints;
+
     public DetectorMetricsEngine(DetectorMetricsEngineConfig config)
     {
         _config = config;
-        _metrics = new WatchMetrics(new WatchMetricsConfig
+        _metricsConfig = new WatchMetricsConfig
         {
             SampleRate = config.SampleRate,
             LiftAngle = config.LiftAngle,
@@ -80,7 +90,8 @@ public sealed class DetectorMetricsEngine
             MaxRateDataPoints = 250,
             RateErrorYScale = 10.0,
             RlsWindowInit = 100,
-        });
+        };
+        _metrics = new WatchMetrics(_metricsConfig);
 
         TgConfig detectorConfig = TgConfig.Default();
         detectorConfig.SampleRate = config.SampleRate;

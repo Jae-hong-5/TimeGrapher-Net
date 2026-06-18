@@ -84,40 +84,9 @@ public sealed class ScopeRateFrameProjectorTests
         Assert.InRange(pcmSeries.X.Count, 1, 8);
     }
 
-    [Fact]
-    public void AppendSnapshot_ReusesRateSeriesSnapshotUntilNextRateUpdate()
-    {
-        var projector = new ScopeRateFrameProjector(SampleRate, useCOnset: false, scopeSnapshotPointBudget: 256);
-        var metricsWithTic = new WatchMetricsUpdate();
-        metricsWithTic.SetTicRate(new[] { 1.0, 2.0 }, new[] { 0.1, 0.2 });
-        var aEvent = new TgEvent { Type = TgEventType.A, PeakValue = 0.5f, SampleIndex = 1000 };
-        var update = new DetectorMetricsBlockUpdate(
-            Result(TgSyncStatus.Synced, Array.Empty<float>(), 0, 0.2f),
-            new List<DetectedEventUpdate> { new(aEvent, 1000.0, metricsWithTic) });
-
-        var frame1 = new AnalysisFrame();
-        projector.Project(update, frame1);
-        projector.AppendSnapshot(frame1);
-
-        // No new rate update between frames -> the immutable series snapshot is
-        // shared, not re-copied per frame.
-        var frame2 = new AnalysisFrame();
-        projector.Project(new DetectorMetricsBlockUpdate(
-            Result(TgSyncStatus.Synced, Array.Empty<float>(), 0, 0.2f),
-            Array.Empty<DetectedEventUpdate>()), frame2);
-        projector.AppendSnapshot(frame2);
-
-        GraphSeriesFrame tic1 = Assert.Single(frame1.RateSeries, s => s.Id == AnalysisGraphSeries.RateTic);
-        GraphSeriesFrame tic2 = Assert.Single(frame2.RateSeries, s => s.Id == AnalysisGraphSeries.RateTic);
-        Assert.Same(tic1, tic2);
-
-        // A new rate update must produce a fresh snapshot object.
-        var frame3 = new AnalysisFrame();
-        projector.Project(update, frame3);
-        projector.AppendSnapshot(frame3);
-        GraphSeriesFrame tic3 = Assert.Single(frame3.RateSeries, s => s.Id == AnalysisGraphSeries.RateTic);
-        Assert.NotSame(tic1, tic3);
-    }
+    // The tic/toc rate-error trace (RateTic/RateToc) moved to BeatMetricsFrameProjector
+    // so it can be published per watch position; its emission/sharing is now covered by
+    // BeatMetricsHistoryTests. This projector keeps only the scope, markers and results.
 
     [Fact]
     public void Project_NotSyncedClearsBeatSyncedFlag()

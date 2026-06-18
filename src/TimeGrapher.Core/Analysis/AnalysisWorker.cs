@@ -46,7 +46,7 @@ public sealed class AnalysisWorker : IDisposable
     private readonly ScopeRateFrameProjector _scopeRateProjector;
     private readonly SoundPrintFrameProjector _soundPrintProjector;
     private readonly SpectrogramFrameProjector _spectrogramProjector;
-    private readonly BeatMetricsFrameProjector _beatMetricsProjector = new();
+    private readonly BeatMetricsFrameProjector _beatMetricsProjector;
     private readonly BeatSegmentCapture _beatSegmentCapture;
     private readonly SweepFrameProjector _sweepProjector;
     private readonly MultiFilterFrameProjector _multiFilterProjector;
@@ -92,6 +92,12 @@ public sealed class AnalysisWorker : IDisposable
             config.ManualBph,
             config.HpfCutoffHz,
             config.EventGate != null ? new BeatEventGateConfig(config.EventGate) : null));
+
+        // Per-position rate-error trace wraps on the same scale / ring size as the
+        // engine's global ring, so the two traces stay identical.
+        _beatMetricsProjector = new BeatMetricsFrameProjector(
+            _pipeline.RateErrorYScale,
+            _pipeline.MaxRateDataPoints);
 
         _inputBlock = new float[DetectorNumberOfSamples];
         _scopeRateProjector = new ScopeRateFrameProjector(

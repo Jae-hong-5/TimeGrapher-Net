@@ -22,6 +22,14 @@ public sealed class BeatMetricsHistory
     private readonly DecimatingSeries _amplitude;
     private readonly DecimatingSeries _beatError;
 
+    // Per-position store sizing. The per-position rate/amplitude series use the
+    // same capacity as the global series so a position's Trace looks identical to
+    // the global trace for the same beats; the rate-error rings reproduce the
+    // WatchMetrics ring, so they wrap on the same scale and slot count.
+    private readonly int _seriesCapacity;
+    private readonly double _rateErrorYScale;
+    private readonly int _rateErrorRingCapacity;
+
     // Vario stability statistics: fed per beat (before decimation), so min/max/
     // mean/sigma stay exact however coarse the plotted series become. They cover a
     // single watch position and restart on a position change (see SetActivePosition),
@@ -57,6 +65,27 @@ public sealed class BeatMetricsHistory
     // so the displayed elapsed time counts from when the current position started.
     private double _statsStartTimeS;
 
+    // Start of the active position's current measurement segment. The per-position
+    // series plot a re-based elapsed time (the position's own accumulated measuring
+    // time, excluding time spent at other positions) so a position's Trace stays
+    // contiguous across revisits: x = aggregate.AccumulatedElapsedS + (timeS - this).
+    // The boundary is the latest recorded beat time at the switch, not the UI-turn
+    // instant (no stream timestamp travels with the position knob) — the same
+    // approximation the Vario _statsStartTimeS boundary already uses, so the offset
+    // is at most one inter-beat interval. The run's first segment keeps this at 0,
+    // so the starting position's first point sits at its first beat's stream time
+    // (matching the prior global Trace behavior), not at a re-based 0.
+    private double _activeSegmentStartTimeS;
+
+    // Active-position rate-error trace cache (raw series), published on every frame
+    // (not the snapshot's throttle) so the Rate Scope / Beat Error traces stay as
+    // live as they were when sourced from the global WatchMetrics ring. Rebuilt only
+    // when a beat changed the active ring or the active position changed; the same
+    // instance is returned in between so the projector can reuse one wrapper.
+    private MetricsHistorySeries _activeRateTicSeries = MetricsHistorySeries.Empty;
+    private MetricsHistorySeries _activeRateTocSeries = MetricsHistorySeries.Empty;
+    private bool _rateErrorDirty = true;
+
     private bool _dirty;
 
     // State changes (active position, sequence reset) bypass the stream-time
@@ -68,11 +97,17 @@ public sealed class BeatMetricsHistory
     private BeatMetricsHistorySnapshot? _snapshot;
     private double _lastSnapshotTimeS;
 
-    public BeatMetricsHistory(int seriesCapacity = DefaultSeriesCapacity)
+    public BeatMetricsHistory(
+        int seriesCapacity = DefaultSeriesCapacity,
+        double rateErrorYScale = 10.0,
+        int rateErrorRingCapacity = 250)
     {
         _rate = new DecimatingSeries(seriesCapacity);
         _amplitude = new DecimatingSeries(seriesCapacity);
         _beatError = new DecimatingSeries(seriesCapacity);
+        _seriesCapacity = seriesCapacity;
+        _rateErrorYScale = rateErrorYScale;
+        _rateErrorRingCapacity = rateErrorRingCapacity;
     }
 
     /// <summary>
@@ -87,13 +122,26 @@ public sealed class BeatMetricsHistory
             return;
         }
 
+        // Freeze the outgoing position's elapsed clock so its per-position series
+        // resumes (not restarts) when the watch returns to it: the time spent at
+        // other positions is excluded, keeping each position's elapsed axis
+        // contiguous across revisits. Read before reassigning _activePosition.
+        PositionAggregate? outgoing = _positionAggregates[(int)_activePosition];
+        if (outgoing != null)
+        {
+            outgoing.AccumulatedElapsedS += Math.Max(0.0, _latestTimeS - _activeSegmentStartTimeS);
+        }
+
         _activePosition = position;
+        _activeSegmentStartTimeS = _latestTimeS;
         // Vario reports stability for the current position only, so its running
         // statistics and elapsed clock restart when the watch turns to a new
-        // position. The live series and per-position aggregates are untouched.
+        // position. The global series and per-position aggregates are untouched;
+        // the active rate-error trace must rebuild to show the new position's ring.
         _rateStats.Reset();
         _amplitudeStats.Reset();
         _statsStartTimeS = _latestTimeS;
+        _rateErrorDirty = true;
         // Record the turn on the change timeline only once the run has data: the
         // start entry is seeded at the first plotted point, not the first beat (so
         // it lines up with where the graph begins drawing), and a turn before that
@@ -114,6 +162,7 @@ public sealed class BeatMetricsHistory
             BeatTimingSample sample = update.BeatTimingSample;
             _latestTimeS = sample.TimeS;
             _bph = sample.Bph;
+            PositionAggregate active = ActiveAggregate();
 
             if (sample.RateValid)
             {
@@ -125,16 +174,31 @@ public sealed class BeatMetricsHistory
                 SeedStartPositionIfNeeded(sample.TimeS);
                 _rate.Add(sample.TimeS, sample.RateSPerDay);
                 _rateStats.Add(sample.RateSPerDay);
-                ActiveAggregate().Rate.Add(sample.RateSPerDay);
+                active.Rate.Add(sample.RateSPerDay);
+                active.RateSeries.Add(ActiveElapsed(sample.TimeS), sample.RateSPerDay);
                 _rateValid = true;
                 _rateSPerDay = sample.RateSPerDay;
             }
+
+            // The tic/toc rate-error trace is recorded for every synced beat, not
+            // only RateValid ones (the s/d rate needs two beats per phase), so the
+            // per-position trace matches the global WatchMetrics ring point-for-point.
+            // This "every synced beat" set holds because WatchMetrics emits a
+            // BeatTimingSample only for synced beats — the invariant is enforced
+            // upstream, not re-checked here. RateErrorMs is the same un-wrapped
+            // instant the global ring wraps, so re-wrapping it on the same scale
+            // reproduces that trace, per position. We intentionally do NOT seed the
+            // position-change start marker on this path: the marker aligns with the
+            // first plotted point of the global series (Long-Term), not the ring.
+            double wrapped = WatchMetrics.WrapIntoRange(sample.RateErrorMs, -_rateErrorYScale, _rateErrorYScale);
+            (sample.IsTic ? active.RateTicRing : active.RateTocRing).AddOrOverwrite(wrapped);
+            _rateErrorDirty = true;
 
             if (sample.BeatErrorValid)
             {
                 SeedStartPositionIfNeeded(sample.TimeS);
                 _beatError.Add(sample.TimeS, sample.BeatErrorSignedMs);
-                ActiveAggregate().BeatError.Add(sample.BeatErrorSignedMs);
+                active.BeatError.Add(sample.BeatErrorSignedMs);
                 _beatErrorValid = true;
                 _beatErrorSignedMs = sample.BeatErrorSignedMs;
             }
@@ -146,9 +210,11 @@ public sealed class BeatMetricsHistory
         {
             AmplitudeSample sample = update.AmplitudeSample;
             SeedStartPositionIfNeeded(sample.TimeS);
+            PositionAggregate active = ActiveAggregate();
             _amplitude.Add(sample.TimeS, sample.PairAverageDeg);
             _amplitudeStats.Add(sample.PairAverageDeg);
-            ActiveAggregate().Amplitude.Add(sample.PairAverageDeg);
+            active.Amplitude.Add(sample.PairAverageDeg);
+            active.AmplitudeSeries.Add(ActiveElapsed(sample.TimeS), sample.PairAverageDeg);
             _amplitudeValid = true;
             _amplitudeDeg = sample.PairAverageDeg;
             _latestTimeS = Math.Max(_latestTimeS, sample.TimeS);
@@ -180,10 +246,14 @@ public sealed class BeatMetricsHistory
         _beatErrorValid = false;
         _latestTimeS = 0.0;
         _statsStartTimeS = 0.0;
+        _activeSegmentStartTimeS = 0.0;
         _dirty = false;
         _publishImmediately = false;
         _snapshot = null;
         _lastSnapshotTimeS = 0.0;
+        _activeRateTicSeries = MetricsHistorySeries.Empty;
+        _activeRateTocSeries = MetricsHistorySeries.Empty;
+        _rateErrorDirty = true;
     }
 
     /// <summary>
@@ -195,8 +265,13 @@ public sealed class BeatMetricsHistory
     public void ResetPositionAggregates()
     {
         Array.Clear(_positionAggregates);
+        // The cleared active slot is recreated by the next beat with a fresh
+        // elapsed clock, so re-anchor the segment start to now; otherwise the
+        // recreated per-position series would start at a stale elapsed offset.
+        _activeSegmentStartTimeS = _latestTimeS;
         _dirty = true;
         _publishImmediately = true;
+        _rateErrorDirty = true;
     }
 
     /// <summary>
@@ -226,12 +301,18 @@ public sealed class BeatMetricsHistory
         }
 
         _version++;
+        PositionAggregate? activeAggregate = _positionAggregates[(int)_activePosition];
         _snapshot = new BeatMetricsHistorySnapshot
         {
             Version = _version,
             Rate = BuildSeries(_rate),
             Amplitude = BuildSeries(_amplitude),
             BeatError = BuildSeries(_beatError),
+            // Current-position rate/amplitude over the position's re-based elapsed
+            // time; the Trace tab's two graphs. Empty until the active position has
+            // a measurement (so a never-measured position renders an empty plot).
+            ActivePositionRate = activeAggregate is null ? MetricsHistorySeries.Empty : BuildSeries(activeAggregate.RateSeries),
+            ActivePositionAmplitude = activeAggregate is null ? MetricsHistorySeries.Empty : BuildSeries(activeAggregate.AmplitudeSeries),
             Derived = _derived,
             RateValid = _rateValid,
             RateSPerDay = _rateSPerDay,
@@ -259,11 +340,76 @@ public sealed class BeatMetricsHistory
         public readonly RunningStats Rate = new();
         public readonly RunningStats Amplitude = new();
         public readonly RunningStats BeatError = new();
+
+        // Plottable per-position history: rate (s/d) and amplitude (deg) over the
+        // position's re-based elapsed time (Trace), and the tic/toc rate-error
+        // rings (ms vs ring slot) the Rate Scope / Beat Error traces draw.
+        public readonly DecimatingSeries RateSeries;
+        public readonly DecimatingSeries AmplitudeSeries;
+        public readonly RateErrorRing RateTicRing;
+        public readonly RateErrorRing RateTocRing;
+
+        // Measuring time accrued at this position across prior visits, so a
+        // revisit's series resumes after this offset (excluding time at others).
+        public double AccumulatedElapsedS;
+
+        public PositionAggregate(int seriesCapacity, int ringCapacity)
+        {
+            RateSeries = new DecimatingSeries(seriesCapacity);
+            AmplitudeSeries = new DecimatingSeries(seriesCapacity);
+            RateTicRing = new RateErrorRing(ringCapacity);
+            RateTocRing = new RateErrorRing(ringCapacity);
+        }
     }
 
     private PositionAggregate ActiveAggregate()
     {
-        return _positionAggregates[(int)_activePosition] ??= new PositionAggregate();
+        return _positionAggregates[(int)_activePosition] ??=
+            new PositionAggregate(_seriesCapacity, _rateErrorRingCapacity);
+    }
+
+    /// <summary>Re-based elapsed time of the active position at the given stream time.</summary>
+    private double ActiveElapsed(double timeS)
+    {
+        return ActiveAggregate().AccumulatedElapsedS + (timeS - _activeSegmentStartTimeS);
+    }
+
+    /// <summary>
+    /// Active position's tic/toc rate-error traces (ms vs ring slot) for the Rate
+    /// Scope rate-error pane and the Beat Error tab, as raw series. Always non-null:
+    /// <see cref="MetricsHistorySeries.Empty"/> for a position with no points of
+    /// that phase, so the consumer replaces-to-empty (clears the prior position's
+    /// trace) on a switch to a never-measured position. Cached and shared across
+    /// frames until a beat or a position change marks it dirty (the same instance
+    /// is returned in between). <see cref="BeatMetricsFrameProjector"/> wraps these
+    /// in RateTic/RateToc replace series and publishes them on every frame (not the
+    /// snapshot throttle), so the traces stay as live as the global ring was.
+    /// </summary>
+    public void CurrentActiveRateError(out MetricsHistorySeries tic, out MetricsHistorySeries toc)
+    {
+        if (_rateErrorDirty)
+        {
+            PositionAggregate? active = _positionAggregates[(int)_activePosition];
+            _activeRateTicSeries = active is null ? MetricsHistorySeries.Empty : BuildRing(active.RateTicRing);
+            _activeRateTocSeries = active is null ? MetricsHistorySeries.Empty : BuildRing(active.RateTocRing);
+            _rateErrorDirty = false;
+        }
+
+        tic = _activeRateTicSeries;
+        toc = _activeRateTocSeries;
+    }
+
+    private static MetricsHistorySeries BuildRing(RateErrorRing ring)
+    {
+        if (ring.Count == 0)
+        {
+            return MetricsHistorySeries.Empty;
+        }
+
+        var x = new List<double>(ring.Count);
+        var y = new List<double>(ring.Count);
+        ring.SnapshotTo(x, y);
+        return new MetricsHistorySeries { X = x, Y = y };
     }
 
     private void SeedStartPositionIfNeeded(double timeS)
@@ -292,12 +438,20 @@ public sealed class BeatMetricsHistory
         _positionChanges.Add(new PositionChange(timeS, position));
     }
 
+    // A slot is allocated as soon as a beat feeds the per-position rate-error ring,
+    // which happens a beat or two before the first valid rate/amplitude/beat-error
+    // statistic exists. A position counts as "measured" (appears in the summary the
+    // Positions / Long-Term tabs read) only once it has at least one such statistic,
+    // so a ring-only slot does not surface an all-empty PositionSummary.
+    private static bool HasStatSample(PositionAggregate aggregate) =>
+        aggregate.Rate.Count > 0 || aggregate.Amplitude.Count > 0 || aggregate.BeatError.Count > 0;
+
     private IReadOnlyList<PositionSummary> BuildPositionSummaries()
     {
         int measured = 0;
         foreach (PositionAggregate? aggregate in _positionAggregates)
         {
-            if (aggregate != null)
+            if (aggregate != null && HasStatSample(aggregate))
             {
                 measured++;
             }
@@ -313,7 +467,7 @@ public sealed class BeatMetricsHistory
         var summaries = new List<PositionSummary>(measured);
         foreach (WatchPosition position in WatchPositions.All)
         {
-            if (_positionAggregates[(int)position] is { } aggregate)
+            if (_positionAggregates[(int)position] is { } aggregate && HasStatSample(aggregate))
             {
                 summaries.Add(new PositionSummary(
                     position,
