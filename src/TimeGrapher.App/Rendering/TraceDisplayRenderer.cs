@@ -8,17 +8,27 @@ using TimeGrapher.Core.Shared;
 namespace TimeGrapher.App.Rendering;
 
 /// <summary>
-/// Trace Display: continuous rate-deviation and amplitude traces over elapsed
-/// time, rendered from the cumulative BeatMetricsHistorySnapshot the frame
-/// already carries. The amplitude plot shows the 270-300 degree acceptance band;
-/// an alert banner reports late-running and out-of-range amplitude; the footer
-/// shows since-start and rolling (60 s) averages. Re-renders only when the
-/// snapshot version changes, so coalesced or repeated frames cost nothing.
+/// Trace Display: continuous rate-deviation and amplitude traces for the
+/// currently-selected watch position, over that position's re-based elapsed time,
+/// rendered from the per-position series the BeatMetricsHistorySnapshot carries
+/// (ActivePositionRate/ActivePositionAmplitude). Switching position swaps to that
+/// position's accumulation (resuming a previously-measured one, empty until a
+/// never-measured one records a beat). The amplitude plot shows the 270-300 degree
+/// acceptance band; an alert banner reports late-running and out-of-range
+/// amplitude (latest instantaneous reading, inherently the current position); the
+/// footer shows since-start and rolling (60 s) averages of the current position.
+/// Re-renders only when the snapshot version changes, so coalesced or repeated
+/// frames cost nothing.
 /// </summary>
 internal sealed class TraceDisplayRenderer
 {
     private const double RollingWindowS = 60.0;
     private const byte BandFillAlpha = 36;
+
+    // The rate plot always shows at least ±this many s/d: the live auto-fit never
+    // zooms in tighter, so a near-on-time watch's small wander is not magnified to
+    // fill the pane. It still expands past the floor when the rate genuinely exceeds it.
+    private const double RateAxisMinExtentSPerDay = 2.0;
 
     private readonly AvaPlot _ratePlot;
     private readonly AvaPlot _amplitudePlot;
@@ -34,8 +44,6 @@ internal sealed class TraceDisplayRenderer
     private Scatter? _rateScatter;
     private Scatter? _amplitudeScatter;
     private VerticalSpan? _amplitudeBand;
-    private ReviewCursorLayer? _rateCursor;
-    private ReviewCursorLayer? _amplitudeCursor;
 
     private PlotThemePalette _theme = PlotThemePalette.Current;
     private ulong _lastVersion;
@@ -87,7 +95,6 @@ internal sealed class TraceDisplayRenderer
         _rateScatter = rate.Add.Scatter(_rateX, _rateY);
         _rateScatter.LineWidth = 2;
         _rateScatter.MarkerStyle.IsVisible = false;
-        _rateCursor = AddCursor(rate);
         PlotAxisRules.ClampLeftEdgeToZero(rate);
 
         Plot amplitude = _amplitudePlot.Plot;
@@ -102,7 +109,6 @@ internal sealed class TraceDisplayRenderer
         _amplitudeScatter = amplitude.Add.Scatter(_amplitudeX, _amplitudeY);
         _amplitudeScatter.LineWidth = 2;
         _amplitudeScatter.MarkerStyle.IsVisible = false;
-        _amplitudeCursor = AddCursor(amplitude);
         PlotAxisRules.ClampLeftEdgeToZero(amplitude);
 
         ApplySeriesTheme();
@@ -118,37 +124,42 @@ internal sealed class TraceDisplayRenderer
     public void ResetView()
     {
         _followLive = true;
-        _ratePlot.Plot.Axes.AutoScale();
+        AutoScaleRate();
         _amplitudePlot.Plot.Axes.AutoScale();
         _ratePlot.Refresh();
         _amplitudePlot.Refresh();
     }
 
+    // Auto-fit the rate plot, then hold the view open to at least ±RateAxisMinExtentSPerDay.
+    private void AutoScaleRate()
+    {
+        _ratePlot.Plot.Axes.AutoScale();
+        PlotAxisRules.EnsureMinimumYRange(_ratePlot.Plot, -RateAxisMinExtentSPerDay, RateAxisMinExtentSPerDay);
+    }
+
     public void RenderFrame(AnalysisFrame frame, AnalysisTabRenderContext context)
     {
+        // No review cursor here: pause-and-review scrubbing is a Long-Term-tab-only
+        // feature (the scrub cursor clears when leaving that tab), so the Trace tab
+        // never receives a scrub time.
+        _ = context;
         BeatMetricsHistorySnapshot? history = frame.MetricsHistory;
-        bool cursorMoved = UpdateReviewCursor(context.ReviewCursorTimeS);
-
         if (history == null || history.Version == _lastVersion)
         {
-            if (cursorMoved)
-            {
-                _ratePlot.Refresh();
-                _amplitudePlot.Refresh();
-            }
-
             return;
         }
 
         _lastVersion = history.Version;
 
-        // History series are already bounded by DecimatingSeries; budget 0 = copy as-is.
-        SeriesDataReducer.ReplaceSeriesData(_rateX, _rateY, history.Rate.X, history.Rate.Y, targetPointBudget: 0);
-        SeriesDataReducer.ReplaceSeriesData(_amplitudeX, _amplitudeY, history.Amplitude.X, history.Amplitude.Y, targetPointBudget: 0);
+        // Per-position series, already bounded by DecimatingSeries; budget 0 = copy
+        // as-is. Trace shows only the currently-selected position's accumulation
+        // (re-based elapsed x), so a position switch swaps to that position's data.
+        SeriesDataReducer.ReplaceSeriesData(_rateX, _rateY, history.ActivePositionRate.X, history.ActivePositionRate.Y, targetPointBudget: 0);
+        SeriesDataReducer.ReplaceSeriesData(_amplitudeX, _amplitudeY, history.ActivePositionAmplitude.X, history.ActivePositionAmplitude.Y, targetPointBudget: 0);
 
         if (_followLive)
         {
-            _ratePlot.Plot.Axes.AutoScale();
+            AutoScaleRate();
             _amplitudePlot.Plot.Axes.AutoScale();
         }
 
@@ -182,28 +193,15 @@ internal sealed class TraceDisplayRenderer
                 : label + " avg —";
 
         // Rate is signed; amplitude is an unsigned magnitude shown in whole
-        // degrees everywhere else in the app.
+        // degrees everywhere else in the app. The averages cover the current
+        // position only, matching the per-position graphs above (the rolling
+        // window reads the position's re-based elapsed axis without cross-position gaps).
         _summaryText.Text =
-            Format("RATE", MetricsSeriesMath.Average(history.Rate),
-                MetricsSeriesMath.RollingAverage(history.Rate, RollingWindowS), " s/d", "+0.0;-0.0;0.0")
+            Format("RATE", MetricsSeriesMath.Average(history.ActivePositionRate),
+                MetricsSeriesMath.RollingAverage(history.ActivePositionRate, RollingWindowS), " s/d", "+0.0;-0.0;0.0")
             + "   |   "
-            + Format("AMP", MetricsSeriesMath.Average(history.Amplitude),
-                MetricsSeriesMath.RollingAverage(history.Amplitude, RollingWindowS), "°", "0");
-    }
-
-    /// <summary>Review-cursor contract: a vertical marker at the scrub time on both plots.</summary>
-    private bool UpdateReviewCursor(double? reviewCursorTimeS)
-    {
-        bool changed = _rateCursor?.Update(reviewCursorTimeS) ?? false;
-        changed |= _amplitudeCursor?.Update(reviewCursorTimeS) ?? false;
-        return changed;
-    }
-
-    private ReviewCursorLayer AddCursor(Plot plot)
-    {
-        var cursor = new ReviewCursorLayer(plot);
-        cursor.ApplyTheme(_theme);
-        return cursor;
+            + Format("AMP", MetricsSeriesMath.Average(history.ActivePositionAmplitude),
+                MetricsSeriesMath.RollingAverage(history.ActivePositionAmplitude, RollingWindowS), "°", "0");
     }
 
     private void ApplySeriesTheme()
@@ -223,9 +221,6 @@ internal sealed class TraceDisplayRenderer
             _amplitudeBand.FillStyle.Color = Color.FromARGB(_theme.TraceTick).WithAlpha(BandFillAlpha);
             _amplitudeBand.LineStyle.Color = Color.FromARGB(_theme.TraceTick).WithAlpha((byte)(BandFillAlpha * 2));
         }
-
-        _rateCursor?.ApplyTheme(_theme);
-        _amplitudeCursor?.ApplyTheme(_theme);
     }
 
     private void ApplyPlotTheme(Plot plot)
