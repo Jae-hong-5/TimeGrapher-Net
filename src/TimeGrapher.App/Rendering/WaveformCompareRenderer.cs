@@ -60,17 +60,18 @@ internal sealed class WaveformCompareRenderer
 
     private readonly Scatter?[] _laneScatters; // [pair*2]=tic, [pair*2+1]=toc
     private readonly Text?[] _laneLabels;      // [pair*2]=tic label, [pair*2+1]=toc label
-    // Tic-side guides (at x = 0 and mean-C for the tic segment)
+    // A onset guides (one full-height vertical line per side)
     private VerticalLine? _aGuide;
-    private VerticalLine? _cMeanGuide;
     private Text? _aGuideLabel;
-    private Text? _cMeanGuideLabel;
-    // Toc-side guides (offset by TocXOffsetMs)
     private VerticalLine? _aGuideToc;
-    private VerticalLine? _cMeanGuideToc;
     private Text? _aGuideLabelToc;
-    private Text? _cMeanGuideLabelToc;
+    // Per-lane C peak markers (one line segment per pair lane per side)
+    private readonly LinePlot?[] _cGuidesTic;
+    private readonly LinePlot?[] _cGuidesToc;
     private ReviewCursorLayer? _reviewCursor;
+    // Y-axis direction labels
+    private Text? _yCurrentLabel;
+    private Text? _yPastLabel;
 
     private PlotThemePalette _theme = PlotThemePalette.Current;
     private ulong _lastVersion;
@@ -96,6 +97,8 @@ internal sealed class WaveformCompareRenderer
         _tocY  = new List<double>[WaveformCompareLogic.PairLanes];
         _laneScatters = new Scatter?[WaveformCompareLogic.PairLanes * 2];
         _laneLabels   = new Text?[WaveformCompareLogic.PairLanes * 2];
+        _cGuidesTic   = new LinePlot?[WaveformCompareLogic.PairLanes];
+        _cGuidesToc   = new LinePlot?[WaveformCompareLogic.PairLanes];
         for (int i = 0; i < WaveformCompareLogic.PairLanes; i++)
         {
             _laneX[i] = new List<double>();
@@ -124,8 +127,8 @@ internal sealed class WaveformCompareRenderer
         Plot plot = _plot.Plot;
         plot.Clear();
         ApplyPlotTheme(plot);
-        plot.YLabel("Pairs (newest at the top)");
-        plot.XLabel("tic \u2190 | \u2192 toc \n (ms)");
+        plot.YLabel("");
+        plot.XLabel("(ms)");
         plot.Axes.Left.TickLabelStyle.IsVisible = false;
 
         for (int i = 0; i < WaveformCompareLogic.PairLanes; i++)
@@ -144,14 +147,30 @@ internal sealed class WaveformCompareRenderer
             _laneLabels[i * 2 + 1] = AddLabel(plot);
         }
 
-        _aGuide = AddGuide(plot);
-        _cMeanGuide = AddGuide(plot);
-        _aGuideLabel = AddLabel(plot);
-        _cMeanGuideLabel = AddLabel(plot);
-        _aGuideToc = AddGuide(plot);
-        _cMeanGuideToc = AddGuide(plot);
+        // Legend: tic (green) left half, toc (red) right half — readable without axis text.
+        if (_laneScatters[0] != null) _laneScatters[0]!.LegendText = "tic";
+        if (_laneScatters[1] != null) _laneScatters[1]!.LegendText = "toc";
+        plot.Legend.IsVisible = true;
+        plot.Legend.Alignment = Alignment.LowerRight;
+
+        // A onset guides: one full-height vertical line per side.
+        _aGuide         = AddGuide(plot);
+        _aGuideLabel    = AddLabel(plot);
+        _aGuideToc      = AddGuide(plot);
         _aGuideLabelToc = AddLabel(plot);
-        _cMeanGuideLabelToc = AddLabel(plot);
+
+        // Per-lane C peak markers: line segments updated each render.
+        for (int i = 0; i < WaveformCompareLogic.PairLanes; i++)
+        {
+            _cGuidesTic[i] = AddCGuide(plot);
+            _cGuidesToc[i] = AddCGuide(plot);
+        }
+
+        // Y-axis direction labels: "current" at the top, "past" at the bottom.
+        _yCurrentLabel = AddYAxisLabel(plot, "current \u2193");
+        _yPastLabel    = AddYAxisLabel(plot, "\u2191 past");
+        _yPastLabel.Location = new Coordinates(XMinMs, 0.0);
+
         _reviewCursor = AddCursor(plot);
 
         plot.Axes.SetLimitsX(XMinMs, XMaxMs);
@@ -246,6 +265,8 @@ internal sealed class WaveformCompareRenderer
             {
                 if (ticLabel != null) ticLabel.IsVisible = false;
                 if (tocLabel != null) tocLabel.IsVisible = false;
+                if (_cGuidesTic[lane] != null) _cGuidesTic[lane]!.IsVisible = false;
+                if (_cGuidesToc[lane] != null) _cGuidesToc[lane]!.IsVisible = false;
                 continue;
             }
 
@@ -266,6 +287,35 @@ internal sealed class WaveformCompareRenderer
             if (tocSeg is BeatSegment tocSegment)
             {
                 FillLane(tocSegment, baseline, _tocX[lane], _tocY[lane], xOffset: clipMs, clipMs);
+            }
+
+            // Per-lane C peak markers at each beat's actual C-onset position.
+            if (_cGuidesTic[lane] is LinePlot ticCGuide)
+            {
+                if (ticSeg is { CPeakValid: true } ticForC)
+                {
+                    double cX = ticForC.CPeakOffsetMs - ticForC.AOffsetMs;
+                    ticCGuide.Line = new CoordinateLine(cX, baseline, cX, baseline + 1.0);
+                    ticCGuide.IsVisible = true;
+                }
+                else
+                {
+                    ticCGuide.IsVisible = false;
+                }
+            }
+
+            if (_cGuidesToc[lane] is LinePlot tocCGuide)
+            {
+                if (tocSeg is { CPeakValid: true } tocForC)
+                {
+                    double cX = clipMs + (tocForC.CPeakOffsetMs - tocForC.AOffsetMs);
+                    tocCGuide.Line = new CoordinateLine(cX, baseline, cX, baseline + 1.0);
+                    tocCGuide.IsVisible = true;
+                }
+                else
+                {
+                    tocCGuide.IsVisible = false;
+                }
             }
 
             if (ticLabel != null)
@@ -353,21 +403,22 @@ internal sealed class WaveformCompareRenderer
         double labelY = YTop(pairCount);
         bool hasData = pairCount > 0;
 
-        // Tic-side: A at x=0, mean-C from tic segments
+        // A onset guides: tic side at x=0, toc side at x=clipMs.
         SetGuide(_aGuide, _aGuideLabel,
             hasData ? 0.0 : null, WaveformCompareLogic.AGuideLabel, labelY);
-        double? ticMeanC = WaveformCompareLogic.MeanCPeakOffsetMs(segments, ticOnly: true);
-        SetGuide(_cMeanGuide, _cMeanGuideLabel, ticMeanC,
-            ticMeanC is double tm ? WaveformCompareLogic.CMeanGuideLabel(tm) : "", labelY);
-
-        // Toc-side: A and mean-C shifted right by tocXMs (= clipMs, dynamic)
         SetGuide(_aGuideToc, _aGuideLabelToc,
-            hasData ? tocXMs : null,
-            WaveformCompareLogic.AGuideLabel, labelY);
-        double? tocMeanC = WaveformCompareLogic.MeanCPeakOffsetMs(segments, ticOnly: false);
-        SetGuide(_cMeanGuideToc, _cMeanGuideLabelToc,
-            tocMeanC.HasValue ? tocXMs + tocMeanC.Value : null,
-            tocMeanC is double tocm ? WaveformCompareLogic.CMeanGuideLabel(tocm) : "", labelY);
+            hasData ? tocXMs : null, WaveformCompareLogic.AGuideLabel, labelY);
+
+        // Y-axis direction labels: update "current" Y to follow the current top.
+        if (_yCurrentLabel != null)
+        {
+            _yCurrentLabel.Location = new Coordinates(XMinMs, YTop(pairCount));
+            _yCurrentLabel.IsVisible = hasData;
+        }
+        if (_yPastLabel != null)
+        {
+            _yPastLabel.IsVisible = hasData;
+        }
     }
 
     private static double YTop(int pairCount) =>
@@ -403,6 +454,26 @@ internal sealed class WaveformCompareRenderer
         Text label = plot.Add.Text("", 0.0, 0.0);
         label.LabelFontName = _textFontFamily;
         label.LabelFontSize = 11;
+        label.Alignment = Alignment.UpperLeft;
+        label.IsVisible = false;
+        return label;
+    }
+
+    private static LinePlot AddCGuide(Plot plot)
+    {
+        LinePlot guide = plot.Add.Line(0.0, 0.0, 0.0, 1.0);
+        guide.MarkerStyle.IsVisible = false;
+        guide.LineWidth = 1;
+        guide.LinePattern = LinePattern.Dashed;
+        guide.IsVisible = false;
+        return guide;
+    }
+
+    private Text AddYAxisLabel(Plot plot, string text)
+    {
+        Text label = plot.Add.Text(text, XMinMs, 0.0);
+        label.LabelFontName = _textFontFamily;
+        label.LabelFontSize = 10;
         label.Alignment = Alignment.UpperLeft;
         label.IsVisible = false;
         return label;
@@ -455,16 +526,16 @@ internal sealed class WaveformCompareRenderer
             }
         }
 
-        // A = tick green, C = tock red: the same themed event color mapping the
-        // scope markers use (RateScopeRenderer.ThemeColor).
-        if (_aGuide != null)             _aGuide.LineColor              = Color.FromARGB(_theme.TraceTick);
-        if (_aGuideLabel != null)        _aGuideLabel.LabelFontColor    = Color.FromARGB(_theme.TraceTick);
-        if (_cMeanGuide != null)         _cMeanGuide.LineColor          = Color.FromARGB(_theme.TraceTock);
-        if (_cMeanGuideLabel != null)    _cMeanGuideLabel.LabelFontColor = Color.FromARGB(_theme.TraceTock);
-        if (_aGuideToc != null)          _aGuideToc.LineColor           = Color.FromARGB(_theme.TraceTick);
-        if (_aGuideLabelToc != null)     _aGuideLabelToc.LabelFontColor  = Color.FromARGB(_theme.TraceTick);
-        if (_cMeanGuideToc != null)      _cMeanGuideToc.LineColor       = Color.FromARGB(_theme.TraceTock);
-        if (_cMeanGuideLabelToc != null) _cMeanGuideLabelToc.LabelFontColor = Color.FromARGB(_theme.TraceTock);
+        // A and C guides: black so they don't clash with the tic (green) / toc (red) waveform colors.
+        Color guideColor = Color.FromARGB(0xFF000000);
+        if (_aGuide != null)         _aGuide.LineColor           = guideColor;
+        if (_aGuideLabel != null)    _aGuideLabel.LabelFontColor = guideColor;
+        if (_aGuideToc != null)      _aGuideToc.LineColor        = guideColor;
+        if (_aGuideLabelToc != null) _aGuideLabelToc.LabelFontColor = guideColor;
+        foreach (LinePlot? cGuide in _cGuidesTic) if (cGuide != null) cGuide.LineColor = guideColor;
+        foreach (LinePlot? cGuide in _cGuidesToc) if (cGuide != null) cGuide.LineColor = guideColor;
+        if (_yCurrentLabel != null) _yCurrentLabel.LabelFontColor = Color.FromARGB(_theme.TextPrimary);
+        if (_yPastLabel != null)    _yPastLabel.LabelFontColor    = Color.FromARGB(_theme.TextPrimary);
 
         _reviewCursor?.ApplyTheme(_theme);
     }
