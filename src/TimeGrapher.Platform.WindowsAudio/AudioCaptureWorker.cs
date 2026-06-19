@@ -328,10 +328,10 @@ public sealed class AudioCaptureWorker : ILiveAudioWorker
     }
 
     internal static IReadOnlyList<int> GetCandidateSampleRates(
-        int mixChannels,
+        int channels,
         Func<int, int, bool> supportsSampleRate)
     {
-        return GetCandidateSampleRates(rate => supportsSampleRate(rate, mixChannels));
+        return GetCandidateSampleRates(rate => supportsSampleRate(rate, channels));
     }
 
     internal static bool EndpointMatchesWaveInProductName(
@@ -452,10 +452,22 @@ public sealed class AudioCaptureWorker : ILiveAudioWorker
         try
         {
             using AudioClient audioClient = endpoint.AudioClient;
-            int mixChannels = audioClient.MixFormat.Channels;
+            // Probe with the mono capture format actually opened by WaveInEvent
+            // (CreateIeeeFloatWaveFormat(rate, Channels)), not the device mix
+            // format's channel count, so a rate the device offers only in stereo
+            // is not advertised as selectable and then failing at mono capture.
             rates = GetCandidateSampleRates(
-                mixChannels,
+                Channels,
                 (rate, channels) => IsAudioClientSampleRateSupported(audioClient, rate, channels));
+            if (rates.Count == 0)
+            {
+                // Some shared-mode endpoints reject a mono query outright; fall back
+                // to the mix-format channel count so the rate list is never emptied
+                // by the stricter mono probe (no regression vs. the prior behavior).
+                rates = GetCandidateSampleRates(
+                    audioClient.MixFormat.Channels,
+                    (rate, channels) => IsAudioClientSampleRateSupported(audioClient, rate, channels));
+            }
             return true;
         }
         catch

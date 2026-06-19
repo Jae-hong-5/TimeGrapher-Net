@@ -22,19 +22,22 @@ public sealed class AudioCaptureWorkerTests
     }
 
     [Fact]
-    public void GetCandidateSampleRates_ProbesEndpointMixChannelCount()
+    public void GetCandidateSampleRates_ThreadsCaptureChannelCountToProbe()
     {
+        // Production probes the device with the mono capture format actually
+        // opened by WaveInEvent (MasterAudioBuffer.Channels), not the device mix
+        // format, so a stereo-only rate is not advertised as selectable.
         var probedChannels = new List<int>();
         IReadOnlyList<int> rates = AudioCaptureWorker.GetCandidateSampleRates(
-            mixChannels: 2,
+            channels: MasterAudioBuffer.Channels,
             (rate, channels) =>
             {
                 probedChannels.Add(channels);
-                return rate == 48000 && channels == 2;
+                return rate == 48000 && channels == MasterAudioBuffer.Channels;
             });
 
         Assert.Equal(new[] { 48000 }, rates);
-        Assert.All(probedChannels, channels => Assert.Equal(2, channels));
+        Assert.All(probedChannels, channels => Assert.Equal(MasterAudioBuffer.Channels, channels));
     }
 
     [Fact]
