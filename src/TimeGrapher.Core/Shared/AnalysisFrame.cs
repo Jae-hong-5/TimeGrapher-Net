@@ -71,6 +71,14 @@ public sealed class GraphSeriesFrame
     public IReadOnlyList<double> Y { get; init; } = Array.Empty<double>();
     /// <summary>true = replace the previous UI graph payload for this series.</summary>
     public bool Replace { get; init; }
+
+    /// <summary>
+    /// Phase offset (ms) from stream-time zero to bin 0 of the sweep window, so
+    /// that bin 0 corresponds to a tic A-onset. The consumer adds this to
+    /// (streamTimeMs mod windowMs) to recover the display phase. Zero for series
+    /// that do not use tic-phase alignment.
+    /// </summary>
+    public double TicPhaseOffsetMs { get; init; }
 }
 
 /// <summary>Port of WatchMetricsUpdate (WatchMetrics.h).</summary>

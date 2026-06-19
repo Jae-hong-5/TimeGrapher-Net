@@ -63,6 +63,13 @@ public sealed class SweepFrameProjector
     private GraphSeriesFrame? _lastSeries;
     private ulong _lastPublishedSample;
     private ulong _streamEndSample;
+    // Phase offset (samples) applied to every sample before bin placement so
+    // that the tic A-onset always lands at bin 0 (the leftmost position).
+    private double _phaseOffsetSamples;
+    // True once the phase has been anchored to a tic event after the last
+    // window retune or sync loss. Latches so subsequent tic events do NOT
+    // shift the window (which would break 2x/3x patterns mid-sweep).
+    private bool _phaseAligned;
 
     public SweepFrameProjector(int sampleRate)
     {
@@ -101,12 +108,39 @@ public sealed class SweepFrameProjector
         _streamEndSample = result.ProcessedPcmStartSample + (ulong)result.ProcessedPcmLen;
         double windowSamples = _windowS * _sampleRate;
         double binsPerSample = SweepBinBudget / windowSamples;
+
+        // Reset phase alignment on sync loss or detector reset so the sweep
+        // re-anchors to the first tic after re-acquisition.
+        if (result.SyncLostEvent || result.DetectorResetEvent)
+        {
+            _phaseAligned = false;
+        }
+
+        // Phase-align: anchor the sweep to the first tic onset seen after
+        // each window retune or sync loss. Latched so subsequent tic events
+        // do NOT shift the window (which would break 2x/3x repeating patterns).
+        if (!_phaseAligned)
+        {
+            foreach (DetectedEventUpdate eventUpdate in update.MetricsEvents)
+            {
+                if (eventUpdate.Event.Type == TgEventType.A &&
+                    eventUpdate.MetricsUpdate.BeatTimingSampleUpdated &&
+                    eventUpdate.MetricsUpdate.BeatTimingSample.IsTic)
+                {
+                    double ticMod = eventUpdate.EventSample % windowSamples;
+                    _phaseOffsetSamples = ticMod > 0.0 ? windowSamples - ticMod : 0.0;
+                    _phaseAligned = true;
+                    break;
+                }
+            }
+        }
+
         ReadOnlySpan<float> processedPcm = result.ProcessedPcm.Span;
         for (int i = 0; i < result.ProcessedPcmLen; i++)
         {
-            double absoluteSample = (double)result.ProcessedPcmStartSample + i;
-            long pass = (long)(absoluteSample / windowSamples);
-            double positionInWindow = absoluteSample - pass * windowSamples;
+            double adjustedSample = (double)result.ProcessedPcmStartSample + i + _phaseOffsetSamples;
+            long pass = (long)(adjustedSample / windowSamples);
+            double positionInWindow = adjustedSample - pass * windowSamples;
             int bin = (int)(positionInWindow * binsPerSample);
             if ((uint)bin >= SweepBinBudget)
             {
@@ -166,6 +200,7 @@ public sealed class SweepFrameProjector
                 X = _cachedX,
                 Y = y,
                 Replace = true,
+                TicPhaseOffsetMs = _phaseOffsetSamples / _sampleRate * 1000.0,
             };
             _lastPublishedSample = _streamEndSample;
         }
@@ -196,6 +231,8 @@ public sealed class SweepFrameProjector
 
         _activeSweepMultiple = multiple;
         _windowS = candidate;
+        _phaseOffsetSamples = 0.0;
+        _phaseAligned = false;
         Array.Clear(_binValues);
         Array.Fill(_binPass, -1L);
         // The window length changed: the cached X axis and the shared series
