@@ -56,12 +56,13 @@ public sealed class ScopeRateFrameProjector
         frame.BeatSynced = result.SyncStatus == TgSyncStatus.Synced;
         double threshold = result.OnsetThreshold;
         ulong scopeStride = (ulong)ScopeSnapshotStride();
+        ReadOnlySpan<float> processedPcm = result.ProcessedPcm.Span;
         for (int i = 0; i < result.ProcessedPcmLen; i++)
         {
             if ((_localGraphTicks % scopeStride) == 0)
             {
                 _scopeWindowX.Add(_localGraphTicks);
-                _scopeWindowPcm.Add(result.ProcessedPcm[i]);
+                _scopeWindowPcm.Add(processedPcm[i]);
                 _scopeWindowThreshold.Add(threshold);
             }
             _localGraphTicks++;

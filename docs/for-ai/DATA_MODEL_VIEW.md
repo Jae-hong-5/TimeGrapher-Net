@@ -409,7 +409,7 @@ class DetectorResultSnapshot {
     +int DetectedBph
     +double MeasuredPeriodS
     +IReadOnlyList~TgEvent~ Events
-    +float[] ProcessedPcm
+    +ReadOnlyMemory~float~ ProcessedPcm
     +int ProcessedPcmLen
     +ulong ProcessedPcmStartSample
     +bool SyncLostEvent

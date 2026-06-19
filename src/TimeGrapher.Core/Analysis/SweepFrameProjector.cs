@@ -101,6 +101,7 @@ public sealed class SweepFrameProjector
         _streamEndSample = result.ProcessedPcmStartSample + (ulong)result.ProcessedPcmLen;
         double windowSamples = _windowS * _sampleRate;
         double binsPerSample = SweepBinBudget / windowSamples;
+        ReadOnlySpan<float> processedPcm = result.ProcessedPcm.Span;
         for (int i = 0; i < result.ProcessedPcmLen; i++)
         {
             double absoluteSample = (double)result.ProcessedPcmStartSample + i;
@@ -112,7 +113,7 @@ public sealed class SweepFrameProjector
                 bin = SweepBinBudget - 1;
             }
 
-            double value = result.ProcessedPcm[i];
+            double value = processedPcm[i];
             if (_binPass[bin] == pass)
             {
                 // Same sweep pass: keep the bin's envelope maximum.

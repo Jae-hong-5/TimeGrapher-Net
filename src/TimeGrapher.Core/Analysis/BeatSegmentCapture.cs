@@ -373,6 +373,7 @@ public sealed class BeatSegmentCapture
         }
 
         // Wrap-aware block copy (at most two segments), not per-sample writes.
+        ReadOnlySpan<float> processedPcm = result.ProcessedPcm.Span;
         int ringLength = _envelopeRing.Length;
         ulong start = result.ProcessedPcmStartSample;
         int copied = 0;
@@ -380,7 +381,7 @@ public sealed class BeatSegmentCapture
         {
             int destination = (int)((start + (ulong)copied) % (ulong)ringLength);
             int chunk = Math.Min(length - copied, ringLength - destination);
-            Array.Copy(result.ProcessedPcm, copied, _envelopeRing, destination, chunk);
+            processedPcm.Slice(copied, chunk).CopyTo(_envelopeRing.AsSpan(destination, chunk));
             copied += chunk;
         }
 
