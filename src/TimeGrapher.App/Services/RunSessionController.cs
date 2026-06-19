@@ -53,7 +53,17 @@ internal sealed class RunSessionController : IDisposable
     public MasterAudioBuffer PrepareInputRun(int sampleRate, out ulong runSessionToken)
     {
         runSessionToken = BeginRunSession();
-        StopAnalysisThread();
+        if (StopAnalysisThread() != RunSessionStopOutcome.Stopped)
+        {
+            // The previous analysis worker did not stop in time and is still
+            // alive. Starting now would have StartAnalysisThread overwrite (and
+            // leak) that worker handle and run two analysis threads at once. Fail
+            // the start instead: StartAsync's catch routes to CleanupFailedStart,
+            // and the worker stays addressable for a later stop/reset retry.
+            throw new InvalidOperationException(
+                "Previous analysis worker did not stop; cannot start a new run.");
+        }
+
         _resetBeforeRun();
 
         _rawAudio = new MasterAudioBuffer(sampleRate);
