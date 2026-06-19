@@ -383,9 +383,17 @@ internal sealed class BeatNoiseScopeRenderer
     public void RenderFrame(AnalysisFrame frame, AnalysisTabRenderContext context)
     {
         BeatSegmentsSnapshot? snapshot = frame.BeatSegments;
-        if (snapshot != null)
+        // Cache a UI-owned copy on every version change. The segment
+        // Samples/RawMin/RawMax reference BeatSegmentCapture's publish pool,
+        // which recycles a buffer two snapshots later; the interaction handlers
+        // (range/view/absolute/strip selection) re-read _lastSnapshot with no new
+        // frame, so caching the pooled snapshot would let them read a recycled
+        // buffer. Copying the pooled arrays into owned storage keeps the Core
+        // "read latest only" contract intact. Markers/Average are immutable
+        // per their own contract and are shared as-is.
+        if (snapshot != null && (snapshot.Version != _lastVersion || _lastSnapshot == null))
         {
-            _lastSnapshot = snapshot;
+            _lastSnapshot = CopyForCache(snapshot);
         }
 
         _lastCursorTimeS = context.ReviewCursorTimeS;
@@ -401,11 +409,58 @@ internal sealed class BeatNoiseScopeRenderer
         }
 
         _lastVersion = snapshot.Version;
-        RenderMain(snapshot);
-        RenderStrips(snapshot);
-        RenderAverageView(snapshot);
-        _liftText.Text = BeatNoiseScopeLogic.LiftText(snapshot.LiftAngleDeg);
+        BeatSegmentsSnapshot cached = _lastSnapshot!;
+        RenderMain(cached);
+        RenderStrips(cached);
+        RenderAverageView(cached);
+        _liftText.Text = BeatNoiseScopeLogic.LiftText(cached.LiftAngleDeg);
         RefreshAll();
+    }
+
+    /// <summary>
+    /// Deep-copies the pooled segment envelope/raw arrays into UI-owned storage
+    /// so cached re-renders (interaction handlers, paused review) never read a
+    /// segment buffer that the capture pool has since recycled. Scalar fields,
+    /// markers, and the average snapshot are immutable and shared as-is.
+    /// </summary>
+    private static BeatSegmentsSnapshot CopyForCache(BeatSegmentsSnapshot snapshot)
+    {
+        IReadOnlyList<BeatSegment> segments = snapshot.Segments;
+        if (segments.Count == 0)
+        {
+            return snapshot;
+        }
+
+        var owned = new BeatSegment[segments.Count];
+        for (int i = 0; i < segments.Count; i++)
+        {
+            BeatSegment s = segments[i];
+            owned[i] = new BeatSegment
+            {
+                Samples = s.Samples.ToArray(),
+                RawValid = s.RawValid,
+                RawMin = s.RawMin.ToArray(),
+                RawMax = s.RawMax.ToArray(),
+                MsPerPoint = s.MsPerPoint,
+                StartTimeS = s.StartTimeS,
+                IsTic = s.IsTic,
+                AOffsetMs = s.AOffsetMs,
+                PeakValue = s.PeakValue,
+                CPeakValid = s.CPeakValid,
+                CPeakOffsetMs = s.CPeakOffsetMs,
+                COnsetValid = s.COnsetValid,
+                COnsetOffsetMs = s.COnsetOffsetMs,
+            };
+        }
+
+        return new BeatSegmentsSnapshot
+        {
+            Version = snapshot.Version,
+            Segments = owned,
+            Markers = snapshot.Markers,
+            LiftAngleDeg = snapshot.LiftAngleDeg,
+            Average = snapshot.Average,
+        };
     }
 
     private VerticalLine GetOrCreateMarker(List<VerticalLine> pool, Plot plot, LinePattern pattern, uint colorArgb)
