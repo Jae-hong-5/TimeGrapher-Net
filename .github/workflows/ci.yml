@@ -50,11 +50,22 @@ jobs:
       - name: Check Core has no platform dependencies
         shell: pwsh
         run: |
+          # Strongest guard: Core must declare no package or project references at
+          # all, so it cannot depend on UI (Avalonia/ScottPlot), the platform
+          # adapters, or any external library - not just the few names a text grep
+          # happens to list.
+          $csproj = Get-Content src/TimeGrapher.Core/TimeGrapher.Core.csproj -Raw
+          if ($csproj -match '<PackageReference' -or $csproj -match '<ProjectReference') {
+            throw "Core project must declare no PackageReference/ProjectReference"
+          }
+          # Belt-and-suspenders: no UI/platform dependency usings in Core sources
+          # (matched on 'using'/namespace so doc comments that merely name a type
+          # do not false-positive).
           $matches = Get-ChildItem src/TimeGrapher.Core -Recurse -File -Include *.cs,*.csproj |
-            Select-String -Pattern 'NAudio|TimeGrapher\.Platform|WindowsAudio'
+            Select-String -Pattern 'using\s+NAudio|using\s+Avalonia|using\s+ScottPlot|using\s+TimeGrapher\.App|TimeGrapher\.Platform'
           if ($matches) {
             $matches | ForEach-Object { "$($_.Path):$($_.LineNumber): $($_.Line)" }
-            throw "Core project contains platform dependency text"
+            throw "Core project contains forbidden UI/platform dependency text"
           }
 
       - name: Restore Linux app publish
@@ -103,6 +114,23 @@ jobs:
             throw "Linux publish unexpectedly contains WindowsAudio"
           }
 
+      - name: Check Linux x64 adapter reference boundary
+        shell: pwsh
+        run: |
+          # The single-file artifact embeds managed assemblies, so the loose-file
+          # check above cannot tell which platform adapter was bundled. Build the
+          # same RID framework-dependently (adapters stay loose) and assert the
+          # RID-conditional reference resolved to the matching adapter only.
+          $ref = "artifacts/ref-linux-x64"
+          dotnet build src/TimeGrapher.App/TimeGrapher.App.csproj -c Release -r linux-x64 --self-contained false -p:RestoreLockedMode=false -o $ref
+          if ($LASTEXITCODE -ne 0) { throw "linux-x64 reference build failed" }
+          if (-not (Test-Path (Join-Path $ref 'TimeGrapher.Platform.LinuxAudio.dll'))) {
+            throw "Linux build is missing the LinuxAudio adapter"
+          }
+          if (Test-Path (Join-Path $ref 'TimeGrapher.Platform.WindowsAudio.dll')) {
+            throw "Linux build unexpectedly references the WindowsAudio adapter"
+          }
+
       - name: Smoke test Linux x64 published app
         run: |
           chmod +x artifacts/TimeGrapher.App-linux-x64/TimeGrapher.App
@@ -149,6 +177,21 @@ jobs:
           }
           if (Test-Path (Join-Path $out "TimeGrapher.Platform.WindowsAudio.dll")) {
             throw "Linux publish unexpectedly contains WindowsAudio"
+          }
+
+      - name: Check Linux arm64 adapter reference boundary
+        shell: pwsh
+        run: |
+          # See the x64 note: assert the arm64 RID-conditional reference resolved
+          # to the LinuxAudio adapter only (single-file embedding hides it above).
+          $ref = "artifacts/ref-linux-arm64"
+          dotnet build src/TimeGrapher.App/TimeGrapher.App.csproj -c Release -r linux-arm64 --self-contained false -p:RestoreLockedMode=false -o $ref
+          if ($LASTEXITCODE -ne 0) { throw "linux-arm64 reference build failed" }
+          if (-not (Test-Path (Join-Path $ref 'TimeGrapher.Platform.LinuxAudio.dll'))) {
+            throw "Linux arm64 build is missing the LinuxAudio adapter"
+          }
+          if (Test-Path (Join-Path $ref 'TimeGrapher.Platform.WindowsAudio.dll')) {
+            throw "Linux arm64 build unexpectedly references the WindowsAudio adapter"
           }
 
       - name: Upload core test results
@@ -249,6 +292,23 @@ jobs:
           Get-Content $smokeOut, $smokeErr -ErrorAction SilentlyContinue
           if ($smoke.ExitCode -ne 0) {
             throw "Published app smoke check failed with exit code $($smoke.ExitCode)"
+          }
+
+      - name: Check Windows x64 adapter reference boundary
+        shell: pwsh
+        run: |
+          # The single-file artifact embeds managed assemblies, so the loose-file
+          # check above cannot tell which platform adapter was bundled. Build the
+          # same RID framework-dependently (adapters stay loose) and assert the
+          # RID-conditional reference resolved to the matching adapter only.
+          $ref = "artifacts/ref-win-x64"
+          dotnet build src/TimeGrapher.App/TimeGrapher.App.csproj -c Release -r win-x64 --self-contained false -p:RestoreLockedMode=false -o $ref
+          if ($LASTEXITCODE -ne 0) { throw "win-x64 reference build failed" }
+          if (-not (Test-Path (Join-Path $ref 'TimeGrapher.Platform.WindowsAudio.dll'))) {
+            throw "Windows build is missing the WindowsAudio adapter"
+          }
+          if (Test-Path (Join-Path $ref 'TimeGrapher.Platform.LinuxAudio.dll')) {
+            throw "Windows build unexpectedly references the LinuxAudio adapter"
           }
 
       - name: Upload artifact
