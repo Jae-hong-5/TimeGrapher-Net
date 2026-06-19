@@ -7,7 +7,7 @@ namespace TimeGrapher.Core.Analysis;
 /// Captures one decimated envelope window per detected A event — from
 /// <see cref="PreEventMs"/> before the A to <see cref="WindowMs"/> total — and
 /// publishes the last <see cref="SegmentRingCount"/> completed windows as an
-/// immutable <see cref="BeatSegmentsSnapshot"/> (Beat-Noise Scope; shared
+/// immutable <see cref="BeatSegmentsSnapshot"/> (Beat Noise; shared
 /// infrastructure for any beat-aligned waveform view).
 ///
 /// When the worker also feeds the un-rectified input via <see cref="AppendRaw"/>,
@@ -49,7 +49,7 @@ namespace TimeGrapher.Core.Analysis;
 /// </summary>
 public sealed class BeatSegmentCapture
 {
-    /// <summary>Window length (ms): covers the 400 ms maximum Beat-Noise Scope range.</summary>
+    /// <summary>Window length (ms): covers the 400 ms maximum Beat Noise range.</summary>
     public const double WindowMs = 400.0;
 
     /// <summary>Pre-roll before the A event (ms), so the noise onset is visible.</summary>

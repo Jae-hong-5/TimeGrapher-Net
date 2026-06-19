@@ -210,7 +210,7 @@ internal sealed class RunSessionController : IDisposable
     }
 
     /// <summary>
-    /// Forwards the active watch test position to the running analysis worker
+    /// Forwards the active watch position to the running analysis worker
     /// and remembers it so later runs start with the user's selection.
     /// </summary>
     public void SetActivePosition(WatchPosition position)
@@ -220,7 +220,7 @@ internal sealed class RunSessionController : IDisposable
     }
 
     /// <summary>
-    /// Forwards the Beat-Noise Scope 2 Σ averaging mode to the running analysis
+    /// Forwards the Beat Noise Scope 2 Σ averaging mode to the running analysis
     /// worker and remembers it so later runs start with the user's selection.
     /// </summary>
     public void SetSigmaAveraging(bool enabled)

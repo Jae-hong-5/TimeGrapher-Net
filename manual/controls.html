@@ -42,18 +42,18 @@
       <ul>
         <li><span class="pill">Live</span> <span class="ko"><b>마이크</b> — 컴퓨터에 연결된 실제 캡처 장치. 장치 이름이 그대로 보입니다.</span><span class="en"><b>Microphone</b> — a real capture device on the computer; its name is listed.</span></li>
         <li><span class="pill">Playback</span> <span class="ko"><b>WAV 재생</b> — 선택하면 파일 선택 창이 열립니다. <code>sample/</code> 폴더의 예제(예: <code>28800BPH_3135_hulk.wav</code>)를 고르면 됩니다. 모노·표준 샘플레이트 WAV만 받습니다.</span><span class="en"><b>WAV playback</b> — opens a file picker. Use an example from <code>sample/</code>. Only mono, standard-rate WAV is accepted.</span></li>
-        <li><span class="pill">Sim</span> <span class="ko"><b>합성 신호</b> — 마이크 없이 아래 <a href="#sim">Simulation Parameters</a> 값으로 가짜 시계 소리를 만듭니다. 데모·학습용.</span><span class="en"><b>Synthetic signal</b> — builds a fake watch signal from the <a href="#sim">Simulation Parameters</a>; no mic needed. For demo/learning.</span></li>
+        <li><span class="pill">Simulation</span> <span class="ko"><b>합성 신호</b> — 마이크 없이 아래 <a href="#sim">Simulation Parameters</a> 값으로 가짜 시계 소리를 만듭니다. 데모·학습용.</span><span class="en"><b>Synthetic signal</b> — builds a fake watch signal from the <a href="#sim">Simulation Parameters</a>; no mic needed. For demo/learning.</span></li>
       </ul>
-      <p class="tip ko" style="padding:10px 14px"><b>녹음</b> — Live·Sim 실행은 입력을 WAV로 동시에 녹음할 수 있습니다. (Playback은 기존 파일을 재생만 합니다.)</p>
-      <p class="tip en" style="padding:10px 14px"><b>Recording</b> — Live and Sim runs can record the input to a WAV at the same time. (Playback only plays an existing file.)</p>
+      <p class="tip ko" style="padding:10px 14px"><b>녹음</b> — Live·Simulation 실행은 입력을 WAV로 동시에 녹음할 수 있습니다. (Playback은 기존 파일을 재생만 합니다.)</p>
+      <p class="tip en" style="padding:10px 14px"><b>Recording</b> — Live and Simulation runs can record the input to a WAV at the same time. (Playback only plays an existing file.)</p>
 
       <h3>Sample Rate</h3>
       <p class="ko">초당 샘플 수. 선택지는 <code>48000 · 96000 · 192000</code> Hz입니다. 높을수록 똑/딱 충격의 시간 분해능이 좋아져 비트 오차·진폭 측정이 정밀해지지만 CPU 부담이 커집니다. 장치가 지원하는 값만 활성화됩니다. <b>192 kHz</b>가 정밀도와 부하의 일반적 절충점입니다.</p>
       <p class="en">Samples per second: <code>48000 · 96000 · 192000</code> Hz. Higher rates give finer timing resolution (more precise beat-error/amplitude) at higher CPU cost. Only rates the device supports are enabled. <b>192 kHz</b> is a common sweet spot.</p>
 
       <h3>Gain</h3>
-      <p class="ko">입력 볼륨 슬라이더(0–1000). 파형이 너무 작아 검출이 안 되면 올리고, 클리핑(꼭대기가 잘림)되면 내립니다. <a href="graphs/rate-scope.html">Rate/Scope</a>의 스코프에서 트리거(빨간) 선을 적당히 넘는 정도가 적절합니다.</p>
-      <p class="en">Input volume (0–1000). Raise it if the waveform is too small to detect; lower it if it clips. Aim for peaks that comfortably cross the red trigger line in <a href="graphs/rate-scope.html">Rate/Scope</a>.</p>
+      <p class="ko">입력 볼륨 슬라이더(0–1000). 파형이 너무 작아 검출이 안 되면 올리고, 클리핑(꼭대기가 잘림)되면 내립니다. <a href="graphs/rate-scope.html">ERROR RATE/Scope</a>의 스코프에서 트리거(빨간) 선을 적당히 넘는 정도가 적절합니다.</p>
+      <p class="en">Input volume (0–1000). Raise it if the waveform is too small to detect; lower it if it clips. Aim for peaks that comfortably cross the red trigger line in <a href="graphs/rate-scope.html">ERROR RATE/Scope</a>.</p>
 
       <h3>Avg. Period</h3>
       <p class="ko">측정값을 평균 내는 시간 창(초). 선택지는 <code>2 · 4 · 8 · 10 · 12 · 20 · 30 · 40 · 50 · 60 · 120 · 240</code>초. <b>짧게</b> 하면 변화에 빨리 반응하지만 값이 출렁이고, <b>길게</b> 하면 안정적이지만 반응이 느립니다. 정밀 측정은 길게, 조정 중 즉각 반응은 짧게.</p>
@@ -70,17 +70,17 @@
       <p class="en">Tell the app about the <b>watch being measured</b>. Correct values here are essential for accurate readings.</p>
       <dl class="kv">
         <dt>BPH</dt>
-        <dd><span class="ko">시간당 진동수. 잘 모르면 <b>Auto BPH</b>를 두면 신호에서 자동 추정합니다. 알고 있으면 정확한 값(예: 21600, 28800)을 직접 고르는 편이 검출이 더 안정적입니다.</span><span class="en">Beats per hour. Leave it on <b>Auto BPH</b> to estimate it from the signal, or pick the exact value (e.g. 21600, 28800) for steadier detection if you know it.</span></dd>
+        <dd><span class="ko">BPH. 잘 모르면 <b>Auto BPH</b>를 두면 신호에서 자동 추정합니다. 알고 있으면 정확한 값(예: 21600, 28800)을 직접 고르는 편이 검출이 더 안정적입니다.</span><span class="en">BPH. Leave it on <b>Auto BPH</b> to estimate it from the signal, or pick the exact value (e.g. 21600, 28800) for steadier detection if you know it.</span></dd>
         <dt>Lift Angle</dt>
         <dd><span class="ko">리프트각(30–70°). 무브먼트 고유값으로 <b>진폭(amplitude)</b> 계산에 직접 쓰입니다. 시계/무브먼트 사양서 값(흔히 52°)을 넣으세요. 틀리면 진폭이 통째로 어긋납니다.</span><span class="en">Lift angle (30–70°). A movement constant used directly to compute <b>amplitude</b>. Enter the spec value (often 52°). A wrong value skews amplitude across the board.</span></dd>
       </dl>
 
       <h2 id="sim">③ Simulation Parameters</h2>
-      <p class="ko"><span class="pill">Sim</span> 입력일 때만 의미가 있습니다. 만들어 낼 가짜 시계의 특성을 정합니다 — 정상 시계가 어떻게 보이는지, 또는 특정 결함이 그래프에 어떻게 나타나는지 연습할 때 유용합니다.</p>
-      <p class="en">Only relevant with the <span class="pill">Sim</span> input. Defines the synthetic watch — handy to learn what a healthy watch looks like, or how a specific fault appears on the graphs.</p>
+      <p class="ko"><span class="pill">Simulation</span> 입력일 때만 의미가 있습니다. 만들어 낼 가짜 시계의 특성을 정합니다 — 정상 시계가 어떻게 보이는지, 또는 특정 결함이 그래프에 어떻게 나타나는지 연습할 때 유용합니다.</p>
+      <p class="en">Only relevant with the <span class="pill">Simulation</span> input. Defines the synthetic watch — handy to learn what a healthy watch looks like, or how a specific fault appears on the graphs.</p>
       <dl class="kv">
-        <dt>BPH</dt><dd><span class="ko">합성 시계의 박자(자동 항목 없음, 직접 선택).</span><span class="en">The synthetic watch's beat rate (no Auto here — pick a value).</span></dd>
-        <dt>Error Rate</dt><dd><span class="ko">하루 오차(s/d, −999~999). 양수면 빠르게, 음수면 느리게 가는 시계를 흉내 냅니다.</span><span class="en">Daily error (s/d, −999…999). Positive = a fast watch, negative = slow.</span></dd>
+        <dt>BPH</dt><dd><span class="ko">합성 시계의 BPH(자동 항목 없음, 직접 선택).</span><span class="en">The synthetic watch's BPH (no Auto here — pick a value).</span></dd>
+        <dt>ERROR RATE</dt><dd><span class="ko">하루 오차(s/d, −999~999). 양수면 빠르게, 음수면 느리게 가는 시계를 흉내 냅니다.</span><span class="en">Daily error (s/d, −999…999). Positive = a fast watch, negative = slow.</span></dd>
         <dt>Amplitude</dt><dd><span class="ko">진폭(°, 100–360). 건강한 시계는 보통 270–300°.</span><span class="en">Amplitude (°, 100–360). Healthy is typically 270–300°.</span></dd>
         <dt>Beat Error</dt><dd><span class="ko">비트 오차(ms, −10~10, 0.1 단위). 똑/딱 비대칭을 흉내 냅니다.</span><span class="en">Beat error (ms, −10…10, 0.1 step). Emulates tic/toc asymmetry.</span></dd>
         <dt>Realistic</dt><dd><span class="ko">체크하면 잡음·미세 변동을 더해 실제 녹음에 가깝게 만듭니다. 끄면 깔끔한 이상적 신호.</span><span class="en">Adds noise and small variation for a more lifelike signal. Off = a clean ideal signal.</span></dd>
@@ -94,7 +94,7 @@
         <dd><span class="ko">하이패스 필터의 차단 주파수. 이 값 아래의 낮은 주파수(손 떨림·취급 잡음·배경 진동 등)를 걸러 냅니다. 저주파 잡음이 검출을 방해하면 올리고, 신호가 약해지면 내립니다.</span><span class="en">High-pass cut-off frequency. Removes low-frequency content below it (handling noise, background rumble). Raise it if low rumble disturbs detection; lower it if the signal weakens.</span></dd>
         <dt>Scope Scale</dt>
         <dd><span class="ko">스코프류 그래프의 세로 확대 배율(1–8). 파형이 작으면 키워서 봅니다. <b>실행 중에도 변경</b>됩니다(검출에는 영향 없음, 보기 전용).</span><span class="en">Vertical zoom for scope-style graphs (1–8). Magnify a small waveform. Changeable <b>during a run</b> (display-only, doesn't affect detection).</span></dd>
-        <dt>C Event Use Onset Timing</dt>
+        <dt>Use C-onset timing</dt>
         <dd><span class="ko">진폭을 계산할 때 C 충격의 <b>피크 시각</b> 대신 <b>온셋(시작 가장자리) 시각</b>을 쓰도록 바꿉니다. 일부 무브먼트에서 Amplitude가 더 안정적으로 잡힙니다. (<a href="graphs/escapement.html">Escapement</a> 참고.)</span><span class="en">Use the C impulse's <b>onset timing</b> instead of its <b>peak timing</b> when computing Amplitude. Can be steadier on some movements. (See <a href="graphs/escapement.html">Escapement</a>.)</span></dd>
         <dt>PLL Event Veto<br><small>(impulse rejection)</small></dt>
         <dd><span class="ko">위상 추적(PLL)이 예상한 박자에서 크게 벗어난 충격을 <b>거부</b>해, 똑딱이 아닌 일회성 잡음(탭·툭 치는 소리)이 측정을 망치지 않게 합니다. 취급 잡음이 많은 환경에서 켜세요.</span><span class="en">Lets the phase tracker (PLL) <b>reject</b> impulses that fall far from the expected beat, so one-off knocks/taps don't corrupt readings. Turn on in noisy/handling-heavy setups.</span></dd>
@@ -102,7 +102,7 @@
 
       <h2 id="positions"><span class="ko">포지션 스트립</span><span class="sep"> · </span><span class="en">Position strip</span></h2>
       <p class="ko">왼쪽 패널과 그래프 사이의 세로 버튼 묶음입니다. 시계를 놓은 <b>자세</b>(문자판 위/아래, 또는 6·9·3·12시 방향이 위로 향하는 수직 자세 등)를 고릅니다. 표준 시계 검사는 여러 자세에서 측정해 균형을 보는데, 여기서 고른 자세가 측정값에 라벨로 붙고 <a href="graphs/positions.html">Positions</a> 그래프의 해당 행에 누적됩니다. 현재 자세는 창 아래 <b>상태 바</b>에도 표시됩니다.</p>
-      <p class="en">The vertical button group between the panel and the graphs. It selects the watch's <b>test position</b> (dial up/down, or 6/9/3/12 o'clock up, etc.). Standard watch testing measures several positions to check balance; the position you pick here labels the readings and accumulates into the matching row of the <a href="graphs/positions.html">Positions</a> graph. The active position also shows in the <b>status bar</b>.</p>
+      <p class="en">The vertical button group between the panel and the graphs. It selects the watch's <b>watch position</b> (dial up/down, or 6/9/3/12 o'clock up, etc.). Standard watch testing measures several positions to check balance; the position you pick here labels the readings and accumulates into the matching row of the <a href="graphs/positions.html">Positions</a> graph. The active position also shows in the <b>status bar</b>.</p>
       <p class="note ko" style="padding:10px 14px">자세 코드는 <b>NIHS 95-10 / ISO 3158</b> 표준을 따릅니다. 앞의 6개(CH·CB·6H·9H·3H·12H)가 기본 자세이고, <b>45° 항목</b>(6H45·9H45·3H45·12H45)은 그 사이의 대각선 중간 자세로 필요할 때만 씁니다. 괄호 안 약어(DU·CL 등)가 NIHS/ISO 표기입니다.</p>
       <p class="note en" style="padding:10px 14px">Position codes follow <b>NIHS 95-10 / ISO 3158</b>. The first six (CH·CB·6H·9H·3H·12H) are the standard positions; the <b>45° entries</b> (6H45·9H45·3H45·12H45) are diagonal intermediate positions used when needed. The codes in parentheses (DU, CL, …) are the NIHS/ISO designations.</p>
 
@@ -132,7 +132,7 @@
       <p class="en">The bottom strip of the window. From left:</p>
       <dl class="kv">
         <dt><span class="ko">상태 메시지</span><span class="en">Status text</span></dt><dd><span class="ko">현재 동작/안내(파일 로드 결과, 오류 등).</span><span class="en">Current activity or messages (file-load result, errors).</span></dd>
-        <dt><span class="ko">포지션</span><span class="en">Position</span></dt><dd><span class="ko">현재 선택된 검사 자세(NIHS 95-10 / ISO 3158).</span><span class="en">The active test position (NIHS 95-10 / ISO 3158).</span></dd>
+        <dt><span class="ko">포지션</span><span class="en">Position</span></dt><dd><span class="ko">현재 선택된 시계 자세(NIHS 95-10 / ISO 3158).</span><span class="en">The active watch position (NIHS 95-10 / ISO 3158).</span></dd>
         <dt><span class="ko">지연시간</span><span class="en">Latency</span></dt><dd><span class="ko">캡처→표시까지의 평균/최악 지연, 버린 입력 샘플/합쳐진 UI 프레임, 놓친 비트, 동기 손실 횟수. 실시간 성능을 한눈에 보는 지표입니다.</span><span class="en">End-to-end avg/worst latency (capture→display), dropped input samples / coalesced UI frames, missed beats, sync losses — a quick real-time-performance gauge.</span></dd>
       </dl>
 
@@ -156,7 +156,7 @@
 
       <div class="pager">
         <a href="index.html"><small>← 이전 · Prev</small> 개요 · Overview</a>
-        <a href="graphs/rate-scope.html">1. Rate/Scope <small>다음 · Next →</small></a>
+        <a href="graphs/rate-scope.html">1. ERROR RATE/Scope <small>다음 · Next →</small></a>
       </div>
 
     </div>

@@ -5,7 +5,7 @@ using Xunit;
 namespace TimeGrapher.App.Tests;
 
 /// <summary>
-/// Pure logic behind the Beat-Noise Scope tab: right-aligned strip slot math,
+/// Pure logic behind the Beat Noise tab: right-aligned strip slot math,
 /// slot-based selection toggling, the Scope 2 readout (trace 1/2 wording, Σ
 /// progress) and the review-cursor mapping onto the displayed segment window.
 /// </summary>

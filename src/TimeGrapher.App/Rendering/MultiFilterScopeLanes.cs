@@ -3,7 +3,7 @@ using TimeGrapher.Core.Shared;
 namespace TimeGrapher.App.Rendering;
 
 /// <summary>
-/// One stacked lane of the Multi-Filter Scope tab: which Core filter series it
+/// One stacked lane of the Filter Scope tab: which Core filter series it
 /// plots, its label, the one-line description shown above the plot, the
 /// theme-palette slot its trace recolors from on theme toggles, and whether the
 /// trace is mirrored around the baseline so its envelope shows symmetrically
@@ -17,7 +17,7 @@ internal sealed record MultiFilterScopeLane(
     bool Mirrored);
 
 /// <summary>
-/// Static lane catalog for the Multi-Filter Scope tab, in top-to-bottom display
+/// Static lane catalog for the Filter Scope tab, in top-to-bottom display
 /// order F0..F3 (the plan's four PC-RM4 filter views of the same signal).
 /// </summary>
 internal static class MultiFilterScopeLanes

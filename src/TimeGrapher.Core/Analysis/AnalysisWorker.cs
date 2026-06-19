@@ -53,7 +53,7 @@ public sealed class AnalysisWorker : IDisposable
     private readonly AnalysisDeadlineMonitor _deadlineMonitor = new();
     private readonly float[] _inputBlock;
 
-    // Nominal locked beat period (3600/bph) captured while synced; the deadline
+    // Nominal locked beat period (3600/BPH) captured while synced; the deadline
     // monitor falls back to the 28800-BPH default (125 ms) before the first lock.
     private double _latestBeatPeriodS;
 
@@ -143,7 +143,7 @@ public sealed class AnalysisWorker : IDisposable
     }
 
     /// <summary>
-    /// Request a new Scope Mode sweep window length (multiple of the beat
+    /// Request a new Sweep window length (multiple of the beat
     /// period). Stored in a volatile knob and applied on the analysis thread at
     /// the start of the next pass. Callable from any thread.
     /// </summary>
@@ -153,7 +153,7 @@ public sealed class AnalysisWorker : IDisposable
     }
 
     /// <summary>
-    /// Request the watch test position (NIHS 95-10 / ISO 3158) new measurements
+    /// Request the watch position (NIHS 95-10 / ISO 3158) new measurements
     /// are tagged with. Stored in the projector's volatile knob and applied on
     /// the analysis thread at the start of the next pass (the SetSweepMultiple
     /// flow). Callable from any thread.
@@ -175,7 +175,7 @@ public sealed class AnalysisWorker : IDisposable
     }
 
     /// <summary>
-    /// Request the Beat-Noise Scope 2 Σ averaging mode. Stored in the capture's
+    /// Request the Beat Noise Scope 2 Σ averaging mode. Stored in the capture's
     /// volatile knob and applied on the analysis thread at the start of the
     /// next pass (the SetSweepMultiple flow); a change resets the averaging
     /// cycle. Callable from any thread.

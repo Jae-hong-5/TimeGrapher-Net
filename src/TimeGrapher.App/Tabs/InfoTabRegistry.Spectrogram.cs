@@ -18,7 +18,7 @@ internal sealed partial class InfoTabRegistry
         // frequency-axis labels on the left, the dB colorbar legend drawn
         // vertically on the right (aligned to the y-axis), and the time-axis
         // caption below. The spectrogram shows raw signal energy before beat
-        // sync, so no waiting overlay is added (the Multi-Filter Scope reasoning).
+        // sync, so no waiting overlay is added (the Filter Scope reasoning).
         _ = context;
         var image = new Image
         {

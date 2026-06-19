@@ -10,7 +10,7 @@ namespace TimeGrapher.App.Rendering;
 /// <summary>
 /// Beat Error Display and Diagnostic Trace: a numeric panel (rate, amplitude,
 /// signed beat error, BPH plus the derived DiffTicTac / DiffPeriod / AvgPeriod)
-/// above the tic/toc rate-error traces, with a BeatErrorDiagnostics banner for
+/// above the tic/toc ERROR RATE traces, with a BeatErrorDiagnostics banner for
 /// the separation alert and major-fault slope conditions. The traces refill from
 /// the per-frame AnalysisGraphSeries.RateTic/RateToc snapshots every frame
 /// already carries (the RateScopeRenderer pattern); the numeric panel and banner
@@ -76,7 +76,7 @@ internal sealed class BeatErrorDiagRenderer
         Plot trace = _tracePlot.Plot;
         trace.Clear();
         ApplyPlotTheme(trace);
-        trace.YLabel("Rate Error (ms)");
+        trace.YLabel("ERROR RATE (ms)");
         trace.XLabel("Beat");
         trace.Axes.SetLimitsY(-rateErrorYScale, rateErrorYScale);
         trace.Axes.SetLimitsX(0, Math.Min(rateDataPoints, MinimumBeatWindow));
@@ -218,7 +218,7 @@ internal sealed class BeatErrorDiagRenderer
         plot.Legend.OutlineColor = Color.FromARGB(_theme.ScopeGrid);
     }
 
-    // Same tick/tock color mapping the Rate/Scope traces use.
+    // Same tick/tock color mapping the ERROR RATE/Scope traces use.
     private uint ThemeColor(GraphSeriesDefinition spec) => spec.Id switch
     {
         AnalysisGraphSeries.RateTic => _theme.TraceTick,

@@ -253,7 +253,7 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
         set => SetProperty(ref _sweepMultiple, value);
     }
 
-    /// <summary>Beat-Noise Scope 2 Σ averaging on/off (forwarded to the analysis worker).</summary>
+    /// <summary>Beat Noise Scope 2 Σ averaging on/off (forwarded to the analysis worker).</summary>
     public bool SigmaAveraging
     {
         get => _sigmaAveraging;
@@ -266,7 +266,7 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
         set => SetProperty(ref _isMeasurementLogEnabled, value);
     }
 
-    /// <summary>Active watch test position as a <see cref="WatchPosition"/> ordinal (0 = CH, dial up).</summary>
+    /// <summary>Active watch position as a <see cref="WatchPosition"/> ordinal (0 = CH, dial up).</summary>
     public int SelectedPositionIndex
     {
         get => _selectedPositionIndex;
@@ -279,7 +279,7 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
         }
     }
 
-    /// <summary>Always-visible status-bar indicator of the active test position ("POS DU").</summary>
+    /// <summary>Always-visible status-bar indicator of the active watch position ("POS DU").</summary>
     public string PositionLabel => "POS " + ((WatchPosition)_selectedPositionIndex).ShortName();
 
     /// <summary>

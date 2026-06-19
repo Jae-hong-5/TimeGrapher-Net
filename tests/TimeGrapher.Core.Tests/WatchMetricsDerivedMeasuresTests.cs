@@ -7,7 +7,7 @@ namespace TimeGrapher.Core.Tests;
 /// <summary>
 /// Numeric per-beat samples and derived timing measures (DiffTicTac / DiffPeriod /
 /// Avg Period). Expected values follow the worked examples in the TimeGrapher
-/// Equations document (beat error 0.8 ms from t1=125.8 ms / t2=124.2 ms @ 28800 bph).
+/// Equations document (beat error 0.8 ms from t1=125.8 ms / t2=124.2 ms @ 28800 BPH).
 /// </summary>
 public sealed class WatchMetricsDerivedMeasuresTests
 {
@@ -178,7 +178,7 @@ public sealed class WatchMetricsDerivedMeasuresTests
         results = FeedAThenCAndGetResults(metrics, sample);
 
         Assert.Equal(
-            $"ERROR RATE ------ s/d | Amplitude {WatchMetrics.ValueSpanStart} 55{WatchMetrics.ValueSpanEnd}° | BEAT ERROR ---- ms | BEAT {WatchMetrics.ValueSpanStart}28800{WatchMetrics.ValueSpanEnd} bph",
+            $"ERROR RATE ------ s/d | Amplitude {WatchMetrics.ValueSpanStart} 55{WatchMetrics.ValueSpanEnd}° | BEAT ERROR ---- ms | BPH {WatchMetrics.ValueSpanStart}28800{WatchMetrics.ValueSpanEnd}",
             results);
 
         sample += 125.0 / 1000.0 * SampleRate;
@@ -187,7 +187,7 @@ public sealed class WatchMetricsDerivedMeasuresTests
         results = FeedAThenCAndGetResults(metrics, sample);
 
         Assert.Equal(
-            $"ERROR RATE ------ s/d | Amplitude {WatchMetrics.ValueSpanStart} 55{WatchMetrics.ValueSpanEnd}° | BEAT ERROR {WatchMetrics.ValueSpanStart} 0.0{WatchMetrics.ValueSpanEnd} ms | BEAT {WatchMetrics.ValueSpanStart}28800{WatchMetrics.ValueSpanEnd} bph",
+            $"ERROR RATE ------ s/d | Amplitude {WatchMetrics.ValueSpanStart} 55{WatchMetrics.ValueSpanEnd}° | BEAT ERROR {WatchMetrics.ValueSpanStart} 0.0{WatchMetrics.ValueSpanEnd} ms | BPH {WatchMetrics.ValueSpanStart}28800{WatchMetrics.ValueSpanEnd}",
             results);
     }
 
@@ -214,7 +214,7 @@ public sealed class WatchMetricsDerivedMeasuresTests
     {
         // One beat undetected: the next sample is physical beat 4 (toc), not
         // beat 3, and the expected-time schedule stays anchored, so a watch on
-        // its nominal schedule still reads a zero rate error after the gap.
+        // its nominal schedule still reads a zero ERROR RATE after the gap.
         WatchMetrics metrics = NewMetrics();
         List<WatchMetricsUpdate> updates = FeedAEvents(metrics, 125.0, 250.0, 125.0);
 
@@ -289,7 +289,7 @@ public sealed class WatchMetricsDerivedMeasuresTests
     [Fact]
     public void BeatTimingSample_CarriesBeatNumberPhaseAndRateError()
     {
-        // Exact nominal intervals: the zero-offset anchor makes every rate error 0.
+        // Exact nominal intervals: the zero-offset anchor makes every ERROR RATE 0.
         WatchMetrics metrics = NewMetrics();
         List<WatchMetricsUpdate> updates = FeedAEvents(metrics, 125.0, 125.0);
 
@@ -311,8 +311,8 @@ public sealed class WatchMetricsDerivedMeasuresTests
     public void BphReLock_RestartsTheMeasurementSegment()
     {
         // The detector drops the batch in which sync is lost, so a watch swap
-        // surfaces here as a direct BPH change (18000 bph, 200 ms beats ->
-        // 36000 bph, 100 ms beats). The segment must re-anchor: stale _bph
+        // surfaces here as a direct BPH change (18000 BPH, 200 ms beats ->
+        // 36000 BPH, 100 ms beats). The segment must re-anchor: stale _bph
         // would mislabel every sample and gate signed measures with the old
         // 200 ms nominal period.
         WatchMetrics metrics = NewMetrics();
@@ -356,7 +356,7 @@ public sealed class WatchMetricsDerivedMeasuresTests
     [Fact]
     public void AmplitudeSample_EmittedPerCEvent_AndPairAverageOncePerTicTocPair()
     {
-        // bph=3600: half-period 1 s. A->C interval of 1/6 s puts the sine argument at
+        // BPH=3600: half-period 1 s. A->C interval of 1/6 s puts the sine argument at
         // pi/6, so Amplitude = liftAngle / sin(pi/6) = 2 * 52 = 104 degrees.
         const double bph = 3600.0;
         const double aToCSamples = SampleRate / 6.0;
@@ -381,7 +381,7 @@ public sealed class WatchMetricsDerivedMeasuresTests
     [Fact]
     public void AmplitudeSample_NotEmittedWhenEstimateIsOutOfRange()
     {
-        // A->C of a quarter period at bph=3600 gives sin(pi/2)=1 -> 52 deg; shrink the
+        // A->C of a quarter period at BPH=3600 gives sin(pi/2)=1 -> 52 deg; shrink the
         // interval until the estimate exceeds 360 and the sample must be suppressed.
         const double bph = 3600.0;
         WatchMetrics metrics = NewMetrics();

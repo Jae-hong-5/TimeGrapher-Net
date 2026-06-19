@@ -5,7 +5,7 @@ using Xunit;
 namespace TimeGrapher.App.Tests;
 
 /// <summary>
-/// Pure logic behind the Waveform Comparison tab: the rate / beat error / BPH
+/// Pure logic behind the Waveform Comparison tab: the error rate / beat error / BPH
 /// header line, per-lane phase + A→C labels, the mean C-peak consistency guide
 /// and the review-cursor mapping onto the A-aligned lane axis.
 /// </summary>
@@ -46,7 +46,7 @@ public sealed class WaveformCompareLogicTests
         };
 
         Assert.Equal(
-            "RATE +1.2 s/d   |   BEAT ERROR -0.35 ms   |   BPH 21600",
+            "ERROR RATE +1.2 s/d   |   BEAT ERROR -0.35 ms   |   BPH 21600",
             WaveformCompareLogic.HeaderLine(history));
     }
 
@@ -54,10 +54,10 @@ public sealed class WaveformCompareLogicTests
     public void HeaderLine_FallsBackToEmDashesWhileReadingsAreMissing()
     {
         Assert.Equal(
-            "RATE —   |   BEAT ERROR —   |   BPH —",
+            "ERROR RATE —   |   BEAT ERROR —   |   BPH —",
             WaveformCompareLogic.HeaderLine(null));
         Assert.Equal(
-            "RATE —   |   BEAT ERROR —   |   BPH —",
+            "ERROR RATE —   |   BEAT ERROR —   |   BPH —",
             WaveformCompareLogic.HeaderLine(new BeatMetricsHistorySnapshot()));
     }
 
@@ -76,7 +76,7 @@ public sealed class WaveformCompareLogicTests
     public void LaneLabel_AmplitudeUsesTheConfiguredLiftAngleNotTheSampleMagnitude()
     {
         // Amplitude uses the canonical escapement formula WatchMetrics.Amplitude
-        // (lift / sin), shared with every other readout. λ=52°, n=18000 bph,
+        // (lift / sin), shared with every other readout. λ=52°, n=18000 BPH,
         // t_AC = 147.5-5.0 = 142.5 ms => 52 / sin(2π·0.1425/0.4) ≈ 66.2°.
         Assert.Equal(
             "TIC\nA to C: +142.5 ms\nAmplitude: 66.2°",
@@ -104,7 +104,7 @@ public sealed class WaveformCompareLogicTests
         // A C peak near the half-oscillation period drives the canonical amplitude
         // toward its sin zero-crossing (>= 360 deg / non-finite), which the canonical
         // readout suppresses as missing. The lane label matches by showing the dash
-        // rather than a garbage number. bph=28800 -> half period 125 ms; t_AC=125 ms.
+        // rather than a garbage number. BPH=28800 -> half period 125 ms; t_AC=125 ms.
         Assert.Equal(
             "TIC\nA to C: +125.0 ms\nAmplitude: —",
             WaveformCompareLogic.LaneLabel(

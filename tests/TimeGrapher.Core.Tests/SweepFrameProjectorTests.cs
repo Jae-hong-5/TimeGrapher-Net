@@ -6,7 +6,7 @@ using Xunit;
 namespace TimeGrapher.Core.Tests;
 
 /// <summary>
-/// Scope Mode sweep folding: on-period impulses land in the same bins on every
+/// Sweep folding: on-period impulses land in the same bins on every
 /// sweep pass (visually stable pattern), off-period impulses move the peak bin
 /// (drift), and a sweep-multiple change re-tunes the window and clears the bins.
 /// </summary>
@@ -79,7 +79,7 @@ public sealed class SweepFrameProjectorTests
         Assert.Equal(windowMsBefore, afterDropout.X[^1], 9); // window unchanged
         Assert.Contains(afterDropout.Y, v => v > 0.5);       // pattern preserved
 
-        // Re-lock at the same bph: still no clear. The probe sample sits mid-window
+        // Re-lock at the same BPH: still no clear. The probe sample sits mid-window
         // so its per-pass overwrite touches an empty bin, not the stored pattern.
         projector.Project(Update(
             ImpulseBlock(1, 0.0f), (ulong)windowSamples + 9600,
@@ -91,7 +91,7 @@ public sealed class SweepFrameProjectorTests
     public void ReLockAtADifferentBphRetunesAndClearsExactlyOnce()
     {
         // The other half of the dropout-latch contract: latching must not make
-        // the window over-sticky. Lock at 18000 bph (0.2 s beat, 2x window =
+        // the window over-sticky. Lock at 18000 BPH (0.2 s beat, 2x window =
         // 19200 samples) and paint a pattern.
         const int window18000 = 19200;
         var projector = new SweepFrameProjector(SampleRate);
@@ -100,7 +100,7 @@ public sealed class SweepFrameProjectorTests
             measuredPeriodS: 0.2, detectedBph: 18000));
         Assert.Equal(1.0, Snapshot(projector).Y[0]);
 
-        // Dropout, then a genuine re-lock at 21600 bph (1/6 s beat, 2x window
+        // Dropout, then a genuine re-lock at 21600 BPH (1/6 s beat, 2x window
         // = 16000 samples): past the 1% latch tolerance, so the window
         // re-tunes and the bins clear - once.
         projector.Project(Update(

@@ -47,7 +47,7 @@ internal sealed partial class InfoTabRegistry
             [InfoTabKind.BeatErrorDiag] = CreateBeatErrorDiagRegistration,
             [InfoTabKind.MultiFilterScope] = CreateMultiFilterScopeRegistration,
             [InfoTabKind.LongTermPerformance] = CreateLongTermPerfRegistration,
-            [InfoTabKind.TestPositions] = CreateTestPositionsRegistration,
+            [InfoTabKind.WatchPositions] = CreateWatchPositionsRegistration,
             [InfoTabKind.BeatNoiseScope] = CreateBeatNoiseScopeRegistration,
             [InfoTabKind.EscapementAnalyzer] = CreateEscapementAnalyzerRegistration,
             [InfoTabKind.WaveformCompare] = CreateWaveformCompareRegistration,
@@ -185,7 +185,7 @@ internal sealed partial class InfoTabRegistry
         grid.Children.Add(ratePlot);
         grid.Children.Add(scopePlot);
 
-        // "Waiting for beat sync" overlay sits over the rate-error plot (the scope
+        // "Waiting for beat sync" overlay sits over the ERROR RATE plot (the scope
         // below already shows the live waveform before sync).
         if (CreateWaitingOverlay(context.ViewModel) is { } overlay)
         {
@@ -244,7 +244,7 @@ internal sealed partial class InfoTabRegistry
             Opacity = 0.65,
             Margin = new Thickness(8, 0, 8, 3),
             TextWrapping = Avalonia.Media.TextWrapping.Wrap,
-            Text = "Rate: above 0 = gaining, below 0 = losing; flat = stable. " +
+            Text = "ERROR RATE: above 0 = gaining, below 0 = losing; flat = stable. " +
                    "Amplitude: shaded band marks the healthy 270–300° range.",
         };
 
@@ -456,7 +456,7 @@ internal sealed partial class InfoTabRegistry
         var summaryColumns = new Grid { ColumnDefinitions = new ColumnDefinitions("*,*,160") };
         Control[] summaryCells =
         {
-            SummaryColumn("RATE", rateStatus),
+            SummaryColumn("ERROR RATE", rateStatus),
             SummaryColumn("Amplitude", amplitudeStatus),
             elapsedColumn,
         };
@@ -619,7 +619,7 @@ internal sealed partial class InfoTabRegistry
             Margin = new Thickness(16, 0, 16, 6),
         };
 
-        Grid rateHeader = GaugeHeader("RATE (s/d)", "Acceptable band -10 to +10 s/d", out Border rateBandBadge);
+        Grid rateHeader = GaugeHeader("ERROR RATE (s/d)", "Acceptable band -10 to +10 s/d", out Border rateBandBadge);
         Grid amplitudeHeader = GaugeHeader("Amplitude(°)", "Acceptable band 270 to 300°", out Border amplitudeBandBadge);
         Border rateReadout = BuildReadoutStrip(rateCells);
         Border amplitudeReadout = BuildReadoutStrip(amplitudeCells);
@@ -694,7 +694,7 @@ internal sealed partial class InfoTabRegistry
             MaxWidth = 320,
             Margin = new Thickness(0, 2, 0, 0),
         });
-        panel.Children.Add(Title("Rate (s/d)"));
+        panel.Children.Add(Title("ERROR RATE (s/d)"));
         panel.Children.Add(Rule($"Stable · in range: average within ±{band:0} s/d and σ ≤ {sigma:0}", "VarioGoodBrush"));
         panel.Children.Add(Rule($"In range · unstable: average within ±{band:0} s/d but σ > {sigma:0}", "VarioWarnBrush"));
         panel.Children.Add(Rule($"Fast / Slow · out of range: average beyond ±{band:0} s/d", "VarioBadBrush"));
@@ -714,7 +714,7 @@ internal sealed partial class InfoTabRegistry
         Border alertBanner = CreateAlertBanner(out TextBlock alertText);
 
 
-        // Numeric panel: label/value cells for the plan readings (rate,
+        // Numeric panel: label/value cells for the plan readings (error rate,
         // amplitude, beat error, BPH) on the top row and the derived
         // DiffTicTac / DiffPeriod / AvgPeriod measures on the bottom row.
         var valueTexts = new TextBlock[BeatErrorReadout.Labels.Length];
@@ -847,7 +847,7 @@ internal sealed partial class InfoTabRegistry
         };
 
         var verdictText = SummaryValue("COLLECTING", 14);
-        var rateText = SummaryValue("RATE —");
+        var rateText = SummaryValue("ERROR RATE —");
         var amplitudeText = SummaryValue("Amplitude —");
         var beatErrorText = SummaryValue("BEAT ERROR —");
 
@@ -978,7 +978,7 @@ internal sealed partial class InfoTabRegistry
         return new InfoTabRegistration(definition, CreateTabItem(definition, grid), consumer);
     }
 
-    private static InfoTabRegistration CreateTestPositionsRegistration(
+    private static InfoTabRegistration CreateWatchPositionsRegistration(
         InfoTabDefinition definition,
         InfoTabFactoryContext context)
     {
@@ -1030,7 +1030,7 @@ internal sealed partial class InfoTabRegistry
             VerticalAlignment = VerticalAlignment.Top,
         };
         ToolTip.SetTip(diagram, "Active watch position orientation");
-        var positionRenderer = new TestPositionsRenderer(buttons, diagram, initialPosition);
+        var positionRenderer = new WatchPositionsRenderer(buttons, diagram, initialPosition);
 
         for (int i = 0; i < buttons.Length; i++)
         {
@@ -1125,7 +1125,7 @@ internal sealed partial class InfoTabRegistry
             alertText,
             dashboardControls,
             initialPosition);
-        var consumer = new TestPositionsFrameConsumer(positionRenderer, sequenceRenderer);
+        var consumer = new WatchPositionsFrameConsumer(positionRenderer, sequenceRenderer);
         return new InfoTabRegistration(definition, CreateTabItem(definition, sequenceGrid), consumer);
     }
 
@@ -1332,7 +1332,7 @@ internal sealed partial class InfoTabRegistry
         Border spreadGroup = CreatePositionResultGroup(
             "D SPREAD",
             "Worst - best across positions.",
-            ("RATE", spreadRateText),
+            ("ERROR RATE", spreadRateText),
             ("Amplitude", spreadAmplitudeText));
         Border vhGroup = CreatePositionResultGroup(
             "V/H BALANCE",
@@ -1343,7 +1343,7 @@ internal sealed partial class InfoTabRegistry
         Border averageGroup = CreatePositionResultGroup(
             "X AVERAGE",
             "Mean of measured positions.",
-            ("RATE", averageRateText),
+            ("ERROR RATE", averageRateText),
             ("Amplitude", averageAmplitudeText));
         spreadGroup.Classes.Add("primary");
         vhGroup.Classes.Add("primary");
@@ -1759,7 +1759,7 @@ internal sealed partial class InfoTabRegistry
         InfoTabDefinition definition,
         InfoTabFactoryContext context)
     {
-        // Header numeric line (rate / beat error / BPH) above one plot that
+        // Header numeric line (error rate / beat error / BPH) above one plot that
         // stacks the recent beats in A-aligned, peak-normalized lanes, and a
         // one-line legend for the guide markers below.
         var headerText = new TextBlock

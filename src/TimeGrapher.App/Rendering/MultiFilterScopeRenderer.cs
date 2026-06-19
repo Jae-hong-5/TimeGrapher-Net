@@ -10,7 +10,7 @@ using TimeGrapher.Core.Shared;
 namespace TimeGrapher.App.Rendering;
 
 /// <summary>
-/// Multi-Filter Scope: four vertically stacked views (F0..F3, one lane per
+/// Filter Scope: four vertically stacked views (F0..F3, one lane per
 /// <see cref="MultiFilterScopeLanes"/> entry) of the same signal, refilled in
 /// place by series id from the frame's Core-decimated replace snapshots so the
 /// four filters are easy to switch between and compare. Each plot windows its

@@ -43,7 +43,7 @@
         <dt>① <span class="ko">왼쪽 패널</span><span class="en">Left panel</span></dt>
         <dd><span class="ko">입력·시계·시뮬레이션·기타 파라미터를 설정하고 측정을 시작/일시정지합니다. → <a href="controls.html">자세히</a></span><span class="en">Set input / watch / simulation / misc parameters and start/pause the measurement. → <a href="controls.html">details</a></span></dd>
         <dt>② <span class="ko">포지션 스트립</span><span class="en">Position strip</span></dt>
-        <dd><span class="ko">시계를 놓은 자세(12시·3시·6시·9시 등)를 고릅니다. <a href="graphs/positions.html">Positions</a> 그래프와 연동됩니다.</span><span class="en">Pick the watch's test position (dial up, 3 o'clock down, etc.). Tied to the <a href="graphs/positions.html">Positions</a> graph.</span></dd>
+        <dd><span class="ko">시계를 놓은 자세(12시·3시·6시·9시 등)를 고릅니다. <a href="graphs/positions.html">Positions</a> 그래프와 연동됩니다.</span><span class="en">Pick the watch position (dial up, 3 o'clock down, etc.). Tied to the <a href="graphs/positions.html">Positions</a> graph.</span></dd>
         <dt>③ <span class="ko">그래프 탭</span><span class="en">Graph tabs</span></dt>
         <dd><span class="ko">13개 분석 그래프를 탭으로 전환하며 봅니다. 아래 목록 참고.</span><span class="en">13 analysis graphs, switched by tab. See the list below.</span></dd>
       </dl>
@@ -54,7 +54,7 @@
           <ul>
             <li><span class="pill">Live</span> <span class="ko">마이크로 실제 시계 소리를 듣습니다.</span><span class="en">Listen to a real watch through the microphone.</span></li>
             <li><span class="pill">Playback</span> <span class="ko">미리 녹음된 WAV 파일을 재생합니다(<code>sample/</code> 폴더에 예제 9개 제공).</span><span class="en">Play a recorded WAV (9 examples ship in <code>sample/</code>).</span></li>
-            <li><span class="pill">Sim</span> <span class="ko">마이크 없이 합성 신호를 만들어 동작을 시험합니다(데모·연습용).</span><span class="en">Generate a synthetic signal — no mic needed (demo/practice).</span></li>
+            <li><span class="pill">Simulation</span> <span class="ko">마이크 없이 합성 신호를 만들어 동작을 시험합니다(데모·연습용).</span><span class="en">Generate a synthetic signal — no mic needed (demo/practice).</span></li>
           </ul>
         </li>
         <li><span class="ko"><b>시계 파라미터를 맞춥니다.</b> <code>BPH</code>(시간당 진동수)와 <code>Lift Angle</code>(리프트각)을 측정할 시계에 맞게 설정합니다. → <a href="controls.html#watch">Watch Parameters</a></span><span class="en"><b>Set the watch parameters</b> — <code>BPH</code> and <code>Lift Angle</code> to match the movement. → <a href="controls.html#watch">Watch Parameters</a></span></li>
@@ -63,23 +63,23 @@
       </ol>
 
       <div class="tip">
-        <p class="ko"><b>처음이라면</b> — <span class="pill">Sim</span> 입력으로 <b>Realistic</b> 옵션을 켜고 ▶를 누르면, 실제 시계 없이도 모든 그래프가 살아 움직이는 모습을 볼 수 있습니다. 매뉴얼을 따라가며 익히기에 좋습니다.</p>
-        <p class="en"><b>New here?</b> Pick the <span class="pill">Sim</span> input, tick <b>Realistic</b>, and press ▶ — every graph comes alive without a physical watch. Ideal for learning alongside this manual.</p>
+        <p class="ko"><b>처음이라면</b> — <span class="pill">Simulation</span> 입력으로 <b>Realistic</b> 옵션을 켜고 ▶를 누르면, 실제 시계 없이도 모든 그래프가 살아 움직이는 모습을 볼 수 있습니다. 매뉴얼을 따라가며 익히기에 좋습니다.</p>
+        <p class="en"><b>New here?</b> Pick the <span class="pill">Simulation</span> input, tick <b>Realistic</b>, and press ▶ — every graph comes alive without a physical watch. Ideal for learning alongside this manual.</p>
       </div>
 
       <h2 id="graphs"><span class="ko">그래프 목록</span><span class="sep"> · </span><span class="en">The 13 graphs</span></h2>
       <p class="ko">각 카드를 눌러 그래프별 <b>용도 · 보는 방법 · 옵션</b> 설명으로 이동합니다.</p>
       <p class="en">Click a card for each graph's <b>purpose · how to read · options</b>.</p>
       <div class="grid">
-        <a class="tile" href="graphs/rate-scope.html"><span class="n">1</span> <span class="t">Rate/Scope</span><div class="d ko">파형 + 비트별 레이트 오차</div><div class="d en">Waveform + per-beat rate error</div></a>
+        <a class="tile" href="graphs/rate-scope.html"><span class="n">1</span> <span class="t">ERROR RATE/Scope</span><div class="d ko">파형 + 비트별 ERROR RATE</div><div class="d en">Waveform + per-beat ERROR RATE</div></a>
         <a class="tile" href="graphs/sound-print.html"><span class="n">2</span> <span class="t">Sound Print</span><div class="d ko">소리의 시각적 지문</div><div class="d en">Visual acoustic fingerprint</div></a>
-        <a class="tile" href="graphs/trace.html"><span class="n">3</span> <span class="t">Trace</span><div class="d ko">레이트·진폭의 시간 추이</div><div class="d en">Rate & amplitude over time</div></a>
+        <a class="tile" href="graphs/trace.html"><span class="n">3</span> <span class="t">Trace</span><div class="d ko">ERROR RATE·진폭의 시간 추이</div><div class="d en">ERROR RATE & amplitude over time</div></a>
         <a class="tile" href="graphs/sweep.html"><span class="n">4</span> <span class="t">Sweep</span><div class="d ko">한 비트 접은 파형</div><div class="d en">Folded single-beat envelope</div></a>
-        <a class="tile" href="graphs/vario.html"><span class="n">5</span> <span class="t">Vario</span><div class="d ko">레이트·진폭 안정도 게이지</div><div class="d en">Rate/amplitude stability gauges</div></a>
+        <a class="tile" href="graphs/vario.html"><span class="n">5</span> <span class="t">Vario</span><div class="d ko">ERROR RATE·진폭 안정도 게이지</div><div class="d en">ERROR RATE/amplitude stability gauges</div></a>
         <a class="tile" href="graphs/beat-error.html"><span class="n">6</span> <span class="t">Beat Error</span><div class="d ko">똑/딱 비대칭·드리프트 진단</div><div class="d en">Tic/toc asymmetry & drift</div></a>
         <a class="tile" href="graphs/filter-scope.html"><span class="n">7</span> <span class="t">Filter Scope</span><div class="d ko">4단 필터 파형 비교</div><div class="d en">Four filtered waveform lanes</div></a>
         <a class="tile" href="graphs/long-term.html"><span class="n">8</span> <span class="t">Long-Term</span><div class="d ko">장시간 레이트·진폭·오차 추세</div><div class="d en">Long-run trend (rate/amplitude/BE)</div></a>
-        <a class="tile" href="graphs/positions.html"><span class="n">9</span> <span class="t">Positions</span><div class="d ko">6개 자세별 측정 비교</div><div class="d en">Per-position comparison</div></a>
+        <a class="tile" href="graphs/positions.html"><span class="n">9</span> <span class="t">Positions</span><div class="d ko">워치 위치별 측정 비교</div><div class="d en">Per-position comparison</div></a>
         <a class="tile" href="graphs/beat-noise.html"><span class="n">10</span> <span class="t">Beat Noise</span><div class="d ko">비트 엔벨로프 상세·평균</div><div class="d en">Beat envelope detail & average</div></a>
         <a class="tile" href="graphs/escapement.html"><span class="n">11</span> <span class="t">Escapement</span><div class="d ko">비트 내부 타이밍 정밀도</div><div class="d en">Intra-beat timing precision</div></a>
         <a class="tile" href="graphs/waveforms.html"><span class="n">12</span> <span class="t">Waveforms</span><div class="d ko">똑/딱 쌍 파형 비교</div><div class="d en">Tic/toc pair comparison</div></a>
@@ -90,8 +90,8 @@
       <table>
         <thead><tr><th><span class="ko">용어</span><span class="sep"> · </span><span class="en">Term</span></th><th><span class="ko">설명</span><span class="sep"> · </span><span class="en">Meaning</span></th></tr></thead>
         <tbody>
-          <tr><td><b>BPH</b></td><td><span class="ko">시간당 진동수(beats per hour). 탈진기 박자. 예: 21600, 28800.</span><span class="en">Beats per hour — the escapement's tick rate (e.g. 21600, 28800).</span></td></tr>
-          <tr><td><b>Rate (s/d)</b></td><td><span class="ko">하루에 빠르거나(+) 느린(−) 초. 0에 가까울수록 정확.</span><span class="en">Seconds per day gained (+) or lost (−). Closer to 0 is more accurate.</span></td></tr>
+          <tr><td><b>BPH</b></td><td><span class="ko">시간당 진동수(BPH). 탈진기 박자. 예: 21600, 28800.</span><span class="en">BPH — the escapement's tick rate (e.g. 21600, 28800).</span></td></tr>
+          <tr><td><b>ERROR RATE (s/d)</b></td><td><span class="ko">하루에 빠르거나(+) 느린(−) 초. 0에 가까울수록 정확.</span><span class="en">Seconds per day gained (+) or lost (−). Closer to 0 is more accurate.</span></td></tr>
           <tr><td><b>Amplitude(°)</b></td><td><span class="ko">밸런스 휠의 진폭(흔들림 각도). 보통 270–300°가 건강한 범위.</span><span class="en">Balance-wheel swing in degrees; 270–300° is a typical healthy range.</span></td></tr>
           <tr><td><b>Beat error (ms)</b></td><td><span class="ko">똑과 딱 간격의 비대칭(ms). 0에 가까울수록 좋음.</span><span class="en">Tic/toc spacing asymmetry in milliseconds; closer to 0 is better.</span></td></tr>
           <tr><td><b>Tic / Toc</b></td><td><span class="ko">교대로 나는 두 충격음(똑·딱).</span><span class="en">The two alternating escapement impulses.</span> <span class="pill tic">tic</span> <span class="pill toc">toc</span></td></tr>

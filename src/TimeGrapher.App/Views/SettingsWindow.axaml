@@ -48,7 +48,7 @@
                  Classes="SectionHeader"
                  HorizontalAlignment="Left" />
       <CheckBox Name="UseConsetCheckBox"
-                Content="C Event Use Onset Timing"
+                Content="Use C-onset timing"
                 FontWeight="Bold"
                 HorizontalAlignment="Left"
                 IsEnabled="{Binding AreRunParametersEnabled}"

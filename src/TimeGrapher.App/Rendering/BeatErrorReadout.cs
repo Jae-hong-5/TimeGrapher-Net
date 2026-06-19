@@ -16,7 +16,7 @@ internal static class BeatErrorReadout
     /// <summary>Panel labels; <see cref="Values"/> returns matching positions.</summary>
     public static readonly string[] Labels =
     {
-        "RATE", "Amplitude", "BEAT ERROR", "BPH",
+        "ERROR RATE", "Amplitude", "BEAT ERROR", "BPH",
         "DIFF TIC-TAC", "DIFF PERIOD", "AVG PERIOD",
     };
 
@@ -29,7 +29,7 @@ internal static class BeatErrorReadout
             VarioReadout.Format(snapshot.RateValid ? snapshot.RateSPerDay : null, "+0.0;-0.0;0.0", " s/d"),
             VarioReadout.Format(snapshot.AmplitudeValid ? snapshot.AmplitudeDeg : null, "0", "°"),
             VarioReadout.Format(snapshot.BeatErrorValid ? snapshot.BeatErrorSignedMs : null, SignedMsFormat, " ms"),
-            VarioReadout.Format(snapshot.Bph > 0 ? snapshot.Bph : (double?)null, "0", " bph"),
+            VarioReadout.Format(snapshot.Bph > 0 ? snapshot.Bph : (double?)null, "0", ""),
             VarioReadout.Format(derived.DiffTicTacValid ? derived.DiffTicTacMs : null, SignedMsFormat, " ms"),
             VarioReadout.Format(derived.DiffPeriodValid ? derived.DiffPeriodMs : null, SignedMsFormat, " ms"),
             VarioReadout.Format(derived.AvgPeriodValid ? derived.AvgPeriodMs : null, SignedMsFormat, " ms"),

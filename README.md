@@ -56,7 +56,7 @@ Assumes a clean machine with nothing installed. Follow the steps for your OS.
 
    ```powershell
    dotnet run --project src/TimeGrapher.App                                   # launch the GUI
-   dotnet run --project src/TimeGrapher.Verify -c Release -- --generated --byte-fixtures   # headless: detection accuracy only
+   dotnet run --project src/TimeGrapher.Verify -c Release -- --generated --byte-fixtures   # headless: generated and byte-built detection checks
    ```
 
 #### Raspberry Pi 5 (ARM64)
@@ -123,10 +123,10 @@ Build on a dev PC (one prepared via the Windows steps above) and copy only the o
 ## Features
 
 - Detects tick/tock to lock the beat (BPH) automatically or manually, and stays in sync via phase tracking.
-- Analysis display tabs from the current app catalog: **Rate/Scope**, **Sound Print**, **Trace**, **Sweep**, **Vario**, **Beat Error**, **Filter Scope**, **Long-Term**, **Positions**, **Beat Noise**, **Escapement**, **Waveforms**, and **Spectrogram**.
+- Analysis display tabs from the current app catalog: **ERROR RATE/Scope**, **Sound Print**, **Trace**, **Sweep**, **Vario**, **Beat Error**, **Filter Scope**, **Long-Term**, **Positions**, **Beat Noise**, **Escapement**, **Waveforms**, and **Spectrogram**.
 - The **Positions** tab combines compact position-selection buttons on the left with per-position sequence measurements on the right.
-- Three inputs: **Live** (mic), **Playback** (WAV file), **Sim** (synthetic signal).
-- Optionally records the input to WAV while analyzing (offered for Live and Sim runs; Playback only replays an existing file).
+- Three inputs: **Live** (mic), **Playback** (WAV file), **Simulation** (synthetic signal).
+- Optionally records the input to WAV while analyzing (offered for Live and Simulation runs; Playback only replays an existing file).
 - A console mode to check detection accuracy and audio devices headlessly.
 
 ## Why Avalonia / .NET
@@ -191,7 +191,7 @@ The flow from sound to screen:
 flowchart LR
     A["Audio input<br/>mic · WAV · synth"] --> B["Buffer"]
     B --> C["Detect<br/>find tick/tock"]
-    C --> D["Measure<br/>BPH · error · amplitude"]
+    C --> D["Measure<br/>BPH · ERROR RATE · amplitude"]
     D --> E["Graph / image<br/>render"]
     E --> F["Display"]
 ```
@@ -200,7 +200,7 @@ flowchart LR
 
 ### Input worker contract
 
-All three inputs (Live · Playback · Sim) implement the shared `IAudioInputWorker` (pause · stop ·
+All three inputs (Live · Playback · Simulation) implement the shared `IAudioInputWorker` (pause · stop ·
 data-ready). Only mic input adds device selection, volume, and capture-end via `ILiveAudioWorker`.
 Core only needs to know this small contract, so per-OS backends drop in freely.
 
@@ -327,7 +327,7 @@ git tag v0.1.0 && git push origin v0.1.0
 |---|---|---|
 | Build | `dotnet build TimeGrapherNet.sln -c Release` | ✅ |
 | Test | `dotnet test TimeGrapherNet.sln -c Release` (700/700) | ✅ |
-| Detection check | `... TimeGrapher.Verify -- --generated --byte-fixtures` (exit 0) | ✅ |
+| Detection check | `... TimeGrapher.Verify -- --generated --byte-fixtures` (exit 0, generated and byte-built fixtures) | ✅ |
 | GUI run | `dotnet run --project src/TimeGrapher.App` | ✅ |
 | Deploy — Raspberry Pi (linux-arm64) | `dotnet publish ... -r linux-arm64 --self-contained true` | ✅ |
 | Deploy — Linux x64 | `dotnet publish ... -r linux-x64 --self-contained true` | ✅ |

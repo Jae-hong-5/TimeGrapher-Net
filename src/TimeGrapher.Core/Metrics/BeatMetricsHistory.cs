@@ -76,7 +76,7 @@ public sealed class BeatMetricsHistory
     }
 
     /// <summary>
-    /// Tags subsequent measurements with the given test position. Analysis-thread
+    /// Tags subsequent measurements with the given watch position. Analysis-thread
     /// only (the UI request travels through the projector's volatile knob); a
     /// change re-stamps the next snapshot.
     /// </summary>

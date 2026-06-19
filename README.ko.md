@@ -55,7 +55,7 @@
 
    ```powershell
    dotnet run --project src/TimeGrapher.App                                   # GUI 실행
-   dotnet run --project src/TimeGrapher.Verify -c Release -- --generated --byte-fixtures   # 화면 없이 검출 정확도만 확인
+   dotnet run --project src/TimeGrapher.Verify -c Release -- --generated --byte-fixtures   # 화면 없이 생성/byte-built fixture 검출 확인
    ```
 
 #### 라즈베리파이 5 (ARM64)
@@ -120,10 +120,10 @@
 ## 주요 기능
 
 - 똑/딱 소리를 검출해 박자(BPH)를 자동·수동으로 잡고, 위상 추적으로 동기를 유지.
-- 현재 앱 카탈로그 기준 분석 표시 탭: **Rate/Scope**, **Sound Print**, **Trace**, **Sweep**, **Vario**, **Beat Error**, **Filter Scope**, **Long-Term**, **Positions**, **Beat Noise**, **Escapement**, **Waveforms**, **Spectrogram**.
+- 현재 앱 카탈로그 기준 분석 표시 탭: **ERROR RATE/Scope**, **Sound Print**, **Trace**, **Sweep**, **Vario**, **Beat Error**, **Filter Scope**, **Long-Term**, **Positions**, **Beat Noise**, **Escapement**, **Waveforms**, **Spectrogram**.
 - **Positions** 탭은 왼쪽에 작은 포지션 선택 버튼, 오른쪽에 포지션별 시퀀스 측정값을 함께 보여줍니다.
-- 입력 3종: **Live**(마이크), **Playback**(WAV 파일 재생), **Sim**(합성 신호).
-- 분석과 동시에 입력을 WAV로 녹음할 수 있습니다(Live·Sim 실행에서 선택 제공; Playback은 기존 파일을 재생만 함).
+- 입력 3종: **Live**(마이크), **Playback**(WAV 파일 재생), **Simulation**(합성 신호).
+- 분석과 동시에 입력을 WAV로 녹음할 수 있습니다(Live·Simulation 실행에서 선택 제공; Playback은 기존 파일을 재생만 함).
 - 화면 없이 검출 정확도·오디오 장치를 점검하는 콘솔 모드.
 
 ## 왜 Avalonia / .NET 인가
@@ -187,7 +187,7 @@ graph TD
 flowchart LR
     A["오디오 입력<br/>마이크·WAV·합성"] --> B["버퍼"]
     B --> C["검출<br/>똑/딱 찾기"]
-    C --> D["측정<br/>BPH·오차·진폭"]
+    C --> D["측정<br/>BPH·ERROR RATE·진폭"]
     D --> E["그래프·이미지<br/>생성"]
     E --> F["화면 표시"]
 ```
@@ -196,7 +196,7 @@ flowchart LR
 
 ### 입력 워커 계약
 
-세 가지 입력(Live·Playback·Sim)은 공통 `IAudioInputWorker`(일시정지·정지·데이터 준비)를
+세 가지 입력(Live·Playback·Simulation)은 공통 `IAudioInputWorker`(일시정지·정지·데이터 준비)를
 구현합니다. 마이크 입력만 `ILiveAudioWorker`로 장치 선택·볼륨·캡처 종료를 더합니다. Core는 이
 작은 계약만 알면 되므로, OS별 백엔드를 자유롭게 끼울 수 있습니다.
 
@@ -318,7 +318,7 @@ git tag v0.1.0 && git push origin v0.1.0
 |---|---|---|
 | 빌드 | `dotnet build TimeGrapherNet.sln -c Release` | ✅ |
 | 테스트 | `dotnet test TimeGrapherNet.sln -c Release` (700/700) | ✅ |
-| 검출 검증 | `... TimeGrapher.Verify -- --generated --byte-fixtures` (exit 0) | ✅ |
+| 검출 검증 | `... TimeGrapher.Verify -- --generated --byte-fixtures` (exit 0, 생성 및 byte-built fixtures) | ✅ |
 | GUI 실행 | `dotnet run --project src/TimeGrapher.App` | ✅ |
 | 배포 — 라즈베리파이 (linux-arm64) | `dotnet publish ... -r linux-arm64 --self-contained true` | ✅ |
 | 배포 — Linux x64 | `dotnet publish ... -r linux-x64 --self-contained true` | ✅ |

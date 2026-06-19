@@ -28,7 +28,7 @@ public struct WatchMetricsConfig
 }
 
 /// <summary>
-/// Port of WatchMetrics (WatchMetrics.h/.cpp): computes rate error, beat error and
+/// Port of WatchMetrics (WatchMetrics.h/.cpp): computes ERROR RATE, beat error and
 /// amplitude from detected A/C tick events and formats the result/marker text.
 /// </summary>
 public sealed class WatchMetrics
@@ -393,7 +393,7 @@ public sealed class WatchMetrics
                 // the expected-time schedule, so leaving it behind sign-inverts
                 // every signed beat error / DiffTicTac after an odd-length gap
                 // (and mispairs the amplitude average), while every gap shifts
-                // the rate-error baseline by a full beat per missed beat.
+                // the ERROR RATE baseline by a full beat per missed beat.
                 _ticTocBeatNumber += skippedBeats;
                 gapDetected = true;
             }
@@ -455,7 +455,7 @@ public sealed class WatchMetrics
                 // A window interval spanning a detection gap (or a spurious extra
                 // event) is not a tick/tock duration; a single missed beat would
                 // otherwise inject a half-beat-sized fake error (~62.5 ms at
-                // 28800 bph) into the cumulative history and position statistics.
+                // 28800 BPH) into the cumulative history and position statistics.
                 // Same half-beat criterion as AccumulatePeriodDelta; the signed
                 // values stay invalid until the next clean window (two beats).
                 _diffTicTacValid = false;
@@ -546,7 +546,7 @@ public sealed class WatchMetrics
     /// Pure formatter for the title-bar readout. Each field is fixed-width so the line never
     /// shifts as values change; present numeric values are wrapped in value-span markers (so
     /// the UI can accent only the numbers) while dash placeholders are left unmarked. Widths:
-    /// rate 6 ("-999.9"), amplitude 3 + constant degree sign, beat error 4 ("-9.9"), bph 5.
+    /// ERROR RATE 6 ("-999.9"), amplitude 3 + constant degree sign, beat error 4 ("-9.9"), BPH 5.
     /// </summary>
     internal static string BuildResults(
         bool bphValid, int bph,
@@ -561,7 +561,7 @@ public sealed class WatchMetrics
         string amplitudeText = amplitudeValid ? Mark(ArgLong(QRound64(amplitude), 3)) : "---";
 
         return "ERROR RATE " + rateError + " s/d | Amplitude " + amplitudeText + "°" +
-               " | BEAT ERROR " + beatErrorText + " ms | BEAT " + beatsPerHour + " bph";
+               " | BEAT ERROR " + beatErrorText + " ms | BPH " + beatsPerHour;
     }
 
     // MainWindow::WrapInToRange: fmod into the range, adding the range size

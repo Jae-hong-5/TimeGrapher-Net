@@ -25,7 +25,7 @@ internal enum SpectrogramViewMode
 /// </summary>
 internal sealed class SpectrogramRenderer
 {
-    /// <summary>Beat period assumed before the detector locks (28800 bph), for Last Beat.</summary>
+    /// <summary>Beat period assumed before the detector locks (28800 BPH), for Last Beat.</summary>
     private const double FallbackBeatPeriodS = 0.125;
 
     private readonly Image _spectrogramImage;

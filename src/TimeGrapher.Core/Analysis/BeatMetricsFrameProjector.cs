@@ -22,7 +22,7 @@ public sealed class BeatMetricsFrameProjector
     private int _positionAggregateResetRequested;
 
     /// <summary>
-    /// Requests the watch test position subsequent beats are tagged with.
+    /// Requests the watch position subsequent beats are tagged with.
     /// Thread-safe; applied on the analysis thread before the next events are
     /// recorded, so a beat is never tagged with a half-applied position.
     /// </summary>

@@ -52,10 +52,10 @@ public static class AnalysisGraphSeries
     public const string ScopeThreshold = "scope.threshold";
     public const string RateTic = "rate.tic";
     public const string RateToc = "rate.toc";
-    /// <summary>Scope Mode sweep window envelope (x = ms within the sweep window).</summary>
+    /// <summary>Sweep window envelope (x = ms within the sweep window).</summary>
     public const string SweepTrace = "sweep.trace";
     /// <summary>
-    /// Multi-Filter Scope views F0..F3 (x = absolute raw-sample ticks on the
+    /// Filter Scope views F0..F3 (x = absolute raw-sample ticks on the
     /// MultiFilterFrameProjector's own counter, not GraphTickEnd).
     /// </summary>
     public const string FilterF0 = "filter.f0";
@@ -203,7 +203,7 @@ public sealed class AnalysisFrame
     public BeatMetricsHistorySnapshot? MetricsHistory;
 
     /// <summary>
-    /// Recent per-beat envelope segments (Beat-Noise Scope; shared infrastructure
+    /// Recent per-beat envelope segments (Beat Noise; shared infrastructure
     /// for beat-aligned waveform views). Cumulative ring snapshot for the same
     /// reason as <see cref="MetricsHistory"/>: latest-wins frame coalescing must
     /// lose nothing.

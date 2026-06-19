@@ -424,7 +424,7 @@ static IEnumerable<string> GenerateByteBuiltFixtures(Dictionary<string, Generate
     {
         string path = Path.Combine(dir, string.Format(
             CultureInfo.InvariantCulture,
-            "{0}BPH_{1}_{2}Hz_bytefixture.wav",
+            "{0}BPH_{1}_{2}Hz_byte-fixture.wav",
             bph,
             name,
             sampleRate));

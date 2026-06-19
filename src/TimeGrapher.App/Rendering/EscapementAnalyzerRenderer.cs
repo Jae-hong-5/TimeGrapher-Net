@@ -10,7 +10,7 @@ namespace TimeGrapher.App.Rendering;
 
 /// <summary>
 /// Escapement Analyzer and Marker-Line Display, rendered from the cumulative
-/// BeatSegmentsSnapshot the frame carries (the Beat-Noise Scope's segment
+/// BeatSegmentsSnapshot the frame carries (the Beat Noise's segment
 /// infrastructure reused for fine-grained intra-beat timing).
 ///
 /// One large plot shows the latest beat's real raw waveform — the un-rectified

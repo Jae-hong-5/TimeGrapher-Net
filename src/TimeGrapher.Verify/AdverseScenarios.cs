@@ -318,7 +318,7 @@ internal static class AdverseScenarios
     private static string Format(RowResult r)
     {
         return string.Format(CultureInfo.InvariantCulture,
-            "ADV {0}: profile={1} sync={2} bph={3} recall={4:F3} precision={5:F3} " +
+            "ADV {0}: profile={1} sync={2} BPH={3} recall={4:F3} precision={5:F3} " +
             "a_bias_ms={6:F3} a_rms_ms={7:F3} missed={8} sync_losses={9} resets={10} vetoed={11} verdict={12}",
             r.Name, r.Profile, r.SyncStatus, r.DetectedBph, r.Score.Recall, r.Score.Precision,
             r.Score.MedianOffsetMs, r.Score.RmsAfterOffsetMs,

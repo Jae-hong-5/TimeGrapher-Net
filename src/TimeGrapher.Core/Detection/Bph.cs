@@ -1,4 +1,4 @@
-/* Bph.cs -- BPH (beats-per-hour) detection and sync tracking.
+/* Bph.cs -- BPH detection and sync tracking.
  * Port of Bph.h / Bph.cpp.
  *
  * Three concerns:

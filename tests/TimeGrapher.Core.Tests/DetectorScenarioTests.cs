@@ -10,7 +10,7 @@ namespace TimeGrapher.Core.Tests;
 
 /// <summary>
 /// End-to-end behavioral scenarios over the detector + metrics pipeline driven by the
-/// deterministic synthetic watch stream: rate-error direction, beat-error reflection,
+/// deterministic synthetic watch stream: ERROR RATE direction, beat-error reflection,
 /// manual-BPH mismatch, and the time-based sync-loss watchdog.
 /// </summary>
 public sealed class DetectorScenarioTests
@@ -196,7 +196,7 @@ public sealed class DetectorScenarioTests
     [Fact]
     public void DerivedMeasures_AvgPeriodTracksSlowWatch()
     {
-        // -30 s/d at 21600 bph stretches each 166.67 ms beat by ~0.058 ms; the
+        // -30 s/d at 21600 BPH stretches each 166.67 ms beat by ~0.058 ms; the
         // measured-vs-expected averages must read positive (and near zero when clean).
         const int sr = 48000, bph = 21600;
         (DerivedTimingMeasures slow, _) =

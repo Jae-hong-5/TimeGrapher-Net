@@ -3,7 +3,7 @@ namespace TimeGrapher.Core.Shared;
 /// <summary>
 /// One captured beat-noise segment: the decimated envelope window around a
 /// detected A event (a short pre-roll before A through the configured window
-/// length), with the in-window marker offsets the Beat-Noise Scope displays.
+/// length), with the in-window marker offsets the Beat Noise displays.
 /// <para>
 /// <see cref="Samples"/> references a pooled buffer owned by
 /// <see cref="TimeGrapher.Core.Analysis.BeatSegmentCapture"/> (the

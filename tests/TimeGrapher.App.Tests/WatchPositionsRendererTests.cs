@@ -13,7 +13,7 @@ namespace TimeGrapher.App.Tests;
 /// position back, after which the snapshot regains authority. Buttons are
 /// constructed headless (the InfoTabRegistryTests pattern).
 /// </summary>
-public sealed class TestPositionsRendererTests
+public sealed class WatchPositionsRendererTests
 {
     private const string ActiveClass = "active";
 
@@ -54,7 +54,7 @@ public sealed class TestPositionsRendererTests
     {
         Button[] buttons = Buttons();
         var diagram = new WatchPositionDiagram();
-        var renderer = new TestPositionsRenderer(buttons, diagram, WatchPosition.CH);
+        var renderer = new WatchPositionsRenderer(buttons, diagram, WatchPosition.CH);
 
         renderer.RequestPosition(WatchPosition.P6H);
 
@@ -66,7 +66,7 @@ public sealed class TestPositionsRendererTests
     public void StaleSnapshotIsHeldWhileTheClickIsStillInFlight()
     {
         Button[] buttons = Buttons();
-        var renderer = new TestPositionsRenderer(buttons, WatchPosition.CH);
+        var renderer = new WatchPositionsRenderer(buttons, WatchPosition.CH);
         renderer.RequestPosition(WatchPosition.P6H);
 
         // An in-flight snapshot built BEFORE the click still carries the old
@@ -80,7 +80,7 @@ public sealed class TestPositionsRendererTests
     public void MatchingEchoClearsTheLatch()
     {
         Button[] buttons = Buttons();
-        var renderer = new TestPositionsRenderer(buttons, WatchPosition.CH);
+        var renderer = new WatchPositionsRenderer(buttons, WatchPosition.CH);
         renderer.RequestPosition(WatchPosition.P6H);
 
         renderer.RenderFrame(Frame(version: 1, WatchPosition.P6H));
@@ -98,7 +98,7 @@ public sealed class TestPositionsRendererTests
     {
         Button[] buttons = Buttons();
         var diagram = new WatchPositionDiagram();
-        var renderer = new TestPositionsRenderer(buttons, diagram, WatchPosition.CH);
+        var renderer = new WatchPositionsRenderer(buttons, diagram, WatchPosition.CH);
 
         renderer.RenderFrame(Frame(version: 1, WatchPosition.P9H));
 
@@ -110,7 +110,7 @@ public sealed class TestPositionsRendererTests
     public void VersionGateShortCircuitsRepeatedSnapshots()
     {
         Button[] buttons = Buttons();
-        var renderer = new TestPositionsRenderer(buttons, WatchPosition.CH);
+        var renderer = new WatchPositionsRenderer(buttons, WatchPosition.CH);
         renderer.RenderFrame(Frame(version: 1, WatchPosition.CB));
 
         // Same version again (a coalesced or repeated frame): no re-render,
@@ -124,7 +124,7 @@ public sealed class TestPositionsRendererTests
     public void ResetClearsThePendingLatch()
     {
         Button[] buttons = Buttons();
-        var renderer = new TestPositionsRenderer(buttons, WatchPosition.CH);
+        var renderer = new WatchPositionsRenderer(buttons, WatchPosition.CH);
         renderer.RequestPosition(WatchPosition.P6H);
 
         // Session boundary: the unconfirmed request died with the old worker.
@@ -140,7 +140,7 @@ public sealed class TestPositionsRendererTests
     public void FrameWithoutHistoryIsIgnored()
     {
         Button[] buttons = Buttons();
-        var renderer = new TestPositionsRenderer(buttons, WatchPosition.CH);
+        var renderer = new WatchPositionsRenderer(buttons, WatchPosition.CH);
 
         renderer.RenderFrame(new AnalysisFrame());
 

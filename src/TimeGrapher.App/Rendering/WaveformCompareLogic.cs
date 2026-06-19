@@ -7,7 +7,7 @@ namespace TimeGrapher.App.Rendering;
 
 /// <summary>
 /// Pure logic behind the Waveform Comparison tab, kept out of the renderer so
-/// it is unit-testable without a live plot control: the rate / beat error /
+/// it is unit-testable without a live plot control: the error rate / beat error /
 /// BPH header line, the per-lane phase + A→C label, the mean C-peak guide
 /// position (the cross-beat consistency reference) and the review-cursor
 /// mapping onto the A-aligned lane axis.
@@ -49,11 +49,11 @@ internal static class WaveformCompareLogic
     public const string AGuideLabel = "A";
 
     /// <summary>
-    /// Header line: the plan's key numerics (rate, beat error, beats per hour)
+    /// Header line: the plan's key numerics (error rate, beat error, BPH)
     /// read from the cumulative metrics-history currents (em dash when absent).
     /// </summary>
     public static string HeaderLine(BeatMetricsHistorySnapshot? history) =>
-        "RATE " + VarioReadout.Format(
+        "ERROR RATE " + VarioReadout.Format(
             history is { RateValid: true } ? history.RateSPerDay : null, "+0.0;-0.0;0.0", " s/d")
         + "   |   BEAT ERROR " + VarioReadout.Format(
             history is { BeatErrorValid: true } ? history.BeatErrorSignedMs : null, "+0.00;-0.00;0.00", " ms")

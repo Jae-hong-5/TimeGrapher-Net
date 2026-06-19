@@ -5,7 +5,7 @@ using Xunit;
 namespace TimeGrapher.Core.Tests;
 
 /// <summary>
-/// Multi-Filter Scope frame contract: four bounded replace series
+/// Filter Scope frame contract: four bounded replace series
 /// (filter.f0..f3) sharing one absolute-sample-tick X base, trimmed to the
 /// rolling <see cref="MultiFilterFrameProjector.WindowSeconds"/>-second window
 /// and decimated at the producer.

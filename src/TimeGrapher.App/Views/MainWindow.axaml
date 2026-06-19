@@ -122,7 +122,7 @@
         <TextBlock Name="PositionBarText" Grid.Column="1" VerticalAlignment="Center" Margin="12,0,0,0"
                    Text="{Binding PositionLabel}"
                    Foreground="{DynamicResource ChromeAccentBrush}"
-                   ToolTip.Tip="Active watch test position (NIHS 95-10 / ISO 3158) - pick it with the position strip" />
+                   ToolTip.Tip="Active watch position (NIHS 95-10 / ISO 3158) - pick it with the position strip" />
         <TextBlock Name="LatencyBarText" Grid.Column="2" VerticalAlignment="Center" Margin="12,0,6,0"
                    Text="{Binding LatencyText}"
                    ToolTip.Tip="End-to-end latency avg/worst (capture→processing + processing→display), dropped input samples / coalesced UI frames, missed beats, sync losses" />
@@ -326,7 +326,7 @@
                           FontWeight="Bold" />
 
                 <TextBlock Name="SimErrorRateLabel" Grid.Row="1" Grid.Column="0"
-                           VerticalAlignment="Center" HorizontalAlignment="Center" FontWeight="Bold" Text="Error Rate" />
+                           VerticalAlignment="Center" HorizontalAlignment="Center" FontWeight="Bold" Text="ERROR RATE" />
                 <NumericUpDown Name="SimErrorRateSpinBox" Grid.Row="1" Grid.Column="1"
                                IsEnabled="{Binding AreSimulationParametersEnabled}"
                                Value="{Binding SimErrorRate, Mode=TwoWay}"

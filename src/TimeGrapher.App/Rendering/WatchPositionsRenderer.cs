@@ -4,7 +4,7 @@ using TimeGrapher.Core.Shared;
 namespace TimeGrapher.App.Rendering;
 
 /// <summary>
-/// Position strip: one button per NIHS 95-10 / ISO 3158 watch test position.
+/// Position strip: one button per NIHS 95-10 / ISO 3158 watch position.
 /// The active button carries the "active" style class (accent
 /// background, white text; styles in App.axaml so the highlight re-themes via
 /// DynamicResource). Clicking highlights immediately; while frames flow the
@@ -13,7 +13,7 @@ namespace TimeGrapher.App.Rendering;
 /// Re-renders are gated on the snapshot version, so coalesced or repeated
 /// frames cost nothing.
 /// </summary>
-internal sealed class TestPositionsRenderer
+internal sealed class WatchPositionsRenderer
 {
     private const string ActiveClass = "active";
 
@@ -28,12 +28,12 @@ internal sealed class TestPositionsRenderer
     // for up to a second before the next snapshot corrected it.
     private WatchPosition? _pendingPosition;
 
-    public TestPositionsRenderer(Button[] buttons, WatchPosition initialPosition)
+    public WatchPositionsRenderer(Button[] buttons, WatchPosition initialPosition)
         : this(buttons, null, initialPosition)
     {
     }
 
-    public TestPositionsRenderer(
+    public WatchPositionsRenderer(
         Button[] buttons,
         WatchPositionDiagram? diagram,
         WatchPosition initialPosition)

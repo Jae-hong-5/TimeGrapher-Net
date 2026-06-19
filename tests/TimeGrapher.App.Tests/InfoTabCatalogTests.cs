@@ -118,9 +118,9 @@ public sealed class InfoTabCatalogTests
     [Fact]
     public void PositionsTabCombinesSelectionAndSequenceHistoryWithoutGraphSeries()
     {
-        InfoTabDefinition tab = InfoTabCatalog.Get(InfoTabCatalog.TestPositionsTabId);
+        InfoTabDefinition tab = InfoTabCatalog.Get(InfoTabCatalog.WatchPositionsTabId);
 
-        Assert.Equal(InfoTabKind.TestPositions, tab.Kind);
+        Assert.Equal(InfoTabKind.WatchPositions, tab.Kind);
         Assert.Equal("Positions", tab.Title);
         Assert.False(tab.UsesGraphSnapshots);
         Assert.Empty(tab.GraphSeries);

@@ -5,7 +5,7 @@ using TimeGrapher.Core.Shared;
 namespace TimeGrapher.App.Rendering;
 
 /// <summary>
-/// Pure logic behind the Beat-Noise Scope tab, kept out of the renderer so it
+/// Pure logic behind the Beat Noise tab, kept out of the renderer so it
 /// is unit-testable without a live plot control: strip-lane slot math and
 /// selection toggling, the Scope 2 progress / average-signal-level readout, the
 /// lift-angle label and the review-cursor mapping onto the displayed segment.

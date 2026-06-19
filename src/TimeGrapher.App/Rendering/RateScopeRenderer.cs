@@ -85,7 +85,7 @@ internal sealed class RateScopeRenderer
         // so the view holds where the user left it; the ScopeXViewBoundsRule then
         // clamps that view to the retained data extent, so a pan/zoom can never drag
         // the X-axis start point past the data ("move, but the start stays pinned to
-        // the data") — the Multi-Filter Scope behavior.
+        // the data") — the Filter Scope behavior.
         // Any user pan/zoom drops live-follow so the view holds where the user left
         // it; the ScopeXViewBoundsRule then clamps that view to the retained data
         // extent. After the interaction we re-lay the fixed 0.2 s time ruler over
@@ -138,7 +138,7 @@ internal sealed class RateScopeRenderer
         scope.YLabel("Signal Level");
         scope.XLabel("Time (s)");
         scope.Axes.SetLimitsY(0, 0.1);
-        // Fixed-interval time ruler (matches the Multi-Filter Scope): a minor tick
+        // Fixed-interval time ruler (matches the Filter Scope): a minor tick
         // every 0.1 s and a labeled major tick every 0.2 s. The exact tick positions
         // are (re)generated per window in ApplyScopeTimeTicks; here we only fix the
         // tick mark styling.
@@ -163,7 +163,7 @@ internal sealed class RateScopeRenderer
         Plot rate = _ratePlot.Plot;
         rate.Clear();
         ApplyPlotTheme(rate);
-        rate.YLabel("Error Rate(ms)");
+        rate.YLabel("ERROR RATE (ms)");
         rate.XLabel("Beat Index");
         rate.Axes.SetLimitsY(-rateErrorYScale, rateErrorYScale);
         rate.Axes.SetLimitsX(0, rateDataPoints);
@@ -211,7 +211,7 @@ internal sealed class RateScopeRenderer
         bool scopeUpdated = ReplaceScopeSeries(frame);
         bool rateUpdated = ReplaceRateSeries(frame);
         // Review cursor on the waveform pane only: its x base is absolute sample
-        // ticks, so stream time maps onto it (the Multi-Filter Scope mapping).
+        // ticks, so stream time maps onto it (the Filter Scope mapping).
         // The rate pane plots a fixed beat-index ring (0..rateDataPoints), not
         // stream time, so the review-cursor contract has no meaningful x mapping
         // there.

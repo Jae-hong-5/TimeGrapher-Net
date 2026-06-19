@@ -18,7 +18,7 @@ internal sealed class GraphFrameRenderer
     /// (fixed-width) so the readout never shifts when real values replace the dashes.
     /// </summary>
     public const string PlaceholderResults =
-        "ERROR RATE ------ s/d | Amplitude ---° | BEAT ERROR ---- ms | BEAT ----- bph";
+        "ERROR RATE ------ s/d | Amplitude ---° | BEAT ERROR ---- ms | BPH -----";
     private const string ValueReadoutBrushKey = "ChromeAccentBrush";
     // Labels/units use the muted-but-readable secondary text brush: ChromeBorderBrush
     // (a faint hairline tint) was near-invisible, while the primary text brush read as

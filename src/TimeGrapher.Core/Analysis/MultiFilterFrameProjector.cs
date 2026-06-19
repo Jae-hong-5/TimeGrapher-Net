@@ -4,7 +4,7 @@ using TimeGrapher.Core.Shared;
 namespace TimeGrapher.Core.Analysis;
 
 /// <summary>
-/// Multi-Filter Scope projector: runs every raw input sample through the
+/// Filter Scope projector: runs every raw input sample through the
 /// <see cref="ScopeFilters"/> bank (F0..F3) and keeps a rolling
 /// <see cref="WindowSeconds"/>-second window per view, decimated at the
 /// producer to <see cref="FilterPointBudget"/> points per series (the

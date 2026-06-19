@@ -31,7 +31,7 @@ internal readonly record struct VarioVerdict(string Text, VarioVerdictLevel Leve
 
     public static readonly VarioVerdict Measuring = new("Measuring…", VarioVerdictLevel.Pending);
 
-    /// <summary>Rate (s/d): in/out of the acceptable band, and stable vs. jittery within it.</summary>
+    /// <summary>ERROR RATE (s/d): in/out of the acceptable band, and stable vs. jittery within it.</summary>
     public static VarioVerdict ForRate(StatsSummary stats, double acceptMin, double acceptMax)
     {
         if (!stats.Valid || stats.Count < MinSamples)

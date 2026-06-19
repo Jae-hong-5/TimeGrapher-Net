@@ -5,13 +5,13 @@ namespace TimeGrapher.Core.Tests;
 
 public sealed class WatchMetricsTests
 {
-    // Amplitude(liftAngle, t1, bph) = liftAngle / sin(2*pi*t1 / (7200/bph)).
+    // Amplitude(liftAngle, t1, BPH) = liftAngle / sin(2*pi*t1 / (7200/BPH)).
     // Choosing t1 so the sine argument is a known angle gives exact expected values.
 
     [Fact]
     public void Amplitude_WhenSineArgumentIsHalfPi_EqualsLiftAngle()
     {
-        // 2*pi*t1 / (7200/bph) = pi/2  ->  t1 = 1800/bph.
+        // 2*pi*t1 / (7200/BPH) = pi/2  ->  t1 = 1800/BPH.
         const double bph = 3600.0;
         double t1 = 1800.0 / bph; // 0.5 s
         Assert.Equal(52.0, WatchMetrics.Amplitude(52.0, t1, bph), 6);

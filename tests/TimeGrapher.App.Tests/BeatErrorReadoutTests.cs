@@ -16,14 +16,14 @@ public sealed class BeatErrorReadoutTests
         Assert.Equal(
             new[]
             {
-                "RATE", "Amplitude", "BEAT ERROR", "BPH",
+                "ERROR RATE", "Amplitude", "BEAT ERROR", "BPH",
                 "DIFF TIC-TAC", "DIFF PERIOD", "AVG PERIOD",
             },
             BeatErrorReadout.Labels);
     }
 
     [Fact]
-    public void Values_FormatEveryReadingWithItsUnit()
+    public void Values_FormatEveryReading()
     {
         var snapshot = new BeatMetricsHistorySnapshot
         {
@@ -40,7 +40,7 @@ public sealed class BeatErrorReadoutTests
         Assert.Equal(
             new[]
             {
-                "+4.2 s/d", "285°", "-0.80 ms", "28800 bph",
+                "+4.2 s/d", "285°", "-0.80 ms", "28800",
                 "+1.60 ms", "+0.25 ms", "-0.40 ms",
             },
             BeatErrorReadout.Values(snapshot));

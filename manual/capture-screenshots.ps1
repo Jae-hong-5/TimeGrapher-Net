@@ -143,7 +143,7 @@ $play = Find-ById $win "PlayPausePushButton"
 if ($play) { try { (Get-Pattern $play $Invoke).Invoke() } catch { Write-Warning "invoke Play: $_" } }
 else { Write-Warning "Play button not found." }
 
-# Sim/Live runs ask "Do you want to record this session?" — answer No so the
+# Simulation/Live runs ask "Do you want to record this session?" — answer No so the
 # run starts without recording (otherwise the modal blocks every graph).
 function Dismiss-RecordDialog {
   # The dialog is a separate Avalonia window (its UIA Name may be empty), so
@@ -185,7 +185,7 @@ try {
 
 # --- iterate the graph tabs ---
 $tabMap = @{
-  "Rate/Scope"   = "tab-rate-scope.png"
+  "ERROR RATE/Scope" = "tab-rate-scope.png"
   "Sound Print"  = "tab-sound-print.png"
   "Trace"        = "tab-trace.png"
   "Sweep"        = "tab-sweep.png"

@@ -6,7 +6,7 @@ using Xunit;
 namespace TimeGrapher.Core.Tests;
 
 /// <summary>
-/// Per-beat envelope segment capture for the Beat-Noise Scope: window alignment
+/// Per-beat envelope segment capture for the Beat Noise: window alignment
 /// around planted A/C events, windows spanning detector block boundaries,
 /// pooled-buffer rotation, and bounded segment counts.
 /// </summary>

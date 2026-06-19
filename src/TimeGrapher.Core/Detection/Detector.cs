@@ -39,7 +39,7 @@ internal sealed class TgDetectorCore
 {
     /* Ring-buffer sizes (compile-time constants). */
     public const int TG_NOISE_HISTORY_N = 256; // ~256 ms at 1 ms/sample
-    public const int TG_PEAK_HISTORY_N = 16;    // ~2 s at 8 Hz beat rate
+    public const int TG_PEAK_HISTORY_N = 16;    // ~2 s at 28800 BPH
 
     /* V5.6 regime-change detector constants. */
     public const int TG_REGIME_RING_N = 8;       // short-term burst peak ring

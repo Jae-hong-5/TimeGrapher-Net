@@ -2,7 +2,7 @@ namespace TimeGrapher.Core.Detection;
 
 /// <summary>
 /// Per-sample output of the <see cref="ScopeFilters"/> bank: the four
-/// Multi-Filter Scope views (plan: PC-RM4 F0..F3) of the same input sample.
+/// Filter Scope views (plan: PC-RM4 F0..F3) of the same input sample.
 /// </summary>
 public readonly record struct ScopeFilterSample(double F0, double F1, double F2, double F3);
 

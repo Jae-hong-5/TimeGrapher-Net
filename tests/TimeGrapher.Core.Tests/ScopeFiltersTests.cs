@@ -4,7 +4,7 @@ using Xunit;
 namespace TimeGrapher.Core.Tests;
 
 /// <summary>
-/// Multi-Filter Scope filter bank semantics on closed-form sequences: F0 mirrors
+/// Filter Scope filter bank semantics on closed-form sequences: F0 mirrors
 /// excursions around the running mean, F1 is the ring-buffer moving average of
 /// F0, F2/F3 keep rising slopes and suppress falling ones via the decaying
 /// attenuator, and F3 sees only the upper portion relative to the average.

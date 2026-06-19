@@ -7,7 +7,7 @@ namespace TimeGrapher.App.Tests;
 /// <summary>
 /// Beat Error Display diagnostic policy: tic/toc separation alert (|signed beat
 /// error| above 0.6 ms) and the major-fault slope rule (45 degrees in data
-/// units = 1 ms drift per beat on the ms-vs-beat-index rate trace).
+/// units = 1 ms drift per beat on the ms-vs-beat-index ERROR RATE trace).
 /// </summary>
 public sealed class BeatErrorDiagnosticsTests
 {
@@ -25,19 +25,19 @@ public sealed class BeatErrorDiagnosticsTests
     [Fact]
     public void SlopeMsPerBeat_ScalesDailyRateToOneBeat()
     {
-        // A watch off by a full day per day (86400 s/d) at 28800 bph drifts one
+        // A watch off by a full day per day (86400 s/d) at 28800 BPH drifts one
         // whole 125 ms beat period per beat.
         Assert.Equal(125.0, BeatErrorDiagnostics.SlopeMsPerBeat(86400.0, 28800), 9);
 
-        // Halving the beat rate doubles the per-beat drift.
+        // Halving BPH doubles the per-beat drift.
         Assert.Equal(250.0, BeatErrorDiagnostics.SlopeMsPerBeat(86400.0, 14400), 9);
 
-        // Unknown bph cannot produce a slope.
+        // Unknown BPH cannot produce a slope.
         Assert.Equal(0.0, BeatErrorDiagnostics.SlopeMsPerBeat(86400.0, 0));
     }
 
     [Theory]
-    [InlineData(691.2, (int)BeatErrorDiagState.Normal, null)]  // slope exactly 1.0 ms/beat at 28800 bph: on the line, no fault
+    [InlineData(691.2, (int)BeatErrorDiagState.Normal, null)]  // slope exactly 1.0 ms/beat at 28800 BPH: on the line, no fault
     [InlineData(700.0, (int)BeatErrorDiagState.MajorFault, "MAJOR FAULT: trace slope +1.01 ms/beat exceeds the 45° limit (±1.0 ms/beat)")]
     [InlineData(-700.0, (int)BeatErrorDiagState.MajorFault, "MAJOR FAULT: trace slope -1.01 ms/beat exceeds the 45° limit (±1.0 ms/beat)")]
     [InlineData(10.0, (int)BeatErrorDiagState.Normal, null)]

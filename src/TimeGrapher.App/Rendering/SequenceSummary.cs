@@ -42,7 +42,7 @@ internal sealed record SequenceSummary(
 {
     /// <summary>
     /// Unbalance-hint threshold (heuristic): the Witschi training course reads
-    /// "large rate variations between different vertical test positions" as
+    /// "large rate variations between different vertical watch positions" as
     /// balance-wheel unbalance (action: centering/balancing). This project
     /// flags the hint once the rate spread across the qualified hanging
     /// positions (those with at least <see cref="VarioVerdict.MinSamples"/>

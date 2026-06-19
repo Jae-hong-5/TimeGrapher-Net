@@ -124,7 +124,7 @@ public sealed class MainWindowRunControlWiringTests
             new[] { "UseConsetCheckBox", "PllEventVetoCheckBox", "MeasurementLogEnabledCheckBox" },
             checkBoxes.Select(checkBox => checkBox.Attribute("Name")?.Value).ToArray());
         Assert.Equal(
-            new[] { "C Event Use Onset Timing", "PLL Event Veto (impulse rejection)", "Save measurement CSV log" },
+            new[] { "Use C-onset timing", "PLL Event Veto (impulse rejection)", "Save measurement CSV log" },
             checkBoxes.Select(checkBox => checkBox.Attribute("Content")?.Value).ToArray());
 
         Assert.Equal(

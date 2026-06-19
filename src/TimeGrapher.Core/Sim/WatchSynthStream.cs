@@ -40,7 +40,7 @@ public enum WatchSynthEventKind
 public sealed class WatchSynthStreamConfig
 {
     public uint SampleRateHz;            // Hz. Supported: 44100..384000.
-    public double Bph;                   // Beats per hour. Supported: 3600..43200.
+    public double Bph;                   // BPH. Supported: 3600..43200.
     public double RateErrorSPerDay;      // s/day. Positive = fast = shorter intervals.
     public double BeatErrorMs;           // ms. Timegrapher-style displayed beat error. Example: 0.210 ms.
     public double TimingJitterUs;        // us. Uniform random jitter added to intervals, +/- value.
@@ -393,7 +393,7 @@ public sealed class WatchSynthStream
         }
         if (cfg.Bph < WsMinBph || cfg.Bph > WsMaxBph)
         {
-            err = string.Format(CultureInfo.InvariantCulture, "bph must be {0:F0}..{1:F0}", WsMinBph, WsMaxBph);
+            err = string.Format(CultureInfo.InvariantCulture, "BPH must be {0:F0}..{1:F0}", WsMinBph, WsMaxBph);
             return false;
         }
         if (cfg.PcmPeakSignalLevel < 0.0 || cfg.PcmPeakSignalLevel > 1.0) { err = "pcm_peak_signal_level must be 0..1 normalized PCM"; return false; }

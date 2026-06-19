@@ -1,8 +1,8 @@
 namespace TimeGrapher.Core.Shared;
 
 /// <summary>
-/// Standard watch test positions per NIHS 95-10 / ISO 3158, as drawn in the
-/// project plan's "Indication of the test positions in accordance with
+/// Standard watch positions per NIHS 95-10 / ISO 3158, as drawn in the
+/// project plan's "Indication of the watch positions in accordance with
 /// NIHS 95-10/ISO 3158" figure (Witschi Chronoscope X1 G3 manual, page 13).
 /// The display uses the reference figure's DU/DD and crown-position labels.
 /// The plan also requires "support for intermediate positions when used" and a

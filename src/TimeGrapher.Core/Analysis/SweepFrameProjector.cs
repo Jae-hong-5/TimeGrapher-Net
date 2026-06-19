@@ -4,7 +4,7 @@ using TimeGrapher.Core.Shared;
 namespace TimeGrapher.Core.Analysis;
 
 /// <summary>
-/// Scope Mode sweep projector: folds the rectified detector output into a fixed
+/// Sweep projector: folds the rectified detector output into a fixed
 /// sweep window of <see cref="SetSweepMultiple"/> beat periods, oscilloscope
 /// style. Samples land in a fixed bin array by their absolute stream position
 /// modulo the window, and each sweep pass overwrites the previous one bin by bin
@@ -24,10 +24,10 @@ public sealed class SweepFrameProjector
     /// <summary>Nominal 28800-BPH beat period used before any lock.</summary>
     public const double FallbackBeatPeriodS = 0.125;
 
-    // MeasuredPeriodS is the nominal locked beat period (3600/bph), bit-stable
+    // MeasuredPeriodS is the nominal locked beat period (3600/BPH), bit-stable
     // while locked, so the only real change is a re-lock at a different BPH.
     // The window is latched and only re-tuned when the candidate moves past
-    // this fraction, so genuine rate error shows up as drift against the
+    // this fraction, so genuine ERROR RATE shows up as drift against the
     // latched window instead of silently re-centering on every re-lock.
     private const double WindowRetuneFraction = 0.01;
 

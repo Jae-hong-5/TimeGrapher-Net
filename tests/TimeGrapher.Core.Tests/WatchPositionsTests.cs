@@ -13,7 +13,7 @@ public sealed class WatchPositionsTests
     public void AllListsTheTenPositionsInManualOrder()
     {
         // 6 standard NIHS positions + 4 intermediate 45° positions = the
-        // plan's "up to 10 test positions" sequence capacity.
+        // plan's "up to 10 watch positions" sequence capacity.
         Assert.Equal(WatchPositions.Count, WatchPositions.All.Count);
         Assert.Equal(
             new[]

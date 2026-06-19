@@ -10,7 +10,7 @@ namespace TimeGrapher.App.Rendering;
 
 /// <summary>
 /// Waveform Comparison Display with Timing Markers, rendered from the
-/// cumulative BeatSegmentsSnapshot the frame carries (the Beat-Noise Scope's
+/// cumulative BeatSegmentsSnapshot the frame carries (the Beat Noise's
 /// segment infrastructure reused for cross-beat comparison).
 ///
 /// One plot stacks the recent beat pairs: each pair-lane displays the tic beat

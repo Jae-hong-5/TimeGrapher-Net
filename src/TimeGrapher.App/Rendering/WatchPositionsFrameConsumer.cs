@@ -3,20 +3,20 @@ using TimeGrapher.Core.Shared;
 
 namespace TimeGrapher.App.Rendering;
 
-internal sealed class TestPositionsFrameConsumer : IAnalysisFrameConsumer
+internal sealed class WatchPositionsFrameConsumer : IAnalysisFrameConsumer
 {
-    private readonly TestPositionsRenderer _positionRenderer;
+    private readonly WatchPositionsRenderer _positionRenderer;
     private readonly MultiPositionSeqRenderer _sequenceRenderer;
 
-    public TestPositionsFrameConsumer(
-        TestPositionsRenderer positionRenderer,
+    public WatchPositionsFrameConsumer(
+        WatchPositionsRenderer positionRenderer,
         MultiPositionSeqRenderer sequenceRenderer)
     {
         _positionRenderer = positionRenderer;
         _sequenceRenderer = sequenceRenderer;
     }
 
-    public string TabId => InfoTabCatalog.TestPositionsTabId;
+    public string TabId => InfoTabCatalog.WatchPositionsTabId;
 
     public void Initialize(AnalysisTabResetContext context)
     {

@@ -49,7 +49,7 @@ public sealed class InfoTabRegistryTests
 
         InfoTabRegistration registration = Assert.Single(
             registry.Registrations,
-            registration => registration.Definition.Id == InfoTabCatalog.TestPositionsTabId);
+            registration => registration.Definition.Id == InfoTabCatalog.WatchPositionsTabId);
         var content = Assert.IsType<Grid>(registration.TabItem.Content);
         Button[] buttons = positionStrip.Children.OfType<Button>().ToArray();
 
@@ -114,7 +114,7 @@ public sealed class InfoTabRegistryTests
             Assert.Equal(i, Grid.GetRow(buttons[i]));
             Assert.Equal(VerticalAlignment.Stretch, buttons[i].VerticalAlignment);
         }
-        Assert.Single(registry.Consumers, consumer => consumer.TabId == InfoTabCatalog.TestPositionsTabId);
+        Assert.Single(registry.Consumers, consumer => consumer.TabId == InfoTabCatalog.WatchPositionsTabId);
     }
 
     [Fact]
@@ -136,7 +136,7 @@ public sealed class InfoTabRegistryTests
                     ActivePosition = WatchPosition.P6H,
                 },
             },
-            InfoTabCatalog.TestPositionsTabId,
+            InfoTabCatalog.WatchPositionsTabId,
             new AnalysisTabRenderContext(48000));
 
         Assert.Equal(
@@ -147,7 +147,7 @@ public sealed class InfoTabRegistryTests
                 .Select(item => (WatchPosition)item.index));
         WatchPositionDiagram diagram = Assert.Single(Descendants(
             Assert.IsType<Grid>(registry.Registrations.Single(
-                registration => registration.Definition.Id == InfoTabCatalog.TestPositionsTabId).TabItem.Content))
+                registration => registration.Definition.Id == InfoTabCatalog.WatchPositionsTabId).TabItem.Content))
             .OfType<WatchPositionDiagram>());
         Assert.Equal(WatchPosition.P6H, diagram.Position);
     }
@@ -159,7 +159,7 @@ public sealed class InfoTabRegistryTests
         var positionStrip = new Grid();
         InfoTabRegistry registry = InfoTabRegistry.FromCatalog(tabControl, positionStrip, "Arial");
         var content = Assert.IsType<Grid>(registry.Registrations.Single(
-            registration => registration.Definition.Id == InfoTabCatalog.TestPositionsTabId).TabItem.Content);
+            registration => registration.Definition.Id == InfoTabCatalog.WatchPositionsTabId).TabItem.Content);
         Button criteriaButton = Descendants(content)
             .OfType<Button>()
             .Single(button => Equals(button.Content, "View criteria ▾"));
@@ -197,7 +197,7 @@ public sealed class InfoTabRegistryTests
         var positionStrip = new Grid();
         InfoTabRegistry registry = InfoTabRegistry.FromCatalog(tabControl, positionStrip, "Arial");
         var content = Assert.IsType<Grid>(registry.Registrations.Single(
-            registration => registration.Definition.Id == InfoTabCatalog.TestPositionsTabId).TabItem.Content);
+            registration => registration.Definition.Id == InfoTabCatalog.WatchPositionsTabId).TabItem.Content);
         AnalysisFrameRouter router = registry.CreateRouter();
 
         router.Route(
@@ -205,7 +205,7 @@ public sealed class InfoTabRegistryTests
                 version: 1,
                 activePosition: WatchPosition.CH,
                 Position(WatchPosition.CH, rate: 0.0, amplitude: 300.0, count: 117)),
-            InfoTabCatalog.TestPositionsTabId,
+            InfoTabCatalog.WatchPositionsTabId,
             new AnalysisTabRenderContext(48000));
 
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
@@ -220,7 +220,7 @@ public sealed class InfoTabRegistryTests
                 activePosition: WatchPosition.P6H,
                 Position(WatchPosition.CH, rate: 0.0, amplitude: 300.0, count: 30),
                 Position(WatchPosition.P6H, rate: 2.0, amplitude: 301.0, count: 30)),
-            InfoTabCatalog.TestPositionsTabId,
+            InfoTabCatalog.WatchPositionsTabId,
             new AnalysisTabRenderContext(48000));
 
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
@@ -236,7 +236,7 @@ public sealed class InfoTabRegistryTests
                 Position(WatchPosition.CH, rate: 0.0, amplitude: 300.0, count: 30),
                 Position(WatchPosition.P6H, rate: 2.0, amplitude: 301.0, count: 30),
                 Position(WatchPosition.P3H, rate: 1.0, amplitude: 301.0, count: 30)),
-            InfoTabCatalog.TestPositionsTabId,
+            InfoTabCatalog.WatchPositionsTabId,
             new AnalysisTabRenderContext(48000));
 
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "COLLECTING");
@@ -254,7 +254,7 @@ public sealed class InfoTabRegistryTests
                 Position(WatchPosition.P6H, rate: 2.0, amplitude: 301.0, count: 30),
                 Position(WatchPosition.P3H, rate: 1.0, amplitude: 301.0, count: 30),
                 Position(WatchPosition.P12H, rate: 3.0, amplitude: 301.0, count: 5)),
-            InfoTabCatalog.TestPositionsTabId,
+            InfoTabCatalog.WatchPositionsTabId,
             new AnalysisTabRenderContext(48000));
 
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
@@ -269,7 +269,7 @@ public sealed class InfoTabRegistryTests
                 Position(WatchPosition.P6H, rate: 2.0, amplitude: 301.0, count: 30),
                 Position(WatchPosition.P3H, rate: 1.0, amplitude: 301.0, count: 30),
                 Position(WatchPosition.P12H, rate: 3.0, amplitude: 301.0, count: 30)),
-            InfoTabCatalog.TestPositionsTabId,
+            InfoTabCatalog.WatchPositionsTabId,
             new AnalysisTabRenderContext(48000));
 
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "OK");
@@ -287,7 +287,7 @@ public sealed class InfoTabRegistryTests
                 Position(WatchPosition.P6H, rate: 2.0, amplitude: 301.0, count: 30),
                 Position(WatchPosition.P3H, rate: 1.0, amplitude: 301.0, count: 30),
                 Position(WatchPosition.P12H, rate: 30.0, amplitude: 301.0, count: 30)),
-            InfoTabCatalog.TestPositionsTabId,
+            InfoTabCatalog.WatchPositionsTabId,
             new AnalysisTabRenderContext(48000));
 
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "CHECK");
@@ -303,7 +303,7 @@ public sealed class InfoTabRegistryTests
         var positionStrip = new Grid();
         InfoTabRegistry registry = InfoTabRegistry.FromCatalog(tabControl, positionStrip, "Arial");
         var content = Assert.IsType<Grid>(registry.Registrations.Single(
-            registration => registration.Definition.Id == InfoTabCatalog.TestPositionsTabId).TabItem.Content);
+            registration => registration.Definition.Id == InfoTabCatalog.WatchPositionsTabId).TabItem.Content);
         AnalysisFrameRouter router = registry.CreateRouter();
 
         // Three qualified positions with the active one settled, but only one is
@@ -317,7 +317,7 @@ public sealed class InfoTabRegistryTests
                 Position(WatchPosition.CH, rate: 0.0, amplitude: 300.0, count: 30),
                 Position(WatchPosition.CB, rate: 0.0, amplitude: 300.0, count: 30),
                 Position(WatchPosition.P6H, rate: 2.0, amplitude: 301.0, count: 30)),
-            InfoTabCatalog.TestPositionsTabId,
+            InfoTabCatalog.WatchPositionsTabId,
             new AnalysisTabRenderContext(48000));
 
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "COLLECTING");
@@ -502,7 +502,7 @@ public sealed class InfoTabRegistryTests
         Assert.Equal(new[] { "1h", "3h", "6h", "‹", "›" }, buttons);
         Assert.DoesNotContain(Descendants(header).OfType<TextBlock>(), text => text.Text == "24H LONG-TERM");
         Assert.Contains(Descendants(header).OfType<TextBlock>(), text => text.Text == "COLLECTING");
-        Assert.Contains(Descendants(header).OfType<TextBlock>(), text => text.Text == "RATE —");
+        Assert.Contains(Descendants(header).OfType<TextBlock>(), text => text.Text == "ERROR RATE —");
         Assert.DoesNotContain(Descendants(header).OfType<Button>(), button => button.Classes.Contains("active"));
         Assert.DoesNotContain(Descendants(header).OfType<TextBlock>(), text => text.Text?.Contains("Elapsed", StringComparison.Ordinal) == true);
         Assert.Empty(header.RowDefinitions);
@@ -546,7 +546,7 @@ public sealed class InfoTabRegistryTests
             },
             new AnalysisTabRenderContext(48000, ReviewCursorTimeS: 12.0));
 
-        Assert.Equal("RATE -2.0 s/d   Amplitude 281°   BEAT ERROR +0.2 ms", vm.ReviewMetricsText);
+        Assert.Equal("ERROR RATE -2.0 s/d   Amplitude 281°   BEAT ERROR +0.2 ms", vm.ReviewMetricsText);
     }
 
     [Fact]

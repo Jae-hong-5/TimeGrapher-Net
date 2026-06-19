@@ -11,13 +11,13 @@ namespace TimeGrapher.App.Rendering;
 /// </summary>
 internal static class ScopeSweepReadout
 {
-    /// <summary>Reference line of current rate / amplitude / beat error (em dash when absent).</summary>
+    /// <summary>Reference line of current error rate / amplitude / beat error (em dash when absent).</summary>
     public static string ReferenceLine(BeatMetricsHistorySnapshot? snapshot) =>
-        "RATE " + VarioReadout.Format(
+        "ERROR RATE " + VarioReadout.Format(
             snapshot is { RateValid: true } ? snapshot.RateSPerDay : null, "+0.0;-0.0;0.0", " s/d")
         + "   |   Amplitude " + VarioReadout.Format(
             snapshot is { AmplitudeValid: true } ? snapshot.AmplitudeDeg : null, "0", "°")
-        + "   |   BEAT ERR " + VarioReadout.Format(
+        + "   |   BEAT ERROR " + VarioReadout.Format(
             snapshot is { BeatErrorValid: true } ? snapshot.BeatErrorSignedMs : null, "+0.00;-0.00;0.00", " ms");
 
     /// <summary>

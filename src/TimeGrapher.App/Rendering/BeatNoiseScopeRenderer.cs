@@ -9,7 +9,7 @@ using TimeGrapher.Core.Shared;
 namespace TimeGrapher.App.Rendering;
 
 /// <summary>
-/// Beat-Noise Scope (Scope 1 + Scope 2), rendered from the cumulative
+/// Beat Noise (Scope 1 + Scope 2), rendered from the cumulative
 /// BeatSegmentsSnapshot the frame carries.
 ///
 /// Scope 1: the selected-or-latest beat segment on the main plot (X in ms,

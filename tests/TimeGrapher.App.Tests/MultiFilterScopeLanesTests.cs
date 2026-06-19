@@ -5,7 +5,7 @@ using Xunit;
 namespace TimeGrapher.App.Tests;
 
 /// <summary>
-/// Lane catalog behind the Multi-Filter Scope tab: the four stacked lanes map
+/// Lane catalog behind the Filter Scope tab: the four stacked lanes map
 /// 1:1 onto the Core filter series in F0..F3 order, each with its own
 /// description line and a distinct theme-palette color slot.
 /// </summary>

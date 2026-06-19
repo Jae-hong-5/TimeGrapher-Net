@@ -44,7 +44,7 @@ jobs:
           dotnet test tests/TimeGrapher.Core.Tests/TimeGrapher.Core.Tests.csproj -c Release --no-build --logger "trx;LogFilePrefix=core-test-results" --results-directory TestResults
           dotnet test tests/TimeGrapher.Platform.LinuxAudio.Tests/TimeGrapher.Platform.LinuxAudio.Tests.csproj -c Release --no-build --logger "trx;LogFilePrefix=linux-audio-test-results" --results-directory TestResults
 
-      - name: Verify generated WAV fixtures
+      - name: Verify generated and byte-built WAV fixtures
         run: dotnet run --project src/TimeGrapher.Verify/TimeGrapher.Verify.csproj -c Release --no-build -- --generated --byte-fixtures --adverse
 
       - name: Check Core has no platform dependencies

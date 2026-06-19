@@ -10,7 +10,7 @@ namespace TimeGrapher.Core.Shared;
 /// <summary>
 /// One per-beat timing measurement, emitted with each synced A event.
 /// Times are seconds since the start of the audio stream. Bph is the
-/// beats-per-hour the emitting sync segment locked onto; samples are only
+/// BPH value that the emitting sync segment locked onto; samples are only
 /// emitted while synced, so it is always a real lock value (never 0).
 /// </summary>
 public readonly record struct BeatTimingSample(

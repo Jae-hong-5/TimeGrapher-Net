@@ -58,7 +58,7 @@ public sealed class SoundImageRenderer
         public double SampleRateHz = 48000.0;
 
         /// <summary>
-        /// Beats per hour. May be &lt;= 0 at init if BPH is not yet known.
+        /// BPH. May be &lt;= 0 at init if BPH is not yet known.
         /// If &lt;= 0, ProcessSamples counts samples but does not render.
         /// </summary>
         public double Bph = 0.0;
@@ -291,7 +291,7 @@ public sealed class SoundImageRenderer
         RecomputeDerived()
         ------------------
         Recomputes values derived from configuration.
-        sample_rate_hz is always required; bph is optional. If BPH is invalid,
+        sample_rate_hz is always required; BPH is optional. If BPH is invalid,
         _bphValid becomes false and ProcessSamples only advances the sample counter.
     */
     private void RecomputeDerived()
