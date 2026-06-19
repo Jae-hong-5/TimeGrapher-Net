@@ -85,7 +85,7 @@ work requests** — 점진적 저하). 패스마다 백로그를 **비트 주기
 
 | Tactic | 적용 방식 | 근거 | |
 |---|---|---|---|
-| **restrict dependencies** | Core는 외부 참조 0개. App→Platform→Core 단방향 비순환. **CI가 `Select-String`(pwsh)으로 Core 안의 `NAudio`/`TimeGrapher.Platform`/`WindowsAudio` 텍스트를 차단**하고, OS별 publish에 잘못된 DLL이 섞이면 빌드 실패 | `Core.csproj`, `.github/workflows/ci.yml` | ✓ |
+| **restrict dependencies** | Core는 외부 참조 0개. App → Core / Platform.*, Platform.* → Core 단방향 비순환(App은 Core를 직접 참조하고 플랫폼 어댑터는 RID 조건부로 참조). **CI가 Core의 `.csproj` 참조와 금지 using(UI·플랫폼·NAudio)을 차단**하고, OS별 publish가 해당 플랫폼 어댑터만 포함하는지 검증 | `Core.csproj`, `.github/workflows/ci.yml` | ✓ |
 | **encapsulate** | OS 오디오 스택(NAudio / pw-record)을 Core 소유 인터페이스 `ILiveAudioWorker : IAudioInputWorker` 뒤에 은닉 | `ILiveAudioWorker.cs`, `IAudioInputWorker.cs` | ✓ |
 | **use an intermediary** | `LiveAudioBackend` 한 파일만 구체 OS 타입을 알고 분기. 나머지 App은 인터페이스만 사용 | `LiveAudioBackend.cs` | ✓ |
 | **increase semantic coherence** | Core = 분석 도메인(Detection/Metrics/Imaging/Sim/Analysis/AudioIo/Shared)만 담당. UI·OS 책임 없음 | `Core.csproj` | ✓ |
@@ -129,7 +129,7 @@ work requests** — 점진적 저하). 패스마다 백로그를 **비트 주기
 
 | Tactic | 적용 방식 | 근거 | |
 |---|---|---|---|
-| **sandbox + limit nondeterminism** | `WatchSynthStream`이 SplitMix64 PRNG를 **시드 고정**해 결정론적 시계 신호 생성. `Clean()`은 모든 확률 요소를 끔 | `WatchSynthStream.cs` | ✓ |
+| **sandbox + limit nondeterminism** | `WatchSynthStream`이 SplitMix64 PRNG를 **시드 고정**해 결정론적 시계 신호 생성. `Clean()`은 사실적 변동 요소(패킷·공진·드리프트·임펄스 잡음)를 끄지만 미세한 백색잡음 바닥(`NoisePeakAmplitude`≈0.0005)은 남는다 — 무작위 제거가 아니라 **시드 고정**이 재현성을 보장한다(같은 시드 → 비트동일 출력) | `WatchSynthStream.cs` | ✓ |
 | **abstract data sources** | mic·WAV·합성이 모두 `IAudioInputWorker`/`engine.Process(span)` 뒤에서 동일하게 소비되어, 파일로 결정론적 검증 가능 | `DetectorMetricsEngine.cs` | ✓ |
 | **specialized interfaces** | GUI 없는 `Verify` 콘솔(종료코드 0/1/2), 앱의 `--smoke`(0)·`--audio-smoke`/`--capture-smoke`(0/2/3)·`--analysis-benchmark`(0/1) 진입점, `InternalsVisibleTo` 테스트 훅 | `Verify/Program.cs`, `Program.cs`, `AudioSmokeRunner.cs`, `AnalysisBenchmarkRunner.cs` | ✓ |
 | **executable assertions** | Verify가 파일명의 기대 BPH와 검출 BPH를 대조해 exit code 반환 → **CI가 main 브랜치 push·main 대상 PR에서 실행**. `FillF32` 그라운드트루스 사이드채널 채점(`DetectionScorer` — 이벤트 수준 정밀도/재현율/타이밍)은 이제 생성 fixture의 hard gate이며, 생성 fixture 안에 +30 s/day rate와 5 ms beat-error 표본을 포함해 메트릭 값도 exit code에 묶는다. `--adverse` 악조건 행 9종(약신호·잡음·임펄스 폭풍·게인 스텝·무음 선행·잡음 단독)은 현재 기본 detector 품질 게이트로 실행. PLL 베토는 `--gate=pll` 별도 측정 축으로 유지 | `Verify/Program.cs`, `AdverseScenarios.cs`, `DetectionScorer.cs` | ✓ |
