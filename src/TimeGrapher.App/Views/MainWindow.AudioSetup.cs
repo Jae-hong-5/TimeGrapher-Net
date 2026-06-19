@@ -5,6 +5,7 @@ using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 
+using Avalonia.Threading;
 using TimeGrapher.App.Audio;
 using TimeGrapher.App.Services;
 using TimeGrapher.Core.Detection;
@@ -218,14 +219,37 @@ public partial class MainWindow
 
     // Per-device probe cache: the supported-rate probe is stable for a device
     // during a session and (on Linux) spawns a process per rate, so cache it and
-    // pre-warm it off the UI thread (see LoadAudioDevices). PopulateSampleRates
-    // stays synchronous — Start and the Playback/Sim rate-restore read these rates
-    // immediately after a device change — but reads the cache instead of probing,
-    // so a (warmed) selection never freezes the UI thread.
+    // pre-warm it off the UI thread (see LoadAudioDevices). A warm read narrows
+    // the list synchronously; a cache miss (e.g. the initial auto-select racing
+    // the pre-warm) fills all rates and probes off the UI thread, so the probe
+    // never freezes the UI thread.
     private ConcurrentDictionary<int, IReadOnlyList<int>> _sampleRateProbeCache = new();
 
-    private IReadOnlyList<int> ProbeSampleRates(int deviceNumber) =>
-        _sampleRateProbeCache.GetOrAdd(deviceNumber, LiveAudioBackend.GetCandidateSampleRates);
+    // Probe a device's supported rates off the UI thread, then re-narrow the list
+    // on the UI thread if that device is still selected (a stale probe is dropped).
+    private void ProbeSampleRatesAsync(int deviceNumber)
+    {
+        Task.Run(() =>
+        {
+            _sampleRateProbeCache.GetOrAdd(deviceNumber, LiveAudioBackend.GetCandidateSampleRates);
+            Dispatcher.UIThread.Post(() =>
+            {
+                if (CurrentSelectedInputDeviceNumber() == deviceNumber)
+                {
+                    // The cache is now warm, so this re-narrows synchronously.
+                    PopulateSampleRates(deviceNumber);
+                }
+            });
+        });
+    }
+
+    private int CurrentSelectedInputDeviceNumber()
+    {
+        int index = mViewModel.SelectedInputDeviceIndex;
+        return index >= 0 && index < mInputDeviceNumbers.Count
+            ? mInputDeviceNumbers[index]
+            : int.MinValue;
+    }
 
     private void PopulateSampleRates(int deviceNumber)
     {
@@ -243,11 +267,10 @@ public partial class MainWindow
                 mNumberOfRates++;
             }
         }
-        else
+        else if (_sampleRateProbeCache.TryGetValue(deviceNumber, out IReadOnlyList<int>? supported))
         {
-            // Cached (and usually pre-warmed), so this stays instant on the UI
-            // thread. Capture backend startup remains the authoritative validation.
-            IReadOnlyList<int> supported = ProbeSampleRates(deviceNumber);
+            // Warm cache: narrow to the device-supported rates instantly. Capture
+            // backend startup remains the authoritative validation.
             foreach (int rate in standardRates)
             {
                 if (supported.Contains(rate) && mNumberOfRates < mAvailableRates.Length)
@@ -257,6 +280,24 @@ public partial class MainWindow
                     mNumberOfRates++;
                 }
             }
+        }
+        else
+        {
+            // Cache miss (pre-warm not finished, e.g. the initial auto-select):
+            // show every standard rate now so the UI never blocks on the probe
+            // (on Linux it spawns a process per rate), then probe off the UI
+            // thread and re-narrow once it returns if the device is still chosen.
+            foreach (int rate in standardRates)
+            {
+                if (mNumberOfRates < mAvailableRates.Length)
+                {
+                    labels.Add(rate.ToString(CultureInfo.InvariantCulture) + " Hz");
+                    mAvailableRates[mNumberOfRates] = rate;
+                    mNumberOfRates++;
+                }
+            }
+
+            ProbeSampleRatesAsync(deviceNumber);
         }
 
         using (mSelectionCoordinator.SuppressEvents())
