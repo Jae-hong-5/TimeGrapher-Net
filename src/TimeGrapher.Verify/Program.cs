@@ -452,8 +452,8 @@ static double[] WriteSyntheticWav(
         : WatchSynthStreamConfig.Clean();
     synthConfig.SampleRateHz = (uint)sampleRate;
     synthConfig.Bph = bph;
-    synthConfig.NoisePeakAmplitude = noisePeak;
-    synthConfig.PcmPeakAmplitude = pcmPeak;
+    synthConfig.NoisePeakSignalLevel = noisePeak;
+    synthConfig.PcmPeakSignalLevel = pcmPeak;
     synthConfig.RateErrorSPerDay = rateSPerDay;
     synthConfig.BeatErrorMs = beatErrorMs;
 
@@ -530,8 +530,8 @@ static double[] WriteByteBuiltSyntheticWav(
     WatchSynthStreamConfig synthConfig = WatchSynthStreamConfig.Clean();
     synthConfig.SampleRateHz = (uint)sampleRate;
     synthConfig.Bph = bph;
-    synthConfig.NoisePeakAmplitude = noisePeak;
-    synthConfig.PcmPeakAmplitude = pcmPeak;
+    synthConfig.NoisePeakSignalLevel = noisePeak;
+    synthConfig.PcmPeakSignalLevel = pcmPeak;
 
     var synth = new WatchSynthStream(synthConfig);
     int sampleCount = sampleRate * seconds;

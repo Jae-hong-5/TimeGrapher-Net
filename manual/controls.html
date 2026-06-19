@@ -94,8 +94,8 @@
         <dd><span class="ko">하이패스 필터의 차단 주파수. 이 값 아래의 낮은 주파수(손 떨림·취급 잡음·배경 진동 등)를 걸러 냅니다. 저주파 잡음이 검출을 방해하면 올리고, 신호가 약해지면 내립니다.</span><span class="en">High-pass cut-off frequency. Removes low-frequency content below it (handling noise, background rumble). Raise it if low rumble disturbs detection; lower it if the signal weakens.</span></dd>
         <dt>Scope Scale</dt>
         <dd><span class="ko">스코프류 그래프의 세로 확대 배율(1–8). 파형이 작으면 키워서 봅니다. <b>실행 중에도 변경</b>됩니다(검출에는 영향 없음, 보기 전용).</span><span class="en">Vertical zoom for scope-style graphs (1–8). Magnify a small waveform. Changeable <b>during a run</b> (display-only, doesn't affect detection).</span></dd>
-        <dt>C Event Use Onset Amplitude</dt>
-        <dd><span class="ko">진폭을 잴 때 C 충격의 <b>피크</b> 대신 <b>온셋(시작 가장자리)</b> 크기를 쓰도록 바꿉니다. 일부 무브먼트에서 진폭이 더 안정적으로 잡힙니다. (<a href="graphs/escapement.html">Escapement</a> 참고.)</span><span class="en">Use the C impulse's <b>onset</b> magnitude instead of its <b>peak</b> when measuring amplitude. Can be steadier on some movements. (See <a href="graphs/escapement.html">Escapement</a>.)</span></dd>
+        <dt>C Event Use Onset Timing</dt>
+        <dd><span class="ko">진폭을 계산할 때 C 충격의 <b>피크 시각</b> 대신 <b>온셋(시작 가장자리) 시각</b>을 쓰도록 바꿉니다. 일부 무브먼트에서 Amplitude가 더 안정적으로 잡힙니다. (<a href="graphs/escapement.html">Escapement</a> 참고.)</span><span class="en">Use the C impulse's <b>onset timing</b> instead of its <b>peak timing</b> when computing Amplitude. Can be steadier on some movements. (See <a href="graphs/escapement.html">Escapement</a>.)</span></dd>
         <dt>PLL Event Veto<br><small>(impulse rejection)</small></dt>
         <dd><span class="ko">위상 추적(PLL)이 예상한 박자에서 크게 벗어난 충격을 <b>거부</b>해, 똑딱이 아닌 일회성 잡음(탭·툭 치는 소리)이 측정을 망치지 않게 합니다. 취급 잡음이 많은 환경에서 켜세요.</span><span class="en">Lets the phase tracker (PLL) <b>reject</b> impulses that fall far from the expected beat, so one-off knocks/taps don't corrupt readings. Turn on in noisy/handling-heavy setups.</span></dd>
       </dl>

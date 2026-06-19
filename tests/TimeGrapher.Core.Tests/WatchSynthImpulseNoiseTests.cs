@@ -31,7 +31,7 @@ public sealed class WatchSynthImpulseNoiseTests
 
         WatchSynthStreamConfig knobsSet = WatchSynthStreamConfig.Realistic();
         knobsSet.ImpulseNoiseRatePerSecond = 0.0;
-        knobsSet.ImpulseNoisePeakAmplitude = 0.8;
+        knobsSet.ImpulseNoisePeakSignalLevel = 0.8;
         knobsSet.ImpulseNoiseFreqHz = 6000.0;
         knobsSet.ImpulseNoiseDecayMs = 5.0;
 
@@ -45,7 +45,7 @@ public sealed class WatchSynthImpulseNoiseTests
     {
         WatchSynthStreamConfig cfg = WatchSynthStreamConfig.Clean();
         cfg.ImpulseNoiseRatePerSecond = 2.0;
-        cfg.ImpulseNoisePeakAmplitude = 0.6;
+        cfg.ImpulseNoisePeakSignalLevel = 0.6;
 
         float[] a = Generate(cfg, 4);
         float[] b = Generate(cfg, 4);
@@ -60,7 +60,7 @@ public sealed class WatchSynthImpulseNoiseTests
         WatchSynthStreamConfig quiet = WatchSynthStreamConfig.Realistic();
         WatchSynthStreamConfig impulsive = WatchSynthStreamConfig.Realistic();
         impulsive.ImpulseNoiseRatePerSecond = 3.0;
-        impulsive.ImpulseNoisePeakAmplitude = 0.9;
+        impulsive.ImpulseNoisePeakSignalLevel = 0.9;
 
         var quietEvents = CollectEvents(quiet, 5);
         var impulsiveEvents = CollectEvents(impulsive, 5);
@@ -79,10 +79,10 @@ public sealed class WatchSynthImpulseNoiseTests
         // Impulses only: no ticks, no white noise. Count threshold crossings
         // with a refractory window; 30 s at 3/s gives a mean of 90.
         WatchSynthStreamConfig cfg = WatchSynthStreamConfig.Clean();
-        cfg.PcmPeakAmplitude = 0.0;
-        cfg.NoisePeakAmplitude = 0.0;
+        cfg.PcmPeakSignalLevel = 0.0;
+        cfg.NoisePeakSignalLevel = 0.0;
         cfg.ImpulseNoiseRatePerSecond = 3.0;
-        cfg.ImpulseNoisePeakAmplitude = 0.5;
+        cfg.ImpulseNoisePeakSignalLevel = 0.5;
 
         float[] samples = Generate(cfg, 30);
 
@@ -111,7 +111,7 @@ public sealed class WatchSynthImpulseNoiseTests
     {
         WatchSynthStreamConfig cfg = WatchSynthStreamConfig.Clean();
         cfg.ImpulseNoiseRatePerSecond = 10.0;
-        cfg.ImpulseNoisePeakAmplitude = 1.0;
+        cfg.ImpulseNoisePeakSignalLevel = 1.0;
 
         float[] samples = Generate(cfg, 3);
         Assert.All(samples, s => Assert.InRange(s, -1.0f, 1.0f));
@@ -120,14 +120,14 @@ public sealed class WatchSynthImpulseNoiseTests
     [Theory]
     [InlineData(-1.0, 0.5, 4500.0, 2.0, "impulse_noise_rate_per_second must be 0..50")]   // negative rate
     [InlineData(60.0, 0.5, 4500.0, 2.0, "impulse_noise_rate_per_second must be 0..50")]   // rate above cap
-    [InlineData(2.0, 1.5, 4500.0, 2.0, "impulse_noise_peak_amplitude must be 0..1 normalized PCM")]    // amplitude out of range
+    [InlineData(2.0, 1.5, 4500.0, 2.0, "impulse_noise_peak_signal_level must be 0..1 normalized PCM")]
     [InlineData(2.0, 0.5, 50.0, 2.0, "impulse_noise_freq_hz must be 100..0.45*sample_rate")]      // frequency below floor
     [InlineData(2.0, 0.5, 4500.0, 0.0, "impulse_noise_decay_ms must be >0 and <=50 ms")]    // decay not positive
-    public void InvalidImpulseConfig_IsRejected(double rate, double amp, double freq, double decayMs, string expectedError)
+    public void InvalidImpulseConfig_IsRejected(double rate, double signalLevel, double freq, double decayMs, string expectedError)
     {
         WatchSynthStreamConfig cfg = WatchSynthStreamConfig.Clean();
         cfg.ImpulseNoiseRatePerSecond = rate;
-        cfg.ImpulseNoisePeakAmplitude = amp;
+        cfg.ImpulseNoisePeakSignalLevel = signalLevel;
         cfg.ImpulseNoiseFreqHz = freq;
         cfg.ImpulseNoiseDecayMs = decayMs;
 

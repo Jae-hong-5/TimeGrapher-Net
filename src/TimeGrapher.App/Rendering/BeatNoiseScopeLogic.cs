@@ -7,7 +7,7 @@ namespace TimeGrapher.App.Rendering;
 /// <summary>
 /// Pure logic behind the Beat-Noise Scope tab, kept out of the renderer so it
 /// is unit-testable without a live plot control: strip-lane slot math and
-/// selection toggling, the Scope 2 progress / average-amplitude readout, the
+/// selection toggling, the Scope 2 progress / average-signal-level readout, the
 /// lift-angle label and the review-cursor mapping onto the displayed segment.
 /// </summary>
 internal static class BeatNoiseScopeLogic
@@ -110,18 +110,18 @@ internal static class BeatNoiseScopeLogic
         "LIFT " + liftAngleDeg.ToString("0.#", CultureInfo.InvariantCulture) + "°";
 
     /// <summary>
-    /// Scope 2 readout: per-lane average amplitude (mean of per-interval
+    /// Scope 2 readout: per-lane average signal level (mean of per-interval
     /// envelope peaks) plus the Σ cycle progress. The lanes are presented as
     /// trace 1/2 — never tic/toc — matching the snapshot contract.
     /// </summary>
     public static string AverageLine(BeatNoiseAverageSnapshot average)
     {
-        string Amplitude(int count, double meanPeak) => count > 0
+        string SignalLevel(int count, double meanPeak) => count > 0
             ? meanPeak.ToString("0.000", CultureInfo.InvariantCulture)
             : "—";
 
-        return "TRACE 1 (top) avg " + Amplitude(average.Lane1Count, average.Lane1MeanPeak)
-            + " · TRACE 2 avg " + Amplitude(average.Lane2Count, average.Lane2MeanPeak)
+        return "TRACE 1 (top) Signal Level " + SignalLevel(average.Lane1Count, average.Lane1MeanPeak)
+            + " · TRACE 2 Signal Level " + SignalLevel(average.Lane2Count, average.Lane2MeanPeak)
             + "   |   " + ProgressText(average);
     }
 

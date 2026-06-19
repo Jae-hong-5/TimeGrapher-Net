@@ -14,7 +14,7 @@ namespace TimeGrapher.Core.Sim;
     the caller's block size is constant.
 
     See the original header for full unit/naming documentation. Key points:
-      - pcm_peak_amplitude: normalized float PCM full-scale fraction (0..1) — digital loudness.
+      - pcm_peak_signal_level: normalized float PCM full-scale fraction (0..1) — digital loudness.
       - watch_amplitude_degrees / lift_angle_degrees: mechanical model used to derive A->C time.
       - beat_error_ms = 0.5 * (interval(Tick->Tock) - interval(Tock->Tick)).
 
@@ -47,8 +47,8 @@ public sealed class WatchSynthStreamConfig
     public double StartTimeS;            // seconds. Time of first generated beat after reset.
     public ulong Seed;                   // deterministic random seed.
 
-    public double PcmPeakAmplitude;      // normalized float PCM target level, 0..1.
-    public double NoisePeakAmplitude;    // normalized float PCM noise level, 0..1.
+    public double PcmPeakSignalLevel;      // normalized float PCM target level, 0..1.
+    public double NoisePeakSignalLevel;    // normalized float PCM noise level, 0..1.
 
     public double WatchAmplitudeDegrees; // degrees. Mechanical watch amplitude, e.g. 180..320.
     public double LiftAngleDegrees;      // degrees. Watch lift angle, e.g. 44..60.
@@ -59,7 +59,7 @@ public sealed class WatchSynthStreamConfig
 
     public int EnableRealisticPacket;       // 1 = multi-impact A/B/C packet; 0 = simple packet.
     public int EnablePacketShapeVariation;  // 1 = vary lobe delay/frequency/decay/level per beat.
-    public int EnableAmplitudeDrift;        // 1 = slow PCM packet gain drift.
+    public int EnableSignalLevelDrift;        // 1 = slow PCM packet gain drift.
     public int EnableSensorResonance;       // 1 = contact/case resonator model.
     public int EnableBandlimitedNoise;      // 1 = band-limit synthetic mechanical noise.
     public int EnableBphWander;             // 1 = tiny random-walk interval wander.
@@ -79,8 +79,8 @@ public sealed class WatchSynthStreamConfig
     public double ShapeFrequencyJitter;  // fraction. Random lobe frequency variation.
     public double ShapeDecayJitter;      // fraction. Random lobe decay variation.
 
-    public double AmplitudeDriftDepth;   // fraction. Example 0.08 = +/-8%.
-    public double AmplitudeDriftPeriodS; // seconds.
+    public double SignalLevelDriftDepth;   // fraction. Example 0.08 = +/-8%.
+    public double SignalLevelDriftPeriodS; // seconds.
     public double BphWanderDepthUs;      // us. Random-walk clamp.
     public double BphWanderStepUs;       // us. Random-walk step per beat.
 
@@ -103,7 +103,7 @@ public sealed class WatchSynthStreamConfig
         model entirely: no RNG draws, output unchanged.
     */
     public double ImpulseNoiseRatePerSecond; // Poisson mean impulses per second. 0 = off.
-    public double ImpulseNoisePeakAmplitude; // normalized float PCM impulse peak, 0..1.
+    public double ImpulseNoisePeakSignalLevel; // normalized float PCM impulse peak, 0..1.
     public double ImpulseNoiseFreqHz;        // damped-sine ringing frequency, Hz.
     public double ImpulseNoiseDecayMs;       // exponential decay time constant, ms.
 
@@ -125,8 +125,8 @@ public sealed class WatchSynthStreamConfig
             TimingJitterUs = 0.0,
             StartTimeS = 0.050,
             Seed = 0x123456789abcdefUL,
-            PcmPeakAmplitude = 0.70,
-            NoisePeakAmplitude = 0.0005,
+            PcmPeakSignalLevel = 0.70,
+            NoisePeakSignalLevel = 0.0005,
             WatchAmplitudeDegrees = 270.0,
             LiftAngleDegrees = 52.0,
             UseWatchAmplitudeForAToC = 1,
@@ -135,7 +135,7 @@ public sealed class WatchSynthStreamConfig
             MaxAToCTimeS = 0.2500,
             EnableRealisticPacket = 0,
             EnablePacketShapeVariation = 0,
-            EnableAmplitudeDrift = 0,
+            EnableSignalLevelDrift = 0,
             EnableSensorResonance = 0,
             EnableBandlimitedNoise = 0,
             EnableBphWander = 0,
@@ -152,8 +152,8 @@ public sealed class WatchSynthStreamConfig
             ShapeDelayJitterUs = 0.0,
             ShapeFrequencyJitter = 0.0,
             ShapeDecayJitter = 0.0,
-            AmplitudeDriftDepth = 0.0,
-            AmplitudeDriftPeriodS = 10.0,
+            SignalLevelDriftDepth = 0.0,
+            SignalLevelDriftPeriodS = 10.0,
             BphWanderDepthUs = 0.0,
             BphWanderStepUs = 0.0,
             SensorResonance1Hz = 3600.0,
@@ -165,7 +165,7 @@ public sealed class WatchSynthStreamConfig
             NoiseLowHz = 700.0,
             NoiseHighHz = 18000.0,
             ImpulseNoiseRatePerSecond = 0.0,
-            ImpulseNoisePeakAmplitude = 0.0,
+            ImpulseNoisePeakSignalLevel = 0.0,
             ImpulseNoiseFreqHz = 4500.0,
             ImpulseNoiseDecayMs = 2.0
         };
@@ -182,10 +182,10 @@ public sealed class WatchSynthStreamConfig
     {
         var cfg = Clean();
         cfg.TimingJitterUs = 1.0;
-        cfg.NoisePeakAmplitude = 0.0022;
+        cfg.NoisePeakSignalLevel = 0.0022;
         cfg.EnableRealisticPacket = 1;
         cfg.EnablePacketShapeVariation = 1;
-        cfg.EnableAmplitudeDrift = 1;
+        cfg.EnableSignalLevelDrift = 1;
         cfg.EnableSensorResonance = 1;
         cfg.EnableBandlimitedNoise = 1;
         cfg.EnableBphWander = 1;
@@ -195,8 +195,8 @@ public sealed class WatchSynthStreamConfig
         cfg.ShapeDelayJitterUs = 35.0;
         cfg.ShapeFrequencyJitter = 0.045;
         cfg.ShapeDecayJitter = 0.18;
-        cfg.AmplitudeDriftDepth = 0.08;
-        cfg.AmplitudeDriftPeriodS = 11.0;
+        cfg.SignalLevelDriftDepth = 0.08;
+        cfg.SignalLevelDriftPeriodS = 11.0;
         // Gentle default wander: keeps realistic mode close to configured rate.
         cfg.BphWanderDepthUs = 0.75;
         cfg.BphWanderStepUs = 0.075;
@@ -258,7 +258,7 @@ public sealed class WatchSynthStream
     private struct WatchSynthLobe
     {
         public double DelayS;
-        public double RelAmp;
+        public double RelSignalLevel;
         public double FreqHz;
         public double TauS;
     }
@@ -396,8 +396,8 @@ public sealed class WatchSynthStream
             err = string.Format(CultureInfo.InvariantCulture, "bph must be {0:F0}..{1:F0}", WsMinBph, WsMaxBph);
             return false;
         }
-        if (cfg.PcmPeakAmplitude < 0.0 || cfg.PcmPeakAmplitude > 1.0) { err = "pcm_peak_amplitude must be 0..1 normalized PCM"; return false; }
-        if (cfg.NoisePeakAmplitude < 0.0 || cfg.NoisePeakAmplitude > 1.0) { err = "noise_peak_amplitude must be 0..1 normalized PCM"; return false; }
+        if (cfg.PcmPeakSignalLevel < 0.0 || cfg.PcmPeakSignalLevel > 1.0) { err = "pcm_peak_signal_level must be 0..1 normalized PCM"; return false; }
+        if (cfg.NoisePeakSignalLevel < 0.0 || cfg.NoisePeakSignalLevel > 1.0) { err = "noise_peak_signal_level must be 0..1 normalized PCM"; return false; }
         if (cfg.WatchAmplitudeDegrees < 90.0 || cfg.WatchAmplitudeDegrees > 450.0) { err = "watch_amplitude_degrees must be 90..450 degrees"; return false; }
         if (cfg.LiftAngleDegrees <= 0.0 || cfg.LiftAngleDegrees > 90.0) { err = "lift_angle_degrees must be >0 and <=90 degrees"; return false; }
         if (cfg.PacketTailAfterCS <= 0.0 || cfg.PacketTailAfterCS > 0.100) { err = "packet_tail_after_c_s must be >0 and <=100 ms"; return false; }
@@ -409,7 +409,7 @@ public sealed class WatchSynthStream
         if (cfg.ImpulseNoiseRatePerSecond < 0.0 || cfg.ImpulseNoiseRatePerSecond > 50.0) { err = "impulse_noise_rate_per_second must be 0..50"; return false; }
         if (cfg.ImpulseNoiseRatePerSecond > 0.0)
         {
-            if (cfg.ImpulseNoisePeakAmplitude < 0.0 || cfg.ImpulseNoisePeakAmplitude > 1.0) { err = "impulse_noise_peak_amplitude must be 0..1 normalized PCM"; return false; }
+            if (cfg.ImpulseNoisePeakSignalLevel < 0.0 || cfg.ImpulseNoisePeakSignalLevel > 1.0) { err = "impulse_noise_peak_signal_level must be 0..1 normalized PCM"; return false; }
             if (cfg.ImpulseNoiseFreqHz < 100.0 || cfg.ImpulseNoiseFreqHz > 0.45 * cfg.SampleRateHz) { err = "impulse_noise_freq_hz must be 100..0.45*sample_rate"; return false; }
             if (cfg.ImpulseNoiseDecayMs <= 0.0 || cfg.ImpulseNoiseDecayMs > 50.0) { err = "impulse_noise_decay_ms must be >0 and <=50 ms"; return false; }
         }
@@ -491,11 +491,11 @@ public sealed class WatchSynthStream
         return _activePackets[0];
     }
 
-    private static void WsAddLobe(WatchSynthActivePacket p, double delayS, double amp, double freq, double tau)
+    private static void WsAddLobe(WatchSynthActivePacket p, double delayS, double relativeSignalLevel, double freq, double tau)
     {
         if (p.LobeCount >= WatchSynthMaxLobes) return;
         ref WatchSynthLobe l = ref p.Lobes[p.LobeCount++];
-        l.DelayS = delayS; l.RelAmp = amp; l.FreqHz = freq; l.TauS = tau;
+        l.DelayS = delayS; l.RelSignalLevel = relativeSignalLevel; l.FreqHz = freq; l.TauS = tau;
     }
 
     private static void WsSetCAnchor(WatchSynthActivePacket p, double delayS, double gain, double widthS)
@@ -509,27 +509,27 @@ public sealed class WatchSynthStream
     /*
         Add one damped sinusoidal lobe to a packet, with optional variation (ws_add_varied_lobe).
           delayS : time after A/onset when the lobe starts
-          amp    : relative contribution before packet_gain scaling
+          relativeSignalLevel : relative contribution before packet_gain scaling
           freq   : ringing frequency in Hz
           tau    : exponential decay time constant in seconds
         Realistic mode perturbs delay/frequency/decay/level per packet.
     */
-    private void WsAddVariedLobe(WatchSynthActivePacket p, double packetDurationS, double delayS, double amp, double freq, double tau, double freqScale)
+    private void WsAddVariedLobe(WatchSynthActivePacket p, double packetDurationS, double delayS, double relativeSignalLevel, double freq, double tau, double freqScale)
     {
         WatchSynthStreamConfig cfg = _cfg;
         freq *= freqScale;
         if (cfg.EnablePacketShapeVariation != 0)
         {
             delayS += cfg.ShapeDelayJitterUs * 1.0e-6 * WsRandSigned(ref _rngState);
-            amp *= 1.0 + 0.16 * WsRandSigned(ref _rngState);
+            relativeSignalLevel *= 1.0 + 0.16 * WsRandSigned(ref _rngState);
             freq *= 1.0 + cfg.ShapeFrequencyJitter * WsRandSigned(ref _rngState);
             tau *= 1.0 + cfg.ShapeDecayJitter * WsRandSigned(ref _rngState);
         }
         delayS = WsClamp(delayS, 0.0, packetDurationS - 0.0001);
-        amp = WsClamp(amp, 0.0, 2.0);
+        relativeSignalLevel = WsClamp(relativeSignalLevel, 0.0, 2.0);
         freq = WsClamp(freq, 500.0, 0.45 * (double)cfg.SampleRateHz);
         tau = WsClamp(tau, 0.00015, 0.020);
-        WsAddLobe(p, delayS, amp, freq, tau);
+        WsAddLobe(p, delayS, relativeSignalLevel, freq, tau);
     }
 
     /*
@@ -573,14 +573,14 @@ public sealed class WatchSynthStream
         double aToCS = ComputeAToCTimeS(cfg);
         double packetDurationS = aToCS + cfg.PacketTailAfterCS;
         ulong packetSamples = (ulong)Math.Ceiling(packetDurationS * (double)cfg.SampleRateHz) + 2u;
-        double gain = cfg.PcmPeakAmplitude;
+        double gain = cfg.PcmPeakSignalLevel;
         double freqScale = 1.0, cGain = 1.0;
 
         if (cfg.PacketGainVariation > 0.0) gain *= 1.0 + cfg.PacketGainVariation * WsRandSigned(ref _rngState);
-        if (cfg.EnableAmplitudeDrift != 0)
+        if (cfg.EnableSignalLevelDrift != 0)
         {
-            double phase = 2.0 * MPi * _nextEventTimeS / cfg.AmplitudeDriftPeriodS;
-            gain *= 1.0 + cfg.AmplitudeDriftDepth * Math.Sin(phase);
+            double phase = 2.0 * MPi * _nextEventTimeS / cfg.SignalLevelDriftPeriodS;
+            gain *= 1.0 + cfg.SignalLevelDriftDepth * Math.Sin(phase);
         }
         gain = WsClamp(gain, 0.0, 1.5);
 
@@ -683,7 +683,7 @@ public sealed class WatchSynthStream
             {
                 double attack = relS < 0.00012 ? relS / 0.00012 : 1.0;
                 double env = Math.Exp(-relS / l.TauS);
-                y += p.Polarity * p.PacketGain * l.RelAmp * attack * env * Math.Sin(2.0 * MPi * l.FreqHz * relS);
+                y += p.Polarity * p.PacketGain * l.RelSignalLevel * attack * env * Math.Sin(2.0 * MPi * l.FreqHz * relS);
             }
         }
         if (p.CAnchorEnabled != 0)
@@ -729,8 +729,8 @@ public sealed class WatchSynthStream
     private double WsNoise()
     {
         WatchSynthStreamConfig cfg = _cfg;
-        if (cfg.NoisePeakAmplitude <= 0.0) return 0.0;
-        double n = cfg.NoisePeakAmplitude * WsRandSigned(ref _rngState);
+        if (cfg.NoisePeakSignalLevel <= 0.0) return 0.0;
+        double n = cfg.NoisePeakSignalLevel * WsRandSigned(ref _rngState);
         if (cfg.EnableBandlimitedNoise != 0)
         {
             n = WsHp(n, ref _noiseHpLowState, cfg.NoiseLowHz, (double)cfg.SampleRateHz);
@@ -773,7 +773,7 @@ public sealed class WatchSynthStream
             return 0.0;
         }
         double env = Math.Exp(-relS / tauS);
-        return _impulsePolarity * cfg.ImpulseNoisePeakAmplitude * env * Math.Sin(2.0 * MPi * cfg.ImpulseNoiseFreqHz * relS);
+        return _impulsePolarity * cfg.ImpulseNoisePeakSignalLevel * env * Math.Sin(2.0 * MPi * cfg.ImpulseNoiseFreqHz * relS);
     }
 
     /*

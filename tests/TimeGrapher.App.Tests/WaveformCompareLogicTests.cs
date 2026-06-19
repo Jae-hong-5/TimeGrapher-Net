@@ -66,34 +66,34 @@ public sealed class WaveformCompareLogicTests
     {
         int bph = 18000;  // Test with 18000 BPH
         var ticLabel = WaveformCompareLogic.LaneLabel(Segment(isTic: true, aMs: 5.0, cPeakMs: 147.5), bph, liftAngleDeg: 52.0);
-        Assert.Equal("TIC\nA to C: +142.5 ms\nAmp: 66.2°", ticLabel);
+        Assert.Equal("TIC\nA to C: +142.5 ms\nAmplitude: 66.2°", ticLabel);
 
         var tocLabel = WaveformCompareLogic.LaneLabel(Segment(isTic: false, cPeakMs: null), bph, liftAngleDeg: 52.0);
-        Assert.Equal("TOC\nA to C: —\nAmp: —", tocLabel);
+        Assert.Equal("TOC\nA to C: —\nAmplitude: —", tocLabel);
     }
 
     [Fact]
     public void LaneLabel_AmplitudeUsesTheConfiguredLiftAngleNotTheSampleMagnitude()
     {
-        // Amp uses the canonical escapement formula WatchMetrics.Amplitude
+        // Amplitude uses the canonical escapement formula WatchMetrics.Amplitude
         // (lift / sin), shared with every other readout. λ=52°, n=18000 bph,
         // t_AC = 147.5-5.0 = 142.5 ms => 52 / sin(2π·0.1425/0.4) ≈ 66.2°.
         Assert.Equal(
-            "TIC\nA to C: +142.5 ms\nAmp: 66.2°",
+            "TIC\nA to C: +142.5 ms\nAmplitude: 66.2°",
             WaveformCompareLogic.LaneLabel(
                 Segment(isTic: true, aMs: 5.0, cPeakMs: 147.5, samplePeak: 0.1f), bph: 18000, liftAngleDeg: 52.0));
 
         // The lift angle is a configured (left-panel) value, not derived from the
         // captured envelope, so a louder capture must not change the amplitude.
         Assert.Equal(
-            "TIC\nA to C: +142.5 ms\nAmp: 66.2°",
+            "TIC\nA to C: +142.5 ms\nAmplitude: 66.2°",
             WaveformCompareLogic.LaneLabel(
                 Segment(isTic: true, aMs: 5.0, cPeakMs: 147.5, samplePeak: 0.9f), bph: 18000, liftAngleDeg: 52.0));
 
         // A different configured lift angle scales the amplitude proportionally
         // (60/52 * 66.2 ≈ 76.4°), proving the configured value reaches the formula.
         Assert.Equal(
-            "TIC\nA to C: +142.5 ms\nAmp: 76.4°",
+            "TIC\nA to C: +142.5 ms\nAmplitude: 76.4°",
             WaveformCompareLogic.LaneLabel(
                 Segment(isTic: true, aMs: 5.0, cPeakMs: 147.5, samplePeak: 0.1f), bph: 18000, liftAngleDeg: 60.0));
     }
@@ -106,7 +106,7 @@ public sealed class WaveformCompareLogicTests
         // readout suppresses as missing. The lane label matches by showing the dash
         // rather than a garbage number. bph=28800 -> half period 125 ms; t_AC=125 ms.
         Assert.Equal(
-            "TIC\nA to C: +125.0 ms\nAmp: —",
+            "TIC\nA to C: +125.0 ms\nAmplitude: —",
             WaveformCompareLogic.LaneLabel(
                 Segment(isTic: true, aMs: 5.0, cPeakMs: 130.0, samplePeak: 0.1f), bph: 28800, liftAngleDeg: 52.0));
     }

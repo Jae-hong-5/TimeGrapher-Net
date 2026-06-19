@@ -64,8 +64,7 @@ public sealed class InfoTabRegistryTests
         Assert.False(activeDiagram.ShowLabels);
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "POSITION MAP");
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "Crown down-right");
-        Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "AMPLITUDE");
-        Assert.DoesNotContain(Descendants(content).OfType<TextBlock>(), text => text.Text == "AMP");
+        Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "Amplitude");
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "POSITION CONSISTENCY");
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "COLLECTING");
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
@@ -547,7 +546,7 @@ public sealed class InfoTabRegistryTests
             },
             new AnalysisTabRenderContext(48000, ReviewCursorTimeS: 12.0));
 
-        Assert.Equal("RATE -2.0 s/d   AMP 281°   BEAT ERROR +0.2 ms", vm.ReviewMetricsText);
+        Assert.Equal("RATE -2.0 s/d   Amplitude 281°   BEAT ERROR +0.2 ms", vm.ReviewMetricsText);
     }
 
     [Fact]

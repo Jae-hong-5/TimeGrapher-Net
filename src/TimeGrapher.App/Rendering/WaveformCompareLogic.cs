@@ -74,9 +74,9 @@ internal static class WaveformCompareLogic
             ? (segment.CPeakOffsetMs - segment.AOffsetMs)
                 .ToString(SignedTenthsMsFormat, CultureInfo.InvariantCulture) + " ms"
             : VarioReadout.Missing) + "\n" +
-        "Amp: " + (segment.Samples.Length > 0 && segment.CPeakValid && bph > 0
-            && CalculateAmplitude(segment, bph, liftAngleDeg) is double amp
-            ? amp.ToString("F1", CultureInfo.InvariantCulture) + "°"
+        "Amplitude: " + (segment.Samples.Length > 0 && segment.CPeakValid && bph > 0
+            && CalculateAmplitude(segment, bph, liftAngleDeg) is double amplitudeDeg
+            ? amplitudeDeg.ToString("F1", CultureInfo.InvariantCulture) + "°"
             : VarioReadout.Missing);
 
     /// <summary>

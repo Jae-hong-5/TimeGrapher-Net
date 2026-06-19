@@ -118,7 +118,7 @@ public sealed class BeatNoiseAverageSnapshot
     public IReadOnlyList<float> Lane1 { get; init; } = Array.Empty<float>();
     public IReadOnlyList<float> Lane2 { get; init; } = Array.Empty<float>();
 
-    /// <summary>Mean of the per-interval envelope peaks of each lane (the plan's per-axis average amplitude).</summary>
+    /// <summary>Mean of the per-interval envelope peaks of each lane (the plan's per-axis average signal level).</summary>
     public double Lane1MeanPeak { get; init; }
     public double Lane2MeanPeak { get; init; }
 

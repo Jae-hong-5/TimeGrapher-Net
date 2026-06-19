@@ -138,7 +138,7 @@ internal static class LongTermReadout
         "RATE " + VarioReadout.Format(history.RateValid ? history.RateSPerDay : null, "+0.0;-0.0;0.0", " s/d");
 
     public static string CurrentAmplitude(BeatMetricsHistorySnapshot history) =>
-        "AMPLITUDE " + VarioReadout.Format(history.AmplitudeValid ? history.AmplitudeDeg : null, "0", "°");
+        "Amplitude " + VarioReadout.Format(history.AmplitudeValid ? history.AmplitudeDeg : null, "0", "°");
 
     public static string CurrentBeatError(BeatMetricsHistorySnapshot history) =>
         "BEAT ERROR " + VarioReadout.Format(history.BeatErrorValid ? history.BeatErrorSignedMs : null, "+0.0;-0.0;0.0", " ms");
@@ -157,7 +157,7 @@ internal static class LongTermReadout
 
         return string.Join("   ",
             "RATE " + VarioReadout.Format(rate, "+0.0;-0.0;0.0", " s/d"),
-            "AMP " + VarioReadout.Format(amplitude, "0", "°"),
+            "Amplitude " + VarioReadout.Format(amplitude, "0", "°"),
             "BEAT ERROR " + VarioReadout.Format(beatError, "+0.0;-0.0;0.0", " ms"));
     }
 

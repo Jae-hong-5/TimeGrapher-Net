@@ -121,10 +121,10 @@ public sealed class LongTermReadoutTests
         };
 
         Assert.Equal(
-            "RATE -3.0 s/d   AMP 282°   BEAT ERROR +0.3 ms",
+            "RATE -3.0 s/d   Amplitude 282°   BEAT ERROR +0.3 ms",
             LongTermReadout.ReviewMetrics(history, null));
         Assert.Equal(
-            "RATE -2.0 s/d   AMP 281°   BEAT ERROR +0.2 ms",
+            "RATE -2.0 s/d   Amplitude 281°   BEAT ERROR +0.2 ms",
             LongTermReadout.ReviewMetrics(history, 12.0));
     }
 

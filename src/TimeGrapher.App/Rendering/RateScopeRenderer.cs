@@ -135,7 +135,7 @@ internal sealed class RateScopeRenderer
         Plot scope = _scopePlot.Plot;
         scope.Clear();
         ApplyPlotTheme(scope);
-        scope.YLabel("Signal level");
+        scope.YLabel("Signal Level");
         scope.XLabel("Time (s)");
         scope.Axes.SetLimitsY(0, 0.1);
         // Fixed-interval time ruler (matches the Multi-Filter Scope): a minor tick

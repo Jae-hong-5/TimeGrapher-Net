@@ -95,7 +95,7 @@ internal sealed class TraceDisplayRenderer
         _amplitudeX.Clear();
         _amplitudeY.Clear();
         ApplyPlotTheme(amplitude);
-        amplitude.YLabel("Amplitude (°)");
+        amplitude.YLabel("Amplitude(°)");
         amplitude.XLabel("Elapsed (s)");
         _amplitudeBand = amplitude.Add.VerticalSpan(
             TraceAlertEvaluator.AmplitudeMinDeg, TraceAlertEvaluator.AmplitudeMaxDeg);
@@ -187,7 +187,7 @@ internal sealed class TraceDisplayRenderer
             Format("RATE", MetricsSeriesMath.Average(history.Rate),
                 MetricsSeriesMath.RollingAverage(history.Rate, RollingWindowS), " s/d", "+0.0;-0.0;0.0")
             + "   |   "
-            + Format("AMP", MetricsSeriesMath.Average(history.Amplitude),
+            + Format("Amplitude", MetricsSeriesMath.Average(history.Amplitude),
                 MetricsSeriesMath.RollingAverage(history.Amplitude, RollingWindowS), "°", "0");
     }
 

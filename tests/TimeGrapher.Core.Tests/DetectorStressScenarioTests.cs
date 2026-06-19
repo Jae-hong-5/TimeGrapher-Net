@@ -28,7 +28,7 @@ public sealed class DetectorStressScenarioTests
 
     private static StressResult Run(
         double pcmPeak, double noisePeak, int bph, int seconds,
-        double impulseRate = 0.0, double impulseAmp = 0.0,
+        double impulseRate = 0.0, double impulseSignalLevel = 0.0,
         double gainStepAtS = 0.0, double gainStepFactor = 1.0,
         int silenceLeadInSamples = 0,
         double evalStartS = 2.0,
@@ -39,12 +39,12 @@ public sealed class DetectorStressScenarioTests
             : WatchSynthStreamConfig.Clean();
         cfg.SampleRateHz = 48000;
         cfg.Bph = bph;
-        cfg.PcmPeakAmplitude = pcmPeak;
-        cfg.NoisePeakAmplitude = noisePeak;
+        cfg.PcmPeakSignalLevel = pcmPeak;
+        cfg.NoisePeakSignalLevel = noisePeak;
         if (impulseRate > 0.0)
         {
             cfg.ImpulseNoiseRatePerSecond = impulseRate;
-            cfg.ImpulseNoisePeakAmplitude = impulseAmp;
+            cfg.ImpulseNoisePeakSignalLevel = impulseSignalLevel;
         }
 
         var synth = new WatchSynthStream(cfg);
@@ -171,7 +171,7 @@ public sealed class DetectorStressScenarioTests
     public void ImpulseDos_DefaultDetectorHoldsLock()
     {
         StressResult result = Run(pcmPeak: 0.03, noisePeak: 0.004,
-            bph: 21600, seconds: 16, impulseRate: 1.0, impulseAmp: 0.95);
+            bph: 21600, seconds: 16, impulseRate: 1.0, impulseSignalLevel: 0.95);
 
         Assert.True(result.Resets <= 1, $"resets {result.Resets}");
         Assert.Equal(TgSyncStatus.Synced, result.FinalSync);

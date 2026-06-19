@@ -145,7 +145,7 @@ public sealed class TgResult
     /* One-shot edge flags */
     public bool SyncLostEvent;
     public bool SyncAcquiredEvent;
-    public bool DetectorResetEvent; // V5.6: large amplitude jump flush
+    public bool DetectorResetEvent; // V5.6: large signal-level jump flush
 
     /* Detector state (instantaneous) for diagnostics / UI */
     public float OnsetThreshold;

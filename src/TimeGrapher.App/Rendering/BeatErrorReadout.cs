@@ -16,7 +16,7 @@ internal static class BeatErrorReadout
     /// <summary>Panel labels; <see cref="Values"/> returns matching positions.</summary>
     public static readonly string[] Labels =
     {
-        "RATE", "AMPLITUDE", "BEAT ERROR", "BPH",
+        "RATE", "Amplitude", "BEAT ERROR", "BPH",
         "DIFF TIC-TAC", "DIFF PERIOD", "AVG PERIOD",
     };
 

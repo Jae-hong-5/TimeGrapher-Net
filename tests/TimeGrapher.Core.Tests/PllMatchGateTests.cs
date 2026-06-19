@@ -53,10 +53,10 @@ public sealed class PllMatchGateTests
         WatchSynthStreamConfig cfg = WatchSynthStreamConfig.Clean();
         cfg.SampleRateHz = 48000;
         cfg.Bph = 28800;
-        cfg.PcmPeakAmplitude = 0.25;
-        cfg.NoisePeakAmplitude = 0.02;
+        cfg.PcmPeakSignalLevel = 0.25;
+        cfg.NoisePeakSignalLevel = 0.02;
         cfg.ImpulseNoiseRatePerSecond = 3.0;
-        cfg.ImpulseNoisePeakAmplitude = 0.6;
+        cfg.ImpulseNoisePeakSignalLevel = 0.6;
         return cfg;
     }
 

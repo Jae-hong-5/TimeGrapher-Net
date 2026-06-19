@@ -17,7 +17,7 @@ internal sealed class MultiPositionSeqRenderer
     private const int MinQualifiedPositionsForVerdict = 3;
     private const int MinVerticalPositionsForBalanceWheelVerdict = 2;
 
-    private static readonly string[] Headers = { "POS", "RATE", "AMPLITUDE", "BEAT ERR", "BEATS" };
+    private static readonly string[] Headers = { "POS", "RATE", "Amplitude", "BEAT ERR", "BEATS" };
 
     private readonly Grid _tableGrid;
     private readonly Border _alertBanner;

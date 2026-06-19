@@ -62,7 +62,7 @@ public sealed class LongTermPerfRendererTests
 
         renderer.CreateGraphs();
 
-        Assert.Equal("AMPLITUDE —", amplitude.Text);
+        Assert.Equal("Amplitude —", amplitude.Text);
         Assert.Equal("BEAT ERROR —", beatError.Text);
         AssertInitialDayWindow(ratePlot);
         AssertInitialDayWindow(amplitudePlot);
@@ -127,7 +127,7 @@ public sealed class LongTermPerfRendererTests
 
         Assert.Equal("IN TOLERANCE", verdict.Text);
         Assert.Equal("RATE +1.8 s/d", rate.Text);
-        Assert.Equal("AMPLITUDE 282°", amplitude.Text);
+        Assert.Equal("Amplitude 282°", amplitude.Text);
         Assert.Equal("BEAT ERROR +0.3 ms", beatError.Text);
         Assert.DoesNotContain("View:", footer.Text);
         Assert.DoesNotContain("Elapsed", footer.Text);

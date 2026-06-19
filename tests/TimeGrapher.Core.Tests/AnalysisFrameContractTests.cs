@@ -93,7 +93,7 @@ public sealed class AnalysisFrameContractTests
         WatchSynthStreamConfig synthConfig = WatchSynthStreamConfig.Clean();
         synthConfig.SampleRateHz = sampleRate;
         synthConfig.Bph = 21600;
-        synthConfig.PcmPeakAmplitude = 0.40;
+        synthConfig.PcmPeakSignalLevel = 0.40;
         var synth = new WatchSynthStream(synthConfig);
 
         var block = new float[4096];

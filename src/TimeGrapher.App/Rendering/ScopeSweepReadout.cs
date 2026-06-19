@@ -15,7 +15,7 @@ internal static class ScopeSweepReadout
     public static string ReferenceLine(BeatMetricsHistorySnapshot? snapshot) =>
         "RATE " + VarioReadout.Format(
             snapshot is { RateValid: true } ? snapshot.RateSPerDay : null, "+0.0;-0.0;0.0", " s/d")
-        + "   |   AMP " + VarioReadout.Format(
+        + "   |   Amplitude " + VarioReadout.Format(
             snapshot is { AmplitudeValid: true } ? snapshot.AmplitudeDeg : null, "0", "°")
         + "   |   BEAT ERR " + VarioReadout.Format(
             snapshot is { BeatErrorValid: true } ? snapshot.BeatErrorSignedMs : null, "+0.00;-0.00;0.00", " ms");

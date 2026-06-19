@@ -24,7 +24,7 @@ namespace TimeGrapher.App.Rendering;
 ///
 /// Scope 2: the two phase-alternating averaged lanes on a fixed 0-20 ms axis,
 /// vertically offset and labeled trace 1/2 (never tic/toc), with the per-lane
-/// average amplitude and Σ progress in the readout below.
+/// average signal level and Σ progress in the readout below.
 ///
 /// All plottables refill in place; re-renders only when the snapshot version
 /// changes, so coalesced or repeated frames cost nothing. Segments reference

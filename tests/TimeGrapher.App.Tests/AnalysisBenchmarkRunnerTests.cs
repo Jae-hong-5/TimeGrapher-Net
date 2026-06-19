@@ -44,7 +44,7 @@ public sealed class AnalysisBenchmarkRunnerTests
         WatchSynthStreamConfig config = WatchSynthStreamConfig.Realistic();
         config.SampleRateHz = (uint)sampleRate;
         config.Bph = bph;
-        config.PcmPeakAmplitude = 0.35;
+        config.PcmPeakSignalLevel = 0.35;
 
         var synth = new WatchSynthStream(config);
         using var writer = new WavStreamWriter();

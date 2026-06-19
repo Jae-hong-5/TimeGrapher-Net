@@ -41,8 +41,8 @@ public sealed class DetectorGoldenMasterTests
             : WatchSynthStreamConfig.Realistic();
         synthConfig.SampleRateHz = 48000;
         synthConfig.Bph = 21600;
-        synthConfig.PcmPeakAmplitude = clean ? 0.40 : 0.30;
-        synthConfig.NoisePeakAmplitude = clean ? 0.0 : 0.01;
+        synthConfig.PcmPeakSignalLevel = clean ? 0.40 : 0.30;
+        synthConfig.NoisePeakSignalLevel = clean ? 0.0 : 0.01;
 
         var synth = new WatchSynthStream(synthConfig);
         var detector = new TgDetector(TgConfig.Default());

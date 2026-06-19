@@ -33,8 +33,8 @@ internal static class AnalysisBenchmarkRunner
         WatchSynthStreamConfig synthConfig = WatchSynthStreamConfig.Realistic();
         synthConfig.SampleRateHz = (uint)sampleRate;
         synthConfig.Bph = bph;
-        synthConfig.PcmPeakAmplitude = 0.35;
-        synthConfig.NoisePeakAmplitude = 0.0;
+        synthConfig.PcmPeakSignalLevel = 0.35;
+        synthConfig.NoisePeakSignalLevel = 0.0;
 
         var synth = new WatchSynthStream(synthConfig);
         int totalSamples = (int)Math.Ceiling(sampleRate * (durationMs / 1000.0));

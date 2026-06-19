@@ -36,18 +36,18 @@ public sealed class AdaptiveFloorTests
         return core;
     }
 
-    private static float[] BuildEnvelope(int totalSamples, IEnumerable<(int Start, float Amp)> bursts)
+    private static float[] BuildEnvelope(int totalSamples, IEnumerable<(int Start, float SignalLevel)> bursts)
     {
         var env = new float[totalSamples];
         for (int i = 0; i < totalSamples; i++)
         {
             env[i] = (i % 7) < 2 ? NoiseLow : NoiseHigh;
         }
-        foreach ((int start, float amp) in bursts)
+        foreach ((int start, float signalLevel) in bursts)
         {
             for (int i = start; i < start + BurstWidth && i < totalSamples; i++)
             {
-                env[i] = amp;
+                env[i] = signalLevel;
             }
         }
         return env;
@@ -65,11 +65,11 @@ public sealed class AdaptiveFloorTests
         return events.Take(count).ToList();
     }
 
-    private static IEnumerable<(int Start, float Amp)> BurstTrain(double fromS, int count, float amp)
+    private static IEnumerable<(int Start, float SignalLevel)> BurstTrain(double fromS, int count, float signalLevel)
     {
         for (int k = 0; k < count; k++)
         {
-            yield return ((int)((fromS + 0.25 * k) * Fs), amp);
+            yield return ((int)((fromS + 0.25 * k) * Fs), signalLevel);
         }
     }
 

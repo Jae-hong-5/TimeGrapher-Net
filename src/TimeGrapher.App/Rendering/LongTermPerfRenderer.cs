@@ -115,7 +115,7 @@ internal sealed class LongTermPerfRenderer
         LongTermSummaryControls? summary = null)
     {
         _rate = new Pane { Plot = ratePlot, YLabel = "Rate (s/d)", AcceptLabelFormat = "+0;-0;0", Accept = LongTermAcceptPolicy.Rate };
-        _amplitude = new Pane { Plot = amplitudePlot, YLabel = "Amplitude (°)", AcceptLabelFormat = "0", Accept = LongTermAcceptPolicy.Amplitude };
+        _amplitude = new Pane { Plot = amplitudePlot, YLabel = "Amplitude(°)", AcceptLabelFormat = "0", Accept = LongTermAcceptPolicy.Amplitude };
         _beatError = new Pane { Plot = beatErrorPlot, YLabel = "Beat Error Rate (ms)", AcceptLabelFormat = "+0.0;-0.0;0.0", Accept = LongTermAcceptPolicy.BeatError };
         _panes = new[] { _rate, _amplitude, _beatError };
         _footerText = footerText;
@@ -999,7 +999,7 @@ internal sealed class LongTermPerfRenderer
 
         _summary.Verdict.Text = "COLLECTING";
         _summary.Rate.Text = "RATE " + VarioReadout.Missing;
-        _summary.Amplitude.Text = "AMPLITUDE " + VarioReadout.Missing;
+        _summary.Amplitude.Text = "Amplitude " + VarioReadout.Missing;
         _summary.BeatError.Text = "BEAT ERROR " + VarioReadout.Missing;
         ApplySummaryTheme("COLLECTING");
         _reviewMetricsCallback?.Invoke("");

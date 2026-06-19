@@ -95,7 +95,7 @@ internal sealed class EscapementAnalyzerRenderer
         _envelopeY.Clear();
         _rawMinY.Clear();
         ApplyPlotTheme(plot);
-        plot.YLabel("Amplitude");
+        plot.YLabel("Signal Level");
         plot.XLabel("ms");
         _envelopeScatter = plot.Add.Scatter(_envelopeX, _envelopeY);
         _envelopeScatter.LineWidth = 1;
@@ -167,7 +167,7 @@ internal sealed class EscapementAnalyzerRenderer
     }
 
     /// <summary>
-    /// Refills the trace series and rescales the axes; returns the amplitude the
+    /// Refills the trace series and rescales the axes; returns the signal level the
     /// marker labels sit above. Draws the real raw bipolar waveform (RawMin/Max
     /// outlines, symmetric about zero) when the segment carries raw, and falls
     /// back to the rectified envelope otherwise.

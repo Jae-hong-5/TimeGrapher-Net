@@ -47,7 +47,7 @@ internal sealed record AdverseScenario(
     double NoisePeak,
     bool Realistic,
     double ImpulseRate = 0.0,
-    double ImpulseAmp = 0.0,
+    double ImpulseSignalLevel = 0.0,
     int SilenceLeadInSamples = 0,
     double GainStepAtS = 0.0,
     double GainStepFactor = 1.0,
@@ -91,14 +91,14 @@ internal static class AdverseScenarios
         // when recalibrating.
         new("impulse-dos", Bph: 21600, SampleRate: 48000, Seconds: 16,
             PcmPeak: 0.03, NoisePeak: 0.004, Realistic: false,
-            ImpulseRate: 1.0, ImpulseAmp: 0.95,
+            ImpulseRate: 1.0, ImpulseSignalLevel: 0.95,
             Default: new AdverseGates(MustSync: true, MaxResets: 1, MinRecall: 0.90, MinPrecision: 0.90,
                 MaxMissedBeats: 0)),
         // The optional PLL gate can raise precision here; the default detector
         // should still retain the watch.
         new("impulse-storm", Bph: 28800, SampleRate: 48000, Seconds: 16,
             PcmPeak: 0.25, NoisePeak: 0.02, Realistic: false,
-            ImpulseRate: 3.0, ImpulseAmp: 0.6,
+            ImpulseRate: 3.0, ImpulseSignalLevel: 0.6,
             Default: new AdverseGates(MustSync: true, MinRecall: 0.90, MinPrecision: 0.90,
                 MaxMissedBeats: 0)),
         // Loud-to-quiet gain step (W-4(b) latch-up).
@@ -157,12 +157,12 @@ internal static class AdverseScenarios
             : WatchSynthStreamConfig.Clean();
         synthConfig.SampleRateHz = (uint)row.SampleRate;
         synthConfig.Bph = row.Bph;
-        synthConfig.PcmPeakAmplitude = row.PcmPeak;
-        synthConfig.NoisePeakAmplitude = row.NoisePeak;
+        synthConfig.PcmPeakSignalLevel = row.PcmPeak;
+        synthConfig.NoisePeakSignalLevel = row.NoisePeak;
         if (row.ImpulseRate > 0.0)
         {
             synthConfig.ImpulseNoiseRatePerSecond = row.ImpulseRate;
-            synthConfig.ImpulseNoisePeakAmplitude = row.ImpulseAmp;
+            synthConfig.ImpulseNoisePeakSignalLevel = row.ImpulseSignalLevel;
         }
 
         var synth = new WatchSynthStream(synthConfig);

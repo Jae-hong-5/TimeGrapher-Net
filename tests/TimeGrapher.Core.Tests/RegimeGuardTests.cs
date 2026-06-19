@@ -14,7 +14,7 @@ public sealed class RegimeGuardTests
 {
     private const double Fs = 48000.0;
     private const int BurstWidth = 576;     // 12 ms
-    private const float TickAmp = 0.01f;
+    private const float TickSignalLevel = 0.01f;
 
     private static TgDetectorCore NewCore()
     {
@@ -23,18 +23,18 @@ public sealed class RegimeGuardTests
         return core;
     }
 
-    private static float[] BuildEnvelope(int totalSamples, IEnumerable<(int Start, float Amp)> bursts)
+    private static float[] BuildEnvelope(int totalSamples, IEnumerable<(int Start, float SignalLevel)> bursts)
     {
         var env = new float[totalSamples];
         for (int i = 0; i < totalSamples; i++)
         {
             env[i] = (i % 7) < 2 ? 0.0008f : 0.00112f;
         }
-        foreach ((int start, float amp) in bursts)
+        foreach ((int start, float signalLevel) in bursts)
         {
             for (int i = start; i < start + BurstWidth && i < totalSamples; i++)
             {
-                env[i] = amp;
+                env[i] = signalLevel;
             }
         }
         return env;
@@ -58,11 +58,11 @@ public sealed class RegimeGuardTests
         return trips;
     }
 
-    private static IEnumerable<(int Start, float Amp)> Train(double fromS, int count, float amp)
+    private static IEnumerable<(int Start, float SignalLevel)> Train(double fromS, int count, float signalLevel)
     {
         for (int k = 0; k < count; k++)
         {
-            yield return ((int)((fromS + 0.25 * k) * Fs), amp);
+            yield return ((int)((fromS + 0.25 * k) * Fs), signalLevel);
         }
     }
 
@@ -73,9 +73,9 @@ public sealed class RegimeGuardTests
         // instantaneous trip fires on the impulse; the guard requires a run
         // of 3 qualifying peaks, and the next ordinary tick resets the run.
         var bursts = new List<(int, float)>();
-        bursts.AddRange(Train(1.0, 8, TickAmp));
+        bursts.AddRange(Train(1.0, 8, TickSignalLevel));
         bursts.Add(((int)(3.0 * Fs), 0.12f));
-        bursts.AddRange(Train(3.25, 8, TickAmp));
+        bursts.AddRange(Train(3.25, 8, TickSignalLevel));
         float[] envelope = BuildEnvelope((int)(6.0 * Fs), bursts);
 
         Assert.Equal(0, Run(NewCore(), envelope));
@@ -89,7 +89,7 @@ public sealed class RegimeGuardTests
         // cooldown then suppresses the immediately following qualifiers
         // (5 loud bursts at 0.25 s spacing stay inside one cooldown window).
         var bursts = new List<(int, float)>();
-        bursts.AddRange(Train(1.0, 8, TickAmp));
+        bursts.AddRange(Train(1.0, 8, TickSignalLevel));
         bursts.AddRange(Train(3.0, 5, 0.12f));
         float[] envelope = BuildEnvelope((int)(5.0 * Fs), bursts);
 
@@ -102,7 +102,7 @@ public sealed class RegimeGuardTests
         // The impulse-DoS pattern: a large impulse roughly once a second with
         // ordinary ticks in between never accumulates a run of 3.
         var bursts = new List<(int, float)>();
-        bursts.AddRange(Train(1.0, 24, TickAmp));
+        bursts.AddRange(Train(1.0, 24, TickSignalLevel));
         for (int k = 0; k < 5; k++)
         {
             bursts.Add(((int)((3.1 + 1.1 * k) * Fs), 0.12f));

@@ -67,7 +67,7 @@ public sealed class RisingEdgeEmphasis
 /// <item><b>F1</b> — moving average of F0 over a
 /// <see cref="SmoothingWindowS"/> ≈ 0.5 ms window (sample-rate-derived,
 /// ring-buffer running sum): a smoother, less noisy trace. Note: averaging
-/// also fades low-amplitude signal detail, as the plan warns.</item>
+/// also fades low-signal-level detail, as the plan warns.</item>
 /// <item><b>F2</b> — F1 through <see cref="RisingEdgeEmphasis"/> with a
 /// <see cref="FallHalfLifeS"/> ≈ 5 ms attenuator half-life
 /// (sample-rate-derived): rises kept, decays suppressed; reveals T3 and

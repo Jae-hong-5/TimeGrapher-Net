@@ -147,8 +147,8 @@ public sealed class SoundImageRendererTests
         WatchSynthStreamConfig cfg = WatchSynthStreamConfig.Clean();
         cfg.SampleRateHz = 48000;
         cfg.Bph = bph;
-        cfg.PcmPeakAmplitude = 0.40;
-        cfg.NoisePeakAmplitude = 0.0;
+        cfg.PcmPeakSignalLevel = 0.40;
+        cfg.NoisePeakSignalLevel = 0.0;
         return cfg;
     }
 }

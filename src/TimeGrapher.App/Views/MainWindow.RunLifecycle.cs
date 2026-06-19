@@ -386,7 +386,7 @@ public partial class MainWindow
         cfg.Bph = selection.Bph;
         cfg.SampleRateHz = (uint)selection.SampleRate;
         cfg.BeatErrorMs = -(double)mViewModel.SimBeatError;
-        cfg.PcmPeakAmplitude = 0.40; // normalized float PCM digital output level
+        cfg.PcmPeakSignalLevel = 0.40; // normalized float PCM digital output level
         cfg.WatchAmplitudeDegrees = (double)mViewModel.SimAmplitude;
         cfg.LiftAngleDegrees = (double)mViewModel.LiftAngle;
         cfg.RateErrorSPerDay = (double)mViewModel.SimErrorRate;

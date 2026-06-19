@@ -515,12 +515,12 @@ public sealed class WatchMetrics
     {
         if ((haveValidBph) && (_bphValid) && (_haveAEvent))
         {
-            int amp = QRound(Amplitude(_config.LiftAngle, beatTimeSeconds, bph));
-            if (amp > 0 && amp < 360)
+            int amplitudeDeg = QRound(Amplitude(_config.LiftAngle, beatTimeSeconds, bph));
+            if (amplitudeDeg > 0 && amplitudeDeg < 360)
             {
-                // " %1 ms\n%2%3" : ms (f,1), amp (int), degree sign (U+00B0)
+                // " %1 ms\n%2%3" : ms (f,1), amplitude degrees (int), degree sign (U+00B0)
                 return " " + FormatFixed(beatTimeSeconds * 1000.0, 1) + " ms\n"
-                       + amp.ToString(CultureInfo.InvariantCulture) + "°";
+                       + amplitudeDeg.ToString(CultureInfo.InvariantCulture) + "°";
             }
         }
 
@@ -560,7 +560,7 @@ public sealed class WatchMetrics
         string beatErrorText = beatErrorValid ? Mark(ArgFixed(beatError, 4, 1)) : "----";
         string amplitudeText = amplitudeValid ? Mark(ArgLong(QRound64(amplitude), 3)) : "---";
 
-        return "ERROR RATE " + rateError + " s/d | AMPLITUDE " + amplitudeText + "°" +
+        return "ERROR RATE " + rateError + " s/d | Amplitude " + amplitudeText + "°" +
                " | BEAT ERROR " + beatErrorText + " ms | BEAT " + beatsPerHour + " bph";
     }
 

@@ -32,8 +32,8 @@ public sealed class DetectorScenarioTests
         c.Bph = bph;
         c.RateErrorSPerDay = rateSPerDay;
         c.BeatErrorMs = beatErrorMs;
-        c.PcmPeakAmplitude = 0.40;
-        c.NoisePeakAmplitude = 0.0;
+        c.PcmPeakSignalLevel = 0.40;
+        c.NoisePeakSignalLevel = 0.0;
         return c;
     }
 

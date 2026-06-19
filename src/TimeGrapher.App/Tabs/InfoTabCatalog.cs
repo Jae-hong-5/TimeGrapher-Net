@@ -49,7 +49,7 @@ internal static class InfoTabCatalog
     public const string SoundPrintTabId = "sound-print";
     public const string TraceDisplayTabId = "trace-display";
     public const string ScopeSweepTabId = "scope-sweep";
-    public const string VarioTabId = "rate-amp-stability";
+    public const string VarioTabId = "rate-amplitude-stability";
     public const string BeatErrorDiagTabId = "beat-error-diag";
     public const string MultiFilterScopeTabId = "multi-filter-scope";
     public const string LongTermPerfTabId = "long-term-perf";

@@ -23,8 +23,8 @@ public sealed class SyntheticDetectorTests
         WatchSynthStreamConfig synthConfig = WatchSynthStreamConfig.Clean();
         synthConfig.SampleRateHz = (uint)sampleRate;
         synthConfig.Bph = expectedBph;
-        synthConfig.NoisePeakAmplitude = noisePeak;
-        synthConfig.PcmPeakAmplitude = pcmPeak;
+        synthConfig.NoisePeakSignalLevel = noisePeak;
+        synthConfig.PcmPeakSignalLevel = pcmPeak;
 
         var synth = new WatchSynthStream(synthConfig);
         var engine = new DetectorMetricsEngine(new DetectorMetricsEngineConfig(

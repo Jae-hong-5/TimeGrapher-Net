@@ -11,10 +11,10 @@ public sealed class WatchSynthStreamTests
         cfg.SampleRateHz = 48000;
         cfg.Bph = bph;
         cfg.Seed = seed;
-        cfg.PcmPeakAmplitude = 0.40;
+        cfg.PcmPeakSignalLevel = 0.40;
         // Seed only changes output when a stochastic component is enabled (noise/jitter);
         // a fully clean packet is deterministic regardless of seed.
-        cfg.NoisePeakAmplitude = noise;
+        cfg.NoisePeakSignalLevel = noise;
         return cfg;
     }
 

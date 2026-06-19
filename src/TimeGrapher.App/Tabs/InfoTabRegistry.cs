@@ -417,7 +417,7 @@ internal sealed partial class InfoTabRegistry
         var amplitudePlot = new AvaPlot();
 
         var rateStatus = new TextBlock { FontSize = 24, FontWeight = FontWeight.Bold };
-        var ampStatus = new TextBlock { FontSize = 24, FontWeight = FontWeight.Bold };
+        var amplitudeStatus = new TextBlock { FontSize = 24, FontWeight = FontWeight.Bold };
         var elapsedValue = new TextBlock { FontSize = 24, FontWeight = FontWeight.Bold, FontFamily = font };
 
         StackPanel SummaryColumn(string caption, TextBlock status)
@@ -457,7 +457,7 @@ internal sealed partial class InfoTabRegistry
         Control[] summaryCells =
         {
             SummaryColumn("RATE", rateStatus),
-            SummaryColumn("AMPLITUDE", ampStatus),
+            SummaryColumn("Amplitude", amplitudeStatus),
             elapsedColumn,
         };
         for (int c = 0; c < summaryCells.Length; c++)
@@ -620,7 +620,7 @@ internal sealed partial class InfoTabRegistry
         };
 
         Grid rateHeader = GaugeHeader("RATE (s/d)", "Acceptable band -10 to +10 s/d", out Border rateBandBadge);
-        Grid amplitudeHeader = GaugeHeader("AMPLITUDE (°)", "Acceptable band 270 to 300°", out Border amplitudeBandBadge);
+        Grid amplitudeHeader = GaugeHeader("Amplitude(°)", "Acceptable band 270 to 300°", out Border amplitudeBandBadge);
         Border rateReadout = BuildReadoutStrip(rateCells);
         Border amplitudeReadout = BuildReadoutStrip(amplitudeCells);
 
@@ -648,7 +648,7 @@ internal sealed partial class InfoTabRegistry
         }
 
         var summary = new VarioSummaryControls(
-            rateStatus, ampStatus, elapsedValue, overallText);
+            rateStatus, amplitudeStatus, elapsedValue, overallText);
         var renderer = new VarioRenderer(
             ratePlot, amplitudePlot, summary, new VarioBandBadgeControls(rateBandBadge, amplitudeBandBadge),
             new VarioReadoutControls(rateCells, amplitudeCells), context.TextFontFamily);
@@ -663,8 +663,8 @@ internal sealed partial class InfoTabRegistry
     private static Control BuildVarioCriteria()
     {
         double band = VarioGaugePolicy.RateAcceptMaxSPerDay;
-        double ampMin = VarioGaugePolicy.AmplitudeAcceptMinDeg;
-        double ampMax = VarioGaugePolicy.AmplitudeAcceptMaxDeg;
+        double amplitudeMin = VarioGaugePolicy.AmplitudeAcceptMinDeg;
+        double amplitudeMax = VarioGaugePolicy.AmplitudeAcceptMaxDeg;
         double service = VarioVerdict.AmplitudeServiceDeg;
         double sigma = VarioVerdict.RateUnstableSigma;
 
@@ -698,9 +698,9 @@ internal sealed partial class InfoTabRegistry
         panel.Children.Add(Rule($"Stable · in range: average within ±{band:0} s/d and σ ≤ {sigma:0}", "VarioGoodBrush"));
         panel.Children.Add(Rule($"In range · unstable: average within ±{band:0} s/d but σ > {sigma:0}", "VarioWarnBrush"));
         panel.Children.Add(Rule($"Fast / Slow · out of range: average beyond ±{band:0} s/d", "VarioBadBrush"));
-        panel.Children.Add(Title("Amplitude (°)"));
-        panel.Children.Add(Rule($"Healthy: average {ampMin:0}–{ampMax:0}°", "VarioGoodBrush"));
-        panel.Children.Add(Rule($"Slightly low / High: average {service:0}–{ampMin:0}° or above {ampMax:0}°", "VarioWarnBrush"));
+        panel.Children.Add(Title("Amplitude(°)"));
+        panel.Children.Add(Rule($"Healthy: average {amplitudeMin:0}–{amplitudeMax:0}°", "VarioGoodBrush"));
+        panel.Children.Add(Rule($"Slightly low / High: average {service:0}–{amplitudeMin:0}° or above {amplitudeMax:0}°", "VarioWarnBrush"));
         panel.Children.Add(Rule($"Low · service: average below {service:0}°", "VarioBadBrush"));
         return panel;
     }
@@ -848,7 +848,7 @@ internal sealed partial class InfoTabRegistry
 
         var verdictText = SummaryValue("COLLECTING", 14);
         var rateText = SummaryValue("RATE —");
-        var amplitudeText = SummaryValue("AMPLITUDE —");
+        var amplitudeText = SummaryValue("Amplitude —");
         var beatErrorText = SummaryValue("BEAT ERROR —");
 
         var summaryRow = new StackPanel
@@ -1333,7 +1333,7 @@ internal sealed partial class InfoTabRegistry
             "D SPREAD",
             "Worst - best across positions.",
             ("RATE", spreadRateText),
-            ("AMPLITUDE", spreadAmplitudeText));
+            ("Amplitude", spreadAmplitudeText));
         Border vhGroup = CreatePositionResultGroup(
             "V/H BALANCE",
             "Vertical mean - horizontal mean.",
@@ -1344,7 +1344,7 @@ internal sealed partial class InfoTabRegistry
             "X AVERAGE",
             "Mean of measured positions.",
             ("RATE", averageRateText),
-            ("AMPLITUDE", averageAmplitudeText));
+            ("Amplitude", averageAmplitudeText));
         spreadGroup.Classes.Add("primary");
         vhGroup.Classes.Add("primary");
 

@@ -34,7 +34,7 @@
       <h2><span class="ko">무엇이 보이나</span><span class="sep"> · </span><span class="en">What's shown</span></h2>
       <dl class="kv">
         <dt><span class="ko">X축</span><span class="en">X axis</span></dt><dd>ms — <span class="ko">비트 창.</span><span class="en">the beat window.</span></dd>
-        <dt><span class="ko">Y축</span><span class="en">Y axis</span></dt><dd>Amplitude — <span class="ko">최신 비트의 양극 파형(가능할 때) 또는 정류 엔벨로프.</span><span class="en">the latest beat's bipolar waveform (when available) or rectified envelope.</span></dd>
+        <dt><span class="ko">Y축</span><span class="en">Y axis</span></dt><dd>Signal Level — <span class="ko">최신 비트의 양극 파형(가능할 때) 또는 정류 엔벨로프.</span><span class="en">the latest beat's bipolar waveform (when available) or rectified envelope.</span></dd>
         <dt><span class="ko">마커</span><span class="en">Markers</span></dt><dd><span class="ko">A(초록 점선), C 피크(빨강 점선), C 온셋(빨강 점). 라벨 <code>C peak A→C: X.X ms</code> 등.</span><span class="en">A (green dashed), C peak (red dashed), C onset (red dotted). Labels like <code>C peak A→C: X.X ms</code>.</span></dd>
       </dl>
       <p class="ko"><b>수치판</b> — <code>A→C PEAK</code>, <code>A→C ONSET</code>(현재 비트 간격), <code>ONSET-PEAK</code>(둘의 차이), <code>PEAK MEAN±σ</code>, <code>ONSET MEAN±σ</code>(최근 32비트 평균±표준편차), <code>MORE REPEATABLE</code>(판정: <code>ONSET</code> / <code>PEAK</code> / <code>—</code>).</p>
@@ -48,8 +48,8 @@
       </ul>
 
       <div class="note">
-        <p class="ko">진폭 계산에 온셋을 쓰려면 <a href="../controls.html#misc">Misc → C Event Use Onset Amplitude</a>를 켜세요.</p>
-        <p class="en">To use onset for amplitude, enable <a href="../controls.html#misc">Misc → C Event Use Onset Amplitude</a>.</p>
+        <p class="ko">Amplitude 계산에 C 온셋 시각을 쓰려면 <a href="../controls.html#misc">Misc → C Event Use Onset Timing</a>를 켜세요.</p>
+        <p class="en">To use C onset timing for Amplitude, enable <a href="../controls.html#misc">Misc → C Event Use Onset Timing</a>.</p>
       </div>
 
       <div class="pager">

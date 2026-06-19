@@ -28,7 +28,7 @@ internal static class MultiFilterScopeLanes
             "Signal as captured, mirrored around its average — the closest view of the raw watch signal.",
             theme => theme.TraceWave, Mirrored: true),
         new(AnalysisGraphSeries.FilterF1, "F1",
-            "Moving average of F0 — smoother and less noisy, but low-amplitude detail fades.",
+            "Moving average of F0 — smoother and less noisy, but low-signal-level detail fades.",
             theme => theme.TraceTick, Mirrored: true),
         new(AnalysisGraphSeries.FilterF2, "F2",
             "F1 with rising slopes emphasized and falls attenuated — reveals T3 and somewhat T2.",
