@@ -70,7 +70,18 @@ public sealed class WavStreamWriter : ISampleWriter
             return false;
         }
 
-        return WriteHeader();
+        if (!WriteHeader())
+        {
+            // The file was created but the header write failed: release the open
+            // handle so a failed Open() never leaks it (and never leaves a
+            // half-open writer that IsOpen would report as usable), mirroring the
+            // dispose-and-clear discipline of Close().
+            _file.Dispose();
+            _file = null;
+            return false;
+        }
+
+        return true;
     }
 
     /// <summary>
