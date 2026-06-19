@@ -4,6 +4,8 @@ using System.IO;
 using System.Threading;
 
 using Avalonia.Controls;
+using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using Avalonia.Threading;
@@ -34,6 +36,7 @@ public partial class SplashWindow : Window
     private bool mCompleted;
 
     public event EventHandler? PlaybackCompleted;
+    public event EventHandler? PlaybackSkipped;
 
     public SplashWindow()
     {
@@ -48,6 +51,7 @@ public partial class SplashWindow : Window
 
         Opened += OnOpened;
         Closed += OnClosed;
+        AddHandler(PointerPressedEvent, OnPointerPressed, RoutingStrategies.Tunnel | RoutingStrategies.Bubble, handledEventsToo: true);
 
         ShowFrame(1);
 
@@ -75,6 +79,19 @@ public partial class SplashWindow : Window
         }
 
         ShowFrame(GetFrameNumberForElapsed(mPlaybackClock.Elapsed));
+    }
+
+    private void OnPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (ShouldSkipPlaybackForPointer(e.GetCurrentPoint(this).Properties.IsLeftButtonPressed))
+        {
+            SkipPlayback();
+        }
+    }
+
+    internal static bool ShouldSkipPlaybackForPointer(bool isLeftButtonPressed)
+    {
+        return isLeftButtonPressed;
     }
 
     internal static int GetFrameNumberForElapsed(TimeSpan elapsed)
@@ -216,20 +233,41 @@ public partial class SplashWindow : Window
 
     private void CompletePlayback()
     {
-        if (mCompleted)
+        if (!TryStopPlayback())
         {
             return;
         }
 
+        PlaybackCompleted?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void SkipPlayback()
+    {
+        if (!TryStopPlayback())
+        {
+            return;
+        }
+
+        PlaybackSkipped?.Invoke(this, EventArgs.Empty);
+    }
+
+    private bool TryStopPlayback()
+    {
+        if (mCompleted)
+        {
+            return false;
+        }
+
         mCompleted = true;
         mTimer.Stop();
-        PlaybackCompleted?.Invoke(this, EventArgs.Empty);
+        return true;
     }
 
     private void OnClosed(object? sender, EventArgs e)
     {
         mTimer.Stop();
         mTimer.Tick -= OnTimerTick;
+        RemoveHandler(PointerPressedEvent, OnPointerPressed);
 
         lock (mFrameLock)
         {

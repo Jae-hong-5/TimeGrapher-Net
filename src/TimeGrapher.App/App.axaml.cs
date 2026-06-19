@@ -39,7 +39,7 @@ public partial class App : Application
             mainWindow ??= new Views.MainWindow();
         }
 
-        void SwitchToMainWindow()
+        void SwitchToMainWindow(bool hideSplashFirst)
         {
             if (switchedToMain)
             {
@@ -47,6 +47,11 @@ public partial class App : Application
             }
 
             switchedToMain = true;
+            if (hideSplashFirst)
+            {
+                splashWindow.Hide();
+            }
+
             PrepareMainWindow();
             Views.MainWindow window = mainWindow ?? throw new InvalidOperationException("Main window was not created.");
             desktop.MainWindow = window;
@@ -58,7 +63,8 @@ public partial class App : Application
         // constructing it during playback blocks the UI thread for hundreds of ms and
         // visibly freezes the animation. The last splash frame lingering briefly while
         // the main window builds is far less noticeable than a mid-animation stall.
-        splashWindow.PlaybackCompleted += (_, _) => SwitchToMainWindow();
+        splashWindow.PlaybackCompleted += (_, _) => SwitchToMainWindow(hideSplashFirst: false);
+        splashWindow.PlaybackSkipped += (_, _) => SwitchToMainWindow(hideSplashFirst: true);
         desktop.MainWindow = splashWindow;
     }
 }
