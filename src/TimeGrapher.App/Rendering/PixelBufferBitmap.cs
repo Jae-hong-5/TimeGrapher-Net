@@ -43,6 +43,9 @@ internal static class PixelBufferBitmap
         ImageCache cache = Caches.GetValue(target, _ => new ImageCache());
         if (cache.Bitmap is null || cache.Width != buffer.Width || cache.Height != buffer.Height)
         {
+            // Release the previous bitmap's native surface before replacing it on a
+            // size change; otherwise the old WriteableBitmap leaks until finalization.
+            cache.Bitmap?.Dispose();
             // The source pixels are opaque (the renderer only writes solid colors), so the
             // alpha format is irrelevant; Opaque avoids any premultiplication round-trip.
             cache.Bitmap = new WriteableBitmap(
