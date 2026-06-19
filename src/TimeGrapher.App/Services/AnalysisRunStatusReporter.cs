@@ -44,10 +44,12 @@ internal sealed class AnalysisRunStatusReporter
             statusUpdated = true;
         }
 
-        if (frame.ForegroundStatsUpdated &&
-            (_foregroundFps != frame.ForegroundFps ||
-             _foregroundSps != frame.ForegroundSps ||
-             _foregroundSpf != frame.ForegroundSpf))
+        // Foreground stats ride every frame (coalescing-safe), so compare them
+        // like the background stats: a change is reported even on a frame that
+        // is not the 2-second refresh frame.
+        if (_foregroundFps != frame.ForegroundFps ||
+            _foregroundSps != frame.ForegroundSps ||
+            _foregroundSpf != frame.ForegroundSpf)
         {
             _foregroundFps = frame.ForegroundFps;
             _foregroundSps = frame.ForegroundSps;

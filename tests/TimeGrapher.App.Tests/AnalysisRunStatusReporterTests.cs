@@ -24,6 +24,31 @@ public sealed class AnalysisRunStatusReporterTests
     }
 
     [Fact]
+    public void ForegroundThroughputChangeIsReportedWithoutARefreshFlag()
+    {
+        // Foreground stats now ride every frame (coalescing-safe). A change must
+        // be reported off the carried values alone, so the status bar never goes
+        // stale when the 2-second refresh frame is coalesced away.
+        var reporter = new AnalysisRunStatusReporter();
+        var frame = new AnalysisFrame
+        {
+            BackgroundFps = 60,
+            BackgroundSps = 48000,
+            BackgroundSpf = 800,
+            ForegroundFps = 50,
+            ForegroundSps = 48000,
+            ForegroundSpf = 960,
+        };
+
+        AnalysisRunStatusReporter.Report report = reporter.Describe(frame, droppedFrames: 0, SampleRate);
+
+        Assert.Equal(
+            "Backgroud Audio Thread Average - FPS:60, SPS:48000, SPF: 800 " +
+            "Foregroud Audio Handler Average - FPS:50, SPS:48000, SPF: 960",
+            report.StatusText);
+    }
+
+    [Fact]
     public void UnchangedThroughputProducesNoStatusText()
     {
         var reporter = new AnalysisRunStatusReporter();

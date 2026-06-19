@@ -63,6 +63,11 @@ public sealed class AnalysisWorker : IDisposable
     private double _foregroundLastTime = 0.0;
     private ulong _foregroundFrameCount = 0;
     private ulong _foregroundSampleCount = 0;
+    // Latest foreground throughput, recomputed every 2 s and carried on every
+    // frame so latest-wins coalescing never drops a refresh.
+    private double _foregroundFps = 0.0;
+    private double _foregroundSps = 0.0;
+    private double _foregroundSpf = 0.0;
 
     // Thread loop state (port-only; replaces Qt moveToThread).
     private Thread? _thread;
@@ -321,6 +326,9 @@ public sealed class AnalysisWorker : IDisposable
             _foregroundLastTime = 0.0;
             _foregroundFrameCount = 0;
             _foregroundSampleCount = 0;
+            _foregroundFps = 0.0;
+            _foregroundSps = 0.0;
+            _foregroundSpf = 0.0;
         }
 
         while (!stopInterruptible || !_stopRequested)
@@ -529,17 +537,23 @@ public sealed class AnalysisWorker : IDisposable
         if (currentTime - _foregroundLastTime > 2)
         {
             double fdelta = currentTime - _foregroundLastTime;
-            frame.ForegroundFps = _foregroundFrameCount / fdelta;
-            frame.ForegroundSps = _foregroundSampleCount / fdelta;
+            _foregroundFps = _foregroundFrameCount / fdelta;
+            _foregroundSps = _foregroundSampleCount / fdelta;
             // Original: mForegroundSampleCount/mForegroundFrameCount with both
             // uint64_t -> integer division.
-            frame.ForegroundSpf = _foregroundSampleCount / _foregroundFrameCount;
-            frame.ForegroundStatsUpdated = true;
+            _foregroundSpf = _foregroundSampleCount / _foregroundFrameCount;
 
             _foregroundLastTime = currentTime;
             _foregroundFrameCount = 0;
             _foregroundSampleCount = 0;
         }
+
+        // Carry the latest stats on every frame (not only the 2-second refresh
+        // frame) so latest-wins frame coalescing cannot drop the refresh and
+        // leave the status bar reading a stale throughput.
+        frame.ForegroundFps = _foregroundFps;
+        frame.ForegroundSps = _foregroundSps;
+        frame.ForegroundSpf = _foregroundSpf;
     }
 
     public void Dispose()

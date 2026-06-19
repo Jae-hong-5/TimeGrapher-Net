@@ -244,10 +244,16 @@ public sealed class AnalysisFrame
     public double BackgroundFps;
     public double BackgroundSps;
     public double BackgroundSpf;
+
+    /// <summary>
+    /// Latest foreground (analysis-handler) throughput. Carried on every frame,
+    /// not just the 2-second refresh frame, so latest-wins frame coalescing
+    /// cannot drop the refresh and leave the status bar stale (coalescing-safe,
+    /// like the background stats and the cumulative miss/sync-loss counters).
+    /// </summary>
     public double ForegroundFps;
     public double ForegroundSps;
     public double ForegroundSpf;
-    public bool ForegroundStatsUpdated;
 
     internal void AddScopeSeries(GraphSeriesFrame series)
     {

@@ -145,7 +145,6 @@ class AnalysisFrame {
     +long SpectrogramTotalColumns
     +double SpectrogramColumnSeconds
     +double SpectrogramBeatPeriodS
-    +bool ForegroundStatsUpdated
     +double BackgroundFps/Sps/Spf
     +double ForegroundFps/Sps/Spf
 }
