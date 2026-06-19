@@ -69,4 +69,56 @@ public sealed class SyntheticDetectorTests
         Assert.Equal(expectedBph, update.Result.DetectedBph);
         Assert.False(string.IsNullOrWhiteSpace(resultsText));
     }
+
+    [Fact]
+    public void LockAcquiringBatchEmitsNoEventsAndLaterBatchesDo()
+    {
+        // The batch that acquires lock holds only the pre-lock bootstrap events.
+        // With SuppressPreSyncEvents (always on in the engine) those must be
+        // suppressed so they never seed metrics before the first locked beat,
+        // while subsequent locked batches must emit events normally.
+        WatchSynthStreamConfig synthConfig = WatchSynthStreamConfig.Clean();
+        synthConfig.SampleRateHz = 48000;
+        synthConfig.Bph = 21600;
+        synthConfig.PcmPeakAmplitude = 0.40;
+
+        var synth = new WatchSynthStream(synthConfig);
+        var engine = new DetectorMetricsEngine(new DetectorMetricsEngineConfig(
+            SampleRate: 48000,
+            LiftAngle: 52.0,
+            AveragingPeriod: 2,
+            UseCOnset: false,
+            AutoBph: true,
+            ManualBph: 0,
+            HpfCutoffHz: 0.0));
+
+        float[] block = new float[4096];
+        int remaining = 48000 * 12;
+        bool sawAcquiringBatch = false;
+        bool postLockEmitted = false;
+
+        while (remaining > 0)
+        {
+            int slice = Math.Min(block.Length, remaining);
+            synth.Generate(block.AsSpan(0, slice));
+            DetectorMetricsBlockUpdate update = engine.Process(block.AsSpan(0, slice));
+
+            if (update.Result.SyncAcquiredEvent)
+            {
+                Assert.Empty(update.MetricsEvents);
+                sawAcquiringBatch = true;
+            }
+            else if (sawAcquiringBatch &&
+                     update.Result.SyncStatus == TimeGrapher.Core.Detection.TgSyncStatus.Synced &&
+                     update.MetricsEvents.Count > 0)
+            {
+                postLockEmitted = true;
+            }
+
+            remaining -= slice;
+        }
+
+        Assert.True(sawAcquiringBatch, "expected the detector to acquire lock");
+        Assert.True(postLockEmitted, "expected post-lock batches to emit events");
+    }
 }
