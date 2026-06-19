@@ -175,6 +175,29 @@ public sealed class AnalysisFrameRenderSchedulerTests
     }
 
     [Fact]
+    public void ResetTimingDrainsFrameWaitingOnRefreshDelay()
+    {
+        var harness = new SchedulerHarness { HoldDelays = true };
+
+        harness.Scheduler.Enqueue(new AnalysisFrame { SourceId = 1 });
+        harness.RunNextPostedAction(); // renders frame 1, arms the refresh deadline
+
+        harness.Scheduler.Enqueue(new AnalysisFrame { SourceId = 2 });
+        harness.RunNextPostedAction(); // frame 2 is throttled behind an in-flight
+                                       // (never-completing) delay; nothing posted
+
+        Assert.Single(harness.Delays);
+        Assert.Single(harness.Rendered); // frame 2 not rendered yet
+
+        // ResetTiming must surface the queued frame immediately (tab switch), not
+        // wait out the delay: it posts a drain that renders frame 2 now.
+        harness.Scheduler.ResetTiming();
+        harness.RunNextPostedAction();
+
+        Assert.Equal(new ulong[] { 1, 2 }, harness.Rendered.Select(rendered => rendered.Frame.SourceId));
+    }
+
+    [Fact]
     public void RefreshIntervalDelaysNextRender()
     {
         var harness = new SchedulerHarness();
@@ -208,11 +231,15 @@ public sealed class AnalysisFrameRenderSchedulerTests
                 delay =>
                 {
                     Delays.Add(delay);
-                    return Task.CompletedTask;
+                    // HoldDelays leaves the throttle delay pending (as a real
+                    // Task.Delay would) so a frame can sit queued behind it.
+                    return HoldDelays ? new TaskCompletionSource().Task : Task.CompletedTask;
                 });
         }
 
         public AnalysisFrameRenderScheduler Scheduler { get; }
+
+        public bool HoldDelays { get; set; }
 
         public DateTime UtcNow { get; set; } = new(2026, 6, 6, 0, 0, 0, DateTimeKind.Utc);
 
