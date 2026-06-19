@@ -34,6 +34,12 @@ internal sealed class ScopeSweepRenderer
     // allocates a new one — so reference equality is a correct change
     // detector and skips the redundant copy/autoscale/refresh.
     private GraphSeriesFrame? _lastSweepSeries;
+    // Tic-phase offset (ms) published with the last sweep series; used to
+    // map the review cursor onto the tic-aligned bin domain.
+    private double _ticPhaseOffsetMs;
+    // Last known window size (ms); a change re-arms live fitting so the
+    // view snaps to [0, new window] when 1x/2x/3x is pressed.
+    private double _lastWindowMs;
 
     private PlotThemePalette _theme = PlotThemePalette.Current;
     private ulong _lastReadoutVersion;
@@ -60,6 +66,8 @@ internal sealed class ScopeSweepRenderer
     {
         _lastReadoutVersion = 0;
         _followLive = true;
+        _ticPhaseOffsetMs = 0.0;
+        _lastWindowMs = 0.0;
         _referenceText.Text = ScopeSweepReadout.ReferenceLine(null);
 
         Plot sweep = _sweepPlot.Plot;
@@ -93,7 +101,16 @@ internal sealed class ScopeSweepRenderer
     public void ResetView()
     {
         _followLive = true;
-        _sweepPlot.Plot.Axes.AutoScale();
+        double windowMs = ScopeSweepReadout.WindowMs(_sweepX);
+        if (windowMs > 0)
+        {
+            _sweepPlot.Plot.Axes.AutoScale();
+            _sweepPlot.Plot.Axes.SetLimitsX(0, windowMs);
+        }
+        else
+        {
+            _sweepPlot.Plot.Axes.AutoScale();
+        }
         _sweepPlot.Refresh();
     }
 
@@ -105,13 +122,29 @@ internal sealed class ScopeSweepRenderer
         if (dataUpdated)
         {
             _lastSweepSeries = sweepSeries;
+            _ticPhaseOffsetMs = sweepSeries!.TicPhaseOffsetMs;
+
+            // Re-arm live fitting when the window size changes (1x/2x/3x pressed)
+            // so the view snaps to [0, new window] even if the user had panned.
+            double windowMs = ScopeSweepReadout.WindowMs(_sweepX);
+            if (Math.Abs(windowMs - _lastWindowMs) > 0.001)
+            {
+                _lastWindowMs = windowMs;
+                _followLive = true;
+            }
         }
 
         bool cursorMoved = UpdateReviewCursor(context.ReviewCursorTimeS);
 
         if (dataUpdated && _followLive)
         {
-            _sweepPlot.Plot.Axes.AutoScale();
+            double windowMs = ScopeSweepReadout.WindowMs(_sweepX);
+            if (windowMs > 0)
+            {
+                // Start from the leftmost (tic onset) position; let Y autoscale.
+                _sweepPlot.Plot.Axes.AutoScale();
+                _sweepPlot.Plot.Axes.SetLimitsX(0, windowMs);
+            }
         }
 
         UpdateReferenceLine(frame.MetricsHistory);
@@ -142,7 +175,7 @@ internal sealed class ScopeSweepRenderer
         }
 
         double? phaseMs = ScopeSweepReadout.CursorPhaseMs(
-            reviewCursorTimeS, ScopeSweepReadout.WindowMs(_sweepX));
+            reviewCursorTimeS, ScopeSweepReadout.WindowMs(_sweepX), _ticPhaseOffsetMs);
         return _reviewCursor.Update(phaseMs);
     }
 

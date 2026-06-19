@@ -33,14 +33,20 @@ internal static class ScopeSweepReadout
     /// within the sweep window, so the scrubbed stream time maps to where that
     /// instant landed in the sweep. Null hides the cursor (live, or no window).
     /// </summary>
-    public static double? CursorPhaseMs(double? reviewCursorTimeS, double windowMs)
+    /// <param name="ticPhaseOffsetMs">
+    /// Phase offset (ms) from <see cref="GraphSeriesFrame.TicPhaseOffsetMs"/>:
+    /// added to stream time before the modulo so the cursor lands on the
+    /// tic-aligned bin rather than raw stream time.
+    /// </param>
+    public static double? CursorPhaseMs(double? reviewCursorTimeS, double windowMs,
+        double ticPhaseOffsetMs = 0.0)
     {
         if (reviewCursorTimeS is not double timeS || windowMs <= 0.0)
         {
             return null;
         }
 
-        double phase = timeS * 1000.0 % windowMs;
+        double phase = (timeS * 1000.0 + ticPhaseOffsetMs) % windowMs;
         return phase < 0.0 ? phase + windowMs : phase;
     }
 }

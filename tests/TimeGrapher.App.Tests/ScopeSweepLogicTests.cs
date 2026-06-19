@@ -70,4 +70,16 @@ public sealed class ScopeSweepLogicTests
             Assert.Null(phase);
         }
     }
+
+    [Theory]
+    [InlineData(0.1, 250.0, 50.0, 150.0)]   // 100 ms + 50 ms offset = 150 ms
+    [InlineData(0.1, 250.0, 200.0, 50.0)]   // 100 ms + 200 ms = 300 ms mod 250 ms = 50 ms
+    [InlineData(0.0, 250.0, 125.0, 125.0)]  // stream 0 ms + 125 ms offset = 125 ms
+    public void CursorPhaseMs_AppliesTicPhaseOffset(
+        double reviewCursorTimeS, double windowMs, double ticPhaseOffsetMs, double expectedPhaseMs)
+    {
+        double? phase = ScopeSweepReadout.CursorPhaseMs(reviewCursorTimeS, windowMs, ticPhaseOffsetMs);
+        Assert.NotNull(phase);
+        Assert.Equal(expectedPhaseMs, phase!.Value, 9);
+    }
 }
