@@ -347,7 +347,19 @@ public partial class MainWindow
             return false;
         }
 
-        StartPlaybackThread(selection.FilePath);
+        try
+        {
+            StartPlaybackThread(selection.FilePath);
+        }
+        catch
+        {
+            // PrepareInputRun throws if a prior analysis worker is still stopping;
+            // restore the pre-playback device/rate before the failure propagates,
+            // matching the SetAudioRate/AudioCloseCheck failure paths above.
+            RestorePlaybackOrSimulationAudioState();
+            throw;
+        }
+
         SetGuiRunMode();
         mViewModel.StatusText = "Running";
         return true;
@@ -387,7 +399,18 @@ public partial class MainWindow
             Console.Error.WriteLine("SetAudioRate Failed");
         }
 
-        StartSimThread(cfg);
+        try
+        {
+            StartSimThread(cfg);
+        }
+        catch
+        {
+            // PrepareInputRun throws if a prior analysis worker is still stopping;
+            // restore the pre-simulation device/rate before the failure propagates.
+            RestorePlaybackOrSimulationAudioState();
+            throw;
+        }
+
         SetGuiRunMode();
         mViewModel.StatusText = "Running";
         return true;
