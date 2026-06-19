@@ -125,7 +125,7 @@ internal sealed class WaveformCompareRenderer
         Plot plot = _plot.Plot;
         plot.Clear();
         ApplyPlotTheme(plot);
-        plot.YLabel("past \u2190 current");
+        plot.YLabel("past \u2003\u2003\u2003\u2003\u2190\u2003\u2003\u2003\u2003 current");
         plot.XLabel("(ms)");
         plot.Axes.Left.TickLabelStyle.IsVisible = false;
 
