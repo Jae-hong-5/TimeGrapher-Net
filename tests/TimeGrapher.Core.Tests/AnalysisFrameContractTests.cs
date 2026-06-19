@@ -116,6 +116,11 @@ public sealed class AnalysisFrameContractTests
         Assert.Contains(frame.RateSeries, series => series.Id == AnalysisGraphSeries.RateToc && series.Replace);
         Assert.True(frame.MetricsUpdate.ResultsUpdated);
         Assert.False(string.IsNullOrWhiteSpace(frame.MetricsUpdate.ResultsText));
+        // Assert the readout reflects the configured watch (the locked BPH value),
+        // not merely that some text exists, so a wrong-BPH regression fails the
+        // frame contract too. The value carries inline value-span markers, so
+        // match the distinctive BPH number rather than the "bph" suffix.
+        Assert.Contains("21600", frame.MetricsUpdate.ResultsText);
     }
 
     [Fact]
