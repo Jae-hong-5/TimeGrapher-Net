@@ -138,6 +138,15 @@ public sealed class SimWorker : IAudioInputWorker
             return;
         }
 
+        // Reset run-timing state at the start of every run so an in-place
+        // restart (Start() returns true once the prior thread has exited) re-zeros
+        // the stopwatch and throughput counters instead of carrying over the
+        // previous run's partial 2 s window. No-op on a fresh worker.
+        _timerStarted = false;
+        _lastTime = 0.0;
+        _frameCount = 0;
+        _sampleCount = 0;
+
         if (!_timerStarted)
         {
             _timerStarted = true;
