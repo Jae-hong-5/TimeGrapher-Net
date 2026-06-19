@@ -7,11 +7,13 @@ namespace TimeGrapher.App.Rendering;
 internal sealed class SoundPrintFrameConsumer : IAnalysisFrameConsumer, IThemedFrameConsumer
 {
     private readonly SoundPrintRenderer _renderer;
-    // The worker buffer that produced the displayed image. A theme toggle
-    // replaces _latestSoundImage with a remapped copy while this keeps
-    // pointing at the original, so a re-routed kept frame (same pooled
-    // buffer) is recognized and cannot restore the old-background image.
-    private PixelBuffer? _latestSourceImage;
+    // Identity of the last frame whose sound image was taken. Dedup is keyed on
+    // the frame, not the PixelBuffer, because the worker's 3-buffer publish pool
+    // reuses a buffer reference after wraparound: a genuinely new publish can
+    // carry the same PixelBuffer object as an earlier one, so reference-equality
+    // would drop it. A re-routed kept frame (same instance) is still skipped, so
+    // a theme-remapped _latestSoundImage is not overwritten by the raw original.
+    private AnalysisFrame? _lastObservedFrame;
     private PixelBuffer? _latestSoundImage;
     private uint _displayedBackground = PlotThemePalette.Current.ScopeBg;
 
@@ -32,7 +34,7 @@ internal sealed class SoundPrintFrameConsumer : IAnalysisFrameConsumer, IThemedF
     public void Reset(AnalysisTabResetContext context)
     {
         _ = context;
-        _latestSourceImage = null;
+        _lastObservedFrame = null;
         _latestSoundImage = null;
         _renderer.Reset();
     }
@@ -84,14 +86,16 @@ internal sealed class SoundPrintFrameConsumer : IAnalysisFrameConsumer, IThemedF
 
     public void ObserveFrame(AnalysisFrame frame)
     {
-        // A re-routed kept frame carries the same pooled buffer reference
-        // (the publish pool never repeats a reference on consecutive
-        // publishes), so re-observing it must not overwrite a theme-remapped
-        // copy with the old-background original.
+        // Process each delivered sound-print publish once, keyed on the frame
+        // object (not the pooled PixelBuffer, whose reference repeats after the
+        // 3-buffer pool wraps). A re-routed kept frame is the same instance and
+        // must not re-run, so a theme-remapped copy is not overwritten by the
+        // old-background original; a new publish reusing a pooled buffer is a
+        // different frame and must run.
         if (frame.SoundImageUpdated && frame.SoundImage != null &&
-            !ReferenceEquals(frame.SoundImage, _latestSourceImage))
+            !ReferenceEquals(frame, _lastObservedFrame))
         {
-            _latestSourceImage = frame.SoundImage;
+            _lastObservedFrame = frame;
             _latestSoundImage = frame.SoundImage;
         }
     }
