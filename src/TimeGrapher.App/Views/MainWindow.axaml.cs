@@ -67,6 +67,7 @@ public partial class MainWindow : Window
     // --- Members (mirror MainWindow.h) ---
     private IRecordingWriter? mWavWriter;
     private readonly ITimeGrapherDialogService mDialogs;
+    private readonly IUserErrorLog mErrorLog;
     private readonly RecordingSessionService mRecordingSessionService;
     private readonly PlaybackFileService mPlaybackFileService;
     private GraphFrameRenderer mGraphFrameRenderer = null!;
@@ -111,8 +112,9 @@ public partial class MainWindow : Window
             BphCatalog.ManualAutoBph,
             BphCatalog.ManualBph);
         mDialogs = new MainWindowDialogService(this);
-        mRecordingSessionService = new RecordingSessionService(mDialogs, new QueuedRecordingWriterFactory());
-        mPlaybackFileService = new PlaybackFileService(mDialogs);
+        mErrorLog = new UserErrorLog(UserErrorLog.DefaultPath());
+        mRecordingSessionService = new RecordingSessionService(mDialogs, new QueuedRecordingWriterFactory(), mErrorLog);
+        mPlaybackFileService = new PlaybackFileService(mDialogs, mErrorLog);
         mRunCommandService = new RunCommandService(mViewModel, new RunCommandOperations(this));
         mAnalysisPerformanceLogger = AppStartupOptions.Current.AnalysisLogPath is string analysisLogPath
             ? new AnalysisPerformanceLogger(analysisLogPath)
@@ -126,7 +128,8 @@ public partial class MainWindow : Window
             ClearPendingAnalysisFrames,
             () => mFrameRenderScheduler.ResetTiming(),
             OnAnalysisFrameReady,
-            status => mViewModel.StatusText = status);
+            status => mViewModel.StatusText = status,
+            mErrorLog);
         DataContext = mViewModel;
 
         // Default working directory: current dir, then ../../sample if it exists (MainWindow ctor).
@@ -265,7 +268,7 @@ public partial class MainWindow : Window
             // desktop) would otherwise throw out of the click handler — surface it
             // instead of letting it crash the UI.
             Console.Error.WriteLine("Opening the manual URL failed: " + ex.Message);
-            mViewModel.StatusText = "Could not open the manual in a browser.";
+            ReportUserErrorStatus(UserErrorMessages.ManualOpenFailed, ex.ToString());
         }
     }
 
@@ -342,6 +345,10 @@ public partial class MainWindow : Window
         if (report.StatusText != null)
         {
             mViewModel.StatusText = report.StatusText;
+            if (report.LogDetail != null)
+            {
+                mErrorLog.Write(report.StatusText, report.LogDetail);
+            }
         }
         if (report.ConsoleWarning != null)
         {
@@ -357,6 +364,18 @@ public partial class MainWindow : Window
         mLatencyStats.Reset();
         mViewModel.LatencyText = "";
         mViewModel.ResetReview();
+    }
+
+    private void ReportUserErrorStatus(string message, string detail)
+    {
+        mViewModel.StatusText = message;
+        mErrorLog.Write(message, detail);
+    }
+
+    private Task ShowUserErrorAsync(string message, string detail)
+    {
+        ReportUserErrorStatus(message, detail);
+        return mDialogs.ShowErrorAsync(UserErrorMessages.DialogTitle, message);
     }
 
     // --- Event handlers (Qt on_* slots) ---

@@ -23,7 +23,7 @@ internal sealed class AnalysisRunStatusReporter
     /// <summary>Result of describing a frame.</summary>
     /// <param name="StatusText">New status-bar text, or null to leave it unchanged.</param>
     /// <param name="ConsoleWarning">Diagnostic to write to stderr, or null.</param>
-    internal readonly record struct Report(string? StatusText, string? ConsoleWarning);
+    internal readonly record struct Report(string? StatusText, string? ConsoleWarning, string? LogDetail);
 
     public void Reset()
     {
@@ -59,19 +59,22 @@ internal sealed class AnalysisRunStatusReporter
 
         string? statusText = statusUpdated ? FormatThroughput() : null;
         string? consoleWarning = null;
+        string? logDetail = null;
 
         if (frame.InputOverrun)
         {
-            statusText = "Audio input overrun: dropped " +
-                         frame.InputSamplesDropped.ToString(CultureInfo.InvariantCulture) +
-                         " samples before analysis";
+            statusText = UserErrorMessages.AudioInputInterrupted;
+            logDetail = "Audio input overrun: dropped " +
+                        frame.InputSamplesDropped.ToString(CultureInfo.InvariantCulture) +
+                        " samples before analysis.";
         }
         else if (frame.AnalysisLagSamples > (ulong)Math.Max(1, sampleRate / 4))
         {
             double lagMs = frame.AnalysisLagSamples * 1000.0 / Math.Max(1, sampleRate);
-            statusText = string.Format(
+            statusText = UserErrorMessages.AnalysisRunningBehind;
+            logDetail = string.Format(
                 CultureInfo.InvariantCulture,
-                "Analysis lag: {0:F0} ms ({1} samples), processing {2:F1} ms",
+                "Analysis lag: {0:F0} ms ({1} samples), processing {2:F1} ms.",
                 lagMs,
                 frame.AnalysisLagSamples,
                 frame.ProcessingElapsedMs);
@@ -80,9 +83,10 @@ internal sealed class AnalysisRunStatusReporter
         {
             // Sticky state from the analysis-side deadline monitor: lag may have
             // subsided below the warning threshold while quality is still reduced.
-            statusText = string.Format(
+            statusText = UserErrorMessages.DisplayQualityReduced;
+            logDetail = string.Format(
                 CultureInfo.InvariantCulture,
-                "Deadline pressure: rendering quality reduced (level {0}/{1})",
+                "Deadline pressure: rendering quality reduced (level {0}/{1}).",
                 frame.DeadlineDegradationLevel,
                 AnalysisDeadlineMonitor.MaxLevel);
         }
@@ -93,7 +97,7 @@ internal sealed class AnalysisRunStatusReporter
                              " analysis frame(s)";
         }
 
-        return new Report(statusText, consoleWarning);
+        return new Report(statusText, consoleWarning, logDetail);
     }
 
     // "Backgroud"/"Foregroud" reproduce the original Qt string verbatim

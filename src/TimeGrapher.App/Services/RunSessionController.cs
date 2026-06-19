@@ -19,6 +19,7 @@ internal sealed class RunSessionController : IDisposable
     private readonly Action _resetRenderTiming;
     private readonly Action<AnalysisFrame> _onAnalysisFrameReady;
     private readonly Action<string> _setStatus;
+    private readonly IUserErrorLog _errorLog;
 
     private MasterAudioBuffer? _rawAudio;
     private AnalysisWorker? _analysisWorker;
@@ -36,7 +37,8 @@ internal sealed class RunSessionController : IDisposable
         Action clearPendingFrames,
         Action resetRenderTiming,
         Action<AnalysisFrame> onAnalysisFrameReady,
-        Action<string> setStatus)
+        Action<string> setStatus,
+        IUserErrorLog? errorLog = null)
     {
         _createAnalysisConfig = createAnalysisConfig;
         _resetBeforeRun = resetBeforeRun;
@@ -44,6 +46,7 @@ internal sealed class RunSessionController : IDisposable
         _resetRenderTiming = resetRenderTiming;
         _onAnalysisFrameReady = onAnalysisFrameReady;
         _setStatus = setStatus;
+        _errorLog = errorLog ?? NullUserErrorLog.Instance;
     }
 
     public ulong AnalysisSessionId { get; private set; }
@@ -113,7 +116,7 @@ internal sealed class RunSessionController : IDisposable
 
             if (!worker.TryStop(TimeSpan.FromMilliseconds(WorkerStopTimeoutMs)))
             {
-                _setStatus(workerName + " worker did not stop within timeout");
+                ReportStopTimeout(workerName + " worker did not stop within " + WorkerStopTimeoutMs + " ms.");
                 return RunSessionStopOutcome.Stopping;
             }
 
@@ -156,7 +159,7 @@ internal sealed class RunSessionController : IDisposable
                 _analysisWorker.AnalysisFrameReady -= _onAnalysisFrameReady;
                 AnalysisSessionId++;
                 _clearPendingFrames();
-                _setStatus("Analysis worker did not stop within timeout");
+                ReportStopTimeout("Analysis worker did not stop within " + WorkerStopTimeoutMs + " ms.");
                 return RunSessionStopOutcome.Stopping;
             }
         }
@@ -245,6 +248,12 @@ internal sealed class RunSessionController : IDisposable
 
             return _runSessionToken;
         }
+    }
+
+    private void ReportStopTimeout(string detail)
+    {
+        _setStatus(UserErrorMessages.StopDidNotFinish);
+        _errorLog.Write(UserErrorMessages.StopDidNotFinish, detail);
     }
 
     private void StartAnalysisThread()

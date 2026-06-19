@@ -6,11 +6,16 @@ internal sealed class RecordingSessionService
 {
     private readonly ITimeGrapherDialogService _dialogs;
     private readonly IRecordingWriterFactory _writerFactory;
+    private readonly IUserErrorLog _errorLog;
 
-    public RecordingSessionService(ITimeGrapherDialogService dialogs, IRecordingWriterFactory writerFactory)
+    public RecordingSessionService(
+        ITimeGrapherDialogService dialogs,
+        IRecordingWriterFactory writerFactory,
+        IUserErrorLog? errorLog = null)
     {
         _dialogs = dialogs;
         _writerFactory = writerFactory;
+        _errorLog = errorLog ?? NullUserErrorLog.Instance;
     }
 
     public async Task<RecordingSessionStartResult> TryStartAsync(int sampleRate)
@@ -35,7 +40,12 @@ internal sealed class RecordingSessionService
         IRecordingWriter writer = _writerFactory.Create();
         if (!writer.Open(fileName, sampleRate, channels: 1))
         {
-            await _dialogs.ShowErrorAsync("Error", "Failed to open WAV file");
+            _errorLog.Write(
+                UserErrorMessages.RecordingOpenFailed,
+                "Recording writer failed to open: path=" + fileName +
+                ", sample_rate=" + sampleRate +
+                ", channels=1");
+            await _dialogs.ShowErrorAsync(UserErrorMessages.DialogTitle, UserErrorMessages.RecordingOpenFailed);
             writer.Dispose();
             return new RecordingSessionStartResult(false, null);
         }

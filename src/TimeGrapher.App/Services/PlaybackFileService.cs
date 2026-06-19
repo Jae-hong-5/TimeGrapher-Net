@@ -5,10 +5,12 @@ namespace TimeGrapher.App.Services;
 internal sealed class PlaybackFileService
 {
     private readonly ITimeGrapherDialogService _dialogs;
+    private readonly IUserErrorLog _errorLog;
 
-    public PlaybackFileService(ITimeGrapherDialogService dialogs)
+    public PlaybackFileService(ITimeGrapherDialogService dialogs, IUserErrorLog? errorLog = null)
     {
         _dialogs = dialogs;
+        _errorLog = errorLog ?? NullUserErrorLog.Instance;
     }
 
     public async Task<PlaybackFileSelectionResult> SelectPlaybackFileAsync(string currentDirectory)
@@ -46,21 +48,33 @@ internal sealed class PlaybackFileService
     {
         if (!File.Exists(fileName))
         {
-            return PlaybackFileValidationResult.Invalid(
-                $"File {ToNativeSeparators(fileName)} could not be opened");
+            _errorLog.Write(
+                UserErrorMessages.PlaybackFileOpenFailed,
+                "Playback file does not exist: " + ToNativeSeparators(fileName));
+            return PlaybackFileValidationResult.Invalid(UserErrorMessages.PlaybackFileOpenFailed);
         }
 
-        if (!WavProbe.TryReadFormat(fileName, out WavFormatInfo format, out _))
+        if (!WavProbe.TryReadFormat(fileName, out WavFormatInfo format, out string probeError))
         {
-            return PlaybackFileValidationResult.Invalid(
-                $"File {ToNativeSeparators(fileName)} could not be opened");
+            _errorLog.Write(
+                UserErrorMessages.PlaybackFileOpenFailed,
+                "WAV probe failed for " + ToNativeSeparators(fileName) + ": " + probeError);
+            return PlaybackFileValidationResult.Invalid(UserErrorMessages.PlaybackFileOpenFailed);
         }
 
         if (!WavProbe.IsAccepted(format, WavAcceptanceProfile.PlaybackFloatMonoStandardRates))
         {
-            await _dialogs.ShowErrorAsync("Error", "Invalid PCM Wave File");
-            return PlaybackFileValidationResult.Invalid(
-                $"File {fileName} Not a standard-rate, single channel 32-bit Float WAV file");
+            _errorLog.Write(
+                UserErrorMessages.PlaybackFileUnsupported,
+                "Unsupported playback WAV: path=" + ToNativeSeparators(fileName) +
+                ", audio_format=" + format.AudioFormat +
+                ", channels=" + format.NumChannels +
+                ", sample_rate=" + format.SampleRate +
+                ", bits_per_sample=" + format.BitsPerSample +
+                ", block_align=" + format.BlockAlign +
+                ", data_size=" + format.DataSize);
+            await _dialogs.ShowErrorAsync(UserErrorMessages.DialogTitle, UserErrorMessages.PlaybackFileUnsupported);
+            return PlaybackFileValidationResult.Invalid(UserErrorMessages.PlaybackFileUnsupported);
         }
 
         return PlaybackFileValidationResult.Valid(format.SampleRate);

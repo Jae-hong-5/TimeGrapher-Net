@@ -63,7 +63,7 @@ public sealed class RunCommandServiceTests
         Assert.Equal(new[] { "StartPlaybackAsync", "CleanupFailedStart", "ShowStartFailureAsync" }, operations.Calls);
         Assert.Equal(new[] { "bad file" }, operations.StartFailureMessages);
         Assert.Equal(RunUiState.Stopped, vm.RunState);
-        Assert.Equal("Failed to start", vm.StatusText);
+        Assert.Equal(UserErrorMessages.CouldNotStartRun, vm.StatusText);
     }
 
     [Fact]
@@ -224,7 +224,7 @@ public sealed class RunCommandServiceTests
 
         Assert.Equal(RunUiState.StopFailed, vm.RunState);
         Assert.True(vm.ResetCommand.CanExecute(null));
-        Assert.Equal("Stop failed - press Reset to retry", vm.StatusText);
+        Assert.Equal(UserErrorMessages.StopDidNotFinish, vm.StatusText);
         Assert.Equal(0, operations.CloseAudioCalls);
         Assert.Equal(0, operations.InvalidateRunSessionCalls);
     }
@@ -245,7 +245,7 @@ public sealed class RunCommandServiceTests
         service.StopRunWithoutReset();
 
         Assert.Equal(RunUiState.StopFailed, vm.RunState);
-        Assert.Equal("Stop failed - press Reset to retry", vm.StatusText);
+        Assert.Equal(UserErrorMessages.StopDidNotFinish, vm.StatusText);
     }
 
     [Fact]

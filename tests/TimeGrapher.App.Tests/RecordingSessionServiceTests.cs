@@ -72,14 +72,19 @@ public sealed class RecordingSessionServiceTests
         var dialogs = new FakeDialogs { Choice = RecordSessionChoice.Yes, SavePath = "bad.wav" };
         var writer = new FakeWriter { OpenResult = false };
         var factory = new FakeWriterFactory { Writer = writer };
-        var service = new RecordingSessionService(dialogs, factory);
+        var errorLog = new FakeUserErrorLog();
+        var service = new RecordingSessionService(dialogs, factory, errorLog);
 
         RecordingSessionStartResult result = await service.TryStartAsync(48000);
 
         Assert.False(result.ShouldContinue);
         Assert.Null(result.Writer);
         Assert.True(writer.Disposed);
-        Assert.Equal(new[] { ("Error", "Failed to open WAV file") }, dialogs.Errors);
+        Assert.Equal(new[] { (UserErrorMessages.DialogTitle, UserErrorMessages.RecordingOpenFailed) }, dialogs.Errors);
+        var entry = Assert.Single(errorLog.Entries);
+        Assert.Equal(UserErrorMessages.RecordingOpenFailed, entry.UserMessage);
+        Assert.Contains("path=bad.wav", entry.Detail);
+        Assert.Contains("sample_rate=48000", entry.Detail);
     }
 
     private sealed class FakeDialogs : ITimeGrapherDialogService

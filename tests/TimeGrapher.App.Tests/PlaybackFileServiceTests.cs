@@ -25,13 +25,17 @@ public sealed class PlaybackFileServiceTests
     {
         string missing = Path.Combine(Path.GetTempPath(), "missing-" + Guid.NewGuid().ToString("N") + ".wav");
         var dialogs = new FakeDialogs(missing, null);
-        var service = new PlaybackFileService(dialogs);
+        var errorLog = new FakeUserErrorLog();
+        var service = new PlaybackFileService(dialogs, errorLog);
 
         PlaybackFileSelectionResult result = await service.SelectPlaybackFileAsync("C:\\start");
 
         Assert.False(result.Selected);
-        Assert.Equal($"File {missing} could not be opened", result.StatusMessage);
+        Assert.Equal(UserErrorMessages.PlaybackFileOpenFailed, result.StatusMessage);
         Assert.Equal(2, dialogs.OpenPickerCalls);
+        var entry = Assert.Single(errorLog.Entries);
+        Assert.Equal(UserErrorMessages.PlaybackFileOpenFailed, entry.UserMessage);
+        Assert.Contains(missing, entry.Detail);
     }
 
     [Fact]
@@ -41,14 +45,19 @@ public sealed class PlaybackFileServiceTests
         try
         {
             var dialogs = new FakeDialogs(path, null);
-            var service = new PlaybackFileService(dialogs);
+            var errorLog = new FakeUserErrorLog();
+            var service = new PlaybackFileService(dialogs, errorLog);
 
             PlaybackFileSelectionResult result = await service.SelectPlaybackFileAsync(Path.GetTempPath());
 
             Assert.False(result.Selected);
-            Assert.Equal($"File {path} Not a standard-rate, single channel 32-bit Float WAV file", result.StatusMessage);
-            Assert.Equal(new[] { ("Error", "Invalid PCM Wave File") }, dialogs.Errors);
+            Assert.Equal(UserErrorMessages.PlaybackFileUnsupported, result.StatusMessage);
+            Assert.Equal(new[] { (UserErrorMessages.DialogTitle, UserErrorMessages.PlaybackFileUnsupported) }, dialogs.Errors);
             Assert.Equal(2, dialogs.OpenPickerCalls);
+            var entry = Assert.Single(errorLog.Entries);
+            Assert.Equal(UserErrorMessages.PlaybackFileUnsupported, entry.UserMessage);
+            Assert.Contains("sample_rate=44100", entry.Detail);
+            Assert.Contains("channels=1", entry.Detail);
         }
         finally
         {
@@ -64,7 +73,8 @@ public sealed class PlaybackFileServiceTests
         try
         {
             var dialogs = new FakeDialogs(missing, valid);
-            var service = new PlaybackFileService(dialogs);
+            var errorLog = new FakeUserErrorLog();
+            var service = new PlaybackFileService(dialogs, errorLog);
 
             PlaybackFileSelectionResult result = await service.SelectPlaybackFileAsync("C:\\start");
 
@@ -74,6 +84,7 @@ public sealed class PlaybackFileServiceTests
             Assert.Equal(96000, result.SampleRate);
             Assert.Null(result.StatusMessage);
             Assert.Equal(2, dialogs.OpenPickerCalls);
+            Assert.Single(errorLog.Entries);
         }
         finally
         {

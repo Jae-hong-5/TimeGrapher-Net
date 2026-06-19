@@ -72,7 +72,7 @@ internal sealed partial class RunCommandService
         catch (Exception ex)
         {
             _operations.CleanupFailedStart();
-            _viewModel.StatusText = "Failed to start";
+            _viewModel.StatusText = UserErrorMessages.CouldNotStartRun;
             await _operations.ShowStartFailureAsync(ex);
         }
         finally
@@ -169,7 +169,7 @@ internal sealed partial class RunCommandService
             SetStopFailed();
             if (_viewModel.StatusText is "Stopping" or "Stopping for reset")
             {
-                _viewModel.StatusText = "Stop failed - press Reset to retry";
+                _viewModel.StatusText = UserErrorMessages.StopDidNotFinish;
             }
             return;
         }

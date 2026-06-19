@@ -13,14 +13,17 @@ namespace TimeGrapher.App.Tests;
 /// </summary>
 public sealed class RunSessionControllerTests
 {
-    private static RunSessionController NewController() =>
+    private static RunSessionController NewController(
+        List<string>? statuses = null,
+        FakeUserErrorLog? errorLog = null) =>
         new(
             createAnalysisConfig: _ => throw new System.NotSupportedException("not used in these tests"),
             resetBeforeRun: () => { },
             clearPendingFrames: () => { },
             resetRenderTiming: () => { },
             onAnalysisFrameReady: _ => { },
-            setStatus: _ => { });
+            setStatus: status => statuses?.Add(status),
+            errorLog);
 
     [Fact]
     public void StopInputWorkerDetachesCompletionBeforeTryStop()
@@ -43,7 +46,9 @@ public sealed class RunSessionControllerTests
     [Fact]
     public void StopInputWorkerDetachesCompletionEvenWhenTryStopTimesOut()
     {
-        var controller = NewController();
+        var statuses = new List<string>();
+        var errorLog = new FakeUserErrorLog();
+        var controller = NewController(statuses, errorLog);
         var order = new List<string>();
         var worker = new FakeInputWorker(order) { StopResult = false };
         controller.AttachInputWorker(worker, runSessionToken: 1, () => order.Add("detach-completion"));
@@ -59,6 +64,10 @@ public sealed class RunSessionControllerTests
             detachIdx >= 0 && detachIdx < tryStopIdx,
             "completion must detach before a timed-out TryStop; order: " + string.Join(",", order));
         Assert.DoesNotContain("dispose", order);
+        Assert.Equal(new[] { UserErrorMessages.StopDidNotFinish }, statuses);
+        var entry = Assert.Single(errorLog.Entries);
+        Assert.Equal(UserErrorMessages.StopDidNotFinish, entry.UserMessage);
+        Assert.Equal("Test worker did not stop within 2000 ms.", entry.Detail);
     }
 
     private sealed class FakeInputWorker : IAudioInputWorker

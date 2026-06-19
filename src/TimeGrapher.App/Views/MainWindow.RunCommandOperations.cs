@@ -60,7 +60,7 @@ public partial class MainWindow
 
         public Task ShowStartFailureAsync(Exception exception)
         {
-            return _owner.mDialogs.ShowErrorAsync("Error", "Failed to start: " + exception.Message);
+            return _owner.ShowUserErrorAsync(UserErrorMessages.CouldNotStartRun, exception.ToString());
         }
 
         public RunCommandStopOutcome StopLive()

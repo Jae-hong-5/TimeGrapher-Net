@@ -42,23 +42,30 @@ public partial class MainWindow
         mRunSessionController.InvalidateRunSession();
     }
 
-    private bool TryResolveLiveStartSelection(out int deviceNumber, out int sampleRate, out string errorMessage)
+    private bool TryResolveLiveStartSelection(
+        out int deviceNumber,
+        out int sampleRate,
+        out string userMessage,
+        out string logDetail)
     {
         deviceNumber = CurrentInputDeviceNumber();
         sampleRate = 0;
         if (deviceNumber < 0)
         {
-            errorMessage = "No live audio device is selected.";
+            userMessage = UserErrorMessages.SelectLiveAudioDevice;
+            logDetail = "Live start rejected because no live audio device is selected.";
             return false;
         }
 
         if (!mRunSelectionResolver.TryGetSelectedSampleRate(mAvailableRates, mNumberOfRates, out sampleRate))
         {
-            errorMessage = "No valid sample rate is selected.";
+            userMessage = UserErrorMessages.SelectSampleRate;
+            logDetail = "Live start rejected because no valid sample rate is selected.";
             return false;
         }
 
-        errorMessage = string.Empty;
+        userMessage = string.Empty;
+        logDetail = string.Empty;
         return true;
     }
 
@@ -96,7 +103,10 @@ public partial class MainWindow
         // stop actually succeeded.
         if (mViewModel.RunState != RunUiState.StopFailed)
         {
-            mViewModel.StatusText = "Live audio capture ended unexpectedly";
+            ReportUserErrorStatus(
+                UserErrorMessages.LiveAudioStopped,
+                "Live capture ended unexpectedly for run session " +
+                runSessionToken.ToString(CultureInfo.InvariantCulture) + ".");
         }
     }
 
@@ -161,7 +171,8 @@ public partial class MainWindow
             runSessionToken,
             shouldRestoreAudioState: CurrentMode() == RunCommandMode.Playback,
             stopInputWorker: () => mRunSessionController.StopInputWorker("Playback"),
-            failureStatus: "Playback failed",
+            failureStatus: UserErrorMessages.PlaybackStoppedWithError,
+            failureDetail: "Playback worker completed with failure.",
             failed: reason == PlaybackCompletionReason.Failed);
     }
 
@@ -171,7 +182,8 @@ public partial class MainWindow
             runSessionToken,
             shouldRestoreAudioState: CurrentMode() == RunCommandMode.Simulation,
             stopInputWorker: () => mRunSessionController.StopInputWorker("Sim"),
-            failureStatus: "Simulation failed",
+            failureStatus: UserErrorMessages.SimulationStoppedWithError,
+            failureDetail: "Simulation worker completed with failure.",
             failed: reason == SimCompletionReason.Failed);
     }
 
@@ -180,6 +192,7 @@ public partial class MainWindow
         bool shouldRestoreAudioState,
         Func<RunSessionStopOutcome> stopInputWorker,
         string failureStatus,
+        string failureDetail,
         bool failed)
     {
         if (!mRunSessionController.IsCurrentRunSession(runSessionToken))
@@ -204,13 +217,24 @@ public partial class MainWindow
             // not leave the app stuck in Stopping. RunCommandService derives its
             // state from the view model, so RESET then retries via StopFailedState.
             mViewModel.SetStopFailed();
-            mViewModel.StatusText = "Stop failed - press Reset to retry";
+            ReportUserErrorStatus(
+                UserErrorMessages.StopDidNotFinish,
+                "Run completion stop failed: outcome=" + outcome +
+                ", audio_closed=" + audioClosed +
+                ", input_failed=" + failed + ".");
             return;
         }
 
         SetGuiStopMode();
         mViewModel.IsAwaitingBeatSync = false;
-        mViewModel.StatusText = failed ? failureStatus : "Stopped";
+        if (failed)
+        {
+            ReportUserErrorStatus(failureStatus, failureDetail);
+        }
+        else
+        {
+            mViewModel.StatusText = "Stopped";
+        }
     }
 
     private async Task<bool> RecordSessionCheck(int sampleRate)
@@ -238,7 +262,9 @@ public partial class MainWindow
             bool closed = mWavWriter.Close();
             if (!closed)
             {
-                mViewModel.StatusText = "Failed to close WAV recording cleanly";
+                ReportUserErrorStatus(
+                    UserErrorMessages.RecordingCloseFailed,
+                    "WAV writer close returned false. is_open=" + mWavWriter.IsOpen + ".");
                 if (mWavWriter.IsOpen)
                 {
                     // Retryable: the writer thread has not finished yet; a Stop
@@ -258,9 +284,11 @@ public partial class MainWindow
             mWavWriter = null;
             if (droppedBlocks != 0)
             {
-                mViewModel.StatusText = "WAV recording dropped " +
-                                     droppedBlocks.ToString(CultureInfo.InvariantCulture) +
-                                     " block(s)";
+                ReportUserErrorStatus(
+                    UserErrorMessages.RecordingMayBeIncomplete,
+                    "WAV recording dropped " +
+                    droppedBlocks.ToString(CultureInfo.InvariantCulture) +
+                    " block(s).");
             }
         }
 
@@ -288,10 +316,13 @@ public partial class MainWindow
 
     private async Task<bool> LiveStart()
     {
-        if (!TryResolveLiveStartSelection(out int deviceNumber, out int sampleRate, out string errorMessage))
+        if (!TryResolveLiveStartSelection(
+                out int deviceNumber,
+                out int sampleRate,
+                out string userMessage,
+                out string logDetail))
         {
-            mViewModel.StatusText = "Failed to start live audio";
-            await mDialogs.ShowErrorAsync("Error", "Failed to start live audio: " + errorMessage);
+            await ShowUserErrorAsync(userMessage, logDetail);
             return false;
         }
 
@@ -310,8 +341,7 @@ public partial class MainWindow
             mRunSessionController.StopInputWorker("Audio");
             mRunSessionController.StopAnalysisThread();
             AudioCloseCheck();
-            mViewModel.StatusText = "Failed to start live audio";
-            await mDialogs.ShowErrorAsync("Error", "Failed to start live audio: " + ex.Message);
+            await ShowUserErrorAsync(UserErrorMessages.CouldNotStartLiveAudio, ex.ToString());
             return false;
         }
 

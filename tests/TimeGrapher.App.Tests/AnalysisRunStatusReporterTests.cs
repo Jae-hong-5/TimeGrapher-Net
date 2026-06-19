@@ -68,7 +68,8 @@ public sealed class AnalysisRunStatusReporterTests
 
         AnalysisRunStatusReporter.Report report = reporter.Describe(frame, 0, SampleRate);
 
-        Assert.Equal("Audio input overrun: dropped 1234 samples before analysis", report.StatusText);
+        Assert.Equal(UserErrorMessages.AudioInputInterrupted, report.StatusText);
+        Assert.Equal("Audio input overrun: dropped 1234 samples before analysis.", report.LogDetail);
     }
 
     [Fact]
@@ -79,7 +80,8 @@ public sealed class AnalysisRunStatusReporterTests
 
         AnalysisRunStatusReporter.Report report = reporter.Describe(frame, 0, SampleRate);
 
-        Assert.Equal("Analysis lag: 1000 ms (48000 samples), processing 5.0 ms", report.StatusText);
+        Assert.Equal(UserErrorMessages.AnalysisRunningBehind, report.StatusText);
+        Assert.Equal("Analysis lag: 1000 ms (48000 samples), processing 5.0 ms.", report.LogDetail);
     }
 
     [Fact]
@@ -92,7 +94,8 @@ public sealed class AnalysisRunStatusReporterTests
 
         AnalysisRunStatusReporter.Report report = reporter.Describe(frame, 0, SampleRate);
 
-        Assert.Equal("Deadline pressure: rendering quality reduced (level 2/3)", report.StatusText);
+        Assert.Equal(UserErrorMessages.DisplayQualityReduced, report.StatusText);
+        Assert.Equal("Deadline pressure: rendering quality reduced (level 2/3).", report.LogDetail);
     }
 
     [Fact]
@@ -104,6 +107,7 @@ public sealed class AnalysisRunStatusReporterTests
 
         Assert.Null(report.StatusText);
         Assert.Equal("UI render coalesced 3 analysis frame(s)", report.ConsoleWarning);
+        Assert.Null(report.LogDetail);
     }
 
     [Fact]
