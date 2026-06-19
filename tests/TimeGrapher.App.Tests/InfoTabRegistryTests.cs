@@ -502,7 +502,7 @@ public sealed class InfoTabRegistryTests
         Assert.Equal(new[] { "1h", "3h", "6h", "‹", "›" }, buttons);
         Assert.DoesNotContain(Descendants(header).OfType<TextBlock>(), text => text.Text == "24H LONG-TERM");
         Assert.Contains(Descendants(header).OfType<TextBlock>(), text => text.Text == "COLLECTING");
-        Assert.Contains(Descendants(header).OfType<TextBlock>(), text => text.Text == "ERROR RATE —");
+        Assert.Contains(Descendants(header).OfType<TextBlock>(), text => text.Text == "Error Rate —");
         Assert.DoesNotContain(Descendants(header).OfType<Button>(), button => button.Classes.Contains("active"));
         Assert.DoesNotContain(Descendants(header).OfType<TextBlock>(), text => text.Text?.Contains("Elapsed", StringComparison.Ordinal) == true);
         Assert.Empty(header.RowDefinitions);
@@ -546,7 +546,7 @@ public sealed class InfoTabRegistryTests
             },
             new AnalysisTabRenderContext(48000, ReviewCursorTimeS: 12.0));
 
-        Assert.Equal("ERROR RATE -2.0 s/d   Amplitude 281°   BEAT ERROR +0.2 ms", vm.ReviewMetricsText);
+        Assert.Equal("Error Rate -2.0 s/d   Amplitude 281°   BEAT ERROR +0.2 ms", vm.ReviewMetricsText);
     }
 
     [Fact]

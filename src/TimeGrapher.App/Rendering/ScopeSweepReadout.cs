@@ -13,7 +13,7 @@ internal static class ScopeSweepReadout
 {
     /// <summary>Reference line of current error rate / amplitude / beat error (em dash when absent).</summary>
     public static string ReferenceLine(BeatMetricsHistorySnapshot? snapshot) =>
-        "ERROR RATE " + VarioReadout.Format(
+        "Error Rate " + VarioReadout.Format(
             snapshot is { RateValid: true } ? snapshot.RateSPerDay : null, "+0.0;-0.0;0.0", " s/d")
         + "   |   Amplitude " + VarioReadout.Format(
             snapshot is { AmplitudeValid: true } ? snapshot.AmplitudeDeg : null, "0", "°")

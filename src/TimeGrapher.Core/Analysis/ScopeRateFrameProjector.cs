@@ -17,7 +17,7 @@ public sealed class ScopeRateFrameProjector
     private readonly List<ScopeVerticalMarker> _scopeWindowVerticalMarkers = new();
     private readonly List<ScopeHorizontalMarker> _scopeWindowHorizontalMarkers = new();
     private readonly List<ScopeTextMarker> _scopeWindowTextMarkers = new();
-    // Latest tic/toc ERROR RATE series as immutable snapshots. ERROR RATE data changes only on
+    // Latest tic/toc Error Rate series as immutable snapshots. Error Rate data changes only on
     // beat events (~8 Hz at 28800 BPH) while frames are produced per audio block
     // (50-100 Hz), so the snapshot is rebuilt once per actual update and the SAME
     // object is reattached to the frames in between — every frame still carries

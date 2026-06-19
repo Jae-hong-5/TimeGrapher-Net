@@ -163,7 +163,7 @@ internal sealed class RateScopeRenderer
         Plot rate = _ratePlot.Plot;
         rate.Clear();
         ApplyPlotTheme(rate);
-        rate.YLabel("ERROR RATE (ms)");
+        rate.YLabel("Error Rate (ms)");
         rate.XLabel("Beat Index");
         rate.Axes.SetLimitsY(-rateErrorYScale, rateErrorYScale);
         rate.Axes.SetLimitsX(0, rateDataPoints);

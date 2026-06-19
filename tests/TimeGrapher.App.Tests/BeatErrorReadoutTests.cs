@@ -16,7 +16,7 @@ public sealed class BeatErrorReadoutTests
         Assert.Equal(
             new[]
             {
-                "ERROR RATE", "Amplitude", "BEAT ERROR", "BPH",
+                "Error Rate", "Amplitude", "BEAT ERROR", "BPH",
                 "DIFF TIC-TAC", "DIFF PERIOD", "AVG PERIOD",
             },
             BeatErrorReadout.Labels);

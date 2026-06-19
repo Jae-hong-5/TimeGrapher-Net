@@ -27,7 +27,7 @@ public sealed class SweepFrameProjector
     // MeasuredPeriodS is the nominal locked beat period (3600/BPH), bit-stable
     // while locked, so the only real change is a re-lock at a different BPH.
     // The window is latched and only re-tuned when the candidate moves past
-    // this fraction, so genuine ERROR RATE shows up as drift against the
+    // this fraction, so genuine Error Rate shows up as drift against the
     // latched window instead of silently re-centering on every re-lock.
     private const double WindowRetuneFraction = 0.01;
 

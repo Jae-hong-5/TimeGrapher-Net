@@ -26,7 +26,7 @@ public sealed class ScopeSweepLogicTests
 
         string line = ScopeSweepReadout.ReferenceLine(snapshot);
 
-        Assert.Equal("ERROR RATE -3.2 s/d   |   Amplitude 282°   |   BEAT ERROR +0.46 ms", line);
+        Assert.Equal("Error Rate -3.2 s/d   |   Amplitude 282°   |   BEAT ERROR +0.46 ms", line);
     }
 
     [Fact]
@@ -37,7 +37,7 @@ public sealed class ScopeSweepLogicTests
 
         foreach (string line in new[] { empty, invalid })
         {
-            Assert.Equal("ERROR RATE —   |   Amplitude —   |   BEAT ERROR —", line);
+            Assert.Equal("Error Rate —   |   Amplitude —   |   BEAT ERROR —", line);
         }
     }
 

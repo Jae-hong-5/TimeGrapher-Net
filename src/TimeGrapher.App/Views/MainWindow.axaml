@@ -326,7 +326,7 @@
                           FontWeight="Bold" />
 
                 <TextBlock Name="SimErrorRateLabel" Grid.Row="1" Grid.Column="0"
-                           VerticalAlignment="Center" HorizontalAlignment="Center" FontWeight="Bold" Text="ERROR RATE" />
+                           VerticalAlignment="Center" HorizontalAlignment="Center" FontWeight="Bold" Text="Error Rate" />
                 <NumericUpDown Name="SimErrorRateSpinBox" Grid.Row="1" Grid.Column="1"
                                IsEnabled="{Binding AreSimulationParametersEnabled}"
                                Value="{Binding SimErrorRate, Mode=TwoWay}"

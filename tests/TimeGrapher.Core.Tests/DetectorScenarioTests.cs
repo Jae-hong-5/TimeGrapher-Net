@@ -10,7 +10,7 @@ namespace TimeGrapher.Core.Tests;
 
 /// <summary>
 /// End-to-end behavioral scenarios over the detector + metrics pipeline driven by the
-/// deterministic synthetic watch stream: ERROR RATE direction, beat-error reflection,
+/// deterministic synthetic watch stream: Error Rate direction, beat-error reflection,
 /// manual-BPH mismatch, and the time-based sync-loss watchdog.
 /// </summary>
 public sealed class DetectorScenarioTests
@@ -110,9 +110,9 @@ public sealed class DetectorScenarioTests
         Assert.Equal(TgSyncStatus.Synced, uFast.Result.SyncStatus);
         Assert.Equal(TgSyncStatus.Synced, uSlow.Result.SyncStatus);
 
-        double rFast = Field(fast, "ERROR RATE ");
-        double rSlow = Field(slow, "ERROR RATE ");
-        double rClean = Field(clean, "ERROR RATE ");
+        double rFast = Field(fast, "Error Rate ");
+        double rSlow = Field(slow, "Error Rate ");
+        double rClean = Field(clean, "Error Rate ");
 
         Assert.True(rFast * rSlow < 0.0, $"fast={rFast} slow={rSlow} should differ in sign");
         Assert.True(Math.Abs(rFast) > 5.0 && Math.Abs(rSlow) > 5.0, $"fast={rFast} slow={rSlow}");

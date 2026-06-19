@@ -28,7 +28,7 @@ public struct WatchMetricsConfig
 }
 
 /// <summary>
-/// Port of WatchMetrics (WatchMetrics.h/.cpp): computes ERROR RATE, beat error and
+/// Port of WatchMetrics (WatchMetrics.h/.cpp): computes Error Rate, beat error and
 /// amplitude from detected A/C tick events and formats the result/marker text.
 /// </summary>
 public sealed class WatchMetrics
@@ -393,7 +393,7 @@ public sealed class WatchMetrics
                 // the expected-time schedule, so leaving it behind sign-inverts
                 // every signed beat error / DiffTicTac after an odd-length gap
                 // (and mispairs the amplitude average), while every gap shifts
-                // the ERROR RATE baseline by a full beat per missed beat.
+                // the Error Rate baseline by a full beat per missed beat.
                 _ticTocBeatNumber += skippedBeats;
                 gapDetected = true;
             }
@@ -546,7 +546,7 @@ public sealed class WatchMetrics
     /// Pure formatter for the title-bar readout. Each field is fixed-width so the line never
     /// shifts as values change; present numeric values are wrapped in value-span markers (so
     /// the UI can accent only the numbers) while dash placeholders are left unmarked. Widths:
-    /// ERROR RATE 6 ("-999.9"), amplitude 3 + constant degree sign, beat error 4 ("-9.9"), BPH 5.
+    /// Error Rate 6 ("-999.9"), amplitude 3 + constant degree sign, beat error 4 ("-9.9"), BPH 5.
     /// </summary>
     internal static string BuildResults(
         bool bphValid, int bph,
@@ -560,7 +560,7 @@ public sealed class WatchMetrics
         string beatErrorText = beatErrorValid ? Mark(ArgFixed(beatError, 4, 1)) : "----";
         string amplitudeText = amplitudeValid ? Mark(ArgLong(QRound64(amplitude), 3)) : "---";
 
-        return "ERROR RATE " + rateError + " s/d | Amplitude " + amplitudeText + "°" +
+        return "Error Rate " + rateError + " s/d | Amplitude " + amplitudeText + "°" +
                " | BEAT ERROR " + beatErrorText + " ms | BPH " + beatsPerHour;
     }
 

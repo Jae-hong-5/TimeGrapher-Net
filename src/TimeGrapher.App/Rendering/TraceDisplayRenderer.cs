@@ -82,7 +82,7 @@ internal sealed class TraceDisplayRenderer
         _rateX.Clear();
         _rateY.Clear();
         ApplyPlotTheme(rate);
-        rate.YLabel("ERROR RATE (s/d)");
+        rate.YLabel("Error Rate (s/d)");
         rate.XLabel("Elapsed (s)");
         _rateScatter = rate.Add.Scatter(_rateX, _rateY);
         _rateScatter.LineWidth = 2;
@@ -181,10 +181,10 @@ internal sealed class TraceDisplayRenderer
                     unit, RollingWindowS)
                 : label + " avg —";
 
-        // ERROR RATE is signed; amplitude is an unsigned magnitude shown in whole
+        // Error Rate is signed; amplitude is an unsigned magnitude shown in whole
         // degrees everywhere else in the app.
         _summaryText.Text =
-            Format("ERROR RATE", MetricsSeriesMath.Average(history.Rate),
+            Format("Error Rate", MetricsSeriesMath.Average(history.Rate),
                 MetricsSeriesMath.RollingAverage(history.Rate, RollingWindowS), " s/d", "+0.0;-0.0;0.0")
             + "   |   "
             + Format("Amplitude", MetricsSeriesMath.Average(history.Amplitude),
