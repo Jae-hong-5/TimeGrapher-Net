@@ -126,18 +126,24 @@ public sealed class BeatMetricsHistory
                 _rate.Add(sample.TimeS, sample.RateSPerDay);
                 _rateStats.Add(sample.RateSPerDay);
                 ActiveAggregate().Rate.Add(sample.RateSPerDay);
-                _rateValid = true;
                 _rateSPerDay = sample.RateSPerDay;
             }
+
+            // Track the current validity from every sample: after a detection gap
+            // or re-lock warmup the per-beat engine declares the sample invalid,
+            // and the snapshot must not keep republishing the previous reading as
+            // a current valid value (e.g. into the measurement CSV).
+            _rateValid = sample.RateValid;
 
             if (sample.BeatErrorValid)
             {
                 SeedStartPositionIfNeeded(sample.TimeS);
                 _beatError.Add(sample.TimeS, sample.BeatErrorSignedMs);
                 ActiveAggregate().BeatError.Add(sample.BeatErrorSignedMs);
-                _beatErrorValid = true;
                 _beatErrorSignedMs = sample.BeatErrorSignedMs;
             }
+
+            _beatErrorValid = sample.BeatErrorValid;
 
             _dirty = true;
         }
