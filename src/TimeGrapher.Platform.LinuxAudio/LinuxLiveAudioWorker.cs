@@ -344,7 +344,13 @@ public sealed class LinuxLiveAudioWorker : ILiveAudioWorker
             ?? throw new InvalidOperationException("Failed to start " + processName + ".");
 
         _process = process;
-        _stopRequested = false;
+        // Suppress the reader's unexpected-death CaptureEnded until the startup
+        // probe confirms the capture is live: if the process dies during the
+        // probe, that failure is reported by the throw below, so CaptureEnded
+        // must not also fire (which would report the same failure twice). Set
+        // before the reader threads start so the end-of-stream check below sees
+        // it without a race.
+        _stopRequested = true;
         lock (_stderrLock)
         {
             _stderr.Clear();
@@ -382,6 +388,10 @@ public sealed class LinuxLiveAudioWorker : ILiveAudioWorker
             throw new InvalidOperationException(
                 error.Length == 0 ? processName + " exited before capture started." : processName + " exited: " + error);
         }
+
+        // Startup probe passed: the capture is live, so from here an unexpected
+        // stream end is a real capture death that must raise CaptureEnded.
+        _stopRequested = false;
     }
 
     public void SetVolume(float volume)

@@ -241,6 +241,26 @@ card 4: CA7 [Cubilux CA7], device 0: USB Audio [USB Audio]
         Assert.Equal(fileName + " exited: boom", ex.Message);
     }
 
+    [Fact]
+    public void StartProcess_EarlyExitDoesNotAlsoRaiseCaptureEnded()
+    {
+        // A startup failure is reported by the thrown exception; the reader's
+        // unexpected-death CaptureEnded must stay suppressed so the same failure
+        // is not reported twice (the UI would otherwise double-handle it).
+        var worker = new LinuxLiveAudioWorker(new MasterAudioBuffer(48000));
+        bool raised = false;
+        worker.CaptureEnded += () => raised = true;
+
+        (string fileName, string[] args) = ShellCommand(OperatingSystem.IsWindows()
+            ? "echo boom 1>&2 & exit 1"
+            : "echo boom 1>&2; exit 1");
+
+        Assert.Throws<InvalidOperationException>(
+            () => worker.StartCaptureProcessForTests(BuildStartInfo(fileName, args), startupProbeTimeoutMs: 5000));
+
+        Assert.False(raised, "a startup failure must not also raise CaptureEnded");
+    }
+
     private static ProcessStartInfo BuildStartInfo(string fileName, string[] arguments)
     {
         var startInfo = new ProcessStartInfo { FileName = fileName };
