@@ -4,7 +4,7 @@ public static class BphCatalog
 {
     private static readonly int[] AutoBphValues =
     {
-        12000, 14400, 18000, 19800, 21600, 25200, 28800, 36000, 43200
+        12000, 14400, 18000, 19800, 21600, 25200, 28800, 32400, 36000, 43200
     };
 
     private static readonly int[] ManualBphValues =
