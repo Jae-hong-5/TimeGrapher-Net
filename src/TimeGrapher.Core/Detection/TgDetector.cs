@@ -501,13 +501,7 @@ public sealed class TgDetector
             {
                 Array.Resize(ref _eventPllMatch, rawCount);
             }
-            // The batch that acquires lock holds the bootstrap events that
-            // established it (they precede the lock decision), so treat the whole
-            // acquiring batch as pre-sync. Without this, those events are emitted
-            // post-sync and can seed metrics/gates before the first real locked
-            // beat. Subsequent batches keep _currentBph > 0 with SyncAcquiredEvent
-            // false, so they emit normally.
-            bool preSync = (_currentBph <= 0) || result.SyncAcquiredEvent;
+            bool preSync = (_currentBph <= 0);
             for (int i = 0; i < rawCount; ++i)
             {
                 if (preSync && _cfg.SuppressPreSyncEvents) continue;
