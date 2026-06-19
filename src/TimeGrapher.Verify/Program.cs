@@ -204,12 +204,13 @@ try
                 "  score: truth={0} detected={1} matched={2} recall={3:F3} precision={4:F3} a_bias_ms={5:F3} a_rms_ms={6:F3}",
                 score.TruthCount, score.DetectedCount, score.Matched,
                 score.Recall, score.Precision, score.MedianOffsetMs, score.RmsAfterOffsetMs));
-            if (score.Recall < 1.0 || score.Precision < 1.0 || score.RmsAfterOffsetMs > 0.5)
+            if (score.Recall < 1.0 || score.Precision < 1.0 || score.RmsAfterOffsetMs > 0.5 ||
+                Math.Abs(score.MedianOffsetMs) > 0.5)
             {
                 allMatch = false;
                 Console.Error.WriteLine(string.Format(CultureInfo.InvariantCulture,
-                    "  MISMATCH: generated timing score recall={0:F3} precision={1:F3} rms_ms={2:F3}",
-                    score.Recall, score.Precision, score.RmsAfterOffsetMs));
+                    "  MISMATCH: generated timing score recall={0:F3} precision={1:F3} bias_ms={2:F3} rms_ms={3:F3}",
+                    score.Recall, score.Precision, score.MedianOffsetMs, score.RmsAfterOffsetMs));
             }
 
             if (expectation.ExpectedRateSPerDay is double expectedRate)

@@ -232,7 +232,7 @@ internal static class AdverseScenarios
         AdverseGates gates = arm.UsePllGate
             ? row.PllGate ?? new AdverseGates(InfoOnly: true)
             : row.Default ?? new AdverseGates(InfoOnly: true);
-        string verdict = Evaluate(gates, snapshot, score, resets);
+        string verdict = Evaluate(gates, snapshot, score, resets, row.Bph);
 
         return new RowResult(
             row.Name, arm.Name, snapshot.SyncStatus, snapshot.DetectedBph, score,
@@ -259,7 +259,7 @@ internal static class AdverseScenarios
 
     private static string Evaluate(
         AdverseGates gates, DetectorResultSnapshot snapshot,
-        DetectionScorer.Score score, int resets)
+        DetectionScorer.Score score, int resets, int expectedBph)
     {
         if (gates.InfoOnly)
         {
@@ -270,6 +270,12 @@ internal static class AdverseScenarios
         if (gates.MustSync.HasValue)
         {
             ok &= gates.MustSync.Value == (snapshot.SyncStatus == TgSyncStatus.Synced);
+        }
+        if (gates.MustSync == true && snapshot.SyncStatus == TgSyncStatus.Synced)
+        {
+            // A row that must sync also has to lock the advertised BPH; without
+            // this a wrong-rate lock could still satisfy the loose score gates.
+            ok &= snapshot.DetectedBph == expectedBph;
         }
         if (!double.IsNaN(gates.MinRecall))
         {
