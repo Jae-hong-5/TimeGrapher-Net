@@ -42,7 +42,7 @@ flowchart TB
     LinuxAudio --> Core
 
     AppTests --> App
-    AppTests -. "전이 · Core DTO 사용" .-> Core
+    AppTests -. "전이 · Core 타입(DTO·Sim·AudioIo) 사용" .-> Core
     CoreTests --> Core
     WindowsAudioTests --> WindowsAudio
     WindowsAudioTests -. "전이 · Core DTO 사용" .-> Core
@@ -81,7 +81,7 @@ flowchart TB
 
 ### 테스트 프로젝트의 Core 의존
 
-`*.Tests`는 각자 검증 대상 프로젝트 **하나만** `ProjectReference`로 직접 참조한다(`App.Tests→App`, `WindowsAudio.Tests→WindowsAudio`, `LinuxAudio.Tests→LinuxAudio`). `Core`는 전이 참조이지만, 어서션에서 `Core` DTO를 직접 `using`하므로 점선으로 표시했다. `Core.Tests`만 `Core`를 직접 참조한다. `App.Tests`는 컨트롤(`AvaPlot`, `SplashWindow`)을 구성하므로 `Avalonia`·`ScottPlot`도 직접 사용한다.
+`*.Tests`는 각자 검증 대상 프로젝트 **하나만** `ProjectReference`로 직접 참조한다(`App.Tests→App`, `WindowsAudio.Tests→WindowsAudio`, `LinuxAudio.Tests→LinuxAudio`). `Core`는 전이 참조이지만, 어서션·테스트 지원에서 `Core` 타입을 직접 `using`하므로 점선으로 표시했다 — `App.Tests`는 DTO뿐 아니라 `AnalysisBenchmarkRunnerTests`에서 `Core.Sim`의 `WatchSynthStream`·`Core.AudioIo`의 `WavStreamWriter` 같은 구현/지원 타입도 직접 구성한다(그래도 `ProjectReference`는 App 하나뿐이라 여전히 전이 참조다). `Core.Tests`만 `Core`를 직접 참조한다. `App.Tests`는 컨트롤(`AvaPlot`, `SplashWindow`)을 구성하므로 `Avalonia`·`ScottPlot`도 직접 사용한다.
 
 ### 미래 계획 노드: TimeGrapher.Inference
 
@@ -137,6 +137,7 @@ flowchart TB
     Views --> CoreSim
     Views --> Assets
 
+    ViewModels --> CoreAnalysis
     ViewModels --> CoreShared
 
     Services --> ViewModels
@@ -168,13 +169,14 @@ flowchart TB
 |---|---|---|
 | Program / 앱 시작 | Views, Audio, Rendering | Analysis, AudioIo, Detection.Scoring, Shared |
 | Views | Program, ViewModels, Services, Audio, Tabs, Rendering, Assets | AudioIo, Detection, Shared, Sim |
-| ViewModels | — | Shared |
+| ViewModels | — | Analysis, Shared |
 | Services | ViewModels | Analysis, AudioIo, Metrics, Shared |
 | Audio | — | Analysis, AudioIo, Shared, Sim, 플랫폼 백엔드(RID 조건부) |
 | Tabs | ViewModels, Rendering | Analysis, Shared |
 | Rendering | Tabs | Analysis, Metrics, Shared |
 
 - `Program`은 `AnalysisRunSettings`에서 `AnalysisWorker.Config`를 조립하며 `PllMatchGate`(`Core.Detection.Scoring`)와 `PlotThemePalette`(`Rendering`)를 직접 사용한다.
+- `ViewModels`는 스윕 배수 기본값을 `SweepFrameProjector.DefaultSweepMultiple`(`Core.Analysis`)로 초기화하므로 `Shared` 외에 `Analysis`에도 의존한다.
 - `Rendering`과 `Tabs`는 순환처럼 보이지만 분리되어 있다: `Rendering`의 프레임 컨슈머가 `Tabs`의 라우팅 계약(`IAnalysisFrameConsumer`/`IThemedFrameConsumer`)을 구현하고, `Tabs`의 레지스트리가 컨슈머를 등록한다.
 
 ## 3. TimeGrapher.Core 내부 사용 관계
