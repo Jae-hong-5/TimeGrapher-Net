@@ -99,8 +99,10 @@ internal sealed class BeatEventGateHost
     /// <summary>
     /// Decides every pending event whose window is available (all of them
     /// for zero-window gates); <paramref name="force"/> releases the rest
-    /// unscored (accepted) at stream/sync boundaries. Returns decisions in
-    /// submission order; the list is reused across calls.
+    /// immediately at stream/sync boundaries, still scored by the gate against
+    /// whatever (possibly partial or empty) window the ring holds rather than
+    /// blindly accepted, so the gate keeps authority across a state flush.
+    /// Returns decisions in submission order; the list is reused across calls.
     /// </summary>
     public List<ReleasedEvent> Release(bool force)
     {
@@ -116,7 +118,11 @@ internal sealed class BeatEventGateHost
             }
             _pending.Dequeue();
 
-            bool accepted = (!windowReady && force) || Decide(pending);
+            // Force only controls *when* a still-windowless event is released,
+            // not whether it is scored: decide it against whatever window the
+            // ring holds (Decide handles a partial or empty window via the
+            // offset = -1 'no window' path) so the gate is never bypassed.
+            bool accepted = Decide(pending);
 
             if (_vetoFollowingC)
             {

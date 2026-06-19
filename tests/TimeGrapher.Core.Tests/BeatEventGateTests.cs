@@ -165,11 +165,14 @@ public sealed class BeatEventGateTests
         Assert.NotEmpty(gate.Windows);
         int preSamples = (int)(0.020 * 48000);
         int postSamples = (int)(0.010 * 48000);
-        // Away from the stream head every window is full-size with the event
-        // exactly at the pre-window offset.
-        foreach ((int length, int offset, TgEventType _) in gate.Windows.Skip(4))
+        // Stream-head and force-released flush-tail windows are partial; every
+        // full-size window has the event exactly at the pre-window offset.
+        var fullWindows = gate.Windows
+            .Where(w => w.Length == preSamples + postSamples + 1)
+            .ToList();
+        Assert.NotEmpty(fullWindows);
+        foreach ((int _, int offset, TgEventType _) in fullWindows)
         {
-            Assert.Equal(preSamples + postSamples + 1, length);
             Assert.Equal(preSamples, offset);
         }
     }
@@ -187,9 +190,15 @@ public sealed class BeatEventGateTests
         Assert.NotEmpty(gate.Windows);
         int preSamples = (int)(0.020 * 48000);
         int postSamples = (int)(0.600 * 48000);
-        foreach ((int length, int offset, TgEventType _) in gate.Windows.Skip(4).SkipLast(8))
+        // The ring is sized from the request, so full 620 ms windows are still
+        // delivered (the eviction bug would have made all of them partial);
+        // every full-size window has the event exactly at the pre-window offset.
+        var fullWindows = gate.Windows
+            .Where(w => w.Length == preSamples + postSamples + 1)
+            .ToList();
+        Assert.NotEmpty(fullWindows);
+        foreach ((int _, int offset, TgEventType _) in fullWindows)
         {
-            Assert.Equal(preSamples + postSamples + 1, length);
             Assert.Equal(preSamples, offset);
         }
     }
@@ -271,6 +280,23 @@ public sealed class BeatEventGateTests
 
         Assert.NotEmpty(ungated);
         Assert.Equal(ungated, windowed);
+    }
+
+    [Fact]
+    public void Flush_ForceReleasedEvents_AreScoredByTheGate_NotBlindlyAccepted()
+    {
+        // A windowed gate's pending tail at Flush (whose post-window the ring
+        // cannot cover yet) must still be scored, not force-accepted: a veto-all
+        // gate must empty the metrics/display streams entirely, including that
+        // force-released tail. (Blind force-accept would leak the tail through.)
+        var gate = new ScriptedGate { PreMs = 20.0, PostMs = 600.0, AcceptFunc = _ => false };
+        RunResult result = Run(NewEngine(gate), 8);
+
+        Assert.Empty(result.MetricsEvents);
+        Assert.Empty(result.DisplayEvents);
+        Assert.True(result.FinalSnapshot.VetoedEvents > 0);
+        // The raw snapshot stream is never touched by the gate.
+        Assert.Contains(result.SnapshotEvents, e => e.Type == TgEventType.A);
     }
 
     [Fact]
