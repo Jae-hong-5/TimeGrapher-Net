@@ -30,7 +30,10 @@ public sealed class AudioCaptureWorker : ILiveAudioWorker
     // replaces the blocking StopAndDispose teardown so the TryStop
     // pending-thread contract can be exercised without an audio device.
     private Action? _teardownOverride;
-    private float _volume = 1.0f;
+    // Written on the UI thread (Start/SetVolume), read on the capture callback
+    // thread (OnDataAvailable): volatile so a gain change is published promptly
+    // and never read from a stale register/cache.
+    private volatile float _volume = 1.0f;
     private volatile bool _paused;
     private volatile bool _stopRequested;
 

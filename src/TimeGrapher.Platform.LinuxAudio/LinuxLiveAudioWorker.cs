@@ -35,7 +35,10 @@ public sealed class LinuxLiveAudioWorker : ILiveAudioWorker
     private double _lastTime;
     private ulong _frameCount;
     private ulong _sampleCount;
-    private float _volume = 1.0f;
+    // Written on the UI thread (Start/SetVolume), read on the capture reader
+    // thread (WriteSamples): volatile so a gain change is published promptly
+    // and never read from a stale register/cache.
+    private volatile float _volume = 1.0f;
     private string _processErrorPrefix = "pw-record";
     private Func<Process, TimeSpan, bool>? _waitForExitOverride;
     private volatile bool _paused;
