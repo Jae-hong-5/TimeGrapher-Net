@@ -69,9 +69,7 @@ internal sealed class WaveformCompareRenderer
     private readonly LinePlot?[] _cGuidesTic;
     private readonly LinePlot?[] _cGuidesToc;
     private ReviewCursorLayer? _reviewCursor;
-    // Y-axis direction labels (fixed to plot corners, not data coordinates)
-    private Annotation? _yCurrentLabel;
-    private Annotation? _yPastLabel;
+
 
     private PlotThemePalette _theme = PlotThemePalette.Current;
     private ulong _lastVersion;
@@ -127,7 +125,7 @@ internal sealed class WaveformCompareRenderer
         Plot plot = _plot.Plot;
         plot.Clear();
         ApplyPlotTheme(plot);
-        plot.YLabel("");
+        plot.YLabel("past \u2190 current");
         plot.XLabel("(ms)");
         plot.Axes.Left.TickLabelStyle.IsVisible = false;
 
@@ -165,17 +163,6 @@ internal sealed class WaveformCompareRenderer
             _cGuidesTic[i] = AddCGuide(plot);
             _cGuidesToc[i] = AddCGuide(plot);
         }
-
-        // Y-axis direction labels: pinned to plot corners so they appear in the
-        // Y-axis label area rather than floating in data-space.
-        _yCurrentLabel = plot.Add.Annotation("current \u2193", Alignment.UpperLeft);
-        _yCurrentLabel.LabelFontName = _textFontFamily;
-        _yCurrentLabel.LabelFontSize = 10;
-        _yCurrentLabel.IsVisible = false;
-        _yPastLabel = plot.Add.Annotation("\u2191 past", Alignment.LowerLeft);
-        _yPastLabel.LabelFontName = _textFontFamily;
-        _yPastLabel.LabelFontSize = 10;
-        _yPastLabel.IsVisible = false;
 
         _reviewCursor = AddCursor(plot);
 
@@ -415,8 +402,7 @@ internal sealed class WaveformCompareRenderer
         SetGuide(_aGuideToc, _aGuideLabelToc,
             hasData ? tocXMs : null, WaveformCompareLogic.AGuideLabel, labelY);
 
-        if (_yCurrentLabel != null) _yCurrentLabel.IsVisible = hasData;
-        if (_yPastLabel != null)    _yPastLabel.IsVisible    = hasData;
+
     }
 
     private static double YTop(int pairCount) =>
@@ -522,9 +508,6 @@ internal sealed class WaveformCompareRenderer
         if (_aGuideLabelToc != null) _aGuideLabelToc.LabelFontColor = guideColor;
         foreach (LinePlot? cGuide in _cGuidesTic) if (cGuide != null) cGuide.LineColor = guideColor;
         foreach (LinePlot? cGuide in _cGuidesToc) if (cGuide != null) cGuide.LineColor = guideColor;
-        if (_yCurrentLabel != null) _yCurrentLabel.LabelFontColor = Color.FromARGB(_theme.TextPrimary);
-        if (_yPastLabel != null)    _yPastLabel.LabelFontColor     = Color.FromARGB(_theme.TextPrimary);
-
         _reviewCursor?.ApplyTheme(_theme);
     }
 
