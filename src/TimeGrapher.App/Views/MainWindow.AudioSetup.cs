@@ -229,12 +229,18 @@ public partial class MainWindow
     // on the UI thread if that device is still selected (a stale probe is dropped).
     private void ProbeSampleRatesAsync(int deviceNumber)
     {
+        // Capture the current cache instance: a device re-enumeration swaps the
+        // field for a fresh cache, so write the probe into the cache this call
+        // belongs to (a later swap orphans it) and re-narrow only if that same
+        // cache is still current and the same device is still selected.
+        ConcurrentDictionary<int, IReadOnlyList<int>> cache = _sampleRateProbeCache;
         Task.Run(() =>
         {
-            _sampleRateProbeCache.GetOrAdd(deviceNumber, LiveAudioBackend.GetCandidateSampleRates);
+            cache.GetOrAdd(deviceNumber, LiveAudioBackend.GetCandidateSampleRates);
             Dispatcher.UIThread.Post(() =>
             {
-                if (CurrentSelectedInputDeviceNumber() == deviceNumber)
+                if (ReferenceEquals(_sampleRateProbeCache, cache) &&
+                    CurrentSelectedInputDeviceNumber() == deviceNumber)
                 {
                     // The cache is now warm, so this re-narrows synchronously.
                     PopulateSampleRates(deviceNumber);
