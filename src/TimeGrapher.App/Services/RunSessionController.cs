@@ -94,14 +94,19 @@ internal sealed class RunSessionController : IDisposable
                 _inputDataReadyHandler = null;
             }
 
+            // Detach the playback/sim/live completion handlers before the bounded
+            // stop, not only on success: a worker that finishes during the stop or
+            // does not stop in time must not fire a late completion that re-enters
+            // the run lifecycle and bypasses the stop/reset intent.
+            _inputCompletionDetach?.Invoke();
+            _inputCompletionDetach = null;
+
             if (!worker.TryStop(TimeSpan.FromMilliseconds(WorkerStopTimeoutMs)))
             {
                 _setStatus(workerName + " worker did not stop within timeout");
                 return RunSessionStopOutcome.Stopping;
             }
 
-            _inputCompletionDetach?.Invoke();
-            _inputCompletionDetach = null;
             worker.Dispose();
             _inputWorker = null;
         }
@@ -133,6 +138,14 @@ internal sealed class RunSessionController : IDisposable
             }
             else
             {
+                // Stop timed out: the worker thread is still alive and can keep
+                // raising frames. Invalidate the analysis session now - detach the
+                // handler, bump the id so any in-flight frame is discarded by the
+                // SessionId gate, and clear the queue - so recovery does not render
+                // stale frames. The worker object is kept for the retry/dispose.
+                _analysisWorker.AnalysisFrameReady -= _onAnalysisFrameReady;
+                AnalysisSessionId++;
+                _clearPendingFrames();
                 _setStatus("Analysis worker did not stop within timeout");
                 return RunSessionStopOutcome.Stopping;
             }
