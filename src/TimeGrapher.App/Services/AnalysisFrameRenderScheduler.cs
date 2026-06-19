@@ -102,9 +102,23 @@ internal sealed class AnalysisFrameRenderScheduler
 
     public void ResetTiming()
     {
+        ulong generation;
+        bool drainPending;
         lock (_lock)
         {
             _nextRenderUtc = DateTime.MinValue;
+            // A frame queued behind an in-flight throttle delay would otherwise
+            // stay hidden until that delay expires; on a tab switch that shows a
+            // stale frame on the newly active graph. Post an immediate drain so
+            // latest-wins holds. The generation guard makes a stale post a no-op,
+            // and ProcessPendingFrame tolerates an already-drained (null) pending.
+            drainPending = _pendingFrame != null && _renderScheduled;
+            generation = _generation;
+        }
+
+        if (drainPending)
+        {
+            _postToUi(() => ProcessPendingFrame(generation));
         }
     }
 
