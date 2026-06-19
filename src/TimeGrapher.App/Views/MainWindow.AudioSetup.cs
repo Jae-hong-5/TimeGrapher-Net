@@ -19,7 +19,7 @@ public partial class MainWindow
         LiveAudioBackend.ConfigurePreferredInput();
     }
 
-    private void LoadAudioDevices()
+    private void LoadAudioDevices(string? currentDeviceName = null)
     {
         IReadOnlyList<LiveAudioDevice> inputDevices = Array.Empty<LiveAudioDevice>();
         if (LiveAudioBackend.CanCapture)
@@ -91,20 +91,7 @@ public partial class MainWindow
             mViewModel.SetInputDeviceNames(deviceNames);
         }
 
-        int len = PreferredAudioDevices.Length;
-        int selected = -1;
-        for (int i = 0; i < len; i++)
-        {
-            int index = MainWindowSelectionCoordinator.FindText(
-                mViewModel.InputDeviceNames,
-                PreferredAudioDevices[i],
-                matchContains: true);
-            if (index != -1) // -1 means the text was not found
-            {
-                selected = index;
-                break;
-            }
-        }
+        int selected = SelectInputDeviceIndexAfterReload(mViewModel.InputDeviceNames, currentDeviceName);
 
         // setCurrentIndex(index) triggers on_InputDeviceComboBox_currentIndexChanged once.
         // (Avalonia ComboBox does not auto-select on add, unlike Qt; explicitly select to
@@ -125,6 +112,43 @@ public partial class MainWindow
                 mSelectionCoordinator.SetSelectedInputDeviceIndex(0);
             }
         }
+    }
+
+    private void OnInputDeviceComboBoxDropDownOpened(object? sender, EventArgs e)
+    {
+        LoadAudioDevices(CurrentInputDeviceText());
+    }
+
+    internal static int SelectInputDeviceIndexAfterReload(
+        IReadOnlyList<string> deviceNames,
+        string? currentDeviceName)
+    {
+        if (!string.IsNullOrEmpty(currentDeviceName))
+        {
+            int currentIndex = MainWindowSelectionCoordinator.FindText(
+                deviceNames,
+                currentDeviceName,
+                matchContains: false);
+            if (currentIndex != -1)
+            {
+                return currentIndex;
+            }
+        }
+
+        int len = PreferredAudioDevices.Length;
+        for (int i = 0; i < len; i++)
+        {
+            int index = MainWindowSelectionCoordinator.FindText(
+                deviceNames,
+                PreferredAudioDevices[i],
+                matchContains: true);
+            if (index != -1) // -1 means the text was not found
+            {
+                return index;
+            }
+        }
+
+        return -1;
     }
 
     private void LoadAveragingPeriod()

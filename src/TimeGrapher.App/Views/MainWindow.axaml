@@ -203,6 +203,7 @@
                           IsEnabled="{Binding AreRunParametersEnabled}"
                           ItemsSource="{Binding InputDeviceNames}"
                           SelectedIndex="{Binding SelectedInputDeviceIndex, Mode=TwoWay}"
+                          DropDownOpened="OnInputDeviceComboBoxDropDownOpened"
                           FontWeight="Bold">
                   <ComboBox.ItemTemplate>
                     <DataTemplate>

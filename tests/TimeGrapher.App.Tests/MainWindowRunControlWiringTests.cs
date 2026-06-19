@@ -39,6 +39,35 @@ public sealed class MainWindowRunControlWiringTests
     }
 
     [Fact]
+    public void InputDeviceComboBoxReloadsDevicesWhenDropDownOpens()
+    {
+        XDocument document = XDocument.Load(FindSourceFile("src/TimeGrapher.App/Views/MainWindow.axaml"));
+
+        XElement inputComboBox = FindNamedElement(document, "InputDeviceComboBox");
+
+        Assert.Equal(
+            "OnInputDeviceComboBoxDropDownOpened",
+            inputComboBox.Attribute("DropDownOpened")?.Value);
+    }
+
+    [Fact]
+    public void ReloadedInputDeviceSelectionKeepsCurrentSourceWhenPresent()
+    {
+        string[] names = { "Live: Welshi USB", "Playback", "Simulation" };
+
+        Assert.Equal(1, MainWindow.SelectInputDeviceIndexAfterReload(names, "Playback"));
+        Assert.Equal(2, MainWindow.SelectInputDeviceIndexAfterReload(names, "Simulation"));
+    }
+
+    [Fact]
+    public void ReloadedInputDeviceSelectionFallsBackToPreferredDevice()
+    {
+        string[] names = { "Live: Chinese Generic USB", "Playback", "Simulation" };
+
+        Assert.Equal(0, MainWindow.SelectInputDeviceIndexAfterReload(names, "Missing device"));
+    }
+
+    [Fact]
     public void TitleBarPlacesHelpAndSettingsBetweenThemeAndMinimizeButtons()
     {
         XDocument document = XDocument.Load(FindSourceFile("src/TimeGrapher.App/Views/MainWindow.axaml"));
