@@ -65,9 +65,11 @@ internal sealed class WaveformCompareRenderer
     private Text? _aGuideLabel;
     private VerticalLine? _aGuideToc;
     private Text? _aGuideLabelToc;
-    // Per-lane C peak markers (one line segment per pair lane per side)
+    // Per-lane C peak markers (one line segment + one label per pair lane per side)
     private readonly LinePlot?[] _cGuidesTic;
     private readonly LinePlot?[] _cGuidesToc;
+    private readonly Text?[] _cLabelsTic;
+    private readonly Text?[] _cLabelsToc;
     private ReviewCursorLayer? _reviewCursor;
 
 
@@ -97,6 +99,8 @@ internal sealed class WaveformCompareRenderer
         _laneLabels   = new Text?[WaveformCompareLogic.PairLanes * 2];
         _cGuidesTic   = new LinePlot?[WaveformCompareLogic.PairLanes];
         _cGuidesToc   = new LinePlot?[WaveformCompareLogic.PairLanes];
+        _cLabelsTic   = new Text?[WaveformCompareLogic.PairLanes];
+        _cLabelsToc   = new Text?[WaveformCompareLogic.PairLanes];
         for (int i = 0; i < WaveformCompareLogic.PairLanes; i++)
         {
             _laneX[i] = new List<double>();
@@ -157,11 +161,13 @@ internal sealed class WaveformCompareRenderer
         _aGuideToc      = AddGuide(plot);
         _aGuideLabelToc = AddLabel(plot);
 
-        // Per-lane C peak markers: line segments updated each render.
+        // Per-lane C peak markers: line segments + labels updated each render.
         for (int i = 0; i < WaveformCompareLogic.PairLanes; i++)
         {
             _cGuidesTic[i] = AddCGuide(plot);
             _cGuidesToc[i] = AddCGuide(plot);
+            _cLabelsTic[i] = AddLabel(plot);
+            _cLabelsToc[i] = AddLabel(plot);
         }
 
         _reviewCursor = AddCursor(plot);
@@ -260,6 +266,8 @@ internal sealed class WaveformCompareRenderer
                 if (tocLabel != null) tocLabel.IsVisible = false;
                 if (_cGuidesTic[lane] != null) _cGuidesTic[lane]!.IsVisible = false;
                 if (_cGuidesToc[lane] != null) _cGuidesToc[lane]!.IsVisible = false;
+                if (_cLabelsTic[lane] != null) _cLabelsTic[lane]!.IsVisible = false;
+                if (_cLabelsToc[lane] != null) _cLabelsToc[lane]!.IsVisible = false;
                 continue;
             }
 
@@ -290,10 +298,17 @@ internal sealed class WaveformCompareRenderer
                     double cX = ticForC.CPeakOffsetMs - ticForC.AOffsetMs;
                     ticCGuide.Line = new CoordinateLine(cX, baseline, cX, baseline + 1.0);
                     ticCGuide.IsVisible = true;
+                    if (_cLabelsTic[lane] is Text ticCLabel)
+                    {
+                        ticCLabel.LabelText = "C";
+                        ticCLabel.Location = new Coordinates(cX, baseline + 1.0);
+                        ticCLabel.IsVisible = true;
+                    }
                 }
                 else
                 {
                     ticCGuide.IsVisible = false;
+                    if (_cLabelsTic[lane] != null) _cLabelsTic[lane]!.IsVisible = false;
                 }
             }
 
@@ -304,10 +319,17 @@ internal sealed class WaveformCompareRenderer
                     double cX = clipMs + (tocForC.CPeakOffsetMs - tocForC.AOffsetMs);
                     tocCGuide.Line = new CoordinateLine(cX, baseline, cX, baseline + 1.0);
                     tocCGuide.IsVisible = true;
+                    if (_cLabelsToc[lane] is Text tocCLabel)
+                    {
+                        tocCLabel.LabelText = "C";
+                        tocCLabel.Location = new Coordinates(cX, baseline + 1.0);
+                        tocCLabel.IsVisible = true;
+                    }
                 }
                 else
                 {
                     tocCGuide.IsVisible = false;
+                    if (_cLabelsToc[lane] != null) _cLabelsToc[lane]!.IsVisible = false;
                 }
             }
 
@@ -508,6 +530,8 @@ internal sealed class WaveformCompareRenderer
         if (_aGuideLabelToc != null) _aGuideLabelToc.LabelFontColor = guideColor;
         foreach (LinePlot? cGuide in _cGuidesTic) if (cGuide != null) cGuide.LineColor = guideColor;
         foreach (LinePlot? cGuide in _cGuidesToc) if (cGuide != null) cGuide.LineColor = guideColor;
+        foreach (Text? cLabel in _cLabelsTic) if (cLabel != null) cLabel.LabelFontColor = guideColor;
+        foreach (Text? cLabel in _cLabelsToc) if (cLabel != null) cLabel.LabelFontColor = guideColor;
         _reviewCursor?.ApplyTheme(_theme);
     }
 
