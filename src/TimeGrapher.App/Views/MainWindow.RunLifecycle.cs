@@ -190,7 +190,12 @@ public partial class MainWindow
         bool audioClosed = outcome == RunSessionStopOutcome.Stopped && AudioCloseCheck();
         if (outcome != RunSessionStopOutcome.Stopped || !audioClosed)
         {
-            SetGuiStoppingMode();
+            // A worker timeout or recording-close failure during natural
+            // completion must surface StopFailed (the manual-stop failure state),
+            // not leave the app stuck in Stopping. RunCommandService derives its
+            // state from the view model, so RESET then retries via StopFailedState.
+            mViewModel.SetStopFailed();
+            mViewModel.StatusText = "Stop failed - press Reset to retry";
             return;
         }
 
