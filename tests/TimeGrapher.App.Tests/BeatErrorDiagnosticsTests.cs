@@ -7,7 +7,7 @@ namespace TimeGrapher.App.Tests;
 /// <summary>
 /// Beat Error Display diagnostic policy: tic/toc separation alert (|signed beat
 /// error| above 0.6 ms) and the major-fault slope rule (45 degrees in data
-/// units = 1 ms drift per beat on the ms-vs-beat-index ERROR RATE trace).
+/// units = 1 ms drift per beat on the ms-vs-beat-index Error Rate trace).
 /// </summary>
 public sealed class BeatErrorDiagnosticsTests
 {

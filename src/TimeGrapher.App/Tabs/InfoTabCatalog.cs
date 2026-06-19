@@ -68,16 +68,16 @@ internal static class InfoTabCatalog
     {
         new(AnalysisGraphSeries.ScopePcm, "Rectified", Argb.Blue, GraphSeriesRenderMode.Line, ScopeTargetPointBudget, FillAlpha: 20),
         new(AnalysisGraphSeries.ScopeThreshold, "Trigger", Argb.Red, GraphSeriesRenderMode.Line, ScopeTargetPointBudget),
-        new(AnalysisGraphSeries.RateTic, "Tic ERROR RATE", Argb.Red, GraphSeriesRenderMode.Points, RateTargetPointBudget),
-        new(AnalysisGraphSeries.RateToc, "Toc ERROR RATE", Argb.Blue, GraphSeriesRenderMode.Points, RateTargetPointBudget),
+        new(AnalysisGraphSeries.RateTic, "Tic Error Rate", Argb.Red, GraphSeriesRenderMode.Points, RateTargetPointBudget),
+        new(AnalysisGraphSeries.RateToc, "Toc Error Rate", Argb.Blue, GraphSeriesRenderMode.Points, RateTargetPointBudget),
     };
 
-    // Same tic/toc ERROR RATE traces the ERROR RATE/Scope tab consumes; declared
+    // Same tic/toc Error Rate traces the Error Rate/Scope tab consumes; declared
     // separately so each tab states its own graph-series contract.
     private static readonly GraphSeriesDefinition[] BeatErrorDiagSeries =
     {
-        new(AnalysisGraphSeries.RateTic, "Tic ERROR RATE", Argb.Red, GraphSeriesRenderMode.Points, RateTargetPointBudget),
-        new(AnalysisGraphSeries.RateToc, "Toc ERROR RATE", Argb.Blue, GraphSeriesRenderMode.Points, RateTargetPointBudget),
+        new(AnalysisGraphSeries.RateTic, "Tic Error Rate", Argb.Red, GraphSeriesRenderMode.Points, RateTargetPointBudget),
+        new(AnalysisGraphSeries.RateToc, "Toc Error Rate", Argb.Blue, GraphSeriesRenderMode.Points, RateTargetPointBudget),
     };
 
     private static readonly InfoTabDefinition[] Definitions = BuildDefinitions();
@@ -86,7 +86,7 @@ internal static class InfoTabCatalog
     {
         var definitions = new List<InfoTabDefinition>
         {
-            new(RateScopeTabId, "ERROR RATE/Scope", InfoTabKind.RateScope, DefaultUiRefreshIntervalMs, UsesGraphSnapshots: true, RateScopeSeries),
+            new(RateScopeTabId, "Error Rate/Scope", InfoTabKind.RateScope, DefaultUiRefreshIntervalMs, UsesGraphSnapshots: true, RateScopeSeries),
             new(SoundPrintTabId, "Sound Print", InfoTabKind.SoundPrint, SoundPrintRefreshIntervalMs, UsesGraphSnapshots: false, Array.Empty<GraphSeriesDefinition>()),
             // Trace Display renders the cumulative BeatMetricsHistorySnapshot the
             // frame carries; it declares no per-frame graph-series contract.
@@ -97,7 +97,7 @@ internal static class InfoTabCatalog
             new(ScopeSweepTabId, "Sweep", InfoTabKind.ScopeSweep, DefaultUiRefreshIntervalMs, UsesGraphSnapshots: false, Array.Empty<GraphSeriesDefinition>()),
             // Vario stability gauges render the running stats on the same snapshot.
             new(VarioTabId, "Vario", InfoTabKind.Vario, DefaultUiRefreshIntervalMs, UsesGraphSnapshots: false, Array.Empty<GraphSeriesDefinition>()),
-            // Beat Error Diag plots the per-frame tic/toc ERROR RATE traces and reads the
+            // Beat Error Diag plots the per-frame tic/toc Error Rate traces and reads the
             // cumulative snapshot for its numeric panel and diagnostic rules.
             new(BeatErrorDiagTabId, "Beat Error", InfoTabKind.BeatErrorDiag, DefaultUiRefreshIntervalMs, UsesGraphSnapshots: true, BeatErrorDiagSeries),
             // Filter Scope refills its four stacked plots from the

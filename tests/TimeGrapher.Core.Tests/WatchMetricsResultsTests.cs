@@ -17,7 +17,7 @@ public sealed class WatchMetricsResultsTests
     {
         string r = WatchMetrics.BuildResults(false, 0, false, 0.0, false, 0.0, false, 0.0);
 
-        Assert.Equal("ERROR RATE ------ s/d | Amplitude ---° | BEAT ERROR ---- ms | BPH -----", r);
+        Assert.Equal("Error Rate ------ s/d | Amplitude ---° | BEAT ERROR ---- ms | BPH -----", r);
         // Dashes are placeholders, not numbers, so they carry no accent markers.
         Assert.DoesNotContain(S, r);
         Assert.DoesNotContain(E, r);
@@ -29,7 +29,7 @@ public sealed class WatchMetricsResultsTests
         string r = WatchMetrics.BuildResults(true, 21600, true, 1.2, true, 0.3, true, 271);
 
         Assert.Equal(
-            $"ERROR RATE {S}  +1.2{E} s/d | Amplitude {S}271{E}° | BEAT ERROR {S} 0.3{E} ms | BPH {S}21600{E}",
+            $"Error Rate {S}  +1.2{E} s/d | Amplitude {S}271{E}° | BEAT ERROR {S} 0.3{E} ms | BPH {S}21600{E}",
             r);
     }
 
@@ -45,7 +45,7 @@ public sealed class WatchMetricsResultsTests
         Assert.Equal(small.Length, large.Length);
         Assert.Equal(small.Length, huge.Length);
         Assert.Equal(
-            $"ERROR RATE {S}+286.0{E} s/d | Amplitude {S}181{E}° | BEAT ERROR {S} 0.0{E} ms | BPH {S}21600{E}",
+            $"Error Rate {S}+286.0{E} s/d | Amplitude {S}181{E}° | BEAT ERROR {S} 0.0{E} ms | BPH {S}21600{E}",
             huge);
     }
 
@@ -56,10 +56,10 @@ public sealed class WatchMetricsResultsTests
         string negative = WatchMetrics.BuildResults(false, 0, true, -5.0, false, 0.0, false, 0.0);
 
         Assert.Equal(
-            $"ERROR RATE {S}  +5.0{E} s/d | Amplitude ---° | BEAT ERROR ---- ms | BPH -----",
+            $"Error Rate {S}  +5.0{E} s/d | Amplitude ---° | BEAT ERROR ---- ms | BPH -----",
             positive);
         Assert.Equal(
-            $"ERROR RATE {S}  -5.0{E} s/d | Amplitude ---° | BEAT ERROR ---- ms | BPH -----",
+            $"Error Rate {S}  -5.0{E} s/d | Amplitude ---° | BEAT ERROR ---- ms | BPH -----",
             negative);
     }
 
@@ -68,7 +68,7 @@ public sealed class WatchMetricsResultsTests
     {
         string r = WatchMetrics.BuildResults(false, 0, false, 0.0, false, 0.0, true, 270.5);
         Assert.Equal(
-            $"ERROR RATE ------ s/d | Amplitude {S}271{E}° | BEAT ERROR ---- ms | BPH -----",
+            $"Error Rate ------ s/d | Amplitude {S}271{E}° | BEAT ERROR ---- ms | BPH -----",
             r);
     }
 }

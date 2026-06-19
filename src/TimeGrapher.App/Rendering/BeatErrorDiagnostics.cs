@@ -25,7 +25,7 @@ internal readonly record struct BeatErrorDiagnosis(BeatErrorDiagState State, str
 ///
 /// 2. MAJOR FAULT - "slope greater than 45 degrees in magnitude". A screen
 ///    angle is meaningless across axis scales, so the rule is pinned to DATA
-///    units: the ERROR RATE trace plots milliseconds (y) against beat index (x),
+///    units: the Error Rate trace plots milliseconds (y) against beat index (x),
 ///    where the per-beat drift in ms is
 ///        slope = rateSPerDay * (3600 / BPH) * 1000 / 86400
 ///    (seconds-per-day error, scaled to one beat period of 3600/BPH seconds,
@@ -40,7 +40,7 @@ internal static class BeatErrorDiagnostics
     /// <summary>The 45-degree (y=x) slope of the ms-vs-beat-index trace.</summary>
     public const double MajorFaultSlopeMsPerBeat = 1.0;
 
-    /// <summary>ERROR RATE trace drift per beat in ms (0 when BPH is unknown).</summary>
+    /// <summary>Error Rate trace drift per beat in ms (0 when BPH is unknown).</summary>
     public static double SlopeMsPerBeat(double rateSPerDay, int bph) =>
         bph > 0 ? rateSPerDay * (3600.0 / bph) * 1000.0 / 86400.0 : 0.0;
 

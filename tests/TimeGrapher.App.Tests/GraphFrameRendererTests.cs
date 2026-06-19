@@ -16,7 +16,7 @@ public sealed class GraphFrameRendererTests
         // Must stay byte-for-byte aligned with WatchMetrics.BuildResults(all-invalid) so the
         // readout does not shift when the first real metrics arrive.
         Assert.Equal(
-            "ERROR RATE ------ s/d | Amplitude ---° | BEAT ERROR ---- ms | BPH -----",
+            "Error Rate ------ s/d | Amplitude ---° | BEAT ERROR ---- ms | BPH -----",
             GraphFrameRenderer.PlaceholderResults);
     }
 
@@ -30,7 +30,7 @@ public sealed class GraphFrameRendererTests
         var renderer = new GraphFrameRenderer(Array.Empty<IAnalysisFrameConsumer>(), target);
         char start = WatchMetrics.ValueSpanStart;
         char end = WatchMetrics.ValueSpanEnd;
-        string text = $"ERROR RATE {start}  +1.2{end} s/d | Amplitude {start}271{end}° | " +
+        string text = $"Error Rate {start}  +1.2{end} s/d | Amplitude {start}271{end}° | " +
             $"BEAT ERROR {start} 0.3{end} ms | BPH {start}21600{end}";
 
         renderer.SetResults(text);
@@ -39,7 +39,7 @@ public sealed class GraphFrameRendererTests
         Assert.Equal(
             new[]
             {
-                "ERROR RATE ", "  +1.2", " s/d ", "|", " Amplitude ", "271", "° ", "|",
+                "Error Rate ", "  +1.2", " s/d ", "|", " Amplitude ", "271", "° ", "|",
                 " BEAT ERROR ", " 0.3", " ms ", "|", " BPH ", "21600",
             },
             runs.Select(run => run.Text).ToArray());

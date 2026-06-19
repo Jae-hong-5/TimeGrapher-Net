@@ -46,7 +46,7 @@ public sealed class WaveformCompareLogicTests
         };
 
         Assert.Equal(
-            "ERROR RATE +1.2 s/d   |   BEAT ERROR -0.35 ms   |   BPH 21600",
+            "Error Rate +1.2 s/d   |   BEAT ERROR -0.35 ms   |   BPH 21600",
             WaveformCompareLogic.HeaderLine(history));
     }
 
@@ -54,10 +54,10 @@ public sealed class WaveformCompareLogicTests
     public void HeaderLine_FallsBackToEmDashesWhileReadingsAreMissing()
     {
         Assert.Equal(
-            "ERROR RATE —   |   BEAT ERROR —   |   BPH —",
+            "Error Rate —   |   BEAT ERROR —   |   BPH —",
             WaveformCompareLogic.HeaderLine(null));
         Assert.Equal(
-            "ERROR RATE —   |   BEAT ERROR —   |   BPH —",
+            "Error Rate —   |   BEAT ERROR —   |   BPH —",
             WaveformCompareLogic.HeaderLine(new BeatMetricsHistorySnapshot()));
     }
 

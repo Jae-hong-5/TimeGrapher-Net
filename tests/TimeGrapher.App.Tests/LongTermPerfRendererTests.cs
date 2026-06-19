@@ -126,7 +126,7 @@ public sealed class LongTermPerfRendererTests
         renderer.RenderFrame(SampleFrame(), new AnalysisTabRenderContext(48000, ReviewCursorTimeS: 3720.0));
 
         Assert.Equal("IN TOLERANCE", verdict.Text);
-        Assert.Equal("ERROR RATE +1.8 s/d", rate.Text);
+        Assert.Equal("Error Rate +1.8 s/d", rate.Text);
         Assert.Equal("Amplitude 282°", amplitude.Text);
         Assert.Equal("BEAT ERROR +0.3 ms", beatError.Text);
         Assert.DoesNotContain("View:", footer.Text);

@@ -178,7 +178,7 @@ public sealed class WatchMetricsDerivedMeasuresTests
         results = FeedAThenCAndGetResults(metrics, sample);
 
         Assert.Equal(
-            $"ERROR RATE ------ s/d | Amplitude {WatchMetrics.ValueSpanStart} 55{WatchMetrics.ValueSpanEnd}° | BEAT ERROR ---- ms | BPH {WatchMetrics.ValueSpanStart}28800{WatchMetrics.ValueSpanEnd}",
+            $"Error Rate ------ s/d | Amplitude {WatchMetrics.ValueSpanStart} 55{WatchMetrics.ValueSpanEnd}° | BEAT ERROR ---- ms | BPH {WatchMetrics.ValueSpanStart}28800{WatchMetrics.ValueSpanEnd}",
             results);
 
         sample += 125.0 / 1000.0 * SampleRate;
@@ -187,7 +187,7 @@ public sealed class WatchMetricsDerivedMeasuresTests
         results = FeedAThenCAndGetResults(metrics, sample);
 
         Assert.Equal(
-            $"ERROR RATE ------ s/d | Amplitude {WatchMetrics.ValueSpanStart} 55{WatchMetrics.ValueSpanEnd}° | BEAT ERROR {WatchMetrics.ValueSpanStart} 0.0{WatchMetrics.ValueSpanEnd} ms | BPH {WatchMetrics.ValueSpanStart}28800{WatchMetrics.ValueSpanEnd}",
+            $"Error Rate ------ s/d | Amplitude {WatchMetrics.ValueSpanStart} 55{WatchMetrics.ValueSpanEnd}° | BEAT ERROR {WatchMetrics.ValueSpanStart} 0.0{WatchMetrics.ValueSpanEnd} ms | BPH {WatchMetrics.ValueSpanStart}28800{WatchMetrics.ValueSpanEnd}",
             results);
     }
 
@@ -214,7 +214,7 @@ public sealed class WatchMetricsDerivedMeasuresTests
     {
         // One beat undetected: the next sample is physical beat 4 (toc), not
         // beat 3, and the expected-time schedule stays anchored, so a watch on
-        // its nominal schedule still reads a zero ERROR RATE after the gap.
+        // its nominal schedule still reads a zero Error Rate after the gap.
         WatchMetrics metrics = NewMetrics();
         List<WatchMetricsUpdate> updates = FeedAEvents(metrics, 125.0, 250.0, 125.0);
 
@@ -289,7 +289,7 @@ public sealed class WatchMetricsDerivedMeasuresTests
     [Fact]
     public void BeatTimingSample_CarriesBeatNumberPhaseAndRateError()
     {
-        // Exact nominal intervals: the zero-offset anchor makes every ERROR RATE 0.
+        // Exact nominal intervals: the zero-offset anchor makes every Error Rate 0.
         WatchMetrics metrics = NewMetrics();
         List<WatchMetricsUpdate> updates = FeedAEvents(metrics, 125.0, 125.0);
 

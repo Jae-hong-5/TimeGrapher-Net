@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>1. ERROR RATE/Scope — TimeGrapher 매뉴얼</title>
+<title>1. Error Rate/Scope — TimeGrapher 매뉴얼</title>
 <link rel="stylesheet" href="../assets/style.css">
 <script defer src="../assets/manual.js"></script>
 </head>
@@ -12,19 +12,19 @@
   <aside class="sidebar" id="sidebar"></aside>
   <main class="content">
     <div class="topbar">
-      <div class="crumbs"><a href="../index.html">개요</a> › ERROR RATE/Scope</div>
+      <div class="crumbs"><a href="../index.html">개요</a> › Error Rate/Scope</div>
       <div class="lang-toggle" id="langToggle"></div>
     </div>
     <div class="content-inner">
 
-      <h1>1. ERROR RATE/Scope</h1>
+      <h1>1. Error Rate/Scope</h1>
       <p class="lede ko">실시간 파형과 비트별 박자 오차를 함께 보여 주는 가장 기본 탭. "시계가 돌고 있고, 매 박자가 제시간에 오는가?"</p>
-      <p class="lede en">The fundamental tab: live waveform plus per-beat ERROR RATE. "Is the watch running, and is each beat on time?"</p>
+      <p class="lede en">The fundamental tab: live waveform plus per-beat Error Rate. "Is the watch running, and is each beat on time?"</p>
 
       <figure>
-        <img data-shot src="../img/tab-rate-scope.png" alt="ERROR RATE/Scope tab">
+        <img data-shot src="../img/tab-rate-scope.png" alt="Error Rate/Scope tab">
         <figcaption class="ko">그림 1. 위 = 레이트 오차 산점도, 아래 = 정류 파형 스코프.</figcaption>
-        <figcaption class="en">Fig 1. Top = ERROR RATE scatter; bottom = rectified-waveform scope.</figcaption>
+        <figcaption class="en">Fig 1. Top = Error Rate scatter; bottom = rectified-waveform scope.</figcaption>
       </figure>
 
       <h2><span class="ko">용도</span><span class="sep"> · </span><span class="en">Purpose</span></h2>
@@ -35,7 +35,7 @@
       <table>
         <thead><tr><th></th><th><span class="ko">X축</span><span class="sep"> · </span><span class="en">X</span></th><th><span class="ko">Y축</span><span class="sep"> · </span><span class="en">Y</span></th><th><span class="ko">계열</span><span class="sep"> · </span><span class="en">Series</span></th></tr></thead>
         <tbody>
-          <tr><td><b><span class="ko">ERROR RATE (위)</span><span class="en">ERROR RATE (top)</span></b></td><td><span class="ko">비트 인덱스</span><span class="en">beat index</span></td><td>ERROR RATE (ms), 0 중심 대칭</td><td><span class="pill tic">Tic ERROR RATE</span> 초록 점 · <span class="pill toc">Toc ERROR RATE</span> 빨강 점</td></tr>
+          <tr><td><b><span class="ko">Error Rate (위)</span><span class="en">Error Rate (top)</span></b></td><td><span class="ko">비트 인덱스</span><span class="en">beat index</span></td><td>Error Rate (ms), 0 중심 대칭</td><td><span class="pill tic">Tic Error Rate</span> 초록 점 · <span class="pill toc">Toc Error Rate</span> 빨강 점</td></tr>
           <tr><td><b><span class="ko">스코프 (아래)</span><span class="en">Scope (bottom)</span></b></td><td>Time (자동 스크롤)</td><td>Signal Level (0–0.1)</td><td>파란 선 <code>Rectified</code> 정류 파형 · 빨간 선 <code>Trigger</code> 검출 임계값 · 똑/딱 검출 마커</td></tr>
         </tbody>
       </table>
@@ -43,7 +43,7 @@
       <h2><span class="ko">읽는 법</span><span class="sep"> · </span><span class="en">How to read</span></h2>
       <ul>
         <li><span class="ko"><b>스코프</b> — 주기적인 봉우리가 빨간 <code>Trigger</code> 선을 또렷이 넘으면 검출이 잘 되는 상태입니다. 봉우리가 트리거에 못 미치면 <a href="../controls.html#run">Gain</a>을 올리세요.</span><span class="en"><b>Scope</b> — periodic peaks should clearly cross the red <code>Trigger</code> line for reliable detection. If they don't, raise the <a href="../controls.html#run">Gain</a>.</span></li>
-        <li><span class="ko"><b>ERROR RATE</b> — 초록·빨강 점이 0 근처에 모이면 정시·안정. 위/아래로 흩어지면 불안정, 한쪽으로 치우치면 빠르거나 느린 상태입니다.</span><span class="en"><b>ERROR RATE</b> — green/red dots clustered near 0 = on-time and stable. Wide scatter = unstable; a consistent offset = running fast or slow.</span></li>
+        <li><span class="ko"><b>Error Rate</b> — 초록·빨강 점이 0 근처에 모이면 정시·안정. 위/아래로 흩어지면 불안정, 한쪽으로 치우치면 빠르거나 느린 상태입니다.</span><span class="en"><b>Error Rate</b> — green/red dots clustered near 0 = on-time and stable. Wide scatter = unstable; a consistent offset = running fast or slow.</span></li>
       </ul>
       <div class="tip">
         <p class="ko"><b>좋은 예</b>: 트리거를 넘는 규칙적 봉우리 + 0선에 붙은 점들. <b>나쁜 예</b>: 약한 파형(검출 누락) 또는 크게 퍼진 점들.</p>

@@ -31,7 +31,7 @@ public readonly record struct StatsSummary(
     long Count);
 
 /// <summary>
-/// Running aggregates of one measured watch position: ERROR RATE (s/d),
+/// Running aggregates of one measured watch position: Error Rate (s/d),
 /// amplitude (deg, tic/toc pair averages) and signed beat error (ms) of every
 /// beat tagged with that position. Only positions with at least one recorded
 /// measurement appear in <see cref="BeatMetricsHistorySnapshot.Positions"/>,
@@ -66,7 +66,7 @@ public sealed class BeatMetricsHistorySnapshot
     /// <summary>Increments whenever snapshot content changed; consumers can skip re-rendering on equal versions.</summary>
     public ulong Version { get; init; }
 
-    /// <summary>ERROR RATE (s/d) over elapsed time (s).</summary>
+    /// <summary>Error Rate (s/d) over elapsed time (s).</summary>
     public MetricsHistorySeries Rate { get; init; } = MetricsHistorySeries.Empty;
 
     /// <summary>Amplitude tic/toc pair averages (deg) over elapsed time (s).</summary>
@@ -96,7 +96,7 @@ public sealed class BeatMetricsHistorySnapshot
     /// </summary>
     public double StatsElapsedS { get; init; }
 
-    /// <summary>Running ERROR RATE (s/d) stability statistics for the current position (Vario display).</summary>
+    /// <summary>Running Error Rate (s/d) stability statistics for the current position (Vario display).</summary>
     public StatsSummary RateStats { get; init; }
 
     /// <summary>Running amplitude (deg, tic/toc pair averages) stability statistics for the current position.</summary>

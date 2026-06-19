@@ -6,7 +6,7 @@ using Xunit;
 namespace TimeGrapher.Core.Tests;
 
 /// <summary>
-/// Maps detector output (PCM, threshold, A/C events) into the ERROR RATE/Scope frame contract:
+/// Maps detector output (PCM, threshold, A/C events) into the Error Rate/Scope frame contract:
 /// replace-snapshot scope series bounded by the point budget, sync flag, and themed event
 /// markers (A = green, C = red).
 /// </summary>

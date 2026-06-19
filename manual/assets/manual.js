@@ -13,7 +13,7 @@
     { f: "controls.html", t: "왼쪽 메뉴 · Controls" }
   ];
   var GRAPHS = [
-    { f: "graphs/rate-scope.html",   n: 1,  t: "ERROR RATE/Scope" },
+    { f: "graphs/rate-scope.html",   n: 1,  t: "Error Rate/Scope" },
     { f: "graphs/sound-print.html",  n: 2,  t: "Sound Print" },
     { f: "graphs/trace.html",        n: 3,  t: "Trace" },
     { f: "graphs/sweep.html",        n: 4,  t: "Sweep" },
