@@ -99,9 +99,10 @@ internal static class WaveformCompareLogic
         }
 
         double amplitude = WatchMetrics.Amplitude(liftAngleDeg, tACSeconds, bph);
-        // Canonical validity cap (WatchMetrics.ComputeAmplitude): "< 360" also
-        // rejects +inf and NaN, since neither is less than 360.
-        return amplitude < 360.0 ? amplitude : (double?)null;
+        // Canonical validity window (WatchMetrics.ComputeAmplitude): a positive
+        // angle below 360 deg. ">0 && <360" also rejects +inf and NaN, and a
+        // negative amplitude from a C past the half-cycle (Sin() < 0).
+        return amplitude > 0.0 && amplitude < 360.0 ? amplitude : (double?)null;
     }
 
     /// <summary>

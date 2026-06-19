@@ -477,7 +477,11 @@ public sealed class WatchMetrics
             int ticOrToc = CurrentBeatPhase();
             double time = (eventSample - _lastAEvent) / (double)_config.SampleRate;
             double tempAmp = Amplitude(_config.LiftAngle, time, bph);
-            if (tempAmp < 360.00)
+            // Valid amplitude is a positive angle below 360 deg. A mispaired or
+            // delayed C can push t_AC past the half-cycle so Sin() goes negative
+            // and the formula yields a negative (or non-finite) amplitude; reject
+            // those instead of treating them as a real measurement.
+            if (tempAmp > 0.0 && tempAmp < 360.00)
             {
                 _lastAmplitudeInstValid = true;
                 _lastAmplitudeInstDeg = tempAmp;
@@ -512,7 +516,7 @@ public sealed class WatchMetrics
         if ((haveValidBph) && (_bphValid) && (_haveAEvent))
         {
             int amp = QRound(Amplitude(_config.LiftAngle, beatTimeSeconds, bph));
-            if (amp < 360)
+            if (amp > 0 && amp < 360)
             {
                 // " %1 ms\n%2%3" : ms (f,1), amp (int), degree sign (U+00B0)
                 return " " + FormatFixed(beatTimeSeconds * 1000.0, 1) + " ms\n"
