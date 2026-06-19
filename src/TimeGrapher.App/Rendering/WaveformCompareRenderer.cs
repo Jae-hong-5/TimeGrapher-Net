@@ -69,9 +69,9 @@ internal sealed class WaveformCompareRenderer
     private readonly LinePlot?[] _cGuidesTic;
     private readonly LinePlot?[] _cGuidesToc;
     private ReviewCursorLayer? _reviewCursor;
-    // Y-axis direction labels
-    private Text? _yCurrentLabel;
-    private Text? _yPastLabel;
+    // Y-axis direction labels (fixed to plot corners, not data coordinates)
+    private Annotation? _yCurrentLabel;
+    private Annotation? _yPastLabel;
 
     private PlotThemePalette _theme = PlotThemePalette.Current;
     private ulong _lastVersion;
@@ -166,10 +166,16 @@ internal sealed class WaveformCompareRenderer
             _cGuidesToc[i] = AddCGuide(plot);
         }
 
-        // Y-axis direction labels: "current" at the top, "past" at the bottom.
-        _yCurrentLabel = AddYAxisLabel(plot, "current \u2193");
-        _yPastLabel    = AddYAxisLabel(plot, "\u2191 past");
-        _yPastLabel.Location = new Coordinates(XMinMs, 0.0);
+        // Y-axis direction labels: pinned to plot corners so they appear in the
+        // Y-axis label area rather than floating in data-space.
+        _yCurrentLabel = plot.Add.Annotation("current \u2193", Alignment.UpperLeft);
+        _yCurrentLabel.LabelFontName = _textFontFamily;
+        _yCurrentLabel.LabelFontSize = 10;
+        _yCurrentLabel.IsVisible = false;
+        _yPastLabel = plot.Add.Annotation("\u2191 past", Alignment.LowerLeft);
+        _yPastLabel.LabelFontName = _textFontFamily;
+        _yPastLabel.LabelFontSize = 10;
+        _yPastLabel.IsVisible = false;
 
         _reviewCursor = AddCursor(plot);
 
@@ -409,16 +415,8 @@ internal sealed class WaveformCompareRenderer
         SetGuide(_aGuideToc, _aGuideLabelToc,
             hasData ? tocXMs : null, WaveformCompareLogic.AGuideLabel, labelY);
 
-        // Y-axis direction labels: update "current" Y to follow the current top.
-        if (_yCurrentLabel != null)
-        {
-            _yCurrentLabel.Location = new Coordinates(XMinMs, YTop(pairCount));
-            _yCurrentLabel.IsVisible = hasData;
-        }
-        if (_yPastLabel != null)
-        {
-            _yPastLabel.IsVisible = hasData;
-        }
+        if (_yCurrentLabel != null) _yCurrentLabel.IsVisible = hasData;
+        if (_yPastLabel != null)    _yPastLabel.IsVisible    = hasData;
     }
 
     private static double YTop(int pairCount) =>
@@ -467,16 +465,6 @@ internal sealed class WaveformCompareRenderer
         guide.LinePattern = LinePattern.Dashed;
         guide.IsVisible = false;
         return guide;
-    }
-
-    private Text AddYAxisLabel(Plot plot, string text)
-    {
-        Text label = plot.Add.Text(text, XMinMs, 0.0);
-        label.LabelFontName = _textFontFamily;
-        label.LabelFontSize = 10;
-        label.Alignment = Alignment.UpperLeft;
-        label.IsVisible = false;
-        return label;
     }
 
     private static void SetGuide(VerticalLine? guide, Text? label, double? x, string text, double labelY)
@@ -535,7 +523,7 @@ internal sealed class WaveformCompareRenderer
         foreach (LinePlot? cGuide in _cGuidesTic) if (cGuide != null) cGuide.LineColor = guideColor;
         foreach (LinePlot? cGuide in _cGuidesToc) if (cGuide != null) cGuide.LineColor = guideColor;
         if (_yCurrentLabel != null) _yCurrentLabel.LabelFontColor = Color.FromARGB(_theme.TextPrimary);
-        if (_yPastLabel != null)    _yPastLabel.LabelFontColor    = Color.FromARGB(_theme.TextPrimary);
+        if (_yPastLabel != null)    _yPastLabel.LabelFontColor     = Color.FromARGB(_theme.TextPrimary);
 
         _reviewCursor?.ApplyTheme(_theme);
     }
