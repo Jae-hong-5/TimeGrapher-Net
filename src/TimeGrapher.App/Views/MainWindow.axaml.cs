@@ -89,6 +89,8 @@ public partial class MainWindow : Window
     private readonly RunCommandService mRunCommandService;
     private readonly RunSessionController mRunSessionController;
     private readonly AnalysisPerformanceLogger? mAnalysisPerformanceLogger;
+    private string? mPendingMeasurementLogPath;
+    private MeasurementResultLogger? mMeasurementResultLogger;
 
     private readonly List<int> mInputDeviceNumbers = new();
 
@@ -115,6 +117,9 @@ public partial class MainWindow : Window
         mAnalysisPerformanceLogger = AppStartupOptions.Current.AnalysisLogPath is string analysisLogPath
             ? new AnalysisPerformanceLogger(analysisLogPath)
             : null;
+        mPendingMeasurementLogPath = AppStartupOptions.Current.MeasurementLogPath;
+        mViewModel.IsMeasurementLogEnabled = mPendingMeasurementLogPath != null;
+        ConfigureMeasurementResultLogger(mViewModel.IsMeasurementLogEnabled);
         mRunSessionController = new RunSessionController(
             sessionId => BuildRunSettings().ToWorkerConfig(sessionId, mWavWriter),
             Reset,
@@ -326,6 +331,7 @@ public partial class MainWindow : Window
         long displayTicks = System.Diagnostics.Stopwatch.GetTimestamp();
         mLatencyStats.Observe(frame, droppedFrames, displayTicks);
         mAnalysisPerformanceLogger?.ObserveDisplayed(frame, displayTicks);
+        mMeasurementResultLogger?.ObserveDisplayed(frame);
         if (mLatencyStats.TryFormatStatus(displayTicks) is string latencyText)
         {
             mViewModel.LatencyText = latencyText;
@@ -373,6 +379,11 @@ public partial class MainWindow : Window
         if (e.PropertyName == nameof(MainWindowViewModel.SigmaAveraging))
         {
             mRunSessionController.SetSigmaAveraging(mViewModel.SigmaAveraging);
+        }
+
+        if (e.PropertyName == nameof(MainWindowViewModel.IsMeasurementLogEnabled))
+        {
+            ConfigureMeasurementResultLogger(mViewModel.IsMeasurementLogEnabled);
         }
     }
 
@@ -434,6 +445,31 @@ public partial class MainWindow : Window
         // 5.0) and parenthesized negation ("(500)" -> -500).
         if (string.IsNullOrEmpty(text)) return 0.0;
         return double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out double v) ? v : 0.0;
+    }
+
+    private void ConfigureMeasurementResultLogger(bool enabled)
+    {
+        mMeasurementResultLogger?.Dispose();
+        mMeasurementResultLogger = enabled ? new MeasurementResultLogger(NextMeasurementLogPath()) : null;
+    }
+
+    internal static string BuildMeasurementLogPath(string baseDirectory, DateTime timestamp)
+    {
+        return Path.Combine(baseDirectory, "log", timestamp.ToString("yyyyMMdd_HHmmss", CultureInfo.InvariantCulture) + ".csv");
+    }
+
+    private string NextMeasurementLogPath()
+    {
+        if (mPendingMeasurementLogPath is string path)
+        {
+            mPendingMeasurementLogPath = null;
+            return path;
+        }
+
+        string baseDirectory = AppContext.BaseDirectory;
+        string logDirectory = Path.Combine(baseDirectory, "log");
+        Directory.CreateDirectory(logDirectory);
+        return BuildMeasurementLogPath(baseDirectory, DateTime.Now);
     }
 
     private AnalysisRunSettings BuildRunSettings()

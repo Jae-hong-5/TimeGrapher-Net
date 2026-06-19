@@ -121,20 +121,41 @@ public sealed class MainWindowRunControlWiringTests
             .ToArray();
 
         Assert.Equal(
-            new[] { "UseConsetCheckBox", "PllEventVetoCheckBox" },
+            new[] { "UseConsetCheckBox", "PllEventVetoCheckBox", "MeasurementLogEnabledCheckBox" },
             checkBoxes.Select(checkBox => checkBox.Attribute("Name")?.Value).ToArray());
         Assert.Equal(
-            new[] { "C Event Use Onset Timing", "PLL Event Veto (impulse rejection)" },
+            new[] { "C Event Use Onset Timing", "PLL Event Veto (impulse rejection)", "Save measurement CSV log" },
             checkBoxes.Select(checkBox => checkBox.Attribute("Content")?.Value).ToArray());
 
-        // Each option round-trips through the shared MainWindowViewModel and is
-        // gated by the same run-parameters flag the left panel uses.
         Assert.Equal(
-            new[] { "{Binding UseCOnset, Mode=TwoWay}", "{Binding PllEventVeto, Mode=TwoWay}" },
+            new[]
+            {
+                "{Binding UseCOnset, Mode=TwoWay}",
+                "{Binding PllEventVeto, Mode=TwoWay}",
+                "{Binding IsMeasurementLogEnabled, Mode=TwoWay}",
+            },
             checkBoxes.Select(checkBox => checkBox.Attribute("IsChecked")?.Value).ToArray());
         Assert.All(
             checkBoxes,
             checkBox => Assert.Equal("{Binding AreRunParametersEnabled}", checkBox.Attribute("IsEnabled")?.Value));
+        Assert.DoesNotContain(
+            document.Descendants().Attributes("Name").Select(attribute => attribute.Value),
+            name => name.Contains("MeasurementLogPath", StringComparison.Ordinal) ||
+                name.Contains("MeasurementLogBrowse", StringComparison.Ordinal) ||
+                name.Contains("MeasurementLogClear", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void MeasurementLogFileUsesExecutableLogFolderAndTimestamp()
+    {
+        string baseDirectory = Path.Combine(Path.GetTempPath(), "TimeGrapher.App");
+        var timestamp = new DateTime(2026, 6, 18, 14, 5, 7);
+
+        string path = MainWindow.BuildMeasurementLogPath(baseDirectory, timestamp);
+
+        Assert.Equal(
+            Path.Combine(baseDirectory, "log", "20260618_140507.csv"),
+            path);
     }
 
     [Fact]

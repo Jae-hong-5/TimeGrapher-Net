@@ -1,8 +1,8 @@
 namespace TimeGrapher.App;
 
-internal sealed record AppStartupOptions(string? AnalysisLogPath)
+internal sealed record AppStartupOptions(string? AnalysisLogPath, string? MeasurementLogPath)
 {
-    public static AppStartupOptions Current { get; private set; } = new((string?)null);
+    public static AppStartupOptions Current { get; private set; } = new((string?)null, (string?)null);
 
     public static void Configure(string[] args)
     {
@@ -12,6 +12,7 @@ internal sealed record AppStartupOptions(string? AnalysisLogPath)
     public static AppStartupOptions Parse(string[] args)
     {
         string? analysisLogPath = null;
+        string? measurementLogPath = null;
 
         for (int i = 0; i < args.Length; i++)
         {
@@ -24,8 +25,18 @@ internal sealed record AppStartupOptions(string? AnalysisLogPath)
             {
                 analysisLogPath = arg["--analysis-log=".Length..];
             }
+            else if (arg == "--measurement-log" && i + 1 < args.Length)
+            {
+                measurementLogPath = args[++i];
+            }
+            else if (arg.StartsWith("--measurement-log=", StringComparison.Ordinal))
+            {
+                measurementLogPath = arg["--measurement-log=".Length..];
+            }
         }
 
-        return new AppStartupOptions(string.IsNullOrWhiteSpace(analysisLogPath) ? null : analysisLogPath);
+        return new AppStartupOptions(
+            string.IsNullOrWhiteSpace(analysisLogPath) ? null : analysisLogPath,
+            string.IsNullOrWhiteSpace(measurementLogPath) ? null : measurementLogPath);
     }
 }

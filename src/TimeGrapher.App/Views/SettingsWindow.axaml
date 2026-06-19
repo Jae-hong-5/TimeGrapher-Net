@@ -3,7 +3,7 @@
         x:Class="TimeGrapher.App.Views.SettingsWindow"
         Title="Settings"
         Icon="/Assets/App/AppIcon-256.png"
-        Width="380" Height="196"
+        Width="420" Height="282"
         CanResize="False"
         SystemDecorations="None"
         ShowInTaskbar="False"
@@ -41,8 +41,8 @@
 
     <StackPanel Grid.Row="1"
                 Margin="18,14,18,18"
-                Spacing="10"
-                HorizontalAlignment="Left"
+                Spacing="12"
+                HorizontalAlignment="Stretch"
                 VerticalAlignment="Top">
       <TextBlock Text="Run Settings"
                  Classes="SectionHeader"
@@ -61,6 +61,19 @@
                 IsEnabled="{Binding AreRunParametersEnabled}"
                 IsChecked="{Binding PllEventVeto, Mode=TwoWay}"
                 ToolTip.Tip="Reject phase-mismatched impulse events before metrics" />
+      <Border Height="1"
+              Background="{DynamicResource ChromeBorderBrush}"
+              Margin="0,2" />
+      <TextBlock Text="Logging"
+                 Classes="SectionHeader"
+                 HorizontalAlignment="Left" />
+      <CheckBox Name="MeasurementLogEnabledCheckBox"
+                Content="Save measurement CSV log"
+                FontWeight="Bold"
+                HorizontalAlignment="Left"
+                IsEnabled="{Binding AreRunParametersEnabled}"
+                IsChecked="{Binding IsMeasurementLogEnabled, Mode=TwoWay}"
+                ToolTip.Tip="Save result rows to the executable log folder" />
     </StackPanel>
   </Grid>
   </Border>

@@ -16,6 +16,16 @@ public sealed class AppStartupOptionsTests
     }
 
     [Fact]
+    public void ParseReadsSeparateAndInlineMeasurementLogPath()
+    {
+        Assert.Equal("measurements.csv", AppStartupOptions.Parse(
+            new[] { "--measurement-log", "measurements.csv" }).MeasurementLogPath);
+
+        Assert.Equal("/tmp/measurements.csv", AppStartupOptions.Parse(
+            new[] { "--measurement-log=/tmp/measurements.csv" }).MeasurementLogPath);
+    }
+
+    [Fact]
     public void ParseIgnoresMissingOrBlankAnalysisLogPath()
     {
         Assert.Null(AppStartupOptions.Parse(
@@ -23,5 +33,15 @@ public sealed class AppStartupOptionsTests
 
         Assert.Null(AppStartupOptions.Parse(
             new[] { "--analysis-log=" }).AnalysisLogPath);
+    }
+
+    [Fact]
+    public void ParseIgnoresMissingOrBlankMeasurementLogPath()
+    {
+        Assert.Null(AppStartupOptions.Parse(
+            new[] { "--measurement-log" }).MeasurementLogPath);
+
+        Assert.Null(AppStartupOptions.Parse(
+            new[] { "--measurement-log=" }).MeasurementLogPath);
     }
 }

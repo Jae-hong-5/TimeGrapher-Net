@@ -193,6 +193,7 @@ public sealed class MainWindowViewModelTests
         Assert.Equal("200", vm.HighPassCutoffText);
         Assert.False(vm.UseCOnset);
         Assert.False(vm.PllEventVeto);
+        Assert.False(vm.IsMeasurementLogEnabled);
     }
 
     [Fact]
@@ -229,12 +230,14 @@ public sealed class MainWindowViewModelTests
         vm.SelectedAveragingPeriodIndex = 6;
         vm.Gain = 250;
         vm.LiftAngle = 53m;
+        vm.IsMeasurementLogEnabled = true;
 
         Assert.Contains(nameof(MainWindowViewModel.SelectedInputDeviceIndex), changed);
         Assert.Contains(nameof(MainWindowViewModel.SelectedSampleRateIndex), changed);
         Assert.Contains(nameof(MainWindowViewModel.SelectedAveragingPeriodIndex), changed);
         Assert.Contains(nameof(MainWindowViewModel.Gain), changed);
         Assert.Contains(nameof(MainWindowViewModel.LiftAngle), changed);
+        Assert.Contains(nameof(MainWindowViewModel.IsMeasurementLogEnabled), changed);
     }
 
     [Fact]

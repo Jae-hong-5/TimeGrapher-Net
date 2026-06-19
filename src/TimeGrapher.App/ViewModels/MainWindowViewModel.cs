@@ -53,6 +53,7 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     private int _sweepMultiple = SweepFrameProjector.DefaultSweepMultiple;
     private int _selectedPositionIndex; // 0 = WatchPosition.CH (dial up)
     private bool _sigmaAveraging;
+    private bool _isMeasurementLogEnabled;
     private double? _reviewCursorTimeS;
     private double _reviewMaximumS;
     private double _reviewMinimumS;
@@ -257,6 +258,12 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     {
         get => _sigmaAveraging;
         set => SetProperty(ref _sigmaAveraging, value);
+    }
+
+    public bool IsMeasurementLogEnabled
+    {
+        get => _isMeasurementLogEnabled;
+        set => SetProperty(ref _isMeasurementLogEnabled, value);
     }
 
     /// <summary>Active watch test position as a <see cref="WatchPosition"/> ordinal (0 = CH, dial up).</summary>
