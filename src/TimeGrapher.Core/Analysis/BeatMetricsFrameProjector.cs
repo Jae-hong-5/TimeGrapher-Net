@@ -1,3 +1,4 @@
+using System.Threading;
 using TimeGrapher.Core.Metrics;
 using TimeGrapher.Core.Shared;
 
@@ -16,7 +17,9 @@ public sealed class BeatMetricsFrameProjector
     // Written from any thread (UI position buttons), applied analysis-side at
     // the start of the next Project pass (the SweepFrameProjector knob pattern).
     private volatile int _requestedPosition = (int)WatchPosition.CH;
-    private volatile bool _positionAggregateResetRequested;
+    // 0 = no reset pending, 1 = reset requested. Consumed with an atomic
+    // exchange so a request never races the analysis-thread read-then-clear.
+    private int _positionAggregateResetRequested;
 
     /// <summary>
     /// Requests the watch test position subsequent beats are tagged with.
@@ -36,14 +39,13 @@ public sealed class BeatMetricsFrameProjector
     /// </summary>
     public void ResetPositionAggregates()
     {
-        _positionAggregateResetRequested = true;
+        Interlocked.Exchange(ref _positionAggregateResetRequested, 1);
     }
 
     public void Project(DetectorMetricsBlockUpdate update)
     {
-        if (_positionAggregateResetRequested)
+        if (Interlocked.Exchange(ref _positionAggregateResetRequested, 0) != 0)
         {
-            _positionAggregateResetRequested = false;
             _history.ResetPositionAggregates();
         }
 
