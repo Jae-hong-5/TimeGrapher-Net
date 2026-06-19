@@ -88,7 +88,16 @@ public partial class MainWindow
         }
 
         mRunCommandService.StopRunAndRefreshDevices();
-        mViewModel.StatusText = "Live audio capture ended unexpectedly";
+
+        // If the stop could not complete, StopRunAndRefreshDevices already set
+        // StopFailed and "press Reset to retry"; overwriting it with the
+        // capture-ended notice would hide the recovery instruction behind a
+        // now-secondary message. Only report the capture-ended cause when the
+        // stop actually succeeded.
+        if (mViewModel.RunState != RunUiState.StopFailed)
+        {
+            mViewModel.StatusText = "Live audio capture ended unexpectedly";
+        }
     }
 
     private RunSessionStopOutcome StopAudioThread()
