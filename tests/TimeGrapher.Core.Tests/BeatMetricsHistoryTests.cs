@@ -62,6 +62,35 @@ public sealed class BeatMetricsHistoryTests
     }
 
     [Fact]
+    public void InvalidSampleClearsCurrentValidityWithoutDroppingHistory()
+    {
+        var history = new BeatMetricsHistory();
+        history.Record(BeatUpdate(1, 0.125, rateSPerDay: 5.0, beatErrorMs: 0.4));
+        BeatMetricsHistorySnapshot? valid = history.CurrentSnapshot();
+        Assert.True(valid!.RateValid);
+        Assert.True(valid.BeatErrorValid);
+
+        // A detection gap delivers a sample the per-beat engine declares invalid
+        // (>0.5 s later so a fresh snapshot is built). The current readout must
+        // stop advertising the previous value as valid, but the already-plotted
+        // series points must remain.
+        var invalid = new WatchMetricsUpdate();
+        invalid.SetBeatTimingSample(new BeatTimingSample(
+            2, 0.750, IsTic: false, RateErrorMs: 0.0,
+            RateValid: false, RateSPerDay: 0.0,
+            BeatErrorValid: false, BeatErrorSignedMs: 0.0,
+            Bph: 28800));
+        history.Record(invalid);
+
+        BeatMetricsHistorySnapshot? after = history.CurrentSnapshot();
+        Assert.NotSame(valid, after);
+        Assert.False(after!.RateValid);
+        Assert.False(after.BeatErrorValid);
+        Assert.Equal(new[] { 5.0 }, after.Rate.Y);
+        Assert.Equal(new[] { 0.4 }, after.BeatError.Y);
+    }
+
+    [Fact]
     public void SnapshotIsSharedUntilThrottleElapses()
     {
         var history = new BeatMetricsHistory();

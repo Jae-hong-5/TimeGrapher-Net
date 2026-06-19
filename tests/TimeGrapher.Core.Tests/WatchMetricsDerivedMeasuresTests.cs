@@ -392,4 +392,20 @@ public sealed class WatchMetricsDerivedMeasuresTests
 
         Assert.False(update.AmplitudeSampleUpdated);
     }
+
+    [Fact]
+    public void AmplitudeSample_NotEmittedWhenEstimateIsNegative()
+    {
+        // A C event past the half-cycle (t_AC > T/2) drives the escapement
+        // equation's Sin() negative, so the computed amplitude is negative. A
+        // mispaired/delayed C must be rejected, not shown as a real measurement.
+        const double bph = 3600.0; // period 1 s, so t_AC > 0.5 s crosses the lobe
+        WatchMetrics metrics = NewMetrics();
+        metrics.HandleAEvent(0.0, true, bph);
+
+        // t_AC = 1.1 s: sin(1.1*pi) < 0 -> amplitude = 52 / sin(...) < 0.
+        WatchMetricsUpdate update = metrics.HandleCEvent(SampleRate * 1.1, true, bph);
+
+        Assert.False(update.AmplitudeSampleUpdated);
+    }
 }
