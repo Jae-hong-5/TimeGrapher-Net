@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Documents;
+using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
 using ScottPlot.Avalonia;
@@ -37,6 +38,40 @@ public sealed class InfoTabRegistryTests
             Assert.Contains(registry.Registrations, registration => registration.Definition.Id == definition.Id));
         Assert.All(InfoTabCatalog.All, definition =>
             Assert.True(registry.CreateRouter().HasConsumer(definition.Id)));
+    }
+
+    [Fact]
+    public void ResetViewButtonsAdvertiseAllGraphReset()
+    {
+        var tabControl = new TabControl();
+        var positionStrip = new Grid();
+
+        InfoTabRegistry registry = InfoTabRegistry.FromCatalog(tabControl, positionStrip, "Arial");
+        Button[] buttons = ResetViewButtons(registry);
+
+        Assert.Equal(6, buttons.Length);
+        Assert.All(buttons, button => Assert.Equal("Reset all graph views", ToolTip.GetTip(button)));
+    }
+
+    [Fact]
+    public void ResetViewButtonsInvokeAllGraphResetCoordinator()
+    {
+        var tabControl = new TabControl();
+        var positionStrip = new Grid();
+
+        InfoTabRegistry registry = InfoTabRegistry.FromCatalog(tabControl, positionStrip, "Arial");
+        Button[] buttons = ResetViewButtons(registry);
+        int sentinelCalls = 0;
+
+        Assert.Equal(7, registry.ResetViews.Count);
+        registry.ResetViews.Register(() => sentinelCalls++);
+
+        foreach (Button button in buttons)
+        {
+            sentinelCalls = 0;
+            button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.Equal(1, sentinelCalls);
+        }
     }
 
     [Fact]
@@ -698,6 +733,15 @@ public sealed class InfoTabRegistryTests
         return Descendants(content)
             .OfType<Border>()
             .Where(border => border.Classes.Contains("PositionResultBadge"));
+    }
+
+    private static Button[] ResetViewButtons(InfoTabRegistry registry)
+    {
+        return registry.Registrations
+            .SelectMany(registration => Descendants(Assert.IsAssignableFrom<Control>(registration.TabItem.Content)))
+            .OfType<Button>()
+            .Where(button => Equals(button.Content, "Reset View"))
+            .ToArray();
     }
 
     private static bool PositionTextHasLocalFontSize(TextBlock text)

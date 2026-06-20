@@ -356,6 +356,7 @@ public partial class MainWindow : Window
     private void Reset()
     {
         mGraphFrameRenderer.Reset(BuildTabResetContext());
+        mInfoTabRegistry.ResetViews.ResetAll();
 
         mRunStatusReporter.Reset();
         mLatencyStats.Reset();

@@ -23,6 +23,7 @@ internal sealed partial class InfoTabRegistry
 {
     private const double VarioMinimumFontSize = 16.0;
     private const double PositionMinimumFontSize = 14.0;
+    private const string ResetAllGraphViewsTooltip = "Reset all graph views";
 
     private delegate InfoTabRegistration InfoTabFactory(
         InfoTabDefinition definition,
@@ -34,6 +35,7 @@ internal sealed partial class InfoTabRegistry
         public required Grid PositionButtonGrid { get; init; }
         public MainWindowViewModel? ViewModel { get; init; }
         public Image? SoundImageControl { get; set; }
+        public GraphViewResetCoordinator ResetViews { get; } = new();
     }
 
     private static readonly IReadOnlyDictionary<InfoTabKind, InfoTabFactory> Factories =
@@ -56,17 +58,23 @@ internal sealed partial class InfoTabRegistry
 
     private readonly IReadOnlyList<InfoTabRegistration> _registrations;
     private readonly IAnalysisFrameConsumer[] _consumers;
+    private readonly GraphViewResetCoordinator _resetViews;
 
-    private InfoTabRegistry(IReadOnlyList<InfoTabRegistration> registrations, Image? soundImageControl)
+    private InfoTabRegistry(
+        IReadOnlyList<InfoTabRegistration> registrations,
+        Image? soundImageControl,
+        GraphViewResetCoordinator resetViews)
     {
         _registrations = registrations;
         _consumers = registrations.Select(registration => registration.Consumer).ToArray();
         SoundImageControl = soundImageControl;
+        _resetViews = resetViews;
     }
 
     public IReadOnlyList<InfoTabRegistration> Registrations => _registrations;
     public IReadOnlyList<IAnalysisFrameConsumer> Consumers => _consumers;
     public Image? SoundImageControl { get; }
+    public GraphViewResetCoordinator ResetViews => _resetViews;
 
     public static InfoTabRegistry FromCatalog(
         TabControl tabControl,
@@ -95,7 +103,7 @@ internal sealed partial class InfoTabRegistry
             tabControl.SelectedIndex = 0;
         }
 
-        return new InfoTabRegistry(registrations, context.SoundImageControl);
+        return new InfoTabRegistry(registrations, context.SoundImageControl, context.ResetViews);
     }
 
     public AnalysisFrameRouter CreateRouter()
@@ -303,9 +311,11 @@ internal sealed partial class InfoTabRegistry
         }
 
         var renderer = new RateScopeRenderer(scopePlot, ratePlot, context.TextFontFamily);
+        context.ResetViews.Register(renderer.ResetRateView);
+        context.ResetViews.Register(renderer.ResetScopeView);
 
-        grid.Children.Add(CreatePinnedResetViewButton("Reset this graph's view", row: 0, renderer.ResetRateView));
-        grid.Children.Add(CreatePinnedResetViewButton("Reset this graph's view", row: 1, renderer.ResetScopeView));
+        grid.Children.Add(CreatePinnedResetViewButton(ResetAllGraphViewsTooltip, row: 0, context.ResetViews.ResetAll));
+        grid.Children.Add(CreatePinnedResetViewButton(ResetAllGraphViewsTooltip, row: 1, context.ResetViews.ResetAll));
 
         var consumer = new RateScopeFrameConsumer(renderer);
         return new InfoTabRegistration(definition, CreateTabItem(definition, grid), consumer);
@@ -379,8 +389,9 @@ internal sealed partial class InfoTabRegistry
         }
 
         var renderer = new TraceDisplayRenderer(ratePlot, amplitudePlot, alertBanner, alertText, summaryText);
+        context.ResetViews.Register(renderer.ResetView);
 
-        grid.Children.Add(CreatePinnedResetViewButton("Re-enable live auto-scaling on both graphs", row: 1, renderer.ResetView));
+        grid.Children.Add(CreatePinnedResetViewButton(ResetAllGraphViewsTooltip, row: 1, context.ResetViews.ResetAll));
 
         var consumer = new TraceDisplayFrameConsumer(renderer);
         return new InfoTabRegistration(definition, CreateTabItem(definition, grid), consumer);
@@ -466,10 +477,11 @@ internal sealed partial class InfoTabRegistry
         }
 
         var renderer = new ScopeSweepRenderer(sweepPlot, referenceText, context.TextFontFamily);
+        context.ResetViews.Register(renderer.ResetView);
         // Reset View sits top-left so it never collides with the 1x/2x/3x
         // selector pinned top-right.
         Button resetView = CreateOverlayButton(
-            "Reset View", "Re-enable live auto-fitting of the sweep window", renderer.ResetView);
+            "Reset View", ResetAllGraphViewsTooltip, context.ResetViews.ResetAll);
         resetView.HorizontalAlignment = HorizontalAlignment.Left;
         resetView.VerticalAlignment = VerticalAlignment.Top;
         resetView.Margin = new Thickness(10, 6, 0, 0);
@@ -886,8 +898,9 @@ internal sealed partial class InfoTabRegistry
         }
 
         var renderer = new BeatErrorDiagRenderer(tracePlot, alertBanner, alertText, valueTexts);
+        context.ResetViews.Register(renderer.ResetView);
 
-        grid.Children.Add(CreatePinnedResetViewButton("Reset the trace view to its configured limits", row: 2, renderer.ResetView));
+        grid.Children.Add(CreatePinnedResetViewButton(ResetAllGraphViewsTooltip, row: 2, context.ResetViews.ResetAll));
 
         var consumer = new BeatErrorDiagFrameConsumer(renderer);
         return new InfoTabRegistration(definition, CreateTabItem(definition, grid), consumer);
@@ -926,8 +939,9 @@ internal sealed partial class InfoTabRegistry
         }
 
         var renderer = new MultiFilterScopeRenderer(plots);
+        context.ResetViews.Register(renderer.ResetView);
         grid.Children.Add(CreatePinnedResetViewButton(
-            "Re-enable live windowing on all four lanes", row: 1, renderer.ResetView));
+            ResetAllGraphViewsTooltip, row: 1, context.ResetViews.ResetAll));
         var consumer = new MultiFilterScopeFrameConsumer(renderer);
         return new InfoTabRegistration(definition, CreateTabItem(definition, grid), consumer);
     }
@@ -991,6 +1005,7 @@ internal sealed partial class InfoTabRegistry
             beatErrorPlot,
             footerText,
             summaryControls);
+        context.ResetViews.Register(renderer.ResetView);
 
         const string windowActiveClass = "active";
         var windowButtons = new List<(Button Button, double Seconds)>();
