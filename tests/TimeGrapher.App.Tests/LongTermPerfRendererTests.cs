@@ -292,7 +292,7 @@ public sealed class LongTermPerfRendererTests
         foreach (AvaPlot plot in new[] { ratePlot, amplitudePlot, beatErrorPlot })
         {
             VerticalLine marker = plot.Plot.GetPlottables<VerticalLine>()
-                .Single(line => line.LabelText == "DU");
+                .Single(line => line.LabelText == "CH");
 
             Assert.Equal(ScottPlot.Colors.Transparent, marker.LabelBackgroundColor);
         }

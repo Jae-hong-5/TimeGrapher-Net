@@ -1139,7 +1139,7 @@ internal sealed partial class InfoTabRegistry
             };
             ToolTip.SetTip(button, $"Tag new measurements as {position.ShortName()} - {position.LongName()}");
             Grid.SetRow(button, i);
-            buttons[i] = button;
+            buttons[(int)position] = button;
             buttonGrid.Children.Add(button);
         }
 

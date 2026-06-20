@@ -4,10 +4,10 @@ namespace TimeGrapher.Core.Shared;
 /// Standard watch positions per NIHS 95-10 / ISO 3158, as drawn in the
 /// project plan's "Indication of the watch positions in accordance with
 /// NIHS 95-10/ISO 3158" figure (Witschi Chronoscope X1 G3 manual, page 13).
-/// The display uses the reference figure's DU/DD and crown-position labels.
+/// The display uses the NIHS/Witschi CH/CB/hour-position labels.
 /// The plan also requires "support for intermediate positions when used" and a
 /// sequence of up to 10 positions, so the catalog includes the four diagonal
-/// crown positions between the cardinal vertical positions.
+/// hour positions between the cardinal vertical positions.
 /// Ordinals are stable 0..9 and double as array indices for the bounded
 /// per-position aggregates.
 /// </summary>
@@ -19,28 +19,28 @@ public enum WatchPosition
     /// <summary>Horizontal, dial down (cadran en bas).</summary>
     CB = 1,
 
-    /// <summary>Vertical, 6 o'clock up = crown left.</summary>
+    /// <summary>Vertical, 6 o'clock up.</summary>
     P6H = 2,
 
-    /// <summary>Vertical, 9 o'clock up = crown down.</summary>
+    /// <summary>Vertical, 9 o'clock up.</summary>
     P9H = 3,
 
-    /// <summary>Vertical, 3 o'clock up = crown up.</summary>
+    /// <summary>Vertical, 3 o'clock up.</summary>
     P3H = 4,
 
-    /// <summary>Vertical, 12 o'clock up = crown right.</summary>
+    /// <summary>Vertical, 12 o'clock up.</summary>
     P12H = 5,
 
-    /// <summary>Intermediate diagonal: crown up-left (ShortName CU(L)).</summary>
+    /// <summary>Intermediate diagonal: 4:30 up.</summary>
     P6H45 = 6,
 
-    /// <summary>Intermediate diagonal: crown down-left (ShortName CD(L)).</summary>
+    /// <summary>Intermediate diagonal: 7:30 up.</summary>
     P9H45 = 7,
 
-    /// <summary>Intermediate diagonal: crown up-right (ShortName CU(R)).</summary>
+    /// <summary>Intermediate diagonal: 1:30 up.</summary>
     P3H45 = 8,
 
-    /// <summary>Intermediate diagonal: crown down-right (ShortName CD(R)).</summary>
+    /// <summary>Intermediate diagonal: 10:30 up.</summary>
     P12H45 = 9,
 }
 
@@ -50,34 +50,34 @@ public static class WatchPositions
     /// <summary>Number of catalog positions (bounds per-position storage); the plan's "up to 10".</summary>
     public const int Count = 10;
 
-    /// <summary>All positions in manual order (horizontal pair, verticals, then intermediates).</summary>
+    /// <summary>All positions in proposed display order, with enum ordinals kept stable for storage.</summary>
     public static readonly IReadOnlyList<WatchPosition> All = new[]
     {
         WatchPosition.CH,
         WatchPosition.CB,
-        WatchPosition.P6H,
-        WatchPosition.P9H,
-        WatchPosition.P3H,
         WatchPosition.P12H,
-        WatchPosition.P6H45,
-        WatchPosition.P9H45,
         WatchPosition.P3H45,
+        WatchPosition.P3H,
+        WatchPosition.P6H45,
+        WatchPosition.P6H,
+        WatchPosition.P9H45,
+        WatchPosition.P9H,
         WatchPosition.P12H45,
     };
 
-    /// <summary>Reference-figure designation shown in compact displays.</summary>
+    /// <summary>NIHS/Witschi designation shown in compact displays.</summary>
     public static string ShortName(this WatchPosition position) => position switch
     {
-        WatchPosition.CH => "DU",
-        WatchPosition.CB => "DD",
-        WatchPosition.P6H => "CL",
-        WatchPosition.P9H => "CD",
-        WatchPosition.P3H => "CU",
-        WatchPosition.P12H => "CR",
-        WatchPosition.P6H45 => "CU(L)",
-        WatchPosition.P9H45 => "CD(L)",
-        WatchPosition.P3H45 => "CU(R)",
-        WatchPosition.P12H45 => "CD(R)",
+        WatchPosition.CH => "CH",
+        WatchPosition.CB => "CB",
+        WatchPosition.P6H => "6H",
+        WatchPosition.P9H => "9H",
+        WatchPosition.P3H => "3H",
+        WatchPosition.P12H => "12H",
+        WatchPosition.P6H45 => "4:30H",
+        WatchPosition.P9H45 => "7:30H",
+        WatchPosition.P3H45 => "1:30H",
+        WatchPosition.P12H45 => "10:30H",
         _ => throw new ArgumentOutOfRangeException(nameof(position), position, null),
     };
 
@@ -86,14 +86,14 @@ public static class WatchPositions
     {
         WatchPosition.CH => "Dial up",
         WatchPosition.CB => "Dial down",
-        WatchPosition.P6H => "Crown left",
-        WatchPosition.P9H => "Crown down",
-        WatchPosition.P3H => "Crown up",
-        WatchPosition.P12H => "Crown right",
-        WatchPosition.P6H45 => "Crown up-left",
-        WatchPosition.P9H45 => "Crown down-left",
-        WatchPosition.P3H45 => "Crown up-right",
-        WatchPosition.P12H45 => "Crown down-right",
+        WatchPosition.P6H => "6 o'clock up",
+        WatchPosition.P9H => "9 o'clock up",
+        WatchPosition.P3H => "3 o'clock up",
+        WatchPosition.P12H => "12 o'clock up",
+        WatchPosition.P6H45 => "4:30 up",
+        WatchPosition.P9H45 => "7:30 up",
+        WatchPosition.P3H45 => "1:30 up",
+        WatchPosition.P12H45 => "10:30 up",
         _ => throw new ArgumentOutOfRangeException(nameof(position), position, null),
     };
 

@@ -98,12 +98,12 @@ public sealed class InfoTabRegistryTests
         Assert.Equal(WatchPosition.CH, activeDiagram.Position);
         Assert.False(activeDiagram.ShowLabels);
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "POSITION MAP");
-        Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "Crown down-right");
+        Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "10:30 up");
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "Amplitude");
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "POSITION CONSISTENCY");
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "COLLECTING");
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
-            text.Text == "DU: 0/30 beats. Keep measuring this position.");
+            text.Text == "CH: 0/30 beats. Keep measuring this position.");
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
             text.Text == "Required: D 0/3 positions · Balance-wheel 0/2 vertical · V/H 0V+0H (need 1V+1H)");
         Assert.Contains(Descendants(content).OfType<Button>(), button => Equals(button.Content, "View criteria ▾"));
@@ -174,12 +174,10 @@ public sealed class InfoTabRegistryTests
             InfoTabCatalog.WatchPositionsTabId,
             new AnalysisTabRenderContext(48000));
 
-        Assert.Equal(
-            new[] { WatchPosition.P6H },
-            buttons
-                .Select((button, index) => (button, index))
-                .Where(item => item.button.Classes.Contains("active"))
-                .Select(item => (WatchPosition)item.index));
+        Button activeButton = Assert.Single(buttons, button => button.Classes.Contains("active"));
+        TextBlock activeButtonText = Assert.IsType<TextBlock>(activeButton.Content);
+        Assert.Equal("6H", activeButtonText.Text);
+        Assert.Equal(6, Grid.GetRow(activeButton));
         WatchPositionDiagram diagram = Assert.Single(Descendants(
             Assert.IsType<Grid>(registry.Registrations.Single(
                 registration => registration.Definition.Id == InfoTabCatalog.WatchPositionsTabId).TabItem.Content))
@@ -276,7 +274,7 @@ public sealed class InfoTabRegistryTests
 
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "COLLECTING");
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
-            text.Text == "CR: 0/30 beats. Keep measuring this position.");
+            text.Text == "12H: 0/30 beats. Keep measuring this position.");
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
             text.Text == "Required: D 3/3 positions · Balance-wheel 2/2 vertical · V/H 2V+1H (need 1V+1H)");
         Assert.Contains(ResultBadges(content), badge => badge.Classes.Contains("pending"));
@@ -293,7 +291,7 @@ public sealed class InfoTabRegistryTests
             new AnalysisTabRenderContext(48000));
 
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
-            text.Text == "CR: 5/30 beats. Keep measuring this position.");
+            text.Text == "12H: 5/30 beats. Keep measuring this position.");
         Assert.Contains(ResultBadges(content), badge => badge.Classes.Contains("pending"));
 
         router.Route(
