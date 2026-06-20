@@ -135,7 +135,7 @@ work requests** — 점진적 저하). 패스마다 백로그를 **비트 주기
 | **executable assertions** | Verify가 파일명의 기대 BPH와 검출 BPH를 대조해 exit code 반환 → **CI가 main 브랜치 push·main 대상 PR에서 실행**. `FillF32` 그라운드트루스 사이드채널 채점(`DetectionScorer` — 이벤트 수준 정밀도/재현율/타이밍)은 이제 생성 fixture의 hard gate이며, 생성 fixture 안에 +30 s/day rate와 5 ms beat-error 표본을 포함해 메트릭 값도 exit code에 묶는다. `--adverse` 악조건 행 9종(약신호·잡음·임펄스 폭풍·게인 스텝·무음 선행·잡음 단독)은 현재 기본 detector 품질 게이트로 실행. PLL 베토는 `--gate=pll` 별도 측정 축으로 유지 | `Verify/Program.cs`, `AdverseScenarios.cs`, `DetectionScorer.cs` | ✓ |
 | **record/playback (기준선 회귀 감시)** | 골든마스터는 절대 이벤트 시퀀스 드리프트 감지용으로 유지하되, null vs all-off 옵션 패리티와 Verify `--fidelity-check`는 제거. 기준선 약점 보존보다 정확성과 성능을 우선한다 | `DetectorGoldenMasterTests.cs`, `AdverseScenarios.cs` | ✓ |
 | **controlled fault injection** | 합성기에 포아송 임펄스 잡음 노브(전용 RNG 스트림 — 켜도 틱/지터 시퀀스 비트동일, rate 0이면 출력 비트동일). 균일 백색잡음으로는 재현 불가능하던 레짐 리셋 폭풍·중앙값 오염·PLL 래치를 결정론적으로 재현 | `WatchSynthStream.cs`, `WatchSynthImpulseNoiseTests.cs` | ✓ |
-| **limit structural complexity** | 파서·리듀서·라우터·서비스를 작은 단일책임 단위로 분리, 현재 테스트 소스 91개(앱 49, Core 40, WindowsAudio 1, LinuxAudio 1)가 개별 타깃을 검증 | tests/ | ✓ |
+| **limit structural complexity** | 파서·리듀서·라우터·서비스를 작은 단일책임 단위로 분리, 현재 테스트 소스 94개(앱 52, Core 40, WindowsAudio 1, LinuxAudio 1)가 개별 타깃을 검증 | tests/ | ✓ |
 
 ### 사용성·이식성 (Usability / Portability)
 
