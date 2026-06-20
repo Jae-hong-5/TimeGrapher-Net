@@ -27,7 +27,7 @@ public sealed class ScopeSweepLogicTests
         string line = ScopeSweepReadout.ReferenceLine(snapshot);
 
         Assert.Equal(
-            "Latest Rate -3.2 s/d   |   Latest Amp 282°   |   Latest Beat Err +0.46 ms" +
+            "Instantaneous Rate -3.2 s/d   |   Instantaneous Amp 282°   |   Instantaneous Beat Err +0.46 ms" +
             "   |   A to C —   |   Period —",
             line);
     }
@@ -41,7 +41,7 @@ public sealed class ScopeSweepLogicTests
         foreach (string line in new[] { empty, invalid })
         {
             Assert.Equal(
-                "Latest Rate —   |   Latest Amp —   |   Latest Beat Err —   |   A to C —   |   Period —",
+                "Instantaneous Rate —   |   Instantaneous Amp —   |   Instantaneous Beat Err —   |   A to C —   |   Period —",
                 line);
         }
     }

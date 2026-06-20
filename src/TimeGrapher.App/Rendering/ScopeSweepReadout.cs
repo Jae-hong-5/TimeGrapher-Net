@@ -20,11 +20,11 @@ internal static class ScopeSweepReadout
     /// </summary>
     public static string ReferenceLine(BeatMetricsHistorySnapshot? snapshot,
         BeatSegmentsSnapshot? segments = null) =>
-        "Latest Rate " + VarioReadout.Format(
+        "Instantaneous Rate " + VarioReadout.Format(
             snapshot is { RateValid: true } ? snapshot.RateSPerDay : null, "+0.0;-0.0;0.0", " s/d")
-        + "   |   Latest Amp " + VarioReadout.Format(
+        + "   |   Instantaneous Amp " + VarioReadout.Format(
             snapshot is { AmplitudeValid: true } ? snapshot.AmplitudeDeg : null, "0", "°")
-        + "   |   Latest Beat Err " + VarioReadout.Format(
+        + "   |   Instantaneous Beat Err " + VarioReadout.Format(
             snapshot is { BeatErrorValid: true } ? snapshot.BeatErrorSignedMs : null, "+0.00;-0.00;0.00", " ms")
         + "   |   A to C " + FormatAtoC(segments)
         + "   |   Period " + FormatPeriod(snapshot);
