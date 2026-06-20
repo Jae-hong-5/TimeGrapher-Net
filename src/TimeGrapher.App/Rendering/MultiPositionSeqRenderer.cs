@@ -178,7 +178,7 @@ internal sealed class MultiPositionSeqRenderer
         {
             _dashboard.ConsistencyVerdictText.Text = "COLLECTING";
             _dashboard.ConsistencyDetailText.Text =
-                $"{activePosition.ShortName()}: {activeBeats}/{MinPositionBeatsForVerdict} beats. Keep measuring this position.";
+                $"Measuring {activePosition.ShortName()}: {activeBeats}/{MinPositionBeatsForVerdict} beats.";
             _dashboard.ConsistencyBadge.Classes.Add(ResultPendingClass);
             return;
         }
@@ -187,7 +187,7 @@ internal sealed class MultiPositionSeqRenderer
         {
             _dashboard.ConsistencyVerdictText.Text = "COLLECTING";
             _dashboard.ConsistencyDetailText.Text =
-                $"{qualifiedRows.Length}/{MinQualifiedPositionsForVerdict} positions ready. Measure another position to {MinPositionBeatsForVerdict} beats.";
+                $"Measure another position to {MinPositionBeatsForVerdict} beats.";
             _dashboard.ConsistencyBadge.Classes.Add(ResultPendingClass);
             return;
         }
@@ -203,7 +203,7 @@ internal sealed class MultiPositionSeqRenderer
         {
             _dashboard.ConsistencyVerdictText.Text = "COLLECTING";
             _dashboard.ConsistencyDetailText.Text =
-                $"Need Position: {MinVerticalPositionsForBalanceWheelVerdict} full vertical + 1 horizontal. Ready Position: {FormatVerticalHorizontalReady(qualifiedRows)}.";
+                "Measure full vertical and horizontal positions.";
             _dashboard.ConsistencyBadge.Classes.Add(ResultPendingClass);
             return;
         }
@@ -217,14 +217,14 @@ internal sealed class MultiPositionSeqRenderer
         {
             _dashboard.ConsistencyVerdictText.Text = "CHECK";
             _dashboard.ConsistencyDetailText.Text =
-                $"{qualifiedRows.Length} positions ready. Spread is above {SequenceSummary.UnbalanceVerticalRateSpreadSPerDay:0} s/d.";
+                $"Rate spread exceeds {SequenceSummary.UnbalanceVerticalRateSpreadSPerDay:0} s/d.";
             _dashboard.ConsistencyBadge.Classes.Add(ResultWarnClass);
             return;
         }
 
         _dashboard.ConsistencyVerdictText.Text = "OK";
         _dashboard.ConsistencyDetailText.Text =
-            $"{qualifiedRows.Length} positions ready. Spread is within {SequenceSummary.UnbalanceVerticalRateSpreadSPerDay:0} s/d.";
+            $"Rate spread within {SequenceSummary.UnbalanceVerticalRateSpreadSPerDay:0} s/d.";
         _dashboard.ConsistencyBadge.Classes.Add(ResultOkClass);
     }
 
@@ -283,18 +283,6 @@ internal sealed class MultiPositionSeqRenderer
         rows.Count == 0
             ? "None"
             : string.Join(", ", rows.Select(row => row.Position.ShortName()));
-
-    private static string FormatVerticalHorizontalReady(IReadOnlyList<SequencePositionRow> qualifiedRows)
-    {
-        SequencePositionRow[] fullVerticalRows = qualifiedRows
-            .Where(row => !row.Position.IsHorizontal() && !row.Position.IsIntermediate())
-            .ToArray();
-        SequencePositionRow[] horizontalRows = qualifiedRows
-            .Where(row => row.Position.IsHorizontal())
-            .ToArray();
-
-        return FormatVerticalHorizontalReady(fullVerticalRows, horizontalRows);
-    }
 
     private static string FormatVerticalHorizontalReady(
         IReadOnlyList<SequencePositionRow> fullVerticalRows,

@@ -112,7 +112,7 @@ public sealed class InfoTabRegistryTests
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "COLLECTING");
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "REFERENCE");
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
-            text.Text == "CH: 0/30 beats. Keep measuring this position.");
+            text.Text == "Measuring CH: 0/30 beats.");
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
             text.Text == "3 positions, 30+ beats each");
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
@@ -293,7 +293,7 @@ public sealed class InfoTabRegistryTests
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "7:30H");
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "7:30 up");
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
-            text.Text == "7:30H: 0/30 beats. Keep measuring this position.");
+            text.Text == "Measuring 7:30H: 0/30 beats.");
         Border activeRow = Assert.Single(Descendants(content).OfType<Border>(),
             border => border.Classes.Contains("SeqActiveRow"));
         Assert.Equal(8, Grid.GetRow(activeRow));
@@ -325,7 +325,7 @@ public sealed class InfoTabRegistryTests
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "1:30H");
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "1:30 up");
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
-            text.Text == "1:30H: 0/30 beats. Keep measuring this position.");
+            text.Text == "Measuring 1:30H: 0/30 beats.");
         Button activeButton = Assert.Single(positionStrip.Children.OfType<Button>(),
             button => button.Classes.Contains("active"));
         Assert.IsType<TextBlock>(activeButton.Content);
@@ -389,7 +389,7 @@ public sealed class InfoTabRegistryTests
             new AnalysisTabRenderContext(48000));
 
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
-            text.Text == "1/3 positions ready. Measure another position to 30 beats.");
+            text.Text == "Measure another position to 30 beats.");
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "CH (1/3)");
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "None (0/2)");
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
@@ -407,7 +407,7 @@ public sealed class InfoTabRegistryTests
             new AnalysisTabRenderContext(48000));
 
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
-            text.Text == "2/3 positions ready. Measure another position to 30 beats.");
+            text.Text == "Measure another position to 30 beats.");
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "CH, 6H (2/3)");
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "6H (1/2)");
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
@@ -426,7 +426,7 @@ public sealed class InfoTabRegistryTests
 
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "COLLECTING");
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
-            text.Text == "12H: 0/30 beats. Keep measuring this position.");
+            text.Text == "Measuring 12H: 0/30 beats.");
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "READY");
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "CH, 6H, 3H (3/3)");
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "6H, 3H (2/2)");
@@ -446,7 +446,7 @@ public sealed class InfoTabRegistryTests
             new AnalysisTabRenderContext(48000));
 
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
-            text.Text == "12H: 5/30 beats. Keep measuring this position.");
+            text.Text == "Measuring 12H: 5/30 beats.");
         Assert.Contains(ResultBadges(content), badge => badge.Classes.Contains("pending"));
 
         router.Route(
@@ -463,7 +463,7 @@ public sealed class InfoTabRegistryTests
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "OK");
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "REFERENCE");
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
-            text.Text == "4 positions ready. Spread is within 15 s/d.");
+            text.Text == "Rate spread within 15 s/d.");
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
             text.Text == "CH, 6H, 3H, 12H (4/3)");
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "6H, 3H, 12H (3/2)");
@@ -484,7 +484,7 @@ public sealed class InfoTabRegistryTests
 
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "CHECK");
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
-            text.Text == "4 positions ready. Spread is above 15 s/d.");
+            text.Text == "Rate spread exceeds 15 s/d.");
         Assert.Contains(ResultBadges(content), badge => badge.Classes.Contains("warn"));
     }
 
@@ -514,7 +514,7 @@ public sealed class InfoTabRegistryTests
 
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "COLLECTING");
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
-            text.Text == "Need Position: 2 full vertical + 1 horizontal. Ready Position: V 6H / H CH, CB (1V + 2H).");
+            text.Text == "Measure full vertical and horizontal positions.");
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
             text.Text == "V 6H / H CH, CB (1V + 2H)");
         Assert.Contains(ResultBadges(content), badge => badge.Classes.Contains("pending"));
