@@ -55,7 +55,6 @@ internal sealed class ScopeSweepRenderer
     private PlotThemePalette _theme = PlotThemePalette.Current;
     private ulong _lastReadoutVersion;
     private ulong _lastReadoutSegmentVersion;
-    private ulong _lastSegmentVersion;
     private bool _followLive = true;
 
     public ScopeSweepRenderer(AvaPlot sweepPlot, TextBlock referenceText, string textFontFamily)
@@ -80,7 +79,6 @@ internal sealed class ScopeSweepRenderer
     {
         _lastReadoutVersion = 0;
         _lastReadoutSegmentVersion = 0;
-        _lastSegmentVersion = 0;
         _followLive = true;
         _ticPhaseOffsetMs = 0.0;
         _lastWindowMs = 0.0;
@@ -199,47 +197,49 @@ internal sealed class ScopeSweepRenderer
 
     /// <summary>
     /// Places A (dashed) and C (dotted) vertical markers at each beat phase in
-    /// the sweep window. X positions are recomputed only when the segment version
-    /// changes; Y positions of the text labels track the current signal peak and
-    /// are updated on every sweep data refresh.
+    /// the sweep window. Both X and Y positions are recomputed on every sweep
+    /// data refresh so that a window-size change (1x/2x/3x) or phase re-alignment
+    /// is reflected immediately. When segments or sweep data are not yet available
+    /// the last-known marker positions are kept visible to avoid a blink-out
+    /// during the accumulation period after a window retune.
     /// </summary>
     private void UpdateSweepMarkerPositions(BeatSegmentsSnapshot? snapshot)
     {
         double windowMs = ScopeSweepReadout.WindowMs(_sweepX);
-        double yTop = _sweepY.Count > 0 ? _sweepY.Max() : 1.0;
 
-        ulong sv = snapshot?.Version ?? 0;
-        bool segmentChanged = sv != _lastSegmentVersion;
-        if (segmentChanged)
+        // Keep last-known positions during a sweep window retune or startup
+        // accumulation — hiding here would cause a visible blink every time
+        // the 1x/2x/3x selector is pressed.
+        if (snapshot == null || snapshot.Segments.Count == 0 || windowMs <= 0)
         {
-            _lastSegmentVersion = sv;
-
-            if (snapshot == null || snapshot.Segments.Count == 0 || windowMs <= 0)
-            {
-                HideAllMarkers();
-                return;
-            }
-
-            BeatSegment? latestTic = null, latestToc = null;
-            foreach (BeatSegment seg in snapshot.Segments)
-            {
-                if (seg.IsTic) latestTic = seg;
-                else latestToc = seg;
-            }
-
-            SetMarkerLine(_aTicMarker, PhaseMs(latestTic, isC: false, windowMs));
-            SetMarkerLine(_aTocMarker, PhaseMs(latestToc, isC: false, windowMs));
-            SetMarkerLine(_cTicMarker, PhaseMs(
-                latestTic is { CPeakValid: true } ? latestTic : null, isC: true, windowMs));
-            SetMarkerLine(_cTocMarker, PhaseMs(
-                latestToc is { CPeakValid: true } ? latestToc : null, isC: true, windowMs));
+            return;
         }
 
-        // Always track the signal peak so labels stay near the top of the trace.
-        UpdateMarkerLabel(_aTicLabel, _aTicMarker, yTop, "A");
-        UpdateMarkerLabel(_aTocLabel, _aTocMarker, yTop, "A");
-        UpdateMarkerLabel(_cTicLabel, _cTicMarker, yTop, "C");
-        UpdateMarkerLabel(_cTocLabel, _cTocMarker, yTop, "C");
+        BeatSegment? latestTic = null, latestToc = null;
+        foreach (BeatSegment seg in snapshot.Segments)
+        {
+            if (seg.IsTic) latestTic = seg;
+            else latestToc = seg;
+        }
+
+        SetMarkerLine(_aTicMarker, PhaseMs(latestTic, isC: false, windowMs));
+        SetMarkerLine(_aTocMarker, PhaseMs(latestToc, isC: false, windowMs));
+        SetMarkerLine(_cTicMarker, PhaseMs(
+            latestTic is { CPeakValid: true } ? latestTic : null, isC: true, windowMs));
+        SetMarkerLine(_cTocMarker, PhaseMs(
+            latestToc is { CPeakValid: true } ? latestToc : null, isC: true, windowMs));
+
+        // Only anchor labels to the signal peak when the sweep has real data;
+        // skip the Y update while bins are flat-zero during re-accumulation so
+        // labels stay at their last valid height rather than collapsing to zero.
+        double yTop = _sweepY.Count > 0 ? _sweepY.Max() : 0.0;
+        if (yTop > 0)
+        {
+            UpdateMarkerLabel(_aTicLabel, _aTicMarker, yTop, "A");
+            UpdateMarkerLabel(_aTocLabel, _aTocMarker, yTop, "A");
+            UpdateMarkerLabel(_cTicLabel, _cTicMarker, yTop, "C");
+            UpdateMarkerLabel(_cTocLabel, _cTocMarker, yTop, "C");
+        }
     }
 
     private double? PhaseMs(BeatSegment? seg, bool isC, double windowMs)
@@ -268,19 +268,7 @@ internal sealed class ScopeSweepRenderer
         }
     }
 
-    private void HideAllMarkers()
-    {
-        if (_aTicMarker != null) _aTicMarker.IsVisible = false;
-        if (_aTicLabel  != null) _aTicLabel.IsVisible  = false;
-        if (_aTocMarker != null) _aTocMarker.IsVisible = false;
-        if (_aTocLabel  != null) _aTocLabel.IsVisible  = false;
-        if (_cTicMarker != null) _cTicMarker.IsVisible = false;
-        if (_cTicLabel  != null) _cTicLabel.IsVisible  = false;
-        if (_cTocMarker != null) _cTocMarker.IsVisible = false;
-        if (_cTocLabel  != null) _cTocLabel.IsVisible  = false;
-    }
-
-    /// <summary>Review-cursor contract: a dotted marker at the scrub time's sweep phase.</summary>
+/// <summary>Review-cursor contract: a dotted marker at the scrub time's sweep phase.</summary>
     private bool UpdateReviewCursor(double? reviewCursorTimeS)
     {
         if (_reviewCursor == null)
