@@ -897,37 +897,47 @@ internal sealed partial class InfoTabRegistry
         InfoTabDefinition definition,
         InfoTabFactoryContext context)
     {
-        // Four vertically stacked plots (F0..F3 of the same signal), each under
-        // its one-line description, so the filter views compare at a glance. The
+        // Four plots (F0..F3 of the same signal) in a 2x2 grid — F0/F1 on top,
+        // F2/F3 below — each under its one-line description, so the filter views
+        // compare at a glance with more width per plot than a single stack. The
         // raw waveform shows before beat sync, so no waiting overlay is added.
         _ = context;
         IReadOnlyList<MultiFilterScopeLane> lanes = MultiFilterScopeLanes.All;
+        const int columns = 2;
+        int rowPairs = (lanes.Count + columns - 1) / columns;
         var plots = new AvaPlot[lanes.Count];
         var grid = new Grid
         {
-            RowDefinitions = new RowDefinitions(
-                string.Join(",", Enumerable.Repeat("Auto,*", lanes.Count))),
+            ColumnDefinitions = new ColumnDefinitions(string.Join(",", Enumerable.Repeat("*", columns))),
+            RowDefinitions = new RowDefinitions(string.Join(",", Enumerable.Repeat("Auto,*", rowPairs))),
         };
 
         for (int i = 0; i < lanes.Count; i++)
         {
+            int col = i % columns;
+            int rowPair = i / columns;
             var description = new TextBlock
             {
                 Text = lanes[i].Label + " — " + lanes[i].Description,
                 FontSize = 11,
                 Opacity = 0.65,
                 Margin = new Thickness(8, 3, 8, 0),
+                TextTrimming = Avalonia.Media.TextTrimming.CharacterEllipsis,
             };
             plots[i] = new AvaPlot();
-            Grid.SetRow(description, 2 * i);
-            Grid.SetRow(plots[i], 2 * i + 1);
+            Grid.SetColumn(description, col);
+            Grid.SetRow(description, rowPair * 2);
+            Grid.SetColumn(plots[i], col);
+            Grid.SetRow(plots[i], rowPair * 2 + 1);
             grid.Children.Add(description);
             grid.Children.Add(plots[i]);
         }
 
         var renderer = new MultiFilterScopeRenderer(plots);
-        grid.Children.Add(CreatePinnedResetViewButton(
-            "Re-enable live windowing on all four lanes", row: 1, renderer.ResetView));
+        Button resetButton = CreatePinnedResetViewButton(
+            "Re-enable live windowing on all four lanes", row: 1, renderer.ResetView);
+        Grid.SetColumnSpan(resetButton, columns); // pin to the top-right of the whole grid
+        grid.Children.Add(resetButton);
         var consumer = new MultiFilterScopeFrameConsumer(renderer);
         return new InfoTabRegistration(definition, CreateTabItem(definition, grid), consumer);
     }
