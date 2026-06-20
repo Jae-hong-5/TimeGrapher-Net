@@ -370,9 +370,15 @@ internal sealed partial class InfoTabRegistry
         // always-present buttons fix the strip's height, so the plots below no
         // longer shift up and down as the banner appears and clears.
         Button smoothingButton = CreateTraceSmoothingButton(renderer);
+        // Reset View sized to match the Smoothing button (same height/font/padding
+        // and the shared button style) so the pair reads as one control group.
         Button resetViewButton = CreateOverlayButton(
             "Reset View", ResetAllGraphViewsTooltip, context.ResetViews.ResetAll);
+        resetViewButton.MinHeight = TraceHeaderButtonMinHeight;
+        resetViewButton.FontSize = TraceHeaderButtonFontSize;
+        resetViewButton.Padding = TraceHeaderButtonPadding;
         resetViewButton.VerticalAlignment = VerticalAlignment.Center;
+        resetViewButton.Classes.Add("PositionButton");
         var headerButtons = new StackPanel
         {
             Orientation = Orientation.Horizontal,
@@ -383,7 +389,10 @@ internal sealed partial class InfoTabRegistry
         headerButtons.Children.Add(smoothingButton);
         headerButtons.Children.Add(resetViewButton);
 
+        // Keep a gap to the left of the buttons so the conditional alert banner
+        // never butts up against Smoothing when it appears.
         alertBanner.VerticalAlignment = VerticalAlignment.Center;
+        alertBanner.Margin = new Thickness(0, 0, 8, 0);
         var headerStrip = new Grid
         {
             ColumnDefinitions = new ColumnDefinitions("*,Auto"),
@@ -419,6 +428,12 @@ internal sealed partial class InfoTabRegistry
         return new InfoTabRegistration(definition, CreateTabItem(definition, grid), consumer);
     }
 
+    // Shared dimensions for the Trace header buttons so Smoothing and Reset View
+    // stay the same size as one matched control group.
+    private const double TraceHeaderButtonMinHeight = 30;
+    private const double TraceHeaderButtonFontSize = 12;
+    private static readonly Thickness TraceHeaderButtonPadding = new(10, 2, 10, 2);
+
     /// <summary>
     /// Smoothing toggle for the Trace tab, styled like the Long-Term header
     /// buttons: clicking flips spline (smooth-curve) rendering of both traces and
@@ -430,9 +445,9 @@ internal sealed partial class InfoTabRegistry
         var button = new Button
         {
             Content = "Smoothing",
-            MinHeight = 30,
-            Padding = new Thickness(10, 2, 10, 2),
-            FontSize = 12,
+            MinHeight = TraceHeaderButtonMinHeight,
+            Padding = TraceHeaderButtonPadding,
+            FontSize = TraceHeaderButtonFontSize,
             HorizontalAlignment = HorizontalAlignment.Right,
             VerticalAlignment = VerticalAlignment.Center,
         };

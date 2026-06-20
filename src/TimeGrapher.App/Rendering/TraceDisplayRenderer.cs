@@ -27,6 +27,8 @@ internal sealed class TraceDisplayRenderer
     // Accept-band fill alpha and the right-edge inset of the limit-value labels,
     // matching the Long-Term graph so the two displays look identical.
     private const byte AcceptBandFillAlpha = 42;
+    // Deviation (±σ) band fill, lighter than the accept band so the two read apart.
+    private const byte SigmaBandFillAlpha = 30;
     private const double AcceptLabelXInsetFraction = 0.006;
 
     // Fixed axis panel sizes (px), the RateScopeRenderer tactic. Locking the left
@@ -64,6 +66,18 @@ internal sealed class TraceDisplayRenderer
     private Text? _amplitudeMaxLabel;
     private ReviewCursorLayer? _rateCursor;
     private ReviewCursorLayer? _amplitudeCursor;
+
+    // Running-average overlay: a mean line, a ±σ deviation band, and an "avg … σ …"
+    // label per plot (the Long-Term OverallAverage tactic), driven by the
+    // snapshot's per-position RateStats/AmplitudeStats.
+    private HorizontalLine? _rateMeanLine;
+    private HorizontalLine? _amplitudeMeanLine;
+    private VerticalSpan? _rateSigmaBand;
+    private VerticalSpan? _amplitudeSigmaBand;
+    private Text? _rateAvgLabel;
+    private Text? _amplitudeAvgLabel;
+    private StatsSummary _rateStatsLatest;
+    private StatsSummary _amplitudeStatsLatest;
 
     private PlotThemePalette _theme = PlotThemePalette.Current;
     private ulong _lastVersion;
@@ -113,6 +127,7 @@ internal sealed class TraceDisplayRenderer
             {
                 _acceptRefreshPending = false;
                 UpdateAcceptLabels();
+                UpdateAverageOverlay();
                 _ratePlot.Refresh();
                 _amplitudePlot.Refresh();
             },
@@ -145,12 +160,15 @@ internal sealed class TraceDisplayRenderer
         // X axis hidden: the shared elapsed-time axis is shown on the amplitude pane below.
         HideXAxis(rate);
         _rateBand = AddAcceptBand(rate, LongTermAcceptPolicy.Rate);
+        _rateSigmaBand = AddSigmaBand(rate);
         _rateScatter = rate.Add.Scatter(_rateX, _rateY);
         _rateScatter.LineWidth = 2;
         _rateScatter.MarkerStyle.IsVisible = false;
         _rateCursor = AddCursor(rate);
         _rateMinLabel = AcceptLabel(rate, LongTermAcceptPolicy.Rate.Min, "+0;-0;0");
         _rateMaxLabel = AcceptLabel(rate, LongTermAcceptPolicy.Rate.Max, "+0;-0;0");
+        _rateMeanLine = AddMeanLine(rate);
+        _rateAvgLabel = AddAvgLabel(rate);
         PlotAxisRules.ClampLeftEdgeToZero(rate);
 
         Plot amplitude = _amplitudePlot.Plot;
@@ -162,12 +180,15 @@ internal sealed class TraceDisplayRenderer
         amplitude.YLabel("Amplitude(°)");
         amplitude.XLabel("Elapsed (s)");
         _amplitudeBand = AddAcceptBand(amplitude, LongTermAcceptPolicy.Amplitude);
+        _amplitudeSigmaBand = AddSigmaBand(amplitude);
         _amplitudeScatter = amplitude.Add.Scatter(_amplitudeX, _amplitudeY);
         _amplitudeScatter.LineWidth = 2;
         _amplitudeScatter.MarkerStyle.IsVisible = false;
         _amplitudeCursor = AddCursor(amplitude);
         _amplitudeMinLabel = AcceptLabel(amplitude, LongTermAcceptPolicy.Amplitude.Min, "0");
         _amplitudeMaxLabel = AcceptLabel(amplitude, LongTermAcceptPolicy.Amplitude.Max, "0");
+        _amplitudeMeanLine = AddMeanLine(amplitude);
+        _amplitudeAvgLabel = AddAvgLabel(amplitude);
         PlotAxisRules.ClampLeftEdgeToZero(amplitude);
 
         ApplySmoothing();
@@ -188,6 +209,7 @@ internal sealed class TraceDisplayRenderer
         _amplitudePlot.Plot.Axes.AutoScale();
         PinLiveXAxisToData();
         UpdateAcceptLabels();
+        UpdateAverageOverlay();
         _ratePlot.Refresh();
         _amplitudePlot.Refresh();
     }
@@ -247,7 +269,10 @@ internal sealed class TraceDisplayRenderer
             PinLiveXAxisToData();
         }
 
+        _rateStatsLatest = history.RateStats;
+        _amplitudeStatsLatest = history.AmplitudeStats;
         UpdateAcceptLabels();
+        UpdateAverageOverlay();
         UpdateAlerts(history);
 
         _ratePlot.Refresh();
@@ -333,6 +358,12 @@ internal sealed class TraceDisplayRenderer
         ThemeMeasure(_rateScatter, _rateBand, _rateMinLabel, _rateMaxLabel, _theme.VarioBad);
         ThemeMeasure(_amplitudeScatter, _amplitudeBand, _amplitudeMinLabel, _amplitudeMaxLabel, _theme.VarioMinMax);
 
+        // Mean line, ±σ band and avg/σ label share the neutral text color so the
+        // average overlay reads apart from the colored accept bands (the Long-Term
+        // OverallAverage tactic).
+        ThemeAverage(_rateMeanLine, _rateSigmaBand, _rateAvgLabel);
+        ThemeAverage(_amplitudeMeanLine, _amplitudeSigmaBand, _amplitudeAvgLabel);
+
         _rateCursor?.ApplyTheme(_theme);
         _amplitudeCursor?.ApplyTheme(_theme);
     }
@@ -357,6 +388,26 @@ internal sealed class TraceDisplayRenderer
             {
                 label.LabelFontColor = color;
             }
+        }
+    }
+
+    private void ThemeAverage(HorizontalLine? line, VerticalSpan? band, Text? label)
+    {
+        Color color = Color.FromARGB(_theme.TextPrimary);
+        if (line != null)
+        {
+            line.LineColor = color;
+        }
+
+        if (band != null)
+        {
+            band.FillStyle.Color = color.WithAlpha(SigmaBandFillAlpha);
+            band.LineStyle.Width = 0;
+        }
+
+        if (label != null)
+        {
+            label.LabelFontColor = color;
         }
     }
 
@@ -397,6 +448,38 @@ internal sealed class TraceDisplayRenderer
         VerticalSpan band = plot.Add.VerticalSpan(accept.Min, accept.Max);
         band.LineStyle.Width = 0;
         return band;
+    }
+
+    /// <summary>±σ deviation band around the running mean (out of autoscale; hidden until stats exist).</summary>
+    private static VerticalSpan AddSigmaBand(Plot plot)
+    {
+        VerticalSpan band = plot.Add.VerticalSpan(0.0, 0.0);
+        band.LineStyle.Width = 0;
+        band.EnableAutoscale = false;
+        band.IsVisible = false;
+        return band;
+    }
+
+    /// <summary>Running-average line (dashed, out of autoscale; the Long-Term OverallAverage style).</summary>
+    private static HorizontalLine AddMeanLine(Plot plot)
+    {
+        HorizontalLine line = plot.Add.HorizontalLine(0.0);
+        line.LineWidth = 1;
+        line.LinePattern = LinePattern.Dashed;
+        line.EnableAutoscale = false;
+        line.IsVisible = false;
+        return line;
+    }
+
+    /// <summary>The "avg … σ …" readout shown on the mean line (hidden until stats exist).</summary>
+    private static Text AddAvgLabel(Plot plot)
+    {
+        Text label = plot.Add.Text(string.Empty, 0.0, 0.0);
+        label.LabelBold = true;
+        label.LabelFontSize = 12;
+        label.Alignment = Alignment.LowerLeft;
+        label.IsVisible = false;
+        return label;
     }
 
     private static Text AcceptLabel(Plot plot, double value, string format)
@@ -446,5 +529,59 @@ internal sealed class TraceDisplayRenderer
         label.Location = new Coordinates(x, y);
         label.Alignment = alignment;
         label.IsVisible = visible;
+    }
+
+    /// <summary>
+    /// Places each plot's running-average overlay from the latest per-position
+    /// stats: the mean line at the mean, the ±σ band at mean±sigma, and the
+    /// "avg … σ …" label on the line near the left edge. Hidden until the stats
+    /// are valid, and the label hides when the mean leaves the Y view.
+    /// </summary>
+    private void UpdateAverageOverlay()
+    {
+        PositionAverage(_ratePlot, _rateStatsLatest, _rateMeanLine, _rateSigmaBand, _rateAvgLabel, "+0.0;-0.0;0.0", " s/d");
+        PositionAverage(_amplitudePlot, _amplitudeStatsLatest, _amplitudeMeanLine, _amplitudeSigmaBand, _amplitudeAvgLabel, "0", "°");
+    }
+
+    private static void PositionAverage(
+        AvaPlot plot, StatsSummary stats, HorizontalLine? line, VerticalSpan? band, Text? label, string valueFormat, string unit)
+    {
+        bool show = stats.Valid;
+        if (line != null)
+        {
+            line.Y = stats.Mean;
+            line.IsVisible = show;
+        }
+
+        if (band != null)
+        {
+            band.Y1 = stats.Mean - stats.Sigma;
+            band.Y2 = stats.Mean + stats.Sigma;
+            band.IsVisible = show;
+        }
+
+        if (label == null)
+        {
+            return;
+        }
+
+        if (!show)
+        {
+            label.IsVisible = false;
+            return;
+        }
+
+        var culture = System.Globalization.CultureInfo.InvariantCulture;
+        label.LabelText = string.Format(
+            culture, "avg {0}{1}  σ {2}",
+            stats.Mean.ToString(valueFormat, culture), unit, stats.Sigma.ToString("0.0", culture));
+
+        AxisLimits limits = plot.Plot.Axes.GetLimits();
+        double left = limits.Left;
+        double right = limits.Right;
+        bool usable = !double.IsNaN(left) && !double.IsNaN(right) && right > left;
+        label.Location = new Coordinates(
+            usable ? left + (right - left) * AcceptLabelXInsetFraction : 0.0, stats.Mean);
+        label.IsVisible = usable && stats.Mean >= limits.Bottom && stats.Mean <= limits.Top;
     }
 }

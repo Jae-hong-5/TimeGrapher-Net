@@ -751,15 +751,26 @@ public sealed class InfoTabRegistryTests
             .Select(button => button.Content?.ToString() ?? string.Empty)
             .ToArray();
         Assert.Equal(new[] { "Smoothing", "Reset View" }, buttons);
-        Button smoothing = buttonStrip.Children.OfType<Button>().First();
+        Button[] btns = buttonStrip.Children.OfType<Button>().ToArray();
+        Button smoothing = btns[0];
+        Button resetView = btns[1];
         Assert.Contains("PositionButton", smoothing.Classes);
         Assert.True(smoothing.IsVisible);
+
+        // Reset View is sized to match Smoothing (one matched control group).
+        Assert.Contains("PositionButton", resetView.Classes);
+        Assert.Equal(smoothing.FontSize, resetView.FontSize);
+        Assert.Equal(smoothing.MinHeight, resetView.MinHeight);
+        Assert.Equal(smoothing.Padding, resetView.Padding);
 
         Border banner = headerStrip.Children.OfType<Border>().Single();
         Assert.Equal(0, Grid.GetColumn(banner));
         // Hidden until the renderer sets a message; it occupies the reserved left
         // column rather than collapsing the whole strip.
         Assert.False(banner.IsVisible);
+        // A gap is kept between the banner and the buttons so it never butts up
+        // against Smoothing when shown.
+        Assert.True(banner.Margin.Right > 0);
     }
 
     [Fact]

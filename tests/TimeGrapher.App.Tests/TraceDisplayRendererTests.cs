@@ -151,9 +151,14 @@ public sealed class TraceDisplayRendererTests
         Assert.Equal(PlotColor.FromARGB(0xFF2266CC).WithAlpha(42), Band(amplitudePlot).FillStyle.Color);
         Assert.Equal(0, Band(ratePlot).LineStyle.Width);
         Assert.Equal(0, Band(amplitudePlot).LineStyle.Width);
-        // Both limit labels on each plot carry the per-measure color.
-        Assert.All(ratePlot.Plot.GetPlottables<Text>(), t => Assert.Equal(PlotColor.FromARGB(0xFFCC2233), t.LabelFontColor));
-        Assert.All(amplitudePlot.Plot.GetPlottables<Text>(), t => Assert.Equal(PlotColor.FromARGB(0xFF2266CC), t.LabelFontColor));
+        // The accept limit labels carry the per-measure color; the (empty, not-yet-
+        // shown) average label and the mean line use the neutral text color.
+        Assert.All(ratePlot.Plot.GetPlottables<Text>().Where(t => t.LabelText.Length > 0),
+            t => Assert.Equal(PlotColor.FromARGB(0xFFCC2233), t.LabelFontColor));
+        Assert.All(amplitudePlot.Plot.GetPlottables<Text>().Where(t => t.LabelText.Length > 0),
+            t => Assert.Equal(PlotColor.FromARGB(0xFF2266CC), t.LabelFontColor));
+        Assert.Equal(PlotColor.FromARGB(0xFF404040), MeanLine(ratePlot).LineColor);
+        Assert.Equal(PlotColor.FromARGB(0xFF404040), MeanLine(amplitudePlot).LineColor);
     }
 
     [Fact]
@@ -182,6 +187,54 @@ public sealed class TraceDisplayRendererTests
 
         Assert.Equal(new[] { "-10", "+10" }, VisibleTextLabels(ratePlot));
         Assert.Equal(new[] { "270", "300" }, VisibleTextLabels(amplitudePlot));
+    }
+
+    [Fact]
+    public void AverageOverlay_ShowsMeanLineSigmaBandAndLabelWhenStatsValid()
+    {
+        TraceDisplayRenderer renderer = NewRenderer(out AvaPlot ratePlot, out AvaPlot amplitudePlot);
+        renderer.CreateGraphs();
+
+        // Hidden until per-position stats exist.
+        Assert.False(MeanLine(ratePlot).IsVisible);
+        Assert.False(SigmaBand(ratePlot).IsVisible);
+        Assert.False(MeanLine(amplitudePlot).IsVisible);
+        Assert.False(SigmaBand(amplitudePlot).IsVisible);
+
+        var frame = new AnalysisFrame
+        {
+            MetricsHistory = new BeatMetricsHistorySnapshot
+            {
+                Version = 1,
+                Rate = Series(new[] { 0.0, 1.0, 2.0, 3.0 }, new[] { 1.0, 2.0, 3.0, 2.0 }),
+                Amplitude = Series(new[] { 0.0, 1.0, 2.0, 3.0 }, new[] { 284.0, 286.0, 285.0, 285.0 }),
+                RateValid = true,
+                AmplitudeValid = true,
+                RateStats = new StatsSummary(true, -2.0, 6.0, 2.0, 1.5, 50),
+                AmplitudeStats = new StatsSummary(true, 270.0, 300.0, 285.0, 4.0, 50),
+            },
+        };
+        renderer.RenderFrame(frame, new AnalysisTabRenderContext(48000));
+
+        // Mean line sits at the running mean; the ±σ band spans mean±sigma.
+        Assert.True(MeanLine(ratePlot).IsVisible);
+        Assert.Equal(2.0, MeanLine(ratePlot).Y);
+        Assert.True(SigmaBand(ratePlot).IsVisible);
+        Assert.Equal(0.5, SigmaBand(ratePlot).Y1, 6);
+        Assert.Equal(3.5, SigmaBand(ratePlot).Y2, 6);
+
+        Assert.True(MeanLine(amplitudePlot).IsVisible);
+        Assert.Equal(285.0, MeanLine(amplitudePlot).Y);
+        Assert.Equal(281.0, SigmaBand(amplitudePlot).Y1, 6);
+        Assert.Equal(289.0, SigmaBand(amplitudePlot).Y2, 6);
+
+        // The label on the line reads the average value and the deviation.
+        string rateAvg = AvgLabelText(ratePlot);
+        Assert.Contains("avg +2.0 s/d", rateAvg);
+        Assert.Contains("σ 1.5", rateAvg);
+        string amplitudeAvg = AvgLabelText(amplitudePlot);
+        Assert.Contains("avg 285°", amplitudeAvg);
+        Assert.Contains("σ 4.0", amplitudeAvg);
     }
 
     [Fact]
@@ -303,7 +356,20 @@ public sealed class TraceDisplayRendererTests
 
     private static string PathStrategy(AvaPlot plot) => Line(plot).PathStrategy.GetType().Name;
 
-    private static VerticalSpan Band(AvaPlot plot) => plot.Plot.GetPlottables<VerticalSpan>().Single();
+    // The accept band stays in autoscale; the ±σ deviation band opts out, so these
+    // select each one specifically now that both plots carry two VerticalSpans.
+    private static VerticalSpan Band(AvaPlot plot) =>
+        plot.Plot.GetPlottables<VerticalSpan>().Single(s => s.EnableAutoscale);
+
+    private static VerticalSpan SigmaBand(AvaPlot plot) =>
+        plot.Plot.GetPlottables<VerticalSpan>().Single(s => !s.EnableAutoscale);
+
+    private static HorizontalLine MeanLine(AvaPlot plot) =>
+        plot.Plot.GetPlottables<HorizontalLine>().Single();
+
+    private static string AvgLabelText(AvaPlot plot) =>
+        plot.Plot.GetPlottables<Text>()
+            .Single(t => t.LabelText.StartsWith("avg", StringComparison.Ordinal)).LabelText;
 
     private static string[] VisibleTextLabels(AvaPlot plot) =>
         plot.Plot.GetPlottables<Text>()
