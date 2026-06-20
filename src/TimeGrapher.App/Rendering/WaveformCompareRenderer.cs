@@ -522,8 +522,11 @@ internal sealed class WaveformCompareRenderer
             }
         }
 
-        // A and C guides: black so they don't clash with the tic (green) / toc (red) waveform colors.
-        Color guideColor = Color.FromARGB(0xFF000000);
+        // A and C guides: use the theme's primary text color (same as the lane
+        // labels above) so they contrast against the scope background in both
+        // themes. A hardcoded black turned invisible on the dark theme's black
+        // ScopeBg; the palette color is dark in Light and light in Dark.
+        Color guideColor = Color.FromARGB(_theme.TextPrimary);
         if (_aGuide != null)         _aGuide.LineColor           = guideColor;
         if (_aGuideLabel != null)    _aGuideLabel.LabelFontColor = guideColor;
         if (_aGuideToc != null)      _aGuideToc.LineColor        = guideColor;
