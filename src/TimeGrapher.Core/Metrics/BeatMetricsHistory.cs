@@ -94,6 +94,12 @@ public sealed class BeatMetricsHistory
         _rateStats.Reset();
         _amplitudeStats.Reset();
         _statsStartTimeS = _latestTimeS;
+        // Rate/beat-error validity self-heal on the next beat (they are refreshed
+        // from every sample in Record), but amplitude validity is only ever set
+        // true (it tracks pair averages), so without this clear a freshly-turned
+        // position would inherit the previous position's amplitude as a current
+        // valid reading - including into the graded measurement CSV.
+        _amplitudeValid = false;
         // Record the turn on the change timeline only once the run has data: the
         // start entry is seeded at the first plotted point, not the first beat (so
         // it lines up with where the graph begins drawing), and a turn before that
@@ -212,14 +218,18 @@ public sealed class BeatMetricsHistory
     /// unless a state change precedes it, which publishes a position-only
     /// snapshot with empty series.
     /// </summary>
-    public BeatMetricsHistorySnapshot? CurrentSnapshot()
+    public BeatMetricsHistorySnapshot? CurrentSnapshot(bool force = false)
     {
         if (!_dirty && _snapshot != null)
         {
             return _snapshot;
         }
 
+        // force bypasses the 0.5s stream-time throttle so the end-of-run flush
+        // frame publishes the final beats/validity/derived/position stats instead
+        // of a snapshot up to half a second stale (with no later frame to follow).
         if (_snapshot != null &&
+            !force &&
             !_publishImmediately &&
             _latestTimeS - _lastSnapshotTimeS < SnapshotMinIntervalS)
         {

@@ -56,8 +56,8 @@ public sealed class BeatMetricsFrameProjector
         }
     }
 
-    public void AppendSnapshot(AnalysisFrame frame)
+    public void AppendSnapshot(AnalysisFrame frame, bool force = false)
     {
-        frame.MetricsHistory = _history.CurrentSnapshot();
+        frame.MetricsHistory = _history.CurrentSnapshot(force);
     }
 }

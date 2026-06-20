@@ -112,6 +112,25 @@ public sealed class BeatMetricsHistoryTests
     }
 
     [Fact]
+    public void ForcedSnapshotBypassesThrottleForFinalFrame()
+    {
+        var history = new BeatMetricsHistory();
+        history.Record(BeatUpdate(1, 0.125, 5.0));
+        BeatMetricsHistorySnapshot? first = history.CurrentSnapshot();
+
+        // New data inside the 0.5 s window is throttled (shared instance)...
+        history.Record(BeatUpdate(2, 0.250, 6.0));
+        Assert.Same(first, history.CurrentSnapshot());
+
+        // ...but the end-of-run flush forces a rebuild so the last beats are not
+        // dropped from the final frame / measurement CSV.
+        BeatMetricsHistorySnapshot? forced = history.CurrentSnapshot(force: true);
+        Assert.NotSame(first, forced);
+        Assert.Equal(2, forced!.Rate.Y.Count);
+        Assert.True(forced.Version > first!.Version);
+    }
+
+    [Fact]
     public void SnapshotIsNullBeforeFirstBeatAndAfterReset()
     {
         var history = new BeatMetricsHistory();
@@ -176,6 +195,29 @@ public sealed class BeatMetricsHistoryTests
         // The live series (Trace/Long-Term) and per-position aggregates are untouched.
         Assert.Equal(3, after.Rate.Y.Count);
         Assert.Equal(2, after.Positions.Count);
+    }
+
+    [Fact]
+    public void AmplitudeValidityClearsOnPositionChange()
+    {
+        var history = new BeatMetricsHistory();
+        history.Record(BeatUpdate(1, 0.125, rateSPerDay: 5.0));
+        history.Record(AmplitudeUpdate(0.130, pairDeg: 280.0));
+        Assert.True(history.CurrentSnapshot()!.AmplitudeValid);
+
+        // Turning to a new position must not carry the prior position's amplitude
+        // forward as a current valid reading (unlike rate/beat-error, amplitude
+        // validity never self-heals on the next beat, so it would otherwise stay
+        // true and contaminate the graded measurement CSV with the old position).
+        history.SetActivePosition(WatchPosition.P6H);
+        BeatMetricsHistorySnapshot? afterTurn = history.CurrentSnapshot();
+        Assert.False(afterTurn!.AmplitudeValid);
+
+        // A fresh pair at the new position restores validity with the new value.
+        history.Record(AmplitudeUpdate(5.200, pairDeg: 300.0));
+        BeatMetricsHistorySnapshot? afterPair = history.CurrentSnapshot();
+        Assert.True(afterPair!.AmplitudeValid);
+        Assert.Equal(300.0, afterPair.AmplitudeDeg);
     }
 
     [Fact]
