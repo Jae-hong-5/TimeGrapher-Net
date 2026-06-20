@@ -96,10 +96,26 @@ internal sealed class MultiFilterScopeRenderer
     // label the bottom axis in seconds with one tick per second.
     private int _sampleRate;
 
-    // Visible window length. The producer retains a longer buffer
-    // (MultiFilterFrameProjector.WindowSeconds), so the shown window's left edge
-    // always sits on retained data and the rolling trim churn stays off-screen.
-    private const double DisplayWindowSeconds = 1.0;
+    // Visible window length before the detector locks (rolling fallback). The
+    // producer retains a longer buffer (MultiFilterFrameProjector.WindowSeconds),
+    // so the shown window's left edge always sits on retained data and the rolling
+    // trim churn stays off-screen.
+    private const double DisplayWindowSeconds = 0.8;
+
+    // Beat-locked window as a fraction of one beat period: less than a full period
+    // so the beat impulse spreads across the width instead of being a thin spike.
+    // Smaller = more zoom.
+    private const double BeatWindowFraction = 0.2;
+
+    // Where the beat onset sits in that window, as a fraction from the left edge:
+    // a small pre-roll, so the impulse is left-aligned and its decay fills out to
+    // the right (the PC-RM4 scope look), not centered.
+    private const double BeatPrerollFraction = 0.1;
+
+    // Per-lane running peak of the data (only grows within a run): the Y axis
+    // scales to this so it never shrinks when a quieter beat passes, keeping the
+    // amplitude scale steady. Reset each run.
+    private readonly double[] _lanePeakMax;
 
     public MultiFilterScopeRenderer(IReadOnlyList<AvaPlot> plots)
     {
@@ -117,6 +133,7 @@ internal sealed class MultiFilterScopeRenderer
         _lastSeries = new GraphSeriesFrame?[_plots.Length];
         _yMirror = new List<double>[_plots.Length];
         _mirrorScatters = new Scatter?[_plots.Length];
+        _lanePeakMax = new double[_plots.Length];
 
         for (int i = 0; i < _plots.Length; i++)
         {
@@ -197,6 +214,7 @@ internal sealed class MultiFilterScopeRenderer
         _hasDataExtent = false;
         _yZoom = DefaultYZoom;
         _yOffset = 0.0;
+        Array.Clear(_lanePeakMax);
         for (int i = 0; i < _plots.Length; i++)
         {
             Plot plot = _plots[i].Plot;
@@ -412,6 +430,60 @@ internal sealed class MultiFilterScopeRenderer
         _plots[lane].Plot.Axes.Bottom.TickGenerator = ticks;
     }
 
+    /// <summary>
+    /// Computes the beat-locked window: one beat period wide, centered on the most
+    /// recent A (beat) onset that fits (with half a period of retained data on each
+    /// side), so a single beat shows centered and holds there (the spectrogram
+    /// Last Beat behavior). The period is the average A-to-A onset spacing over the
+    /// recent beats. X is in absolute sample ticks, so onset tick = onset seconds *
+    /// sampleRate. Returns false if no locked beat fits (e.g. before sync), so the
+    /// caller falls back to a rolling window.
+    /// </summary>
+    private bool TryBeatWindow(AnalysisFrame frame, double oldest, double newest, out double min, out double max)
+    {
+        min = 0.0;
+        max = 0.0;
+        IReadOnlyList<BeatSegment>? segments = frame.BeatSegments?.Segments;
+        if (segments == null || segments.Count < 2 || _sampleRate <= 0)
+        {
+            return false;
+        }
+
+        double OnsetTick(int i) =>
+            (segments[i].StartTimeS + segments[i].AOffsetMs / 1000.0) * _sampleRate;
+
+        double period = (OnsetTick(segments.Count - 1) - OnsetTick(0)) / (segments.Count - 1);
+        if (period <= 0.0)
+        {
+            return false;
+        }
+
+        // Show a fraction of the period so the beat impulse spreads horizontally,
+        // with the onset left-aligned (a small pre-roll) so its decay fills out to
+        // the right.
+        double width = period * BeatWindowFraction;
+        double preroll = width * BeatPrerollFraction;
+        double minOnset = oldest + preroll;          // left edge stays within the data
+        double maxOnset = newest - (width - preroll); // right edge stays within the data
+        if (maxOnset < minOnset)
+        {
+            return false;
+        }
+
+        for (int i = segments.Count - 1; i >= 0; i--)
+        {
+            double onset = OnsetTick(i);
+            if (onset >= minOnset && onset <= maxOnset)
+            {
+                min = onset - preroll;
+                max = onset - preroll + width;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     /// <summary>Largest absolute sample in a lane's current display buffer (its data peak).</summary>
     private double LanePeak(int lane)
     {
@@ -440,7 +512,10 @@ internal sealed class MultiFilterScopeRenderer
     /// </summary>
     private void ApplyY(int lane)
     {
-        double peak = LanePeak(lane);
+        // Scale to the lane's running peak (only grows within a run), so the Y
+        // axis never shrinks when a quieter beat passes — a steady amplitude scale.
+        double peak = Math.Max(LanePeak(lane), _lanePeakMax[lane]);
+        _lanePeakMax[lane] = peak;
         if (peak <= 0.0)
         {
             return;
@@ -550,13 +625,31 @@ internal sealed class MultiFilterScopeRenderer
 
         if (_x[0].Count > 0)
         {
-            // The view extent is the most recent DisplayWindowSeconds, not the
-            // whole retained buffer: the older retained columns stay off the left
-            // as lead-in so the visible left edge always has signal. Clamp to the
-            // oldest available so an early (not-yet-full) run still fills in.
-            _dataMaxX = _x[0][^1];
-            double displaySamples = DisplayWindowSeconds * _sampleRate;
-            _dataMinX = Math.Max(_x[0][0], _dataMaxX - displaySamples);
+            // While following live, beat-track the view: center it on the most
+            // recent beat onset that fits the window, so a beat impulse sits in
+            // the middle and holds there, re-triggering each beat instead of
+            // scrolling by time. The retained buffer is longer than the window,
+            // so the centered window always has data on both sides (no churn at
+            // the edges). Before the detector locks, fall back to a rolling
+            // window ending at the latest sample. When the user has zoomed/panned
+            // (not following), the extent is frozen so their view stays put.
+            if (_followLive)
+            {
+                double newest = _x[0][^1];
+                double oldest = _x[0][0];
+                if (TryBeatWindow(frame, oldest, newest, out double beatMin, out double beatMax))
+                {
+                    _dataMinX = beatMin;
+                    _dataMaxX = beatMax;
+                }
+                else
+                {
+                    // Before the detector locks: a rolling DisplayWindowSeconds window.
+                    _dataMaxX = newest;
+                    _dataMinX = Math.Max(oldest, newest - DisplayWindowSeconds * _sampleRate);
+                }
+            }
+
             _hasDataExtent = true;
         }
         else
@@ -570,11 +663,11 @@ internal sealed class MultiFilterScopeRenderer
 
             if (updated[i] && _x[i].Count > 0 && _followLive)
             {
-                // Auto-follow shows the recent display window (the retained buffer
-                // extends further left as off-screen lead-in), advancing as it
-                // rolls, with Y fit at the shared zoom. When not following (the
-                // user zoomed/panned), X is kept inside the data by the axis rule
-                // and Y is left to the user's pan.
+                // Auto-follow shows the beat-tracked window (centered on the latest
+                // beat onset), with Y fit at the shared zoom. All lanes use the same
+                // X extent so their time axes stay identical. When not following
+                // (the user zoomed/panned), X is kept inside the data by the axis
+                // rule and Y is left to the user's pan.
                 _plots[i].Plot.Axes.SetLimitsX(_dataMinX, _dataMaxX);
                 ApplyY(i);
             }

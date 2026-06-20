@@ -19,15 +19,17 @@ namespace TimeGrapher.Core.Analysis;
 /// </summary>
 public sealed class MultiFilterFrameProjector
 {
-    // Retained buffer. The renderer shows only the most recent ~1 s of this, so
-    // the extra retained lead-in stays just off the left edge — the rolling trim
-    // churn never reaches the visible window and the left always shows signal.
-    public const int WindowSeconds = 2;
-    public const int FilterPointBudget = 2000;
+    // Retained buffer and decimation budget. The renderer beat-locks to a small
+    // window (a fraction of one beat period), so a high point budget over this
+    // short buffer keeps that window densely sampled — the impulse reads as a
+    // continuous trace, not sparse points joined by lines. A 48 k budget over a
+    // 1 s window is full resolution (stride 1) at 48 kHz.
+    public const int WindowSeconds = 1;
+    public const int FilterPointBudget = 48000;
 
     /// <summary>
     /// Stream-time floor between series rebuilds. The five rebuilt lists
-    /// (~80 KB) used to be allocated per analysis pass — at the Pi's 192 kHz
+    /// (~1.9 MB) used to be allocated per analysis pass — at the Pi's 192 kHz
     /// pass cadence (~94/s) that was megabytes per second of analysis-thread
     /// churn, most of it discarded by the latest-wins UI coalescer. Frames in
     /// between re-attach the same immutable series instances (the rate-series
