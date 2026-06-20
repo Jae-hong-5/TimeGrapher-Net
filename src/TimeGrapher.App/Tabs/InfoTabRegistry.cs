@@ -1418,7 +1418,7 @@ internal sealed partial class InfoTabRegistry
         AddPositionResultTableHeader(metrics);
         Border spreadGroup = CreatePositionResultRow(
             "D SPREAD",
-            "Worst - best across positions.",
+            "Best-to-worst position gap",
             spreadStatusText,
             out spreadRequirementText,
             out spreadReadyText,
@@ -1426,14 +1426,14 @@ internal sealed partial class InfoTabRegistry
             ("Amplitude", spreadAmplitudeText));
         Border balanceGroup = CreatePositionResultRow(
             "BALANCE-WHEEL",
-            "Spread across full vertical positions.",
+            "Spread among vertical positions",
             balanceStatusText,
             out balanceRequirementText,
             out balanceReadyText,
             ("VERT SPREAD", balanceWheelSpreadText));
         Border vhGroup = CreatePositionResultRow(
             "V/H BALANCE",
-            "Vertical mean - horizontal mean.",
+            "Vertical vs. horizontal bias",
             verticalHorizontalStatusText,
             out verticalHorizontalRequirementText,
             out verticalHorizontalReadyText,
@@ -1442,7 +1442,7 @@ internal sealed partial class InfoTabRegistry
             ("DVH", verticalHorizontalDeltaText));
         Border averageGroup = CreatePositionResultRow(
             "X AVERAGE",
-            "Mean of measured positions.",
+            "Average of measured positions",
             averageStatusText,
             out averageRequirementText,
             out averageReadyText,

@@ -128,11 +128,11 @@ public sealed class InfoTabRegistryTests
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "None");
         Assert.Contains(Descendants(content).OfType<Button>(), button => Equals(button.Content, "View criteria ▾"));
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
-            text.Text == "Worst - best across positions.");
+            text.Text == "Best-to-worst position gap");
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
-            text.Text == "Vertical mean - horizontal mean.");
+            text.Text == "Vertical vs. horizontal bias");
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
-            text.Text == "Mean of measured positions.");
+            text.Text == "Average of measured positions");
         Assert.DoesNotContain(Descendants(content).OfType<TextBlock>(), text =>
             text.Text == "Verdict starts at 3 positions with 30+ beats. Later qualified positions update the result.");
         Assert.All(
@@ -234,10 +234,10 @@ public sealed class InfoTabRegistryTests
 
     private static string? MetricDescriptionFor(string? title) => title switch
     {
-        "D SPREAD" => "Worst - best across positions.",
-        "BALANCE-WHEEL" => "Spread across full vertical positions.",
-        "V/H BALANCE" => "Vertical mean - horizontal mean.",
-        "X AVERAGE" => "Mean of measured positions.",
+        "D SPREAD" => "Best-to-worst position gap",
+        "BALANCE-WHEEL" => "Spread among vertical positions",
+        "V/H BALANCE" => "Vertical vs. horizontal bias",
+        "X AVERAGE" => "Average of measured positions",
         _ => null,
     };
 
