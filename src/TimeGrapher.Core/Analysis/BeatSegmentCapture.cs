@@ -245,6 +245,11 @@ public sealed class BeatSegmentCapture
             else if (eventUpdate.Event.Type == TgEventType.C)
             {
                 AddMarker(eventUpdate.Event.SampleIndex + eventUpdate.Event.SubSampleOffset, BeatNoiseMarkerKind.CPeak);
+                if (eventUpdate.Event.OnsetValid)
+                {
+                    AddMarker(eventUpdate.Event.OnsetSampleIndex + eventUpdate.Event.OnsetSubSampleOffset, BeatNoiseMarkerKind.COnset);
+                }
+
                 AttachCEvent(eventUpdate.Event);
             }
         }

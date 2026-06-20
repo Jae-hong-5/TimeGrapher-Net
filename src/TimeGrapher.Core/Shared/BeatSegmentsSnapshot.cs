@@ -17,6 +17,7 @@ public enum BeatNoiseMarkerKind
 {
     A,
     CPeak,
+    COnset,
 }
 
 public sealed class BeatNoiseMarker
