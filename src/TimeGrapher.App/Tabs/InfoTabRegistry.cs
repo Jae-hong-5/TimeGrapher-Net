@@ -1174,10 +1174,18 @@ internal sealed partial class InfoTabRegistry
             out Border consistencyBadge,
             out TextBlock consistencyVerdictText,
             out TextBlock consistencyDetailText,
+            out TextBlock spreadStatusText,
+            out TextBlock balanceStatusText,
+            out TextBlock verticalHorizontalStatusText,
+            out TextBlock averageStatusText,
             out TextBlock spreadRequirementText,
             out TextBlock balanceRequirementText,
             out TextBlock verticalHorizontalRequirementText,
             out TextBlock averageRequirementText,
+            out TextBlock spreadReadyText,
+            out TextBlock balanceReadyText,
+            out TextBlock verticalHorizontalReadyText,
+            out TextBlock averageReadyText,
             out TextBlock averageRateText,
             out TextBlock averageAmplitudeText,
             out TextBlock spreadRateText,
@@ -1192,10 +1200,18 @@ internal sealed partial class InfoTabRegistry
             consistencyBadge,
             consistencyVerdictText,
             consistencyDetailText,
+            spreadStatusText,
+            balanceStatusText,
+            verticalHorizontalStatusText,
+            averageStatusText,
             spreadRequirementText,
             balanceRequirementText,
             verticalHorizontalRequirementText,
             averageRequirementText,
+            spreadReadyText,
+            balanceReadyText,
+            verticalHorizontalReadyText,
+            averageReadyText,
             averageRateText,
             averageAmplitudeText,
             spreadRateText,
@@ -1302,10 +1318,18 @@ internal sealed partial class InfoTabRegistry
         out Border consistencyBadge,
         out TextBlock consistencyVerdictText,
         out TextBlock consistencyDetailText,
+        out TextBlock spreadStatusText,
+        out TextBlock balanceStatusText,
+        out TextBlock verticalHorizontalStatusText,
+        out TextBlock averageStatusText,
         out TextBlock spreadRequirementText,
         out TextBlock balanceRequirementText,
         out TextBlock verticalHorizontalRequirementText,
         out TextBlock averageRequirementText,
+        out TextBlock spreadReadyText,
+        out TextBlock balanceReadyText,
+        out TextBlock verticalHorizontalReadyText,
+        out TextBlock averageReadyText,
         out TextBlock averageRateText,
         out TextBlock averageAmplitudeText,
         out TextBlock spreadRateText,
@@ -1383,44 +1407,55 @@ internal sealed partial class InfoTabRegistry
         header.Children.Add(criteriaButton);
         header.Children.Add(consistencyBadge);
 
-        var metrics = new Grid
-        {
-            ColumnDefinitions = new ColumnDefinitions("*,*,*,*"),
-            Margin = new Thickness(0, 0, 0, 4),
-        };
-        Border spreadGroup = CreatePositionResultGroup(
+        spreadStatusText = CreatePositionStatusText();
+        balanceStatusText = CreatePositionStatusText();
+        verticalHorizontalStatusText = CreatePositionStatusText();
+        averageStatusText = CreatePositionStatusText("REFERENCE");
+
+        var metrics = CreatePositionResultTable();
+        AddPositionResultTableHeader(metrics);
+        Border spreadGroup = CreatePositionResultRow(
             "D SPREAD",
             "Worst - best across positions.",
+            spreadStatusText,
             out spreadRequirementText,
+            out spreadReadyText,
             ("Error Rate", spreadRateText),
             ("Amplitude", spreadAmplitudeText));
-        Border balanceGroup = CreatePositionResultGroup(
+        Border balanceGroup = CreatePositionResultRow(
             "BALANCE-WHEEL",
             "Spread across full vertical positions.",
+            balanceStatusText,
             out balanceRequirementText,
+            out balanceReadyText,
             ("VERT SPREAD", balanceWheelSpreadText));
-        Border vhGroup = CreatePositionResultGroup(
+        Border vhGroup = CreatePositionResultRow(
             "V/H BALANCE",
             "Vertical mean - horizontal mean.",
+            verticalHorizontalStatusText,
             out verticalHorizontalRequirementText,
+            out verticalHorizontalReadyText,
             ("VERT", verticalRateText),
             ("HORIZ", horizontalRateText),
             ("DVH", verticalHorizontalDeltaText));
-        Border averageGroup = CreatePositionResultGroup(
+        Border averageGroup = CreatePositionResultRow(
             "X AVERAGE",
             "Mean of measured positions.",
+            averageStatusText,
             out averageRequirementText,
+            out averageReadyText,
             ("Error Rate", averageRateText),
             ("Amplitude", averageAmplitudeText));
-        averageRequirementText.Text = "Need Position: any measured position\nReady Position: None";
+        averageRequirementText.Text = "any measured position";
+        averageReadyText.Text = "None";
         spreadGroup.Classes.Add("primary");
         balanceGroup.Classes.Add("primary");
         vhGroup.Classes.Add("primary");
 
-        Grid.SetColumn(spreadGroup, 0);
-        Grid.SetColumn(balanceGroup, 1);
-        Grid.SetColumn(vhGroup, 2);
-        Grid.SetColumn(averageGroup, 3);
+        AddPositionResultRow(metrics, spreadGroup, rowIndex: 1);
+        AddPositionResultRow(metrics, balanceGroup, rowIndex: 2);
+        AddPositionResultRow(metrics, vhGroup, rowIndex: 3);
+        AddPositionResultRow(metrics, averageGroup, rowIndex: 4);
         metrics.Children.Add(spreadGroup);
         metrics.Children.Add(balanceGroup);
         metrics.Children.Add(vhGroup);
@@ -1454,49 +1489,123 @@ internal sealed partial class InfoTabRegistry
         };
     }
 
-    private static Border CreatePositionResultGroup(
+    private static Grid CreatePositionResultTable()
+    {
+        var table = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions("1.6*,0.8*,1.8*,2.2*,1.7*"),
+            RowDefinitions = new RowDefinitions("Auto,Auto,Auto,Auto,Auto"),
+            Margin = new Thickness(0, 0, 0, 4),
+        };
+        return table;
+    }
+
+    private static void AddPositionResultTableHeader(Grid table)
+    {
+        string[] headers = { "METRIC", "STATUS", "NEED POSITION", "READY POSITION", "READING" };
+        for (int column = 0; column < headers.Length; column++)
+        {
+            var text = new TextBlock
+            {
+                Text = headers[column],
+                FontSize = PositionMinimumFontSize,
+                FontWeight = FontWeight.Bold,
+                Opacity = 0.65,
+                Margin = new Thickness(10, 0, 10, 5),
+            };
+            Grid.SetRow(text, 0);
+            Grid.SetColumn(text, column);
+            table.Children.Add(text);
+        }
+    }
+
+    private static void AddPositionResultRow(Grid table, Border row, int rowIndex)
+    {
+        Grid.SetRow(row, rowIndex);
+        Grid.SetColumnSpan(row, 5);
+    }
+
+    private static TextBlock CreatePositionStatusText(string initialText = "COLLECTING") => new()
+    {
+        Text = initialText,
+        FontSize = PositionMinimumFontSize,
+        FontWeight = FontWeight.Bold,
+        Opacity = 0.9,
+        TextWrapping = TextWrapping.Wrap,
+        VerticalAlignment = VerticalAlignment.Center,
+    };
+
+    private static Border CreatePositionResultRow(
         string title,
         string description,
+        TextBlock statusText,
         out TextBlock requirementText,
+        out TextBlock readyText,
         params (string Label, TextBlock Value)[] metrics)
     {
-        var stack = new StackPanel { Spacing = 2 };
-        stack.Children.Add(new TextBlock
+        var row = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions("1.6*,0.8*,1.8*,2.2*,1.7*"),
+        };
+
+        var metricStack = new StackPanel { Spacing = 1, Margin = new Thickness(10, 6, 10, 6) };
+        metricStack.Children.Add(new TextBlock
         {
             Text = title,
             FontSize = 15,
             Opacity = 0.9,
-            HorizontalAlignment = HorizontalAlignment.Center,
-            TextAlignment = TextAlignment.Center,
+            FontWeight = FontWeight.Bold,
+            TextWrapping = TextWrapping.Wrap,
         });
-        stack.Children.Add(new TextBlock
+        metricStack.Children.Add(new TextBlock
         {
             Text = description,
             FontSize = PositionMinimumFontSize,
             Opacity = 0.76,
-            TextAlignment = TextAlignment.Center,
             TextWrapping = TextWrapping.Wrap,
         });
         requirementText = new TextBlock
         {
             FontSize = PositionMinimumFontSize,
+            Opacity = 0.9,
+            TextWrapping = TextWrapping.Wrap,
+            Margin = new Thickness(10, 6, 10, 6),
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        readyText = new TextBlock
+        {
+            FontSize = PositionMinimumFontSize,
             FontWeight = FontWeight.Bold,
             Opacity = 0.9,
             TextWrapping = TextWrapping.Wrap,
-            Margin = new Thickness(0, 2, 0, 4),
+            Margin = new Thickness(10, 6, 10, 6),
+            VerticalAlignment = VerticalAlignment.Center,
         };
-        stack.Children.Add(requirementText);
+        statusText.Margin = new Thickness(10, 6, 10, 6);
+
+        var readingStack = new StackPanel { Spacing = 1, Margin = new Thickness(10, 6, 10, 6) };
         foreach ((string label, TextBlock value) in metrics)
         {
-            stack.Children.Add(CreatePositionMetricRow(label, value));
+            readingStack.Children.Add(CreatePositionMetricRow(label, value));
         }
+
+        Grid.SetColumn(metricStack, 0);
+        Grid.SetColumn(statusText, 1);
+        Grid.SetColumn(requirementText, 2);
+        Grid.SetColumn(readyText, 3);
+        Grid.SetColumn(readingStack, 4);
+        row.Children.Add(metricStack);
+        row.Children.Add(statusText);
+        row.Children.Add(requirementText);
+        row.Children.Add(readyText);
+        row.Children.Add(readingStack);
 
         return new Border
         {
             Classes = { "PositionResultGroup" },
-            Padding = new Thickness(12, 5),
-            Margin = new Thickness(0, 0, 12, 0),
-            Child = stack,
+            Padding = new Thickness(0),
+            Margin = new Thickness(0, 0, 0, 4),
+            Child = row,
         };
     }
 
@@ -1504,7 +1613,7 @@ internal sealed partial class InfoTabRegistry
     {
         var row = new Grid
         {
-            ColumnDefinitions = new ColumnDefinitions("112,*"),
+            ColumnDefinitions = new ColumnDefinitions("90,*"),
         };
         var labelText = new TextBlock
         {

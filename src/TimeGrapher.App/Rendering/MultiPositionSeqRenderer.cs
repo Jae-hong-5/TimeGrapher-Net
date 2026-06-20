@@ -239,18 +239,39 @@ internal sealed class MultiPositionSeqRenderer
             .ToArray();
         int verticalPositions = fullVerticalRows.Length;
         int horizontalPositions = horizontalRows.Length;
+        double? qualifiedRateSpread = Spread(qualifiedRows.Select(row => row.RateSPerDay!.Value));
+        double? qualifiedVerticalSpread = Spread(fullVerticalRows.Select(row => row.RateSPerDay!.Value));
+
+        _dashboard.SpreadStatusText.Text = qualifiedRows.Length < MinQualifiedPositionsForVerdict
+            ? "COLLECTING"
+            : qualifiedRateSpread > SequenceSummary.UnbalanceVerticalRateSpreadSPerDay
+                ? "CHECK"
+                : "OK";
+        _dashboard.BalanceStatusText.Text = verticalPositions < MinVerticalPositionsForBalanceWheelVerdict
+            ? "COLLECTING"
+            : qualifiedVerticalSpread > SequenceSummary.UnbalanceVerticalRateSpreadSPerDay
+                ? "CHECK"
+                : "OK";
+        _dashboard.VerticalHorizontalStatusText.Text = verticalPositions < 1 || horizontalPositions < 1
+            ? "COLLECTING"
+            : "READY";
+        _dashboard.AverageStatusText.Text = "REFERENCE";
+
         _dashboard.SpreadRequirementText.Text =
-            $"Need Position: {MinQualifiedPositionsForVerdict} positions, {MinPositionBeatsForVerdict}+ beats each\n" +
-            $"Ready Position: {FormatReadyPositions(qualifiedRows)} ({qualifiedRows.Length}/{MinQualifiedPositionsForVerdict})";
+            $"{MinQualifiedPositionsForVerdict} positions, {MinPositionBeatsForVerdict}+ beats each";
+        _dashboard.SpreadReadyText.Text =
+            $"{FormatReadyPositions(qualifiedRows)} ({qualifiedRows.Length}/{MinQualifiedPositionsForVerdict})";
         _dashboard.BalanceRequirementText.Text =
-            $"Need Position: {MinVerticalPositionsForBalanceWheelVerdict} full vertical positions, {MinPositionBeatsForVerdict}+ beats each\n" +
-            $"Ready Position: {FormatReadyPositions(fullVerticalRows)} ({verticalPositions}/{MinVerticalPositionsForBalanceWheelVerdict})";
+            $"{MinVerticalPositionsForBalanceWheelVerdict} full vertical positions, {MinPositionBeatsForVerdict}+ beats each";
+        _dashboard.BalanceReadyText.Text =
+            $"{FormatReadyPositions(fullVerticalRows)} ({verticalPositions}/{MinVerticalPositionsForBalanceWheelVerdict})";
         _dashboard.VerticalHorizontalRequirementText.Text =
-            $"Need Position: 1 full vertical + 1 horizontal\n" +
-            $"Ready Position: {FormatVerticalHorizontalReady(fullVerticalRows, horizontalRows)}";
+            "1 full vertical + 1 horizontal";
+        _dashboard.VerticalHorizontalReadyText.Text =
+            FormatVerticalHorizontalReady(fullVerticalRows, horizontalRows);
         _dashboard.AverageRequirementText.Text =
-            "Need Position: any measured position\n" +
-            $"Ready Position: {FormatReadyPositions(measuredRows)}";
+            "any measured position";
+        _dashboard.AverageReadyText.Text = FormatReadyPositions(measuredRows);
     }
 
     private static string FormatReadyPositions(IReadOnlyList<SequencePositionRow> rows) =>
