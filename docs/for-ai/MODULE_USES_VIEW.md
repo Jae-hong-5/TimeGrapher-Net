@@ -21,6 +21,7 @@ flowchart TB
         direction TB
         AppTests["TimeGrapher.App.Tests"]
         CoreTests["TimeGrapher.Core.Tests"]
+        VerifyTests["TimeGrapher.Verify.Tests"]
         WindowsAudioTests["TimeGrapher.Platform.WindowsAudio.Tests"]
         LinuxAudioTests["TimeGrapher.Platform.LinuxAudio.Tests"]
     end
@@ -44,6 +45,8 @@ flowchart TB
     AppTests --> App
     AppTests -. "전이 · Core 타입 직접 사용(Shared·Analysis·Detection·Detection.Scoring·Metrics·AudioIo·Sim)" .-> Core
     CoreTests --> Core
+    VerifyTests --> Verify
+    VerifyTests -. "전이 · Core 게이트/DTO 사용" .-> Core
     WindowsAudioTests --> WindowsAudio
     WindowsAudioTests -. "전이 · Core DTO 사용" .-> Core
     LinuxAudioTests --> LinuxAudio
@@ -57,6 +60,7 @@ flowchart TB
     AppTests --> ScottPlot
     AppTests --> Xunit
     CoreTests --> Xunit
+    VerifyTests --> Xunit
     WindowsAudioTests --> Xunit
     LinuxAudioTests --> Xunit
 ```
@@ -81,7 +85,7 @@ flowchart TB
 
 ### 테스트 프로젝트의 Core 의존
 
-`*.Tests`는 각자 검증 대상 프로젝트 **하나만** `ProjectReference`로 직접 참조한다(`App.Tests→App`, `WindowsAudio.Tests→WindowsAudio`, `LinuxAudio.Tests→LinuxAudio`). `Core`는 전이 참조이지만, 어서션·테스트 지원에서 `Core` 타입을 직접 `using`하므로 점선으로 표시했다 — `App.Tests`는 `Shared`(DTO)에 더해 `Analysis`·`Detection`·`Detection.Scoring`·`Metrics`(예: `AnalysisRunSettingsTests`, `GraphFrameRendererTests`, `RunSelectionResolverTests`)와 `Core.AudioIo`·`Core.Sim`(`AnalysisBenchmarkRunnerTests`의 `WavStreamWriter`·`WatchSynthStream`)까지 직접 `using`한다(그래도 `ProjectReference`는 App 하나뿐이라 여전히 전이 참조다). `Core.Tests`만 `Core`를 직접 참조한다. `App.Tests`는 컨트롤(`AvaPlot`, `SplashWindow`)을 구성하므로 `Avalonia`·`ScottPlot`도 직접 사용한다.
+`*.Tests`는 각자 검증 대상 프로젝트 **하나만** `ProjectReference`로 직접 참조한다(`App.Tests→App`, `Core.Tests→Core`, `Verify.Tests→Verify`, `WindowsAudio.Tests→WindowsAudio`, `LinuxAudio.Tests→LinuxAudio`). `Verify.Tests`는 `Verify`가 `InternalsVisibleTo`로 노출한 악조건 게이트 평가기(`AdverseScenarios.Evaluate`)와 `--gate` 스펙 해석(`TryResolveArm`)을 직접 단언하고, `Core`의 `DetectorResultSnapshot`/`TgEvent`/`DetectionScorer.Score`를 전이로 구성한다. `Core`는 전이 참조이지만, 어서션·테스트 지원에서 `Core` 타입을 직접 `using`하므로 점선으로 표시했다 — `App.Tests`는 `Shared`(DTO)에 더해 `Analysis`·`Detection`·`Detection.Scoring`·`Metrics`(예: `AnalysisRunSettingsTests`, `GraphFrameRendererTests`, `RunSelectionResolverTests`)와 `Core.AudioIo`·`Core.Sim`(`AnalysisBenchmarkRunnerTests`의 `WavStreamWriter`·`WatchSynthStream`)까지 직접 `using`한다(그래도 `ProjectReference`는 App 하나뿐이라 여전히 전이 참조다). `Core.Tests`만 `Core`를 직접 참조한다. `App.Tests`는 컨트롤(`AvaPlot`, `SplashWindow`)을 구성하므로 `Avalonia`·`ScottPlot`도 직접 사용한다.
 
 ### 미래 계획 노드: TimeGrapher.Inference
 
