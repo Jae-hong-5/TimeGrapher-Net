@@ -1665,7 +1665,23 @@ internal sealed partial class InfoTabRegistry
             Margin = new Thickness(8, 2),
         };
 
-        var renderer = new BeatNoiseScopeRenderer(mainPlot, stripPlot, averagePlot, liftText, averageText);
+        var renderer = new BeatNoiseScopeRenderer(
+            mainPlot,
+            stripPlot,
+            averagePlot,
+            liftText,
+            averageText,
+            context.ViewModel?.UseCOnset == true);
+        if (context.ViewModel is { } beatNoiseViewModel)
+        {
+            beatNoiseViewModel.PropertyChanged += (_, args) =>
+            {
+                if (args.PropertyName == nameof(MainWindowViewModel.UseCOnset))
+                {
+                    renderer.SetUseCOnset(beatNoiseViewModel.UseCOnset);
+                }
+            };
+        }
 
         var toolbar = new StackPanel
         {

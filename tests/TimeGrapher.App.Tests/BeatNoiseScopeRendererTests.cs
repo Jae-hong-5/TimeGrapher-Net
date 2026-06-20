@@ -267,6 +267,104 @@ public sealed class BeatNoiseScopeRendererTests
     }
 
     [Fact]
+    public void UseCOnsetFalseShowsOnlyCPeakMarkerWhenBothCOffsetsExist()
+    {
+        var mainPlot = new AvaPlot();
+        var renderer = new BeatNoiseScopeRenderer(
+            mainPlot, new AvaPlot(), new AvaPlot(), new TextBlock(), new TextBlock(), useCOnset: false);
+        renderer.CreateGraphs();
+
+        var segment = new BeatSegment
+        {
+            Samples = Enumerable.Repeat(0.5f, 80).ToArray(),
+            MsPerPoint = 0.25,
+            PeakValue = 0.5f,
+            CPeakValid = true,
+            CPeakOffsetMs = 12.0,
+            COnsetValid = true,
+            COnsetOffsetMs = 9.0,
+        };
+        renderer.RenderFrame(new AnalysisFrame
+        {
+            BeatSegments = new BeatSegmentsSnapshot
+            {
+                Version = 1,
+                Segments = new[] { segment },
+                Markers = new[]
+                {
+                    new BeatNoiseMarker { TimeS = segment.CPeakOffsetMs / 1000.0, Kind = BeatNoiseMarkerKind.CPeak },
+                },
+            },
+        }, new AnalysisTabRenderContext(SampleRate: 48000));
+
+        double[] cMarkerXs = mainPlot.Plot.GetPlottables<VerticalLine>()
+            .Where(line => line.IsVisible && Equals(line.LinePattern, LinePattern.Dotted))
+            .Select(line => line.X)
+            .ToArray();
+
+        Assert.Equal(new[] { 12.0 }, cMarkerXs);
+    }
+
+    [Fact]
+    public void UseCOnsetTrueShowsOnlyCOnsetMarkerWhenBothCOffsetsExist()
+    {
+        var mainPlot = new AvaPlot();
+        var stripPlot = new AvaPlot();
+        var renderer = new BeatNoiseScopeRenderer(
+            mainPlot, stripPlot, new AvaPlot(), new TextBlock(), new TextBlock(), useCOnset: true);
+        renderer.CreateGraphs();
+
+        var segment = new BeatSegment
+        {
+            Samples = Enumerable.Repeat(0.5f, 80).ToArray(),
+            MsPerPoint = 0.25,
+            PeakValue = 0.5f,
+            CPeakValid = true,
+            CPeakOffsetMs = 12.0,
+            COnsetValid = true,
+            COnsetOffsetMs = 9.0,
+        };
+        renderer.RenderFrame(new AnalysisFrame
+        {
+            BeatSegments = new BeatSegmentsSnapshot
+            {
+                Version = 1,
+                Segments = new[] { segment },
+                Markers = new[]
+                {
+                    new BeatNoiseMarker { TimeS = segment.CPeakOffsetMs / 1000.0, Kind = BeatNoiseMarkerKind.CPeak },
+                },
+            },
+        }, new AnalysisTabRenderContext(SampleRate: 48000));
+
+        double[] mainCMarkerXs = mainPlot.Plot.GetPlottables<VerticalLine>()
+            .Where(line => line.IsVisible && Equals(line.LinePattern, LinePattern.Dotted))
+            .Select(line => line.X)
+            .ToArray();
+        Assert.Equal(new[] { 9.0 }, mainCMarkerXs);
+
+        VerticalLine stripCMarker = stripPlot.Plot.GetPlottables<VerticalLine>()
+            .Single(line => line.IsVisible && Equals(line.LinePattern, LinePattern.Dotted));
+        Assert.InRange(stripCMarker.X, 7.4, 7.5);
+    }
+
+    [Fact]
+    public void MainScopeLegendNamesAAndCMarkerStyles()
+    {
+        var mainPlot = new AvaPlot();
+        var renderer = new BeatNoiseScopeRenderer(
+            mainPlot, new AvaPlot(), new AvaPlot(), new TextBlock(), new TextBlock());
+
+        renderer.CreateGraphs();
+
+        Scatter[] legendEntries = mainPlot.Plot.GetPlottables<Scatter>()
+            .Where(scatter => !string.IsNullOrEmpty(scatter.LegendText))
+            .ToArray();
+        Assert.Contains(legendEntries, scatter => scatter.LegendText == "A marker" && Equals(scatter.LinePattern, LinePattern.Dashed));
+        Assert.Contains(legendEntries, scatter => scatter.LegendText == "C marker" && Equals(scatter.LinePattern, LinePattern.Dotted));
+    }
+
+    [Fact]
     public void AverageModeStripSelectionShowsSelectedEnvelopePairAndTogglesBackToAverage()
     {
         var averagePlot = new AvaPlot();
@@ -311,6 +409,38 @@ public sealed class BeatNoiseScopeRendererTests
         Assert.InRange(averagePlot.Plot.Axes.GetLimits().Top, 2.34, 2.36);
         Assert.Empty(LaneValues(renderer, "_lane1Y"));
         Assert.Empty(LaneValues(renderer, "_lane2Y"));
+    }
+
+    [Fact]
+    public void AverageModeStripSelectionStartsPairAtTicPhaseBoundary()
+    {
+        var averagePlot = new AvaPlot();
+        var renderer = new BeatNoiseScopeRenderer(
+            new AvaPlot(), new AvaPlot(), averagePlot, new TextBlock(), new TextBlock());
+        renderer.CreateGraphs();
+
+        var frame = new AnalysisFrame
+        {
+            BeatSegments = new BeatSegmentsSnapshot
+            {
+                Version = 1,
+                Segments = new[]
+                {
+                    new BeatSegment { Samples = new float[] { 0.25f }, MsPerPoint = 0.25, IsTic = false },
+                    new BeatSegment { Samples = new float[] { 1.0f }, MsPerPoint = 0.25, IsTic = true },
+                    new BeatSegment { Samples = new float[] { 0.5f }, MsPerPoint = 0.25, IsTic = false },
+                    new BeatSegment { Samples = new float[] { 0.75f }, MsPerPoint = 0.25, IsTic = true },
+                },
+            },
+        };
+
+        renderer.RenderFrame(frame, new AnalysisTabRenderContext(SampleRate: 48000));
+        renderer.SetViewMode(BeatNoiseScopeViewMode.AverageAndStrip);
+
+        renderer.SelectStripAtFraction(4.5 / BeatNoiseScopeLogic.StripCount);
+
+        Assert.Equal(new[] { 2.2 }, LaneValues(renderer, "_lane1Y"));
+        Assert.Equal(new[] { 0.5 }, LaneValues(renderer, "_lane2Y"));
     }
 
     private static double[] LaneValues(BeatNoiseScopeRenderer renderer, string fieldName)
