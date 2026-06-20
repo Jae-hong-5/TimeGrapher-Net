@@ -158,6 +158,115 @@ internal sealed partial class InfoTabRegistry
         return banner;
     }
 
+    private static Border CreateLongTermReviewBar()
+    {
+        Button ReviewButton(string name, string content, string commandPath, string tooltip, Thickness margin = default)
+        {
+            var button = new Button
+            {
+                Name = name,
+                Content = content,
+                FontSize = 11,
+                Padding = new Thickness(6, 1),
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = margin,
+            };
+            button.Bind(Button.CommandProperty, new Binding(commandPath));
+            ToolTip.SetTip(button, tooltip);
+            return button;
+        }
+
+        var stepControls = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            HorizontalAlignment = HorizontalAlignment.Left,
+        };
+        stepControls.Children.Add(ReviewButton(
+            "ReviewStepBackButton",
+            "-1 s",
+            nameof(MainWindowViewModel.ReviewStepBackCommand),
+            "Move the review cursor 1 second back",
+            new Thickness(0, 0, 4, 0)));
+        stepControls.Children.Add(ReviewButton(
+            "ReviewStepForwardButton",
+            "+1 s",
+            nameof(MainWindowViewModel.ReviewStepForwardCommand),
+            "Move the review cursor 1 second forward"));
+
+        var readoutText = new TextBlock
+        {
+            Name = "ReviewReadoutLabel",
+            VerticalAlignment = VerticalAlignment.Center,
+            MinWidth = 130,
+        };
+        readoutText.Bind(TextBlock.TextProperty, new Binding(nameof(MainWindowViewModel.ReviewReadoutText)));
+        ToolTip.SetTip(readoutText, "Review cursor position / latest captured time");
+
+        var metricsText = new TextBlock
+        {
+            Name = "ReviewMetricsLabel",
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(14, 0, 0, 0),
+            FontWeight = FontWeight.Bold,
+            TextTrimming = TextTrimming.CharacterEllipsis,
+        };
+        metricsText.Bind(TextBlock.TextProperty, new Binding(nameof(MainWindowViewModel.ReviewMetricsText)));
+        metricsText.Bind(TextBlock.ForegroundProperty, metricsText.GetResourceObservable("TextPrimaryBrush"));
+        ToolTip.SetTip(metricsText, "Rate, amplitude, and beat error at the review cursor");
+
+        var liveAndReadoutControls = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            HorizontalAlignment = HorizontalAlignment.Right,
+        };
+        liveAndReadoutControls.Children.Add(ReviewButton(
+            "ReviewLiveButton",
+            "LIVE",
+            nameof(MainWindowViewModel.ReviewLiveCommand),
+            "Clear the review cursor (back to the newest reading)",
+            new Thickness(0, 0, 6, 0)));
+        liveAndReadoutControls.Children.Add(readoutText);
+        liveAndReadoutControls.Children.Add(metricsText);
+
+        var slider = new Slider
+        {
+            Name = "ReviewSlider",
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        slider.Bind(Layoutable.MarginProperty, new Binding(nameof(MainWindowViewModel.ReviewSliderMargin)));
+        slider.Bind(RangeBase.MinimumProperty, new Binding(nameof(MainWindowViewModel.ReviewMinimumS)));
+        slider.Bind(RangeBase.MaximumProperty, new Binding(nameof(MainWindowViewModel.ReviewMaximumS)));
+        slider.Bind(
+            RangeBase.ValueProperty,
+            new Binding(nameof(MainWindowViewModel.ReviewSliderValueS)) { Mode = BindingMode.TwoWay });
+        ToolTip.SetTip(slider, "Scrub backward/forward through the captured readings");
+
+        var grid = new Grid
+        {
+            RowDefinitions = new RowDefinitions("Auto,Auto"),
+            Margin = new Thickness(8, 2, 10, 2),
+        };
+        Grid.SetRow(stepControls, 0);
+        Grid.SetRow(liveAndReadoutControls, 0);
+        Grid.SetRow(slider, 1);
+        grid.Children.Add(stepControls);
+        grid.Children.Add(liveAndReadoutControls);
+        grid.Children.Add(slider);
+
+        var reviewBar = new Border
+        {
+            Name = "ReviewBar",
+            BorderThickness = new Thickness(0, 1, 0, 0),
+            Child = grid,
+        };
+        reviewBar.Bind(Border.BackgroundProperty, reviewBar.GetResourceObservable("SurfaceBgBrush"));
+        reviewBar.Bind(Border.BorderBrushProperty, reviewBar.GetResourceObservable("ChromeBorderBrush"));
+        reviewBar.Bind(
+            InputElement.IsEnabledProperty,
+            new Binding(nameof(MainWindowViewModel.IsReviewBarEnabled)));
+        return reviewBar;
+    }
+
     private static InfoTabRegistration CreateRegistration(
         InfoTabDefinition definition,
         InfoTabFactoryContext context)
@@ -953,9 +1062,10 @@ internal sealed partial class InfoTabRegistry
 
         var grid = new Grid
         {
-            RowDefinitions = new RowDefinitions("Auto,*,*,*,Auto"),
+            RowDefinitions = new RowDefinitions("Auto,*,*,*,Auto,Auto"),
         };
-        Control[] rows = { headerGrid, ratePlot, amplitudePlot, beatErrorPlot, footerText };
+        Border reviewBar = CreateLongTermReviewBar();
+        Control[] rows = { headerGrid, ratePlot, amplitudePlot, beatErrorPlot, footerText, reviewBar };
         for (int i = 0; i < rows.Length; i++)
         {
             Grid.SetRow(rows[i], i);

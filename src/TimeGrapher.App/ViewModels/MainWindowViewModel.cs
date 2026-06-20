@@ -78,9 +78,9 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
             pauseOrResume();
         }, () => IsPlayPauseEnabled);
         _resetCommand = new RelayCommand(reset, () => IsResetEnabled);
-        _reviewStepBackCommand = new RelayCommand(() => StepReviewCursor(-ReviewStepS));
-        _reviewStepForwardCommand = new RelayCommand(() => StepReviewCursor(ReviewStepS));
-        _reviewLiveCommand = new RelayCommand(() => ReviewCursorTimeS = null);
+        _reviewStepBackCommand = new RelayCommand(() => StepReviewCursor(-ReviewStepS), () => IsReviewBarEnabled);
+        _reviewStepForwardCommand = new RelayCommand(() => StepReviewCursor(ReviewStepS), () => IsReviewBarEnabled);
+        _reviewLiveCommand = new RelayCommand(() => ReviewCursorTimeS = null, () => IsReviewBarEnabled);
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -321,7 +321,7 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
         get => _reviewCursorTimeS ?? _reviewMaximumS;
         set
         {
-            if (value != (_reviewCursorTimeS ?? _reviewMaximumS))
+            if (IsReviewBarEnabled && value != (_reviewCursorTimeS ?? _reviewMaximumS))
             {
                 ReviewCursorTimeS = value;
             }
@@ -336,10 +336,8 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
 
     public string ReviewMetricsText => _reviewMetricsText;
 
-    /// <summary>The review bar shows only while paused AND the Long-Term tab is active.</summary>
-    public bool IsReviewBarVisible => _runState == RunUiState.Paused && _isLongTermTabActive;
+    public bool IsReviewBarEnabled => _runState == RunUiState.Paused;
 
-    /// <summary>Called when the active graphics tab changes; shows/hides the review bar.</summary>
     public void SetLongTermTabActive(bool active)
     {
         if (_isLongTermTabActive == active) return;
@@ -350,7 +348,6 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
             // every other tab to live so a now-hidden cursor can't keep driving them.
             ReviewCursorTimeS = null;
         }
-        OnPropertyChanged(nameof(IsReviewBarVisible));
     }
 
     /// <summary>
@@ -521,7 +518,7 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
 
         _runState = value;
         OnPropertyChanged(nameof(RunState));
-        OnPropertyChanged(nameof(IsReviewBarVisible));
+        OnPropertyChanged(nameof(IsReviewBarEnabled));
         OnPropertyChanged(nameof(AreRunParametersEnabled));
         OnPropertyChanged(nameof(IsPlayPauseEnabled));
         OnPropertyChanged(nameof(IsResetEnabled));
@@ -532,6 +529,9 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(IsPlayPauseButtonShowingPlay));
         _playPauseCommand.NotifyCanExecuteChanged();
         _resetCommand.NotifyCanExecuteChanged();
+        _reviewStepBackCommand.NotifyCanExecuteChanged();
+        _reviewStepForwardCommand.NotifyCanExecuteChanged();
+        _reviewLiveCommand.NotifyCanExecuteChanged();
     }
 
     private bool SetProperty<T>(ref T storage, T value, [CallerMemberName] string? propertyName = null)

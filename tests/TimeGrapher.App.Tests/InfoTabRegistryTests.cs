@@ -506,7 +506,7 @@ public sealed class InfoTabRegistryTests
         Assert.DoesNotContain(Descendants(header).OfType<Button>(), button => button.Classes.Contains("active"));
         Assert.DoesNotContain(Descendants(header).OfType<TextBlock>(), text => text.Text?.Contains("Elapsed", StringComparison.Ordinal) == true);
         Assert.Empty(header.RowDefinitions);
-        Assert.Equal(5, content.RowDefinitions.Count);
+        Assert.Equal(6, content.RowDefinitions.Count);
         Assert.Equal(new Thickness(0, 0, 0, -8), Assert.IsType<AvaPlot>(
             content.Children.Single(child => Grid.GetRow(child) == 1)).Margin);
         Assert.Equal(new Thickness(0, -8, 0, -8), Assert.IsType<AvaPlot>(
@@ -515,6 +515,34 @@ public sealed class InfoTabRegistryTests
             content.Children.Single(child => Grid.GetRow(child) == 3)).Margin);
         Assert.DoesNotContain(Descendants(content).OfType<TextBlock>(), text =>
             text.Text?.StartsWith("Shaded band =", StringComparison.Ordinal) == true);
+    }
+
+    [Fact]
+    public void LongTermTabOwnsReviewBarControls()
+    {
+        var vm = new MainWindowViewModel(() => Task.CompletedTask, () => { }, () => { });
+        Grid content = CreateLongTermContent(vm);
+        content.DataContext = vm;
+
+        Border reviewBar = Assert.Single(content.Children.OfType<Border>(), border => border.Name == "ReviewBar");
+        Assert.Equal(5, Grid.GetRow(reviewBar));
+        Assert.True(reviewBar.IsVisible);
+        Assert.False(reviewBar.IsEnabled);
+
+        vm.SetRunning();
+        Assert.False(reviewBar.IsEnabled);
+
+        vm.SetPaused();
+        Assert.True(reviewBar.IsEnabled);
+
+        string[] buttons = Descendants(reviewBar)
+            .OfType<Button>()
+            .Select(button => button.Content?.ToString() ?? string.Empty)
+            .ToArray();
+        Assert.Equal(new[] { "-1 s", "+1 s", "LIVE" }, buttons);
+        Assert.Contains(Descendants(reviewBar).OfType<Slider>(), slider => slider.Name == "ReviewSlider");
+        Assert.Contains(Descendants(reviewBar).OfType<TextBlock>(), text => text.Name == "ReviewReadoutLabel");
+        Assert.Contains(Descendants(reviewBar).OfType<TextBlock>(), text => text.Name == "ReviewMetricsLabel");
     }
 
     [Fact]
@@ -641,10 +669,10 @@ public sealed class InfoTabRegistryTests
         return Assert.IsType<Grid>(CreateVarioRegistration().TabItem.Content);
     }
 
-    private static Grid CreateLongTermContent()
+    private static Grid CreateLongTermContent(MainWindowViewModel? viewModel = null)
     {
         var tabControl = new TabControl();
-        InfoTabRegistry registry = InfoTabRegistry.FromCatalog(tabControl, new Grid(), "Arial");
+        InfoTabRegistry registry = InfoTabRegistry.FromCatalog(tabControl, new Grid(), "Arial", viewModel);
         return Assert.IsType<Grid>(registry.Registrations.Single(
             registration => registration.Definition.Id == InfoTabCatalog.LongTermPerfTabId).TabItem.Content);
     }

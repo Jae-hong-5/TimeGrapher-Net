@@ -156,9 +156,6 @@ public partial class MainWindow : Window
         mViewModel.PropertyChanged += OnRunControlPropertyChanged;
         mViewModel.PropertyChanged += OnReviewCursorPropertyChanged;
         GraphicsTabWidget.SelectionChanged += OnGraphicsTabSelectionChanged;
-        // Seed the Long-Term-active state from the initial selection: SelectionChanged
-        // is not guaranteed to fire for the default tab, so the review bar's gating
-        // would otherwise stay wrong until the first manual tab switch.
         mViewModel.SetLongTermTabActive(ActiveInfoTabId() == InfoTabCatalog.LongTermPerfTabId);
 
         LoadBph();
@@ -424,11 +421,10 @@ public partial class MainWindow : Window
             return;
         }
 
-        // Pause-exit: the cursor clears to null while RunState is still Paused
-        // (the SetRunState ordering contract). Fan the cursor-less render out
-        // to every tab once — tabs visited during the scrubbed pause drew the
-        // dotted cursor, and after a stop the kept frame is invalidated, so the
-        // active-tab route alone would leave dead cursors on the others.
+        // Cursor clear can happen while RunState is still Paused: stop/reset
+        // clears pause scrubbing, and leaving Long-Term clears its in-tab scrub
+        // state. Fan the cursor-less render out once so consumers that rendered
+        // a scrubbed context clear before later tab switches reuse the kept frame.
         if (mViewModel.ReviewCursorTimeS == null)
         {
             mFrameRouter.RenderToAll(frame, BuildTabRenderContext(frame));

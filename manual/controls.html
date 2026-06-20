@@ -18,8 +18,8 @@
     <div class="content-inner">
 
       <h1><span class="ko">왼쪽 메뉴 사용법</span><span class="sep"> · </span><span class="en">Left-panel controls</span></h1>
-      <p class="lede ko">왼쪽 패널은 위에서부터 <b>Run · Watch · Simulation · Misc</b> 네 묶음으로 나뉘며, 측정 조건을 정하고 측정을 시작합니다. 패널 오른쪽의 포지션 스트립과 창 아래/위의 바도 함께 설명합니다.</p>
-      <p class="lede en">The left panel has four sections — <b>Run · Watch · Simulation · Misc</b> — that set up and start a measurement. The position strip and the window's status/review bars are covered here too.</p>
+      <p class="lede ko">왼쪽 패널은 위에서부터 <b>Run · Watch · Simulation · Misc</b> 네 묶음으로 나뉘며, 측정 조건을 정하고 측정을 시작합니다. 패널 오른쪽의 포지션 스트립, 창 아래의 상태 바, Long-Term 탭의 리뷰 바도 함께 설명합니다.</p>
+      <p class="lede en">The left panel has four sections — <b>Run · Watch · Simulation · Misc</b> — that set up and start a measurement. The position strip, bottom status bar, and Long-Term tab review bar are covered here too.</p>
 
       <figure>
         <img data-shot src="img/left-panel.png" alt="Left parameter panel">
@@ -62,7 +62,7 @@
       <h3><span class="ko">Reset / 재생·일시정지 버튼</span><span class="en">Reset / Play–Pause buttons</span></h3>
       <dl class="kv">
         <dt>⟳ Reset</dt><dd><span class="ko">입력 장치 목록을 새로 읽고 상태를 초기화합니다. 마이크를 꽂았는데 목록에 없을 때 누르세요.</span><span class="en">Re-scans input devices and resets state. Press it if a just-plugged mic isn't listed.</span></dd>
-        <dt>▶ / ⏸</dt><dd><span class="ko">측정 시작/일시정지. 같은 버튼이 상태에 따라 ▶(시작)와 ⏸(일시정지)로 바뀝니다. 일시정지하면 <a href="#review">리뷰 바</a>가 나타납니다.</span><span class="en">Start / pause the measurement. The one button toggles between ▶ and ⏸. Pausing reveals the <a href="#review">review bar</a>.</span></dd>
+        <dt>▶ / ⏸</dt><dd><span class="ko">측정 시작/일시정지. 같은 버튼이 상태에 따라 ▶(시작)와 ⏸(일시정지)로 바뀝니다. 일시정지하면 <a href="graphs/long-term.html">Long-Term</a> 탭의 <a href="#review">리뷰 바</a>를 쓸 수 있습니다.</span><span class="en">Start / pause the measurement. The one button toggles between ▶ and ⏸. Pausing enables the <a href="#review">review bar</a> inside the <a href="graphs/long-term.html">Long-Term</a> tab.</span></dd>
       </dl>
 
       <h2 id="watch">② Watch Parameters</h2>
@@ -136,12 +136,12 @@
         <dt><span class="ko">지연시간</span><span class="en">Latency</span></dt><dd><span class="ko">캡처→표시까지의 평균/최악 지연, 버린 입력 샘플/합쳐진 UI 프레임, 놓친 비트, 동기 손실 횟수. 실시간 성능을 한눈에 보는 지표입니다.</span><span class="en">End-to-end avg/worst latency (capture→display), dropped input samples / coalesced UI frames, missed beats, sync losses — a quick real-time-performance gauge.</span></dd>
       </dl>
 
-      <h2 id="review"><span class="ko">리뷰 바</span><span class="sep"> · </span><span class="en">Review bar (일시정지 시)</span></h2>
-      <p class="ko">⏸로 일시정지하면 상태 바 위에 나타납니다. 데이터를 잃지 않고 <b>지난 기록을 되짚어</b> 볼 수 있습니다.</p>
-      <p class="en">Appears above the status bar when you pause (⏸). Scrub <b>back through captured readings</b> without losing data.</p>
+      <h2 id="review"><span class="ko">리뷰 바</span><span class="sep"> · </span><span class="en">Review bar (Long-Term)</span></h2>
+      <p class="ko"><a href="graphs/long-term.html">Long-Term</a> 탭 안에 항상 보이며, 실행 중에는 비활성화되어 있습니다. ⏸로 일시정지하면 활성화되어 데이터를 잃지 않고 <b>지난 Long-Term 기록을 되짚어</b> 볼 수 있습니다.</p>
+      <p class="en">Always visible inside the <a href="graphs/long-term.html">Long-Term</a> tab, disabled while the run is live. Pause (⏸) to enable it and scrub <b>back through the Long-Term recording</b> without losing data.</p>
       <ul>
         <li><kbd>−1 s</kbd> / <kbd>+1 s</kbd> <span class="ko">리뷰 커서를 1초씩 뒤/앞으로 이동.</span><span class="en">Move the review cursor 1 second back/forward.</span></li>
-        <li><span class="ko"><b>슬라이더</b> — 기록 전체를 자유롭게 스크럽. 모든 그래프가 그 시점 값으로 갱신됩니다.</span><span class="en"><b>Slider</b> — scrub anywhere through the recording; every graph updates to that moment.</span></li>
+        <li><span class="ko"><b>슬라이더</b> — Long-Term 기록 전체를 자유롭게 스크럽. 세 Long-Term 플롯과 아래 읽기값이 그 시점으로 갱신됩니다.</span><span class="en"><b>Slider</b> — scrub anywhere through the Long-Term recording; the three Long-Term plots and readouts update to that moment.</span></li>
         <li><kbd>LIVE</kbd> <span class="ko">커서를 지우고 가장 최신 값으로 복귀.</span><span class="en">Clear the cursor and jump back to the newest reading.</span></li>
         <li><span class="ko"><b>읽기 라벨</b> — 현재 커서 위치 / 마지막으로 캡처된 시각.</span><span class="en"><b>Readout</b> — cursor position / latest captured time.</span></li>
       </ul>
