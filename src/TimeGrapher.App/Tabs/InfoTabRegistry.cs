@@ -1893,28 +1893,15 @@ internal sealed partial class InfoTabRegistry
             Margin = new Thickness(8, 4, 8, 2),
         };
         var lanePlot = new AvaPlot();
-        var explanationText = new TextBlock
-        {
-            FontSize = 11,
-            Opacity = 0.65,
-            Margin = new Thickness(8, 0, 8, 3),
-            TextWrapping = Avalonia.Media.TextWrapping.Wrap,
-            Text = "Each lane is one recent beat (oldest at the bottom), normalized to its own " +
-                   "peak and aligned at the A event (x = 0). Green guide = A · red guide = mean " +
-                   "C peak of the shown beats; beats whose C strays from the guide reveal " +
-                   "spacing inconsistency.",
-        };
 
         var grid = new Grid
         {
-            RowDefinitions = new RowDefinitions("Auto,*,Auto"),
+            RowDefinitions = new RowDefinitions("Auto,*"),
         };
         Grid.SetRow(headerText, 0);
         Grid.SetRow(lanePlot, 1);
-        Grid.SetRow(explanationText, 2);
         grid.Children.Add(headerText);
         grid.Children.Add(lanePlot);
-        grid.Children.Add(explanationText);
 
         if (CreateWaitingOverlay(context.ViewModel) is { } overlay)
         {
