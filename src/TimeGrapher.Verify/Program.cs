@@ -326,21 +326,14 @@ finally
 // Adverse-condition scenario rows (in-memory, ground-truth scored).
 if (runAdverse)
 {
-    // Resolve the arm. --gate=onnx:<path> is reserved for the future
-    // inference project; using it today is a usage error (exit 2).
-    if (gateSpec.StartsWith("onnx:", StringComparison.Ordinal))
+    // Resolve the arm. --gate=onnx:<path> is reserved for the future inference
+    // project; using it today (or any unknown value) is a usage error (exit 2).
+    if (!AdverseScenarios.TryResolveArm(gateSpec, out ArmSpec arm, out string? gateError))
     {
-        Console.Error.WriteLine(
-            "TimeGrapher.Verify: --gate=onnx:<path> is reserved for the TimeGrapher.Inference gate (not yet implemented)");
-        return 2;
-    }
-    if (gateSpec != "off" && gateSpec != "pll")
-    {
-        Console.Error.WriteLine($"TimeGrapher.Verify: unknown --gate value '{gateSpec}' (off|pll)");
+        Console.Error.WriteLine("TimeGrapher.Verify: " + gateError);
         return 2;
     }
 
-    ArmSpec arm = gateSpec == "pll" ? ArmSpec.PllGate : ArmSpec.Default;
     if (!AdverseScenarios.Run(Console.Out, arm))
     {
         allMatch = false;

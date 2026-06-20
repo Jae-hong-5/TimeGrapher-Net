@@ -257,7 +257,31 @@ internal static class AdverseScenarios
         }
     }
 
-    private static string Evaluate(
+    /// <summary>
+    /// Resolves the <c>--gate=</c> spec to an arm. Returns false (with a message,
+    /// caller maps to usage exit code 2) for the reserved <c>onnx:</c> form and any
+    /// unknown value; "off"/"pll" select the default/PLL arm. Extracted so the
+    /// gate-spec validation contract is unit-testable without process invocation.
+    /// </summary>
+    internal static bool TryResolveArm(string gateSpec, out ArmSpec arm, out string? error)
+    {
+        arm = ArmSpec.Default;
+        error = null;
+        if (gateSpec.StartsWith("onnx:", StringComparison.Ordinal))
+        {
+            error = "--gate=onnx:<path> is reserved for the TimeGrapher.Inference gate (not yet implemented)";
+            return false;
+        }
+        if (gateSpec != "off" && gateSpec != "pll")
+        {
+            error = $"unknown --gate value '{gateSpec}' (off|pll)";
+            return false;
+        }
+        arm = gateSpec == "pll" ? ArmSpec.PllGate : ArmSpec.Default;
+        return true;
+    }
+
+    internal static string Evaluate(
         AdverseGates gates, DetectorResultSnapshot snapshot,
         DetectionScorer.Score score, int resets, int expectedBph)
     {
