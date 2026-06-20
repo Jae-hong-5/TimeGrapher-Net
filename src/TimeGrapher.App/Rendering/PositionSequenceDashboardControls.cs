@@ -12,6 +12,7 @@ internal sealed record PositionSequenceDashboardControls(
     TextBlock SpreadRequirementText,
     TextBlock BalanceRequirementText,
     TextBlock VerticalHorizontalRequirementText,
+    TextBlock AverageRequirementText,
     TextBlock AverageRateText,
     TextBlock AverageAmplitudeText,
     TextBlock SpreadRateText,

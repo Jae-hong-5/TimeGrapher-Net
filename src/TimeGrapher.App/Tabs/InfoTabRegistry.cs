@@ -1177,6 +1177,7 @@ internal sealed partial class InfoTabRegistry
             out TextBlock spreadRequirementText,
             out TextBlock balanceRequirementText,
             out TextBlock verticalHorizontalRequirementText,
+            out TextBlock averageRequirementText,
             out TextBlock averageRateText,
             out TextBlock averageAmplitudeText,
             out TextBlock spreadRateText,
@@ -1194,6 +1195,7 @@ internal sealed partial class InfoTabRegistry
             spreadRequirementText,
             balanceRequirementText,
             verticalHorizontalRequirementText,
+            averageRequirementText,
             averageRateText,
             averageAmplitudeText,
             spreadRateText,
@@ -1303,6 +1305,7 @@ internal sealed partial class InfoTabRegistry
         out TextBlock spreadRequirementText,
         out TextBlock balanceRequirementText,
         out TextBlock verticalHorizontalRequirementText,
+        out TextBlock averageRequirementText,
         out TextBlock averageRateText,
         out TextBlock averageAmplitudeText,
         out TextBlock spreadRateText,
@@ -1406,10 +1409,10 @@ internal sealed partial class InfoTabRegistry
         Border averageGroup = CreatePositionResultGroup(
             "X AVERAGE",
             "Mean of measured positions.",
-            out TextBlock averageRequirementText,
+            out averageRequirementText,
             ("Error Rate", averageRateText),
             ("Amplitude", averageAmplitudeText));
-        averageRequirementText.Text = "Uses every measured position.";
+        averageRequirementText.Text = "Need Position: any measured position\nReady Position: None";
         spreadGroup.Classes.Add("primary");
         balanceGroup.Classes.Add("primary");
         vhGroup.Classes.Add("primary");

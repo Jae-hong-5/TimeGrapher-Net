@@ -165,7 +165,7 @@ internal sealed class MultiPositionSeqRenderer
         SequencePositionRow[] qualifiedRows = summary.Rows
             .Where(row => row.RateSPerDay != null && row.Beats >= MinPositionBeatsForVerdict)
             .ToArray();
-        UpdateRequirementGuides(qualifiedRows);
+        UpdateRequirementGuides(summary.Rows, qualifiedRows);
 
         SequencePositionRow? activeRow = summary.Rows.FirstOrDefault(row => row.Position == activePosition);
         long activeBeats = activeRow?.Beats ?? 0;
@@ -198,7 +198,7 @@ internal sealed class MultiPositionSeqRenderer
         {
             _dashboard.ConsistencyVerdictText.Text = "COLLECTING";
             _dashboard.ConsistencyDetailText.Text =
-                $"Need {MinVerticalPositionsForBalanceWheelVerdict} vertical and 1 horizontal position; have {qualifiedVertical}V/{qualifiedHorizontal}H qualified.";
+                $"Need Position: {MinVerticalPositionsForBalanceWheelVerdict} full vertical + 1 horizontal. Ready Position: {FormatVerticalHorizontalReady(qualifiedRows)}.";
             _dashboard.ConsistencyBadge.Classes.Add(ResultPendingClass);
             return;
         }
@@ -223,17 +223,62 @@ internal sealed class MultiPositionSeqRenderer
         _dashboard.ConsistencyBadge.Classes.Add(ResultOkClass);
     }
 
-    private void UpdateRequirementGuides(SequencePositionRow[] qualifiedRows)
+    private void UpdateRequirementGuides(
+        IReadOnlyList<SequencePositionRow> rows,
+        SequencePositionRow[] qualifiedRows)
     {
-        int verticalPositions = qualifiedRows.Count(row =>
-            !row.Position.IsHorizontal() && !row.Position.IsIntermediate());
-        int horizontalPositions = qualifiedRows.Count(row => row.Position.IsHorizontal());
+        SequencePositionRow[] fullVerticalRows = qualifiedRows
+            .Where(row => !row.Position.IsHorizontal() && !row.Position.IsIntermediate())
+            .ToArray();
+        SequencePositionRow[] horizontalRows = qualifiedRows
+            .Where(row => row.Position.IsHorizontal())
+            .ToArray();
+        SequencePositionRow[] measuredRows = rows
+            .Where(row => row.RateSPerDay != null || row.AmplitudeDeg != null ||
+                row.BeatErrorMs != null || row.Beats > 0)
+            .ToArray();
+        int verticalPositions = fullVerticalRows.Length;
+        int horizontalPositions = horizontalRows.Length;
         _dashboard.SpreadRequirementText.Text =
-            $"Need {MinQualifiedPositionsForVerdict} positions, {MinPositionBeatsForVerdict}+ beats each. Ready: {qualifiedRows.Length}.";
+            $"Need Position: {MinQualifiedPositionsForVerdict} positions, {MinPositionBeatsForVerdict}+ beats each\n" +
+            $"Ready Position: {FormatReadyPositions(qualifiedRows)} ({qualifiedRows.Length}/{MinQualifiedPositionsForVerdict})";
         _dashboard.BalanceRequirementText.Text =
-            $"Need {MinVerticalPositionsForBalanceWheelVerdict} full vertical positions. Ready: {verticalPositions}.";
+            $"Need Position: {MinVerticalPositionsForBalanceWheelVerdict} full vertical positions, {MinPositionBeatsForVerdict}+ beats each\n" +
+            $"Ready Position: {FormatReadyPositions(fullVerticalRows)} ({verticalPositions}/{MinVerticalPositionsForBalanceWheelVerdict})";
         _dashboard.VerticalHorizontalRequirementText.Text =
-            $"Need 1V + 1H. Ready: {verticalPositions}V + {horizontalPositions}H.";
+            $"Need Position: 1 full vertical + 1 horizontal\n" +
+            $"Ready Position: {FormatVerticalHorizontalReady(fullVerticalRows, horizontalRows)}";
+        _dashboard.AverageRequirementText.Text =
+            "Need Position: any measured position\n" +
+            $"Ready Position: {FormatReadyPositions(measuredRows)}";
+    }
+
+    private static string FormatReadyPositions(IReadOnlyList<SequencePositionRow> rows) =>
+        rows.Count == 0
+            ? "None"
+            : string.Join(", ", rows.Select(row => row.Position.ShortName()));
+
+    private static string FormatVerticalHorizontalReady(IReadOnlyList<SequencePositionRow> qualifiedRows)
+    {
+        SequencePositionRow[] fullVerticalRows = qualifiedRows
+            .Where(row => !row.Position.IsHorizontal() && !row.Position.IsIntermediate())
+            .ToArray();
+        SequencePositionRow[] horizontalRows = qualifiedRows
+            .Where(row => row.Position.IsHorizontal())
+            .ToArray();
+
+        return FormatVerticalHorizontalReady(fullVerticalRows, horizontalRows);
+    }
+
+    private static string FormatVerticalHorizontalReady(
+        IReadOnlyList<SequencePositionRow> fullVerticalRows,
+        IReadOnlyList<SequencePositionRow> horizontalRows)
+    {
+        int verticalPositions = fullVerticalRows.Count;
+        int horizontalPositions = horizontalRows.Count;
+        return
+            $"V {FormatReadyPositions(fullVerticalRows)} / H {FormatReadyPositions(horizontalRows)} " +
+            $"({verticalPositions}V + {horizontalPositions}H)";
     }
 
     private static double? Spread(IEnumerable<double> values)

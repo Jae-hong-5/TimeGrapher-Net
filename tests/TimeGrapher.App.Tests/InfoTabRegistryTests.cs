@@ -106,11 +106,13 @@ public sealed class InfoTabRegistryTests
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
             text.Text == "CH: 0/30 beats. Keep measuring this position.");
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
-            text.Text == "Need 3 positions, 30+ beats each. Ready: 0.");
+            text.Text == "Need Position: 3 positions, 30+ beats each\nReady Position: None (0/3)");
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
-            text.Text == "Need 2 full vertical positions. Ready: 0.");
+            text.Text == "Need Position: 2 full vertical positions, 30+ beats each\nReady Position: None (0/2)");
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
-            text.Text == "Need 1V + 1H. Ready: 0V + 0H.");
+            text.Text == "Need Position: 1 full vertical + 1 horizontal\nReady Position: V None / H None (0V + 0H)");
+        Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
+            text.Text == "Need Position: any measured position\nReady Position: None");
         Assert.Contains(Descendants(content).OfType<Button>(), button => Equals(button.Content, "View criteria ▾"));
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
             text.Text == "Worst - best across positions.");
@@ -273,11 +275,13 @@ public sealed class InfoTabRegistryTests
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
             text.Text == "1/3 positions ready. Measure another position to 30 beats.");
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
-            text.Text == "Need 3 positions, 30+ beats each. Ready: 1.");
+            text.Text == "Need Position: 3 positions, 30+ beats each\nReady Position: CH (1/3)");
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
-            text.Text == "Need 2 full vertical positions. Ready: 0.");
+            text.Text == "Need Position: 2 full vertical positions, 30+ beats each\nReady Position: None (0/2)");
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
-            text.Text == "Need 1V + 1H. Ready: 0V + 1H.");
+            text.Text == "Need Position: 1 full vertical + 1 horizontal\nReady Position: V None / H CH (0V + 1H)");
+        Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
+            text.Text == "Need Position: any measured position\nReady Position: CH");
         Assert.Contains(ResultBadges(content), badge => badge.Classes.Contains("pending"));
 
         router.Route(
@@ -292,11 +296,11 @@ public sealed class InfoTabRegistryTests
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
             text.Text == "2/3 positions ready. Measure another position to 30 beats.");
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
-            text.Text == "Need 3 positions, 30+ beats each. Ready: 2.");
+            text.Text == "Need Position: 3 positions, 30+ beats each\nReady Position: CH, 6H (2/3)");
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
-            text.Text == "Need 2 full vertical positions. Ready: 1.");
+            text.Text == "Need Position: 2 full vertical positions, 30+ beats each\nReady Position: 6H (1/2)");
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
-            text.Text == "Need 1V + 1H. Ready: 1V + 1H.");
+            text.Text == "Need Position: 1 full vertical + 1 horizontal\nReady Position: V 6H / H CH (1V + 1H)");
         Assert.Contains(ResultBadges(content), badge => badge.Classes.Contains("pending"));
 
         router.Route(
@@ -313,11 +317,11 @@ public sealed class InfoTabRegistryTests
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
             text.Text == "12H: 0/30 beats. Keep measuring this position.");
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
-            text.Text == "Need 3 positions, 30+ beats each. Ready: 3.");
+            text.Text == "Need Position: 3 positions, 30+ beats each\nReady Position: CH, 6H, 3H (3/3)");
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
-            text.Text == "Need 2 full vertical positions. Ready: 2.");
+            text.Text == "Need Position: 2 full vertical positions, 30+ beats each\nReady Position: 6H, 3H (2/2)");
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
-            text.Text == "Need 1V + 1H. Ready: 2V + 1H.");
+            text.Text == "Need Position: 1 full vertical + 1 horizontal\nReady Position: V 6H, 3H / H CH (2V + 1H)");
         Assert.Contains(ResultBadges(content), badge => badge.Classes.Contains("pending"));
 
         router.Route(
@@ -350,11 +354,11 @@ public sealed class InfoTabRegistryTests
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
             text.Text == "4 positions ready. Spread is within 15 s/d.");
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
-            text.Text == "Need 3 positions, 30+ beats each. Ready: 4.");
+            text.Text == "Need Position: 3 positions, 30+ beats each\nReady Position: CH, 6H, 3H, 12H (4/3)");
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
-            text.Text == "Need 2 full vertical positions. Ready: 3.");
+            text.Text == "Need Position: 2 full vertical positions, 30+ beats each\nReady Position: 6H, 3H, 12H (3/2)");
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
-            text.Text == "Need 1V + 1H. Ready: 3V + 1H.");
+            text.Text == "Need Position: 1 full vertical + 1 horizontal\nReady Position: V 6H, 3H, 12H / H CH (3V + 1H)");
         Assert.Contains(ResultBadges(content), badge => badge.Classes.Contains("ok"));
 
         router.Route(
@@ -400,7 +404,7 @@ public sealed class InfoTabRegistryTests
 
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "COLLECTING");
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
-            text.Text == "Need 2 vertical and 1 horizontal position; have 1V/2H qualified.");
+            text.Text == "Need Position: 2 full vertical + 1 horizontal. Ready Position: V 6H / H CH, CB (1V + 2H).");
         Assert.Contains(ResultBadges(content), badge => badge.Classes.Contains("pending"));
     }
 
