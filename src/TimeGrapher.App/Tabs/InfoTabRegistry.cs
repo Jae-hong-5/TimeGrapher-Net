@@ -1555,8 +1555,16 @@ internal sealed partial class InfoTabRegistry
             TextWrapping = TextWrapping.Wrap,
             VerticalAlignment = VerticalAlignment.Center,
         };
-        ToolTip.SetTip(titleText, description);
         metricStack.Children.Add(titleText);
+        var descriptionText = new TextBlock
+        {
+            Text = description,
+            FontSize = PositionMinimumFontSize,
+            Opacity = 0.55,
+            TextWrapping = TextWrapping.Wrap,
+            Margin = new Thickness(0, 1, 0, 0),
+        };
+        metricStack.Children.Add(descriptionText);
         requirementText = new TextBlock
         {
             FontSize = PositionMinimumFontSize,
