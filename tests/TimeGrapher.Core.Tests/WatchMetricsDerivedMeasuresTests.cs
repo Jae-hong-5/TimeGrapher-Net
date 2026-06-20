@@ -87,6 +87,40 @@ public sealed class WatchMetricsDerivedMeasuresTests
     }
 
     [Fact]
+    public void SignedBeatError_NotContaminatedByStaleWindowAcrossBphRelock()
+    {
+        // Lock at 18000 BPH (200 ms beats), then re-lock at 19800 BPH (181.8 ms)
+        // where the transition (last 18000 beat -> first 19800 beat) is still
+        // ~200 ms. Before the fix, the re-lock branch reset the RLS/rolling state
+        // but not the beat-error window, so the stale 200 ms boundary interval
+        // (which still passes IsSingleBeatInterval at 19800) combined with a new
+        // 181.8 ms interval to validate a false ~9 ms signed beat error.
+        WatchMetrics metrics = NewMetrics();
+        FeedAEventsAtBph(metrics, 18000.0, 200.0, 200.0, 200.0, 200.0);
+
+        double period198Ms = 3600.0 / 19800.0 * 1000.0; // 181.818 ms
+        var relock = new List<WatchMetricsUpdate>();
+        double sample = 0.8 * SampleRate; // end of the 18000 segment (4 x 200 ms)
+        foreach (double intervalMs in new[] { 200.0, period198Ms, period198Ms, period198Ms })
+        {
+            sample += intervalMs / 1000.0 * SampleRate;
+            relock.Add(metrics.HandleAEvent(sample, true, 19800.0));
+        }
+
+        // Equal 19800 beats give a true signed beat error of ~0; no post-relock
+        // window may surface the ~9 ms stale-boundary artifact.
+        foreach (WatchMetricsUpdate u in relock)
+        {
+            if (u.BeatTimingSampleUpdated && u.BeatTimingSample.BeatErrorValid)
+            {
+                Assert.True(
+                    Math.Abs(u.BeatTimingSample.BeatErrorSignedMs) < 1.0,
+                    $"stale beat-error window leaked across BPH re-lock: {u.BeatTimingSample.BeatErrorSignedMs} ms");
+            }
+        }
+    }
+
+    [Fact]
     public void DiffPeriodAndAvgPeriod_AverageMeasuredMinusExpected()
     {
         // Alternating +0.8 / -0.8 ms deltas average to zero.

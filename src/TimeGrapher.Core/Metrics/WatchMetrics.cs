@@ -255,6 +255,11 @@ public sealed class WatchMetrics
             _rlsTicRate.Reset();
             _rlsTocRate.Reset();
 
+            // Restart the beat-error window with the new sync segment too: a stale
+            // _beatErrorTimes[0] from before the re-lock would otherwise let a
+            // boundary interval that happens to pass IsSingleBeatInterval at the
+            // new BPH validate a false signed beat error spanning two watches.
+            _beatErrorIdx = 0;
             _rollBeatError.Reset();
             _rollAmplitude.Reset();
 
