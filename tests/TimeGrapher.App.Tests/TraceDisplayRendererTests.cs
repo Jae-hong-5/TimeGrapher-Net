@@ -210,6 +210,60 @@ public sealed class TraceDisplayRendererTests
         Assert.Equal(rateRender.DataRect.Height, ampRender.DataRect.Height, 4f);
     }
 
+    [Fact]
+    public void LiveFollow_PinsXAxisToDataExtent_SoTheTraceDoesNotShrink()
+    {
+        TraceDisplayRenderer renderer = NewRenderer(out AvaPlot ratePlot, out AvaPlot amplitudePlot);
+        renderer.CreateGraphs();
+
+        // Drive a growing live trace: each frame appends one beat, advancing the
+        // time axis by 1 s. The accept-range value labels are ScottPlot Text
+        // plottables with no EnableAutoscale opt-out, so a plain per-frame AutoScale
+        // folded each label (parked just past the margin-padded right edge) back
+        // into the X fit and ratcheted the axis steadily past the data — the trace
+        // shrank toward the left. Live-follow must keep the newest sample pinned to
+        // the right edge.
+        const int beats = 80;
+        var x = new List<double>();
+        var rateY = new List<double>();
+        var ampY = new List<double>();
+        for (int i = 0; i < beats; i++)
+        {
+            x.Add(i);
+            rateY.Add(i % 2 == 0 ? 1.0 : 2.0);
+            ampY.Add(i % 2 == 0 ? 281.0 : 282.0);
+
+            renderer.RenderFrame(
+                new AnalysisFrame
+                {
+                    MetricsHistory = new BeatMetricsHistorySnapshot
+                    {
+                        Version = (ulong)(i + 1),
+                        Rate = Series(x.ToArray(), rateY.ToArray()),
+                        Amplitude = Series(x.ToArray(), ampY.ToArray()),
+                        RateValid = true,
+                        AmplitudeValid = true,
+                    },
+                },
+                new AnalysisTabRenderContext(48000));
+        }
+
+        double dataMin = 0.0;
+        double dataMax = beats - 1;
+        // Newest sample sits at the right edge and the first at the left edge on both
+        // stacked panes: the trace fills the pane width with no accumulated empty
+        // band on the right.
+        Assert.Equal(dataMax, ratePlot.Plot.Axes.GetLimits().Right, 0.5);
+        Assert.Equal(dataMax, amplitudePlot.Plot.Axes.GetLimits().Right, 0.5);
+        Assert.Equal(dataMin, ratePlot.Plot.Axes.GetLimits().Left, 0.5);
+        Assert.Equal(dataMin, amplitudePlot.Plot.Axes.GetLimits().Left, 0.5);
+        // Both panes resolve to one shared time window (stacked-pane alignment).
+        Assert.Equal(
+            ratePlot.Plot.Axes.GetLimits().Right,
+            amplitudePlot.Plot.Axes.GetLimits().Right,
+            0.5);
+    }
+
     private static Scatter Line(AvaPlot plot) => plot.Plot.GetPlottables<Scatter>().Single();
 
     private static VerticalSpan Band(AvaPlot plot) => plot.Plot.GetPlottables<VerticalSpan>().Single();

@@ -185,6 +185,7 @@ internal sealed class TraceDisplayRenderer
         _followLive = true;
         _ratePlot.Plot.Axes.AutoScale();
         _amplitudePlot.Plot.Axes.AutoScale();
+        PinLiveXAxisToData();
         UpdateAcceptLabels();
         _ratePlot.Refresh();
         _amplitudePlot.Refresh();
@@ -216,14 +217,61 @@ internal sealed class TraceDisplayRenderer
         {
             _ratePlot.Plot.Axes.AutoScale();
             _amplitudePlot.Plot.Axes.AutoScale();
+            PinLiveXAxisToData();
         }
 
         UpdateAcceptLabels();
         UpdateAlerts(history);
-        UpdateSummaries(history);
 
         _ratePlot.Refresh();
         _amplitudePlot.Refresh();
+    }
+
+    /// <summary>
+    /// Pins both panes' X axis to the plotted data's time extent after a live
+    /// autoscale. The accept-range value labels are ScottPlot Text plottables,
+    /// which (unlike Scatter or the axis lines) expose no EnableAutoscale opt-out,
+    /// so a plain AutoScale folds each visible label's location into the X fit.
+    /// Because the labels are repositioned to just inside the margin-padded right
+    /// edge every frame, that fed back into the next AutoScale and ratcheted the X
+    /// axis steadily past the data, so the trace kept shrinking toward the left.
+    /// Re-pinning X to the data extent (the LongTermPerfRenderer tactic) breaks the
+    /// loop and locks both stacked panes onto one shared time window. No-op until a
+    /// real (non-zero-width) range exists, so AutoScale's default span still frames
+    /// the very first point.
+    /// </summary>
+    private void PinLiveXAxisToData()
+    {
+        if (!TryGetSharedDataXRange(out double xMin, out double xMax))
+        {
+            return;
+        }
+
+        _ratePlot.Plot.Axes.SetLimitsX(xMin, xMax);
+        _amplitudePlot.Plot.Axes.SetLimitsX(xMin, xMax);
+    }
+
+    /// <summary>
+    /// First/last plotted X across both panes (their series can begin and end a
+    /// beat apart). Returns false until a usable, non-zero-width range exists.
+    /// </summary>
+    private bool TryGetSharedDataXRange(out double xMin, out double xMax)
+    {
+        xMin = double.MaxValue;
+        xMax = double.MinValue;
+        if (_rateX.Count > 0)
+        {
+            if (_rateX[0] < xMin) xMin = _rateX[0];
+            if (_rateX[^1] > xMax) xMax = _rateX[^1];
+        }
+
+        if (_amplitudeX.Count > 0)
+        {
+            if (_amplitudeX[0] < xMin) xMin = _amplitudeX[0];
+            if (_amplitudeX[^1] > xMax) xMax = _amplitudeX[^1];
+        }
+
+        return xMin < xMax;
     }
 
     private void UpdateAlerts(BeatMetricsHistorySnapshot history)
