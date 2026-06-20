@@ -5,6 +5,7 @@ using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
 using ScottPlot.Avalonia;
+using TimeGrapher.App;
 using TimeGrapher.App.Rendering;
 using TimeGrapher.App.Tabs;
 using TimeGrapher.App.ViewModels;
@@ -16,6 +17,7 @@ namespace TimeGrapher.App.Tests;
 public sealed class InfoTabRegistryTests
 {
     private const double VarioCapturedMinimumFontSize = 16.0;
+    private static bool s_avaloniaPlatformStarted;
 
     [Fact]
     public void RegistryCreatesCatalogTabsAndConsumers()
@@ -142,7 +144,14 @@ public sealed class InfoTabRegistryTests
         Assert.Equal(WatchPositions.Count + 1, tableGrid.RowDefinitions.Count);
         Assert.DoesNotContain(Descendants(content).OfType<Border>(), border =>
             border.Classes.Contains("PositionMapTile"));
-        Assert.Contains(Descendants(content).OfType<Border>(), border => border.Classes.Contains("PositionResultPanel"));
+        Grid topSummaryGrid = Assert.Single(Descendants(content).OfType<Grid>(), grid =>
+            grid.ColumnDefinitions.Count == 2 &&
+            grid.RowDefinitions.Count == 1 &&
+            Math.Abs(grid.MaxHeight - 366.0) < 0.01);
+        Assert.Equal(366.0, topSummaryGrid.MaxHeight);
+        Border resultPanel = Assert.Single(Descendants(content).OfType<Border>(), border =>
+            border.Classes.Contains("PositionResultPanel"));
+        Assert.Equal(new Thickness(12, 6), resultPanel.Padding);
         Assert.Contains(Descendants(content).OfType<Border>(), border =>
             border.Classes.Contains("PositionResultBadge") &&
             border.Classes.Contains("pending"));
@@ -156,6 +165,7 @@ public sealed class InfoTabRegistryTests
         {
             Assert.False(group.ClipToBounds);
             Assert.True(double.IsNaN(group.Height));
+            Assert.True(group.Margin.Bottom <= 2.0);
             TextBlock[] groupText = Descendants(group).OfType<TextBlock>().ToArray();
             Assert.All(groupText, text =>
                 Assert.True(text.FontSize <= 16.0, $"{text.Text} uses {text.FontSize}px"));
@@ -169,6 +179,48 @@ public sealed class InfoTabRegistryTests
             Assert.Equal(VerticalAlignment.Stretch, buttons[i].VerticalAlignment);
         }
         Assert.Single(registry.Consumers, consumer => consumer.TabId == InfoTabCatalog.WatchPositionsTabId);
+    }
+
+    [Fact]
+    public void PositionConsistencyLayoutKeepsAverageRowInsideDesktopContentHeight()
+    {
+        EnsureAvaloniaPlatform();
+        var tabControl = new TabControl();
+        var positionStrip = new Grid();
+
+        InfoTabRegistry registry = InfoTabRegistry.FromCatalog(tabControl, positionStrip, "Arial");
+        InfoTabRegistration registration = Assert.Single(
+            registry.Registrations,
+            registration => registration.Definition.Id == InfoTabCatalog.WatchPositionsTabId);
+        var content = Assert.IsType<Grid>(registration.TabItem.Content);
+
+        var contentSize = new Size(1460, 1010);
+        content.Measure(contentSize);
+        content.Arrange(new Rect(contentSize));
+
+        Border resultPanel = Assert.Single(Descendants(content).OfType<Border>(), border =>
+            border.Classes.Contains("PositionResultPanel"));
+        Border averageGroup = Assert.Single(Descendants(content).OfType<Border>(), border =>
+            border.Classes.Contains("PositionResultGroup") &&
+            Descendants(border).OfType<TextBlock>().Any(text => text.Text == "X AVERAGE"));
+
+        Assert.True(
+            resultPanel.Bounds.Bottom <= contentSize.Height,
+            $"Position result panel bottom {resultPanel.Bounds.Bottom} exceeds {contentSize.Height}.");
+        Assert.True(
+            averageGroup.Bounds.Bottom <= resultPanel.Bounds.Bottom,
+            $"X Average bottom {averageGroup.Bounds.Bottom} exceeds result panel bottom {resultPanel.Bounds.Bottom}.");
+    }
+
+    private static void EnsureAvaloniaPlatform()
+    {
+        if (s_avaloniaPlatformStarted)
+        {
+            return;
+        }
+
+        Program.BuildAvaloniaApp().SetupWithoutStarting();
+        s_avaloniaPlatformStarted = true;
     }
 
     [Fact]

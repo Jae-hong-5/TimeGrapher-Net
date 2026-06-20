@@ -1225,6 +1225,7 @@ internal sealed partial class InfoTabRegistry
         {
             ColumnDefinitions = new ColumnDefinitions("276,*"),
             RowDefinitions = new RowDefinitions("*"),
+            MaxHeight = 366,
         };
         Grid.SetColumn(activePanel, 0);
         Grid.SetColumn(tableGrid, 1);
@@ -1349,7 +1350,7 @@ internal sealed partial class InfoTabRegistry
         verticalHorizontalDeltaText = CreatePositionSummaryValue();
         consistencyVerdictText = new TextBlock
         {
-            FontSize = 22,
+            FontSize = 20,
             FontWeight = FontWeight.Bold,
             HorizontalAlignment = HorizontalAlignment.Center,
             TextAlignment = TextAlignment.Center,
@@ -1365,7 +1366,7 @@ internal sealed partial class InfoTabRegistry
         {
             Classes = { "PositionResultBadge" },
             MinWidth = 136,
-            Padding = new Thickness(16, 5),
+            Padding = new Thickness(14, 4),
             Child = consistencyVerdictText,
         };
         var criteriaButton = new Button
@@ -1388,7 +1389,7 @@ internal sealed partial class InfoTabRegistry
         var header = new Grid
         {
             ColumnDefinitions = new ColumnDefinitions("210,*,Auto,Auto"),
-            Margin = new Thickness(0, 0, 0, 6),
+            Margin = new Thickness(0, 0, 0, 4),
         };
         var title = new TextBlock
         {
@@ -1473,7 +1474,7 @@ internal sealed partial class InfoTabRegistry
         return new Border
         {
             Classes = { "PositionResultPanel" },
-            Padding = new Thickness(16, 8),
+            Padding = new Thickness(12, 6),
             Margin = new Thickness(4, 2, 8, 2),
             Child = panelGrid,
         };
@@ -1485,7 +1486,7 @@ internal sealed partial class InfoTabRegistry
         {
             ColumnDefinitions = new ColumnDefinitions("1.5*,1.15*,1.75*,2.25*,1.45*"),
             RowDefinitions = new RowDefinitions("Auto,Auto,Auto,Auto,Auto"),
-            Margin = new Thickness(0, 0, 0, 4),
+            Margin = new Thickness(0),
         };
         return table;
     }
@@ -1501,7 +1502,7 @@ internal sealed partial class InfoTabRegistry
                 FontSize = PositionMinimumFontSize,
                 FontWeight = FontWeight.Bold,
                 Opacity = 0.65,
-                Margin = new Thickness(10, 0, 10, 5),
+                Margin = new Thickness(8, 0, 8, 3),
             };
             Grid.SetRow(text, 0);
             Grid.SetColumn(text, column);
@@ -1538,7 +1539,7 @@ internal sealed partial class InfoTabRegistry
             ColumnDefinitions = new ColumnDefinitions("1.5*,1.15*,1.75*,2.25*,1.45*"),
         };
 
-        var metricStack = new StackPanel { Spacing = 1, Margin = new Thickness(10, 5, 10, 5) };
+        var metricStack = new StackPanel { Spacing = 0, Margin = new Thickness(8, 3, 8, 3) };
         metricStack.Children.Add(new TextBlock
         {
             Text = title,
@@ -1559,7 +1560,7 @@ internal sealed partial class InfoTabRegistry
             FontSize = PositionMinimumFontSize,
             Opacity = 0.9,
             TextWrapping = TextWrapping.Wrap,
-            Margin = new Thickness(10, 5, 10, 5),
+            Margin = new Thickness(8, 3, 8, 3),
             VerticalAlignment = VerticalAlignment.Center,
         };
         readyText = new TextBlock
@@ -1568,12 +1569,12 @@ internal sealed partial class InfoTabRegistry
             FontWeight = FontWeight.Bold,
             Opacity = 0.9,
             TextWrapping = TextWrapping.Wrap,
-            Margin = new Thickness(10, 5, 10, 5),
+            Margin = new Thickness(8, 3, 8, 3),
             VerticalAlignment = VerticalAlignment.Center,
         };
-        statusText.Margin = new Thickness(10, 5, 10, 5);
+        statusText.Margin = new Thickness(8, 3, 8, 3);
 
-        var readingStack = new StackPanel { Spacing = 1, Margin = new Thickness(10, 5, 10, 5) };
+        var readingStack = new StackPanel { Spacing = 0, Margin = new Thickness(8, 3, 8, 3) };
         foreach ((string label, TextBlock value) in metrics)
         {
             readingStack.Children.Add(CreatePositionMetricRow(label, value));
@@ -1594,7 +1595,7 @@ internal sealed partial class InfoTabRegistry
         {
             Classes = { "PositionResultGroup" },
             Padding = new Thickness(0),
-            Margin = new Thickness(0, 0, 0, 4),
+            Margin = new Thickness(0, 0, 0, 2),
             Child = row,
         };
     }
