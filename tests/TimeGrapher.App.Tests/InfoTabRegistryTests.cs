@@ -127,11 +127,11 @@ public sealed class InfoTabRegistryTests
             text.Text == "V None / H None (0V + 0H)");
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "None");
         Assert.Contains(Descendants(content).OfType<Button>(), button => Equals(button.Content, "View criteria ▾"));
-        Assert.DoesNotContain(Descendants(content).OfType<TextBlock>(), text =>
+        Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
             text.Text == "Worst - best across positions.");
-        Assert.DoesNotContain(Descendants(content).OfType<TextBlock>(), text =>
+        Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
             text.Text == "Vertical mean - horizontal mean.");
-        Assert.DoesNotContain(Descendants(content).OfType<TextBlock>(), text =>
+        Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
             text.Text == "Mean of measured positions.");
         Assert.DoesNotContain(Descendants(content).OfType<TextBlock>(), text =>
             text.Text == "Verdict starts at 3 positions with 30+ beats. Later qualified positions update the result.");
@@ -168,9 +168,8 @@ public sealed class InfoTabRegistryTests
             Assert.True(double.IsNaN(group.Height));
             Assert.True(group.Margin.Bottom <= 2.0);
             TextBlock[] groupText = Descendants(group).OfType<TextBlock>().ToArray();
-            Assert.Single(groupText, text =>
-                MetricDescriptionFor(text.Text) is { } description &&
-                Equals(ToolTip.GetTip(text), description));
+            TextBlock titleBlock = Assert.Single(groupText, text => MetricDescriptionFor(text.Text) is not null);
+            Assert.Contains(groupText, text => text.Text == MetricDescriptionFor(titleBlock.Text));
             Assert.All(groupText, text =>
                 Assert.True(text.FontSize <= 16.0, $"{text.Text} uses {text.FontSize}px"));
             Assert.Contains(groupText, text => text.TextWrapping == TextWrapping.Wrap);
