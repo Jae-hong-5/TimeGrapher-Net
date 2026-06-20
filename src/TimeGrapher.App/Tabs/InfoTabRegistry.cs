@@ -23,7 +23,7 @@ internal sealed partial class InfoTabRegistry
 {
     private const double VarioMinimumFontSize = 16.0;
     private const double PositionMinimumFontSize = 14.0;
-    private const string PositionResultColumns = "1.5*,0.9*,1.7*,2.1*,1.8*";
+    private const string PositionResultColumns = "1.45*,0.9*,1.7*,1.95*,2.0*";
     private const string ResetAllGraphViewsTooltip = "Reset all graph views";
 
     private delegate InfoTabRegistration InfoTabFactory(
