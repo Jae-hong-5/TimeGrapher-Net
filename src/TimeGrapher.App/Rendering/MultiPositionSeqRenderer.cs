@@ -44,11 +44,16 @@ internal sealed class MultiPositionSeqRenderer
 
     public void Reset()
     {
+        Reset(_initialPosition);
+    }
+
+    public void Reset(WatchPosition activePosition)
+    {
         _lastVersion = 0;
         _alertBanner.IsVisible = false;
         _lastSummary = SequenceSummary.Compute(Array.Empty<PositionSummary>());
-        RebuildTable(_lastSummary.Rows, activePosition: null);
-        UpdateDashboard(_lastSummary, _initialPosition);
+        RebuildTable(_lastSummary.Rows, activePosition);
+        UpdateDashboard(_lastSummary, activePosition);
     }
 
     public void RequestPosition(WatchPosition position)

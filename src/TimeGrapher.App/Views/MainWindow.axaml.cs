@@ -538,7 +538,8 @@ public partial class MainWindow : Window
         return new AnalysisTabResetContext(
             SampleRate: mCurrentSamplesPerSecond,
             RateErrorYScale: ERROR_RATE_Y_SCALE,
-            RateDataPoints: ERROR_RATE_X_DATA_POINTS);
+            RateDataPoints: ERROR_RATE_X_DATA_POINTS,
+            ActivePosition: (WatchPosition)mViewModel.SelectedPositionIndex);
     }
 
     private AnalysisTabRenderContext BuildTabRenderContext(AnalysisFrame frame)

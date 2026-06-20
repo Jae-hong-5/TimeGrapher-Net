@@ -228,6 +228,39 @@ public sealed class InfoTabRegistryTests
     }
 
     [Fact]
+    public void PositionTabResetKeepsSelectedPositionTextAndDiagram()
+    {
+        var tabControl = new TabControl();
+        var positionStrip = new Grid();
+        InfoTabRegistry registry = InfoTabRegistry.FromCatalog(tabControl, positionStrip, "Arial");
+        var content = Assert.IsType<Grid>(registry.Registrations.Single(
+            registration => registration.Definition.Id == InfoTabCatalog.WatchPositionsTabId).TabItem.Content);
+        Button target = positionStrip.Children
+            .OfType<Button>()
+            .Single(button => button.Content is TextBlock { Text: "1:30H" });
+
+        target.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        IAnalysisFrameConsumer consumer = registry.Consumers.Single(
+            consumer => consumer.TabId == InfoTabCatalog.WatchPositionsTabId);
+        consumer.Reset(new AnalysisTabResetContext(
+            SampleRate: 48000,
+            RateErrorYScale: 250.0,
+            RateDataPoints: 500,
+            ActivePosition: WatchPosition.P3H45));
+
+        WatchPositionDiagram diagram = Assert.Single(Descendants(content).OfType<WatchPositionDiagram>());
+        Assert.Equal(WatchPosition.P3H45, diagram.Position);
+        Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "1:30H");
+        Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "1:30 up");
+        Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
+            text.Text == "1:30H: 0/30 beats. Keep measuring this position.");
+        Button activeButton = Assert.Single(positionStrip.Children.OfType<Button>(),
+            button => button.Classes.Contains("active"));
+        Assert.IsType<TextBlock>(activeButton.Content);
+        Assert.Equal("1:30H", ((TextBlock)activeButton.Content).Text);
+    }
+
+    [Fact]
     public void PositionCriteriaFlyoutExplainsDiagnosticBasisAndMeaning()
     {
         var tabControl = new TabControl();
