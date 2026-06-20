@@ -142,6 +142,7 @@ work requests** — 점진적 저하). 패스마다 백로그를 **비트 주기
 | Tactic | 적용 방식 | 근거 | |
 |---|---|---|---|
 | **pause/resume** (Usability) | `WorkerPauseGate`(ManualResetEventSlim + Volatile)가 워커 루프를 50ms 슬라이스로 멈추되 정지 요청에는 즉시 반응 | `WorkerPauseGate.cs` | ✓ |
+| **UI 일관성 — 그래프 레이아웃 안정성** (Usability) | 스코프/그래프의 좌측 Y축·하단 X축 패널을 고정 px로 잠가(`RateScopeRenderer`의 택틱을 `TraceDisplayRenderer`·`LongTermPerfRenderer`로 확장) Y 눈금 자릿수가 바뀌어도 데이터 영역 폭이 일정하고 스택 패널들의 좌측 가장자리가 정렬된다. 스택 그래프의 데이터 높이는 시간축을 가진 하단 패널만큼 해당 행을 키워(`InfoTabRegistry`의 row 비율 1.22*/1.11*) 맞춘다 — 단 설계창(1280×750) 기준 비율이라 극단적 리사이즈에서 수~수십 px 드리프트가 남는다(정직 표기). 표준 SAP 택틱명에 정확히 대응하지 않는 UI 설계 결정이라 △ | `RateScopeRenderer.cs`, `TraceDisplayRenderer.cs`, `LongTermPerfRenderer.cs`, `InfoTabRegistry.cs` | △ |
 | **defer binding** (Portability) | RID(예: `win-x64`/`linux-arm64`; 전체 `win-x64;win-arm64;linux-x64;linux-arm64`)에 따라 Platform 참조·`DefineConstants`를 조건부로 바인딩 → 같은 소스로 OS별 앱 생성 | `TimeGrapher.App.csproj` | △ |
 
 ---
