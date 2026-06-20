@@ -5,7 +5,7 @@
 - 렌더 이미지: 04.TimeGrapher-Net 의 deployment-view-detailed.drawio 를 PNG로 export → image/DEPLOYMENT.png 로 복사
 -->
 
-## 4. DEPLOYMENT VIEW – 배포 구조
+## 4. TimeGrapher DEPLOYMENT VIEW – 배포 구조
 
 **목적:** 하나의 코드베이스에서 만든 산출물(Target)이 **어떤 하드웨어 노드에, 어떤 형태로, 어떤 채널을 통해** 올라가는지 보여준다. 코드 구조가 아니라 "빌드된 결과물이 사용자에게 전달되는 경로"를 정의한다.
 
@@ -17,74 +17,10 @@
 
 ### 배포 다이어그램
 
-```mermaid
-flowchart TB
-    subgraph Dev["💻 개발 환경 (다수 개발자 PC)"]
-        DevPC["개발자 PC (VS Code)<br/>C#/.NET · Source Code"]
-        Git["📦 Git Server (Origin)<br/>main / tags v*"]
-        CICD["🤖 CI/CD Pipeline<br/>Push → build/test 검증<br/>tag v* → 배포 Target 생성"]
-    end
 
-    subgraph Target["📤 배포 Target (Release Assets)"]
-        Artifacts["Target Artifacts<br/>win-x64 .zip · win-arm64 .zip<br/>linux-arm64 .tar.gz (Raspberry Pi)<br/>+ .sha256 (무결성)"]
-    end
+![배포 뷰 다이어그램](images/deployment-view-detailed.svg)
 
-    Net(["🌐 Git 서버 네트워크 (LAN) — Target 배포 채널"])
-
-    subgraph Win["🖥️ Windows PC (win-x64 / win-arm64)"]
-        WinExe["TimeGrapher.App.exe<br/>단일 실행파일·무설치"]
-        WinAudio["Platform.WindowsAudio<br/>NAudio / WASAPI"]
-        WinIn["입력: USB 오디오 / USB Serial"]
-        WinExe --> WinAudio --> WinIn
-    end
-
-    subgraph Pi["🍓 Raspberry Pi 5 (linux-arm64)"]
-        PiExe["TimeGrapher.App<br/>ELF 단일 파일·무설치"]
-        PiAudio["Platform.LinuxAudio<br/>ALSA (AGC off 권장)"]
-        PiIn["입력: ALSA 오디오 / USB Serial"]
-        PiExe --> PiAudio --> PiIn
-    end
-
-    subgraph Ext["🔊 외부 입력 신호"]
-        Watch["⏰ 기계식 시계<br/>음향 비트 신호 (T1/T2/T3)"]
-        Mic["🎙️ 마이크/픽업<br/>음향 → 전기신호"]
-    end
-
-    DevPC -->|git push| Git
-    Git -->|CI/CD 트리거| CICD
-    CICD -->|publish · Target 생성| Artifacts
-    Artifacts -.->|Target 배포 등록| Net
-    Net -.->|deploy · 배포·설치| WinExe
-    Net -.->|deploy · 배포·설치| PiExe
-
-    Watch -.->|음향| Mic
-    Mic -.->|USB Audio| WinIn
-    Mic -.->|USB Audio| PiIn
-
-    style Dev fill:#F3E5F5,stroke:#7B1FA2,stroke-width:2px
-    style Target fill:#FFF3E0,stroke:#E65100,stroke-width:2px
-    style Win fill:#E8F5E9,stroke:#1B5E20,stroke-width:2px
-    style Pi fill:#E8F5E9,stroke:#1B5E20,stroke-width:2px
-    style Ext fill:#E3F2FD,stroke:#1976D2,stroke-width:2px
-    style Net fill:#E0F7FA,stroke:#00838F,stroke-width:2px
-```
-
-<!-- 렌더 이미지 첨부 시: ![배포 뷰](image/DEPLOYMENT.png) -->
-
-### 범례 (Notation)
-
-선·점선·색상 세 가지 표기가 각각 독립된 의미를 가진다. 한 화살표는 **「색상(도메인) + 선 종류(흐름 성격)」** 조합으로 읽는다.
-
-| 구분 | 기호 | 의미 |
-|---|---|---|
-| **선** | 실선 → | 직접 흐름 — 산출물 생성 · CI/CD 파이프라인 · 노드 내부 연결 |
-| **선** | 점선 ⇢ | 전송 채널 — 네트워크 Target 배포 · 외부 신호 입력 |
-| **색** | 🟪 보라 | 개발 환경 (개발자 PC · Git 서버 · CI/CD) |
-| **색** | 🟧 주황 | 배포 Target (Release 산출물) |
-| **색** | 🟦 청록 | Git 서버 네트워크 (LAN) |
-| **색** | 🟩 녹색 | 타겟 실행 노드 (Windows · Raspberry Pi) |
-| **색** | 🟦 파랑 | 외부 장치 / 신호 (시계 · 마이크) |
-| **경계** | 점선 사각 | 실행/배포 그룹 경계 |
+> 편집 가능한 원본: [deployment-view-detailed.drawio](images/deployment-view-detailed.drawio) — draw.io에서 수정 후 동일 폴더의 `drawio2svg.py`로 SVG를 재생성한다.
 
 ### 노드 / 산출물 매핑
 
