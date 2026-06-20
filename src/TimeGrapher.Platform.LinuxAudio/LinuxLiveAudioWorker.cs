@@ -645,6 +645,13 @@ public sealed class LinuxLiveAudioWorker : ILiveAudioWorker
                     UseShellExecute = false,
                 },
             };
+            // Pin the child locale so the English tokens the parsers expect
+            // ("Sources:", "Filters:"/"Streams:", ALSA "card .., device ..") are
+            // emitted regardless of the Pi's configured locale; the app itself
+            // runs invariant-culture, so a localized wpctl/arecord must not make
+            // device enumeration return zero devices.
+            process.StartInfo.EnvironmentVariables["LC_ALL"] = "C";
+            process.StartInfo.EnvironmentVariables["LANG"] = "C";
             foreach (string argument in arguments)
             {
                 process.StartInfo.ArgumentList.Add(argument);
