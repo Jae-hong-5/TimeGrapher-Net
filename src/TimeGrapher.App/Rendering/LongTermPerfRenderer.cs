@@ -494,8 +494,8 @@ internal sealed class LongTermPerfRenderer
         }
 
         // FillY copies its source on SetDataSource; acceptable because the series
-        // is capacity-bounded and snapshot versions change at most once per
-        // BeatMetricsHistory.SnapshotMinIntervalS of stream time plus once per
+        // is capacity-bounded and snapshot versions change at most once per beat
+        // (the BeatMetricsHistory publish throttle) of stream time plus once per
         // user state change (position click / sequence reset), which is
         // input-rate bounded.
         if (pane.VariationBand != null)

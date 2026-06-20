@@ -7,7 +7,8 @@ namespace TimeGrapher.Core.Metrics;
 /// into bounded decimating series (rate, amplitude, beat error) plus the latest
 /// derived measures and instantaneous readings, and publishes them as immutable
 /// <see cref="BeatMetricsHistorySnapshot"/>s. Beat-data rebuilds happen at most
-/// once per <see cref="SnapshotMinIntervalS"/> of stream time; a user state
+/// once per beat, capped at the <see cref="PublishRateCapBph"/> rate, of stream
+/// time; a user state
 /// change (active position, sequence reset) bypasses that throttle once, since
 /// stream time stands still while no synced beats arrive. Unchanged or
 /// in-between requests return the same shared instance, so per-frame cost
@@ -16,7 +17,15 @@ namespace TimeGrapher.Core.Metrics;
 public sealed class BeatMetricsHistory
 {
     public const int DefaultSeriesCapacity = 4096;
-    public const double SnapshotMinIntervalS = 0.5;
+
+    // Beat-data snapshots publish at most once per beat, but never faster than the
+    // PublishRateCapBph beat period: below 24000 bph each beat publishes (the beat
+    // period exceeds 0.15 s), and at or above 24000 bph faster beats coalesce to the
+    // 24000-bph period (0.15 s). This advances the Trace and Long-Term traces about
+    // per beat (smooth) without redrawing faster than ~6.7 Hz on fast watches, so
+    // the per-frame cost stays bounded. The interval is computed per snapshot from
+    // the locked Bph (see SnapshotIntervalS); before lock the cap period is used.
+    public const int PublishRateCapBph = 24000;
 
     private readonly DecimatingSeries _rate;
     private readonly DecimatingSeries _amplitude;
@@ -225,13 +234,13 @@ public sealed class BeatMetricsHistory
             return _snapshot;
         }
 
-        // force bypasses the 0.5s stream-time throttle so the end-of-run flush
+        // force bypasses the stream-time throttle so the end-of-run flush
         // frame publishes the final beats/validity/derived/position stats instead
-        // of a snapshot up to half a second stale (with no later frame to follow).
+        // of a snapshot up to one throttle interval stale (with no later frame to follow).
         if (_snapshot != null &&
             !force &&
             !_publishImmediately &&
-            _latestTimeS - _lastSnapshotTimeS < SnapshotMinIntervalS)
+            _latestTimeS - _lastSnapshotTimeS < SnapshotIntervalS())
         {
             return _snapshot;
         }
@@ -268,6 +277,17 @@ public sealed class BeatMetricsHistory
         _dirty = false;
         _publishImmediately = false;
         return _snapshot;
+    }
+
+    /// <summary>
+    /// Minimum stream-time gap between snapshot rebuilds: one beat period, capped
+    /// at the <see cref="PublishRateCapBph"/> period (0.15 s) so fast watches do
+    /// not publish faster than that. Falls back to the cap before lock (Bph 0).
+    /// </summary>
+    private double SnapshotIntervalS()
+    {
+        int bph = _bph > 0 ? Math.Min(_bph, PublishRateCapBph) : PublishRateCapBph;
+        return 3600.0 / bph;
     }
 
     private sealed class PositionAggregate
@@ -324,7 +344,7 @@ public sealed class BeatMetricsHistory
             return Array.Empty<PositionSummary>();
         }
 
-        // Rebuilt with the snapshot (at most every SnapshotMinIntervalS), so
+        // Rebuilt with the snapshot (at most once per publish-throttle interval), so
         // the allocation stays off the per-beat path and is bounded by WatchPositions.Count rows.
         var summaries = new List<PositionSummary>(measured);
         foreach (WatchPosition position in WatchPositions.All)
