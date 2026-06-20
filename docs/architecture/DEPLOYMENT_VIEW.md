@@ -1,94 +1,113 @@
-# 배포 뷰
+<!--
+초안(Draft): 배포 뷰 섹션
+- 대상: Milestone/ko/5-Architectural-Approaches.md 의 "3. MVC VIEW" 다음, "한 장으로 보는 아키텍처" 앞에 삽입 예정
+- 삽입 시 번호를 "## 4. DEPLOYMENT VIEW" 로 확정하고 본 주석 블록은 제거할 것
+- 렌더 이미지: 04.TimeGrapher-Net 의 deployment-view-detailed.drawio 를 PNG로 export → image/DEPLOYMENT.png 로 복사
+-->
 
-이 문서는 TimeGrapherNet을 배포(Deployment) 관점으로 해석한다. 기계식 시계가 내는 **음향 비트 신호**(각 테스트 위치·동작 상태가 반영된 소리)를 마이크로 캡처해 실시간으로 가공·시각화하는 Avalonia(.NET 8) 데스크톱 애플리케이션을, 어떤 하드웨어 노드에 어떤 산출물로 올리고 어떤 채널로 전달하는지 보여준다. 노드 내부의 런타임 상호작용은 [RATE_SCOPE_SEQUENCE_VIEW.md](RATE_SCOPE_SEQUENCE_VIEW.md), 정적 모듈 구조는 [MODULE_DECOMPOSITION_VIEW.md](MODULE_DECOMPOSITION_VIEW.md)를 참고한다.
+## 4. DEPLOYMENT VIEW – 배포 구조
 
-하나의 코드베이스에서 **Windows / Linux 데스크톱 / Raspberry Pi** 세 종류 하드웨어로 배포되며, 빌드·배포 파이프라인은 **GitHub Actions**로 운영한다. 모든 타겟은 런타임 무설치(셀프컨테인드 단일 실행 파일)로 배포된다.
+**목적:** 하나의 코드베이스에서 만든 산출물(Target)이 **어떤 하드웨어 노드에, 어떤 형태로, 어떤 채널을 통해** 올라가는지 보여준다. 코드 구조가 아니라 "빌드된 결과물이 사용자에게 전달되는 경로"를 정의한다.
 
-> 렌더 이미지: [PNG](images/deployment-view.png) · [SVG(확대 가능)](images/deployment-view.svg)
+**핵심 개념:**
+- **Git 중심 배포 파이프라인**: 다수 개발자가 각 PC에서 개발한 코드를 Git 서버로 모으고, CI/CD가 검증·산출물 생성·배포를 일관되게 처리한다.
+- **단일 코드베이스 · 다중 타겟**: 같은 소스에서 RID(Runtime Identifier)별로 cross-publish 해 Windows / Raspberry Pi 로 배포한다.
+- **런타임 무설치(self-contained)**: 모든 타겟은 .NET 런타임을 동봉한 단일 실행파일로 배포되어, 타겟에서 SDK·런타임 설치가 필요 없다.
+- **LAN 배포 채널**: 생성된 Target은 Git 서버 네트워크(LAN)를 통해 연결된 각 노드로 배포·설치된다.
 
-![배포 뷰 다이어그램](images/deployment-view.png)
-
-## 배포 다이어그램
+### 배포 다이어그램
 
 ```mermaid
 flowchart TB
-    Watch["기계식 시계<br/>«외부 신호원»<br/>비트 음향(T1/T2/T3) 방출"]
-    Mic["마이크 / 픽업<br/>«외부 장치»<br/>음향→전기신호"]
-    PosDev["시계 위치 측정 장비<br/>«외부 장치»<br/>테스트 포지션 측정"]
-
-    subgraph Dev["개발 / 빌드"]
-        direction TB
-        DevPC["개발자 PC<br/>«device»<br/>dotnet SDK, Avalonia"]
-        Repo["GitHub Repository<br/>«execution env»<br/>main 브랜치, 태그(v*)"]
-        subgraph GHA["GitHub Actions «CI/CD»"]
-            CI["CI 워크플로우<br/>build · test · Core 경계 검사<br/>(push/PR → main)"]
-            Rel["Release 워크플로우<br/>4 RID 셀프컨테인드 publish<br/>(tag v* → GitHub Release)"]
-        end
-        Assets["GitHub Release 자산<br/>«artifact»<br/>win-x64/arm64 .zip<br/>linux-x64/arm64 .tar.gz<br/>+ .sha256"]
+    subgraph Dev["💻 개발 환경 (다수 개발자 PC)"]
+        DevPC["개발자 PC (VS Code)<br/>C#/.NET · Source Code"]
+        Git["📦 Git Server (Origin)<br/>main / tags v*"]
+        CICD["🤖 CI/CD Pipeline<br/>Push → build/test 검증<br/>tag v* → 배포 Target 생성"]
     end
 
-    subgraph WinNode["Windows PC «device» (win-x64 / win-arm64)"]
-        WinApp["TimeGrapher.App.exe<br/>«artifact, 단일 실행파일»<br/>+ Platform.WindowsAudio(NAudio/WASAPI)"]
+    subgraph Target["📤 배포 Target (Release Assets)"]
+        Artifacts["Target Artifacts<br/>win-x64 .zip · win-arm64 .zip<br/>linux-arm64 .tar.gz (Raspberry Pi)<br/>+ .sha256 (무결성)"]
     end
 
-    subgraph LinuxNode["Linux 데스크톱 «device» (linux-x64)"]
-        LinApp["TimeGrapher.App<br/>«artifact, 단일 실행파일»<br/>+ Platform.LinuxAudio(ALSA)<br/>install.sh → .desktop 등록"]
+    Net(["🌐 Git 서버 네트워크 (LAN) — Target 배포 채널"])
+
+    subgraph Win["🖥️ Windows PC (win-x64 / win-arm64)"]
+        WinExe["TimeGrapher.App.exe<br/>단일 실행파일·무설치"]
+        WinAudio["Platform.WindowsAudio<br/>NAudio / WASAPI"]
+        WinIn["입력: USB 오디오 / USB Serial"]
+        WinExe --> WinAudio --> WinIn
     end
 
-    subgraph PiNode["Raspberry Pi 5 «device» (linux-arm64)"]
-        PiApp["TimeGrapher.App<br/>«artifact, 단일 실행파일»<br/>+ Platform.LinuxAudio(ALSA)"]
-        Touch["8인치 터치스크린<br/>«장치» HDMI+USB"]
+    subgraph Pi["🍓 Raspberry Pi 5 (linux-arm64)"]
+        PiExe["TimeGrapher.App<br/>ELF 단일 파일·무설치"]
+        PiAudio["Platform.LinuxAudio<br/>ALSA (AGC off 권장)"]
+        PiIn["입력: ALSA 오디오 / USB Serial"]
+        PiExe --> PiAudio --> PiIn
     end
 
-    Watch -- "음향" --> Mic
-    Watch -- "위치/자세" --> PosDev
-    DevPC -- "git push / tag" --> Repo
-    Repo --> CI
-    Repo --> Rel
-    Rel -- "업로드" --> Assets
+    subgraph Ext["🔊 외부 입력 신호"]
+        Watch["⏰ 기계식 시계<br/>음향 비트 신호 (T1/T2/T3)"]
+        Mic["🎙️ 마이크/픽업<br/>음향 → 전기신호"]
+    end
 
-    Assets -- "win .zip 다운로드" --> WinNode
-    Assets -- "linux-x64 .tar.gz" --> LinuxNode
-    Assets -- "linux-arm64 .tar.gz" --> PiNode
+    DevPC -->|git push| Git
+    Git -->|CI/CD 트리거| CICD
+    CICD -->|publish · Target 생성| Artifacts
+    Artifacts -.->|Target 배포 등록| Net
+    Net -.->|deploy · 배포·설치| WinExe
+    Net -.->|deploy · 배포·설치| PiExe
 
-    Mic -- "USB/오디오 입력" --> WinNode
-    Mic -- "USB/오디오 입력" --> LinuxNode
-    Mic -- "USB/오디오 입력" --> PiNode
-    PosDev -- "USB/시리얼 위치 데이터" --> WinNode
-    PosDev -- "USB/시리얼 위치 데이터" --> LinuxNode
-    PosDev -- "USB/시리얼 위치 데이터" --> PiNode
-    PiApp --- Touch
+    Watch -.->|음향| Mic
+    Mic -.->|USB Audio| WinIn
+    Mic -.->|USB Audio| PiIn
+
+    style Dev fill:#F3E5F5,stroke:#7B1FA2,stroke-width:2px
+    style Target fill:#FFF3E0,stroke:#E65100,stroke-width:2px
+    style Win fill:#E8F5E9,stroke:#1B5E20,stroke-width:2px
+    style Pi fill:#E8F5E9,stroke:#1B5E20,stroke-width:2px
+    style Ext fill:#E3F2FD,stroke:#1976D2,stroke-width:2px
+    style Net fill:#E0F7FA,stroke:#00838F,stroke-width:2px
 ```
 
-## 노드 / 산출물 매핑
+<!-- 렌더 이미지 첨부 시: ![배포 뷰](image/DEPLOYMENT.png) -->
 
-| 노드(하드웨어) | RID | 실행 산출물 | 오디오 백엔드 | 비고 |
+### 범례 (Notation)
+
+선·점선·색상 세 가지 표기가 각각 독립된 의미를 가진다. 한 화살표는 **「색상(도메인) + 선 종류(흐름 성격)」** 조합으로 읽는다.
+
+| 구분 | 기호 | 의미 |
+|---|---|---|
+| **선** | 실선 → | 직접 흐름 — 산출물 생성 · CI/CD 파이프라인 · 노드 내부 연결 |
+| **선** | 점선 ⇢ | 전송 채널 — 네트워크 Target 배포 · 외부 신호 입력 |
+| **색** | 🟪 보라 | 개발 환경 (개발자 PC · Git 서버 · CI/CD) |
+| **색** | 🟧 주황 | 배포 Target (Release 산출물) |
+| **색** | 🟦 청록 | Git 서버 네트워크 (LAN) |
+| **색** | 🟩 녹색 | 타겟 실행 노드 (Windows · Raspberry Pi) |
+| **색** | 🟦 파랑 | 외부 장치 / 신호 (시계 · 마이크) |
+| **경계** | 점선 사각 | 실행/배포 그룹 경계 |
+
+### 노드 / 산출물 매핑
+
+| 노드(하드웨어) | RID | 실행 산출물 | 오디오 백엔드 | 배포 형식 |
 |---|---|---|---|---|
-| Windows PC | `win-x64`, `win-arm64` | `TimeGrapher.App.exe` (단일 파일) | `Platform.WindowsAudio` (NAudio WASAPI/WinMM) | .zip 압축 배포 |
-| Linux 데스크톱 | `linux-x64` | `TimeGrapher.App` (ELF 단일 파일) | `Platform.LinuxAudio` (ALSA/libasound) | `install.sh`로 데스크톱 메뉴 등록 |
-| Raspberry Pi 5 | `linux-arm64` | `TimeGrapher.App` (ELF 단일 파일) | `Platform.LinuxAudio` (ALSA) | 터치스크린, AGC off 필요 |
+| Windows PC | `win-x64`, `win-arm64` | `TimeGrapher.App.exe` (단일 파일) | `Platform.WindowsAudio` (NAudio/WASAPI) | `.zip` |
+| Raspberry Pi 5 | `linux-arm64` | `TimeGrapher.App` (ELF 단일 파일) | `Platform.LinuxAudio` (ALSA) | `.tar.gz` |
 
-## 통신 / 의존 경로
+### 배포 흐름 (3단계)
 
-- **시계 → 마이크 → 노드**: 음향 신호가 마이크/픽업을 통해 전기신호로 변환되어 각 노드의 오디오 입력(USB/사운드카드)으로 들어온다.
-- **시계 → 위치 측정 장비 → 노드**: 별도의 외부 장비가 시계의 테스트 포지션(자세)을 측정해 USB/시리얼 데이터로 각 노드에 전달한다. 음향과 독립된 입력 채널로, 측정값은 해당 비트 데이터의 active position에 결합된다.
-- **개발자 PC → GitHub**: `git push`(→ CI) / `git tag v*`(→ Release).
-- **GitHub Actions → Release 자산**: 4개 RID를 셀프컨테인드·단일 파일로 cross-publish 후 체크섬과 함께 GitHub Release에 업로드.
-- **Release 자산 → 실행 노드**: 사용자가 해당 RID 아카이브를 내려받아 압축 해제 후 실행(런타임 설치 불필요).
+1. **개발·공유** — 다수 개발자가 각 PC에서 C#/.NET으로 개발하고, `git push`로 Git 서버에 코드를 모은다.
+2. **검증·생성** — Git 서버는 push된 사항에 대해 CI/CD로 build/test를 검증하고, `tag v*`에서 타겟별(Windows / Raspberry Pi) 배포 Target을 생성한다.
+3. **배포·설치** — 생성된 Target을 Git 서버 네트워크(LAN)를 통해 연결된 각 노드로 배포·설치한다.
 
-## 배포 결정과 근거
+런타임에는 별도의 외부 입력 경로가 있다: 기계식 시계의 **음향 비트 신호**가 마이크/픽업을 거쳐 전기신호로 변환되고, **USB 오디오**로 각 노드의 오디오 입력에 들어간다.
+
+### 설계 결정과 근거 (품질 속성 연결)
 
 | 특성 | 구현 | 근거(품질 속성) |
 |---|---|---|
-| 런타임 무설치 | `--self-contained` + `PublishSingleFile` (.NET 8 동봉) | 라즈베리파이 등 타겟에서 SDK 설치 부담 제거 |
-| 단일 코드베이스·다중 타겟 | `RuntimeIdentifiers = win/linux × x64/arm64`, 플랫폼별 `ProjectReference` 조건부 포함 | 이식성, 수정용이성 |
-| 플랫폼 격리 | `TimeGrapher.Core`는 플랫폼 오디오에 비의존(CI가 경계 검사) | 확장성, 모듈성 |
-| 무결성 검증 | 아카이브별 `.sha256` 동봉 | 배포 신뢰성 |
-| 로케일 독립 | `InvariantGlobalization=true` → Linux ICU 의존 제거 | Pi/임의 로케일에서 동일 동작 |
+| 런타임 무설치 | `--self-contained` + `PublishSingleFile` | 라즈베리파이 등 타겟의 SDK 설치 부담 제거 |
+| 단일 코드베이스·다중 타겟 | RID별 cross-publish + 플랫폼별 조건부 `ProjectReference` | 이식성, 변경 용이성 |
+| 플랫폼 격리 | `TimeGrapher.Core`는 플랫폼 오디오에 비의존 (CI가 경계 검사) | 모듈성, 확장성 |
+| 무결성 검증 | 산출물별 `.sha256` 동봉 | 배포 신뢰성 |
 
-## 비고
-
-- 이 시스템은 **단말 독립 실행형**이라 서버/네트워크 노드가 없다(원격 통신은 GitHub 배포 채널뿐). 향후 클라우드 로깅·원격 모니터링이 추가되면 별도 노드/채널로 확장이 필요하다.
-- 마이크 연결 방식(USB 오디오 vs 보드 직결)과 Pi의 AGC off 설정은 측정 정확도에 직접 영향을 주므로 배포 체크리스트에 포함하는 것을 권장한다.
-- 입력 경로는 두 가지다: (1) 음향 신호(마이크), (2) 시계의 테스트 포지션(CH/CB/6H/9H/3H/12H)을 측정하는 **외부 위치 측정 장비**. 위치 데이터는 음향 분석으로 산출되는 측정값과 결합되어 포지션별 동작 특성을 평가하는 데 쓰인다.
-- 위치 측정 장비의 연결 인터페이스(USB/시리얼 등)와 데이터 포맷은 초안 가정이며, 실제 장비 사양 확정 시 채널 표기를 갱신해야 한다.
+> **왜 이렇게?** 측정 정확도는 타겟 하드웨어(마이크·오디오 백엔드·터치스크린)에 직접 좌우된다. 그래서 "어디에 무엇을 어떻게 올리는지"를 코드 구조와 분리해 명시하고, **단일 코드베이스 → RID별 무설치 산출물 → LAN 배포**로 통일해 여러 타겟에서 동일한 동작을 보장한다.
