@@ -117,7 +117,7 @@ public partial class MainWindow : Window
         mPlaybackFileService = new PlaybackFileService(mDialogs, mErrorLog);
         mRunCommandService = new RunCommandService(mViewModel, new RunCommandOperations(this));
         mAnalysisPerformanceLogger = AppStartupOptions.Current.AnalysisLogPath is string analysisLogPath
-            ? new AnalysisPerformanceLogger(analysisLogPath)
+            ? new AnalysisPerformanceLogger(EnsureParentDirectory(analysisLogPath))
             : null;
         mPendingMeasurementLogPath = AppStartupOptions.Current.MeasurementLogPath;
         mViewModel.IsMeasurementLogEnabled = mPendingMeasurementLogPath != null;
@@ -488,13 +488,27 @@ public partial class MainWindow : Window
         if (mPendingMeasurementLogPath is string path)
         {
             mPendingMeasurementLogPath = null;
-            return path;
+            return EnsureParentDirectory(path);
         }
 
         string baseDirectory = AppContext.BaseDirectory;
         string logDirectory = Path.Combine(baseDirectory, "log");
         Directory.CreateDirectory(logDirectory);
         return BuildMeasurementLogPath(baseDirectory, DateTime.Now);
+    }
+
+    // CLI --measurement-log/--analysis-log paths are opened directly in the
+    // logger constructors at startup; create the parent directory first (mirroring
+    // the default log/ branch) so a nested path like out/run/foo.csv does not throw
+    // DirectoryNotFoundException and crash launch. A bare filename has no parent.
+    private static string EnsureParentDirectory(string path)
+    {
+        string? parent = Path.GetDirectoryName(path);
+        if (!string.IsNullOrEmpty(parent))
+        {
+            Directory.CreateDirectory(parent);
+        }
+        return path;
     }
 
     private AnalysisRunSettings BuildRunSettings()
