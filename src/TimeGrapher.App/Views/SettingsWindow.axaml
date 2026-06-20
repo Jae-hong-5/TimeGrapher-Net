@@ -3,7 +3,7 @@
         x:Class="TimeGrapher.App.Views.SettingsWindow"
         Title="Settings"
         Icon="/Assets/App/AppIcon-256.png"
-        Width="420" Height="282"
+        Width="420" Height="332"
         CanResize="False"
         SystemDecorations="None"
         ShowInTaskbar="False"
@@ -61,6 +61,13 @@
                 IsEnabled="{Binding AreRunParametersEnabled}"
                 IsChecked="{Binding PllEventVeto, Mode=TwoWay}"
                 ToolTip.Tip="Reject phase-mismatched impulse events before metrics" />
+      <CheckBox Name="PauseOnPositionChangeCheckBox"
+                Content="Pause on position change"
+                FontWeight="Bold"
+                HorizontalAlignment="Left"
+                IsEnabled="{Binding AreRunParametersEnabled}"
+                IsChecked="{Binding PauseOnPositionChange, Mode=TwoWay}"
+                ToolTip.Tip="Pause a running measurement after a position button changes the active position" />
       <Border Height="1"
               Background="{DynamicResource ChromeBorderBrush}"
               Margin="0,2" />

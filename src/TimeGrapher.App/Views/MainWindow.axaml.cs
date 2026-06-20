@@ -390,6 +390,10 @@ public partial class MainWindow : Window
         if (e.PropertyName == nameof(MainWindowViewModel.SelectedPositionIndex))
         {
             mRunSessionController.SetActivePosition((WatchPosition)mViewModel.SelectedPositionIndex);
+            if (ShouldPauseAfterPositionChange(mViewModel))
+            {
+                mRunCommandService.PauseIfRunning();
+            }
         }
 
         if (e.PropertyName == nameof(MainWindowViewModel.SigmaAveraging))
@@ -460,6 +464,11 @@ public partial class MainWindow : Window
         // 5.0) and parenthesized negation ("(500)" -> -500).
         if (string.IsNullOrEmpty(text)) return 0.0;
         return double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out double v) ? v : 0.0;
+    }
+
+    internal static bool ShouldPauseAfterPositionChange(MainWindowViewModel viewModel)
+    {
+        return viewModel.PauseOnPositionChange && viewModel.RunState == RunUiState.Running;
     }
 
     private void ConfigureMeasurementResultLogger(bool enabled)

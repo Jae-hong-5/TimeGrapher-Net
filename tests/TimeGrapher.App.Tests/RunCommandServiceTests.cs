@@ -123,6 +123,43 @@ public sealed class RunCommandServiceTests
     }
 
     [Fact]
+    public void PauseIfRunningPausesWithoutResumingPausedRuns()
+    {
+        MainWindowViewModel vm = CreateViewModel();
+        vm.SetRunning();
+        var operations = new FakeRunCommandOperations
+        {
+            HasActiveWorker = true,
+        };
+        var service = new RunCommandService(vm, operations);
+
+        service.PauseIfRunning();
+        service.PauseIfRunning();
+
+        Assert.Equal(new[] { true }, operations.PauseValues);
+        Assert.Equal(RunUiState.Paused, vm.RunState);
+        Assert.Equal("Paused", vm.StatusText);
+    }
+
+    [Fact]
+    public void PauseIfRunningIgnoresNonRunningStates()
+    {
+        MainWindowViewModel vm = CreateViewModel();
+        vm.SetPaused();
+        var operations = new FakeRunCommandOperations
+        {
+            HasActiveWorker = true,
+        };
+        var service = new RunCommandService(vm, operations);
+
+        service.PauseIfRunning();
+        vm.SetStopped();
+        service.PauseIfRunning();
+
+        Assert.Empty(operations.PauseValues);
+    }
+
+    [Fact]
     public void StopPlaybackStopsClosesInvalidatesAndRestoresAudioState()
     {
         MainWindowViewModel vm = CreateViewModel();

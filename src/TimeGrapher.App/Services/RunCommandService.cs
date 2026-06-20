@@ -36,6 +36,14 @@ internal sealed partial class RunCommandService
         CurrentState.TogglePause(this);
     }
 
+    public void PauseIfRunning()
+    {
+        if (_viewModel.RunState == RunUiState.Running)
+        {
+            PauseRunning();
+        }
+    }
+
     public void StopRunWithoutReset()
     {
         CurrentState.StopRunWithoutReset(this);

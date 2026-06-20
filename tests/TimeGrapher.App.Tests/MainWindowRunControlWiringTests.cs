@@ -1,4 +1,5 @@
 using System.Xml.Linq;
+using TimeGrapher.App.ViewModels;
 using TimeGrapher.App.Views;
 using Xunit;
 
@@ -121,10 +122,22 @@ public sealed class MainWindowRunControlWiringTests
             .ToArray();
 
         Assert.Equal(
-            new[] { "UseConsetCheckBox", "PllEventVetoCheckBox", "MeasurementLogEnabledCheckBox" },
+            new[]
+            {
+                "UseConsetCheckBox",
+                "PllEventVetoCheckBox",
+                "PauseOnPositionChangeCheckBox",
+                "MeasurementLogEnabledCheckBox",
+            },
             checkBoxes.Select(checkBox => checkBox.Attribute("Name")?.Value).ToArray());
         Assert.Equal(
-            new[] { "Use C-onset timing", "PLL Event Veto (impulse rejection)", "Save measurement CSV log" },
+            new[]
+            {
+                "Use C-onset timing",
+                "PLL Event Veto (impulse rejection)",
+                "Pause on position change",
+                "Save measurement CSV log",
+            },
             checkBoxes.Select(checkBox => checkBox.Attribute("Content")?.Value).ToArray());
 
         Assert.Equal(
@@ -132,6 +145,7 @@ public sealed class MainWindowRunControlWiringTests
             {
                 "{Binding UseCOnset, Mode=TwoWay}",
                 "{Binding PllEventVeto, Mode=TwoWay}",
+                "{Binding PauseOnPositionChange, Mode=TwoWay}",
                 "{Binding IsMeasurementLogEnabled, Mode=TwoWay}",
             },
             checkBoxes.Select(checkBox => checkBox.Attribute("IsChecked")?.Value).ToArray());
@@ -143,6 +157,26 @@ public sealed class MainWindowRunControlWiringTests
             name => name.Contains("MeasurementLogPath", StringComparison.Ordinal) ||
                 name.Contains("MeasurementLogBrowse", StringComparison.Ordinal) ||
                 name.Contains("MeasurementLogClear", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void PositionAutoPauseGateRequiresTheSettingAndRunningState()
+    {
+        var vm = new MainWindowViewModel(
+            () => Task.CompletedTask,
+            () => { },
+            () => { });
+
+        Assert.False(MainWindow.ShouldPauseAfterPositionChange(vm));
+
+        vm.PauseOnPositionChange = true;
+        Assert.False(MainWindow.ShouldPauseAfterPositionChange(vm));
+
+        vm.SetRunning();
+        Assert.True(MainWindow.ShouldPauseAfterPositionChange(vm));
+
+        vm.SetPaused();
+        Assert.False(MainWindow.ShouldPauseAfterPositionChange(vm));
     }
 
     [Fact]

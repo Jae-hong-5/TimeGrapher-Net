@@ -50,6 +50,7 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     private string _highPassCutoffText = "200";
     private bool _useCOnset;
     private bool _pllEventVeto;
+    private bool _pauseOnPositionChange;
     private int _sweepMultiple = SweepFrameProjector.DefaultSweepMultiple;
     private int _selectedPositionIndex; // 0 = WatchPosition.CH (dial up)
     private bool _sigmaAveraging;
@@ -244,6 +245,12 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     {
         get => _pllEventVeto;
         set => SetProperty(ref _pllEventVeto, value);
+    }
+
+    public bool PauseOnPositionChange
+    {
+        get => _pauseOnPositionChange;
+        set => SetProperty(ref _pauseOnPositionChange, value);
     }
 
     /// <summary>Scope Sweep window length as a multiple of the beat period (1x / 2x / 3x).</summary>
