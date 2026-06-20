@@ -23,6 +23,7 @@ internal sealed partial class InfoTabRegistry
 {
     private const double VarioMinimumFontSize = 16.0;
     private const double PositionMinimumFontSize = 14.0;
+    private const string PositionResultColumns = "1.25*,1.05*,1.75*,2.1*,1.85*";
     private const string ResetAllGraphViewsTooltip = "Reset all graph views";
 
     private delegate InfoTabRegistration InfoTabFactory(
@@ -1475,7 +1476,7 @@ internal sealed partial class InfoTabRegistry
         {
             Classes = { "PositionResultPanel" },
             Padding = new Thickness(12, 6),
-            Margin = new Thickness(4, 2, 8, 2),
+            Margin = new Thickness(4, 18, 8, 2),
             Child = panelGrid,
         };
     }
@@ -1484,7 +1485,7 @@ internal sealed partial class InfoTabRegistry
     {
         var table = new Grid
         {
-            ColumnDefinitions = new ColumnDefinitions("1.5*,1.15*,1.75*,2.25*,1.45*"),
+            ColumnDefinitions = new ColumnDefinitions(PositionResultColumns),
             RowDefinitions = new RowDefinitions("Auto,Auto,Auto,Auto,Auto"),
             Margin = new Thickness(0),
         };
@@ -1536,25 +1537,21 @@ internal sealed partial class InfoTabRegistry
     {
         var row = new Grid
         {
-            ColumnDefinitions = new ColumnDefinitions("1.5*,1.15*,1.75*,2.25*,1.45*"),
+            ColumnDefinitions = new ColumnDefinitions(PositionResultColumns),
         };
 
         var metricStack = new StackPanel { Spacing = 0, Margin = new Thickness(8, 3, 8, 3) };
-        metricStack.Children.Add(new TextBlock
+        var titleText = new TextBlock
         {
             Text = title,
             FontSize = 15,
             Opacity = 0.9,
             FontWeight = FontWeight.Bold,
             TextWrapping = TextWrapping.Wrap,
-        });
-        metricStack.Children.Add(new TextBlock
-        {
-            Text = description,
-            FontSize = PositionMinimumFontSize,
-            Opacity = 0.76,
-            TextWrapping = TextWrapping.Wrap,
-        });
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        ToolTip.SetTip(titleText, description);
+        metricStack.Children.Add(titleText);
         requirementText = new TextBlock
         {
             FontSize = PositionMinimumFontSize,
@@ -1604,7 +1601,7 @@ internal sealed partial class InfoTabRegistry
     {
         var row = new Grid
         {
-            ColumnDefinitions = new ColumnDefinitions("92,*"),
+            ColumnDefinitions = new ColumnDefinitions("*,78"),
         };
         var labelText = new TextBlock
         {
@@ -1613,6 +1610,7 @@ internal sealed partial class InfoTabRegistry
             Opacity = 0.78,
             VerticalAlignment = VerticalAlignment.Center,
             Margin = new Thickness(0, 0, 8, 0),
+            TextTrimming = TextTrimming.CharacterEllipsis,
         };
         Grid.SetColumn(labelText, 0);
         Grid.SetColumn(value, 1);
@@ -1688,8 +1686,10 @@ internal sealed partial class InfoTabRegistry
     {
         FontSize = 16,
         FontWeight = FontWeight.Bold,
+        MinWidth = 78,
         HorizontalAlignment = HorizontalAlignment.Right,
         TextAlignment = TextAlignment.Right,
+        VerticalAlignment = VerticalAlignment.Center,
     };
 
     private static InfoTabRegistration CreateBeatNoiseScopeRegistration(

@@ -127,11 +127,11 @@ public sealed class InfoTabRegistryTests
             text.Text == "V None / H None (0V + 0H)");
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "None");
         Assert.Contains(Descendants(content).OfType<Button>(), button => Equals(button.Content, "View criteria ▾"));
-        Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
+        Assert.DoesNotContain(Descendants(content).OfType<TextBlock>(), text =>
             text.Text == "Worst - best across positions.");
-        Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
+        Assert.DoesNotContain(Descendants(content).OfType<TextBlock>(), text =>
             text.Text == "Vertical mean - horizontal mean.");
-        Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
+        Assert.DoesNotContain(Descendants(content).OfType<TextBlock>(), text =>
             text.Text == "Mean of measured positions.");
         Assert.DoesNotContain(Descendants(content).OfType<TextBlock>(), text =>
             text.Text == "Verdict starts at 3 positions with 30+ beats. Later qualified positions update the result.");
@@ -152,6 +152,7 @@ public sealed class InfoTabRegistryTests
         Border resultPanel = Assert.Single(Descendants(content).OfType<Border>(), border =>
             border.Classes.Contains("PositionResultPanel"));
         Assert.Equal(new Thickness(12, 6), resultPanel.Padding);
+        Assert.Equal(new Thickness(4, 18, 8, 2), resultPanel.Margin);
         Assert.Contains(Descendants(content).OfType<Border>(), border =>
             border.Classes.Contains("PositionResultBadge") &&
             border.Classes.Contains("pending"));
@@ -167,12 +168,21 @@ public sealed class InfoTabRegistryTests
             Assert.True(double.IsNaN(group.Height));
             Assert.True(group.Margin.Bottom <= 2.0);
             TextBlock[] groupText = Descendants(group).OfType<TextBlock>().ToArray();
+            Assert.Single(groupText, text =>
+                MetricDescriptionFor(text.Text) is { } description &&
+                Equals(ToolTip.GetTip(text), description));
             Assert.All(groupText, text =>
                 Assert.True(text.FontSize <= 16.0, $"{text.Text} uses {text.FontSize}px"));
             Assert.Contains(groupText, text => text.TextWrapping == TextWrapping.Wrap);
             Assert.All(groupText.Where(text => text.Text is { Length: > 24 }), text =>
                 Assert.Equal(TextWrapping.Wrap, text.TextWrapping));
         });
+        TextBlock[] readingValues = Descendants(content)
+            .OfType<TextBlock>()
+            .Where(text => text.TextAlignment == TextAlignment.Right && text.MinWidth >= 78.0)
+            .ToArray();
+        Assert.True(readingValues.Length >= 8);
+        Assert.All(readingValues, text => Assert.Equal(HorizontalAlignment.Right, text.HorizontalAlignment));
         for (int i = 0; i < buttons.Length; i++)
         {
             Assert.Equal(i, Grid.GetRow(buttons[i]));
@@ -222,6 +232,15 @@ public sealed class InfoTabRegistryTests
         Program.BuildAvaloniaApp().SetupWithoutStarting();
         s_avaloniaPlatformStarted = true;
     }
+
+    private static string? MetricDescriptionFor(string? title) => title switch
+    {
+        "D SPREAD" => "Worst - best across positions.",
+        "BALANCE-WHEEL" => "Spread across full vertical positions.",
+        "V/H BALANCE" => "Vertical mean - horizontal mean.",
+        "X AVERAGE" => "Mean of measured positions.",
+        _ => null,
+    };
 
     [Fact]
     public void PositionStripObservesFramesEvenWhenPositionsTabIsInactive()
