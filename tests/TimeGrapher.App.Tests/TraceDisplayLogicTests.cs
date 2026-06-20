@@ -37,18 +37,6 @@ public sealed class TraceDisplayLogicTests
     }
 
     [Fact]
-    public void RollingAverage_UsesOnlyTheTrailingWindow()
-    {
-        MetricsHistorySeries series = Series(
-            new[] { 0.0, 50.0, 100.0, 110.0, 120.0 },
-            new[] { 1000.0, 1000.0, 6.0, 8.0, 10.0 });
-
-        // Window of 20 s back from x=120 covers x=100,110,120.
-        Assert.Equal(8.0, MetricsSeriesMath.RollingAverage(series, 20.0));
-        Assert.Null(MetricsSeriesMath.RollingAverage(MetricsHistorySeries.Empty, 20.0));
-    }
-
-    [Fact]
     public void Alert_FiresWhenWatchRunsLate()
     {
         TraceAlertState state = TraceAlertEvaluator.Evaluate(Snapshot(rateValid: true, rate: -12.3));

@@ -19,10 +19,9 @@ internal sealed record LongTermSummaryControls(
 /// testing period as three stacked plots, rendered from the cumulative
 /// BeatMetricsHistorySnapshot the frame already carries. Each pane shows the
 /// bucket-average line, a shaded YMin–YMax band (the range of typical
-/// variation), a dashed overall-average line and a dashed acceptable-range
-/// corridor (two limit lines per measure, from LongTermAcceptPolicy) so the
-/// trace can be read against its tolerance at a glance; the footer reports the
-/// overall averages, elapsed time and current resolution. Long durations need
+/// variation), a dashed overall-average line and a shaded acceptable-range
+/// band (from LongTermAcceptPolicy) so the trace can be read against its
+/// tolerance at a glance. Long durations need
 /// no special handling here: the Core DecimatingSeries halves its resolution
 /// whenever its fixed capacity fills, so one plotted point inherently spans
 /// more seconds — and the display updates less often — as elapsed time grows
@@ -48,6 +47,16 @@ internal sealed class LongTermPerfRenderer
     // the lowest left-axis tick label is not clipped against the pane's edge.
     private const float StackedPaneBottomPadPx = 10f;
 
+    // Fixed left-axis panel size (px), the RateScopeRenderer tactic. Pinning every
+    // pane's left panel to one shared value keeps each pane's data area a constant
+    // width AND keeps the three stacked panes aligned, so the same elapsed time
+    // sits at the same screen x on every pane and the position markers line up.
+    // Replaces the former dynamic equalize-to-widest pass, which kept the panes
+    // aligned but let the absolute width drift upward as labels grew. 60 px clears
+    // the widest measured label (beat error ~56 px) with headroom; the right panel
+    // is already a constant 15 px on all panes, so only the left needs pinning.
+    private const float LeftAxisSizePx = 60f;
+
     private sealed class Pane
     {
         public required AvaPlot Plot { get; init; }
@@ -55,8 +64,8 @@ internal sealed class LongTermPerfRenderer
         public required string AcceptLabelFormat { get; init; }
 
         // Fixed acceptable-range corridor for this measure (s/d, °, ms). Drawn as
-        // two dashed reference lines so a glance shows whether the long-term trace
-        // stays in tolerance; the values come from LongTermAcceptPolicy.
+        // a shaded band so a glance shows whether the long-term trace stays in
+        // tolerance; the values come from LongTermAcceptPolicy.
         public required (double Min, double Max) Accept { get; init; }
 
         public readonly List<double> X = new();
@@ -66,8 +75,6 @@ internal sealed class LongTermPerfRenderer
         public Scatter? BucketLine;
         public FillY? VariationBand;
         public HorizontalLine? OverallAverage;
-        public HorizontalLine? AcceptMin;
-        public HorizontalLine? AcceptMax;
         public Text? AcceptMinLabel;
         public Text? AcceptMaxLabel;
         public ReviewCursorLayer? Cursor;
@@ -81,7 +88,6 @@ internal sealed class LongTermPerfRenderer
     private readonly Pane _amplitude;
     private readonly Pane _beatError;
     private readonly Pane[] _panes;
-    private readonly TextBlock _footerText;
     private readonly LongTermSummaryControls? _summary;
 
     private PlotThemePalette _theme = PlotThemePalette.Current;
@@ -111,14 +117,12 @@ internal sealed class LongTermPerfRenderer
         AvaPlot ratePlot,
         AvaPlot amplitudePlot,
         AvaPlot beatErrorPlot,
-        TextBlock footerText,
         LongTermSummaryControls? summary = null)
     {
         _rate = new Pane { Plot = ratePlot, YLabel = "Error Rate (s/d)", AcceptLabelFormat = "+0;-0;0", Accept = LongTermAcceptPolicy.Rate };
         _amplitude = new Pane { Plot = amplitudePlot, YLabel = "Amplitude(°)", AcceptLabelFormat = "0", Accept = LongTermAcceptPolicy.Amplitude };
         _beatError = new Pane { Plot = beatErrorPlot, YLabel = "Beat Error (ms)", AcceptLabelFormat = "+0.0;-0.0;0.0", Accept = LongTermAcceptPolicy.BeatError };
         _panes = new[] { _rate, _amplitude, _beatError };
-        _footerText = footerText;
         _summary = summary;
 
         for (int i = 0; i < _panes.Length; i++)
@@ -172,7 +176,7 @@ internal sealed class LongTermPerfRenderer
         }
 
         ApplySeriesTheme();
-        UpdateSummaryAndFooter();
+        UpdateSummary();
         RefreshAll();
     }
 
@@ -183,7 +187,6 @@ internal sealed class LongTermPerfRenderer
         _liveWindowS = DefaultLiveWindowS;
         _lastHistory = null;
         _lastReviewCursorTimeS = null;
-        _footerText.Text = "";
         SetPlaceholderSummary();
         // plot.Clear() below drops the marker lines; force the next render to re-add.
         _positionMarkerCount = -1;
@@ -198,11 +201,11 @@ internal sealed class LongTermPerfRenderer
             pane.PositionMarkers.Clear();
             ApplyPlotTheme(plot);
             plot.YLabel(pane.YLabel);
-            // NOTE: deliberately do NOT reset Axes.Left.MinimumSize here. Once
-            // AlignLeftEdges has settled it on the widest natural panel, keeping
-            // it across Reset avoids a natural→aligned jump on every Reset press
-            // (which read as the left edge toggling); it self-corrects upward if
-            // a later run's labels grow wider.
+            // Pin the left panel to a fixed size so the data area never resizes
+            // when the autoscaled Y range gains/loses a digit, and so all three
+            // panes share an identical left edge (the RateScopeRenderer tactic).
+            plot.Axes.Left.MinimumSize = LeftAxisSizePx;
+            plot.Axes.Left.MaximumSize = LeftAxisSizePx;
 
             pane.AcceptBand = plot.Add.VerticalSpan(pane.Accept.Min, pane.Accept.Max);
             pane.AcceptBand.LineStyle.Width = 0;
@@ -210,20 +213,9 @@ internal sealed class LongTermPerfRenderer
             pane.VariationBand = plot.Add.FillY(pane.Band);
             pane.VariationBand.LineWidth = 0;
             pane.VariationBand.IsVisible = false;
-            pane.AcceptMin = plot.Add.HorizontalLine(pane.Accept.Min);
-            pane.AcceptMax = plot.Add.HorizontalLine(pane.Accept.Max);
-            foreach (HorizontalLine line in new[] { pane.AcceptMin, pane.AcceptMax })
-            {
-                line.LineWidth = 1.5f;
-                line.LinePattern = LinePattern.Dashed;
-                line.LabelText = string.Empty;
-                line.EnableAutoscale = false;
-            }
             plot.Axes.Right.TickLabelStyle.IsVisible = false;
             plot.Axes.Right.MajorTickStyle.Length = 0;
             plot.Axes.Right.MinorTickStyle.Length = 0;
-            pane.AcceptMinLabel = AcceptLabel(plot, pane.Accept.Min, pane.AcceptLabelFormat);
-            pane.AcceptMaxLabel = AcceptLabel(plot, pane.Accept.Max, pane.AcceptLabelFormat);
 
             pane.BucketLine = plot.Add.Scatter(pane.X, pane.Y);
             pane.BucketLine.LineWidth = 2;
@@ -234,6 +226,10 @@ internal sealed class LongTermPerfRenderer
             pane.OverallAverage.EnableAutoscale = false;
             pane.OverallAverage.IsVisible = false;
             pane.Cursor = AddCursor(plot);
+            // Limit-value labels added last so they render above the trace line
+            // (matches the Trace display's label Z-order).
+            pane.AcceptMinLabel = AcceptLabel(plot, pane.Accept.Min, pane.AcceptLabelFormat);
+            pane.AcceptMaxLabel = AcceptLabel(plot, pane.Accept.Max, pane.AcceptLabelFormat);
             PlotAxisRules.ClampLeftEdgeToZero(plot);
         }
 
@@ -279,7 +275,7 @@ internal sealed class LongTermPerfRenderer
             AutoScaleYIncludingNearbyLimits(pane);
         }
 
-        UpdateSummaryAndFooter();
+        UpdateSummary();
         RefreshAll();
     }
 
@@ -287,7 +283,7 @@ internal sealed class LongTermPerfRenderer
     {
         _followLive = true;
         ApplyFollowLiveWindow();
-        UpdateSummaryAndFooter();
+        UpdateSummary();
         RefreshAll();
     }
 
@@ -296,7 +292,7 @@ internal sealed class LongTermPerfRenderer
         _followLive = true;
         _liveWindowS = null;
         ApplyFollowLiveWindow();
-        UpdateSummaryAndFooter();
+        UpdateSummary();
         RefreshAll();
     }
 
@@ -305,7 +301,7 @@ internal sealed class LongTermPerfRenderer
         _followLive = true;
         _liveWindowS = seconds;
         ApplyFollowLiveWindow();
-        UpdateSummaryAndFooter();
+        UpdateSummary();
         RefreshAll();
     }
 
@@ -395,7 +391,7 @@ internal sealed class LongTermPerfRenderer
             if (history != null)
             {
                 _lastHistory = history;
-                UpdateSummaryAndFooter();
+                UpdateSummary();
             }
 
             if (cursorMoved)
@@ -440,73 +436,20 @@ internal sealed class LongTermPerfRenderer
         {
             ApplyFollowLiveWindow(xMin, xMax);
         }
-
-        UpdateSummaryAndFooter();
-        RefreshAll();
-    }
-
-    /// <summary>
-    /// Equalizes the three panes' left data-area edge so the same elapsed time
-    /// sits at the same screen x on every pane. Each pane's Y tick labels have a
-    /// different width (rate "0" vs amplitude "304.5" vs beat error "0.02"),
-    /// which otherwise offsets the plot area and makes the stacked graphs — and
-    /// the position markers — look misaligned. Reads the actual rendered pixels,
-    /// so it is DPI-correct.
-    ///
-    /// The target is the widest pane's left-axis PANEL width (DataRect.Left minus
-    /// the figure's left margin), not DataRect.Left itself: DataRect.Left includes
-    /// the margin, and feeding that back into MinimumSize (a panel size) overshot
-    /// by the margin every render, which read as the left edge toggling on each
-    /// Reset. With the panel width the fixed point is exact — MinimumSize settles
-    /// on the widest natural panel and the per-pane guard then leaves it alone.
-    /// </summary>
-    private void AlignLeftEdges()
-    {
-        float maxPanel = 0f;
-        float maxRightPanel = 0f;
-        foreach (Pane pane in _panes)
+        else if (hasData)
         {
-            RenderDetails render = pane.Plot.Plot.RenderManager.LastRender;
-            float panel = render.DataRect.Left - render.FigureRect.Left;
-            float rightPanel = render.FigureRect.Right - render.DataRect.Right;
-            if (panel > maxPanel) maxPanel = panel;
-            if (rightPanel > maxRightPanel) maxRightPanel = rightPanel;
-        }
-
-        if (maxPanel <= 0f)
-        {
-            return; // nothing rendered yet
-        }
-
-        // Only widen panes that are below the target; the guard makes this a fixed
-        // point (a pane already at the target is skipped), so there is no feedback.
-        bool changed = false;
-        foreach (Pane pane in _panes)
-        {
-            if (maxPanel - pane.Plot.Plot.Axes.Left.MinimumSize > 0.5f)
-            {
-                pane.Plot.Plot.Axes.Left.MinimumSize = maxPanel;
-                changed = true;
-            }
-
-            if (maxRightPanel > 0f && maxRightPanel - pane.Plot.Plot.Axes.Right.MinimumSize > 0.5f)
-            {
-                pane.Plot.Plot.Axes.Right.MinimumSize = maxRightPanel;
-                changed = true;
-            }
-        }
-
-        // Refresh directly (not RefreshAll) so this does not recurse.
-        if (changed)
-        {
+            // Follow-live is off (user-controlled view). Still refresh the accept
+            // labels for the current view so they appear once data exists — e.g.
+            // when the plot was panned/clicked before the first beat arrived.
             foreach (Pane pane in _panes)
             {
-                pane.Plot.Refresh();
+                AxisLimits limits = pane.Plot.Plot.Axes.GetLimits();
+                UpdateAcceptVisuals(pane, limits.Left, limits.Right);
             }
         }
 
-        // Report the data area offsets so the review slider can align with the X-axis.
-        ReportSliderAlignment();
+        UpdateSummary();
+        RefreshAll();
     }
 
     private void ReportSliderAlignment()
@@ -551,8 +494,8 @@ internal sealed class LongTermPerfRenderer
         }
 
         // FillY copies its source on SetDataSource; acceptable because the series
-        // is capacity-bounded and snapshot versions change at most once per
-        // BeatMetricsHistory.SnapshotMinIntervalS of stream time plus once per
+        // is capacity-bounded and snapshot versions change at most once per beat
+        // (the BeatMetricsHistory publish throttle) of stream time plus once per
         // user state change (position click / sequence reset), which is
         // input-rate bounded.
         if (pane.VariationBand != null)
@@ -598,10 +541,10 @@ internal sealed class LongTermPerfRenderer
             pane.Plot.Refresh();
         }
 
-        // Run after the refresh so each pane's LastRender reflects its current Y
-        // label widths — including the empty post-Reset state, where the panes
-        // would otherwise keep mismatched left edges until the next data frame.
-        AlignLeftEdges();
+        // Run after the refresh so the bottom pane's LastRender reflects the
+        // current data area; the panels are fixed-size (LeftAxisSizePx), so no
+        // per-pane equalization is needed — only the slider alignment is reported.
+        ReportSliderAlignment();
     }
 
     private void ApplySeriesTheme()
@@ -638,16 +581,6 @@ internal sealed class LongTermPerfRenderer
             pane.AcceptBand.FillStyle.Color = acceptEdge.WithAlpha(AcceptBandFillAlpha);
             pane.AcceptBand.LineStyle.Color = acceptEdge.WithAlpha(0);
             pane.AcceptBand.LineStyle.Width = 0;
-        }
-
-        if (pane.AcceptMin != null)
-        {
-            pane.AcceptMin.LineColor = acceptEdge;
-        }
-
-        if (pane.AcceptMax != null)
-        {
-            pane.AcceptMax.LineColor = acceptEdge;
         }
 
         foreach (Text? label in new[] { pane.AcceptMinLabel, pane.AcceptMaxLabel })
@@ -850,7 +783,7 @@ internal sealed class LongTermPerfRenderer
             SetSharedXWindow(left, right);
         }
 
-        UpdateSummaryAndFooter();
+        UpdateSummary();
         RefreshAll();
     }
 
@@ -928,8 +861,13 @@ internal sealed class LongTermPerfRenderer
     private static void UpdateAcceptVisuals(Pane pane, double left, double right)
     {
         AxisLimits limits = pane.Plot.Plot.Axes.GetLimits();
-        bool minVisible = IsVisibleY(limits, pane.Accept.Min);
-        bool maxVisible = IsVisibleY(limits, pane.Accept.Max);
+        // The accept-range value labels only make sense against a trace: before the
+        // first beat the pane shows the placeholder day window, where a right-edge
+        // label reads as a stray number floating in an empty plot. The shaded band
+        // still shows (it marks the target zone); only the numbers wait for data.
+        bool hasData = pane.X.Count > 0;
+        bool minVisible = hasData && IsVisibleY(limits, pane.Accept.Min);
+        bool maxVisible = hasData && IsVisibleY(limits, pane.Accept.Max);
         bool acceptIntersectsViewport = pane.Accept.Min <= limits.Top && pane.Accept.Max >= limits.Bottom;
         if (pane.AcceptBand != null)
         {
@@ -1005,7 +943,7 @@ internal sealed class LongTermPerfRenderer
         _reviewMetricsCallback?.Invoke("");
     }
 
-    private void UpdateSummaryAndFooter()
+    private void UpdateSummary()
     {
         if (_lastHistory == null)
         {
@@ -1024,7 +962,6 @@ internal sealed class LongTermPerfRenderer
             ApplySummaryTheme(verdict);
         }
 
-        _footerText.Text = LongTermReadout.Footer(history, _lastReviewCursorTimeS);
         _reviewMetricsCallback?.Invoke(LongTermReadout.ReviewMetrics(history, _lastReviewCursorTimeS));
     }
 
@@ -1061,6 +998,5 @@ internal sealed class LongTermPerfRenderer
     private void ApplyPlotTheme(Plot plot)
     {
         PlotThemeHelper.Apply(plot, _theme);
-        plot.FigureBackground.Color = Color.FromARGB(_theme.ScopeBg);
     }
 }

@@ -242,6 +242,15 @@ internal sealed partial class InfoTabRegistry
             Name = "ReviewSlider",
             VerticalAlignment = VerticalAlignment.Center,
         };
+        // Compact the slider strip. The Fluent horizontal slider wraps its track in
+        // 15 px top/bottom content-margin rows over a 32 px min height, which dwarfs
+        // the 18 px thumb and leaves wide whitespace above/below the track. Shadow
+        // those resources on the slider itself so the strip is no taller than the
+        // thumb; scoped here (not app-wide) to leave the gain slider's 32 px
+        // control-row height — aligned with its sibling combo boxes — intact.
+        slider.Resources.Add("SliderHorizontalHeight", 18.0);
+        slider.Resources.Add("SliderPreContentMargin", new GridLength(0));
+        slider.Resources.Add("SliderPostContentMargin", new GridLength(0));
         slider.Bind(Layoutable.MarginProperty, new Binding(nameof(MainWindowViewModel.ReviewSliderMargin)));
         slider.Bind(RangeBase.MinimumProperty, new Binding(nameof(MainWindowViewModel.ReviewMinimumS)));
         slider.Bind(RangeBase.MaximumProperty, new Binding(nameof(MainWindowViewModel.ReviewMaximumS)));
@@ -352,36 +361,20 @@ internal sealed partial class InfoTabRegistry
 
         Border alertBanner = CreateAlertBanner(out TextBlock alertText);
 
-
-        var summaryText = new TextBlock
-        {
-            FontSize = 12,
-            Margin = new Thickness(8, 2),
-        };
-        var explanationText = new TextBlock
-        {
-            FontSize = 11,
-            Opacity = 0.65,
-            Margin = new Thickness(8, 0, 8, 3),
-            TextWrapping = Avalonia.Media.TextWrapping.Wrap,
-            Text = "Error Rate: above 0 = gaining, below 0 = losing; flat = stable. " +
-                   "Amplitude: shaded band marks the healthy 270–300° range.",
-        };
-
+        // The amplitude (bottom) pane shows the shared time axis while the rate
+        // (top) pane hides its X axis (the Long-Term pattern), so the amplitude row
+        // is enlarged to keep both DATA areas the same height. Tuned for the
+        // 1280x750 design size.
         var grid = new Grid
         {
-            RowDefinitions = new RowDefinitions("Auto,*,*,Auto,Auto"),
+            RowDefinitions = new RowDefinitions("Auto,*,1.11*"),
         };
         Grid.SetRow(alertBanner, 0);
         Grid.SetRow(ratePlot, 1);
         Grid.SetRow(amplitudePlot, 2);
-        Grid.SetRow(summaryText, 3);
-        Grid.SetRow(explanationText, 4);
         grid.Children.Add(alertBanner);
         grid.Children.Add(ratePlot);
         grid.Children.Add(amplitudePlot);
-        grid.Children.Add(summaryText);
-        grid.Children.Add(explanationText);
 
         if (CreateWaitingOverlay(context.ViewModel) is { } overlay)
         {
@@ -389,7 +382,7 @@ internal sealed partial class InfoTabRegistry
             grid.Children.Add(overlay);
         }
 
-        var renderer = new TraceDisplayRenderer(ratePlot, amplitudePlot, alertBanner, alertText, summaryText);
+        var renderer = new TraceDisplayRenderer(ratePlot, amplitudePlot, alertBanner, alertText);
         context.ResetViews.Register(renderer.ResetView);
 
         grid.Children.Add(CreatePinnedResetViewButton(ResetAllGraphViewsTooltip, row: 1, context.ResetViews.ResetAll));
@@ -951,15 +944,17 @@ internal sealed partial class InfoTabRegistry
         InfoTabDefinition definition,
         InfoTabFactoryContext context)
     {
-        // Three stacked panes over compact 24-hour summary/navigation chrome.
-        // The top strip is touch-friendly for Raspberry Pi use, while the old
-        // explanatory legend is folded into the graph styling and quiet footer so
-        // the plots keep as much vertical room as possible.
+        // Three stacked panes over compact 24-hour summary/navigation chrome, with
+        // a review bar at the bottom. The top strip is touch-friendly for Raspberry
+        // Pi use, while the old explanatory legend is folded into the graph styling
+        // so the plots keep as much vertical room as possible.
         var ratePlot = new AvaPlot();
         var amplitudePlot = new AvaPlot();
         var beatErrorPlot = new AvaPlot();
+        // Equal vertical margin total (-8) on every pane so their control heights
+        // match; the middle pane previously carried -16 and rendered ~8 px taller.
         ratePlot.Margin = new Thickness(0, 0, 0, -8);
-        amplitudePlot.Margin = new Thickness(0, -8, 0, -8);
+        amplitudePlot.Margin = new Thickness(0, -4, 0, -4);
         beatErrorPlot.Margin = new Thickness(0, -8, 0, 0);
 
         TextBlock SummaryValue(string text, double fontSize = 14) => new()
@@ -993,18 +988,10 @@ internal sealed partial class InfoTabRegistry
             amplitudeText,
             beatErrorText);
 
-        var footerText = new TextBlock
-        {
-            FontSize = 12,
-            Margin = new Thickness(8, 0, 8, 2),
-            Opacity = 0.82,
-        };
-
         var renderer = new LongTermPerfRenderer(
             ratePlot,
             amplitudePlot,
             beatErrorPlot,
-            footerText,
             summaryControls);
         context.ResetViews.Register(renderer.ResetView);
 
@@ -1076,12 +1063,16 @@ internal sealed partial class InfoTabRegistry
         headerGrid.Children.Add(summaryRow);
         headerGrid.Children.Add(navigation);
 
+        // The beat-error pane shows the shared time axis (~41 px taller axis panel
+        // than the two upper panes, whose X axis is hidden), so its row is enlarged
+        // to keep all three DATA areas the same height. Tuned for the 1280x750
+        // design size; a large window resize drifts it by a few px.
         var grid = new Grid
         {
-            RowDefinitions = new RowDefinitions("Auto,*,*,*,Auto,Auto"),
+            RowDefinitions = new RowDefinitions("Auto,*,*,1.22*,Auto"),
         };
         Border reviewBar = CreateLongTermReviewBar();
-        Control[] rows = { headerGrid, ratePlot, amplitudePlot, beatErrorPlot, footerText, reviewBar };
+        Control[] rows = { headerGrid, ratePlot, amplitudePlot, beatErrorPlot, reviewBar };
         for (int i = 0; i < rows.Length; i++)
         {
             Grid.SetRow(rows[i], i);

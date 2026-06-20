@@ -1,68 +1,14 @@
-using System.Globalization;
 using TimeGrapher.Core.Shared;
 
 namespace TimeGrapher.App.Rendering;
 
 /// <summary>
-/// Pure summary logic behind the Long-Term Performance footer, kept out of the
-/// renderer so it is unit-testable without a live plot control: current summary
-/// values, review cursor time, and the current plotted-point spacing. The
-/// point-spacing readout ("N s/pt") surfaces the plan's reduced-update-frequency
-/// requirement: DecimatingSeries merges bucket pairs whenever its fixed capacity
-/// fills, so one plotted point inherently spans more seconds as the run grows —
-/// no explicit refresh-rate switching exists to report, only the bucket width.
+/// Pure summary logic behind the Long-Term Performance readouts, kept out of the
+/// renderer so it is unit-testable without a live plot control: the verdict, the
+/// current per-measure summary values, and the review-cursor metrics.
 /// </summary>
 internal static class LongTermReadout
 {
-    /// <summary>
-    /// Median spacing (s) between consecutive stored points — the stream time one
-    /// plotted point currently represents. Median rather than mean so a few
-    /// sync-loss gaps do not inflate the reading. Null until two points exist.
-    /// </summary>
-    public static double? MedianPointSpacingS(MetricsHistorySeries series)
-    {
-        int count = series.X.Count;
-        if (count < 2)
-        {
-            return null;
-        }
-
-        var spacings = new double[count - 1];
-        for (int i = 1; i < count; i++)
-        {
-            spacings[i - 1] = series.X[i] - series.X[i - 1];
-        }
-
-        Array.Sort(spacings);
-        int mid = spacings.Length / 2;
-        return (spacings.Length & 1) == 1
-            ? spacings[mid]
-            : (spacings[mid - 1] + spacings[mid]) / 2.0;
-    }
-
-    /// <summary>Current plotted-point spacing, e.g. "2 min/pt" (em dash while unknown).</summary>
-    public static string FormatPointSpacing(double? secondsPerPoint)
-    {
-        if (secondsPerPoint is not double s)
-        {
-            return VarioReadout.Missing;
-        }
-
-        if (s < 60.0)
-        {
-            return s.ToString(s < 10.0 ? "0.0" : "0", CultureInfo.InvariantCulture) + " s/pt";
-        }
-
-        double minutes = s / 60.0;
-        if (minutes < 60.0)
-        {
-            return minutes.ToString(minutes < 10.0 ? "0.0" : "0", CultureInfo.InvariantCulture) + " min/pt";
-        }
-
-        double hours = minutes / 60.0;
-        return hours.ToString(hours < 10.0 ? "0.0" : "0", CultureInfo.InvariantCulture) + " h/pt";
-    }
-
     /// <summary>Elapsed X-axis tick label: mm:ss for short runs, HH:mm for hour/day-scale views.</summary>
     public static string FormatElapsedTick(double seconds)
     {
@@ -160,16 +106,6 @@ internal static class LongTermReadout
             "Amplitude " + VarioReadout.Format(amplitude, "0", "°"),
             "BEAT ERROR " + VarioReadout.Format(beatError, "+0.0;-0.0;0.0", " ms"));
     }
-
-    /// <summary>
-    /// Footer line: quiet operational context for long runs. The headline values
-    /// sit in the summary strip; the footer keeps the current reduction scale and
-    /// review cursor visible without repeating the active time-window button.
-    /// </summary>
-    public static string Footer(BeatMetricsHistorySnapshot history, double? cursorTimeS) =>
-        string.Join("   ",
-            "Point spacing: " + FormatPointSpacing(MedianPointSpacingS(history.Rate)),
-            "Review cursor: " + (cursorTimeS is double cursor ? VarioReadout.FormatElapsed(cursor) : VarioReadout.Missing));
 
     /// <summary>
     /// Beats right after a sequence reset are still settling — rate needs two

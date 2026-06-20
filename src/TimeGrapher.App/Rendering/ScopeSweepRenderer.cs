@@ -352,18 +352,23 @@ internal sealed class ScopeSweepRenderer
             _sweepScatter.LineColor = Color.FromARGB(_theme.TraceWave);
         }
 
-        Color ticColor = Color.FromARGB(_theme.TraceTick);
-        Color tocColor = Color.FromARGB(_theme.TraceTock);
+        // A and C escapement markers are colored by event type, not by tic/toc
+        // phase: A reuses the green tick color and C the red tock color from the
+        // App.axaml palette (no new colors introduced). The tic/toc phase is still
+        // read from each marker's position in the sweep window, and A/C also differ
+        // by line pattern (A dashed, C dotted).
+        Color aColor = Color.FromARGB(_theme.TraceTick); // A -> green
+        Color cColor = Color.FromARGB(_theme.TraceTock); // C -> red
         for (int k = 0; k < MaxSweepMultiple; k++)
         {
-            if (_aTicMarkers[k] != null) _aTicMarkers[k]!.LineColor     = ticColor;
-            if (_aTicLabels[k]  != null) _aTicLabels[k]!.LabelFontColor = ticColor;
-            if (_aTocMarkers[k] != null) _aTocMarkers[k]!.LineColor     = tocColor;
-            if (_aTocLabels[k]  != null) _aTocLabels[k]!.LabelFontColor = tocColor;
-            if (_cTicMarkers[k] != null) _cTicMarkers[k]!.LineColor     = ticColor;
-            if (_cTicLabels[k]  != null) _cTicLabels[k]!.LabelFontColor = ticColor;
-            if (_cTocMarkers[k] != null) _cTocMarkers[k]!.LineColor     = tocColor;
-            if (_cTocLabels[k]  != null) _cTocLabels[k]!.LabelFontColor = tocColor;
+            if (_aTicMarkers[k] != null) _aTicMarkers[k]!.LineColor     = aColor;
+            if (_aTicLabels[k]  != null) _aTicLabels[k]!.LabelFontColor = aColor;
+            if (_aTocMarkers[k] != null) _aTocMarkers[k]!.LineColor     = aColor;
+            if (_aTocLabels[k]  != null) _aTocLabels[k]!.LabelFontColor = aColor;
+            if (_cTicMarkers[k] != null) _cTicMarkers[k]!.LineColor     = cColor;
+            if (_cTicLabels[k]  != null) _cTicLabels[k]!.LabelFontColor = cColor;
+            if (_cTocMarkers[k] != null) _cTocMarkers[k]!.LineColor     = cColor;
+            if (_cTocLabels[k]  != null) _cTocLabels[k]!.LabelFontColor = cColor;
         }
 
         _reviewCursor?.ApplyTheme(_theme);

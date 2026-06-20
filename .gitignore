@@ -36,3 +36,7 @@ src/TimeGrapher.App/Assets/Splash/Source/intro_2x.mp4
 Thumbs.db
 Desktop.ini
 .DS_Store
+
+# Agent/tool local state
+.fablize/
+.omo/

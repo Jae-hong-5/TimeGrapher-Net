@@ -13,14 +13,14 @@ namespace TimeGrapher.Core.Tests;
 public sealed class BeatMetricsHistoryTests
 {
     private static WatchMetricsUpdate BeatUpdate(
-        ulong beat, double timeS, double rateSPerDay, double beatErrorMs = 0.0, bool beatErrorValid = true)
+        ulong beat, double timeS, double rateSPerDay, double beatErrorMs = 0.0, bool beatErrorValid = true, int bph = 28800)
     {
         var update = new WatchMetricsUpdate();
         update.SetBeatTimingSample(new BeatTimingSample(
             beat, timeS, IsTic: (beat & 1) == 1, RateErrorMs: 0.0,
             RateValid: true, RateSPerDay: rateSPerDay,
             BeatErrorValid: beatErrorValid, BeatErrorSignedMs: beatErrorMs,
-            Bph: 28800));
+            Bph: bph));
         update.SetDerivedMeasures(new DerivedTimingMeasures(true, 0.1, true, 0.2, true, 0.3));
         return update;
     }
@@ -71,7 +71,7 @@ public sealed class BeatMetricsHistoryTests
         Assert.True(valid.BeatErrorValid);
 
         // A detection gap delivers a sample the per-beat engine declares invalid
-        // (>0.5 s later so a fresh snapshot is built). The current readout must
+        // (>0.15 s later so a fresh snapshot is built). The current readout must
         // stop advertising the previous value as valid, but the already-plotted
         // series points must remain.
         var invalid = new WatchMetricsUpdate();
@@ -98,7 +98,7 @@ public sealed class BeatMetricsHistoryTests
 
         BeatMetricsHistorySnapshot? first = history.CurrentSnapshot();
 
-        // New data inside the 0.5 s stream-time window: same shared instance.
+        // New data inside the 0.15 s stream-time window: same shared instance.
         history.Record(BeatUpdate(2, 0.250, 6.0));
         Assert.Same(first, history.CurrentSnapshot());
 
@@ -112,13 +112,49 @@ public sealed class BeatMetricsHistoryTests
     }
 
     [Fact]
+    public void SlowWatchPublishesPerBeatPeriodNotTheRateCap()
+    {
+        // 18000 bph = 0.20 s/beat, slower than the 24000-bph cap (0.15 s). A point
+        // 0.15 s out (the cap window) is still inside this watch's beat period, so
+        // it is coalesced; only a full beat period later does the snapshot rebuild.
+        var history = new BeatMetricsHistory();
+        history.Record(BeatUpdate(1, 0.0, 5.0, bph: 18000));
+        BeatMetricsHistorySnapshot? first = history.CurrentSnapshot();
+
+        history.Record(BeatUpdate(2, 0.15, 6.0, bph: 18000)); // 0.15 < 0.20 period
+        Assert.Same(first, history.CurrentSnapshot());
+
+        history.Record(BeatUpdate(3, 0.30, 7.0, bph: 18000)); // past the 0.20 period
+        BeatMetricsHistorySnapshot? rebuilt = history.CurrentSnapshot();
+        Assert.NotSame(first, rebuilt);
+        Assert.Equal(3, rebuilt!.Rate.Y.Count);
+    }
+
+    [Fact]
+    public void FastWatchCoalescesToTheRateCap()
+    {
+        // 36000 bph = 0.10 s/beat, faster than the 24000-bph cap (0.15 s).
+        // Consecutive beats 0.10 s apart fall inside the cap window and coalesce;
+        // the snapshot only rebuilds once stream time passes the 0.15 s cap.
+        var history = new BeatMetricsHistory();
+        history.Record(BeatUpdate(1, 0.0, 5.0, bph: 36000));
+        BeatMetricsHistorySnapshot? first = history.CurrentSnapshot();
+
+        history.Record(BeatUpdate(2, 0.10, 6.0, bph: 36000)); // 0.10 < 0.15 cap
+        Assert.Same(first, history.CurrentSnapshot());
+
+        history.Record(BeatUpdate(3, 0.20, 7.0, bph: 36000)); // past the 0.15 cap
+        Assert.NotSame(first, history.CurrentSnapshot());
+    }
+
+    [Fact]
     public void ForcedSnapshotBypassesThrottleForFinalFrame()
     {
         var history = new BeatMetricsHistory();
         history.Record(BeatUpdate(1, 0.125, 5.0));
         BeatMetricsHistorySnapshot? first = history.CurrentSnapshot();
 
-        // New data inside the 0.5 s window is throttled (shared instance)...
+        // New data inside the 0.15 s window is throttled (shared instance)...
         history.Record(BeatUpdate(2, 0.250, 6.0));
         Assert.Same(first, history.CurrentSnapshot());
 
@@ -297,7 +333,7 @@ public sealed class BeatMetricsHistoryTests
     {
         // The projector re-applies the volatile position knob on EVERY pass;
         // only the unchanged-position early return keeps that from raising the
-        // publish-immediately flag each pass and silently voiding the 0.5 s
+        // publish-immediately flag each pass and silently voiding the 0.15 s
         // throttle (every version-gated renderer would re-render per frame).
         var history = new BeatMetricsHistory();
         history.Record(BeatUpdate(1, 0.125, 5.0));
@@ -324,7 +360,7 @@ public sealed class BeatMetricsHistoryTests
         var firstFrame = new AnalysisFrame();
         projector.AppendSnapshot(firstFrame);
 
-        // A second pass with the knob unchanged and a beat inside the 0.5 s
+        // A second pass with the knob unchanged and a beat inside the 0.15 s
         // throttle window: the per-pass knob re-apply must not bypass it.
         projector.Project(new DetectorMetricsBlockUpdate(result, new List<DetectedEventUpdate>
         {
@@ -345,7 +381,7 @@ public sealed class BeatMetricsHistoryTests
         BeatMetricsHistorySnapshot? first = history.CurrentSnapshot();
         Assert.Equal(WatchPosition.CH, first!.ActivePosition);
 
-        // Stream time must clear the 0.5 s throttle before the new stamp shows.
+        // Stream time must clear the 0.15 s throttle before the new stamp shows.
         history.SetActivePosition(WatchPosition.P3H);
         history.Record(BeatUpdate(2, 0.750, 6.0));
 

@@ -14,14 +14,15 @@ namespace TimeGrapher.App.Tests;
 public sealed class LongTermPerfRendererTests
 {
     [Fact]
-    public void CreateGraphs_LabelsAcceptableRangeLimits()
+    public void RenderFrame_LabelsAcceptableRangeLimitsAndKeepsChrome()
     {
         var ratePlot = new AvaPlot();
         var amplitudePlot = new AvaPlot();
         var beatErrorPlot = new AvaPlot();
-        var renderer = new LongTermPerfRenderer(ratePlot, amplitudePlot, beatErrorPlot, new TextBlock());
+        var renderer = new LongTermPerfRenderer(ratePlot, amplitudePlot, beatErrorPlot);
 
         renderer.CreateGraphs();
+        renderer.RenderFrame(SampleFrame(), new AnalysisTabRenderContext(48000));
 
         ratePlot.Plot.RenderInMemory(900, 220);
         amplitudePlot.Plot.RenderInMemory(900, 220);
@@ -44,6 +45,28 @@ public sealed class LongTermPerfRendererTests
     }
 
     [Fact]
+    public void CreateGraphs_HidesAcceptLimitLabelsUntilFirstBeat()
+    {
+        var ratePlot = new AvaPlot();
+        var amplitudePlot = new AvaPlot();
+        var beatErrorPlot = new AvaPlot();
+        var renderer = new LongTermPerfRenderer(ratePlot, amplitudePlot, beatErrorPlot);
+
+        renderer.CreateGraphs();
+        ratePlot.Plot.RenderInMemory(900, 220);
+        amplitudePlot.Plot.RenderInMemory(900, 220);
+        beatErrorPlot.Plot.RenderInMemory(900, 220);
+
+        // Before any beat the value labels stay hidden (they would float at the
+        // right edge of the empty placeholder window); the shaded band still shows.
+        Assert.Empty(VisibleAcceptTextLabels(ratePlot));
+        Assert.Empty(VisibleAcceptTextLabels(amplitudePlot));
+        Assert.Empty(VisibleAcceptTextLabels(beatErrorPlot));
+        Assert.True(AcceptBand(ratePlot).IsVisible);
+        Assert.True(AcceptBand(amplitudePlot).IsVisible);
+    }
+
+    [Fact]
     public void CreateGraphs_UsesFullSummaryLabelsAndInitialDayWindow()
     {
         var ratePlot = new AvaPlot();
@@ -57,7 +80,6 @@ public sealed class LongTermPerfRendererTests
             ratePlot,
             amplitudePlot,
             beatErrorPlot,
-            new TextBlock(),
             new LongTermSummaryControls(verdict, rate, amplitude, beatError));
 
         renderer.CreateGraphs();
@@ -70,12 +92,12 @@ public sealed class LongTermPerfRendererTests
     }
 
     [Fact]
-    public void ApplyTheme_ColorsAcceptableRangeLimitsAndBandsByMeasure()
+    public void ApplyTheme_ColorsAcceptableRangeBandAndLabelsByMeasure()
     {
         var ratePlot = new AvaPlot();
         var amplitudePlot = new AvaPlot();
         var beatErrorPlot = new AvaPlot();
-        var renderer = new LongTermPerfRenderer(ratePlot, amplitudePlot, beatErrorPlot, new TextBlock());
+        var renderer = new LongTermPerfRenderer(ratePlot, amplitudePlot, beatErrorPlot);
         var palette = new PlotThemePalette(
             SurfaceBg: 0xFF101010,
             ScopeBg: 0xFF202020,
@@ -93,24 +115,25 @@ public sealed class LongTermPerfRendererTests
         AssertTraceColor(ratePlot, palette.VarioBad);
         AssertTraceColor(amplitudePlot, palette.VarioMinMax);
         AssertTraceColor(beatErrorPlot, palette.TraceTick);
-        AssertAcceptColor(ratePlot, -10, palette.VarioBad);
-        AssertAcceptColor(ratePlot, +10, palette.VarioBad);
+        AssertAcceptLabelColor(ratePlot, palette.VarioBad);
         AssertAcceptBandColor(ratePlot, palette.VarioBad);
-        AssertAcceptColor(amplitudePlot, 270, palette.VarioMinMax);
-        AssertAcceptColor(amplitudePlot, 300, palette.VarioMinMax);
+        AssertAcceptLabelColor(amplitudePlot, palette.VarioMinMax);
         AssertAcceptBandColor(amplitudePlot, palette.VarioMinMax);
-        AssertAcceptColor(beatErrorPlot, -0.6, palette.TraceTick);
-        AssertAcceptColor(beatErrorPlot, +0.6, palette.TraceTick);
+        AssertAcceptLabelColor(beatErrorPlot, palette.TraceTick);
         AssertAcceptBandColor(beatErrorPlot, palette.TraceTick);
+        // FigureBackground now inherits SurfaceBg (the ScopeBg override was removed).
+        foreach (AvaPlot plot in new[] { ratePlot, amplitudePlot, beatErrorPlot })
+        {
+            Assert.Equal(PlotColor.FromARGB(palette.SurfaceBg), plot.Plot.FigureBackground.Color);
+        }
     }
 
     [Fact]
-    public void RenderFrame_UpdatesCompactSummaryAndFooter()
+    public void RenderFrame_UpdatesCompactSummary()
     {
         var ratePlot = new AvaPlot();
         var amplitudePlot = new AvaPlot();
         var beatErrorPlot = new AvaPlot();
-        var footer = new TextBlock();
         var verdict = new TextBlock();
         var rate = new TextBlock();
         var amplitude = new TextBlock();
@@ -119,7 +142,6 @@ public sealed class LongTermPerfRendererTests
             ratePlot,
             amplitudePlot,
             beatErrorPlot,
-            footer,
             new LongTermSummaryControls(verdict, rate, amplitude, beatError));
 
         renderer.CreateGraphs();
@@ -129,18 +151,6 @@ public sealed class LongTermPerfRendererTests
         Assert.Equal("Error Rate +1.8 s/d", rate.Text);
         Assert.Equal("Amplitude 282°", amplitude.Text);
         Assert.Equal("BEAT ERROR +0.3 ms", beatError.Text);
-        Assert.DoesNotContain("View:", footer.Text);
-        Assert.DoesNotContain("Elapsed", footer.Text);
-        Assert.Equal("Point spacing: 1.0 h/pt   Review cursor: 1:02:00", footer.Text);
-
-        renderer.ShowAll();
-        Assert.DoesNotContain("View:", footer.Text);
-
-        renderer.ShowTimeWindow(60 * 60);
-        Assert.DoesNotContain("View:", footer.Text);
-
-        renderer.ZoomIn();
-        Assert.DoesNotContain("View:", footer.Text);
     }
 
     [Fact]
@@ -149,7 +159,7 @@ public sealed class LongTermPerfRendererTests
         var ratePlot = new AvaPlot();
         var amplitudePlot = new AvaPlot();
         var beatErrorPlot = new AvaPlot();
-        var renderer = new LongTermPerfRenderer(ratePlot, amplitudePlot, beatErrorPlot, new TextBlock());
+        var renderer = new LongTermPerfRenderer(ratePlot, amplitudePlot, beatErrorPlot);
 
         renderer.CreateGraphs();
         renderer.RenderFrame(SampleFrame(), new AnalysisTabRenderContext(48000));
@@ -176,7 +186,7 @@ public sealed class LongTermPerfRendererTests
         var ratePlot = new AvaPlot();
         var amplitudePlot = new AvaPlot();
         var beatErrorPlot = new AvaPlot();
-        var renderer = new LongTermPerfRenderer(ratePlot, amplitudePlot, beatErrorPlot, new TextBlock());
+        var renderer = new LongTermPerfRenderer(ratePlot, amplitudePlot, beatErrorPlot);
 
         renderer.CreateGraphs();
         renderer.RenderFrame(NearAmplitudeLimitFrame(), new AnalysisTabRenderContext(48000));
@@ -196,7 +206,7 @@ public sealed class LongTermPerfRendererTests
         var ratePlot = new AvaPlot();
         var amplitudePlot = new AvaPlot();
         var beatErrorPlot = new AvaPlot();
-        var renderer = new LongTermPerfRenderer(ratePlot, amplitudePlot, beatErrorPlot, new TextBlock());
+        var renderer = new LongTermPerfRenderer(ratePlot, amplitudePlot, beatErrorPlot);
 
         renderer.CreateGraphs();
         renderer.RenderFrame(AboveAmplitudeLimitFrame(), new AnalysisTabRenderContext(48000));
@@ -216,7 +226,7 @@ public sealed class LongTermPerfRendererTests
         var ratePlot = new AvaPlot();
         var amplitudePlot = new AvaPlot();
         var beatErrorPlot = new AvaPlot();
-        var renderer = new LongTermPerfRenderer(ratePlot, amplitudePlot, beatErrorPlot, new TextBlock());
+        var renderer = new LongTermPerfRenderer(ratePlot, amplitudePlot, beatErrorPlot);
 
         renderer.CreateGraphs();
         renderer.RenderFrame(SampleFrame(), new AnalysisTabRenderContext(48000));
@@ -235,7 +245,7 @@ public sealed class LongTermPerfRendererTests
         var ratePlot = new AvaPlot();
         var amplitudePlot = new AvaPlot();
         var beatErrorPlot = new AvaPlot();
-        var renderer = new LongTermPerfRenderer(ratePlot, amplitudePlot, beatErrorPlot, new TextBlock());
+        var renderer = new LongTermPerfRenderer(ratePlot, amplitudePlot, beatErrorPlot);
 
         renderer.CreateGraphs();
         renderer.RenderFrame(FrameWithRange(1, 7200.0), new AnalysisTabRenderContext(48000));
@@ -260,7 +270,7 @@ public sealed class LongTermPerfRendererTests
         var ratePlot = new AvaPlot();
         var amplitudePlot = new AvaPlot();
         var beatErrorPlot = new AvaPlot();
-        var renderer = new LongTermPerfRenderer(ratePlot, amplitudePlot, beatErrorPlot, new TextBlock());
+        var renderer = new LongTermPerfRenderer(ratePlot, amplitudePlot, beatErrorPlot);
 
         renderer.CreateGraphs();
         renderer.RenderFrame(FrameWithRange(1, 7200.0), new AnalysisTabRenderContext(48000));
@@ -284,7 +294,7 @@ public sealed class LongTermPerfRendererTests
         var ratePlot = new AvaPlot();
         var amplitudePlot = new AvaPlot();
         var beatErrorPlot = new AvaPlot();
-        var renderer = new LongTermPerfRenderer(ratePlot, amplitudePlot, beatErrorPlot, new TextBlock());
+        var renderer = new LongTermPerfRenderer(ratePlot, amplitudePlot, beatErrorPlot);
 
         renderer.CreateGraphs();
         renderer.RenderFrame(FrameWithPositionChange(), new AnalysisTabRenderContext(48000));
@@ -304,7 +314,7 @@ public sealed class LongTermPerfRendererTests
         var ratePlot = new AvaPlot();
         var amplitudePlot = new AvaPlot();
         var beatErrorPlot = new AvaPlot();
-        var renderer = new LongTermPerfRenderer(ratePlot, amplitudePlot, beatErrorPlot, new TextBlock());
+        var renderer = new LongTermPerfRenderer(ratePlot, amplitudePlot, beatErrorPlot);
 
         renderer.CreateGraphs();
         ratePlot.Plot.RenderInMemory(900, 220);
@@ -323,7 +333,7 @@ public sealed class LongTermPerfRendererTests
         var ratePlot = new AvaPlot();
         var amplitudePlot = new AvaPlot();
         var beatErrorPlot = new AvaPlot();
-        var renderer = new LongTermPerfRenderer(ratePlot, amplitudePlot, beatErrorPlot, new TextBlock());
+        var renderer = new LongTermPerfRenderer(ratePlot, amplitudePlot, beatErrorPlot);
 
         renderer.CreateGraphs();
         amplitudePlot.Plot.RenderInMemory(900, 220);
@@ -332,6 +342,77 @@ public sealed class LongTermPerfRendererTests
         Assert.True(
             render.FigureRect.Bottom - render.DataRect.Bottom >= 10f,
             $"expected a reserved bottom gap, got {render.FigureRect.Bottom - render.DataRect.Bottom}");
+    }
+
+    [Fact]
+    public void CreateGraphs_PinsLeftPanelOnEveryPane()
+    {
+        var ratePlot = new AvaPlot();
+        var amplitudePlot = new AvaPlot();
+        var beatErrorPlot = new AvaPlot();
+        var renderer = new LongTermPerfRenderer(ratePlot, amplitudePlot, beatErrorPlot);
+
+        renderer.CreateGraphs();
+
+        foreach (AvaPlot plot in new[] { ratePlot, amplitudePlot, beatErrorPlot })
+        {
+            Assert.Equal(60f, plot.Plot.Axes.Left.MinimumSize);
+            Assert.Equal(60f, plot.Plot.Axes.Left.MaximumSize);
+        }
+    }
+
+    [Fact]
+    public void DataArea_StaysConstantWidthAndAlignedAcrossLabelGrowthAndControlSize()
+    {
+        var ratePlot = new AvaPlot();
+        var amplitudePlot = new AvaPlot();
+        var beatErrorPlot = new AvaPlot();
+        var renderer = new LongTermPerfRenderer(ratePlot, amplitudePlot, beatErrorPlot);
+        renderer.CreateGraphs();
+
+        // Wide labels (signed rate, wide amplitude swing, sub-unit beat error) and a
+        // maximized control: the pinned 60 px left panel must hold on every pane.
+        renderer.RenderFrame(WideLabelFrame(), new AnalysisTabRenderContext(48000));
+
+        float rate = LeftPanel(ratePlot, 900, 240);
+        float amplitude = LeftPanel(amplitudePlot, 900, 240);
+        float beatError = LeftPanel(beatErrorPlot, 900, 240);
+        float beatErrorBig = LeftPanel(beatErrorPlot, 1900, 980);
+
+        Assert.Equal(60f, rate, 1f);
+        Assert.Equal(60f, amplitude, 1f);
+        Assert.Equal(60f, beatError, 1f);
+        // Equal across panes (left edges aligned) and constant across control size.
+        Assert.Equal(rate, amplitude, 1f);
+        Assert.Equal(amplitude, beatError, 1f);
+        Assert.Equal(beatError, beatErrorBig, 1f);
+    }
+
+    private static float LeftPanel(AvaPlot plot, int width, int height)
+    {
+        plot.Plot.RenderInMemory(width, height);
+        var render = plot.Plot.RenderManager.LastRender;
+        return render.DataRect.Left - render.FigureRect.Left;
+    }
+
+    private static AnalysisFrame WideLabelFrame()
+    {
+        double[] x = { 0.0, 3600.0, 7200.0 };
+        return new AnalysisFrame
+        {
+            MetricsHistory = new BeatMetricsHistorySnapshot
+            {
+                Version = 1,
+                Rate = Series(x, new[] { -15.0, 14.0, -11.0 }),
+                Amplitude = Series(x, new[] { 268.0, 311.0, 304.5 }),
+                BeatError = Series(x, new[] { -0.7, 0.65, -0.55 }),
+                RateValid = true,
+                AmplitudeValid = true,
+                BeatErrorValid = true,
+                Bph = 21600,
+                LatestTimeS = 7200.0,
+            },
+        };
     }
 
     private static string[] AcceptLineLabels(AvaPlot plot) =>
@@ -353,14 +434,14 @@ public sealed class LongTermPerfRendererTests
         Assert.Equal(PlotColor.FromARGB(expected), line.LineColor);
     }
 
-    private static void AssertAcceptColor(AvaPlot plot, double y, uint expected)
+    private static void AssertAcceptLabelColor(AvaPlot plot, uint expected)
     {
-        HorizontalLine line = plot.Plot.GetPlottables<HorizontalLine>()
-            .Single(line => line.Y == y);
         PlotColor color = PlotColor.FromARGB(expected);
+        Text[] labels = plot.Plot.GetPlottables<Text>().ToArray();
 
-        Assert.Equal(color, line.LineColor);
-        Assert.Contains(plot.Plot.GetPlottables<Text>(), text => text.LabelFontColor == color);
+        // Both the min and max limit labels must carry the color, not just one.
+        Assert.Equal(2, labels.Length);
+        Assert.All(labels, text => Assert.Equal(color, text.LabelFontColor));
     }
 
     private static void AssertLocksMousePanY(AvaPlot plot)
