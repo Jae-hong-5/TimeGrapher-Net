@@ -20,16 +20,16 @@ namespace TimeGrapher.Core.Analysis;
 public sealed class MultiFilterFrameProjector
 {
     // Retained buffer and decimation budget. The renderer beat-locks to a small
-    // window (a fraction of one beat period), so a high point budget over this
-    // short buffer keeps that window densely sampled — the impulse reads as a
-    // continuous trace, not sparse points joined by lines. A 48 k budget over a
-    // 1 s window is full resolution (stride 1) at 48 kHz.
+    // window (a fraction of one beat period); peak-preserving (max-per-bin)
+    // decimation keeps that window's envelope intact at a modest point count, so
+    // the trace reads as a continuous filled burst without the Pi paying for a
+    // full-resolution copy and render. ~6 kpts/s (stride 8 at 48 kHz).
     public const int WindowSeconds = 1;
-    public const int FilterPointBudget = 48000;
+    public const int FilterPointBudget = 6000;
 
     /// <summary>
     /// Stream-time floor between series rebuilds. The five rebuilt lists
-    /// (~1.9 MB) used to be allocated per analysis pass — at the Pi's 192 kHz
+    /// (~240 KB) used to be allocated per analysis pass — at the Pi's 192 kHz
     /// pass cadence (~94/s) that was megabytes per second of analysis-thread
     /// churn, most of it discarded by the latest-wins UI coalescer. Frames in
     /// between re-attach the same immutable series instances (the rate-series
@@ -54,6 +54,15 @@ public sealed class MultiFilterFrameProjector
     private readonly List<double>[] _windowY;
     private ulong _sampleTicks;
 
+    // Peak-preserving (max-per-bin) decimation accumulator: the running max of
+    // each filter over the current stride-bin, and the bin's start tick. Storing
+    // each bin's peak (not a subsample) keeps the envelope, so a sparse trace
+    // still reads as a continuous filled burst — and the point count stays low
+    // enough for the Raspberry Pi. The filter outputs are all non-negative, so
+    // the max alone is the upper envelope (the mirror gives the lower).
+    private readonly double[] _binMax;
+    private ulong _binStartTick;
+
     // Deadline-degradation knob (analysis thread applies it; written from the
     // worker's ladder): stretches the publish floor under sustained pressure.
     private volatile int _publishIntervalScale = 1;
@@ -69,12 +78,15 @@ public sealed class MultiFilterFrameProjector
         {
             _windowY[i] = new List<double>();
         }
+
+        _binMax = new double[SeriesIds.Length];
     }
 
     /// <summary>
     /// Feeds one raw audio block (the same span AnalysisWorker hands the
     /// detector pipeline). The filter bank consumes every sample to keep its
-    /// state exact; only every stride-th output is stored for display.
+    /// state exact; the peak (max) of each stride-bin is stored for display, so
+    /// the decimated trace preserves the envelope instead of aliasing it.
     /// </summary>
     public void ProcessSamples(ReadOnlySpan<float> block)
     {
@@ -82,13 +94,34 @@ public sealed class MultiFilterFrameProjector
         for (int i = 0; i < block.Length; i++)
         {
             ScopeFilterSample sample = _filters.Process(block[i]);
-            if ((_sampleTicks % stride) == 0)
+
+            // Accumulate the per-filter max over the current stride-bin; emit the
+            // peak (with the bin's start tick) when the bin completes. A bin may
+            // span blocks — the accumulator persists across calls.
+            ulong binPos = _sampleTicks % stride;
+            if (binPos == 0)
             {
-                _windowX.Add(_sampleTicks);
-                _windowY[0].Add(sample.F0);
-                _windowY[1].Add(sample.F1);
-                _windowY[2].Add(sample.F2);
-                _windowY[3].Add(sample.F3);
+                _binStartTick = _sampleTicks;
+                _binMax[0] = sample.F0;
+                _binMax[1] = sample.F1;
+                _binMax[2] = sample.F2;
+                _binMax[3] = sample.F3;
+            }
+            else
+            {
+                if (sample.F0 > _binMax[0]) _binMax[0] = sample.F0;
+                if (sample.F1 > _binMax[1]) _binMax[1] = sample.F1;
+                if (sample.F2 > _binMax[2]) _binMax[2] = sample.F2;
+                if (sample.F3 > _binMax[3]) _binMax[3] = sample.F3;
+            }
+
+            if (binPos == stride - 1)
+            {
+                _windowX.Add(_binStartTick);
+                _windowY[0].Add(_binMax[0]);
+                _windowY[1].Add(_binMax[1]);
+                _windowY[2].Add(_binMax[2]);
+                _windowY[3].Add(_binMax[3]);
             }
 
             _sampleTicks++;

@@ -117,6 +117,17 @@ internal sealed class MultiFilterScopeRenderer
     // amplitude scale steady. Reset each run.
     private readonly double[] _lanePeakMax;
 
+    // Display decimation budget (the density slider): the producer emits the
+    // envelope at its full budget; the renderer peak-decimates to this so the
+    // user can trade render cost for resolution. The max is the producer budget
+    // (no extra decimation); the min keeps the trace readable on the Pi.
+    public const int MinDisplayBudget = 500;
+    private int _displayBudget = MultiFilterFrameProjector.FilterPointBudget;
+
+    // Y headroom over the running peak amplitude: the axis tops out at 1.2x the
+    // tallest amplitude seen, so the waveform never clips, with a little room.
+    private const double YHeadroom = 1.2;
+
     public MultiFilterScopeRenderer(IReadOnlyList<AvaPlot> plots)
     {
         if (plots.Count != MultiFilterScopeLanes.All.Count)
@@ -282,6 +293,16 @@ internal sealed class MultiFilterScopeRenderer
         }
 
         RefreshAll();
+    }
+
+    /// <summary>
+    /// Sets the display decimation budget (the density slider). Higher = more
+    /// points (smoother, more render cost); clamped to [MinDisplayBudget, the
+    /// producer's full budget]. Takes effect on the next published frame.
+    /// </summary>
+    public void SetDisplayBudget(int budget)
+    {
+        _displayBudget = Math.Clamp(budget, MinDisplayBudget, MultiFilterFrameProjector.FilterPointBudget);
     }
 
     /// <summary>
@@ -502,18 +523,14 @@ internal sealed class MultiFilterScopeRenderer
     }
 
     /// <summary>
-    /// Sets a lane's Y view, scaled to that lane's own data peak (the max input
-    /// value). Mirrored lanes are centered at <see cref="_yOffset"/> * peak with
-    /// a half-height of <see cref="_yZoom"/> * peak (capped at 1.5x), so a
-    /// vertical pan moves them. The one-sided lane (F3) is the exception: it is
-    /// pinned to [0, _yZoom * peak] — it never shows below 0 and the pan offset
-    /// does not apply, so a vertical drag leaves it unchanged (only a wheel zoom
-    /// resizes it).
+    /// Sets a lane's Y view to 1.2x its running peak amplitude. The peak only
+    /// grows within a run (running max), so the axis never shrinks when a quieter
+    /// beat passes — the waveform never clips and the amplitude scale stays steady
+    /// instead of fluctuating. Mirrored lanes are symmetric about 0 (with the
+    /// shared vertical pan offset); the one-sided lane (F3) is pinned to [0, top].
     /// </summary>
     private void ApplyY(int lane)
     {
-        // Scale to the lane's running peak (only grows within a run), so the Y
-        // axis never shrinks when a quieter beat passes — a steady amplitude scale.
         double peak = Math.Max(LanePeak(lane), _lanePeakMax[lane]);
         _lanePeakMax[lane] = peak;
         if (peak <= 0.0)
@@ -521,7 +538,7 @@ internal sealed class MultiFilterScopeRenderer
             return;
         }
 
-        double half = _yZoom * peak;
+        double half = YHeadroom * peak;
         if (MultiFilterScopeLanes.All[lane].Mirrored)
         {
             double center = _yOffset * peak;
@@ -614,8 +631,8 @@ internal sealed class MultiFilterScopeRenderer
             GraphSeriesFrame? laneSeries = SeriesDataReducer.FindSeries(
                 frame.ScopeSeries, MultiFilterScopeLanes.All[i].SeriesId);
             updated[i] = !ReferenceEquals(laneSeries, _lastSeries[i]) &&
-                SeriesDataReducer.TryReplaceSeriesData(
-                    laneSeries, _x[i], _y[i], MultiFilterFrameProjector.FilterPointBudget);
+                SeriesDataReducer.TryReplaceSeriesDataPeak(
+                    laneSeries, _x[i], _y[i], _displayBudget);
             if (updated[i])
             {
                 _lastSeries[i] = laneSeries;
@@ -661,14 +678,18 @@ internal sealed class MultiFilterScopeRenderer
         {
             bool cursorMoved = UpdateReviewCursor(i, context);
 
-            if (updated[i] && _x[i].Count > 0 && _followLive)
+            if (updated[i] && _x[i].Count > 0)
             {
-                // Auto-follow shows the beat-tracked window (centered on the latest
-                // beat onset), with Y fit at the shared zoom. All lanes use the same
-                // X extent so their time axes stay identical. When not following
-                // (the user zoomed/panned), X is kept inside the data by the axis
-                // rule and Y is left to the user's pan.
-                _plots[i].Plot.Axes.SetLimitsX(_dataMinX, _dataMaxX);
+                // Y always auto-fits to 1.2x the running peak so the waveform never
+                // clips and the scale stays steady — independent of X interaction.
+                // The X window only follows the beat-tracked extent while following
+                // live; when the user has zoomed/panned, the axis rule keeps X
+                // inside the data and their X view stays put.
+                if (_followLive)
+                {
+                    _plots[i].Plot.Axes.SetLimitsX(_dataMinX, _dataMaxX);
+                }
+
                 ApplyY(i);
             }
 

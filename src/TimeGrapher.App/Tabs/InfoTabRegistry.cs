@@ -938,8 +938,45 @@ internal sealed partial class InfoTabRegistry
             "Re-enable live windowing on all four lanes", row: 1, renderer.ResetView);
         Grid.SetColumnSpan(resetButton, columns); // pin to the top-right of the whole grid
         grid.Children.Add(resetButton);
+
+        // Density slider across the top: peak-decimate the trace to fewer points
+        // for lighter rendering (e.g. on the Pi), or up to the producer's full
+        // budget for the smoothest trace. Right = current/full, left = lightest.
+        var densitySlider = new Slider
+        {
+            Minimum = MultiFilterScopeRenderer.MinDisplayBudget,
+            Maximum = MultiFilterFrameProjector.FilterPointBudget,
+            Value = MultiFilterFrameProjector.FilterPointBudget,
+            VerticalAlignment = VerticalAlignment.Center,
+            Width = 220,
+        };
+        ToolTip.SetTip(densitySlider, "Trace density (points per second). Lower = lighter rendering.");
+        densitySlider.ValueChanged += (_, e) => renderer.SetDisplayBudget((int)e.NewValue);
+        var densityLabel = new TextBlock
+        {
+            Text = "Density",
+            FontSize = 11,
+            Opacity = 0.65,
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(8, 0, 6, 0),
+        };
+        var toolbar = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 4,
+            Margin = new Thickness(4, 4),
+        };
+        toolbar.Children.Add(densityLabel);
+        toolbar.Children.Add(densitySlider);
+
+        var root = new Grid { RowDefinitions = new RowDefinitions("Auto,*") };
+        Grid.SetRow(toolbar, 0);
+        Grid.SetRow(grid, 1);
+        root.Children.Add(toolbar);
+        root.Children.Add(grid);
+
         var consumer = new MultiFilterScopeFrameConsumer(renderer);
-        return new InfoTabRegistration(definition, CreateTabItem(definition, grid), consumer);
+        return new InfoTabRegistration(definition, CreateTabItem(definition, root), consumer);
     }
 
     private static InfoTabRegistration CreateLongTermPerfRegistration(
