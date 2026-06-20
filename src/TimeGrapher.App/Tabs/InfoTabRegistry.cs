@@ -465,7 +465,7 @@ internal sealed partial class InfoTabRegistry
             grid.Children.Add(buttonRow);
         }
 
-        var renderer = new ScopeSweepRenderer(sweepPlot, referenceText);
+        var renderer = new ScopeSweepRenderer(sweepPlot, referenceText, context.TextFontFamily);
         // Reset View sits top-left so it never collides with the 1x/2x/3x
         // selector pinned top-right.
         Button resetView = CreateOverlayButton(

@@ -26,7 +26,10 @@ public sealed class ScopeSweepLogicTests
 
         string line = ScopeSweepReadout.ReferenceLine(snapshot);
 
-        Assert.Equal("Error Rate -3.2 s/d   |   Amplitude 282°   |   BEAT ERROR +0.46 ms", line);
+        Assert.Equal(
+            "Error Rate -3.2 s/d   |   Amplitude 282°   |   BEAT ERROR +0.46 ms" +
+            "   |   A to C —   |   Period —",
+            line);
     }
 
     [Fact]
@@ -37,8 +40,55 @@ public sealed class ScopeSweepLogicTests
 
         foreach (string line in new[] { empty, invalid })
         {
-            Assert.Equal("Error Rate —   |   Amplitude —   |   BEAT ERROR —", line);
+            Assert.Equal(
+                "Error Rate —   |   Amplitude —   |   BEAT ERROR —   |   A to C —   |   Period —",
+                line);
         }
+    }
+
+    [Fact]
+    public void ReferenceLine_IncludesAtoCAndPeriodWhenAvailable()
+    {
+        var snapshot = new BeatMetricsHistorySnapshot
+        {
+            RateValid = true, RateSPerDay = 0.0,
+            AmplitudeValid = true, AmplitudeDeg = 250.0,
+            BeatErrorValid = true, BeatErrorSignedMs = 0.0,
+            Bph = 28800,
+        };
+        var segments = new BeatSegmentsSnapshot
+        {
+            Version = 1,
+            Segments = new[]
+            {
+                new BeatSegment { CPeakValid = true, AOffsetMs = 10.0, CPeakOffsetMs = 70.0 },
+            },
+        };
+
+        string line = ScopeSweepReadout.ReferenceLine(snapshot, segments);
+
+        // A→C = 60.0 ms, Period = 3600000/28800 = 125.0 ms
+        Assert.Contains("A to C +60.0 ms", line);
+        Assert.Contains("Period 125.0 ms", line);
+    }
+
+    [Fact]
+    public void ReferenceLine_AtoCUsesMostRecentSegmentWithValidCPeak()
+    {
+        var segments = new BeatSegmentsSnapshot
+        {
+            Version = 1,
+            Segments = new[]
+            {
+                new BeatSegment { CPeakValid = true,  AOffsetMs = 5.0,  CPeakOffsetMs = 65.0 },
+                new BeatSegment { CPeakValid = false, AOffsetMs = 10.0, CPeakOffsetMs = 0.0  },
+            },
+        };
+
+        string line = ScopeSweepReadout.ReferenceLine(null, segments);
+
+        // Last segment has no valid C peak; fall back to the first (older) one: 65 - 5 = 60 ms
+        Assert.Contains("A to C +60.0 ms", line);
     }
 
     [Fact]

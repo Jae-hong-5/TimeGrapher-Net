@@ -1,3 +1,4 @@
+using System.Globalization;
 using TimeGrapher.Core.Shared;
 
 namespace TimeGrapher.App.Rendering;
@@ -11,14 +12,43 @@ namespace TimeGrapher.App.Rendering;
 /// </summary>
 internal static class ScopeSweepReadout
 {
-    /// <summary>Reference line of current error rate / amplitude / beat error (em dash when absent).</summary>
-    public static string ReferenceLine(BeatMetricsHistorySnapshot? snapshot) =>
+    /// <summary>
+    /// Reference line of current error rate / amplitude / beat error / A→C /
+    /// period (em dash when absent). <paramref name="segments"/> supplies the
+    /// latest A→C interval; <paramref name="snapshot"/> supplies the period via
+    /// BPH.
+    /// </summary>
+    public static string ReferenceLine(BeatMetricsHistorySnapshot? snapshot,
+        BeatSegmentsSnapshot? segments = null) =>
         "Error Rate " + VarioReadout.Format(
             snapshot is { RateValid: true } ? snapshot.RateSPerDay : null, "+0.0;-0.0;0.0", " s/d")
         + "   |   Amplitude " + VarioReadout.Format(
             snapshot is { AmplitudeValid: true } ? snapshot.AmplitudeDeg : null, "0", "°")
         + "   |   BEAT ERROR " + VarioReadout.Format(
-            snapshot is { BeatErrorValid: true } ? snapshot.BeatErrorSignedMs : null, "+0.00;-0.00;0.00", " ms");
+            snapshot is { BeatErrorValid: true } ? snapshot.BeatErrorSignedMs : null, "+0.00;-0.00;0.00", " ms")
+        + "   |   A to C " + FormatAtoC(segments)
+        + "   |   Period " + FormatPeriod(snapshot);
+
+    /// <summary>A→C interval from the most recent segment that has a valid C peak.</summary>
+    internal static string FormatAtoC(BeatSegmentsSnapshot? segments)
+    {
+        if (segments?.Segments is not { Count: > 0 } segs) return VarioReadout.Missing;
+        for (int i = segs.Count - 1; i >= 0; i--)
+        {
+            BeatSegment seg = segs[i];
+            if (seg.CPeakValid)
+                return (seg.CPeakOffsetMs - seg.AOffsetMs)
+                    .ToString("+0.0;-0.0;0.0", CultureInfo.InvariantCulture) + " ms";
+        }
+        return VarioReadout.Missing;
+    }
+
+    /// <summary>Beat period (ms) derived from the current BPH; em dash until synced.</summary>
+    internal static string FormatPeriod(BeatMetricsHistorySnapshot? snapshot)
+    {
+        if (snapshot is not { Bph: > 0 }) return VarioReadout.Missing;
+        return (3600000.0 / snapshot.Bph).ToString("0.0", CultureInfo.InvariantCulture) + " ms";
+    }
 
     /// <summary>
     /// Sweep window length (ms) recovered from the published bin centers: the
