@@ -42,7 +42,7 @@ flowchart TB
     LinuxAudio --> Core
 
     AppTests --> App
-    AppTests -. "전이 · Core 타입(DTO·Sim·AudioIo) 사용" .-> Core
+    AppTests -. "전이 · Core 타입 직접 사용(Shared·Analysis·Detection·Detection.Scoring·Metrics·AudioIo·Sim)" .-> Core
     CoreTests --> Core
     WindowsAudioTests --> WindowsAudio
     WindowsAudioTests -. "전이 · Core DTO 사용" .-> Core
@@ -64,7 +64,7 @@ flowchart TB
 ### 의존 규칙
 
 - `TimeGrapher.Core`는 **아무것도 참조하지 않는다**(UI·플랫폼 무의존). 외부 패키지도 없다.
-- `TimeGrapher.Platform.*`와 `TimeGrapher.Verify`는 `Core`만 참조한다.
+- 프로젝트 참조(`ProjectReference`) 기준으로 `TimeGrapher.Platform.*`와 `TimeGrapher.Verify`는 `Core`만 참조한다. 단 `TimeGrapher.Platform.WindowsAudio`는 외부 NuGet 패키지 `NAudio.Wasapi`·`NAudio.WinMM`도 참조한다(위 도식의 `WindowsAudio --> NAudio` 엣지). `TimeGrapher.Platform.LinuxAudio`는 CLI 도구를 프로세스로 구동하므로 패키지 의존이 없고, `TimeGrapher.Verify`도 외부 패키지가 없다.
 - 두 플랫폼 어댑터는 각각 `Core.Shared`만 사용한다(`AudioCaptureWorker`, `LinuxLiveAudioWorker`).
 
 ### App의 플랫폼 어댑터 참조 (RID 조건부)
@@ -81,7 +81,7 @@ flowchart TB
 
 ### 테스트 프로젝트의 Core 의존
 
-`*.Tests`는 각자 검증 대상 프로젝트 **하나만** `ProjectReference`로 직접 참조한다(`App.Tests→App`, `WindowsAudio.Tests→WindowsAudio`, `LinuxAudio.Tests→LinuxAudio`). `Core`는 전이 참조이지만, 어서션·테스트 지원에서 `Core` 타입을 직접 `using`하므로 점선으로 표시했다 — `App.Tests`는 DTO뿐 아니라 `AnalysisBenchmarkRunnerTests`에서 `Core.Sim`의 `WatchSynthStream`·`Core.AudioIo`의 `WavStreamWriter` 같은 구현/지원 타입도 직접 구성한다(그래도 `ProjectReference`는 App 하나뿐이라 여전히 전이 참조다). `Core.Tests`만 `Core`를 직접 참조한다. `App.Tests`는 컨트롤(`AvaPlot`, `SplashWindow`)을 구성하므로 `Avalonia`·`ScottPlot`도 직접 사용한다.
+`*.Tests`는 각자 검증 대상 프로젝트 **하나만** `ProjectReference`로 직접 참조한다(`App.Tests→App`, `WindowsAudio.Tests→WindowsAudio`, `LinuxAudio.Tests→LinuxAudio`). `Core`는 전이 참조이지만, 어서션·테스트 지원에서 `Core` 타입을 직접 `using`하므로 점선으로 표시했다 — `App.Tests`는 `Shared`(DTO)에 더해 `Analysis`·`Detection`·`Detection.Scoring`·`Metrics`(예: `AnalysisRunSettingsTests`, `GraphFrameRendererTests`, `RunSelectionResolverTests`)와 `Core.AudioIo`·`Core.Sim`(`AnalysisBenchmarkRunnerTests`의 `WavStreamWriter`·`WatchSynthStream`)까지 직접 `using`한다(그래도 `ProjectReference`는 App 하나뿐이라 여전히 전이 참조다). `Core.Tests`만 `Core`를 직접 참조한다. `App.Tests`는 컨트롤(`AvaPlot`, `SplashWindow`)을 구성하므로 `Avalonia`·`ScottPlot`도 직접 사용한다.
 
 ### 미래 계획 노드: TimeGrapher.Inference
 
@@ -89,7 +89,7 @@ flowchart TB
 
 ## 2. TimeGrapher.App 내부 사용 관계
 
-폴더 수준 추상화로 묶었고, 모든 엣지는 실제 `using`/타입 참조에 근거한다. `Program` 노드는 루트 네임스페이스(`Program`, `App`, `AppStartupOptions`, `AnalysisRunSettings`)를 가리킨다.
+폴더 수준 추상화로 묶었고, 코드 엣지는 실제 `using`/타입 참조에 근거한다. 예외는 `Views → Assets`로, 이는 `using`/타입 참조가 아니라 `avares://` 리소스 URI·XAML `Icon` 참조다(`Assets`는 png/ttf 리소스 폴더이며 코드 네임스페이스가 아니다). `Program` 노드는 루트 네임스페이스(`Program`, `App`, `AppStartupOptions`, `AnalysisRunSettings`)를 가리킨다.
 
 ```mermaid
 flowchart TB
