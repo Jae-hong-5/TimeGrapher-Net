@@ -36,6 +36,10 @@ internal sealed class TgHpf
 
     public void Init(double fs, double fc)
     {
+        // A non-finite cutoff (NaN/Infinity) bypasses both range clamps below and
+        // makes _a = exp(NaN) = NaN, which poisons every filtered sample and
+        // silently kills detection. Fold non-finite to the low clamp first.
+        if (!double.IsFinite(fc)) fc = 1.0;
         if (fc < 1.0) fc = 1.0;
         if (fc > 0.25 * fs) fc = 0.25 * fs;
         _a = Math.Exp(-2.0 * Math.PI * fc / fs);
