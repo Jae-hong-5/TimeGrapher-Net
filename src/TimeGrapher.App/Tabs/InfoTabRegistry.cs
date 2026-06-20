@@ -1461,24 +1461,14 @@ internal sealed partial class InfoTabRegistry
         metrics.Children.Add(vhGroup);
         metrics.Children.Add(averageGroup);
 
-        var explanationText = new TextBlock
-        {
-            FontSize = PositionMinimumFontSize,
-            Opacity = 0.9,
-            TextWrapping = TextWrapping.Wrap,
-            Text = "Verdict starts at 3 positions with 30+ beats. Later qualified positions update the result.",
-        };
-
         var panelGrid = new Grid
         {
-            RowDefinitions = new RowDefinitions("Auto,Auto,Auto"),
+            RowDefinitions = new RowDefinitions("Auto,Auto"),
         };
         Grid.SetRow(header, 0);
         Grid.SetRow(metrics, 1);
-        Grid.SetRow(explanationText, 2);
         panelGrid.Children.Add(header);
         panelGrid.Children.Add(metrics);
-        panelGrid.Children.Add(explanationText);
 
         return new Border
         {
@@ -1493,7 +1483,7 @@ internal sealed partial class InfoTabRegistry
     {
         var table = new Grid
         {
-            ColumnDefinitions = new ColumnDefinitions("1.6*,0.8*,1.8*,2.2*,1.7*"),
+            ColumnDefinitions = new ColumnDefinitions("1.5*,1.15*,1.75*,2.25*,1.45*"),
             RowDefinitions = new RowDefinitions("Auto,Auto,Auto,Auto,Auto"),
             Margin = new Thickness(0, 0, 0, 4),
         };
@@ -1545,10 +1535,10 @@ internal sealed partial class InfoTabRegistry
     {
         var row = new Grid
         {
-            ColumnDefinitions = new ColumnDefinitions("1.6*,0.8*,1.8*,2.2*,1.7*"),
+            ColumnDefinitions = new ColumnDefinitions("1.5*,1.15*,1.75*,2.25*,1.45*"),
         };
 
-        var metricStack = new StackPanel { Spacing = 1, Margin = new Thickness(10, 6, 10, 6) };
+        var metricStack = new StackPanel { Spacing = 1, Margin = new Thickness(10, 5, 10, 5) };
         metricStack.Children.Add(new TextBlock
         {
             Text = title,
@@ -1569,7 +1559,7 @@ internal sealed partial class InfoTabRegistry
             FontSize = PositionMinimumFontSize,
             Opacity = 0.9,
             TextWrapping = TextWrapping.Wrap,
-            Margin = new Thickness(10, 6, 10, 6),
+            Margin = new Thickness(10, 5, 10, 5),
             VerticalAlignment = VerticalAlignment.Center,
         };
         readyText = new TextBlock
@@ -1578,12 +1568,12 @@ internal sealed partial class InfoTabRegistry
             FontWeight = FontWeight.Bold,
             Opacity = 0.9,
             TextWrapping = TextWrapping.Wrap,
-            Margin = new Thickness(10, 6, 10, 6),
+            Margin = new Thickness(10, 5, 10, 5),
             VerticalAlignment = VerticalAlignment.Center,
         };
-        statusText.Margin = new Thickness(10, 6, 10, 6);
+        statusText.Margin = new Thickness(10, 5, 10, 5);
 
-        var readingStack = new StackPanel { Spacing = 1, Margin = new Thickness(10, 6, 10, 6) };
+        var readingStack = new StackPanel { Spacing = 1, Margin = new Thickness(10, 5, 10, 5) };
         foreach ((string label, TextBlock value) in metrics)
         {
             readingStack.Children.Add(CreatePositionMetricRow(label, value));
@@ -1613,7 +1603,7 @@ internal sealed partial class InfoTabRegistry
     {
         var row = new Grid
         {
-            ColumnDefinitions = new ColumnDefinitions("90,*"),
+            ColumnDefinitions = new ColumnDefinitions("92,*"),
         };
         var labelText = new TextBlock
         {
@@ -1695,7 +1685,7 @@ internal sealed partial class InfoTabRegistry
 
     private static TextBlock CreatePositionSummaryValue() => new()
     {
-        FontSize = 22,
+        FontSize = 16,
         FontWeight = FontWeight.Bold,
         HorizontalAlignment = HorizontalAlignment.Right,
         TextAlignment = TextAlignment.Right,

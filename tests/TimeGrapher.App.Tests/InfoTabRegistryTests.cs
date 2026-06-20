@@ -131,7 +131,7 @@ public sealed class InfoTabRegistryTests
             text.Text == "Vertical mean - horizontal mean.");
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
             text.Text == "Mean of measured positions.");
-        Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
+        Assert.DoesNotContain(Descendants(content).OfType<TextBlock>(), text =>
             text.Text == "Verdict starts at 3 positions with 30+ beats. Later qualified positions update the result.");
         Assert.All(
             Descendants(content).OfType<TextBlock>().Where(PositionTextHasLocalFontSize),
@@ -157,6 +157,8 @@ public sealed class InfoTabRegistryTests
             Assert.False(group.ClipToBounds);
             Assert.True(double.IsNaN(group.Height));
             TextBlock[] groupText = Descendants(group).OfType<TextBlock>().ToArray();
+            Assert.All(groupText, text =>
+                Assert.True(text.FontSize <= 16.0, $"{text.Text} uses {text.FontSize}px"));
             Assert.Contains(groupText, text => text.TextWrapping == TextWrapping.Wrap);
             Assert.All(groupText.Where(text => text.Text is { Length: > 24 }), text =>
                 Assert.Equal(TextWrapping.Wrap, text.TextWrapping));
