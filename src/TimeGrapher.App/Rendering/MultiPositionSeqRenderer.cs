@@ -9,7 +9,6 @@ internal sealed class MultiPositionSeqRenderer
 {
     private const string ActiveRowClass = "SeqActiveRow";
     private const string OnAccentClass = "SeqOnAccent";
-    private const string PositionMapActiveClass = "active";
     private const string ResultOkClass = "ok";
     private const string ResultWarnClass = "warn";
     private const string ResultPendingClass = "pending";
@@ -26,6 +25,7 @@ internal sealed class MultiPositionSeqRenderer
     private readonly WatchPosition _initialPosition;
 
     private ulong _lastVersion;
+    private SequenceSummary _lastSummary = SequenceSummary.Compute(Array.Empty<PositionSummary>());
 
     public MultiPositionSeqRenderer(
         Grid tableGrid,
@@ -46,9 +46,17 @@ internal sealed class MultiPositionSeqRenderer
     {
         _lastVersion = 0;
         _alertBanner.IsVisible = false;
-        SequenceSummary empty = SequenceSummary.Compute(Array.Empty<PositionSummary>());
-        RebuildTable(empty.Rows, activePosition: null);
-        UpdateDashboard(empty, _initialPosition);
+        _lastSummary = SequenceSummary.Compute(Array.Empty<PositionSummary>());
+        RebuildTable(_lastSummary.Rows, activePosition: null);
+        UpdateDashboard(_lastSummary, _initialPosition);
+    }
+
+    public void RequestPosition(WatchPosition position)
+    {
+        RebuildTable(_lastSummary.Rows, position);
+        _dashboard.ActivePositionText.Text = position.ShortName();
+        _dashboard.ActiveOrientationText.Text = position.LongName();
+        UpdateConsistencyVerdict(_lastSummary, position);
     }
 
     public void RenderFrame(AnalysisFrame frame)
@@ -61,6 +69,7 @@ internal sealed class MultiPositionSeqRenderer
 
         _lastVersion = history.Version;
         SequenceSummary summary = SequenceSummary.Compute(history.Positions);
+        _lastSummary = summary;
         RebuildTable(summary.Rows, history.ActivePosition);
         UpdateDashboard(summary, history.ActivePosition);
         UpdateBanner(summary);
@@ -130,24 +139,15 @@ internal sealed class MultiPositionSeqRenderer
         _dashboard.ActivePositionText.Text = activePosition.ShortName();
         _dashboard.ActiveOrientationText.Text = activePosition.LongName();
 
-        foreach (PositionMapTileControls tile in _dashboard.PositionMapTiles)
-        {
-            bool active = tile.Position == activePosition;
-            if (active && !tile.Tile.Classes.Contains(PositionMapActiveClass))
-            {
-                tile.Tile.Classes.Add(PositionMapActiveClass);
-            }
-            else if (!active)
-            {
-                tile.Tile.Classes.Remove(PositionMapActiveClass);
-            }
-        }
-
         UpdateConsistencyVerdict(summary, activePosition);
         _dashboard.AverageRateText.Text = VarioReadout.Format(summary.RateMeanSPerDay, "+0.0;-0.0;0.0", " s/d");
         _dashboard.AverageAmplitudeText.Text = VarioReadout.Format(summary.AmplitudeMeanDeg, "0", "°");
         _dashboard.SpreadRateText.Text = VarioReadout.Format(summary.RateSpreadSPerDay, "0.0", " s/d");
         _dashboard.SpreadAmplitudeText.Text = VarioReadout.Format(summary.AmplitudeSpreadDeg, "0", "°");
+        _dashboard.BalanceWheelSpreadText.Text = VarioReadout.Format(
+            summary.VerticalRateSpreadSPerDay,
+            "0.0",
+            " s/d");
         _dashboard.VerticalRateText.Text = VarioReadout.Format(summary.VerticalRateMeanSPerDay, "+0.0;-0.0;0.0", " s/d");
         _dashboard.HorizontalRateText.Text = VarioReadout.Format(summary.HorizontalRateMeanSPerDay, "+0.0;-0.0;0.0", " s/d");
         _dashboard.VerticalHorizontalDeltaText.Text = VarioReadout.Format(
@@ -165,7 +165,7 @@ internal sealed class MultiPositionSeqRenderer
         SequencePositionRow[] qualifiedRows = summary.Rows
             .Where(row => row.RateSPerDay != null && row.Beats >= MinPositionBeatsForVerdict)
             .ToArray();
-        _dashboard.ConsistencyGuideText.Text = FormatRequirementGuide(qualifiedRows);
+        UpdateRequirementGuides(qualifiedRows);
 
         SequencePositionRow? activeRow = summary.Rows.FirstOrDefault(row => row.Position == activePosition);
         long activeBeats = activeRow?.Beats ?? 0;
@@ -223,12 +223,17 @@ internal sealed class MultiPositionSeqRenderer
         _dashboard.ConsistencyBadge.Classes.Add(ResultOkClass);
     }
 
-    private static string FormatRequirementGuide(SequencePositionRow[] qualifiedRows)
+    private void UpdateRequirementGuides(SequencePositionRow[] qualifiedRows)
     {
         int verticalPositions = qualifiedRows.Count(row =>
             !row.Position.IsHorizontal() && !row.Position.IsIntermediate());
         int horizontalPositions = qualifiedRows.Count(row => row.Position.IsHorizontal());
-        return $"Required: D {qualifiedRows.Length}/{MinQualifiedPositionsForVerdict} positions · Balance-wheel {verticalPositions}/{MinVerticalPositionsForBalanceWheelVerdict} vertical · V/H {verticalPositions}V+{horizontalPositions}H (need 1V+1H)";
+        _dashboard.SpreadRequirementText.Text =
+            $"Need {MinQualifiedPositionsForVerdict} positions, {MinPositionBeatsForVerdict}+ beats each. Ready: {qualifiedRows.Length}.";
+        _dashboard.BalanceRequirementText.Text =
+            $"Need {MinVerticalPositionsForBalanceWheelVerdict} full vertical positions. Ready: {verticalPositions}.";
+        _dashboard.VerticalHorizontalRequirementText.Text =
+            $"Need 1V + 1H. Ready: {verticalPositions}V + {horizontalPositions}H.";
     }
 
     private static double? Spread(IEnumerable<double> values)

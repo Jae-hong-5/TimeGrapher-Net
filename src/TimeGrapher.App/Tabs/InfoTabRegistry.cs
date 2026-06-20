@@ -1157,20 +1157,6 @@ internal sealed partial class InfoTabRegistry
         ToolTip.SetTip(diagram, "Active watch position orientation");
         var positionRenderer = new WatchPositionsRenderer(buttons, diagram, initialPosition);
 
-        for (int i = 0; i < buttons.Length; i++)
-        {
-            var position = (WatchPosition)i;
-            buttons[i].Click += (_, _) =>
-            {
-                if (context.ViewModel is { } viewModel)
-                {
-                    viewModel.SelectedPositionIndex = (int)position;
-                }
-
-                positionRenderer.RequestPosition(position);
-            };
-        }
-
         Border alertBanner = CreateAlertBanner(out TextBlock alertText);
 
         var tableGrid = new Grid
@@ -1184,31 +1170,35 @@ internal sealed partial class InfoTabRegistry
             diagram,
             out TextBlock activePositionText,
             out TextBlock activeOrientationText);
-        Grid positionMap = CreatePositionMap(out IReadOnlyList<PositionMapTileControls> positionMapTiles);
         Border resultPanel = CreatePositionResultPanel(
             out Border consistencyBadge,
             out TextBlock consistencyVerdictText,
             out TextBlock consistencyDetailText,
-            out TextBlock consistencyGuideText,
+            out TextBlock spreadRequirementText,
+            out TextBlock balanceRequirementText,
+            out TextBlock verticalHorizontalRequirementText,
             out TextBlock averageRateText,
             out TextBlock averageAmplitudeText,
             out TextBlock spreadRateText,
             out TextBlock spreadAmplitudeText,
+            out TextBlock balanceWheelSpreadText,
             out TextBlock verticalRateText,
             out TextBlock horizontalRateText,
             out TextBlock verticalHorizontalDeltaText);
         var dashboardControls = new PositionSequenceDashboardControls(
             activePositionText,
             activeOrientationText,
-            positionMapTiles,
             consistencyBadge,
             consistencyVerdictText,
             consistencyDetailText,
-            consistencyGuideText,
+            spreadRequirementText,
+            balanceRequirementText,
+            verticalHorizontalRequirementText,
             averageRateText,
             averageAmplitudeText,
             spreadRateText,
             spreadAmplitudeText,
+            balanceWheelSpreadText,
             verticalRateText,
             horizontalRateText,
             verticalHorizontalDeltaText);
@@ -1225,22 +1215,20 @@ internal sealed partial class InfoTabRegistry
 
         var sequenceGrid = new Grid
         {
-            RowDefinitions = new RowDefinitions("Auto,Auto,Auto,Auto"),
+            RowDefinitions = new RowDefinitions("Auto,Auto,Auto"),
             Margin = new Thickness(4, 4, 8, 4),
         };
         Grid.SetRow(alertBanner, 0);
         Grid.SetRow(topGrid, 1);
-        Grid.SetRow(positionMap, 2);
-        Grid.SetRow(resultPanel, 3);
+        Grid.SetRow(resultPanel, 2);
         sequenceGrid.Children.Add(alertBanner);
         sequenceGrid.Children.Add(topGrid);
-        sequenceGrid.Children.Add(positionMap);
         sequenceGrid.Children.Add(resultPanel);
 
         if (CreateWaitingOverlay(context.ViewModel) is { } overlay)
         {
             Grid.SetRow(overlay, 1);
-            Grid.SetRowSpan(overlay, 4);
+            Grid.SetRowSpan(overlay, 3);
             sequenceGrid.Children.Add(overlay);
         }
 
@@ -1250,6 +1238,21 @@ internal sealed partial class InfoTabRegistry
             alertText,
             dashboardControls,
             initialPosition);
+        for (int i = 0; i < buttons.Length; i++)
+        {
+            var position = (WatchPosition)i;
+            buttons[i].Click += (_, _) =>
+            {
+                if (context.ViewModel is { } viewModel)
+                {
+                    viewModel.SelectedPositionIndex = (int)position;
+                }
+
+                positionRenderer.RequestPosition(position);
+                sequenceRenderer.RequestPosition(position);
+            };
+        }
+
         var consumer = new WatchPositionsFrameConsumer(positionRenderer, sequenceRenderer);
         return new InfoTabRegistration(definition, CreateTabItem(definition, sequenceGrid), consumer);
     }
@@ -1293,82 +1296,18 @@ internal sealed partial class InfoTabRegistry
         };
     }
 
-    private static Grid CreatePositionMap(out IReadOnlyList<PositionMapTileControls> positionMapTiles)
-    {
-        var tiles = new List<PositionMapTileControls>(WatchPositions.Count);
-        var tileGrid = new Grid
-        {
-            ColumnDefinitions = new ColumnDefinitions("*,*,*,*,*"),
-            RowDefinitions = new RowDefinitions("50,50"),
-            VerticalAlignment = VerticalAlignment.Top,
-        };
-
-        IReadOnlyList<WatchPosition> positions = WatchPositions.All;
-        for (int i = 0; i < positions.Count; i++)
-        {
-            WatchPosition position = positions[i];
-            var tile = new Border
-            {
-                Classes = { "PositionMapTile" },
-                Margin = new Thickness(4, 2),
-                Padding = new Thickness(8, 3),
-                Height = 46,
-                ClipToBounds = true,
-                Child = new StackPanel
-                {
-                    Spacing = 1,
-                    Children =
-                    {
-                        new TextBlock
-                        {
-                            Text = position.ShortName(),
-                            FontSize = 16,
-                            HorizontalAlignment = HorizontalAlignment.Center,
-                            TextAlignment = TextAlignment.Center,
-                        },
-                        new TextBlock
-                        {
-                            Text = position.LongName(),
-                            FontSize = PositionMinimumFontSize,
-                            Opacity = 0.82,
-                            HorizontalAlignment = HorizontalAlignment.Center,
-                            TextAlignment = TextAlignment.Center,
-                            TextWrapping = Avalonia.Media.TextWrapping.Wrap,
-                        },
-                    },
-                },
-            };
-            ToolTip.SetTip(tile, position.LongName());
-            Grid.SetColumn(tile, i % 5);
-            Grid.SetRow(tile, i / 5);
-            tileGrid.Children.Add(tile);
-            tiles.Add(new PositionMapTileControls(position, tile));
-        }
-
-        var map = new Grid
-        {
-            RowDefinitions = new RowDefinitions("Auto,*"),
-            Margin = new Thickness(4, 4, 0, 2),
-        };
-        TextBlock header = CreatePositionSectionHeader("POSITION MAP");
-        Grid.SetRow(header, 0);
-        Grid.SetRow(tileGrid, 1);
-        map.Children.Add(header);
-        map.Children.Add(tileGrid);
-
-        positionMapTiles = tiles;
-        return map;
-    }
-
     private static Border CreatePositionResultPanel(
         out Border consistencyBadge,
         out TextBlock consistencyVerdictText,
         out TextBlock consistencyDetailText,
-        out TextBlock consistencyGuideText,
+        out TextBlock spreadRequirementText,
+        out TextBlock balanceRequirementText,
+        out TextBlock verticalHorizontalRequirementText,
         out TextBlock averageRateText,
         out TextBlock averageAmplitudeText,
         out TextBlock spreadRateText,
         out TextBlock spreadAmplitudeText,
+        out TextBlock balanceWheelSpreadText,
         out TextBlock verticalRateText,
         out TextBlock horizontalRateText,
         out TextBlock verticalHorizontalDeltaText)
@@ -1377,6 +1316,7 @@ internal sealed partial class InfoTabRegistry
         averageAmplitudeText = CreatePositionSummaryValue();
         spreadRateText = CreatePositionSummaryValue();
         spreadAmplitudeText = CreatePositionSummaryValue();
+        balanceWheelSpreadText = CreatePositionSummaryValue();
         verticalRateText = CreatePositionSummaryValue();
         horizontalRateText = CreatePositionSummaryValue();
         verticalHorizontalDeltaText = CreatePositionSummaryValue();
@@ -1401,15 +1341,6 @@ internal sealed partial class InfoTabRegistry
             Padding = new Thickness(16, 5),
             Child = consistencyVerdictText,
         };
-        consistencyGuideText = new TextBlock
-        {
-            FontSize = PositionMinimumFontSize,
-            FontWeight = FontWeight.Bold,
-            Opacity = 0.9,
-            TextWrapping = TextWrapping.Wrap,
-            Margin = new Thickness(0, 0, 0, 4),
-        };
-
         var criteriaButton = new Button
         {
             Content = "View criteria ▾",
@@ -1429,7 +1360,7 @@ internal sealed partial class InfoTabRegistry
 
         var header = new Grid
         {
-            ColumnDefinitions = new ColumnDefinitions("220,*,Auto,Auto"),
+            ColumnDefinitions = new ColumnDefinitions("210,*,Auto,Auto"),
             Margin = new Thickness(0, 0, 0, 6),
         };
         var title = new TextBlock
@@ -1451,32 +1382,44 @@ internal sealed partial class InfoTabRegistry
 
         var metrics = new Grid
         {
-            ColumnDefinitions = new ColumnDefinitions("*,*,*"),
+            ColumnDefinitions = new ColumnDefinitions("*,*,*,*"),
             Margin = new Thickness(0, 0, 0, 4),
         };
         Border spreadGroup = CreatePositionResultGroup(
             "D SPREAD",
             "Worst - best across positions.",
+            out spreadRequirementText,
             ("Error Rate", spreadRateText),
             ("Amplitude", spreadAmplitudeText));
+        Border balanceGroup = CreatePositionResultGroup(
+            "BALANCE-WHEEL",
+            "Spread across full vertical positions.",
+            out balanceRequirementText,
+            ("VERT SPREAD", balanceWheelSpreadText));
         Border vhGroup = CreatePositionResultGroup(
             "V/H BALANCE",
             "Vertical mean - horizontal mean.",
+            out verticalHorizontalRequirementText,
             ("VERT", verticalRateText),
             ("HORIZ", horizontalRateText),
             ("DVH", verticalHorizontalDeltaText));
         Border averageGroup = CreatePositionResultGroup(
             "X AVERAGE",
             "Mean of measured positions.",
+            out TextBlock averageRequirementText,
             ("Error Rate", averageRateText),
             ("Amplitude", averageAmplitudeText));
+        averageRequirementText.Text = "Uses every measured position.";
         spreadGroup.Classes.Add("primary");
+        balanceGroup.Classes.Add("primary");
         vhGroup.Classes.Add("primary");
 
         Grid.SetColumn(spreadGroup, 0);
-        Grid.SetColumn(vhGroup, 1);
-        Grid.SetColumn(averageGroup, 2);
+        Grid.SetColumn(balanceGroup, 1);
+        Grid.SetColumn(vhGroup, 2);
+        Grid.SetColumn(averageGroup, 3);
         metrics.Children.Add(spreadGroup);
+        metrics.Children.Add(balanceGroup);
         metrics.Children.Add(vhGroup);
         metrics.Children.Add(averageGroup);
 
@@ -1490,14 +1433,12 @@ internal sealed partial class InfoTabRegistry
 
         var panelGrid = new Grid
         {
-            RowDefinitions = new RowDefinitions("Auto,Auto,Auto,Auto"),
+            RowDefinitions = new RowDefinitions("Auto,Auto,Auto"),
         };
         Grid.SetRow(header, 0);
-        Grid.SetRow(consistencyGuideText, 1);
-        Grid.SetRow(metrics, 2);
-        Grid.SetRow(explanationText, 3);
+        Grid.SetRow(metrics, 1);
+        Grid.SetRow(explanationText, 2);
         panelGrid.Children.Add(header);
-        panelGrid.Children.Add(consistencyGuideText);
         panelGrid.Children.Add(metrics);
         panelGrid.Children.Add(explanationText);
 
@@ -1513,6 +1454,7 @@ internal sealed partial class InfoTabRegistry
     private static Border CreatePositionResultGroup(
         string title,
         string description,
+        out TextBlock requirementText,
         params (string Label, TextBlock Value)[] metrics)
     {
         var stack = new StackPanel { Spacing = 2 };
@@ -1532,6 +1474,15 @@ internal sealed partial class InfoTabRegistry
             TextAlignment = TextAlignment.Center,
             TextWrapping = TextWrapping.Wrap,
         });
+        requirementText = new TextBlock
+        {
+            FontSize = PositionMinimumFontSize,
+            FontWeight = FontWeight.Bold,
+            Opacity = 0.9,
+            TextWrapping = TextWrapping.Wrap,
+            Margin = new Thickness(0, 2, 0, 4),
+        };
+        stack.Children.Add(requirementText);
         foreach ((string label, TextBlock value) in metrics)
         {
             stack.Children.Add(CreatePositionMetricRow(label, value));
