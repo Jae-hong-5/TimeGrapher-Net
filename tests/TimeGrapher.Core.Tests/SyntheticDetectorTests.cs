@@ -68,6 +68,11 @@ public sealed class SyntheticDetectorTests
 
         Assert.Equal(TimeGrapher.Core.Detection.TgSyncStatus.Synced, update.Result.SyncStatus);
         Assert.Equal(expectedBph, update.Result.DetectedBph);
+        // The readout must carry real metrics, not just be non-empty: the locked BPH
+        // appears in the BPH field and a finite amplitude is reported (not the dash
+        // placeholder) for the clean synced stream.
         Assert.False(string.IsNullOrWhiteSpace(resultsText));
+        Assert.Contains(expectedBph.ToString(System.Globalization.CultureInfo.InvariantCulture), resultsText);
+        Assert.DoesNotContain("Amplitude ---", resultsText);
     }
 }
