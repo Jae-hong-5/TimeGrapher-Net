@@ -185,7 +185,7 @@ try {
 
 # --- iterate the graph tabs ---
 $tabMap = @{
-  "Error Rate/Scope" = "tab-rate-scope.png"
+  "Rate/Scope" = "tab-rate-scope.png"
   "Sound Print"  = "tab-sound-print.png"
   "Trace"        = "tab-trace.png"
   "Sweep"        = "tab-sweep.png"

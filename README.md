@@ -123,7 +123,7 @@ Build on a dev PC (one prepared via the Windows steps above) and copy only the o
 ## Features
 
 - Detects tick/tock to lock the beat (BPH) automatically or manually, and stays in sync via phase tracking.
-- Analysis display tabs from the current app catalog: **Error Rate/Scope**, **Sound Print**, **Trace**, **Sweep**, **Vario**, **Beat Error**, **Filter Scope**, **Long-Term**, **Positions**, **Beat Noise**, **Escapement**, **Waveforms**, and **Spectrogram**.
+- Analysis display tabs from the current app catalog: **Rate/Scope**, **Sound Print**, **Trace**, **Sweep**, **Vario**, **Beat Error**, **Filter Scope**, **Long-Term**, **Positions**, **Beat Noise**, **Escapement**, **Waveforms**, and **Spectrogram**.
 - The **Positions** tab combines compact position-selection buttons on the left with per-position sequence measurements on the right.
 - Three inputs: **Live** (mic), **Playback** (WAV file), **Simulation** (synthetic signal).
 - Optionally records the input to WAV while analyzing (offered for Live and Simulation runs; Playback only replays an existing file).

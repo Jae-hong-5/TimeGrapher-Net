@@ -72,7 +72,7 @@ internal static class InfoTabCatalog
         new(AnalysisGraphSeries.RateToc, "Toc Error Rate", Argb.Blue, GraphSeriesRenderMode.Points, RateTargetPointBudget),
     };
 
-    // Same tic/toc Error Rate traces the Error Rate/Scope tab consumes; declared
+    // Same tic/toc Error Rate traces the Rate/Scope tab consumes; declared
     // separately so each tab states its own graph-series contract.
     private static readonly GraphSeriesDefinition[] BeatErrorDiagSeries =
     {
@@ -86,7 +86,7 @@ internal static class InfoTabCatalog
     {
         var definitions = new List<InfoTabDefinition>
         {
-            new(RateScopeTabId, "Error Rate/Scope", InfoTabKind.RateScope, DefaultUiRefreshIntervalMs, UsesGraphSnapshots: true, RateScopeSeries),
+            new(RateScopeTabId, "Rate/Scope", InfoTabKind.RateScope, DefaultUiRefreshIntervalMs, UsesGraphSnapshots: true, RateScopeSeries),
             new(SoundPrintTabId, "Sound Print", InfoTabKind.SoundPrint, SoundPrintRefreshIntervalMs, UsesGraphSnapshots: false, Array.Empty<GraphSeriesDefinition>()),
             // Trace Display renders the cumulative BeatMetricsHistorySnapshot the
             // frame carries; it declares no per-frame graph-series contract.

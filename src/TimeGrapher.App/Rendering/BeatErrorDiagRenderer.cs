@@ -218,7 +218,7 @@ internal sealed class BeatErrorDiagRenderer
         plot.Legend.OutlineColor = Color.FromARGB(_theme.ScopeGrid);
     }
 
-    // Same tick/tock color mapping the Error Rate/Scope traces use.
+    // Same tick/tock color mapping the Rate/Scope traces use.
     private uint ThemeColor(GraphSeriesDefinition spec) => spec.Id switch
     {
         AnalysisGraphSeries.RateTic => _theme.TraceTick,

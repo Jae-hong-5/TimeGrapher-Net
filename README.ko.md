@@ -120,7 +120,7 @@
 ## 주요 기능
 
 - 똑/딱 소리를 검출해 박자(BPH)를 자동·수동으로 잡고, 위상 추적으로 동기를 유지.
-- 현재 앱 카탈로그 기준 분석 표시 탭: **Error Rate/Scope**, **Sound Print**, **Trace**, **Sweep**, **Vario**, **Beat Error**, **Filter Scope**, **Long-Term**, **Positions**, **Beat Noise**, **Escapement**, **Waveforms**, **Spectrogram**.
+- 현재 앱 카탈로그 기준 분석 표시 탭: **Rate/Scope**, **Sound Print**, **Trace**, **Sweep**, **Vario**, **Beat Error**, **Filter Scope**, **Long-Term**, **Positions**, **Beat Noise**, **Escapement**, **Waveforms**, **Spectrogram**.
 - **Positions** 탭은 왼쪽에 작은 포지션 선택 버튼, 오른쪽에 포지션별 시퀀스 측정값을 함께 보여줍니다.
 - 입력 3종: **Live**(마이크), **Playback**(WAV 파일 재생), **Simulation**(합성 신호).
 - 분석과 동시에 입력을 WAV로 녹음할 수 있습니다(Live·Simulation 실행에서 선택 제공; Playback은 기존 파일을 재생만 함).
