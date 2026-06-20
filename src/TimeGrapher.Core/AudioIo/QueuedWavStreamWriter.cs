@@ -93,8 +93,13 @@ public sealed class QueuedWavStreamWriter : ISampleWriter
                 return true;
             }
         }
-        catch (InvalidOperationException)
+        catch (Exception ex) when (ex is InvalidOperationException or ObjectDisposedException)
         {
+            // InvalidOperationException: adding was completed (writer failure / Close).
+            // ObjectDisposedException: Close already disposed the queue while this
+            // Write was in flight. Either way the block cannot be queued; fall
+            // through to return the rented buffer and count it as dropped rather
+            // than letting an unhandled exception kill the analysis worker thread.
         }
 
         ArrayPool<float>.Shared.Return(buffer);
@@ -138,6 +143,10 @@ public sealed class QueuedWavStreamWriter : ISampleWriter
             }
         }
 
+        // Return any blocks still queued (e.g. enqueued just before the writer
+        // thread observed CompleteAdding) so their rented buffers are not leaked
+        // when the queue is disposed.
+        DrainQueuedBlocks(queue);
         bool closed = inner.Close();
         queue.Dispose();
         inner.Dispose();
@@ -182,6 +191,11 @@ public sealed class QueuedWavStreamWriter : ISampleWriter
 
                 if (_writerFailed)
                 {
+                    // Stop accepting new blocks BEFORE draining so a producer that
+                    // already passed the IsAddingCompleted check cannot TryAdd a
+                    // rented buffer after the drain finishes (which would leak it,
+                    // since no consumer remains and Close only disposes the queue).
+                    queue.CompleteAdding();
                     DrainQueuedBlocks(queue);
                     return;
                 }
