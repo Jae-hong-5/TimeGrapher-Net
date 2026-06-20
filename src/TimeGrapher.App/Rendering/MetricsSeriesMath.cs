@@ -26,28 +26,4 @@ internal static class MetricsSeriesMath
 
         return sum / series.Y.Count;
     }
-
-    /// <summary>
-    /// Rolling average over the trailing window (seconds of stream time, measured
-    /// back from the newest point). Null when the series is empty.
-    /// </summary>
-    public static double? RollingAverage(MetricsHistorySeries series, double windowS)
-    {
-        int count = series.Y.Count;
-        if (count == 0)
-        {
-            return null;
-        }
-
-        double cutoff = series.X[count - 1] - windowS;
-        double sum = 0.0;
-        int n = 0;
-        for (int i = count - 1; i >= 0 && series.X[i] >= cutoff; i--)
-        {
-            sum += series.Y[i];
-            n++;
-        }
-
-        return n > 0 ? sum / n : null;
-    }
 }

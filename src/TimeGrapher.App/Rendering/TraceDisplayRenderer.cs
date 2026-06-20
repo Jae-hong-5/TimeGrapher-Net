@@ -18,13 +18,12 @@ namespace TimeGrapher.App.Rendering;
 /// labels alias LongTermAcceptPolicy's normal ranges as a visual reference; the
 /// late-running alert banner uses its own asymmetric threshold
 /// (TraceAlertEvaluator), so the band marks the normal range, not the alert gate.
-/// An alert banner reports late-running and out-of-range amplitude; the footer
-/// shows since-start and rolling (60 s) averages. Re-renders only when the
-/// snapshot version changes, so coalesced or repeated frames cost nothing.
+/// An alert banner reports late-running and out-of-range amplitude. Re-renders
+/// only when the snapshot version changes, so coalesced or repeated frames cost
+/// nothing.
 /// </summary>
 internal sealed class TraceDisplayRenderer
 {
-    private const double RollingWindowS = 60.0;
     // Accept-band fill alpha and the right-edge inset of the limit-value labels,
     // matching the Long-Term graph so the two displays look identical.
     private const byte AcceptBandFillAlpha = 42;
@@ -49,7 +48,6 @@ internal sealed class TraceDisplayRenderer
     private readonly AvaPlot _amplitudePlot;
     private readonly Border _alertBanner;
     private readonly TextBlock _alertText;
-    private readonly TextBlock _summaryText;
 
     private readonly List<double> _rateX = new();
     private readonly List<double> _rateY = new();
@@ -75,14 +73,12 @@ internal sealed class TraceDisplayRenderer
         AvaPlot ratePlot,
         AvaPlot amplitudePlot,
         Border alertBanner,
-        TextBlock alertText,
-        TextBlock summaryText)
+        TextBlock alertText)
     {
         _ratePlot = ratePlot;
         _amplitudePlot = amplitudePlot;
         _alertBanner = alertBanner;
         _alertText = alertText;
-        _summaryText = summaryText;
 
         // A user wheel-zoom or drag-pan drops live-follow and holds the view. The
         // right-edge limit labels are repositioned after the interaction (deferred
@@ -133,7 +129,6 @@ internal sealed class TraceDisplayRenderer
         _lastVersion = 0;
         _followLive = true;
         _alertBanner.IsVisible = false;
-        _summaryText.Text = "";
 
         Plot rate = _ratePlot.Plot;
         rate.Clear();
@@ -282,28 +277,6 @@ internal sealed class TraceDisplayRenderer
         {
             _alertText.Text = "⚠ " + alerts.Message;
         }
-    }
-
-    private void UpdateSummaries(BeatMetricsHistorySnapshot history)
-    {
-        string Format(string label, double? sinceStart, double? rolling, string unit, string numericFormat) =>
-            sinceStart is double avg && rolling is double roll
-                ? string.Format(System.Globalization.CultureInfo.InvariantCulture,
-                    "{0} avg {1}{3} / last {4:F0}s {2}{3}",
-                    label,
-                    avg.ToString(numericFormat, System.Globalization.CultureInfo.InvariantCulture),
-                    roll.ToString(numericFormat, System.Globalization.CultureInfo.InvariantCulture),
-                    unit, RollingWindowS)
-                : label + " avg —";
-
-        // Error Rate is signed; amplitude is an unsigned magnitude shown in whole
-        // degrees everywhere else in the app.
-        _summaryText.Text =
-            Format("Error Rate", MetricsSeriesMath.Average(history.Rate),
-                MetricsSeriesMath.RollingAverage(history.Rate, RollingWindowS), " s/d", "+0.0;-0.0;0.0")
-            + "   |   "
-            + Format("Amplitude", MetricsSeriesMath.Average(history.Amplitude),
-                MetricsSeriesMath.RollingAverage(history.Amplitude, RollingWindowS), "°", "0");
     }
 
     /// <summary>Review-cursor contract: a vertical marker at the scrub time on both plots.</summary>

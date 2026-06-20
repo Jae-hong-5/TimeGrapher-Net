@@ -34,7 +34,7 @@ public sealed class TraceDisplayRendererTests
         ratePlot = new AvaPlot();
         amplitudePlot = new AvaPlot();
         return new TraceDisplayRenderer(
-            ratePlot, amplitudePlot, new Border(), new TextBlock(), new TextBlock());
+            ratePlot, amplitudePlot, new Border(), new TextBlock());
     }
 
     private static AnalysisFrame Frame(ulong version, double[] rateY, double[] amplitudeY)

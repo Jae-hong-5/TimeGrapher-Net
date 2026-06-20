@@ -360,29 +360,20 @@ internal sealed partial class InfoTabRegistry
 
         Border alertBanner = CreateAlertBanner(out TextBlock alertText);
 
-
-        var summaryText = new TextBlock
-        {
-            FontSize = 12,
-            Margin = new Thickness(8, 2),
-        };
-
         // The amplitude (bottom) pane shows the shared time axis while the rate
         // (top) pane hides its X axis (the Long-Term pattern), so the amplitude row
         // is enlarged to keep both DATA areas the same height. Tuned for the
         // 1280x750 design size.
         var grid = new Grid
         {
-            RowDefinitions = new RowDefinitions("Auto,*,1.11*,Auto"),
+            RowDefinitions = new RowDefinitions("Auto,*,1.11*"),
         };
         Grid.SetRow(alertBanner, 0);
         Grid.SetRow(ratePlot, 1);
         Grid.SetRow(amplitudePlot, 2);
-        Grid.SetRow(summaryText, 3);
         grid.Children.Add(alertBanner);
         grid.Children.Add(ratePlot);
         grid.Children.Add(amplitudePlot);
-        grid.Children.Add(summaryText);
 
         if (CreateWaitingOverlay(context.ViewModel) is { } overlay)
         {
@@ -390,7 +381,7 @@ internal sealed partial class InfoTabRegistry
             grid.Children.Add(overlay);
         }
 
-        var renderer = new TraceDisplayRenderer(ratePlot, amplitudePlot, alertBanner, alertText, summaryText);
+        var renderer = new TraceDisplayRenderer(ratePlot, amplitudePlot, alertBanner, alertText);
         context.ResetViews.Register(renderer.ResetView);
 
         grid.Children.Add(CreatePinnedResetViewButton(ResetAllGraphViewsTooltip, row: 1, context.ResetViews.ResetAll));
