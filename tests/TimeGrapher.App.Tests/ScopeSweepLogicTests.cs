@@ -75,6 +75,27 @@ public sealed class ScopeSweepLogicTests
     [Fact]
     public void ReferenceLine_AtoCUsesMostRecentSegmentWithValidCPeak()
     {
+        // Both segments have a valid C peak with DIFFERENT A->C, so "most recent"
+        // (newest/last) and "first" diverge: the readout must pick the newest (80 ms),
+        // not the older 60 ms.
+        var segments = new BeatSegmentsSnapshot
+        {
+            Version = 1,
+            Segments = new[]
+            {
+                new BeatSegment { CPeakValid = true, AOffsetMs = 5.0, CPeakOffsetMs = 65.0 }, // older: 60 ms
+                new BeatSegment { CPeakValid = true, AOffsetMs = 5.0, CPeakOffsetMs = 85.0 }, // newest: 80 ms
+            },
+        };
+
+        string line = ScopeSweepReadout.ReferenceLine(null, segments);
+
+        Assert.Contains("A to C +80.0 ms", line);
+    }
+
+    [Fact]
+    public void ReferenceLine_AtoCFallsBackToOlderSegmentWhenNewestCPeakInvalid()
+    {
         var segments = new BeatSegmentsSnapshot
         {
             Version = 1,
@@ -87,7 +108,7 @@ public sealed class ScopeSweepLogicTests
 
         string line = ScopeSweepReadout.ReferenceLine(null, segments);
 
-        // Last segment has no valid C peak; fall back to the first (older) one: 65 - 5 = 60 ms
+        // Newest segment has no valid C peak; fall back to the older one: 65 - 5 = 60 ms.
         Assert.Contains("A to C +60.0 ms", line);
     }
 

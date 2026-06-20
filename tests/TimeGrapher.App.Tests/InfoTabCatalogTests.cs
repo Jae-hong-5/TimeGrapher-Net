@@ -52,23 +52,16 @@ public sealed class InfoTabCatalogTests
     }
 
     [Fact]
-    public void TraceDisplayTabRendersFromCumulativeHistoryNotGraphSeries()
+    public void SnapshotlessTabsDeclareNoGraphSeries()
     {
-        InfoTabDefinition tab = InfoTabCatalog.Get(InfoTabCatalog.TraceDisplayTabId);
-
-        Assert.Equal(InfoTabKind.TraceDisplay, tab.Kind);
-        Assert.False(tab.UsesGraphSnapshots);
-        Assert.Empty(tab.GraphSeries);
-    }
-
-    [Fact]
-    public void ScopeSweepTabRendersFromCoreFoldedSweepSeries()
-    {
-        InfoTabDefinition tab = InfoTabCatalog.Get(InfoTabCatalog.ScopeSweepTabId);
-
-        Assert.Equal(InfoTabKind.ScopeSweep, tab.Kind);
-        Assert.False(tab.UsesGraphSnapshots);
-        Assert.Empty(tab.GraphSeries);
+        // One invariant replaces eight per-tab tautologies that each re-asserted
+        // the (Kind, !UsesGraphSnapshots, Empty GraphSeries) trio straight out of
+        // the catalog data table: every tab that does not use graph snapshots must
+        // declare no graph series. Tabs WITH a distinctive contract (RateScope,
+        // BeatErrorDiag, SoundPrint, Spectrogram, Positions) keep their own tests.
+        Assert.All(
+            InfoTabCatalog.All.Where(tab => !tab.UsesGraphSnapshots),
+            tab => Assert.Empty(tab.GraphSeries));
     }
 
     [Fact]
@@ -86,72 +79,12 @@ public sealed class InfoTabCatalogTests
     }
 
     [Fact]
-    public void MultiFilterScopeTabRendersFromCoreFilterSeries()
-    {
-        InfoTabDefinition tab = InfoTabCatalog.Get(InfoTabCatalog.MultiFilterScopeTabId);
-
-        Assert.Equal(InfoTabKind.MultiFilterScope, tab.Kind);
-        Assert.False(tab.UsesGraphSnapshots);
-        Assert.Empty(tab.GraphSeries);
-    }
-
-    [Fact]
-    public void VarioTabRendersFromCumulativeHistoryNotGraphSeries()
-    {
-        InfoTabDefinition tab = InfoTabCatalog.Get(InfoTabCatalog.VarioTabId);
-
-        Assert.Equal(InfoTabKind.Vario, tab.Kind);
-        Assert.False(tab.UsesGraphSnapshots);
-        Assert.Empty(tab.GraphSeries);
-    }
-
-    [Fact]
-    public void LongTermPerfTabRendersFromCumulativeHistoryNotGraphSeries()
-    {
-        InfoTabDefinition tab = InfoTabCatalog.Get(InfoTabCatalog.LongTermPerfTabId);
-
-        Assert.Equal(InfoTabKind.LongTermPerformance, tab.Kind);
-        Assert.False(tab.UsesGraphSnapshots);
-        Assert.Empty(tab.GraphSeries);
-    }
-
-    [Fact]
     public void PositionsTabCombinesSelectionAndSequenceHistoryWithoutGraphSeries()
     {
         InfoTabDefinition tab = InfoTabCatalog.Get(InfoTabCatalog.WatchPositionsTabId);
 
         Assert.Equal(InfoTabKind.WatchPositions, tab.Kind);
         Assert.Equal("Positions", tab.Title);
-        Assert.False(tab.UsesGraphSnapshots);
-        Assert.Empty(tab.GraphSeries);
-    }
-
-    [Fact]
-    public void BeatNoiseScopeTabRendersFromCumulativeSegmentsNotGraphSeries()
-    {
-        InfoTabDefinition tab = InfoTabCatalog.Get(InfoTabCatalog.BeatNoiseScopeTabId);
-
-        Assert.Equal(InfoTabKind.BeatNoiseScope, tab.Kind);
-        Assert.False(tab.UsesGraphSnapshots);
-        Assert.Empty(tab.GraphSeries);
-    }
-
-    [Fact]
-    public void EscapementAnalyzerTabRendersFromCumulativeSegmentsNotGraphSeries()
-    {
-        InfoTabDefinition tab = InfoTabCatalog.Get(InfoTabCatalog.EscapementAnalyzerTabId);
-
-        Assert.Equal(InfoTabKind.EscapementAnalyzer, tab.Kind);
-        Assert.False(tab.UsesGraphSnapshots);
-        Assert.Empty(tab.GraphSeries);
-    }
-
-    [Fact]
-    public void WaveformCompareTabRendersFromCumulativeSegmentsNotGraphSeries()
-    {
-        InfoTabDefinition tab = InfoTabCatalog.Get(InfoTabCatalog.WaveformCompareTabId);
-
-        Assert.Equal(InfoTabKind.WaveformCompare, tab.Kind);
         Assert.False(tab.UsesGraphSnapshots);
         Assert.Empty(tab.GraphSeries);
     }

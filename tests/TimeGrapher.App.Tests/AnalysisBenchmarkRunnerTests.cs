@@ -7,13 +7,36 @@ namespace TimeGrapher.App.Tests;
 
 public sealed class AnalysisBenchmarkRunnerTests
 {
+    private static (int ExitCode, string Output) RunCapturingStdout(string[] args)
+    {
+        var sw = new StringWriter();
+        TextWriter original = Console.Out;
+        Console.SetOut(sw);
+        try
+        {
+            int exit = AnalysisBenchmarkRunner.Run(args);
+            return (exit, sw.ToString());
+        }
+        finally
+        {
+            Console.SetOut(original);
+        }
+    }
+
     [Fact]
     public void RunCompletesShortSyntheticBenchmark()
     {
-        int exitCode = AnalysisBenchmarkRunner.Run(
+        (int exitCode, string output) = RunCapturingStdout(
             new[] { "--analysis-benchmark", "--bph", "43200", "--rate", "48000", "--duration-ms", "3000" });
 
         Assert.Equal(0, exitCode);
+        // The runner's evidence surface, not just the exit code: the summary must
+        // report the configured + detected BPH and the budget line must carry the
+        // latency/deadline fields.
+        Assert.Contains("expected_bph=43200", output);
+        Assert.Contains("detected_bph=43200", output);
+        Assert.Contains("max_lag_ms=", output);
+        Assert.Contains("max_deadline_level=", output);
     }
 
     [Fact]
@@ -25,10 +48,14 @@ public sealed class AnalysisBenchmarkRunnerTests
         {
             WriteSyntheticWav(path, bph: 43200, sampleRate: 48000, durationMs: 3000);
 
-            int exitCode = AnalysisBenchmarkRunner.Run(
+            (int exitCode, string output) = RunCapturingStdout(
                 new[] { "--analysis-benchmark", "--wav", path });
 
             Assert.Equal(0, exitCode);
+            // Expected BPH is parsed from the filename ("43200BPH_..."); assert it was
+            // parsed (not 0) and detected, so a filename-parsing regression fails here.
+            Assert.Contains("expected_bph=43200", output);
+            Assert.Contains("detected_bph=43200", output);
         }
         finally
         {
