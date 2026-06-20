@@ -14,6 +14,21 @@ class AnalysisRun {
     +RunCommandMode Mode
 }
 
+class RunCommandMode {
+    <<enumeration>>
+    Unknown
+    Live
+    Playback
+    Simulation
+}
+
+class TgSyncStatus {
+    <<enumeration>>
+    NotSynced
+    Synced
+    Mismatch
+}
+
 class AnalysisRunSettings {
     +int SampleRate
     +double LiftAngle
@@ -77,7 +92,10 @@ class WatchSynthStreamEvent {
     +WatchSynthEventKind Kind
     +double TimeS
     +ulong SampleIndex
+    +double IntervalFromPreviousUs
     +double AppliedIntervalOffsetUs
+    +double TimingJitterUs
+    +double BphWanderUs
     +double PacketGain
     +double AToCTimeS
     +double WatchAmplitudeDegrees
@@ -145,8 +163,12 @@ class AnalysisFrame {
     +long SpectrogramTotalColumns
     +double SpectrogramColumnSeconds
     +double SpectrogramBeatPeriodS
-    +double BackgroundFps/Sps/Spf
-    +double ForegroundFps/Sps/Spf
+    +double BackgroundFps
+    +double BackgroundSps
+    +double BackgroundSpf
+    +double ForegroundFps
+    +double ForegroundSps
+    +double ForegroundSpf
 }
 
 class GraphSeriesFrame {
@@ -154,6 +176,7 @@ class GraphSeriesFrame {
     +IReadOnlyList~double~ X
     +IReadOnlyList~double~ Y
     +bool Replace
+    +double TicPhaseOffsetMs
 }
 
 class ScopeFilterSample {
@@ -189,8 +212,10 @@ class ScopeTextMarker {
 class WatchMetricsUpdate {
     +bool TicRateUpdated
     +bool TocRateUpdated
-    +IReadOnlyList~double~ XTic/YTic
-    +IReadOnlyList~double~ XToc/YToc
+    +IReadOnlyList~double~ XTic
+    +IReadOnlyList~double~ YTic
+    +IReadOnlyList~double~ XToc
+    +IReadOnlyList~double~ YToc
     +bool ResultsUpdated
     +string ResultsText
     +string CMarkerText
@@ -415,8 +440,10 @@ class DetectorResultSnapshot {
     +bool SyncLostEvent
     +bool SyncAcquiredEvent
     +bool DetectorResetEvent
-    +float OnsetThreshold/MinPeakThreshold
-    +float NoiseFloor/ReferencePeak
+    +float OnsetThreshold
+    +float MinPeakThreshold
+    +float NoiseFloor
+    +float ReferencePeak
     +ulong MissedBeats
     +uint SyncLossCount
     +ulong VetoedEvents
@@ -430,7 +457,7 @@ class DetectorMetricsEngineConfig {
     +bool AutoBph
     +int ManualBph
     +double HpfCutoffHz
-    +BeatEventGateConfig EventGate
+    +BeatEventGateConfig? EventGate
 }
 
 class DetectorMetricsBlockUpdate {
@@ -463,6 +490,7 @@ AudioSource <|-- LiveAudioSource
 AudioSource <|-- PlaybackSource
 AudioSource <|-- SimSource
 
+AnalysisRun "1" --> "1" RunCommandMode : 실행 모드
 AnalysisRun "1" *-- "1" AnalysisRunSettings : 설정으로 사용
 AnalysisRun "1" *-- "1" AudioSource : 입력 소스 선택
 AnalysisRun "1" *-- "1" MasterAudioBuffer : 소유
@@ -481,7 +509,9 @@ WavData "1" --> "0..*" MasterAudioBuffer : 샘플 공급
 MasterAudioBuffer "1" --> "0..*" TgResult : 분석 워커가 블록 단위로 읽어 검출(엔진이 생성)
 
 TgConfig "1" --> "0..*" TgResult : 검출 설정
+TgResult "1" --> "1" TgSyncStatus : sync 상태
 TgResult "1" *-- "0..*" TgEvent : 이벤트 목록
+DetectorResultSnapshot "1" --> "1" TgSyncStatus : sync 상태
 DetectorMetricsEngineConfig "1" --> "0..*" DetectorMetricsBlockUpdate : 공유 엔진 계약(블록당 산출)
 DetectorMetricsEngineConfig "1" --> "1" TgConfig : 엔진이 내부 검출기 설정 파생
 DetectorMetricsEngineConfig "1" o-- "0..1" BeatEventGateConfig : 선택적 게이트 설정
