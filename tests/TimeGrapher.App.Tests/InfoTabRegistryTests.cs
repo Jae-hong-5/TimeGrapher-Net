@@ -541,15 +541,32 @@ public sealed class InfoTabRegistryTests
         Assert.DoesNotContain(Descendants(header).OfType<Button>(), button => button.Classes.Contains("active"));
         Assert.DoesNotContain(Descendants(header).OfType<TextBlock>(), text => text.Text?.Contains("Elapsed", StringComparison.Ordinal) == true);
         Assert.Empty(header.RowDefinitions);
-        Assert.Equal(6, content.RowDefinitions.Count);
+        Assert.Equal(5, content.RowDefinitions.Count);
+        // Beat-error row (3) is enlarged to offset its visible time-axis so all three
+        // data areas match; a revert to '*' would silently break equal heights.
+        Assert.True(content.RowDefinitions[3].Height.IsStar);
+        Assert.Equal(1.22, content.RowDefinitions[3].Height.Value, 3);
+        Assert.Equal(1.0, content.RowDefinitions[1].Height.Value, 3);
         Assert.Equal(new Thickness(0, 0, 0, -8), Assert.IsType<AvaPlot>(
             content.Children.Single(child => Grid.GetRow(child) == 1)).Margin);
-        Assert.Equal(new Thickness(0, -8, 0, -8), Assert.IsType<AvaPlot>(
+        Assert.Equal(new Thickness(0, -4, 0, -4), Assert.IsType<AvaPlot>(
             content.Children.Single(child => Grid.GetRow(child) == 2)).Margin);
         Assert.Equal(new Thickness(0, -8, 0, 0), Assert.IsType<AvaPlot>(
             content.Children.Single(child => Grid.GetRow(child) == 3)).Margin);
         Assert.DoesNotContain(Descendants(content).OfType<TextBlock>(), text =>
             text.Text?.StartsWith("Shaded band =", StringComparison.Ordinal) == true);
+    }
+
+    [Fact]
+    public void TraceTabSharesTimeAxisAndEnlargesAmplitudeRow()
+    {
+        Grid content = CreateTraceContent();
+
+        // Amplitude (row 2) is enlarged 1.11x so both data areas stay equal height
+        // once the rate pane's X axis is hidden (shared bottom time axis).
+        Assert.Equal(1.0, content.RowDefinitions[1].Height.Value, 3);
+        Assert.True(content.RowDefinitions[2].Height.IsStar);
+        Assert.Equal(1.11, content.RowDefinitions[2].Height.Value, 3);
     }
 
     [Fact]
@@ -560,7 +577,7 @@ public sealed class InfoTabRegistryTests
         content.DataContext = vm;
 
         Border reviewBar = Assert.Single(content.Children.OfType<Border>(), border => border.Name == "ReviewBar");
-        Assert.Equal(5, Grid.GetRow(reviewBar));
+        Assert.Equal(4, Grid.GetRow(reviewBar));
         Assert.True(reviewBar.IsVisible);
         Assert.False(reviewBar.IsEnabled);
 
@@ -575,7 +592,12 @@ public sealed class InfoTabRegistryTests
             .Select(button => button.Content?.ToString() ?? string.Empty)
             .ToArray();
         Assert.Equal(new[] { "-1 s", "+1 s", "LIVE" }, buttons);
-        Assert.Contains(Descendants(reviewBar).OfType<Slider>(), slider => slider.Name == "ReviewSlider");
+        Slider reviewSlider = Descendants(reviewBar).OfType<Slider>().Single(slider => slider.Name == "ReviewSlider");
+        // Compact-strip resource overrides are scoped to this slider instance (not
+        // app-wide), so the gain slider keeps its default height.
+        Assert.Equal(18.0, Assert.IsType<double>(reviewSlider.Resources["SliderHorizontalHeight"]));
+        Assert.Equal(new GridLength(0), Assert.IsType<GridLength>(reviewSlider.Resources["SliderPreContentMargin"]));
+        Assert.Equal(new GridLength(0), Assert.IsType<GridLength>(reviewSlider.Resources["SliderPostContentMargin"]));
         Assert.Contains(Descendants(reviewBar).OfType<TextBlock>(), text => text.Name == "ReviewReadoutLabel");
         Assert.Contains(Descendants(reviewBar).OfType<TextBlock>(), text => text.Name == "ReviewMetricsLabel");
     }
@@ -710,6 +732,14 @@ public sealed class InfoTabRegistryTests
         InfoTabRegistry registry = InfoTabRegistry.FromCatalog(tabControl, new Grid(), "Arial", viewModel);
         return Assert.IsType<Grid>(registry.Registrations.Single(
             registration => registration.Definition.Id == InfoTabCatalog.LongTermPerfTabId).TabItem.Content);
+    }
+
+    private static Grid CreateTraceContent()
+    {
+        var tabControl = new TabControl();
+        InfoTabRegistry registry = InfoTabRegistry.FromCatalog(tabControl, new Grid(), "Arial");
+        return Assert.IsType<Grid>(registry.Registrations.Single(
+            registration => registration.Definition.Id == InfoTabCatalog.TraceDisplayTabId).TabItem.Content);
     }
 
     private static InfoTabRegistration CreateVarioRegistration()

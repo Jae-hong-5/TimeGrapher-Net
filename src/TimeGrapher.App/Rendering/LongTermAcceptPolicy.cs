@@ -1,8 +1,9 @@
 namespace TimeGrapher.App.Rendering;
 
 /// <summary>
-/// Acceptable-range bounds drawn as horizontal reference limit lines on the
-/// Long-Term Performance Graph, one (Min, Max) corridor per measure. The bounds
+/// Acceptable-range bounds drawn as a shaded tolerance band with numeric limit
+/// labels on the Long-Term Performance Graph (and the Trace display), one
+/// (Min, Max) corridor per measure. The bounds
 /// are NOT defined here: they alias the bands the other displays already use —
 /// rate from <see cref="VarioGaugePolicy"/>, amplitude from
 /// <see cref="TraceAlertEvaluator"/>, and beat error from
