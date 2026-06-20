@@ -184,7 +184,18 @@ public sealed class PlaybackWorker : IAudioInputWorker
                     long start = _timer.ElapsedMilliseconds;
 
                     int bytesToRead = (int)Math.Min(_dataInSize, dataEnd - file.Position);
-                    int bytesIn = file.Read(_dataIn, 0, bytesToRead);
+                    // Stream.Read may legally return fewer bytes than requested
+                    // without EOF (slow/network/cloud-backed files). Fill the block
+                    // fully (or until EOF) so a split float sample is not misread as
+                    // a malformed/short block, and so partial blocks do not stretch
+                    // playback timing.
+                    int bytesIn = 0;
+                    while (bytesIn < bytesToRead)
+                    {
+                        int read = file.Read(_dataIn, bytesIn, bytesToRead - bytesIn);
+                        if (read <= 0) break; // EOF
+                        bytesIn += read;
+                    }
                     if (bytesIn < 0)
                     {
                         Console.Error.WriteLine("Read Error =" + bytesIn);
