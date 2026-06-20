@@ -1540,7 +1540,12 @@ internal sealed partial class InfoTabRegistry
             ColumnDefinitions = new ColumnDefinitions(PositionResultColumns),
         };
 
-        var metricStack = new StackPanel { Spacing = 0, Margin = new Thickness(8, 3, 8, 3) };
+        var metricStack = new StackPanel
+        {
+            Spacing = 0,
+            Margin = new Thickness(8, 3, 8, 3),
+            VerticalAlignment = VerticalAlignment.Center,
+        };
         var titleText = new TextBlock
         {
             Text = title,
@@ -1571,7 +1576,12 @@ internal sealed partial class InfoTabRegistry
         };
         statusText.Margin = new Thickness(8, 3, 8, 3);
 
-        var readingStack = new StackPanel { Spacing = 0, Margin = new Thickness(8, 3, 8, 3) };
+        var readingStack = new StackPanel
+        {
+            Spacing = 0,
+            Margin = new Thickness(8, 3, 8, 3),
+            VerticalAlignment = VerticalAlignment.Center,
+        };
         foreach ((string label, TextBlock value) in metrics)
         {
             readingStack.Children.Add(CreatePositionMetricRow(label, value));
