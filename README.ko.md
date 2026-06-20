@@ -70,10 +70,13 @@
 
    ```bash
    sudo apt update
-   sudo apt install -y libx11-6 libice6 libsm6 libfontconfig1 xwayland
+   sudo apt install -y libx11-6 libice6 libsm6 libfontconfig1 xwayland \
+     pipewire pipewire-bin wireplumber alsa-utils
    ```
 
-   마이크 입력에는 PipeWire 또는 ALSA가 필요한데, Pi OS에는 보통 기본 포함되어 있습니다.
+   마이크 입력에는 PipeWire/ALSA CLI 도구 `wpctl`·`pw-record`·`arecord`(위 패키지)가
+   필요합니다. Pi OS에는 보통 포함되어 있지만, 최소 이미지에서는 명시적으로 설치하지
+   않으면 라이브 캡처를 사용할 수 없습니다.
 
    > ICU(`libicu`)는 위 목록에 **일부러 넣지 않았습니다.** 앱이 invariant globalization 모드
    > (`InvariantGlobalization=true`, 문화권 중립 설계)로 빌드되어 .NET이 시스템 ICU를 요구하지
