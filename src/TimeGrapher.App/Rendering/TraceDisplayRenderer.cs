@@ -69,6 +69,11 @@ internal sealed class TraceDisplayRenderer
     private ulong _lastVersion;
     private bool _followLive = true;
 
+    // Spline (smooth-curve) rendering of both traces, toggled by the tab's
+    // Smoothing button. A view preference, not run data, so it survives a run
+    // reset and is re-applied whenever CreateGraphs rebuilds the scatters.
+    private bool _smooth;
+
     public TraceDisplayRenderer(
         AvaPlot ratePlot,
         AvaPlot amplitudePlot,
@@ -165,6 +170,7 @@ internal sealed class TraceDisplayRenderer
         _amplitudeMaxLabel = AcceptLabel(amplitude, LongTermAcceptPolicy.Amplitude.Max, "0");
         PlotAxisRules.ClampLeftEdgeToZero(amplitude);
 
+        ApplySmoothing();
         ApplySeriesTheme();
         _ratePlot.Refresh();
         _amplitudePlot.Refresh();
@@ -184,6 +190,32 @@ internal sealed class TraceDisplayRenderer
         UpdateAcceptLabels();
         _ratePlot.Refresh();
         _amplitudePlot.Refresh();
+    }
+
+    /// <summary>
+    /// Toggles spline (smooth-curve) rendering of the rate and amplitude traces,
+    /// driven by the tab's Smoothing button. The flag is retained so a run reset
+    /// (which rebuilds the scatters in CreateGraphs) keeps the chosen smoothing.
+    /// </summary>
+    public void SetSmoothing(bool enabled)
+    {
+        _smooth = enabled;
+        ApplySmoothing();
+        _ratePlot.Refresh();
+        _amplitudePlot.Refresh();
+    }
+
+    private void ApplySmoothing()
+    {
+        if (_rateScatter != null)
+        {
+            _rateScatter.Smooth = _smooth;
+        }
+
+        if (_amplitudeScatter != null)
+        {
+            _amplitudeScatter.Smooth = _smooth;
+        }
     }
 
     public void RenderFrame(AnalysisFrame frame, AnalysisTabRenderContext context)

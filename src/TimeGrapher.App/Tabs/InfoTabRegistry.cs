@@ -361,6 +361,39 @@ internal sealed partial class InfoTabRegistry
 
         Border alertBanner = CreateAlertBanner(out TextBlock alertText);
 
+        var renderer = new TraceDisplayRenderer(ratePlot, amplitudePlot, alertBanner, alertText);
+        context.ResetViews.Register(renderer.ResetView);
+
+        // Top strip (the Long-Term header pattern): the conditional alert banner
+        // holds the left "*" column so it shows and hides in place, and the right
+        // column carries the Smoothing toggle followed by Reset View. The
+        // always-present buttons fix the strip's height, so the plots below no
+        // longer shift up and down as the banner appears and clears.
+        Button smoothingButton = CreateTraceSmoothingButton(renderer);
+        Button resetViewButton = CreateOverlayButton(
+            "Reset View", ResetAllGraphViewsTooltip, context.ResetViews.ResetAll);
+        resetViewButton.VerticalAlignment = VerticalAlignment.Center;
+        var headerButtons = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 6,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        headerButtons.Children.Add(smoothingButton);
+        headerButtons.Children.Add(resetViewButton);
+
+        alertBanner.VerticalAlignment = VerticalAlignment.Center;
+        var headerStrip = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions("*,Auto"),
+            Margin = new Thickness(8, 1, 8, 2),
+        };
+        Grid.SetColumn(alertBanner, 0);
+        Grid.SetColumn(headerButtons, 1);
+        headerStrip.Children.Add(alertBanner);
+        headerStrip.Children.Add(headerButtons);
+
         // The amplitude (bottom) pane shows the shared time axis while the rate
         // (top) pane hides its X axis (the Long-Term pattern), so the amplitude row
         // is enlarged to keep both DATA areas the same height. Tuned for the
@@ -369,10 +402,10 @@ internal sealed partial class InfoTabRegistry
         {
             RowDefinitions = new RowDefinitions("Auto,*,1.11*"),
         };
-        Grid.SetRow(alertBanner, 0);
+        Grid.SetRow(headerStrip, 0);
         Grid.SetRow(ratePlot, 1);
         Grid.SetRow(amplitudePlot, 2);
-        grid.Children.Add(alertBanner);
+        grid.Children.Add(headerStrip);
         grid.Children.Add(ratePlot);
         grid.Children.Add(amplitudePlot);
 
@@ -382,13 +415,45 @@ internal sealed partial class InfoTabRegistry
             grid.Children.Add(overlay);
         }
 
-        var renderer = new TraceDisplayRenderer(ratePlot, amplitudePlot, alertBanner, alertText);
-        context.ResetViews.Register(renderer.ResetView);
-
-        grid.Children.Add(CreatePinnedResetViewButton(ResetAllGraphViewsTooltip, row: 1, context.ResetViews.ResetAll));
-
         var consumer = new TraceDisplayFrameConsumer(renderer);
         return new InfoTabRegistration(definition, CreateTabItem(definition, grid), consumer);
+    }
+
+    /// <summary>
+    /// Smoothing toggle for the Trace tab, styled like the Long-Term header
+    /// buttons: clicking flips spline (smooth-curve) rendering of both traces and
+    /// reflects the state with the shared active-button accent.
+    /// </summary>
+    private static Button CreateTraceSmoothingButton(TraceDisplayRenderer renderer)
+    {
+        const string activeClass = "active";
+        var button = new Button
+        {
+            Content = "Smoothing",
+            MinHeight = 30,
+            Padding = new Thickness(10, 2, 10, 2),
+            FontSize = 12,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        button.Classes.Add("PositionButton");
+        ToolTip.SetTip(button, "Draw the rate and amplitude traces as smooth spline curves");
+
+        bool smoothing = false;
+        button.Click += (_, _) =>
+        {
+            smoothing = !smoothing;
+            renderer.SetSmoothing(smoothing);
+            if (smoothing)
+            {
+                button.Classes.Add(activeClass);
+            }
+            else
+            {
+                button.Classes.Remove(activeClass);
+            }
+        };
+        return button;
     }
 
     private static InfoTabRegistration CreateScopeSweepRegistration(

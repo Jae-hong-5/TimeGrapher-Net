@@ -5,6 +5,7 @@ using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
 using ScottPlot.Avalonia;
+using ScottPlot.Plottables;
 using TimeGrapher.App;
 using TimeGrapher.App.Rendering;
 using TimeGrapher.App.Tabs;
@@ -726,6 +727,74 @@ public sealed class InfoTabRegistryTests
         Assert.Equal(1.0, content.RowDefinitions[1].Height.Value, 3);
         Assert.True(content.RowDefinitions[2].Height.IsStar);
         Assert.Equal(1.11, content.RowDefinitions[2].Height.Value, 3);
+    }
+
+    [Fact]
+    public void TraceTabReservesAlertBannerSpaceBesideHeaderButtons()
+    {
+        Grid content = CreateTraceContent();
+        var headerStrip = Assert.IsType<Grid>(
+            content.Children.Single(child => Grid.GetRow(child) == 0));
+
+        // The strip holds the banner in a star (reserved) column and the always-on
+        // button strip in an auto column, so it keeps its height and the plots
+        // below never shift when the banner toggles.
+        Assert.Equal(2, headerStrip.ColumnDefinitions.Count);
+        Assert.True(headerStrip.ColumnDefinitions[0].Width.IsStar);
+        Assert.Equal(GridUnitType.Auto, headerStrip.ColumnDefinitions[1].Width.GridUnitType);
+
+        // Right column: Smoothing then Reset View, in that order.
+        var buttonStrip = headerStrip.Children.OfType<StackPanel>().Single();
+        Assert.Equal(1, Grid.GetColumn(buttonStrip));
+        string[] buttons = buttonStrip.Children
+            .OfType<Button>()
+            .Select(button => button.Content?.ToString() ?? string.Empty)
+            .ToArray();
+        Assert.Equal(new[] { "Smoothing", "Reset View" }, buttons);
+        Button smoothing = buttonStrip.Children.OfType<Button>().First();
+        Assert.Contains("PositionButton", smoothing.Classes);
+        Assert.True(smoothing.IsVisible);
+
+        Border banner = headerStrip.Children.OfType<Border>().Single();
+        Assert.Equal(0, Grid.GetColumn(banner));
+        // Hidden until the renderer sets a message; it occupies the reserved left
+        // column rather than collapsing the whole strip.
+        Assert.False(banner.IsVisible);
+    }
+
+    [Fact]
+    public void TraceTabSmoothingButtonTogglesSplineOnBothPlots()
+    {
+        var tabControl = new TabControl();
+        InfoTabRegistry registry = InfoTabRegistry.FromCatalog(tabControl, new Grid(), "Arial");
+        InfoTabRegistration registration = registry.Registrations.Single(
+            r => r.Definition.Id == InfoTabCatalog.TraceDisplayTabId);
+        var content = Assert.IsType<Grid>(registration.TabItem.Content);
+
+        // The consumer's Initialize builds the graphs (creates the scatters).
+        registration.Consumer.Initialize(new AnalysisTabResetContext(48000, 10, 250));
+
+        Button smoothing = Descendants(content)
+            .OfType<Button>()
+            .Single(button => Equals(button.Content, "Smoothing"));
+        AvaPlot[] plots = Descendants(content).OfType<AvaPlot>().ToArray();
+        Assert.Equal(2, plots.Length);
+
+        // Scatter.Smooth is set-only; the spline state is observable through the
+        // path strategy it drives (Straight -> CubicSpline).
+        static string Strategy(AvaPlot plot) =>
+            plot.Plot.GetPlottables<Scatter>().Single().PathStrategy.GetType().Name;
+
+        Assert.All(plots, plot => Assert.Equal("Straight", Strategy(plot)));
+        Assert.DoesNotContain("active", smoothing.Classes);
+
+        smoothing.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        Assert.All(plots, plot => Assert.Equal("CubicSpline", Strategy(plot)));
+        Assert.Contains("active", smoothing.Classes);
+
+        smoothing.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        Assert.All(plots, plot => Assert.Equal("Straight", Strategy(plot)));
+        Assert.DoesNotContain("active", smoothing.Classes);
     }
 
     [Fact]

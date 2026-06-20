@@ -264,7 +264,44 @@ public sealed class TraceDisplayRendererTests
             0.5);
     }
 
+    [Fact]
+    public void SetSmoothing_TogglesSplineOnBothTraces()
+    {
+        TraceDisplayRenderer renderer = NewRenderer(out AvaPlot ratePlot, out AvaPlot amplitudePlot);
+        renderer.CreateGraphs();
+
+        // Scatter.Smooth is set-only, so assert on the readable path strategy it
+        // drives: straight-segment lines by default, cubic spline once smoothed.
+        Assert.Equal("Straight", PathStrategy(ratePlot));
+        Assert.Equal("Straight", PathStrategy(amplitudePlot));
+
+        renderer.SetSmoothing(true);
+        Assert.Equal("CubicSpline", PathStrategy(ratePlot));
+        Assert.Equal("CubicSpline", PathStrategy(amplitudePlot));
+
+        renderer.SetSmoothing(false);
+        Assert.Equal("Straight", PathStrategy(ratePlot));
+        Assert.Equal("Straight", PathStrategy(amplitudePlot));
+    }
+
+    [Fact]
+    public void Smoothing_SurvivesResetThatRebuildsTheScatters()
+    {
+        TraceDisplayRenderer renderer = NewRenderer(out AvaPlot ratePlot, out AvaPlot amplitudePlot);
+        renderer.CreateGraphs();
+        renderer.SetSmoothing(true);
+
+        // Reset rebuilds the scatters; the chosen smoothing is a view preference
+        // and must be re-applied to the fresh lines.
+        renderer.Reset();
+
+        Assert.Equal("CubicSpline", PathStrategy(ratePlot));
+        Assert.Equal("CubicSpline", PathStrategy(amplitudePlot));
+    }
+
     private static Scatter Line(AvaPlot plot) => plot.Plot.GetPlottables<Scatter>().Single();
+
+    private static string PathStrategy(AvaPlot plot) => Line(plot).PathStrategy.GetType().Name;
 
     private static VerticalSpan Band(AvaPlot plot) => plot.Plot.GetPlottables<VerticalSpan>().Single();
 
