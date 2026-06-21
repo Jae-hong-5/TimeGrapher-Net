@@ -198,12 +198,14 @@ def user_stop_body(pg):
     pg.act_on("Sess"); pg.msg("Sess", "Analysis", "TryStop(timeout)")
     pg.act_on("Analysis"); pg.msg("Analysis", "Sess", "stopped", "ret"); pg.act_off("Analysis")
     pg.msg("Sess", "App", "analysis stopped", "ret"); pg.act_off("Sess")
+    pg.frag("opt", [("녹음 writer가 있으면 — close 실패 시 RunState = StopFailed",
+                     lambda q: q.selfmsg("App", "CloseAudio() / AudioCloseCheck()"))])
     pg.msg("App", "Sess", "InvalidateRunSession()")
     pg.act_on("Sess"); pg.msg("Sess", "App", "token advanced", "ret"); pg.act_off("Sess")
     pg.frag("opt", [("Playback 또는 Simulation이면",
                      lambda q: q.selfmsg("App", "RestorePlaybackOrSimulationAudioState()"))])
     pg.selfmsg("App", 'RunState = Stopped / Status = "Stopped" 또는 "Reset"')
-    pg.act_off("App")
+    # activation is closed by the caller, after any trigger-specific tail
 
 
 def natural_end(pg):
@@ -223,12 +225,14 @@ def natural_end(pg):
     pg.act_on("Sess"); pg.msg("Sess", "Analysis", "CompleteInput(timeout)")
     pg.act_on("Analysis"); pg.msg("Analysis", "Core", "DrainAndFlushInput()")
     pg.act_on("Core"); pg.msg("Core", "Analysis", "final projected data", "ret"); pg.act_off("Core")
-    pg.msg("Analysis", "App", "final AnalysisFrameReady(frame)", "ret")
-    pg.msg("App", "Analysis", "final frame accepted", "ret")
+    pg.msg("Analysis", "App", "final AnalysisFrameReady(frame) / enqueue final frame", "ret")
     pg.msg("Analysis", "Sess", "completed", "ret"); pg.act_off("Analysis")
     pg.msg("Sess", "App", "analysis completed", "ret"); pg.act_off("Sess")
+    pg.frag("opt", [("녹음 writer가 있으면 — close 실패 시 RunState = StopFailed",
+                     lambda q: q.selfmsg("App", "AudioCloseCheck()"))])
     pg.selfmsg("App", 'RunState = Stopped / Status = "Stopped"')
     pg.act_off("App")
+    pg.note("final frame은 frame scheduler에 enqueue되어, UI 반영(HandleAnalysisFrame)은 GUI가 Stopped에 도달한 뒤 도착할 수 있다")
 
 
 def program_close(pg):
@@ -246,6 +250,13 @@ def program_close(pg):
     pg.msg("Sess", "App", "analysis stopped", "ret"); pg.act_off("Sess")
     pg.msg("App", "User", "프로세스 종료", "ret")
     pg.act_off("App")
+
+
+def ext_refresh(pg):
+    # Capture-ended path only (StopRunAndRefreshDevices): refresh the device list
+    # and report the live-audio-stopped status after the stop succeeds.
+    pg.selfmsg("App", "RefreshDevices() — device 목록 갱신")
+    pg.msg("App", "User", 'Status = "LiveAudioStopped"', "ret")
 
 
 pages = []
@@ -359,11 +370,13 @@ p.frag("alt", [
     ("사용자가 측정을 종료한 경우 (Live/Playback/Simulation)",
      lambda q: q.msg("User", "App", "Pause 후 Reset 또는 내부 stop 요청")),
     ("외부 비정상 종료된 경우 (Live capture 끊김 등)",
-     lambda q: q.msg("Input", "App", "CaptureEnded (runSessionToken 일치 시 정지)", "ret")),
+     lambda q: q.msg("Input", "App", "CaptureEnded → StopRunAndRefreshDevices()", "ret")),
 ])
 p.last_y = p.y  # start the activation bar just below the trigger alt
 p.act_on("App")
 user_stop_body(p)
+p.frag("opt", [("외부 비정상 종료였던 경우 (RefreshDevicesAfterStop)", ext_refresh)])
+p.act_off("App")
 pages.append(p)
 
 # Level 2.5 · Playback/Simulation 자연 종료
