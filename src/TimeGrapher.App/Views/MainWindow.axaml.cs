@@ -392,14 +392,17 @@ public partial class MainWindow : Window
 
     // --- Event handlers (Qt on_* slots) ---
 
-    // Review-cursor moves while paused re-render the kept last frame at the new
-    // scrub time (the OnGraphicsTabSelectionChanged re-route): the input workers
-    // are gated and the analysis is drained during pause, so no new frame would
+    // Thin View-side rendering reaction to the view-model's review cursor. Rendering is a View
+    // concern, so the view-model owns the cursor state (clamping, slider, readout) and the View
+    // only re-renders the kept last frame when the cursor moves while review is active — it does
+    // not call back into the View from the view-model. The gate reads the view-model's own
+    // "review active" flag (IsReviewBarEnabled) rather than re-deriving it from RunState. The
+    // input workers are gated and the analysis drained during pause, so no live frame would
     // otherwise carry the moved cursor to the active tab.
     private void OnReviewCursorPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName != nameof(MainWindowViewModel.ReviewCursorTimeS) ||
-            mViewModel.RunState != RunUiState.Paused)
+            !mViewModel.IsReviewBarEnabled)
         {
             return;
         }
