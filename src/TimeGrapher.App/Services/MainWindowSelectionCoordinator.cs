@@ -3,7 +3,7 @@ using TimeGrapher.App.ViewModels;
 
 namespace TimeGrapher.App.Services;
 
-internal sealed class MainWindowSelectionCoordinator
+internal sealed class MainWindowSelectionCoordinator : ISelectionEventGate
 {
     private readonly MainWindowViewModel _viewModel;
     private readonly IMainWindowSelectionOperations _operations;

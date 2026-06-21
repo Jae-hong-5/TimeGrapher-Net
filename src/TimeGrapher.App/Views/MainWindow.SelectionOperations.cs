@@ -10,11 +10,16 @@ public partial class MainWindow
     {
         private readonly MainWindow _owner;
         private readonly AudioSelectionState _state;
+        private readonly AudioDeviceController _deviceController;
 
-        public MainWindowSelectionOperations(MainWindow owner, AudioSelectionState state)
+        public MainWindowSelectionOperations(
+            MainWindow owner,
+            AudioSelectionState state,
+            AudioDeviceController deviceController)
         {
             _owner = owner;
             _state = state;
+            _deviceController = deviceController;
         }
 
         public IReadOnlyList<int> InputDeviceNumbers => _state.InputDeviceNumbers;
@@ -28,8 +33,7 @@ public partial class MainWindow
 
         public void PopulateSampleRates(int deviceNumber)
         {
-            // Still a View method (async device/rate probe) — relocated in the next unit.
-            _owner.PopulateSampleRates(deviceNumber);
+            _deviceController.PopulateSampleRates(deviceNumber);
         }
 
         public void SetCurrentSampleRate(int sampleRate)

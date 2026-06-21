@@ -109,7 +109,7 @@ public partial class MainWindow
 
         public void RefreshDevices()
         {
-            _owner.LoadAudioDevices();
+            _owner.mAudioDeviceController.LoadAudioDevices();
         }
 
         private static RunCommandStopOutcome MapStopOutcome(RunSessionStopOutcome outcome)

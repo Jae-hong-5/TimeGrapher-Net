@@ -84,6 +84,7 @@ public partial class MainWindow : Window
     private readonly MainWindowViewModel mViewModel;
     private readonly MainWindowSelectionCoordinator mSelectionCoordinator;
     private readonly AudioSelectionState mAudioSelection = new();
+    private readonly AudioDeviceController mAudioDeviceController;
     private readonly AcceptBandController mAcceptBandController;
     private readonly RunControlController mRunControlController;
     private readonly RunSelectionResolver mRunSelectionResolver;
@@ -116,8 +117,17 @@ public partial class MainWindow : Window
         // service->View edge addressed by a later unit) and the View-method run-session callbacks.
         var dialogs = new MainWindowDialogService(this);
         mDialogs = dialogs;
+        mAudioDeviceController = new AudioDeviceController(
+            mViewModel,
+            mAudioSelection,
+            new LiveAudioDeviceBackend(),
+            new UiThreadDispatcher(),
+            RenameDeviceName,
+            SelectInputDeviceIndexAfterReload,
+            PLAYBACK_SOURCE,
+            SIMULATION_SOURCE);
         var adapters = new MainWindowViewAdapters(
-            new MainWindowSelectionOperations(this, mAudioSelection),
+            new MainWindowSelectionOperations(this, mAudioSelection, mAudioDeviceController),
             new RunCommandOperations(this),
             dialogs,
             new GraphAcceptBandOperations(mGraphFrameRenderer),
@@ -133,6 +143,9 @@ public partial class MainWindow : Window
         MainWindowComposition composition = MainWindowBootstrapper.Build(
             mViewModel, adapters, runSessionCallbacks, AppStartupOptions.Current);
         mSelectionCoordinator = composition.SelectionCoordinator;
+        // The coordinator drives the device controller, and the controller suppresses the
+        // coordinator's events while repopulating, so attach the gate once both exist.
+        mAudioDeviceController.AttachSelectionEventGate(mSelectionCoordinator);
         mRunSelectionResolver = composition.RunSelectionResolver;
         mErrorLog = composition.ErrorLog;
         mRecordingSessionService = composition.RecordingSessionService;
@@ -163,7 +176,7 @@ public partial class MainWindow : Window
 
         LoadBph();
         LoadSimBph();
-        LoadAudioDevices();
+        mAudioDeviceController.LoadAudioDevices();
         mGraphFrameRenderer.Initialize(BuildTabResetContext());
         LoadAveragingPeriod();
         mGraphFrameRenderer.SetResults(GraphFrameRenderer.PlaceholderResults);

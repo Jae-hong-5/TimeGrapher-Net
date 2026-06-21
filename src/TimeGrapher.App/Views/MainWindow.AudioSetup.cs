@@ -1,15 +1,10 @@
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Linq;
-using System.Threading.Tasks;
 
-using Avalonia.Threading;
 using TimeGrapher.App.Audio;
 using TimeGrapher.App.Services;
 using TimeGrapher.Core.Detection;
-using TimeGrapher.Core.Shared;
 
 namespace TimeGrapher.App.Views;
 
@@ -20,104 +15,24 @@ public partial class MainWindow
         LiveAudioBackend.ConfigurePreferredInput();
     }
 
-    private void LoadAudioDevices(string? currentDeviceName = null)
+    // The device-name rename rules the AudioDeviceController applies for display
+    // (substring match -> preferred name; otherwise the device's own name).
+    internal static string RenameDeviceName(string deviceName)
     {
-        IReadOnlyList<LiveAudioDevice> inputDevices = Array.Empty<LiveAudioDevice>();
-        if (LiveAudioBackend.CanCapture)
+        foreach (string[] rename in RenameAudioDevices)
         {
-            try
+            if (deviceName.Contains(rename[0], StringComparison.Ordinal))
             {
-                inputDevices = LiveAudioBackend.EnumerateInputDevices();
-            }
-            catch (Exception ex)
-            {
-                Console.Error.WriteLine("Live audio device enumeration failed: " + ex.Message);
+                return rename[1];
             }
         }
-        else
-        {
-            Console.Error.WriteLine("Live audio capture is not available on this platform; using Playback/Simulation only.");
-        }
 
-        var deviceNames = new List<string>();
-        mAudioSelection.ClearInputDevices();
-        // Fresh cache instance per enumeration: a still-running pre-warm from a
-        // previous enumeration keeps writing to its own (now-orphaned) instance, so
-        // it can't pollute the new cache with stale rates for a reused device number.
-        var probeCache = new ConcurrentDictionary<int, IReadOnlyList<int>>();
-        _sampleRateProbeCache = probeCache;
-
-        int renameLen = RenameAudioDevices.Length;
-        for (int dev = 0; dev < inputDevices.Count; dev++)
-        {
-            LiveAudioDevice device = inputDevices[dev];
-            string description = device.Name;
-            for (int i = 0; i < renameLen; i++)
-            {
-                if (description.Contains(RenameAudioDevices[i][0], StringComparison.Ordinal))
-                {
-                    description = RenameAudioDevices[i][1];
-                    break;
-                }
-            }
-
-            deviceNames.Add("Live: " + description);
-            mAudioSelection.AddInputDevice(device.Number);
-        }
-
-        deviceNames.Add(PLAYBACK_SOURCE);
-        mAudioSelection.AddInputDevice(-1);
-        deviceNames.Add(SIMULATION_SOURCE);
-        mAudioSelection.AddInputDevice(-1);
-
-        // Pre-warm the per-device probe cache off the UI thread so a later device
-        // selection (and the rate restore after a Playback/Sim run) reads cached
-        // rates instantly instead of running the per-rate probe on the UI thread.
-        int[] liveDeviceNumbers = mAudioSelection.InputDeviceNumbers.Where(number => number >= 0).Distinct().ToArray();
-        if (liveDeviceNumbers.Length > 0)
-        {
-            Task.Run(() =>
-            {
-                foreach (int number in liveDeviceNumbers)
-                {
-                    // Warm the instance captured for this enumeration, not the live
-                    // field, so a later re-enumeration's swap orphans this task.
-                    probeCache.GetOrAdd(number, LiveAudioBackend.GetCandidateSampleRates);
-                }
-            });
-        }
-
-        using (mSelectionCoordinator.SuppressEvents())
-        {
-            mViewModel.SetInputDeviceNames(deviceNames);
-        }
-
-        int selected = SelectInputDeviceIndexAfterReload(mViewModel.InputDeviceNames, currentDeviceName);
-
-        // setCurrentIndex(index) triggers on_InputDeviceComboBox_currentIndexChanged once.
-        // (Avalonia ComboBox does not auto-select on add, unlike Qt; explicitly select to
-        //  reach the same final state where PopulateSampleRates has run for the chosen device.)
-        if (selected != -1)
-        {
-            mSelectionCoordinator.SetSelectedInputDeviceIndex(selected, forceChanged: true);
-        }
-        else if (mViewModel.InputDeviceNames.Count > 0)
-        {
-            // No preferred device matched: fall back to index 0 (Qt's auto-selected first item).
-            if (mViewModel.SelectedInputDeviceIndex == 0)
-            {
-                mSelectionCoordinator.SetSelectedInputDeviceIndex(0, forceChanged: true); // re-run logic; index unchanged
-            }
-            else
-            {
-                mSelectionCoordinator.SetSelectedInputDeviceIndex(0);
-            }
-        }
+        return deviceName;
     }
 
     private void OnInputDeviceComboBoxDropDownOpened(object? sender, EventArgs e)
     {
-        LoadAudioDevices(CurrentInputDeviceText());
+        mAudioDeviceController.LoadAudioDevices(CurrentInputDeviceText());
     }
 
     internal static int SelectInputDeviceIndexAfterReload(
@@ -215,104 +130,6 @@ public partial class MainWindow
         }
 
         return labels;
-    }
-
-    // Per-device probe cache: the supported-rate probe is stable for a device
-    // during a session and (on Linux) spawns a process per rate, so cache it and
-    // pre-warm it off the UI thread (see LoadAudioDevices). A warm read narrows
-    // the list synchronously; a cache miss (e.g. the initial auto-select racing
-    // the pre-warm) fills all rates and probes off the UI thread, so the probe
-    // never freezes the UI thread.
-    private ConcurrentDictionary<int, IReadOnlyList<int>> _sampleRateProbeCache = new();
-
-    // Probe a device's supported rates off the UI thread, then re-narrow the list
-    // on the UI thread if that device is still selected (a stale probe is dropped).
-    private void ProbeSampleRatesAsync(int deviceNumber)
-    {
-        // Capture the current cache instance: a device re-enumeration swaps the
-        // field for a fresh cache, so write the probe into the cache this call
-        // belongs to (a later swap orphans it) and re-narrow only if that same
-        // cache is still current and the same device is still selected.
-        ConcurrentDictionary<int, IReadOnlyList<int>> cache = _sampleRateProbeCache;
-        Task.Run(() =>
-        {
-            cache.GetOrAdd(deviceNumber, LiveAudioBackend.GetCandidateSampleRates);
-            Dispatcher.UIThread.Post(() =>
-            {
-                if (ReferenceEquals(_sampleRateProbeCache, cache) &&
-                    CurrentSelectedInputDeviceNumber() == deviceNumber)
-                {
-                    // The cache is now warm, so this re-narrows synchronously.
-                    PopulateSampleRates(deviceNumber);
-                }
-            });
-        });
-    }
-
-    private int CurrentSelectedInputDeviceNumber()
-    {
-        int index = mViewModel.SelectedInputDeviceIndex;
-        return index >= 0 && index < mAudioSelection.InputDeviceNumbers.Count
-            ? mAudioSelection.InputDeviceNumbers[index]
-            : int.MinValue;
-    }
-
-    private void PopulateSampleRates(int deviceNumber)
-    {
-        IReadOnlyList<int> standardRates = AudioSampleRates.Standard;
-
-        mAudioSelection.ResetSampleRates();
-        var labels = new List<string>(standardRates.Count);
-
-        if (deviceNumber < 0)
-        {
-            foreach (int rate in standardRates)
-            {
-                if (mAudioSelection.TryAddSampleRate(rate))
-                {
-                    labels.Add(rate.ToString(CultureInfo.InvariantCulture) + " Hz");
-                }
-            }
-        }
-        else if (_sampleRateProbeCache.TryGetValue(deviceNumber, out IReadOnlyList<int>? supported))
-        {
-            // Warm cache: narrow to the device-supported rates instantly. Capture
-            // backend startup remains the authoritative validation.
-            foreach (int rate in standardRates)
-            {
-                if (supported.Contains(rate) && mAudioSelection.TryAddSampleRate(rate))
-                {
-                    labels.Add(rate.ToString(CultureInfo.InvariantCulture) + " Hz");
-                }
-            }
-        }
-        else
-        {
-            // Cache miss (pre-warm not finished, e.g. the initial auto-select):
-            // show every standard rate now so the UI never blocks on the probe
-            // (on Linux it spawns a process per rate), then probe off the UI
-            // thread and re-narrow once it returns if the device is still chosen.
-            foreach (int rate in standardRates)
-            {
-                if (mAudioSelection.TryAddSampleRate(rate))
-                {
-                    labels.Add(rate.ToString(CultureInfo.InvariantCulture) + " Hz");
-                }
-            }
-
-            ProbeSampleRatesAsync(deviceNumber);
-        }
-
-        using (mSelectionCoordinator.SuppressEvents())
-        {
-            mViewModel.SetSampleRateLabels(labels);
-            mViewModel.SelectedSampleRateIndex = -1;
-        }
-
-        if (mViewModel.SampleRateLabels.Count > 0)
-        {
-            mSelectionCoordinator.SetSelectedSampleRateIndex(0);
-        }
     }
 
     private bool SetAudioRate(int rate)
