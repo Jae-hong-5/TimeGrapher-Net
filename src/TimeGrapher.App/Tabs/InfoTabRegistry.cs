@@ -2137,6 +2137,15 @@ internal sealed partial class InfoTabRegistry
 
         var renderer = new WaveformCompareRenderer(lanePlot, headerText, context.TextFontFamily);
         var consumer = new WaveformCompareFrameConsumer(renderer);
+
+        lanePlot.PointerPressed += (_, e) =>
+        {
+            if (lanePlot.Bounds.Height > 0)
+            {
+                renderer.SelectPairAtPixelY(e.GetPosition(lanePlot).Y);
+            }
+        };
+
         return new InfoTabRegistration(definition, CreateTabItem(definition, grid), consumer);
     }
 

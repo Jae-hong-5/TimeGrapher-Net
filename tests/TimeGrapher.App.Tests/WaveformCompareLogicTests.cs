@@ -248,6 +248,20 @@ public sealed class WaveformCompareLogicTests
         Assert.Equal(45.0, WaveformCompareLogic.CursorOffsetMs(10.05, segments, 200.0)!.Value, 6);
     }
 
+    [Theory]
+    [InlineData(0.5,  4, 3)]  // bottom of lane 3 (oldest)
+    [InlineData(1.5,  4, 2)]  // middle of lane 2
+    [InlineData(2.5,  4, 1)]  // middle of lane 1
+    [InlineData(3.8,  4, 0)]  // inside lane 0 (newest, top)
+    [InlineData(-0.5, 4, -1)] // below all lanes
+    [InlineData(6.0,  4, -1)] // above all lanes
+    [InlineData(0.5,  2, -1)] // lane 3 (bottom) doesn't exist when only 2 pairs rendered
+    [InlineData(0.5,  0, -1)] // no pairs at all
+    public void PairFromDataY_MapsDataYToTheCorrectLane(double dataY, int pairCount, int expectedLane)
+    {
+        Assert.Equal(expectedLane, WaveformCompareLogic.PairFromDataY(dataY, pairCount));
+    }
+
     [Fact]
     public void CursorOffset_PrefersTheNewestOverlappingWindow()
     {
