@@ -28,6 +28,7 @@
           <Color x:Key="TraceWaveColor">#6B6B6B</Color>
           <Color x:Key="TraceTickColor">#2C9118</Color>
           <Color x:Key="TraceTockColor">#D22222</Color>
+          <Color x:Key="TraceGhostColor">#A0A0A0</Color>
           <Color x:Key="VarioAcceptBandColor">#E9C46A</Color>
           <Color x:Key="VarioAcceptBandEdgeColor">#9A6A00</Color>
           <Color x:Key="VarioMinMaxColor">#2D7DD2</Color>
@@ -69,6 +70,7 @@
           <Color x:Key="TraceWaveColor">#A0A0A0</Color>
           <Color x:Key="TraceTickColor">#5FDD45</Color>
           <Color x:Key="TraceTockColor">#FF5C5C</Color>
+          <Color x:Key="TraceGhostColor">#686868</Color>
           <Color x:Key="VarioAcceptBandColor">#E9C46A</Color>
           <Color x:Key="VarioAcceptBandEdgeColor">#9A6A00</Color>
           <Color x:Key="VarioMinMaxColor">#2D7DD2</Color>
