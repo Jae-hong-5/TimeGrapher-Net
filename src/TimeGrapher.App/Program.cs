@@ -1,5 +1,6 @@
 using Avalonia;
 using TimeGrapher.App.Audio;
+using TimeGrapher.App.Rendering;
 using TimeGrapher.Core.Shared;
 
 namespace TimeGrapher.App;
@@ -10,6 +11,10 @@ internal static class Program
     public static int Main(string[] args)
     {
         AppStartupOptions.Configure(args);
+
+        // Restore the user's saved accept-band limits before any graph is built so
+        // every display opens against the persisted normal ranges (defaults if none).
+        AcceptBandSettings.Current = AcceptBandSettingsStore.Load();
 
         if (args.Contains("--smoke", StringComparer.Ordinal))
         {
