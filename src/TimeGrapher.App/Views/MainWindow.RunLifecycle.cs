@@ -20,13 +20,13 @@ public partial class MainWindow
         // ~MainWindow: StopAnalysisThread(); plus stop any running input worker.
         mIsClosing = true;
         mViewModel.PropertyChanged -= mSelectionCoordinator.OnViewModelPropertyChanged;
-        mViewModel.PropertyChanged -= OnRunControlPropertyChanged;
+        mRunControlController.Detach();
         mViewModel.PropertyChanged -= OnReviewCursorPropertyChanged;
         mRunSessionController.InvalidateRunSession();
         mRunSessionController.StopInputWorker("Input");
         mRunSessionController.StopAnalysisThread();
         mAnalysisPerformanceLogger?.Dispose();
-        mMeasurementResultLogger?.Dispose();
+        mMeasurementLogController.Dispose();
         if (!AudioCloseCheck() && mWavWriter != null)
         {
             // Final shutdown: the retry surface is gone with the window, so give the

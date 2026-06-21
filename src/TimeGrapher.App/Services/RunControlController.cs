@@ -27,6 +27,10 @@ internal sealed class RunControlController
         _viewModel.PropertyChanged += OnViewModelPropertyChanged;
     }
 
+    /// <summary>Stops reacting to view-model edits (called on window close, matching the
+    /// code-behind that unsubscribed its run-control handler before shutting the run down).</summary>
+    public void Detach() => _viewModel.PropertyChanged -= OnViewModelPropertyChanged;
+
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         switch (e.PropertyName)

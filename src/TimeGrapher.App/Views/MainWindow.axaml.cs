@@ -92,8 +92,7 @@ public partial class MainWindow : Window
     private readonly RunCommandService mRunCommandService;
     private readonly RunSessionController mRunSessionController;
     private readonly AnalysisPerformanceLogger? mAnalysisPerformanceLogger;
-    private string? mPendingMeasurementLogPath;
-    private MeasurementResultLogger? mMeasurementResultLogger;
+    private readonly MeasurementLogController mMeasurementLogController;
 
     private readonly List<int> mInputDeviceNumbers = new();
 
@@ -122,11 +121,15 @@ public partial class MainWindow : Window
         // the view-model, so it is attached after construction rather than constructor-injected.
         mViewModel.AttachRunCommandRunner(mRunCommandService);
         mAnalysisPerformanceLogger = AppStartupOptions.Current.AnalysisLogPath is string analysisLogPath
-            ? new AnalysisPerformanceLogger(EnsureParentDirectory(analysisLogPath))
+            ? new AnalysisPerformanceLogger(LogFilePaths.EnsureParentDirectory(analysisLogPath))
             : null;
-        mPendingMeasurementLogPath = AppStartupOptions.Current.MeasurementLogPath;
-        mViewModel.IsMeasurementLogEnabled = mPendingMeasurementLogPath != null;
-        ConfigureMeasurementResultLogger(mViewModel.IsMeasurementLogEnabled);
+        // The measurement-log controller owns the log lifecycle, the enable toggle and the
+        // one-shot CLI path; seed the enable state from the CLI before constructing it.
+        mViewModel.IsMeasurementLogEnabled = AppStartupOptions.Current.MeasurementLogPath != null;
+        mMeasurementLogController = new MeasurementLogController(
+            mViewModel,
+            AppStartupOptions.Current.MeasurementLogPath,
+            path => new MeasurementResultLogger(path));
         mRunSessionController = new RunSessionController(
             sessionId => BuildRunSettings().ToWorkerConfig(sessionId, mWavWriter),
             Reset,
@@ -165,7 +168,6 @@ public partial class MainWindow : Window
         // Forwards the live run-control knobs (sweep/position/sigma) to the worker and
         // auto-pauses an active run on a position change.
         mRunControlController = new RunControlController(mViewModel, mRunSessionController, mRunCommandService);
-        mViewModel.PropertyChanged += OnRunControlPropertyChanged;
         mViewModel.PropertyChanged += OnReviewCursorPropertyChanged;
         GraphicsTabWidget.SelectionChanged += OnGraphicsTabSelectionChanged;
         mViewModel.SetLongTermTabActive(ActiveInfoTabId() == InfoTabCatalog.LongTermPerfTabId);
@@ -343,7 +345,7 @@ public partial class MainWindow : Window
         long displayTicks = System.Diagnostics.Stopwatch.GetTimestamp();
         mLatencyStats.Observe(frame, droppedFrames, displayTicks);
         mAnalysisPerformanceLogger?.ObserveDisplayed(frame, displayTicks);
-        mMeasurementResultLogger?.ObserveDisplayed(frame);
+        mMeasurementLogController.ObserveDisplayed(frame);
         if (mLatencyStats.TryFormatStatus(displayTicks) is string latencyText)
         {
             mViewModel.LatencyText = latencyText;
@@ -389,17 +391,6 @@ public partial class MainWindow : Window
     }
 
     // --- Event handlers (Qt on_* slots) ---
-
-    // View-side reaction to a run-control view-model edit that still needs MainWindow state:
-    // the measurement-log toggle. The sweep/position/sigma knobs and the position auto-pause
-    // are owned by RunControlController.
-    private void OnRunControlPropertyChanged(object? sender, PropertyChangedEventArgs e)
-    {
-        if (e.PropertyName == nameof(MainWindowViewModel.IsMeasurementLogEnabled))
-        {
-            ConfigureMeasurementResultLogger(mViewModel.IsMeasurementLogEnabled);
-        }
-    }
 
     // Review-cursor moves while paused re-render the kept last frame at the new
     // scrub time (the OnGraphicsTabSelectionChanged re-route): the input workers
@@ -458,45 +449,6 @@ public partial class MainWindow : Window
         // 5.0) and parenthesized negation ("(500)" -> -500).
         if (string.IsNullOrEmpty(text)) return 0.0;
         return double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out double v) ? v : 0.0;
-    }
-
-    private void ConfigureMeasurementResultLogger(bool enabled)
-    {
-        mMeasurementResultLogger?.Dispose();
-        mMeasurementResultLogger = enabled ? new MeasurementResultLogger(NextMeasurementLogPath()) : null;
-    }
-
-    internal static string BuildMeasurementLogPath(string baseDirectory, DateTime timestamp)
-    {
-        return Path.Combine(baseDirectory, "log", timestamp.ToString("yyyyMMdd_HHmmss", CultureInfo.InvariantCulture) + ".csv");
-    }
-
-    private string NextMeasurementLogPath()
-    {
-        if (mPendingMeasurementLogPath is string path)
-        {
-            mPendingMeasurementLogPath = null;
-            return EnsureParentDirectory(path);
-        }
-
-        string baseDirectory = AppContext.BaseDirectory;
-        string logDirectory = Path.Combine(baseDirectory, "log");
-        Directory.CreateDirectory(logDirectory);
-        return BuildMeasurementLogPath(baseDirectory, DateTime.Now);
-    }
-
-    // CLI --measurement-log/--analysis-log paths are opened directly in the
-    // logger constructors at startup; create the parent directory first (mirroring
-    // the default log/ branch) so a nested path like out/run/foo.csv does not throw
-    // DirectoryNotFoundException and crash launch. A bare filename has no parent.
-    private static string EnsureParentDirectory(string path)
-    {
-        string? parent = Path.GetDirectoryName(path);
-        if (!string.IsNullOrEmpty(parent))
-        {
-            Directory.CreateDirectory(parent);
-        }
-        return path;
     }
 
     private AnalysisRunSettings BuildRunSettings()

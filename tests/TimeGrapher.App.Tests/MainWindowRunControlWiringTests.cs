@@ -202,19 +202,6 @@ public sealed class MainWindowRunControlWiringTests
     }
 
     [Fact]
-    public void MeasurementLogFileUsesExecutableLogFolderAndTimestamp()
-    {
-        string baseDirectory = Path.Combine(Path.GetTempPath(), "TimeGrapher.App");
-        var timestamp = new DateTime(2026, 6, 18, 14, 5, 7);
-
-        string path = MainWindow.BuildMeasurementLogPath(baseDirectory, timestamp);
-
-        Assert.Equal(
-            Path.Combine(baseDirectory, "log", "20260618_140507.csv"),
-            path);
-    }
-
-    [Fact]
     public void InitialPlaybackDirectoryUsesBundledSampleFolder()
     {
         string root = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));

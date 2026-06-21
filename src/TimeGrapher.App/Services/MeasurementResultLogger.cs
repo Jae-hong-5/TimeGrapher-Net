@@ -5,7 +5,7 @@ using TimeGrapher.Core.Shared;
 
 namespace TimeGrapher.App.Services;
 
-internal sealed class MeasurementResultLogger : IDisposable
+internal sealed class MeasurementResultLogger : IMeasurementResultSink
 {
     private const string Header =
         "session_id,source_id,history_version,latest_time_s,bph,active_position," +
