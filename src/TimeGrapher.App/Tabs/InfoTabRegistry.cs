@@ -251,7 +251,15 @@ internal sealed partial class InfoTabRegistry
         slider.Resources.Add("SliderHorizontalHeight", 18.0);
         slider.Resources.Add("SliderPreContentMargin", new GridLength(0));
         slider.Resources.Add("SliderPostContentMargin", new GridLength(0));
-        slider.Bind(Layoutable.MarginProperty, new Binding(nameof(MainWindowViewModel.ReviewSliderMargin)));
+        slider.Bind(Layoutable.MarginProperty, new MultiBinding
+        {
+            Converter = new ReviewSliderMarginConverter(),
+            Bindings =
+            {
+                new Binding(nameof(MainWindowViewModel.ReviewSliderLeftMargin)),
+                new Binding(nameof(MainWindowViewModel.ReviewSliderRightMargin)),
+            },
+        });
         slider.Bind(RangeBase.MinimumProperty, new Binding(nameof(MainWindowViewModel.ReviewMinimumS)));
         slider.Bind(RangeBase.MaximumProperty, new Binding(nameof(MainWindowViewModel.ReviewMaximumS)));
         slider.Bind(

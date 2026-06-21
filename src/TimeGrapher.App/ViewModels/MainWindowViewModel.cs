@@ -428,9 +428,13 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     /// </summary>
     private const double SliderThumbHalfWidth = 3.0;
 
-    public Avalonia.Thickness ReviewSliderMargin =>
-        new(Math.Max(0, _reviewSliderLeftPad - SliderThumbHalfWidth), 0,
-            Math.Max(0, _reviewSliderRightPad - SliderThumbHalfWidth), 2);
+    /// <summary>Left review-slider margin (px): the alignment pad minus the thumb half-width, clamped
+    /// to ≥ 0. UI-neutral so the view-model holds no layout type; the View assembles the slider's
+    /// layout thickness (0 top, 2 bottom) from this and <see cref="ReviewSliderRightMargin"/> via a converter.</summary>
+    public double ReviewSliderLeftMargin => Math.Max(0, _reviewSliderLeftPad - SliderThumbHalfWidth);
+
+    /// <summary>Right review-slider margin (px): the alignment pad minus the thumb half-width, clamped to ≥ 0.</summary>
+    public double ReviewSliderRightMargin => Math.Max(0, _reviewSliderRightPad - SliderThumbHalfWidth);
 
     public void UpdateReviewSliderAlignment(double leftPad, double rightPad, double dataMinTimeS)
     {
@@ -447,7 +451,8 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
         {
             _reviewSliderLeftPad = leftPad;
             _reviewSliderRightPad = rightPad;
-            OnPropertyChanged(nameof(ReviewSliderMargin));
+            OnPropertyChanged(nameof(ReviewSliderLeftMargin));
+            OnPropertyChanged(nameof(ReviewSliderRightMargin));
         }
 
         if (minChanged)
