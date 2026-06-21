@@ -9,7 +9,6 @@ internal sealed class MultiPositionSeqRenderer
 {
     private const string ActiveRowClass = "SeqActiveRow";
     private const string OnAccentClass = "SeqOnAccent";
-    private const string PositionMapActiveClass = "active";
     private const string ResultOkClass = "ok";
     private const string ResultWarnClass = "warn";
     private const string ResultPendingClass = "pending";
@@ -26,6 +25,7 @@ internal sealed class MultiPositionSeqRenderer
     private readonly WatchPosition _initialPosition;
 
     private ulong _lastVersion;
+    private SequenceSummary _lastSummary = SequenceSummary.Compute(Array.Empty<PositionSummary>());
 
     public MultiPositionSeqRenderer(
         Grid tableGrid,
@@ -44,11 +44,24 @@ internal sealed class MultiPositionSeqRenderer
 
     public void Reset()
     {
+        Reset(_initialPosition);
+    }
+
+    public void Reset(WatchPosition activePosition)
+    {
         _lastVersion = 0;
         _alertBanner.IsVisible = false;
-        SequenceSummary empty = SequenceSummary.Compute(Array.Empty<PositionSummary>());
-        RebuildTable(empty.Rows, activePosition: null);
-        UpdateDashboard(empty, _initialPosition);
+        _lastSummary = SequenceSummary.Compute(Array.Empty<PositionSummary>());
+        RebuildTable(_lastSummary.Rows, activePosition);
+        UpdateDashboard(_lastSummary, activePosition);
+    }
+
+    public void RequestPosition(WatchPosition position)
+    {
+        RebuildTable(_lastSummary.Rows, position);
+        _dashboard.ActivePositionText.Text = position.ShortName();
+        _dashboard.ActiveOrientationText.Text = position.LongName();
+        UpdateConsistencyVerdict(_lastSummary, position);
     }
 
     public void RenderFrame(AnalysisFrame frame)
@@ -61,6 +74,7 @@ internal sealed class MultiPositionSeqRenderer
 
         _lastVersion = history.Version;
         SequenceSummary summary = SequenceSummary.Compute(history.Positions);
+        _lastSummary = summary;
         RebuildTable(summary.Rows, history.ActivePosition);
         UpdateDashboard(summary, history.ActivePosition);
         UpdateBanner(summary);
@@ -130,24 +144,15 @@ internal sealed class MultiPositionSeqRenderer
         _dashboard.ActivePositionText.Text = activePosition.ShortName();
         _dashboard.ActiveOrientationText.Text = activePosition.LongName();
 
-        foreach (PositionMapTileControls tile in _dashboard.PositionMapTiles)
-        {
-            bool active = tile.Position == activePosition;
-            if (active && !tile.Tile.Classes.Contains(PositionMapActiveClass))
-            {
-                tile.Tile.Classes.Add(PositionMapActiveClass);
-            }
-            else if (!active)
-            {
-                tile.Tile.Classes.Remove(PositionMapActiveClass);
-            }
-        }
-
         UpdateConsistencyVerdict(summary, activePosition);
         _dashboard.AverageRateText.Text = VarioReadout.Format(summary.RateMeanSPerDay, "+0.0;-0.0;0.0", " s/d");
         _dashboard.AverageAmplitudeText.Text = VarioReadout.Format(summary.AmplitudeMeanDeg, "0", "°");
         _dashboard.SpreadRateText.Text = VarioReadout.Format(summary.RateSpreadSPerDay, "0.0", " s/d");
         _dashboard.SpreadAmplitudeText.Text = VarioReadout.Format(summary.AmplitudeSpreadDeg, "0", "°");
+        _dashboard.BalanceWheelSpreadText.Text = VarioReadout.Format(
+            summary.VerticalRateSpreadSPerDay,
+            "0.0",
+            " s/d");
         _dashboard.VerticalRateText.Text = VarioReadout.Format(summary.VerticalRateMeanSPerDay, "+0.0;-0.0;0.0", " s/d");
         _dashboard.HorizontalRateText.Text = VarioReadout.Format(summary.HorizontalRateMeanSPerDay, "+0.0;-0.0;0.0", " s/d");
         _dashboard.VerticalHorizontalDeltaText.Text = VarioReadout.Format(
@@ -165,7 +170,7 @@ internal sealed class MultiPositionSeqRenderer
         SequencePositionRow[] qualifiedRows = summary.Rows
             .Where(row => row.RateSPerDay != null && row.Beats >= MinPositionBeatsForVerdict)
             .ToArray();
-        _dashboard.ConsistencyGuideText.Text = FormatRequirementGuide(qualifiedRows);
+        UpdateRequirementGuides(summary.Rows, qualifiedRows);
 
         SequencePositionRow? activeRow = summary.Rows.FirstOrDefault(row => row.Position == activePosition);
         long activeBeats = activeRow?.Beats ?? 0;
@@ -173,7 +178,7 @@ internal sealed class MultiPositionSeqRenderer
         {
             _dashboard.ConsistencyVerdictText.Text = "COLLECTING";
             _dashboard.ConsistencyDetailText.Text =
-                $"{activePosition.ShortName()}: {activeBeats}/{MinPositionBeatsForVerdict} beats. Keep measuring this position.";
+                $"Measuring {activePosition.ShortName()}: {activeBeats}/{MinPositionBeatsForVerdict} beats.";
             _dashboard.ConsistencyBadge.Classes.Add(ResultPendingClass);
             return;
         }
@@ -182,7 +187,7 @@ internal sealed class MultiPositionSeqRenderer
         {
             _dashboard.ConsistencyVerdictText.Text = "COLLECTING";
             _dashboard.ConsistencyDetailText.Text =
-                $"{qualifiedRows.Length}/{MinQualifiedPositionsForVerdict} positions ready. Measure another position to {MinPositionBeatsForVerdict} beats.";
+                $"Measure another position to {MinPositionBeatsForVerdict} beats.";
             _dashboard.ConsistencyBadge.Classes.Add(ResultPendingClass);
             return;
         }
@@ -198,7 +203,7 @@ internal sealed class MultiPositionSeqRenderer
         {
             _dashboard.ConsistencyVerdictText.Text = "COLLECTING";
             _dashboard.ConsistencyDetailText.Text =
-                $"Need {MinVerticalPositionsForBalanceWheelVerdict} vertical and 1 horizontal position; have {qualifiedVertical}V/{qualifiedHorizontal}H qualified.";
+                "Measure full vertical and horizontal positions.";
             _dashboard.ConsistencyBadge.Classes.Add(ResultPendingClass);
             return;
         }
@@ -212,23 +217,82 @@ internal sealed class MultiPositionSeqRenderer
         {
             _dashboard.ConsistencyVerdictText.Text = "CHECK";
             _dashboard.ConsistencyDetailText.Text =
-                $"{qualifiedRows.Length} positions ready. Spread is above {SequenceSummary.UnbalanceVerticalRateSpreadSPerDay:0} s/d.";
+                $"Rate spread exceeds {SequenceSummary.UnbalanceVerticalRateSpreadSPerDay:0} s/d.";
             _dashboard.ConsistencyBadge.Classes.Add(ResultWarnClass);
             return;
         }
 
         _dashboard.ConsistencyVerdictText.Text = "OK";
         _dashboard.ConsistencyDetailText.Text =
-            $"{qualifiedRows.Length} positions ready. Spread is within {SequenceSummary.UnbalanceVerticalRateSpreadSPerDay:0} s/d.";
+            $"Rate spread within {SequenceSummary.UnbalanceVerticalRateSpreadSPerDay:0} s/d.";
         _dashboard.ConsistencyBadge.Classes.Add(ResultOkClass);
     }
 
-    private static string FormatRequirementGuide(SequencePositionRow[] qualifiedRows)
+    private void UpdateRequirementGuides(
+        IReadOnlyList<SequencePositionRow> rows,
+        SequencePositionRow[] qualifiedRows)
     {
-        int verticalPositions = qualifiedRows.Count(row =>
-            !row.Position.IsHorizontal() && !row.Position.IsIntermediate());
-        int horizontalPositions = qualifiedRows.Count(row => row.Position.IsHorizontal());
-        return $"Required: D {qualifiedRows.Length}/{MinQualifiedPositionsForVerdict} positions · Balance-wheel {verticalPositions}/{MinVerticalPositionsForBalanceWheelVerdict} vertical · V/H {verticalPositions}V+{horizontalPositions}H (need 1V+1H)";
+        SequencePositionRow[] fullVerticalRows = qualifiedRows
+            .Where(row => !row.Position.IsHorizontal() && !row.Position.IsIntermediate())
+            .ToArray();
+        SequencePositionRow[] horizontalRows = qualifiedRows
+            .Where(row => row.Position.IsHorizontal())
+            .ToArray();
+        SequencePositionRow[] measuredRows = rows
+            .Where(row => row.RateSPerDay != null || row.AmplitudeDeg != null ||
+                row.BeatErrorMs != null || row.Beats > 0)
+            .ToArray();
+        int verticalPositions = fullVerticalRows.Length;
+        int horizontalPositions = horizontalRows.Length;
+        double? qualifiedRateSpread = Spread(qualifiedRows.Select(row => row.RateSPerDay!.Value));
+        double? qualifiedVerticalSpread = Spread(fullVerticalRows.Select(row => row.RateSPerDay!.Value));
+
+        _dashboard.SpreadStatusText.Text = qualifiedRows.Length < MinQualifiedPositionsForVerdict
+            ? "COLLECTING"
+            : qualifiedRateSpread > SequenceSummary.UnbalanceVerticalRateSpreadSPerDay
+                ? "CHECK"
+                : "OK";
+        _dashboard.BalanceStatusText.Text = verticalPositions < MinVerticalPositionsForBalanceWheelVerdict
+            ? "COLLECTING"
+            : qualifiedVerticalSpread > SequenceSummary.UnbalanceVerticalRateSpreadSPerDay
+                ? "CHECK"
+                : "OK";
+        _dashboard.VerticalHorizontalStatusText.Text = verticalPositions < 1 || horizontalPositions < 1
+            ? "COLLECTING"
+            : "READY";
+        _dashboard.AverageStatusText.Text = "REFERENCE";
+
+        _dashboard.SpreadRequirementText.Text =
+            $"{MinQualifiedPositionsForVerdict} positions, {MinPositionBeatsForVerdict}+ beats each";
+        _dashboard.SpreadReadyText.Text =
+            $"{FormatReadyPositions(qualifiedRows)} ({qualifiedRows.Length}/{MinQualifiedPositionsForVerdict})";
+        _dashboard.BalanceRequirementText.Text =
+            $"{MinVerticalPositionsForBalanceWheelVerdict} full vertical positions, {MinPositionBeatsForVerdict}+ beats each";
+        _dashboard.BalanceReadyText.Text =
+            $"{FormatReadyPositions(fullVerticalRows)} ({verticalPositions}/{MinVerticalPositionsForBalanceWheelVerdict})";
+        _dashboard.VerticalHorizontalRequirementText.Text =
+            "1 full vertical + 1 horizontal";
+        _dashboard.VerticalHorizontalReadyText.Text =
+            FormatVerticalHorizontalReady(fullVerticalRows, horizontalRows);
+        _dashboard.AverageRequirementText.Text =
+            "any measured position";
+        _dashboard.AverageReadyText.Text = FormatReadyPositions(measuredRows);
+    }
+
+    private static string FormatReadyPositions(IReadOnlyList<SequencePositionRow> rows) =>
+        rows.Count == 0
+            ? "None"
+            : string.Join(", ", rows.Select(row => row.Position.ShortName()));
+
+    private static string FormatVerticalHorizontalReady(
+        IReadOnlyList<SequencePositionRow> fullVerticalRows,
+        IReadOnlyList<SequencePositionRow> horizontalRows)
+    {
+        int verticalPositions = fullVerticalRows.Count;
+        int horizontalPositions = horizontalRows.Count;
+        return
+            $"V {FormatReadyPositions(fullVerticalRows)} / H {FormatReadyPositions(horizontalRows)} " +
+            $"({verticalPositions}V + {horizontalPositions}H)";
     }
 
     private static double? Spread(IEnumerable<double> values)

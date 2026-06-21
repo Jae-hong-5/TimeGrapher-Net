@@ -78,6 +78,11 @@ internal sealed class WatchPositionsRenderer
 
     public void Reset()
     {
+        Reset((WatchPosition)_activeIndex);
+    }
+
+    public void Reset(WatchPosition activePosition)
+    {
         // The highlight is selection state (the watch's physical orientation),
         // not run data; the snapshot version gate restarts. The in-flight
         // latch dies with the worker it was sent to: a new session must not
@@ -87,6 +92,7 @@ internal sealed class WatchPositionsRenderer
         // the renderer must not depend on that replay invariant).
         _lastVersion = 0;
         _pendingPosition = null;
+        Highlight(activePosition);
     }
 
     public void RenderFrame(AnalysisFrame frame)

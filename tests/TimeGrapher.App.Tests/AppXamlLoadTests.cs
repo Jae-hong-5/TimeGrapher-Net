@@ -76,6 +76,28 @@ public sealed class AppXamlLoadTests
     }
 
     [Fact]
+    public void PositionOkBadgeUsesQuietSemanticAccent()
+    {
+        var app = new App();
+        app.Initialize();
+
+        Style okBadgeStyle = Assert.Single(app.Styles
+            .OfType<Style>(), style => style.Selector?.ToString() == "Border.PositionResultBadge.ok");
+        Assert.Contains(okBadgeStyle.Setters.OfType<Setter>(), setter =>
+            setter.Property == Border.BackgroundProperty &&
+            DynamicResourceKey(setter.Value) == "PanelBgBrush");
+        Assert.Contains(okBadgeStyle.Setters.OfType<Setter>(), setter =>
+            setter.Property == Border.BorderBrushProperty &&
+            DynamicResourceKey(setter.Value) == "VarioGoodBrush");
+
+        Style okTextStyle = Assert.Single(app.Styles
+            .OfType<Style>(), style => style.Selector?.ToString() == "Border.PositionResultBadge.ok TextBlock");
+        Assert.Contains(okTextStyle.Setters.OfType<Setter>(), setter =>
+            setter.Property == TextBlock.ForegroundProperty &&
+            DynamicResourceKey(setter.Value) == "VarioGoodBrush");
+    }
+
+    [Fact]
     public void AppResourcesExposeSecondaryTextBrush()
     {
         // The title-bar results readout colors its labels/units with TextSecondaryBrush
@@ -157,5 +179,10 @@ public sealed class AppXamlLoadTests
             string s => double.Parse(s, CultureInfo.InvariantCulture),
             _ => throw new InvalidOperationException($"Unexpected setter value '{value}'."),
         };
+    }
+
+    private static string? DynamicResourceKey(object? value)
+    {
+        return value?.GetType().GetProperty("ResourceKey")?.GetValue(value)?.ToString();
     }
 }

@@ -84,49 +84,55 @@ internal static class InfoTabCatalog
 
     private static InfoTabDefinition[] BuildDefinitions()
     {
+        // Tab order follows the measurement workflow: live signal and primary
+        // readings first, then long-term/positional, then the waveform-diagnostic
+        // tools. The 13 tabs wrap to two rows (7 + 6), so Positions leads the
+        // second row. Rate/Scope stays first (Definitions[0]) and Spectrogram last.
         var definitions = new List<InfoTabDefinition>
         {
             new(RateScopeTabId, "Rate/Scope", InfoTabKind.RateScope, DefaultUiRefreshIntervalMs, UsesGraphSnapshots: true, RateScopeSeries),
-            new(SoundPrintTabId, "Sound Print", InfoTabKind.SoundPrint, SoundPrintRefreshIntervalMs, UsesGraphSnapshots: false, Array.Empty<GraphSeriesDefinition>()),
             // Trace Display renders the cumulative BeatMetricsHistorySnapshot the
             // frame carries; it declares no per-frame graph-series contract.
             new(TraceDisplayTabId, "Trace", InfoTabKind.TraceDisplay, DefaultUiRefreshIntervalMs, UsesGraphSnapshots: false, Array.Empty<GraphSeriesDefinition>()),
-            // Scope Sweep refills its single plot from the Core-folded sweep.trace
-            // replace series; the fixed bin budget lives Core-side, so no per-frame
-            // graph-series reduction contract is declared here.
-            new(ScopeSweepTabId, "Sweep", InfoTabKind.ScopeSweep, DefaultUiRefreshIntervalMs, UsesGraphSnapshots: false, Array.Empty<GraphSeriesDefinition>()),
-            // Vario stability gauges render the running stats on the same snapshot.
-            new(VarioTabId, "Vario", InfoTabKind.Vario, DefaultUiRefreshIntervalMs, UsesGraphSnapshots: false, Array.Empty<GraphSeriesDefinition>()),
             // Beat Error Diag plots the per-frame tic/toc Error Rate traces and reads the
             // cumulative snapshot for its numeric panel and diagnostic rules.
             new(BeatErrorDiagTabId, "Beat Error", InfoTabKind.BeatErrorDiag, DefaultUiRefreshIntervalMs, UsesGraphSnapshots: true, BeatErrorDiagSeries),
-            // Filter Scope refills its four stacked plots from the
-            // Core-decimated filter.f0..f3 replace series; the per-series point
-            // budget lives Core-side (MultiFilterFrameProjector), so no per-frame
-            // graph-series reduction contract is declared here.
-            new(MultiFilterScopeTabId, "Filter Scope", InfoTabKind.MultiFilterScope, DefaultUiRefreshIntervalMs, UsesGraphSnapshots: false, Array.Empty<GraphSeriesDefinition>()),
+            // Vario stability gauges render the running stats on the same snapshot.
+            new(VarioTabId, "Vario", InfoTabKind.Vario, DefaultUiRefreshIntervalMs, UsesGraphSnapshots: false, Array.Empty<GraphSeriesDefinition>()),
             // Long-Term Performance renders the cumulative BeatMetricsHistorySnapshot
             // (bucket averages plus YMin/YMax variation bands); it declares no
             // per-frame graph-series contract.
             new(LongTermPerfTabId, "Long-Term", InfoTabKind.LongTermPerformance, DefaultUiRefreshIntervalMs, UsesGraphSnapshots: false, Array.Empty<GraphSeriesDefinition>()),
-            // Positions reads the cumulative snapshot's ActivePosition stamp
-            // and per-position aggregates; it declares no per-frame graph-series
-            // contract.
-            new(WatchPositionsTabId, "Positions", InfoTabKind.WatchPositions, DefaultUiRefreshIntervalMs, UsesGraphSnapshots: false, Array.Empty<GraphSeriesDefinition>()),
-            // Beat Noise renders the cumulative BeatSegmentsSnapshot the
-            // frame carries (Scope 1 segments + Scope 2 lane averages); it
-            // declares no per-frame graph-series contract.
-            new(BeatNoiseScopeTabId, "Beat Noise", InfoTabKind.BeatNoiseScope, DefaultUiRefreshIntervalMs, UsesGraphSnapshots: false, Array.Empty<GraphSeriesDefinition>()),
+            // Scope Sweep refills its single plot from the Core-folded sweep.trace
+            // replace series; the fixed bin budget lives Core-side, so no per-frame
+            // graph-series reduction contract is declared here.
+            new(ScopeSweepTabId, "Sweep", InfoTabKind.ScopeSweep, DefaultUiRefreshIntervalMs, UsesGraphSnapshots: false, Array.Empty<GraphSeriesDefinition>()),
             // Escapement Analyzer renders the latest segment of the same
             // cumulative BeatSegmentsSnapshot (A / C marker lines with ms
             // labels and the onset-vs-peak repeatability panel); it declares
             // no per-frame graph-series contract.
             new(EscapementAnalyzerTabId, "Escapement", InfoTabKind.EscapementAnalyzer, DefaultUiRefreshIntervalMs, UsesGraphSnapshots: false, Array.Empty<GraphSeriesDefinition>()),
+            // Positions reads the cumulative snapshot's ActivePosition stamp
+            // and per-position aggregates; it declares no per-frame graph-series
+            // contract. Placed eighth so it leads the wrapped second tab row.
+            new(WatchPositionsTabId, "Positions", InfoTabKind.WatchPositions, DefaultUiRefreshIntervalMs, UsesGraphSnapshots: false, Array.Empty<GraphSeriesDefinition>()),
+            // Beat Noise renders the cumulative BeatSegmentsSnapshot the
+            // frame carries (Scope 1 segments + Scope 2 lane averages); it
+            // declares no per-frame graph-series contract.
+            new(BeatNoiseScopeTabId, "Beat Noise", InfoTabKind.BeatNoiseScope, DefaultUiRefreshIntervalMs, UsesGraphSnapshots: false, Array.Empty<GraphSeriesDefinition>()),
             // Waveform Compare stacks the recent beats of the same cumulative
             // BeatSegmentsSnapshot in A-aligned, peak-normalized lanes with the
             // A / mean-C timing guides; it declares no per-frame graph-series
             // contract.
             new(WaveformCompareTabId, "Waveforms", InfoTabKind.WaveformCompare, DefaultUiRefreshIntervalMs, UsesGraphSnapshots: false, Array.Empty<GraphSeriesDefinition>()),
+            // Filter Scope refills its four stacked plots from the
+            // Core-decimated filter.f0..f3 replace series; the per-series point
+            // budget lives Core-side (MultiFilterFrameProjector), so no per-frame
+            // graph-series reduction contract is declared here.
+            new(MultiFilterScopeTabId, "Filter Scope", InfoTabKind.MultiFilterScope, DefaultUiRefreshIntervalMs, UsesGraphSnapshots: false, Array.Empty<GraphSeriesDefinition>()),
+            // Sound Print paints the per-beat envelope image on the 100 ms
+            // cadence; it declares no per-frame graph-series contract.
+            new(SoundPrintTabId, "Sound Print", InfoTabKind.SoundPrint, SoundPrintRefreshIntervalMs, UsesGraphSnapshots: false, Array.Empty<GraphSeriesDefinition>()),
             // Spectrogram renders the Core-built STFT image the frame carries
             // (the Sound Print pattern); the image publishes on the sound-print
             // 100 ms cadence, so the tab refreshes on the same interval and

@@ -135,13 +135,14 @@ work requests** — 점진적 저하). 패스마다 백로그를 **비트 주기
 | **executable assertions** | Verify가 파일명의 기대 BPH와 검출 BPH를 대조해 exit code 반환 → **CI가 main 브랜치 push·main 대상 PR에서 실행**. `FillF32` 그라운드트루스 사이드채널 채점(`DetectionScorer` — 이벤트 수준 정밀도/재현율/타이밍)은 이제 생성 fixture의 hard gate이며, 생성 fixture 안에 +30 s/day rate와 5 ms beat-error 표본을 포함해 메트릭 값도 exit code에 묶는다. `--adverse` 악조건 행 9종(약신호·잡음·임펄스 폭풍·게인 스텝·무음 선행·잡음 단독)은 현재 기본 detector 품질 게이트로 실행. PLL 베토는 `--gate=pll` 별도 측정 축으로 유지 | `Verify/Program.cs`, `AdverseScenarios.cs`, `DetectionScorer.cs` | ✓ |
 | **record/playback (기준선 회귀 감시)** | 골든마스터는 절대 이벤트 시퀀스 드리프트 감지용으로 유지하되, null vs all-off 옵션 패리티와 Verify `--fidelity-check`는 제거. 기준선 약점 보존보다 정확성과 성능을 우선한다 | `DetectorGoldenMasterTests.cs`, `AdverseScenarios.cs` | ✓ |
 | **controlled fault injection** | 합성기에 포아송 임펄스 잡음 노브(전용 RNG 스트림 — 켜도 틱/지터 시퀀스 비트동일, rate 0이면 출력 비트동일). 균일 백색잡음으로는 재현 불가능하던 레짐 리셋 폭풍·중앙값 오염·PLL 래치를 결정론적으로 재현 | `WatchSynthStream.cs`, `WatchSynthImpulseNoiseTests.cs` | ✓ |
-| **limit structural complexity** | 파서·리듀서·라우터·서비스를 작은 단일책임 단위로 분리, 현재 테스트 소스 91개(앱 49, Core 40, WindowsAudio 1, LinuxAudio 1)가 개별 타깃을 검증 | tests/ | ✓ |
+| **limit structural complexity** | 파서·리듀서·라우터·서비스를 작은 단일책임 단위로 분리, 현재 테스트 소스 98개(앱 52, Core 43, WindowsAudio 1, LinuxAudio 1, Verify 1)가 개별 타깃을 검증 | tests/ | ✓ |
 
 ### 사용성·이식성 (Usability / Portability)
 
 | Tactic | 적용 방식 | 근거 | |
 |---|---|---|---|
 | **pause/resume** (Usability) | `WorkerPauseGate`(ManualResetEventSlim + Volatile)가 워커 루프를 50ms 슬라이스로 멈추되 정지 요청에는 즉시 반응 | `WorkerPauseGate.cs` | ✓ |
+| **UI 일관성 — 그래프 레이아웃 안정성** (Usability) | 스코프/그래프의 좌측 Y축·하단 X축 패널을 고정 px로 잠가(`RateScopeRenderer`의 택틱을 `TraceDisplayRenderer`·`LongTermPerfRenderer`로 확장) Y 눈금 자릿수가 바뀌어도 데이터 영역 폭이 일정하고 스택 패널들의 좌측 가장자리가 정렬된다. 또한 Trace 디스플레이는 live-follow에서 plain `AutoScale`(데이터에 margin을 더하고 모든 보이는 플로터블에 맞춤) 대신 X축을 실제 데이터 시간 범위에 고정(`PinLiveXAxisToData`→`SetLimitsX`, `LongTermPerfRenderer` 택틱)한다 — accept-범위 라벨이 autoscale opt-out 없는 `Text` 플로터블이라, 매 프레임 margin 안쪽 우측 가장자리로 재배치되며 다음 AutoScale의 X 적합에 되먹임돼 축을 데이터 너머로 래칫시키고 트레이스를 가로로 축소시키던 현상을 차단한다. 스택 그래프의 데이터 높이는 시간축을 가진 하단 패널만큼 해당 행을 키워(`InfoTabRegistry`의 row 비율 1.22*/1.11*) 맞춘다 — 단 설계창(1280×750) 기준 비율이라 극단적 리사이즈에서 수~수십 px 드리프트가 남는다(정직 표기). 표준 SAP 택틱명에 정확히 대응하지 않는 UI 설계 결정이라 △ | `RateScopeRenderer.cs`, `TraceDisplayRenderer.cs`, `LongTermPerfRenderer.cs`, `InfoTabRegistry.cs` | △ |
 | **defer binding** (Portability) | RID(예: `win-x64`/`linux-arm64`; 전체 `win-x64;win-arm64;linux-x64;linux-arm64`)에 따라 Platform 참조·`DefineConstants`를 조건부로 바인딩 → 같은 소스로 OS별 앱 생성 | `TimeGrapher.App.csproj` | △ |
 
 ---

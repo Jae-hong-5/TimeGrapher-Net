@@ -20,14 +20,14 @@ internal sealed class WatchPositionsFrameConsumer : IAnalysisFrameConsumer
 
     public void Initialize(AnalysisTabResetContext context)
     {
-        _positionRenderer.Reset();
-        _sequenceRenderer.Reset();
+        _positionRenderer.Reset(context.ActivePosition);
+        _sequenceRenderer.Reset(context.ActivePosition);
     }
 
     public void Reset(AnalysisTabResetContext context)
     {
-        _positionRenderer.Reset();
-        _sequenceRenderer.Reset();
+        _positionRenderer.Reset(context.ActivePosition);
+        _sequenceRenderer.Reset(context.ActivePosition);
     }
 
     public void ObserveFrame(AnalysisFrame frame)

@@ -40,6 +40,21 @@ public sealed class MainWindowRunControlWiringTests
     }
 
     [Fact]
+    public void ResetOperationResetsGraphDataAndViews()
+    {
+        string source = File.ReadAllText(FindSourceFile("src/TimeGrapher.App/Views/MainWindow.axaml.cs"));
+        int dataReset = source.IndexOf(
+            "mGraphFrameRenderer.Reset(BuildTabResetContext());",
+            StringComparison.Ordinal);
+        int viewReset = source.IndexOf(
+            "mInfoTabRegistry.ResetViews.ResetAll();",
+            StringComparison.Ordinal);
+
+        Assert.True(dataReset >= 0);
+        Assert.True(viewReset > dataReset);
+    }
+
+    [Fact]
     public void InputDeviceComboBoxReloadsDevicesWhenDropDownOpens()
     {
         XDocument document = XDocument.Load(FindSourceFile("src/TimeGrapher.App/Views/MainWindow.axaml"));

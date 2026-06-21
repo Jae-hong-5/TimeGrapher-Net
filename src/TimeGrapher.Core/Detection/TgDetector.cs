@@ -334,6 +334,15 @@ public sealed class TgDetector
                 _evHistoryHead = 0;
                 _sync.Reset();
 
+                /* Re-acquisition runs unsynced, so restore the pre-sync
+                 * acquisition gates the lock had tightened (mirror the
+                 * sync-loss path below); otherwise the previous lock's
+                 * MinSilence/MinAInterval/C-search skip suppress valid A
+                 * events if the signal changed to a faster BPH. */
+                _det.SetMinSilence(0.020);
+                _det.SetMinAInterval(0.0);
+                _det.SetCSearchSkip(0.003);
+
                 /* Suppress the raw events from THIS batch. */
                 rawCount = 0;
             }

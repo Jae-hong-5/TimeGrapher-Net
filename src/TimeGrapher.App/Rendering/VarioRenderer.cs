@@ -40,8 +40,7 @@ internal sealed class VarioRenderer
     public const int CellCurrent = 5;
     public const int CellCount = 6;
 
-    private const byte AcceptBandAlpha = 42;
-    private const byte AcceptBandEdgeAlpha = 180;
+    private const byte AcceptBandAlpha = 64;
     private const float MarkerLabelFontSize = 16;
 
     // Y layout inside each gauge: bands fill the plot; labels sit in the headroom.
@@ -375,9 +374,10 @@ internal sealed class VarioRenderer
     {
         if (gauge.AcceptBand != null)
         {
+            // Shaded normal-range fill only; no edge line (borderless, like the
+            // Trace/Long-Term accept bands).
             gauge.AcceptBand.FillStyle.Color = Color.FromARGB(_theme.VarioAcceptBand).WithAlpha(AcceptBandAlpha);
-            gauge.AcceptBand.LineStyle.Color = Color.FromARGB(_theme.VarioAcceptBandEdge).WithAlpha(AcceptBandEdgeAlpha);
-            gauge.AcceptBand.LineStyle.Width = 2;
+            gauge.AcceptBand.LineStyle.Width = 0;
         }
 
         if (gauge.MinLine != null)

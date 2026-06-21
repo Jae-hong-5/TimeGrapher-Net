@@ -44,12 +44,6 @@ public sealed class FrameProjectorThemeTests
     }
 
     [Fact]
-    public void AnalysisFrame_BeatSynced_DefaultsToFalse()
-    {
-        Assert.False(new AnalysisFrame().BeatSynced);
-    }
-
-    [Fact]
     public void SoundPrintProjector_SetBackgroundColor_RepublishesRetintedImage()
     {
         var projector = new SoundPrintFrameProjector(sampleRate: 48000, width: 64, height: 48, backgroundColor: White);

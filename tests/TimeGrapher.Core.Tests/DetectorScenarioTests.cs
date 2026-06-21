@@ -138,9 +138,10 @@ public sealed class DetectorScenarioTests
         const int sr = 48000;
         FeedSeconds(NewEngine(sr, autoBph: false, manualBph: 18000), new WatchSynthStream(Synth(sr, 21600, 0.0, 0.0)), sr, 8, out DetectorMetricsBlockUpdate update);
 
-        // Manual BPH that does not match the signal must not lock; the detector reports
-        // Mismatch (or NotSynced), never a false Synced.
-        Assert.NotEqual(TgSyncStatus.Synced, update.Result.SyncStatus);
+        // Manual BPH that does not match the signal must not lock; once enough events
+        // are seen the detector reports the distinct Mismatch state (not a quiet
+        // NotSynced fallback and never a false Synced).
+        Assert.Equal(TgSyncStatus.Mismatch, update.Result.SyncStatus);
     }
 
     private static (DerivedTimingMeasures Derived, BeatTimingSample LastBeat) FeedCapturingDerived(
@@ -221,7 +222,28 @@ public sealed class DetectorScenarioTests
         FeedSeconds(engine, synth, sr, 12, out DetectorMetricsBlockUpdate synced);
         Assert.Equal(TgSyncStatus.Synced, synced.Result.SyncStatus);
 
-        DetectorMetricsBlockUpdate afterSilence = FeedSilence(engine, sr, 6);
-        Assert.NotEqual(TgSyncStatus.Synced, afterSilence.Result.SyncStatus);
+        // Feed silence block-by-block: the watchdog must raise the one-shot
+        // SyncLostEvent exactly once and reset the locked BPH/period on that block,
+        // then stay lost without re-raising the edge.
+        var block = new float[4096];
+        int remaining = sr * 6;
+        int syncLostEvents = 0;
+        DetectorMetricsBlockUpdate last = synced;
+        while (remaining > 0)
+        {
+            int slice = Math.Min(block.Length, remaining);
+            Array.Clear(block, 0, slice);
+            last = engine.Process(block.AsSpan(0, slice));
+            if (last.Result.SyncLostEvent)
+            {
+                syncLostEvents++;
+                Assert.Equal(0, last.Result.DetectedBph);
+                Assert.Equal(0.0, last.Result.MeasuredPeriodS);
+            }
+            remaining -= slice;
+        }
+
+        Assert.Equal(1, syncLostEvents);
+        Assert.NotEqual(TgSyncStatus.Synced, last.Result.SyncStatus);
     }
 }

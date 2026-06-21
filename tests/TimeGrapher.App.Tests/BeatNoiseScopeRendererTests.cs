@@ -46,7 +46,19 @@ public sealed class BeatNoiseScopeRendererTests
     }
 
     [Fact]
-    public void Scope1YRangeDoesNotShrinkWhileWaveformStaysInsideCurrentMargin()
+    public void Scope1LabelsYAxisAsSignalLevel()
+    {
+        var mainPlot = new AvaPlot();
+        var renderer = new BeatNoiseScopeRenderer(
+            mainPlot, new AvaPlot(), new AvaPlot(), new TextBlock(), new TextBlock());
+
+        renderer.CreateGraphs();
+
+        Assert.Equal("Signal Level", mainPlot.Plot.Axes.Left.Label.Text);
+    }
+
+    [Fact]
+    public void Scope1YRangeRecomputesForCurrentWaveform()
     {
         var mainPlot = new AvaPlot();
         var renderer = new BeatNoiseScopeRenderer(
@@ -89,8 +101,10 @@ public sealed class BeatNoiseScopeRendererTests
         }, new AnalysisTabRenderContext(SampleRate: 48000));
         AxisLimits afterSmall = mainPlot.Plot.Axes.GetLimits();
 
-        Assert.Equal(initial.Bottom, afterSmall.Bottom);
-        Assert.Equal(initial.Top, afterSmall.Top);
+        Assert.True(afterSmall.Bottom > initial.Bottom);
+        Assert.True(afterSmall.Top < initial.Top);
+        Assert.Equal(-0.275, afterSmall.Bottom, 12);
+        Assert.Equal(0.275, afterSmall.Top, 12);
     }
 
     [Fact]
@@ -267,6 +281,347 @@ public sealed class BeatNoiseScopeRendererTests
     }
 
     [Fact]
+    public void UseCOnsetFalseShowsOnlyCPeakMarkerWhenBothCOffsetsExist()
+    {
+        var mainPlot = new AvaPlot();
+        var renderer = new BeatNoiseScopeRenderer(
+            mainPlot, new AvaPlot(), new AvaPlot(), new TextBlock(), new TextBlock(), useCOnset: false);
+        renderer.CreateGraphs();
+
+        var segment = new BeatSegment
+        {
+            Samples = Enumerable.Repeat(0.5f, 80).ToArray(),
+            MsPerPoint = 0.25,
+            PeakValue = 0.5f,
+            CPeakValid = true,
+            CPeakOffsetMs = 12.0,
+            COnsetValid = true,
+            COnsetOffsetMs = 9.0,
+        };
+        renderer.RenderFrame(new AnalysisFrame
+        {
+            BeatSegments = new BeatSegmentsSnapshot
+            {
+                Version = 1,
+                Segments = new[] { segment },
+                Markers = new[]
+                {
+                    new BeatNoiseMarker { TimeS = segment.CPeakOffsetMs / 1000.0, Kind = BeatNoiseMarkerKind.CPeak },
+                },
+            },
+        }, new AnalysisTabRenderContext(SampleRate: 48000));
+
+        double[] cMarkerXs = mainPlot.Plot.GetPlottables<VerticalLine>()
+            .Where(line => line.IsVisible && Equals(line.LinePattern, LinePattern.Dotted))
+            .Select(line => line.X)
+            .ToArray();
+
+        Assert.Equal(new[] { 12.0 }, cMarkerXs);
+    }
+
+    [Fact]
+    public void MainScopeCPeakMarkerUsesDisplayedSegmentOffsetRatherThanEventMarkerTime()
+    {
+        var mainPlot = new AvaPlot();
+        var renderer = new BeatNoiseScopeRenderer(
+            mainPlot, new AvaPlot(), new AvaPlot(), new TextBlock(), new TextBlock(), useCOnset: false);
+        renderer.CreateGraphs();
+
+        var segment = new BeatSegment
+        {
+            Samples = Enumerable.Repeat(0.5f, 80).ToArray(),
+            MsPerPoint = 0.25,
+            StartTimeS = 10.0,
+            PeakValue = 0.5f,
+            CPeakValid = true,
+            CPeakOffsetMs = 12.0,
+        };
+        renderer.RenderFrame(new AnalysisFrame
+        {
+            BeatSegments = new BeatSegmentsSnapshot
+            {
+                Version = 1,
+                Segments = new[] { segment },
+                Markers = new[]
+                {
+                    new BeatNoiseMarker { TimeS = segment.StartTimeS + 13.0 / 1000.0, Kind = BeatNoiseMarkerKind.CPeak },
+                },
+            },
+        }, new AnalysisTabRenderContext(SampleRate: 48000));
+
+        double cMarkerX = mainPlot.Plot.GetPlottables<VerticalLine>()
+            .Single(line => line.IsVisible && Equals(line.LinePattern, LinePattern.Dotted))
+            .X;
+
+        Assert.Equal(12.0, cMarkerX, 9);
+    }
+
+    [Fact]
+    public void MainScopeCPeakMarkerSnapsToRawPointGrid()
+    {
+        var mainPlot = new AvaPlot();
+        var renderer = new BeatNoiseScopeRenderer(
+            mainPlot, new AvaPlot(), new AvaPlot(), new TextBlock(), new TextBlock(), useCOnset: false);
+        renderer.CreateGraphs();
+
+        var segment = new BeatSegment
+        {
+            Samples = Enumerable.Repeat(0.5f, 80).ToArray(),
+            RawValid = true,
+            RawMin = Enumerable.Repeat(0.0f, 80).ToArray(),
+            RawMax = Enumerable.Repeat(0.0f, 80).ToArray(),
+            MsPerPoint = 0.25,
+            StartTimeS = 10.0,
+            CPeakValid = true,
+            CPeakOffsetMs = 12.2,
+        };
+        renderer.RenderFrame(new AnalysisFrame
+        {
+            BeatSegments = new BeatSegmentsSnapshot
+            {
+                Version = 1,
+                Segments = new[] { segment },
+            },
+        }, new AnalysisTabRenderContext(SampleRate: 48000));
+
+        double cMarkerX = mainPlot.Plot.GetPlottables<VerticalLine>()
+            .Single(line => line.IsVisible && Equals(line.LinePattern, LinePattern.Dotted))
+            .X;
+
+        Assert.Equal(12.0, cMarkerX, 9);
+    }
+
+    [Fact]
+    public void MainScopeShowsCMarkersForEachSegmentInsideDisplayedWindow()
+    {
+        var mainPlot = new AvaPlot();
+        var renderer = new BeatNoiseScopeRenderer(
+            mainPlot, new AvaPlot(), new AvaPlot(), new TextBlock(), new TextBlock(), useCOnset: false);
+        renderer.CreateGraphs();
+
+        var first = new BeatSegment
+        {
+            Samples = Enumerable.Repeat(0.5f, 1600).ToArray(),
+            MsPerPoint = 0.25,
+            StartTimeS = 10.0,
+            IsTic = true,
+            PeakValue = 0.5f,
+            CPeakValid = true,
+            CPeakOffsetMs = 12.0,
+        };
+        var second = new BeatSegment
+        {
+            Samples = Enumerable.Repeat(0.5f, 1600).ToArray(),
+            MsPerPoint = 0.25,
+            StartTimeS = 10.25,
+            IsTic = false,
+            PeakValue = 0.5f,
+            CPeakValid = true,
+            CPeakOffsetMs = 8.0,
+        };
+
+        renderer.RenderFrame(new AnalysisFrame
+        {
+            BeatSegments = new BeatSegmentsSnapshot
+            {
+                Version = 1,
+                Segments = new[] { first, second },
+            },
+        }, new AnalysisTabRenderContext(SampleRate: 48000));
+        renderer.SelectStripAtFraction(6.5 / BeatNoiseScopeLogic.StripCount);
+
+        double[] cMarkerXs = mainPlot.Plot.GetPlottables<VerticalLine>()
+            .Where(line => line.IsVisible && Equals(line.LinePattern, LinePattern.Dotted))
+            .Select(line => Math.Round(line.X, 3))
+            .OrderBy(x => x)
+            .ToArray();
+
+        Assert.Equal(new[] { 12.0, 258.0 }, cMarkerXs);
+    }
+
+    [Fact]
+    public void MainScopeShowsPendingCEventMarkerInsideDisplayedWindow()
+    {
+        var mainPlot = new AvaPlot();
+        var renderer = new BeatNoiseScopeRenderer(
+            mainPlot, new AvaPlot(), new AvaPlot(), new TextBlock(), new TextBlock(), useCOnset: false);
+        renderer.CreateGraphs();
+
+        var segment = new BeatSegment
+        {
+            Samples = Enumerable.Repeat(0.5f, 1600).ToArray(),
+            MsPerPoint = 0.25,
+            StartTimeS = 10.0,
+            PeakValue = 0.5f,
+            CPeakValid = true,
+            CPeakOffsetMs = 12.0,
+        };
+
+        renderer.RenderFrame(new AnalysisFrame
+        {
+            BeatSegments = new BeatSegmentsSnapshot
+            {
+                Version = 1,
+                Segments = new[] { segment },
+                Markers = new[]
+                {
+                    new BeatNoiseMarker { TimeS = segment.StartTimeS + 12.5 / 1000.0, Kind = BeatNoiseMarkerKind.CPeak },
+                    new BeatNoiseMarker { TimeS = segment.StartTimeS + 258.0 / 1000.0, Kind = BeatNoiseMarkerKind.CPeak },
+                },
+            },
+        }, new AnalysisTabRenderContext(SampleRate: 48000));
+
+        double[] cMarkerXs = mainPlot.Plot.GetPlottables<VerticalLine>()
+            .Where(line => line.IsVisible && Equals(line.LinePattern, LinePattern.Dotted))
+            .Select(line => Math.Round(line.X, 3))
+            .OrderBy(x => x)
+            .ToArray();
+
+        Assert.Equal(new[] { 12.0, 258.0 }, cMarkerXs);
+    }
+
+    [Fact]
+    public void UseCOnsetTrueShowsPendingCOnsetEventMarkerInsideDisplayedWindow()
+    {
+        var mainPlot = new AvaPlot();
+        var renderer = new BeatNoiseScopeRenderer(
+            mainPlot, new AvaPlot(), new AvaPlot(), new TextBlock(), new TextBlock(), useCOnset: true);
+        renderer.CreateGraphs();
+        renderer.SetRangeMs(BeatNoiseScopeRenderer.DefaultRangeMs);
+
+        var segment = new BeatSegment
+        {
+            Samples = Enumerable.Repeat(0.5f, 1600).ToArray(),
+            MsPerPoint = 0.25,
+            StartTimeS = 10.0,
+            PeakValue = 0.5f,
+            CPeakValid = true,
+            CPeakOffsetMs = 12.0,
+            COnsetValid = true,
+            COnsetOffsetMs = 9.0,
+        };
+
+        renderer.RenderFrame(new AnalysisFrame
+        {
+            BeatSegments = new BeatSegmentsSnapshot
+            {
+                Version = 1,
+                Segments = new[] { segment },
+                Markers = new[]
+                {
+                    new BeatNoiseMarker { TimeS = segment.StartTimeS + 12.0 / 1000.0, Kind = BeatNoiseMarkerKind.CPeak },
+                    new BeatNoiseMarker { TimeS = segment.StartTimeS + 9.0 / 1000.0, Kind = BeatNoiseMarkerKind.COnset },
+                    new BeatNoiseMarker { TimeS = segment.StartTimeS + 262.0 / 1000.0, Kind = BeatNoiseMarkerKind.CPeak },
+                    new BeatNoiseMarker { TimeS = segment.StartTimeS + 258.0 / 1000.0, Kind = BeatNoiseMarkerKind.COnset },
+                },
+            },
+        }, new AnalysisTabRenderContext(SampleRate: 48000));
+
+        double[] cMarkerXs = mainPlot.Plot.GetPlottables<VerticalLine>()
+            .Where(line => line.IsVisible && Equals(line.LinePattern, LinePattern.Dotted))
+            .Select(line => Math.Round(line.X, 3))
+            .OrderBy(x => x)
+            .ToArray();
+
+        Assert.Equal(new[] { 9.0, 258.0 }, cMarkerXs);
+    }
+
+    [Fact]
+    public void UseCOnsetTrueShowsOnlyCOnsetMarkerWhenBothCOffsetsExist()
+    {
+        var mainPlot = new AvaPlot();
+        var stripPlot = new AvaPlot();
+        var renderer = new BeatNoiseScopeRenderer(
+            mainPlot, stripPlot, new AvaPlot(), new TextBlock(), new TextBlock(), useCOnset: true);
+        renderer.CreateGraphs();
+
+        var segment = new BeatSegment
+        {
+            Samples = Enumerable.Repeat(0.5f, 80).ToArray(),
+            MsPerPoint = 0.25,
+            PeakValue = 0.5f,
+            CPeakValid = true,
+            CPeakOffsetMs = 12.0,
+            COnsetValid = true,
+            COnsetOffsetMs = 9.0,
+        };
+        renderer.RenderFrame(new AnalysisFrame
+        {
+            BeatSegments = new BeatSegmentsSnapshot
+            {
+                Version = 1,
+                Segments = new[] { segment },
+                Markers = new[]
+                {
+                    new BeatNoiseMarker { TimeS = segment.CPeakOffsetMs / 1000.0, Kind = BeatNoiseMarkerKind.CPeak },
+                },
+            },
+        }, new AnalysisTabRenderContext(SampleRate: 48000));
+
+        double[] mainCMarkerXs = mainPlot.Plot.GetPlottables<VerticalLine>()
+            .Where(line => line.IsVisible && Equals(line.LinePattern, LinePattern.Dotted))
+            .Select(line => line.X)
+            .ToArray();
+        Assert.Equal(new[] { 9.0 }, mainCMarkerXs);
+
+        VerticalLine stripCMarker = stripPlot.Plot.GetPlottables<VerticalLine>()
+            .Single(line => line.IsVisible && Equals(line.LinePattern, LinePattern.Dotted));
+        Assert.InRange(stripCMarker.X, 7.4, 7.5);
+    }
+
+    [Fact]
+    public void SetUseCOnsetTrueRefreshesMainMarkerToCOnsetOffset()
+    {
+        var mainPlot = new AvaPlot();
+        var renderer = new BeatNoiseScopeRenderer(
+            mainPlot, new AvaPlot(), new AvaPlot(), new TextBlock(), new TextBlock(), useCOnset: false);
+        renderer.CreateGraphs();
+
+        var segment = new BeatSegment
+        {
+            Samples = Enumerable.Repeat(0.5f, 80).ToArray(),
+            MsPerPoint = 0.25,
+            PeakValue = 0.5f,
+            CPeakValid = true,
+            CPeakOffsetMs = 12.0,
+            COnsetValid = true,
+            COnsetOffsetMs = 9.0,
+        };
+        renderer.RenderFrame(new AnalysisFrame
+        {
+            BeatSegments = new BeatSegmentsSnapshot
+            {
+                Version = 1,
+                Segments = new[] { segment },
+            },
+        }, new AnalysisTabRenderContext(SampleRate: 48000));
+
+        renderer.SetUseCOnset(true);
+
+        double cMarkerX = mainPlot.Plot.GetPlottables<VerticalLine>()
+            .Single(line => line.IsVisible && Equals(line.LinePattern, LinePattern.Dotted))
+            .X;
+
+        Assert.Equal(9.0, cMarkerX);
+    }
+
+    [Fact]
+    public void MainScopeLegendNamesAAndCMarkerStyles()
+    {
+        var mainPlot = new AvaPlot();
+        var renderer = new BeatNoiseScopeRenderer(
+            mainPlot, new AvaPlot(), new AvaPlot(), new TextBlock(), new TextBlock());
+
+        renderer.CreateGraphs();
+
+        Scatter[] legendEntries = mainPlot.Plot.GetPlottables<Scatter>()
+            .Where(scatter => !string.IsNullOrEmpty(scatter.LegendText))
+            .ToArray();
+        Assert.Contains(legendEntries, scatter => scatter.LegendText == "A marker" && Equals(scatter.LinePattern, LinePattern.Dashed));
+        Assert.Contains(legendEntries, scatter => scatter.LegendText == "C marker" && Equals(scatter.LinePattern, LinePattern.Dotted));
+    }
+
+    [Fact]
     public void AverageModeStripSelectionShowsSelectedEnvelopePairAndTogglesBackToAverage()
     {
         var averagePlot = new AvaPlot();
@@ -279,12 +634,14 @@ public sealed class BeatNoiseScopeRendererTests
             Samples = new float[] { 0.0f, 1.0f, 0.4f, 0.2f },
             MsPerPoint = 0.25,
             StartTimeS = 0.0,
+            IsTic = true,
         };
         var second = new BeatSegment
         {
             Samples = new float[] { 0.0f, 0.2f, 0.8f, 0.1f },
             MsPerPoint = 0.25,
             StartTimeS = 0.5,
+            IsTic = false,
         };
         var frame = new AnalysisFrame
         {
@@ -311,6 +668,100 @@ public sealed class BeatNoiseScopeRendererTests
         Assert.InRange(averagePlot.Plot.Axes.GetLimits().Top, 2.34, 2.36);
         Assert.Empty(LaneValues(renderer, "_lane1Y"));
         Assert.Empty(LaneValues(renderer, "_lane2Y"));
+    }
+
+    [Fact]
+    public void AverageModeStripSelectionStartsPairAtTicPhaseBoundary()
+    {
+        var averagePlot = new AvaPlot();
+        var renderer = new BeatNoiseScopeRenderer(
+            new AvaPlot(), new AvaPlot(), averagePlot, new TextBlock(), new TextBlock());
+        renderer.CreateGraphs();
+
+        var frame = new AnalysisFrame
+        {
+            BeatSegments = new BeatSegmentsSnapshot
+            {
+                Version = 1,
+                Segments = new[]
+                {
+                    new BeatSegment { Samples = new float[] { 0.25f }, MsPerPoint = 0.25, IsTic = false },
+                    new BeatSegment { Samples = new float[] { 1.0f }, MsPerPoint = 0.25, IsTic = true },
+                    new BeatSegment { Samples = new float[] { 0.5f }, MsPerPoint = 0.25, IsTic = false },
+                    new BeatSegment { Samples = new float[] { 0.75f }, MsPerPoint = 0.25, IsTic = true },
+                },
+            },
+        };
+
+        renderer.RenderFrame(frame, new AnalysisTabRenderContext(SampleRate: 48000));
+        renderer.SetViewMode(BeatNoiseScopeViewMode.AverageAndStrip);
+
+        renderer.SelectStripAtFraction(6.5 / BeatNoiseScopeLogic.StripCount);
+
+        Assert.Equal(new[] { 2.2 }, LaneValues(renderer, "_lane1Y"));
+        Assert.Equal(new[] { 0.667 }, LaneValues(renderer, "_lane2Y"));
+    }
+
+    [Fact]
+    public void BeatScope400MsStripSelectionHighlightsTwoSlotPairs()
+    {
+        var stripPlot = new AvaPlot();
+        var renderer = new BeatNoiseScopeRenderer(
+            new AvaPlot(), stripPlot, new AvaPlot(), new TextBlock(), new TextBlock());
+        renderer.CreateGraphs();
+
+        var frame = new AnalysisFrame
+        {
+            BeatSegments = new BeatSegmentsSnapshot
+            {
+                Version = 1,
+                Segments = new[]
+                {
+                    new BeatSegment { Samples = new float[] { 0.25f }, MsPerPoint = 0.25, IsTic = true },
+                    new BeatSegment { Samples = new float[] { 0.5f }, MsPerPoint = 0.25, IsTic = false },
+                    new BeatSegment { Samples = new float[] { 0.75f }, MsPerPoint = 0.25, IsTic = true },
+                    new BeatSegment { Samples = new float[] { 1.0f }, MsPerPoint = 0.25, IsTic = false },
+                },
+            },
+        };
+
+        renderer.RenderFrame(frame, new AnalysisTabRenderContext(SampleRate: 48000));
+        renderer.SetRangeMs(BeatNoiseScopeRenderer.DefaultRangeMs);
+        renderer.SelectStripAtFraction(7.5 / BeatNoiseScopeLogic.StripCount);
+
+        HorizontalSpan selection = stripPlot.Plot.GetPlottables<HorizontalSpan>().Single();
+        Assert.True(selection.IsVisible);
+        Assert.Equal(6.0, selection.X1);
+        Assert.Equal(8.0, selection.X2);
+    }
+
+    [Fact]
+    public void BeatScope200MsStripSelectionHighlightsOneSlot()
+    {
+        var stripPlot = new AvaPlot();
+        var renderer = new BeatNoiseScopeRenderer(
+            new AvaPlot(), stripPlot, new AvaPlot(), new TextBlock(), new TextBlock());
+        renderer.CreateGraphs();
+
+        renderer.RenderFrame(new AnalysisFrame
+        {
+            BeatSegments = new BeatSegmentsSnapshot
+            {
+                Version = 1,
+                Segments = new[]
+                {
+                    new BeatSegment { Samples = new float[] { 0.25f }, MsPerPoint = 0.25, IsTic = true },
+                    new BeatSegment { Samples = new float[] { 0.5f }, MsPerPoint = 0.25, IsTic = false },
+                },
+            },
+        }, new AnalysisTabRenderContext(SampleRate: 48000));
+        renderer.SetRangeMs(200);
+        renderer.SelectStripAtFraction(7.5 / BeatNoiseScopeLogic.StripCount);
+
+        HorizontalSpan selection = stripPlot.Plot.GetPlottables<HorizontalSpan>().Single();
+        Assert.True(selection.IsVisible);
+        Assert.Equal(7.0, selection.X1);
+        Assert.Equal(8.0, selection.X2);
     }
 
     private static double[] LaneValues(BeatNoiseScopeRenderer renderer, string fieldName)
@@ -421,11 +872,48 @@ public sealed class BeatNoiseScopeRendererTests
 
         Text weakSignal = mainPlot.Plot.GetPlottables<Text>()
             .Single(text => text.LabelText == "WEAK SIGNAL");
-        Assert.True(weakSignal.IsVisible);
+        Assert.False(weakSignal.IsVisible);
     }
 
     [Fact]
-    public void MainScopeShowsWeakSignalWhenPeakIsTooLow()
+    public void MainScopeHidesWeakSignalWhenPendingCEventIsVisible()
+    {
+        var mainPlot = new AvaPlot();
+        var renderer = new BeatNoiseScopeRenderer(
+            mainPlot, new AvaPlot(), new AvaPlot(), new TextBlock(), new TextBlock());
+        renderer.CreateGraphs();
+
+        var segment = new BeatSegment
+        {
+            Samples = new float[] { 0.2f, 0.5f },
+            MsPerPoint = 0.25,
+            StartTimeS = 10.0,
+            AOffsetMs = 5.0,
+            PeakValue = 0.5f,
+            CPeakValid = false,
+        };
+        var frame = new AnalysisFrame
+        {
+            BeatSegments = new BeatSegmentsSnapshot
+            {
+                Version = 1,
+                Segments = new[] { segment },
+                Markers = new[]
+                {
+                    new BeatNoiseMarker { TimeS = segment.StartTimeS + 50.0 / 1000.0, Kind = BeatNoiseMarkerKind.CPeak },
+                },
+            },
+        };
+
+        renderer.RenderFrame(frame, new AnalysisTabRenderContext(SampleRate: 48000));
+
+        Text weakSignal = mainPlot.Plot.GetPlottables<Text>()
+            .Single(text => text.LabelText == "WEAK SIGNAL");
+        Assert.False(weakSignal.IsVisible);
+    }
+
+    [Fact]
+    public void MainScopeHidesWeakSignalWhenPeakIsLowButCMarkerIsVisible()
     {
         var mainPlot = new AvaPlot();
         var renderer = new BeatNoiseScopeRenderer(
@@ -456,7 +944,7 @@ public sealed class BeatNoiseScopeRendererTests
 
         Text weakSignal = mainPlot.Plot.GetPlottables<Text>()
             .Single(text => text.LabelText == "WEAK SIGNAL");
-        Assert.True(weakSignal.IsVisible);
+        Assert.False(weakSignal.IsVisible);
     }
 
     [Fact]

@@ -124,6 +124,9 @@ public sealed class BeatSegmentCaptureTests
         Assert.True(segment.COnsetValid);
         Assert.Equal(BeatSegmentCapture.PreEventMs + 49.0, segment.COnsetOffsetMs, 3);
 
+        Assert.Contains(snapshot.Markers, marker => marker.Kind == BeatNoiseMarkerKind.CPeak);
+        Assert.Contains(snapshot.Markers, marker => marker.Kind == BeatNoiseMarkerKind.COnset);
+
         // The planted spikes land in the decimated points at their offsets.
         ReadOnlySpan<float> samples = segment.Samples.Span;
         Assert.Equal(0.9f, samples[(int)(segment.AOffsetMs / BeatSegmentCapture.MsPerPoint)]);

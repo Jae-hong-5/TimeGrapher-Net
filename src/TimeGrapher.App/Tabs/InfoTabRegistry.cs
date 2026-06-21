@@ -23,6 +23,8 @@ internal sealed partial class InfoTabRegistry
 {
     private const double VarioMinimumFontSize = 16.0;
     private const double PositionMinimumFontSize = 14.0;
+    private const string PositionResultColumns = "1.45*,0.9*,1.7*,1.95*,2.0*";
+    private const string ResetAllGraphViewsTooltip = "Reset all graph views";
 
     private delegate InfoTabRegistration InfoTabFactory(
         InfoTabDefinition definition,
@@ -34,6 +36,7 @@ internal sealed partial class InfoTabRegistry
         public required Grid PositionButtonGrid { get; init; }
         public MainWindowViewModel? ViewModel { get; init; }
         public Image? SoundImageControl { get; set; }
+        public GraphViewResetCoordinator ResetViews { get; } = new();
     }
 
     private static readonly IReadOnlyDictionary<InfoTabKind, InfoTabFactory> Factories =
@@ -56,17 +59,23 @@ internal sealed partial class InfoTabRegistry
 
     private readonly IReadOnlyList<InfoTabRegistration> _registrations;
     private readonly IAnalysisFrameConsumer[] _consumers;
+    private readonly GraphViewResetCoordinator _resetViews;
 
-    private InfoTabRegistry(IReadOnlyList<InfoTabRegistration> registrations, Image? soundImageControl)
+    private InfoTabRegistry(
+        IReadOnlyList<InfoTabRegistration> registrations,
+        Image? soundImageControl,
+        GraphViewResetCoordinator resetViews)
     {
         _registrations = registrations;
         _consumers = registrations.Select(registration => registration.Consumer).ToArray();
         SoundImageControl = soundImageControl;
+        _resetViews = resetViews;
     }
 
     public IReadOnlyList<InfoTabRegistration> Registrations => _registrations;
     public IReadOnlyList<IAnalysisFrameConsumer> Consumers => _consumers;
     public Image? SoundImageControl { get; }
+    public GraphViewResetCoordinator ResetViews => _resetViews;
 
     public static InfoTabRegistry FromCatalog(
         TabControl tabControl,
@@ -95,7 +104,7 @@ internal sealed partial class InfoTabRegistry
             tabControl.SelectedIndex = 0;
         }
 
-        return new InfoTabRegistry(registrations, context.SoundImageControl);
+        return new InfoTabRegistry(registrations, context.SoundImageControl, context.ResetViews);
     }
 
     public AnalysisFrameRouter CreateRouter()
@@ -233,6 +242,15 @@ internal sealed partial class InfoTabRegistry
             Name = "ReviewSlider",
             VerticalAlignment = VerticalAlignment.Center,
         };
+        // Compact the slider strip. The Fluent horizontal slider wraps its track in
+        // 15 px top/bottom content-margin rows over a 32 px min height, which dwarfs
+        // the 18 px thumb and leaves wide whitespace above/below the track. Shadow
+        // those resources on the slider itself so the strip is no taller than the
+        // thumb; scoped here (not app-wide) to leave the gain slider's 32 px
+        // control-row height — aligned with its sibling combo boxes — intact.
+        slider.Resources.Add("SliderHorizontalHeight", 18.0);
+        slider.Resources.Add("SliderPreContentMargin", new GridLength(0));
+        slider.Resources.Add("SliderPostContentMargin", new GridLength(0));
         slider.Bind(Layoutable.MarginProperty, new Binding(nameof(MainWindowViewModel.ReviewSliderMargin)));
         slider.Bind(RangeBase.MinimumProperty, new Binding(nameof(MainWindowViewModel.ReviewMinimumS)));
         slider.Bind(RangeBase.MaximumProperty, new Binding(nameof(MainWindowViewModel.ReviewMaximumS)));
@@ -303,9 +321,11 @@ internal sealed partial class InfoTabRegistry
         }
 
         var renderer = new RateScopeRenderer(scopePlot, ratePlot, context.TextFontFamily);
+        context.ResetViews.Register(renderer.ResetRateView);
+        context.ResetViews.Register(renderer.ResetScopeView);
 
-        grid.Children.Add(CreatePinnedResetViewButton("Reset this graph's view", row: 0, renderer.ResetRateView));
-        grid.Children.Add(CreatePinnedResetViewButton("Reset this graph's view", row: 1, renderer.ResetScopeView));
+        grid.Children.Add(CreatePinnedResetViewButton(ResetAllGraphViewsTooltip, row: 0, context.ResetViews.ResetAll));
+        grid.Children.Add(CreatePinnedResetViewButton(ResetAllGraphViewsTooltip, row: 1, context.ResetViews.ResetAll));
 
         var consumer = new RateScopeFrameConsumer(renderer);
         return new InfoTabRegistration(definition, CreateTabItem(definition, grid), consumer);
@@ -341,36 +361,62 @@ internal sealed partial class InfoTabRegistry
 
         Border alertBanner = CreateAlertBanner(out TextBlock alertText);
 
+        var renderer = new TraceDisplayRenderer(ratePlot, amplitudePlot, alertBanner, alertText);
+        context.ResetViews.Register(renderer.ResetView);
 
-        var summaryText = new TextBlock
+        // Top strip (the Long-Term header pattern): the conditional alert banner
+        // holds the left "*" column so it shows and hides in place, and the right
+        // column carries the Smoothing toggle followed by Reset View. The
+        // always-present buttons fix the strip's height, so the plots below no
+        // longer shift up and down as the banner appears and clears.
+        Button smoothingButton = CreateTraceSmoothingButton(renderer);
+        // Reset View sized to match the Smoothing button (same height/font/padding
+        // and the shared button style) so the pair reads as one control group.
+        Button resetViewButton = CreateOverlayButton(
+            "Reset View", ResetAllGraphViewsTooltip, context.ResetViews.ResetAll);
+        resetViewButton.MinHeight = TraceHeaderButtonMinHeight;
+        resetViewButton.FontSize = TraceHeaderButtonFontSize;
+        resetViewButton.Padding = TraceHeaderButtonPadding;
+        resetViewButton.VerticalAlignment = VerticalAlignment.Center;
+        resetViewButton.Classes.Add("PositionButton");
+        var headerButtons = new StackPanel
         {
-            FontSize = 12,
-            Margin = new Thickness(8, 2),
+            Orientation = Orientation.Horizontal,
+            Spacing = 6,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Center,
         };
-        var explanationText = new TextBlock
-        {
-            FontSize = 11,
-            Opacity = 0.65,
-            Margin = new Thickness(8, 0, 8, 3),
-            TextWrapping = Avalonia.Media.TextWrapping.Wrap,
-            Text = "Error Rate: above 0 = gaining, below 0 = losing; flat = stable. " +
-                   "Amplitude: shaded band marks the healthy 270–300° range.",
-        };
+        headerButtons.Children.Add(smoothingButton);
+        headerButtons.Children.Add(resetViewButton);
 
+        // Keep a gap to the left of the buttons so the conditional alert banner
+        // never butts up against Smoothing when it appears.
+        alertBanner.VerticalAlignment = VerticalAlignment.Center;
+        alertBanner.Margin = new Thickness(0, 0, 8, 0);
+        var headerStrip = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions("*,Auto"),
+            Margin = new Thickness(8, 1, 8, 2),
+        };
+        Grid.SetColumn(alertBanner, 0);
+        Grid.SetColumn(headerButtons, 1);
+        headerStrip.Children.Add(alertBanner);
+        headerStrip.Children.Add(headerButtons);
+
+        // The amplitude (bottom) pane shows the shared time axis while the rate
+        // (top) pane hides its X axis (the Long-Term pattern), so the amplitude row
+        // is enlarged to keep both DATA areas the same height. Tuned for the
+        // 1280x750 design size.
         var grid = new Grid
         {
-            RowDefinitions = new RowDefinitions("Auto,*,*,Auto,Auto"),
+            RowDefinitions = new RowDefinitions("Auto,*,1.11*"),
         };
-        Grid.SetRow(alertBanner, 0);
+        Grid.SetRow(headerStrip, 0);
         Grid.SetRow(ratePlot, 1);
         Grid.SetRow(amplitudePlot, 2);
-        Grid.SetRow(summaryText, 3);
-        Grid.SetRow(explanationText, 4);
-        grid.Children.Add(alertBanner);
+        grid.Children.Add(headerStrip);
         grid.Children.Add(ratePlot);
         grid.Children.Add(amplitudePlot);
-        grid.Children.Add(summaryText);
-        grid.Children.Add(explanationText);
 
         if (CreateWaitingOverlay(context.ViewModel) is { } overlay)
         {
@@ -378,12 +424,51 @@ internal sealed partial class InfoTabRegistry
             grid.Children.Add(overlay);
         }
 
-        var renderer = new TraceDisplayRenderer(ratePlot, amplitudePlot, alertBanner, alertText, summaryText);
-
-        grid.Children.Add(CreatePinnedResetViewButton("Re-enable live auto-scaling on both graphs", row: 1, renderer.ResetView));
-
         var consumer = new TraceDisplayFrameConsumer(renderer);
         return new InfoTabRegistration(definition, CreateTabItem(definition, grid), consumer);
+    }
+
+    // Shared dimensions for the Trace header buttons so Smoothing and Reset View
+    // stay the same size as one matched control group.
+    private const double TraceHeaderButtonMinHeight = 30;
+    private const double TraceHeaderButtonFontSize = 12;
+    private static readonly Thickness TraceHeaderButtonPadding = new(10, 2, 10, 2);
+
+    /// <summary>
+    /// Smoothing toggle for the Trace tab, styled like the Long-Term header
+    /// buttons: clicking flips spline (smooth-curve) rendering of both traces and
+    /// reflects the state with the shared active-button accent.
+    /// </summary>
+    private static Button CreateTraceSmoothingButton(TraceDisplayRenderer renderer)
+    {
+        const string activeClass = "active";
+        var button = new Button
+        {
+            Content = "Smoothing",
+            MinHeight = TraceHeaderButtonMinHeight,
+            Padding = TraceHeaderButtonPadding,
+            FontSize = TraceHeaderButtonFontSize,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        button.Classes.Add("PositionButton");
+        ToolTip.SetTip(button, "Draw the rate and amplitude traces as smooth spline curves");
+
+        bool smoothing = false;
+        button.Click += (_, _) =>
+        {
+            smoothing = !smoothing;
+            renderer.SetSmoothing(smoothing);
+            if (smoothing)
+            {
+                button.Classes.Add(activeClass);
+            }
+            else
+            {
+                button.Classes.Remove(activeClass);
+            }
+        };
+        return button;
     }
 
     private static InfoTabRegistration CreateScopeSweepRegistration(
@@ -466,10 +551,11 @@ internal sealed partial class InfoTabRegistry
         }
 
         var renderer = new ScopeSweepRenderer(sweepPlot, referenceText, context.TextFontFamily);
+        context.ResetViews.Register(renderer.ResetView);
         // Reset View sits top-left so it never collides with the 1x/2x/3x
         // selector pinned top-right.
         Button resetView = CreateOverlayButton(
-            "Reset View", "Re-enable live auto-fitting of the sweep window", renderer.ResetView);
+            "Reset View", ResetAllGraphViewsTooltip, context.ResetViews.ResetAll);
         resetView.HorizontalAlignment = HorizontalAlignment.Left;
         resetView.VerticalAlignment = VerticalAlignment.Top;
         resetView.Margin = new Thickness(10, 6, 0, 0);
@@ -886,8 +972,9 @@ internal sealed partial class InfoTabRegistry
         }
 
         var renderer = new BeatErrorDiagRenderer(tracePlot, alertBanner, alertText, valueTexts);
+        context.ResetViews.Register(renderer.ResetView);
 
-        grid.Children.Add(CreatePinnedResetViewButton("Reset the trace view to its configured limits", row: 2, renderer.ResetView));
+        grid.Children.Add(CreatePinnedResetViewButton(ResetAllGraphViewsTooltip, row: 2, context.ResetViews.ResetAll));
 
         var consumer = new BeatErrorDiagFrameConsumer(renderer);
         return new InfoTabRegistration(definition, CreateTabItem(definition, grid), consumer);
@@ -901,7 +988,6 @@ internal sealed partial class InfoTabRegistry
         // F2/F3 below — each under its one-line description, so the filter views
         // compare at a glance with more width per plot than a single stack. The
         // raw waveform shows before beat sync, so no waiting overlay is added.
-        _ = context;
         IReadOnlyList<MultiFilterScopeLane> lanes = MultiFilterScopeLanes.All;
         const int columns = 2;
         int rowPairs = (lanes.Count + columns - 1) / columns;
@@ -934,8 +1020,9 @@ internal sealed partial class InfoTabRegistry
         }
 
         var renderer = new MultiFilterScopeRenderer(plots);
+        context.ResetViews.Register(renderer.ResetView);
         Button resetButton = CreatePinnedResetViewButton(
-            "Re-enable live windowing on all four lanes", row: 1, renderer.ResetView);
+            ResetAllGraphViewsTooltip, row: 1, context.ResetViews.ResetAll);
         Grid.SetColumnSpan(resetButton, columns); // pin to the top-right of the whole grid
         grid.Children.Add(resetButton);
 
@@ -983,15 +1070,17 @@ internal sealed partial class InfoTabRegistry
         InfoTabDefinition definition,
         InfoTabFactoryContext context)
     {
-        // Three stacked panes over compact 24-hour summary/navigation chrome.
-        // The top strip is touch-friendly for Raspberry Pi use, while the old
-        // explanatory legend is folded into the graph styling and quiet footer so
-        // the plots keep as much vertical room as possible.
+        // Three stacked panes over compact 24-hour summary/navigation chrome, with
+        // a review bar at the bottom. The top strip is touch-friendly for Raspberry
+        // Pi use, while the old explanatory legend is folded into the graph styling
+        // so the plots keep as much vertical room as possible.
         var ratePlot = new AvaPlot();
         var amplitudePlot = new AvaPlot();
         var beatErrorPlot = new AvaPlot();
+        // Equal vertical margin total (-8) on every pane so their control heights
+        // match; the middle pane previously carried -16 and rendered ~8 px taller.
         ratePlot.Margin = new Thickness(0, 0, 0, -8);
-        amplitudePlot.Margin = new Thickness(0, -8, 0, -8);
+        amplitudePlot.Margin = new Thickness(0, -4, 0, -4);
         beatErrorPlot.Margin = new Thickness(0, -8, 0, 0);
 
         TextBlock SummaryValue(string text, double fontSize = 14) => new()
@@ -1025,19 +1114,12 @@ internal sealed partial class InfoTabRegistry
             amplitudeText,
             beatErrorText);
 
-        var footerText = new TextBlock
-        {
-            FontSize = 12,
-            Margin = new Thickness(8, 0, 8, 2),
-            Opacity = 0.82,
-        };
-
         var renderer = new LongTermPerfRenderer(
             ratePlot,
             amplitudePlot,
             beatErrorPlot,
-            footerText,
             summaryControls);
+        context.ResetViews.Register(renderer.ResetView);
 
         const string windowActiveClass = "active";
         var windowButtons = new List<(Button Button, double Seconds)>();
@@ -1107,12 +1189,16 @@ internal sealed partial class InfoTabRegistry
         headerGrid.Children.Add(summaryRow);
         headerGrid.Children.Add(navigation);
 
+        // The beat-error pane shows the shared time axis (~41 px taller axis panel
+        // than the two upper panes, whose X axis is hidden), so its row is enlarged
+        // to keep all three DATA areas the same height. Tuned for the 1280x750
+        // design size; a large window resize drifts it by a few px.
         var grid = new Grid
         {
-            RowDefinitions = new RowDefinitions("Auto,*,*,*,Auto,Auto"),
+            RowDefinitions = new RowDefinitions("Auto,*,*,1.22*,Auto"),
         };
         Border reviewBar = CreateLongTermReviewBar();
-        Control[] rows = { headerGrid, ratePlot, amplitudePlot, beatErrorPlot, footerText, reviewBar };
+        Control[] rows = { headerGrid, ratePlot, amplitudePlot, beatErrorPlot, reviewBar };
         for (int i = 0; i < rows.Length; i++)
         {
             Grid.SetRow(rows[i], i);
@@ -1171,7 +1257,7 @@ internal sealed partial class InfoTabRegistry
             };
             ToolTip.SetTip(button, $"Tag new measurements as {position.ShortName()} - {position.LongName()}");
             Grid.SetRow(button, i);
-            buttons[i] = button;
+            buttons[(int)position] = button;
             buttonGrid.Children.Add(button);
         }
 
@@ -1189,20 +1275,6 @@ internal sealed partial class InfoTabRegistry
         ToolTip.SetTip(diagram, "Active watch position orientation");
         var positionRenderer = new WatchPositionsRenderer(buttons, diagram, initialPosition);
 
-        for (int i = 0; i < buttons.Length; i++)
-        {
-            var position = (WatchPosition)i;
-            buttons[i].Click += (_, _) =>
-            {
-                if (context.ViewModel is { } viewModel)
-                {
-                    viewModel.SelectedPositionIndex = (int)position;
-                }
-
-                positionRenderer.RequestPosition(position);
-            };
-        }
-
         Border alertBanner = CreateAlertBanner(out TextBlock alertText);
 
         var tableGrid = new Grid
@@ -1216,31 +1288,53 @@ internal sealed partial class InfoTabRegistry
             diagram,
             out TextBlock activePositionText,
             out TextBlock activeOrientationText);
-        Grid positionMap = CreatePositionMap(out IReadOnlyList<PositionMapTileControls> positionMapTiles);
         Border resultPanel = CreatePositionResultPanel(
             out Border consistencyBadge,
             out TextBlock consistencyVerdictText,
             out TextBlock consistencyDetailText,
-            out TextBlock consistencyGuideText,
+            out TextBlock spreadStatusText,
+            out TextBlock balanceStatusText,
+            out TextBlock verticalHorizontalStatusText,
+            out TextBlock averageStatusText,
+            out TextBlock spreadRequirementText,
+            out TextBlock balanceRequirementText,
+            out TextBlock verticalHorizontalRequirementText,
+            out TextBlock averageRequirementText,
+            out TextBlock spreadReadyText,
+            out TextBlock balanceReadyText,
+            out TextBlock verticalHorizontalReadyText,
+            out TextBlock averageReadyText,
             out TextBlock averageRateText,
             out TextBlock averageAmplitudeText,
             out TextBlock spreadRateText,
             out TextBlock spreadAmplitudeText,
+            out TextBlock balanceWheelSpreadText,
             out TextBlock verticalRateText,
             out TextBlock horizontalRateText,
             out TextBlock verticalHorizontalDeltaText);
         var dashboardControls = new PositionSequenceDashboardControls(
             activePositionText,
             activeOrientationText,
-            positionMapTiles,
             consistencyBadge,
             consistencyVerdictText,
             consistencyDetailText,
-            consistencyGuideText,
+            spreadStatusText,
+            balanceStatusText,
+            verticalHorizontalStatusText,
+            averageStatusText,
+            spreadRequirementText,
+            balanceRequirementText,
+            verticalHorizontalRequirementText,
+            averageRequirementText,
+            spreadReadyText,
+            balanceReadyText,
+            verticalHorizontalReadyText,
+            averageReadyText,
             averageRateText,
             averageAmplitudeText,
             spreadRateText,
             spreadAmplitudeText,
+            balanceWheelSpreadText,
             verticalRateText,
             horizontalRateText,
             verticalHorizontalDeltaText);
@@ -1249,6 +1343,7 @@ internal sealed partial class InfoTabRegistry
         {
             ColumnDefinitions = new ColumnDefinitions("276,*"),
             RowDefinitions = new RowDefinitions("*"),
+            MaxHeight = 366,
         };
         Grid.SetColumn(activePanel, 0);
         Grid.SetColumn(tableGrid, 1);
@@ -1257,22 +1352,20 @@ internal sealed partial class InfoTabRegistry
 
         var sequenceGrid = new Grid
         {
-            RowDefinitions = new RowDefinitions("Auto,Auto,Auto,Auto"),
+            RowDefinitions = new RowDefinitions("Auto,Auto,Auto"),
             Margin = new Thickness(4, 4, 8, 4),
         };
         Grid.SetRow(alertBanner, 0);
         Grid.SetRow(topGrid, 1);
-        Grid.SetRow(positionMap, 2);
-        Grid.SetRow(resultPanel, 3);
+        Grid.SetRow(resultPanel, 2);
         sequenceGrid.Children.Add(alertBanner);
         sequenceGrid.Children.Add(topGrid);
-        sequenceGrid.Children.Add(positionMap);
         sequenceGrid.Children.Add(resultPanel);
 
         if (CreateWaitingOverlay(context.ViewModel) is { } overlay)
         {
             Grid.SetRow(overlay, 1);
-            Grid.SetRowSpan(overlay, 4);
+            Grid.SetRowSpan(overlay, 3);
             sequenceGrid.Children.Add(overlay);
         }
 
@@ -1282,6 +1375,21 @@ internal sealed partial class InfoTabRegistry
             alertText,
             dashboardControls,
             initialPosition);
+        for (int i = 0; i < buttons.Length; i++)
+        {
+            var position = (WatchPosition)i;
+            buttons[i].Click += (_, _) =>
+            {
+                if (context.ViewModel is { } viewModel)
+                {
+                    viewModel.SelectedPositionIndex = (int)position;
+                }
+
+                positionRenderer.RequestPosition(position);
+                sequenceRenderer.RequestPosition(position);
+            };
+        }
+
         var consumer = new WatchPositionsFrameConsumer(positionRenderer, sequenceRenderer);
         return new InfoTabRegistration(definition, CreateTabItem(definition, sequenceGrid), consumer);
     }
@@ -1325,82 +1433,27 @@ internal sealed partial class InfoTabRegistry
         };
     }
 
-    private static Grid CreatePositionMap(out IReadOnlyList<PositionMapTileControls> positionMapTiles)
-    {
-        var tiles = new List<PositionMapTileControls>(WatchPositions.Count);
-        var tileGrid = new Grid
-        {
-            ColumnDefinitions = new ColumnDefinitions("*,*,*,*,*"),
-            RowDefinitions = new RowDefinitions("50,50"),
-            VerticalAlignment = VerticalAlignment.Top,
-        };
-
-        IReadOnlyList<WatchPosition> positions = WatchPositions.All;
-        for (int i = 0; i < positions.Count; i++)
-        {
-            WatchPosition position = positions[i];
-            var tile = new Border
-            {
-                Classes = { "PositionMapTile" },
-                Margin = new Thickness(4, 2),
-                Padding = new Thickness(8, 3),
-                Height = 46,
-                ClipToBounds = true,
-                Child = new StackPanel
-                {
-                    Spacing = 1,
-                    Children =
-                    {
-                        new TextBlock
-                        {
-                            Text = position.ShortName(),
-                            FontSize = 16,
-                            HorizontalAlignment = HorizontalAlignment.Center,
-                            TextAlignment = TextAlignment.Center,
-                        },
-                        new TextBlock
-                        {
-                            Text = position.LongName(),
-                            FontSize = PositionMinimumFontSize,
-                            Opacity = 0.82,
-                            HorizontalAlignment = HorizontalAlignment.Center,
-                            TextAlignment = TextAlignment.Center,
-                            TextWrapping = Avalonia.Media.TextWrapping.Wrap,
-                        },
-                    },
-                },
-            };
-            ToolTip.SetTip(tile, position.LongName());
-            Grid.SetColumn(tile, i % 5);
-            Grid.SetRow(tile, i / 5);
-            tileGrid.Children.Add(tile);
-            tiles.Add(new PositionMapTileControls(position, tile));
-        }
-
-        var map = new Grid
-        {
-            RowDefinitions = new RowDefinitions("Auto,*"),
-            Margin = new Thickness(4, 4, 0, 2),
-        };
-        TextBlock header = CreatePositionSectionHeader("POSITION MAP");
-        Grid.SetRow(header, 0);
-        Grid.SetRow(tileGrid, 1);
-        map.Children.Add(header);
-        map.Children.Add(tileGrid);
-
-        positionMapTiles = tiles;
-        return map;
-    }
-
     private static Border CreatePositionResultPanel(
         out Border consistencyBadge,
         out TextBlock consistencyVerdictText,
         out TextBlock consistencyDetailText,
-        out TextBlock consistencyGuideText,
+        out TextBlock spreadStatusText,
+        out TextBlock balanceStatusText,
+        out TextBlock verticalHorizontalStatusText,
+        out TextBlock averageStatusText,
+        out TextBlock spreadRequirementText,
+        out TextBlock balanceRequirementText,
+        out TextBlock verticalHorizontalRequirementText,
+        out TextBlock averageRequirementText,
+        out TextBlock spreadReadyText,
+        out TextBlock balanceReadyText,
+        out TextBlock verticalHorizontalReadyText,
+        out TextBlock averageReadyText,
         out TextBlock averageRateText,
         out TextBlock averageAmplitudeText,
         out TextBlock spreadRateText,
         out TextBlock spreadAmplitudeText,
+        out TextBlock balanceWheelSpreadText,
         out TextBlock verticalRateText,
         out TextBlock horizontalRateText,
         out TextBlock verticalHorizontalDeltaText)
@@ -1409,12 +1462,13 @@ internal sealed partial class InfoTabRegistry
         averageAmplitudeText = CreatePositionSummaryValue();
         spreadRateText = CreatePositionSummaryValue();
         spreadAmplitudeText = CreatePositionSummaryValue();
+        balanceWheelSpreadText = CreatePositionSummaryValue();
         verticalRateText = CreatePositionSummaryValue();
         horizontalRateText = CreatePositionSummaryValue();
         verticalHorizontalDeltaText = CreatePositionSummaryValue();
         consistencyVerdictText = new TextBlock
         {
-            FontSize = 22,
+            FontSize = 20,
             FontWeight = FontWeight.Bold,
             HorizontalAlignment = HorizontalAlignment.Center,
             TextAlignment = TextAlignment.Center,
@@ -1430,18 +1484,9 @@ internal sealed partial class InfoTabRegistry
         {
             Classes = { "PositionResultBadge" },
             MinWidth = 136,
-            Padding = new Thickness(16, 5),
+            Padding = new Thickness(14, 4),
             Child = consistencyVerdictText,
         };
-        consistencyGuideText = new TextBlock
-        {
-            FontSize = PositionMinimumFontSize,
-            FontWeight = FontWeight.Bold,
-            Opacity = 0.9,
-            TextWrapping = TextWrapping.Wrap,
-            Margin = new Thickness(0, 0, 0, 4),
-        };
-
         var criteriaButton = new Button
         {
             Content = "View criteria ▾",
@@ -1461,8 +1506,8 @@ internal sealed partial class InfoTabRegistry
 
         var header = new Grid
         {
-            ColumnDefinitions = new ColumnDefinitions("220,*,Auto,Auto"),
-            Margin = new Thickness(0, 0, 0, 6),
+            ColumnDefinitions = new ColumnDefinitions("210,*,Auto,Auto"),
+            Margin = new Thickness(0, 0, 0, 4),
         };
         var title = new TextBlock
         {
@@ -1481,100 +1526,209 @@ internal sealed partial class InfoTabRegistry
         header.Children.Add(criteriaButton);
         header.Children.Add(consistencyBadge);
 
-        var metrics = new Grid
-        {
-            ColumnDefinitions = new ColumnDefinitions("*,*,*"),
-            Margin = new Thickness(0, 0, 0, 4),
-        };
-        Border spreadGroup = CreatePositionResultGroup(
+        spreadStatusText = CreatePositionStatusText();
+        balanceStatusText = CreatePositionStatusText();
+        verticalHorizontalStatusText = CreatePositionStatusText();
+        averageStatusText = CreatePositionStatusText("REFERENCE");
+
+        var metrics = CreatePositionResultTable();
+        AddPositionResultTableHeader(metrics);
+        Border spreadGroup = CreatePositionResultRow(
             "D SPREAD",
-            "Worst - best across positions.",
+            "Best-to-worst position gap",
+            spreadStatusText,
+            out spreadRequirementText,
+            out spreadReadyText,
             ("Error Rate", spreadRateText),
             ("Amplitude", spreadAmplitudeText));
-        Border vhGroup = CreatePositionResultGroup(
+        Border balanceGroup = CreatePositionResultRow(
+            "BALANCE-WHEEL",
+            "Spread among vertical positions",
+            balanceStatusText,
+            out balanceRequirementText,
+            out balanceReadyText,
+            ("VERT SPREAD", balanceWheelSpreadText));
+        Border vhGroup = CreatePositionResultRow(
             "V/H BALANCE",
-            "Vertical mean - horizontal mean.",
+            "Vertical vs. horizontal bias",
+            verticalHorizontalStatusText,
+            out verticalHorizontalRequirementText,
+            out verticalHorizontalReadyText,
             ("VERT", verticalRateText),
             ("HORIZ", horizontalRateText),
             ("DVH", verticalHorizontalDeltaText));
-        Border averageGroup = CreatePositionResultGroup(
+        Border averageGroup = CreatePositionResultRow(
             "X AVERAGE",
-            "Mean of measured positions.",
+            "Average of measured positions",
+            averageStatusText,
+            out averageRequirementText,
+            out averageReadyText,
             ("Error Rate", averageRateText),
             ("Amplitude", averageAmplitudeText));
+        averageRequirementText.Text = "any measured position";
+        averageReadyText.Text = "None";
         spreadGroup.Classes.Add("primary");
+        balanceGroup.Classes.Add("primary");
         vhGroup.Classes.Add("primary");
 
-        Grid.SetColumn(spreadGroup, 0);
-        Grid.SetColumn(vhGroup, 1);
-        Grid.SetColumn(averageGroup, 2);
+        AddPositionResultRow(metrics, spreadGroup, rowIndex: 1);
+        AddPositionResultRow(metrics, balanceGroup, rowIndex: 2);
+        AddPositionResultRow(metrics, vhGroup, rowIndex: 3);
+        AddPositionResultRow(metrics, averageGroup, rowIndex: 4);
         metrics.Children.Add(spreadGroup);
+        metrics.Children.Add(balanceGroup);
         metrics.Children.Add(vhGroup);
         metrics.Children.Add(averageGroup);
 
-        var explanationText = new TextBlock
-        {
-            FontSize = PositionMinimumFontSize,
-            Opacity = 0.9,
-            TextWrapping = TextWrapping.Wrap,
-            Text = "Verdict starts at 3 positions with 30+ beats. Later qualified positions update the result.",
-        };
-
         var panelGrid = new Grid
         {
-            RowDefinitions = new RowDefinitions("Auto,Auto,Auto,Auto"),
+            RowDefinitions = new RowDefinitions("Auto,Auto"),
         };
         Grid.SetRow(header, 0);
-        Grid.SetRow(consistencyGuideText, 1);
-        Grid.SetRow(metrics, 2);
-        Grid.SetRow(explanationText, 3);
+        Grid.SetRow(metrics, 1);
         panelGrid.Children.Add(header);
-        panelGrid.Children.Add(consistencyGuideText);
         panelGrid.Children.Add(metrics);
-        panelGrid.Children.Add(explanationText);
 
         return new Border
         {
             Classes = { "PositionResultPanel" },
-            Padding = new Thickness(16, 8),
-            Margin = new Thickness(4, 2, 8, 2),
+            Padding = new Thickness(12, 6),
+            Margin = new Thickness(4, 18, 8, 2),
             Child = panelGrid,
         };
     }
 
-    private static Border CreatePositionResultGroup(
+    private static Grid CreatePositionResultTable()
+    {
+        var table = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions(PositionResultColumns),
+            RowDefinitions = new RowDefinitions("Auto,Auto,Auto,Auto,Auto"),
+            Margin = new Thickness(0),
+        };
+        return table;
+    }
+
+    private static void AddPositionResultTableHeader(Grid table)
+    {
+        string[] headers = { "METRIC", "STATUS", "NEED POSITION", "READY POSITION", "READING" };
+        for (int column = 0; column < headers.Length; column++)
+        {
+            var text = new TextBlock
+            {
+                Text = headers[column],
+                FontSize = PositionMinimumFontSize,
+                FontWeight = FontWeight.Bold,
+                Opacity = 0.65,
+                Margin = new Thickness(8, 0, 8, 3),
+            };
+            Grid.SetRow(text, 0);
+            Grid.SetColumn(text, column);
+            table.Children.Add(text);
+        }
+    }
+
+    private static void AddPositionResultRow(Grid table, Border row, int rowIndex)
+    {
+        Grid.SetRow(row, rowIndex);
+        Grid.SetColumnSpan(row, 5);
+    }
+
+    private static TextBlock CreatePositionStatusText(string initialText = "COLLECTING") => new()
+    {
+        Text = initialText,
+        FontSize = PositionMinimumFontSize,
+        FontWeight = FontWeight.Bold,
+        Opacity = 0.9,
+        TextWrapping = TextWrapping.Wrap,
+        VerticalAlignment = VerticalAlignment.Center,
+    };
+
+    private static Border CreatePositionResultRow(
         string title,
         string description,
+        TextBlock statusText,
+        out TextBlock requirementText,
+        out TextBlock readyText,
         params (string Label, TextBlock Value)[] metrics)
     {
-        var stack = new StackPanel { Spacing = 2 };
-        stack.Children.Add(new TextBlock
+        var row = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions(PositionResultColumns),
+        };
+
+        var metricStack = new StackPanel
+        {
+            Spacing = 0,
+            Margin = new Thickness(8, 3, 8, 3),
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        var titleText = new TextBlock
         {
             Text = title,
             FontSize = 15,
             Opacity = 0.9,
-            HorizontalAlignment = HorizontalAlignment.Center,
-            TextAlignment = TextAlignment.Center,
-        });
-        stack.Children.Add(new TextBlock
+            FontWeight = FontWeight.Bold,
+            TextWrapping = TextWrapping.Wrap,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        metricStack.Children.Add(titleText);
+        var descriptionText = new TextBlock
         {
             Text = description,
             FontSize = PositionMinimumFontSize,
-            Opacity = 0.76,
-            TextAlignment = TextAlignment.Center,
+            Opacity = 0.55,
             TextWrapping = TextWrapping.Wrap,
-        });
+            Margin = new Thickness(0, 1, 0, 0),
+        };
+        metricStack.Children.Add(descriptionText);
+        requirementText = new TextBlock
+        {
+            FontSize = PositionMinimumFontSize,
+            Opacity = 0.9,
+            TextWrapping = TextWrapping.Wrap,
+            Margin = new Thickness(8, 3, 8, 3),
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        readyText = new TextBlock
+        {
+            FontSize = PositionMinimumFontSize,
+            FontWeight = FontWeight.Bold,
+            Opacity = 0.9,
+            TextWrapping = TextWrapping.Wrap,
+            Margin = new Thickness(8, 3, 8, 3),
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        statusText.Margin = new Thickness(8, 3, 8, 3);
+
+        var readingStack = new StackPanel
+        {
+            Spacing = 0,
+            Margin = new Thickness(8, 3, 8, 3),
+            VerticalAlignment = VerticalAlignment.Center,
+        };
         foreach ((string label, TextBlock value) in metrics)
         {
-            stack.Children.Add(CreatePositionMetricRow(label, value));
+            readingStack.Children.Add(CreatePositionMetricRow(label, value));
         }
+
+        Grid.SetColumn(metricStack, 0);
+        Grid.SetColumn(statusText, 1);
+        Grid.SetColumn(requirementText, 2);
+        Grid.SetColumn(readyText, 3);
+        Grid.SetColumn(readingStack, 4);
+        row.Children.Add(metricStack);
+        row.Children.Add(statusText);
+        row.Children.Add(requirementText);
+        row.Children.Add(readyText);
+        row.Children.Add(readingStack);
 
         return new Border
         {
             Classes = { "PositionResultGroup" },
-            Padding = new Thickness(12, 5),
-            Margin = new Thickness(0, 0, 12, 0),
-            Child = stack,
+            Padding = new Thickness(0),
+            Margin = new Thickness(0, 0, 0, 2),
+            Child = row,
         };
     }
 
@@ -1582,7 +1736,7 @@ internal sealed partial class InfoTabRegistry
     {
         var row = new Grid
         {
-            ColumnDefinitions = new ColumnDefinitions("112,*"),
+            ColumnDefinitions = new ColumnDefinitions("*,78"),
         };
         var labelText = new TextBlock
         {
@@ -1591,6 +1745,7 @@ internal sealed partial class InfoTabRegistry
             Opacity = 0.78,
             VerticalAlignment = VerticalAlignment.Center,
             Margin = new Thickness(0, 0, 8, 0),
+            TextTrimming = TextTrimming.CharacterEllipsis,
         };
         Grid.SetColumn(labelText, 0);
         Grid.SetColumn(value, 1);
@@ -1664,10 +1819,12 @@ internal sealed partial class InfoTabRegistry
 
     private static TextBlock CreatePositionSummaryValue() => new()
     {
-        FontSize = 22,
+        FontSize = 16,
         FontWeight = FontWeight.Bold,
+        MinWidth = 78,
         HorizontalAlignment = HorizontalAlignment.Right,
         TextAlignment = TextAlignment.Right,
+        VerticalAlignment = VerticalAlignment.Center,
     };
 
     private static InfoTabRegistration CreateBeatNoiseScopeRegistration(
@@ -1697,7 +1854,23 @@ internal sealed partial class InfoTabRegistry
             Margin = new Thickness(8, 2),
         };
 
-        var renderer = new BeatNoiseScopeRenderer(mainPlot, stripPlot, averagePlot, liftText, averageText);
+        var renderer = new BeatNoiseScopeRenderer(
+            mainPlot,
+            stripPlot,
+            averagePlot,
+            liftText,
+            averageText,
+            context.ViewModel?.UseCOnset == true);
+        if (context.ViewModel is { } beatNoiseViewModel)
+        {
+            beatNoiseViewModel.PropertyChanged += (_, args) =>
+            {
+                if (args.PropertyName == nameof(MainWindowViewModel.UseCOnset))
+                {
+                    renderer.SetUseCOnset(beatNoiseViewModel.UseCOnset);
+                }
+            };
+        }
 
         var toolbar = new StackPanel
         {
@@ -1925,28 +2098,15 @@ internal sealed partial class InfoTabRegistry
             Margin = new Thickness(8, 4, 8, 2),
         };
         var lanePlot = new AvaPlot();
-        var explanationText = new TextBlock
-        {
-            FontSize = 11,
-            Opacity = 0.65,
-            Margin = new Thickness(8, 0, 8, 3),
-            TextWrapping = Avalonia.Media.TextWrapping.Wrap,
-            Text = "Each lane is one recent beat (oldest at the bottom), normalized to its own " +
-                   "peak and aligned at the A event (x = 0). Green guide = A · red guide = mean " +
-                   "C peak of the shown beats; beats whose C strays from the guide reveal " +
-                   "spacing inconsistency.",
-        };
 
         var grid = new Grid
         {
-            RowDefinitions = new RowDefinitions("Auto,*,Auto"),
+            RowDefinitions = new RowDefinitions("Auto,*"),
         };
         Grid.SetRow(headerText, 0);
         Grid.SetRow(lanePlot, 1);
-        Grid.SetRow(explanationText, 2);
         grid.Children.Add(headerText);
         grid.Children.Add(lanePlot);
-        grid.Children.Add(explanationText);
 
         if (CreateWaitingOverlay(context.ViewModel) is { } overlay)
         {

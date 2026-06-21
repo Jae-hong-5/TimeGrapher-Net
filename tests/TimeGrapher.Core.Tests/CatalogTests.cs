@@ -10,8 +10,9 @@ public sealed class CatalogTests
     public void ManualAutoBphAddsAutoEntryBeforeManualRates()
     {
         Assert.Equal(0, BphCatalog.ManualAutoBph[0]);
-        Assert.Equal(BphCatalog.ManualBph.Count + 1, BphCatalog.ManualAutoBph.Count);
-        Assert.Equal(BphCatalog.ManualBph[0], BphCatalog.ManualAutoBph[1]);
+        // Assert the FULL manual sequence follows the auto sentinel in order; a
+        // prefix/contains check would miss a dropped or reordered later rate.
+        Assert.Equal(BphCatalog.ManualBph, BphCatalog.ManualAutoBph.Skip(1));
     }
 
     [Fact]
@@ -25,9 +26,8 @@ public sealed class CatalogTests
     public void StandardSampleRatesAreSharedByPlaybackAndCapture()
     {
         Assert.Equal(new[] { 48000, 96000, 192000 }, AudioSampleRates.Standard);
-        foreach (int rate in AudioSampleRates.Standard)
-        {
-            Assert.Contains(rate, AudioSampleRates.StandardSet);
-        }
+        // Full set equality (not just membership) so the derived set cannot carry
+        // an extra rate or drop one relative to the shared standard list.
+        Assert.True(AudioSampleRates.StandardSet.SetEquals(AudioSampleRates.Standard));
     }
 }

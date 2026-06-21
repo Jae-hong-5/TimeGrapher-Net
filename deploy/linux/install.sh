@@ -55,12 +55,15 @@ if [ "$INSTALL_DEPS" -eq 1 ]; then
   if command -v apt-get >/dev/null 2>&1; then
     SUDO=""
     if [ "$(id -u)" -ne 0 ]; then SUDO="sudo"; fi
-    echo "==> Installing runtime libraries (X11, fontconfig, XWayland)..."
+    echo "==> Installing runtime libraries (X11, fontconfig, XWayland, live-audio CLI)..."
     $SUDO apt-get update
-    $SUDO apt-get install -y libx11-6 libice6 libsm6 libfontconfig1 xwayland
+    $SUDO apt-get install -y libx11-6 libice6 libsm6 libfontconfig1 xwayland \
+      pipewire pipewire-bin wireplumber alsa-utils
   else
     echo "==> apt-get not found; skipping dependency install."
     echo "    Install the equivalents of: libx11-6 libice6 libsm6 libfontconfig1 xwayland"
+    echo "    and the live-audio CLI tools: pipewire pipewire-bin wireplumber alsa-utils"
+    echo "    (provide wpctl/pw-record and arecord; without them live capture is unavailable)."
   fi
 else
   echo "==> Skipping dependency install (--no-deps)."

@@ -106,16 +106,16 @@ internal sealed class WatchPositionDiagram : Control
 
     internal static WatchPositionDiagramPose Pose(WatchPosition position) => position switch
     {
-        WatchPosition.CH => new(true, 0.0, "DU", "Dial up"),
-        WatchPosition.CB => new(true, 0.0, "DD", "Dial down"),
-        WatchPosition.P6H => new(false, 180.0, "CL", "Crown left"),
-        WatchPosition.P9H => new(false, 90.0, "CD", "Crown down"),
-        WatchPosition.P3H => new(false, 270.0, "CU", "Crown up"),
-        WatchPosition.P12H => new(false, 0.0, "CR", "Crown right"),
-        WatchPosition.P6H45 => new(false, 225.0, "CU(L)", "Crown up-left"),
-        WatchPosition.P9H45 => new(false, 135.0, "CD(L)", "Crown down-left"),
-        WatchPosition.P3H45 => new(false, 315.0, "CU(R)", "Crown up-right"),
-        WatchPosition.P12H45 => new(false, 45.0, "CD(R)", "Crown down-right"),
+        WatchPosition.CH => new(true, 0.0, "CH", "Dial up"),
+        WatchPosition.CB => new(true, 0.0, "CB", "Dial down"),
+        WatchPosition.P6H => new(false, 180.0, "6H", "6 o'clock up"),
+        WatchPosition.P9H => new(false, 90.0, "9H", "9 o'clock up"),
+        WatchPosition.P3H => new(false, 270.0, "3H", "3 o'clock up"),
+        WatchPosition.P12H => new(false, 0.0, "12H", "12 o'clock up"),
+        WatchPosition.P6H45 => new(false, 225.0, "4:30H", "4:30 up"),
+        WatchPosition.P9H45 => new(false, 135.0, "7:30H", "7:30 up"),
+        WatchPosition.P3H45 => new(false, 315.0, "1:30H", "1:30 up"),
+        WatchPosition.P12H45 => new(false, 45.0, "10:30H", "10:30 up"),
         _ => throw new ArgumentOutOfRangeException(nameof(position), position, null),
     };
 
@@ -235,7 +235,7 @@ internal sealed class WatchPositionDiagram : Control
         double width = side * 1.26;
         double height = side * 0.22;
         double y = center.Y - height * 0.5;
-        bool dialDown = pose.PrimaryLabel == "DD";
+        bool dialDown = pose.PrimaryLabel == "CB";
         var body = new Rect(center.X - width * 0.5, y, width, height);
         var bodyGeometry = FlatBodyGeometry(body, dialDown);
         context.DrawGeometry(bodyBrush, new Pen(borderBrush, 2), bodyGeometry);

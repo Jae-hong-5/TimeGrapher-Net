@@ -50,6 +50,22 @@ public sealed class WavProbeTests
     }
 
     [Fact]
+    public void ReadMonoFloatRejectsBlockAlignSmallerThanSample()
+    {
+        // Malformed header: 64-bit float samples but BlockAlign=1. Without an
+        // acceptance profile the probe does not cross-check this; the per-frame
+        // decode would step 1 byte at a time and read past the data chunk. The
+        // reader must reject it cleanly instead of throwing IndexOutOfRangeException.
+        using TempWavFile file = TempWavFile.Create(
+            WavProbe.WaveFormatIeeeFloat, channels: 1, sampleRate: 48000,
+            bitsPerSample: 64, dataBytes: 16, blockAlignOverride: 1);
+
+        InvalidDataException ex = Assert.Throws<InvalidDataException>(
+            () => WavFileReader.ReadMonoFloat(file.Path));
+        Assert.Contains("frame stride", ex.Message);
+    }
+
+    [Fact]
     public void TryReadFormatReadsExtensibleFloatMonoWav()
     {
         using TempWavFile file = TempWavFile.Create(
@@ -134,10 +150,11 @@ public sealed class WavProbeTests
             int? dataBytes,
             bool extensible = false,
             bool validExtensibleGuid = true,
-            int? actualDataBytes = null)
+            int? actualDataBytes = null,
+            ushort? blockAlignOverride = null)
         {
             string path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "timegrapher-wav-probe-" + Guid.NewGuid().ToString("N") + ".wav");
-            ushort blockAlign = (ushort)(channels * bitsPerSample / 8);
+            ushort blockAlign = blockAlignOverride ?? (ushort)(channels * bitsPerSample / 8);
             uint byteRate = (uint)(sampleRate * blockAlign);
             uint fmtSize = extensible ? 40u : 16u;
             uint riffSize = 4 + 8 + fmtSize + (dataBytes.HasValue ? 8u + (uint)dataBytes.Value : 0u);

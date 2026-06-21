@@ -153,6 +153,19 @@ card 4: CA7 [Cubilux CA7], device 0: USB Audio [USB Audio]
     }
 
     [Fact]
+    public void RunCommand_PinsChildLocaleToC()
+    {
+        // RunCommand forces LC_ALL=C/LANG=C so wpctl/arecord emit the English tokens
+        // the parsers require regardless of the host locale; assert the child sees it.
+        (string fileName, string[] args) = ShellCommand(
+            OperatingSystem.IsWindows() ? "echo %LC_ALL%" : "echo $LC_ALL");
+
+        string output = LinuxLiveAudioWorker.RunCommand(fileName, TimeSpan.FromSeconds(2), args);
+
+        Assert.Equal("C", output.Trim());
+    }
+
+    [Fact]
     public void RunCommand_ReturnsEmptyWhenProcessExceedsTimeout()
     {
         Stopwatch stopwatch = Stopwatch.StartNew();

@@ -46,6 +46,12 @@ public static class WavFileReader
         int frameStride = formatInfo.BlockAlign > 0 ? formatInfo.BlockAlign : bytesPerSample * channels;
         if (frameStride <= 0)
             throw new InvalidDataException("WavFileReader: invalid frame stride");
+        // A malformed header can declare BlockAlign smaller than one sample (e.g.
+        // BlockAlign=1 with BitsPerSample=64). Without an acceptance profile the
+        // probe does not cross-check this, and the per-frame decode would then
+        // read past the data chunk. Reject it as invalid rather than over-reading.
+        if (frameStride < bytesPerSample)
+            throw new InvalidDataException("WavFileReader: frame stride smaller than sample size");
 
         byte[] bytes = File.ReadAllBytes(filePath);
         long dataOffsetLong = formatInfo.DataOffset;

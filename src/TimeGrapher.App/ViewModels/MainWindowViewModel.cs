@@ -286,7 +286,7 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
         }
     }
 
-    /// <summary>Always-visible status-bar indicator of the active watch position ("POS DU").</summary>
+    /// <summary>Always-visible status-bar indicator of the active watch position ("POS CH").</summary>
     public string PositionLabel => "POS " + ((WatchPosition)_selectedPositionIndex).ShortName();
 
     /// <summary>

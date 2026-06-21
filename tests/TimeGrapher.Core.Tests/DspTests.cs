@@ -40,6 +40,26 @@ public sealed class DspTests
         Assert.Equal(1.0f, output[0], 5);
     }
 
+    [Theory]
+    [InlineData(double.NaN)]
+    [InlineData(double.PositiveInfinity)]
+    [InlineData(double.NegativeInfinity)]
+    public void Hpf_NonFiniteCutoffDoesNotPoisonOutput(double cutoff)
+    {
+        // A non-finite cutoff used to bypass both range clamps (fc<1 / fc>0.25fs
+        // are false for NaN) and make the pole coefficient NaN, turning every
+        // filtered sample NaN and silently killing detection. The Init guard now
+        // folds non-finite to the low clamp.
+        var hpf = new TgHpf(48000, cutoff);
+        var input = new float[200];
+        Array.Fill(input, 0.5f);
+        var output = new float[input.Length];
+
+        hpf.Process(input, output, input.Length);
+
+        Assert.All(output, v => Assert.True(float.IsFinite(v), $"non-finite cutoff produced {v}"));
+    }
+
     [Fact]
     public void Envelope_RectifiesAndConvergesToMagnitude()
     {

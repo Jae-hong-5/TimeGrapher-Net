@@ -513,7 +513,7 @@ public sealed class AnalysisWorker : IDisposable
             // beat period (0 = unsynced) on this final forced spectrogram frame too.
             frame.SpectrogramBeatPeriodS = _latestBeatPeriodS;
         }
-        _beatMetricsProjector.AppendSnapshot(frame);
+        _beatMetricsProjector.AppendSnapshot(frame, force: true);
         _beatSegmentCapture.AppendSnapshot(frame);
         _sweepProjector.AppendSnapshot(frame, force: true);
         // The flush pass has no new raw block to filter (the drain above already

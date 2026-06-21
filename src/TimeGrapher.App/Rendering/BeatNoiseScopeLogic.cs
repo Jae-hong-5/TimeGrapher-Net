@@ -14,6 +14,7 @@ internal static class BeatNoiseScopeLogic
 {
     /// <summary>Strip-lane slots (one per ring entry the capture publishes).</summary>
     public const int StripCount = BeatSegmentCapture.SegmentRingCount;
+    private const int StripComparisonWindowMs = 200;
 
     /// <summary>
     /// Strips fill the lane right-aligned (the newest beat lands in the last
@@ -48,7 +49,7 @@ internal static class BeatNoiseScopeLogic
     {
         double windowMs = viewMode == BeatNoiseScopeViewMode.AverageAndStrip
             ? BeatNoiseAverager.LaneWindowMs
-            : rangeMs;
+            : Math.Min(rangeMs, StripComparisonWindowMs);
         int requested = (int)Math.Ceiling(windowMs / msPerPoint);
         return Math.Min(segmentSampleCount, requested);
     }

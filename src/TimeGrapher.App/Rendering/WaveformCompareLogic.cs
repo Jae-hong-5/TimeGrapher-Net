@@ -53,9 +53,9 @@ internal static class WaveformCompareLogic
     /// read from the cumulative metrics-history currents (em dash when absent).
     /// </summary>
     public static string HeaderLine(BeatMetricsHistorySnapshot? history) =>
-        "Error Rate " + VarioReadout.Format(
+        "Instantaneous Rate " + VarioReadout.Format(
             history is { RateValid: true } ? history.RateSPerDay : null, "+0.0;-0.0;0.0", " s/d")
-        + "   |   BEAT ERROR " + VarioReadout.Format(
+        + "   |   Instantaneous Beat Err " + VarioReadout.Format(
             history is { BeatErrorValid: true } ? history.BeatErrorSignedMs : null, "+0.00;-0.00;0.00", " ms")
         + "   |   BPH " + VarioReadout.Format(
             history is { Bph: > 0 } ? history.Bph : null, "0", "");

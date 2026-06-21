@@ -8,16 +8,16 @@ namespace TimeGrapher.App.Tests;
 public sealed class WatchPositionDiagramTests
 {
     [Theory]
-    [InlineData(WatchPosition.CH, true, 0.0, "DU", "Dial up")]
-    [InlineData(WatchPosition.CB, true, 0.0, "DD", "Dial down")]
-    [InlineData(WatchPosition.P12H, false, 0.0, "CR", "Crown right")]
-    [InlineData(WatchPosition.P3H, false, 270.0, "CU", "Crown up")]
-    [InlineData(WatchPosition.P9H, false, 90.0, "CD", "Crown down")]
-    [InlineData(WatchPosition.P6H, false, 180.0, "CL", "Crown left")]
-    [InlineData(WatchPosition.P3H45, false, 315.0, "CU(R)", "Crown up-right")]
-    [InlineData(WatchPosition.P6H45, false, 225.0, "CU(L)", "Crown up-left")]
-    [InlineData(WatchPosition.P9H45, false, 135.0, "CD(L)", "Crown down-left")]
-    [InlineData(WatchPosition.P12H45, false, 45.0, "CD(R)", "Crown down-right")]
+    [InlineData(WatchPosition.CH, true, 0.0, "CH", "Dial up")]
+    [InlineData(WatchPosition.CB, true, 0.0, "CB", "Dial down")]
+    [InlineData(WatchPosition.P12H, false, 0.0, "12H", "12 o'clock up")]
+    [InlineData(WatchPosition.P3H, false, 270.0, "3H", "3 o'clock up")]
+    [InlineData(WatchPosition.P9H, false, 90.0, "9H", "9 o'clock up")]
+    [InlineData(WatchPosition.P6H, false, 180.0, "6H", "6 o'clock up")]
+    [InlineData(WatchPosition.P3H45, false, 315.0, "1:30H", "1:30 up")]
+    [InlineData(WatchPosition.P6H45, false, 225.0, "4:30H", "4:30 up")]
+    [InlineData(WatchPosition.P9H45, false, 135.0, "7:30H", "7:30 up")]
+    [InlineData(WatchPosition.P12H45, false, 45.0, "10:30H", "10:30 up")]
     public void PoseMatchesReferenceFigureTerminology(
         WatchPosition position,
         bool isFlat,

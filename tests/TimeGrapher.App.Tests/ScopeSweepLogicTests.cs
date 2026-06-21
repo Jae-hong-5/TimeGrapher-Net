@@ -27,7 +27,7 @@ public sealed class ScopeSweepLogicTests
         string line = ScopeSweepReadout.ReferenceLine(snapshot);
 
         Assert.Equal(
-            "Error Rate -3.2 s/d   |   Amplitude 282°   |   BEAT ERROR +0.46 ms" +
+            "Instantaneous Rate -3.2 s/d   |   Instantaneous Amp 282°   |   Instantaneous Beat Err +0.46 ms" +
             "   |   A to C —   |   Period —",
             line);
     }
@@ -41,7 +41,7 @@ public sealed class ScopeSweepLogicTests
         foreach (string line in new[] { empty, invalid })
         {
             Assert.Equal(
-                "Error Rate —   |   Amplitude —   |   BEAT ERROR —   |   A to C —   |   Period —",
+                "Instantaneous Rate —   |   Instantaneous Amp —   |   Instantaneous Beat Err —   |   A to C —   |   Period —",
                 line);
         }
     }
@@ -75,6 +75,27 @@ public sealed class ScopeSweepLogicTests
     [Fact]
     public void ReferenceLine_AtoCUsesMostRecentSegmentWithValidCPeak()
     {
+        // Both segments have a valid C peak with DIFFERENT A->C, so "most recent"
+        // (newest/last) and "first" diverge: the readout must pick the newest (80 ms),
+        // not the older 60 ms.
+        var segments = new BeatSegmentsSnapshot
+        {
+            Version = 1,
+            Segments = new[]
+            {
+                new BeatSegment { CPeakValid = true, AOffsetMs = 5.0, CPeakOffsetMs = 65.0 }, // older: 60 ms
+                new BeatSegment { CPeakValid = true, AOffsetMs = 5.0, CPeakOffsetMs = 85.0 }, // newest: 80 ms
+            },
+        };
+
+        string line = ScopeSweepReadout.ReferenceLine(null, segments);
+
+        Assert.Contains("A to C +80.0 ms", line);
+    }
+
+    [Fact]
+    public void ReferenceLine_AtoCFallsBackToOlderSegmentWhenNewestCPeakInvalid()
+    {
         var segments = new BeatSegmentsSnapshot
         {
             Version = 1,
@@ -87,7 +108,7 @@ public sealed class ScopeSweepLogicTests
 
         string line = ScopeSweepReadout.ReferenceLine(null, segments);
 
-        // Last segment has no valid C peak; fall back to the first (older) one: 65 - 5 = 60 ms
+        // Newest segment has no valid C peak; fall back to the older one: 65 - 5 = 60 ms.
         Assert.Contains("A to C +60.0 ms", line);
     }
 

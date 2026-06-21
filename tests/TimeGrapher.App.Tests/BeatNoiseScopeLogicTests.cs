@@ -67,8 +67,8 @@ public sealed class BeatNoiseScopeLogicTests
     [Theory]
     [InlineData(BeatNoiseScopeViewMode.EnvelopeAndStrip, 20, 1600, 0.25, 80)]
     [InlineData(BeatNoiseScopeViewMode.EnvelopeAndStrip, 200, 1600, 0.25, 800)]
-    [InlineData(BeatNoiseScopeViewMode.EnvelopeAndStrip, 400, 1600, 0.25, 1600)]
-    [InlineData(BeatNoiseScopeViewMode.EnvelopeAndStrip, 400, 1000, 0.25, 1000)]
+    [InlineData(BeatNoiseScopeViewMode.EnvelopeAndStrip, 400, 1600, 0.25, 800)]
+    [InlineData(BeatNoiseScopeViewMode.EnvelopeAndStrip, 400, 1000, 0.25, 800)]
     [InlineData(BeatNoiseScopeViewMode.AverageAndStrip, 20, 1600, 0.25, 80)]
     [InlineData(BeatNoiseScopeViewMode.AverageAndStrip, 400, 1600, 0.25, 80)]
     public void StripSampleCount_FollowsViewModeAndClampsToSegment(

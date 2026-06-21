@@ -29,15 +29,17 @@ internal sealed class ScopeSweepRenderer
     private Scatter? _sweepScatter;
     private ReviewCursorLayer? _reviewCursor;
 
-    // A/C beat markers: dashed vertical lines + text labels per tic/toc phase.
-    private VerticalLine? _aTicMarker;
-    private Text? _aTicLabel;
-    private VerticalLine? _aTocMarker;
-    private Text? _aTocLabel;
-    private VerticalLine? _cTicMarker;
-    private Text? _cTicLabel;
-    private VerticalLine? _cTocMarker;
-    private Text? _cTocLabel;
+    // A/C beat markers: one dashed/dotted vertical line + label per tic/toc phase per sweep
+    // repetition. 1x shows one set; 2x/3x windows add a second/third copy spaced one beat period apart.
+    private const int MaxSweepMultiple = 3;
+    private readonly VerticalLine?[] _aTicMarkers = new VerticalLine?[MaxSweepMultiple];
+    private readonly Text?[]         _aTicLabels  = new Text?[MaxSweepMultiple];
+    private readonly VerticalLine?[] _aTocMarkers = new VerticalLine?[MaxSweepMultiple];
+    private readonly Text?[]         _aTocLabels  = new Text?[MaxSweepMultiple];
+    private readonly VerticalLine?[] _cTicMarkers = new VerticalLine?[MaxSweepMultiple];
+    private readonly Text?[]         _cTicLabels  = new Text?[MaxSweepMultiple];
+    private readonly VerticalLine?[] _cTocMarkers = new VerticalLine?[MaxSweepMultiple];
+    private readonly Text?[]         _cTocLabels  = new Text?[MaxSweepMultiple];
 
     // Identity gate on the projector's shared-instance pattern: between
     // publish-floor rebuilds (and on every paused-scrub re-route) frames
@@ -55,7 +57,6 @@ internal sealed class ScopeSweepRenderer
     private PlotThemePalette _theme = PlotThemePalette.Current;
     private ulong _lastReadoutVersion;
     private ulong _lastReadoutSegmentVersion;
-    private ulong _lastSegmentVersion;
     private bool _followLive = true;
 
     public ScopeSweepRenderer(AvaPlot sweepPlot, TextBlock referenceText, string textFontFamily)
@@ -80,7 +81,6 @@ internal sealed class ScopeSweepRenderer
     {
         _lastReadoutVersion = 0;
         _lastReadoutSegmentVersion = 0;
-        _lastSegmentVersion = 0;
         _followLive = true;
         _ticPhaseOffsetMs = 0.0;
         _lastWindowMs = 0.0;
@@ -98,14 +98,17 @@ internal sealed class ScopeSweepRenderer
         _sweepScatter.LineWidth = 1;
         _sweepScatter.MarkerStyle.IsVisible = false;
 
-        _aTicMarker = AddMarkerLine(sweep, LinePattern.Dashed);
-        _aTicLabel  = AddMarkerLabel(sweep);
-        _aTocMarker = AddMarkerLine(sweep, LinePattern.Dashed);
-        _aTocLabel  = AddMarkerLabel(sweep);
-        _cTicMarker = AddMarkerLine(sweep, LinePattern.Dotted);
-        _cTicLabel  = AddMarkerLabel(sweep);
-        _cTocMarker = AddMarkerLine(sweep, LinePattern.Dotted);
-        _cTocLabel  = AddMarkerLabel(sweep);
+        for (int k = 0; k < MaxSweepMultiple; k++)
+        {
+            _aTicMarkers[k] = AddMarkerLine(sweep, LinePattern.Dashed);
+            _aTicLabels[k]  = AddMarkerLabel(sweep);
+            _aTocMarkers[k] = AddMarkerLine(sweep, LinePattern.Dashed);
+            _aTocLabels[k]  = AddMarkerLabel(sweep);
+            _cTicMarkers[k] = AddMarkerLine(sweep, LinePattern.Dotted);
+            _cTicLabels[k]  = AddMarkerLabel(sweep);
+            _cTocMarkers[k] = AddMarkerLine(sweep, LinePattern.Dotted);
+            _cTocLabels[k]  = AddMarkerLabel(sweep);
+        }
 
         _reviewCursor = AddCursor(sweep);
         PlotAxisRules.ClampLeftEdgeToZero(sweep);
@@ -159,7 +162,7 @@ internal sealed class ScopeSweepRenderer
                 _followLive = true;
             }
 
-            UpdateSweepMarkerPositions(frame.BeatSegments);
+            UpdateSweepMarkerPositions(frame.BeatSegments, frame.MetricsHistory);
         }
 
         bool cursorMoved = UpdateReviewCursor(context.ReviewCursorTimeS);
@@ -199,47 +202,81 @@ internal sealed class ScopeSweepRenderer
 
     /// <summary>
     /// Places A (dashed) and C (dotted) vertical markers at each beat phase in
-    /// the sweep window. X positions are recomputed only when the segment version
-    /// changes; Y positions of the text labels track the current signal peak and
-    /// are updated on every sweep data refresh.
+    /// the sweep window. In 1x mode one set of markers is placed; in 2x/3x mode
+    /// additional copies are placed at each subsequent beat-period repetition so
+    /// the markers remain visible across the full multi-period window.
+    /// Both X and Y positions are recomputed on every sweep data refresh so that
+    /// a window-size change or phase re-alignment is reflected immediately.
     /// </summary>
-    private void UpdateSweepMarkerPositions(BeatSegmentsSnapshot? snapshot)
+    private void UpdateSweepMarkerPositions(BeatSegmentsSnapshot? snapshot,
+        BeatMetricsHistorySnapshot? history)
     {
         double windowMs = ScopeSweepReadout.WindowMs(_sweepX);
-        double yTop = _sweepY.Count > 0 ? _sweepY.Max() : 1.0;
 
-        ulong sv = snapshot?.Version ?? 0;
-        bool segmentChanged = sv != _lastSegmentVersion;
-        if (segmentChanged)
+        // Keep last-known positions during a sweep window retune or startup
+        // accumulation — hiding here would cause a visible blink every time
+        // the 1x/2x/3x selector is pressed.
+        if (snapshot == null || snapshot.Segments.Count == 0 || windowMs <= 0)
         {
-            _lastSegmentVersion = sv;
-
-            if (snapshot == null || snapshot.Segments.Count == 0 || windowMs <= 0)
-            {
-                HideAllMarkers();
-                return;
-            }
-
-            BeatSegment? latestTic = null, latestToc = null;
-            foreach (BeatSegment seg in snapshot.Segments)
-            {
-                if (seg.IsTic) latestTic = seg;
-                else latestToc = seg;
-            }
-
-            SetMarkerLine(_aTicMarker, PhaseMs(latestTic, isC: false, windowMs));
-            SetMarkerLine(_aTocMarker, PhaseMs(latestToc, isC: false, windowMs));
-            SetMarkerLine(_cTicMarker, PhaseMs(
-                latestTic is { CPeakValid: true } ? latestTic : null, isC: true, windowMs));
-            SetMarkerLine(_cTocMarker, PhaseMs(
-                latestToc is { CPeakValid: true } ? latestToc : null, isC: true, windowMs));
+            return;
         }
 
-        // Always track the signal peak so labels stay near the top of the trace.
-        UpdateMarkerLabel(_aTicLabel, _aTicMarker, yTop, "A");
-        UpdateMarkerLabel(_aTocLabel, _aTocMarker, yTop, "A");
-        UpdateMarkerLabel(_cTicLabel, _cTicMarker, yTop, "C");
-        UpdateMarkerLabel(_cTocLabel, _cTocMarker, yTop, "C");
+        // Beat period: full tic+toc half-cycle. Round the sweep multiple so a
+        // 2x window gets exactly 2 copies and a 3x window gets 3.
+        double beatPeriodMs = history is { Bph: > 0 }
+            ? 3600000.0 / history.Bph
+            : windowMs;
+        int nReps = Math.Clamp((int)Math.Round(windowMs / beatPeriodMs), 1, MaxSweepMultiple);
+
+        BeatSegment? latestTic = null, latestToc = null;
+        foreach (BeatSegment seg in snapshot.Segments)
+        {
+            if (seg.IsTic) latestTic = seg;
+            else latestToc = seg;
+        }
+
+        double? aTicPhase = PhaseMs(latestTic, isC: false, windowMs);
+        double? aTocPhase = PhaseMs(latestToc, isC: false, windowMs);
+        double? cTicPhase = PhaseMs(
+            latestTic is { CPeakValid: true } ? latestTic : null, isC: true, windowMs);
+        double? cTocPhase = PhaseMs(
+            latestToc is { CPeakValid: true } ? latestToc : null, isC: true, windowMs);
+
+        for (int k = 0; k < MaxSweepMultiple; k++)
+        {
+            bool active = k < nReps;
+            SetMarkerLine(_aTicMarkers[k], active ? RepeatPhase(aTicPhase, k, beatPeriodMs, windowMs) : null);
+            SetMarkerLine(_aTocMarkers[k], active ? RepeatPhase(aTocPhase, k, beatPeriodMs, windowMs) : null);
+            SetMarkerLine(_cTicMarkers[k], active ? RepeatPhase(cTicPhase, k, beatPeriodMs, windowMs) : null);
+            SetMarkerLine(_cTocMarkers[k], active ? RepeatPhase(cTocPhase, k, beatPeriodMs, windowMs) : null);
+        }
+
+        // Only anchor labels to the signal peak when the sweep has real data;
+        // skip the Y update while bins are flat-zero during re-accumulation so
+        // labels stay at their last valid height rather than collapsing to zero.
+        double yTop = _sweepY.Count > 0 ? _sweepY.Max() : 0.0;
+        if (yTop > 0)
+        {
+            for (int k = 0; k < MaxSweepMultiple; k++)
+            {
+                UpdateMarkerLabel(_aTicLabels[k], _aTicMarkers[k], yTop, "A");
+                UpdateMarkerLabel(_aTocLabels[k], _aTocMarkers[k], yTop, "A");
+                UpdateMarkerLabel(_cTicLabels[k], _cTicMarkers[k], yTop, "C");
+                UpdateMarkerLabel(_cTocLabels[k], _cTocMarkers[k], yTop, "C");
+            }
+        }
+    }
+
+    /// <summary>
+    /// Returns the X position of the k-th repetition of a marker phase within
+    /// the sweep window (phase shifted by k beat periods). Returns null when the
+    /// base phase is absent or the repeated position falls outside the window.
+    /// </summary>
+    private static double? RepeatPhase(double? phase, int k, double beatPeriodMs, double windowMs)
+    {
+        if (phase is not double p) return null;
+        double x = p + k * beatPeriodMs;
+        return x < windowMs ? x : null;
     }
 
     private double? PhaseMs(BeatSegment? seg, bool isC, double windowMs)
@@ -268,19 +305,7 @@ internal sealed class ScopeSweepRenderer
         }
     }
 
-    private void HideAllMarkers()
-    {
-        if (_aTicMarker != null) _aTicMarker.IsVisible = false;
-        if (_aTicLabel  != null) _aTicLabel.IsVisible  = false;
-        if (_aTocMarker != null) _aTocMarker.IsVisible = false;
-        if (_aTocLabel  != null) _aTocLabel.IsVisible  = false;
-        if (_cTicMarker != null) _cTicMarker.IsVisible = false;
-        if (_cTicLabel  != null) _cTicLabel.IsVisible  = false;
-        if (_cTocMarker != null) _cTocMarker.IsVisible = false;
-        if (_cTocLabel  != null) _cTocLabel.IsVisible  = false;
-    }
-
-    /// <summary>Review-cursor contract: a dotted marker at the scrub time's sweep phase.</summary>
+/// <summary>Review-cursor contract: a dotted marker at the scrub time's sweep phase.</summary>
     private bool UpdateReviewCursor(double? reviewCursorTimeS)
     {
         if (_reviewCursor == null)
@@ -327,16 +352,24 @@ internal sealed class ScopeSweepRenderer
             _sweepScatter.LineColor = Color.FromARGB(_theme.TraceWave);
         }
 
-        Color ticColor = Color.FromARGB(_theme.TraceTick);
-        Color tocColor = Color.FromARGB(_theme.TraceTock);
-        if (_aTicMarker != null) _aTicMarker.LineColor      = ticColor;
-        if (_aTicLabel  != null) _aTicLabel.LabelFontColor  = ticColor;
-        if (_aTocMarker != null) _aTocMarker.LineColor      = tocColor;
-        if (_aTocLabel  != null) _aTocLabel.LabelFontColor  = tocColor;
-        if (_cTicMarker != null) _cTicMarker.LineColor      = ticColor;
-        if (_cTicLabel  != null) _cTicLabel.LabelFontColor  = ticColor;
-        if (_cTocMarker != null) _cTocMarker.LineColor      = tocColor;
-        if (_cTocLabel  != null) _cTocLabel.LabelFontColor  = tocColor;
+        // A and C escapement markers are colored by event type, not by tic/toc
+        // phase: A reuses the green tick color and C the red tock color from the
+        // App.axaml palette (no new colors introduced). The tic/toc phase is still
+        // read from each marker's position in the sweep window, and A/C also differ
+        // by line pattern (A dashed, C dotted).
+        Color aColor = Color.FromARGB(_theme.TraceTick); // A -> green
+        Color cColor = Color.FromARGB(_theme.TraceTock); // C -> red
+        for (int k = 0; k < MaxSweepMultiple; k++)
+        {
+            if (_aTicMarkers[k] != null) _aTicMarkers[k]!.LineColor     = aColor;
+            if (_aTicLabels[k]  != null) _aTicLabels[k]!.LabelFontColor = aColor;
+            if (_aTocMarkers[k] != null) _aTocMarkers[k]!.LineColor     = aColor;
+            if (_aTocLabels[k]  != null) _aTocLabels[k]!.LabelFontColor = aColor;
+            if (_cTicMarkers[k] != null) _cTicMarkers[k]!.LineColor     = cColor;
+            if (_cTicLabels[k]  != null) _cTicLabels[k]!.LabelFontColor = cColor;
+            if (_cTocMarkers[k] != null) _cTocMarkers[k]!.LineColor     = cColor;
+            if (_cTocLabels[k]  != null) _cTocLabels[k]!.LabelFontColor = cColor;
+        }
 
         _reviewCursor?.ApplyTheme(_theme);
     }

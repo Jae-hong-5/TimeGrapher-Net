@@ -267,16 +267,6 @@
       <Setter Property="BorderThickness" Value="1" />
       <Setter Property="CornerRadius" Value="0" />
     </Style>
-    <Style Selector="Border.PositionMapTile">
-      <Setter Property="Background" Value="{DynamicResource PanelBgBrush}" />
-      <Setter Property="BorderBrush" Value="{DynamicResource ChromeBorderBrush}" />
-      <Setter Property="BorderThickness" Value="1" />
-      <Setter Property="CornerRadius" Value="0" />
-    </Style>
-    <Style Selector="Border.PositionMapTile.active">
-      <Setter Property="BorderBrush" Value="{DynamicResource ChromeAccentBrush}" />
-      <Setter Property="BorderThickness" Value="2" />
-    </Style>
     <Style Selector="Border.PositionResultPanel">
       <Setter Property="Background" Value="{DynamicResource PanelBgBrush}" />
       <Setter Property="BorderBrush" Value="{DynamicResource ChromeBorderBrush}" />
@@ -299,7 +289,8 @@
       <Setter Property="CornerRadius" Value="0" />
     </Style>
     <Style Selector="Border.PositionResultBadge.ok">
-      <Setter Property="Background" Value="{DynamicResource VarioGoodBrush}" />
+      <Setter Property="Background" Value="{DynamicResource PanelBgBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource VarioGoodBrush}" />
     </Style>
     <Style Selector="Border.PositionResultBadge.warn">
       <Setter Property="Background" Value="{DynamicResource ChromeAccentBrush}" />
@@ -309,6 +300,9 @@
     </Style>
     <Style Selector="Border.PositionResultBadge TextBlock">
       <Setter Property="Foreground" Value="White" />
+    </Style>
+    <Style Selector="Border.PositionResultBadge.ok TextBlock">
+      <Setter Property="Foreground" Value="{DynamicResource VarioGoodBrush}" />
     </Style>
     <Style Selector="Border.PositionResultBadge.pending TextBlock">
       <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />

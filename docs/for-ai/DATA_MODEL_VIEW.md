@@ -14,6 +14,21 @@ class AnalysisRun {
     +RunCommandMode Mode
 }
 
+class RunCommandMode {
+    <<enumeration>>
+    Unknown
+    Live
+    Playback
+    Simulation
+}
+
+class TgSyncStatus {
+    <<enumeration>>
+    NotSynced
+    Synced
+    Mismatch
+}
+
 class AnalysisRunSettings {
     +int SampleRate
     +double LiftAngle
@@ -77,7 +92,10 @@ class WatchSynthStreamEvent {
     +WatchSynthEventKind Kind
     +double TimeS
     +ulong SampleIndex
+    +double IntervalFromPreviousUs
     +double AppliedIntervalOffsetUs
+    +double TimingJitterUs
+    +double BphWanderUs
     +double PacketGain
     +double AToCTimeS
     +double WatchAmplitudeDegrees
@@ -145,8 +163,12 @@ class AnalysisFrame {
     +long SpectrogramTotalColumns
     +double SpectrogramColumnSeconds
     +double SpectrogramBeatPeriodS
-    +double BackgroundFps/Sps/Spf
-    +double ForegroundFps/Sps/Spf
+    +double BackgroundFps
+    +double BackgroundSps
+    +double BackgroundSpf
+    +double ForegroundFps
+    +double ForegroundSps
+    +double ForegroundSpf
 }
 
 class GraphSeriesFrame {
@@ -154,6 +176,7 @@ class GraphSeriesFrame {
     +IReadOnlyList~double~ X
     +IReadOnlyList~double~ Y
     +bool Replace
+    +double TicPhaseOffsetMs
 }
 
 class ScopeFilterSample {
@@ -189,8 +212,10 @@ class ScopeTextMarker {
 class WatchMetricsUpdate {
     +bool TicRateUpdated
     +bool TocRateUpdated
-    +IReadOnlyList~double~ XTic/YTic
-    +IReadOnlyList~double~ XToc/YToc
+    +IReadOnlyList~double~ XTic
+    +IReadOnlyList~double~ YTic
+    +IReadOnlyList~double~ XToc
+    +IReadOnlyList~double~ YToc
     +bool ResultsUpdated
     +string ResultsText
     +string CMarkerText
@@ -312,6 +337,7 @@ class BeatNoiseMarkerKind {
     <<enumeration>>
     A
     CPeak
+    COnset
 }
 
 class BeatSegment {
@@ -415,8 +441,10 @@ class DetectorResultSnapshot {
     +bool SyncLostEvent
     +bool SyncAcquiredEvent
     +bool DetectorResetEvent
-    +float OnsetThreshold/MinPeakThreshold
-    +float NoiseFloor/ReferencePeak
+    +float OnsetThreshold
+    +float MinPeakThreshold
+    +float NoiseFloor
+    +float ReferencePeak
     +ulong MissedBeats
     +uint SyncLossCount
     +ulong VetoedEvents
@@ -430,7 +458,7 @@ class DetectorMetricsEngineConfig {
     +bool AutoBph
     +int ManualBph
     +double HpfCutoffHz
-    +BeatEventGateConfig EventGate
+    +BeatEventGateConfig? EventGate
 }
 
 class DetectorMetricsBlockUpdate {
@@ -463,6 +491,7 @@ AudioSource <|-- LiveAudioSource
 AudioSource <|-- PlaybackSource
 AudioSource <|-- SimSource
 
+AnalysisRun "1" --> "1" RunCommandMode : 실행 모드
 AnalysisRun "1" *-- "1" AnalysisRunSettings : 설정으로 사용
 AnalysisRun "1" *-- "1" AudioSource : 입력 소스 선택
 AnalysisRun "1" *-- "1" MasterAudioBuffer : 소유
@@ -481,7 +510,9 @@ WavData "1" --> "0..*" MasterAudioBuffer : 샘플 공급
 MasterAudioBuffer "1" --> "0..*" TgResult : 분석 워커가 블록 단위로 읽어 검출(엔진이 생성)
 
 TgConfig "1" --> "0..*" TgResult : 검출 설정
+TgResult "1" --> "1" TgSyncStatus : sync 상태
 TgResult "1" *-- "0..*" TgEvent : 이벤트 목록
+DetectorResultSnapshot "1" --> "1" TgSyncStatus : sync 상태
 DetectorMetricsEngineConfig "1" --> "0..*" DetectorMetricsBlockUpdate : 공유 엔진 계약(블록당 산출)
 DetectorMetricsEngineConfig "1" --> "1" TgConfig : 엔진이 내부 검출기 설정 파생
 DetectorMetricsEngineConfig "1" o-- "0..1" BeatEventGateConfig : 선택적 게이트 설정
@@ -541,10 +572,10 @@ BeatNoiseAverageSnapshot "1" *-- "0..5" BeatNoiseAverageMilestone : 10/20/30/40/
 | `BeatTimingSample`, `AmplitudeSample`, `DerivedTimingMeasures` | `Core.Shared` | A/C 이벤트별 기계 판독 가능 값. Error Rate/유효성/부호 BEAT ERROR/락 BPH/진폭/쌍평균 갱신/DiffTicTac·DiffPeriod·AvgPeriod |
 | `BeatMetricsHistorySnapshot`, `MetricsHistorySeries` | `Core.Shared` (`Core.Metrics.BeatMetricsHistory`가 생성) | Error Rate/amplitude/BEAT ERROR 누적 이력 시리즈 + 최신 판독값·통계·활성 위치·락 BPH. 프레임 간 공유되며 latest-wins 합병에도 손실 없음 |
 | `StatsSummary` | `Core.Shared` (`Core.Metrics.RunningStats`가 공급) | 현재 위치 시작 이후 min/max/mean/모집단 σ. 시리즈 데시메이션과 무관한 정확한 비트별 통계(Vario 표시) |
-| `WatchPosition` | `Core.Shared` | NIHS 95-10 / ISO 3158 표준 검사 위치. 내부 enum은 기존 CH/CB/6H/9H/3H/12H 계열 식별자를 유지하지만, 사용자 표시 용어는 요구 그림 기준 DU(다이얼 위)·DD(다이얼 아래)·CR/CU/CL/CD와 CU(R)/CU(L)/CD(L)/CD(R) 중간 포지션까지 총 10단계다 |
+| `WatchPosition` | `Core.Shared` | NIHS 95-10 / ISO 3158 표준 검사 위치. 내부 enum은 기존 CH/CB/6H/9H/3H/12H 계열 식별자와 0..9 ordinal을 유지하지만, 사용자 표시 용어와 `WatchPositions.All` 표시 순서는 메일의 제안 용어 기준 CH, CB, 12H, 1:30H, 3H, 4:30H, 6H, 7:30H, 9H, 10:30H 총 10단계다 |
 | `PositionSummary` | `Core.Shared` (`BeatMetricsHistory`가 집계) | 위치별 Error Rate/amplitude/부호 BEAT ERROR 누적 통계. 측정된 위치만 등장(최대 `WatchPositions.Count`=10) |
 | `PositionChange` | `Core.Shared` (`Core.Metrics.BeatMetricsHistory`가 채움) | 측정 시작 이후 시간순 워치 위치 전환 이력(`TimeS`·`Position`). 첫 항목은 시작 위치를 **첫 플롯 지점(시리즈에 처음 들어가는 샘플, 첫 비트가 아님)의 경과 시간**에 기록하고(0이 아니라 — Long-Term 그래프 시작 라벨이 첫 그려진 점과 정렬), 이후 각 항목은 새 위치로 돌린 시점의 경과 시간. Long-Term 그래프가 각 전환 지점에 파선(dashed) 수직선과 위치 이름을 표시(`LongTermPerfRenderer`). 수동 전환 횟수에만 비례해 증가하므로 `WatchPositions.Count` 제한과 무관 |
-| `BeatSegmentsSnapshot`, `BeatSegment` | `Core.Shared` (`Core.Analysis.BeatSegmentCapture`가 생성) | 최근 비트별 엔벨로프 윈도우의 링(최대 8개, `SegmentRingCount`). A/C-peak/C-onset 오프셋과 위상·리프트각 포함. 원파형 min/max(`RawMin`/`RawMax`)는 `RawValid`일 때만 채워진다. 샘플은 캡처의 풀 버퍼를 참조하며 발행 게이트로 불변 보장(Beat Noise). `Markers`(`BeatNoiseMarker`/`BeatNoiseMarkerKind{A,CPeak}`)는 완료 세그먼트 윈도우를 덮는 A/C 이벤트의 절대 스트림 시간 마커 목록 |
+| `BeatSegmentsSnapshot`, `BeatSegment` | `Core.Shared` (`Core.Analysis.BeatSegmentCapture`가 생성) | 최근 비트별 엔벨로프 윈도우의 링(최대 8개, `SegmentRingCount`). A/C-peak/C-onset 오프셋과 위상·리프트각 포함. 원파형 min/max(`RawMin`/`RawMax`)는 `RawValid`일 때만 채워진다. 샘플은 캡처의 풀 버퍼를 참조하며 발행 게이트로 불변 보장(Beat Noise). `Markers`(`BeatNoiseMarker`/`BeatNoiseMarkerKind{A,CPeak,COnset}`)는 완료 세그먼트 윈도우를 덮는 A/C 이벤트의 절대 스트림 시간 마커 목록 |
 | `BeatNoiseAverageSnapshot`, `BeatNoiseAverageMilestone` | `Core.Shared` (`Core.Analysis.BeatNoiseAverager`가 생성) | Scope 2 상태. 위상 교대 20ms 평균 레인 2개(의도적으로 trace 1/2로 표기, tic/toc 아님)와 레인별 카운트·ms/point·평균 피크·동결 플래그를 포함한다. Σ 평균화 중 양쪽 레인이 10/20/30/40/50 interval에 도달하면 해당 시점의 평균 trace를 `BeatNoiseAverageMilestone`으로 보존해 Avg Envelope가 Witschi식 중간 평균 변화를 직접 표시한다 |
 
 ## 관계 노트

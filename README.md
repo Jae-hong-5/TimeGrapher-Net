@@ -72,10 +72,13 @@ Build on a dev PC (one prepared via the Windows steps above) and copy only the o
 
    ```bash
    sudo apt update
-   sudo apt install -y libx11-6 libice6 libsm6 libfontconfig1 xwayland
+   sudo apt install -y libx11-6 libice6 libsm6 libfontconfig1 xwayland \
+     pipewire pipewire-bin wireplumber alsa-utils
    ```
 
-   Mic input needs PipeWire or ALSA, which Pi OS usually includes by default.
+   Mic input needs the PipeWire/ALSA CLI tools `wpctl`, `pw-record`, and `arecord`
+   (from the packages above). Pi OS usually includes them, but install them
+   explicitly on a minimal image or live capture will be unavailable.
 
    > ICU (`libicu`) is **intentionally omitted** above. The app is built in invariant
    > globalization mode (`InvariantGlobalization=true`, culture-neutral by design), so .NET
