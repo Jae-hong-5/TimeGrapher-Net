@@ -459,6 +459,7 @@ class DetectorMetricsEngineConfig {
     +int ManualBph
     +double HpfCutoffHz
     +BeatEventGateConfig? EventGate
+    +double AmplitudeOnsetLatencyS
 }
 
 class DetectorMetricsBlockUpdate {
@@ -562,7 +563,7 @@ BeatNoiseAverageSnapshot "1" *-- "0..5" BeatNoiseAverageMilestone : 10/20/30/40/
 | `WatchSynthStreamEvent`, `WatchSynthStreamFillResult`, `WatchSynthEventKind` | `Core.Sim` | 합성 스트림의 그라운드트루스 사이드채널. `FillF32`가 비트별 진실 이벤트(틱/톡·시간·샘플·간격오프셋·진폭·리프트각)와 채움 결과(쓴/드롭 샘플·이벤트 수)를 반환해 `Verify`의 이벤트 수준 채점(`DetectionScorer`) 진실값으로 사용 |
 | `MasterAudioBuffer` | `Core.Shared` | 입력 워커(쓰기)와 분석 워커(읽기) 간 공유 모노 float 링버퍼(30초). 입력 throughput 카운터와 지연 보고용 캡처 타임스탬프 조회 제공 |
 | `TgConfig`, `TgResult`, `TgEvent` | `Core.Detection` | 검출기 설정 / sync 상태·처리 PCM·이벤트 목록·sync edge 플래그·검출 임계값 / A·C 이벤트(`TgEvent.Type`로 구분, C-onset 메타 포함) |
-| `DetectorMetricsEngineConfig` | `Core.Analysis` | 공유 검출/메트릭 엔진(`DetectorMetricsEngine`)의 입력 계약(샘플레이트·리프트각·평균구간·C-onset·BPH·HPF·선택적 `BeatEventGateConfig`). `AnalysisWorker`와 `Verify`가 동일하게 구성하며, 엔진이 이로부터 내부 `TgConfig`를 파생 |
+| `DetectorMetricsEngineConfig` | `Core.Analysis` | 공유 검출/메트릭 엔진(`DetectorMetricsEngine`)의 입력 계약(샘플레이트·리프트각·평균구간·C-onset·BPH·HPF·선택적 `BeatEventGateConfig`·`AmplitudeOnsetLatencyS`). `AmplitudeOnsetLatencyS`는 A-온셋 검출 지연(임계 교차가 실제 온셋보다 늦고 C 피크보다 더 늦음)을 보정하려고 진폭 계산 전 A→C 구간에 더하는 초 단위 값(기본 ~45µs, 기준 합성기 기준 보정·실측 리그 재보정 가능). `AnalysisWorker`와 `Verify`가 동일하게 구성하며, 엔진이 이로부터 내부 `TgConfig`를 파생 |
 | `DetectorResultSnapshot`, `DetectorMetricsBlockUpdate`, `DetectedEventUpdate` | `Core.Analysis` | 공유 검출/메트릭 엔진의 블록당 계약. 원검출 스냅샷과 표시/메트릭 이벤트 스트림을 라이브 워커와 Verify가 공유 |
 | `BeatCandidate`, `BeatEventGateConfig` | `Core.Detection.Scoring`, `Core.Analysis` | 게이트(`IBeatEventGate`)에 넘기는 후보 이벤트 문맥(이벤트·sync·임계값·PLL 매치 판정)과 엔진 레벨 게이트 설정 |
 | `BeatWindowFeatures` | `Core.Detection.Scoring` | 엔벨로프 윈도우의 고정 길이 특징 벡터(128점, bucket-max 데시메이션 후 피크 정규화) 추출기 |
