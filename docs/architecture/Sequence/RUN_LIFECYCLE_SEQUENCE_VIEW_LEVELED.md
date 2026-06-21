@@ -1,5 +1,7 @@
 # 실행 수명주기 시퀀스 뷰 (MVVM)
 
+> English version: [Run lifecycle sequence view](RUN_LIFECYCLE_SEQUENCE_VIEW_LEVELED_EN.md)
+
 측정 실행(run)의 시작 → 측정 → 종료 동안 객체들이 "누가 누구를 호출하나"를 보여주는 동작(behavior) 뷰다. MVC → MVVM 리팩토링 이후의 **View / ViewModel / RunCommandService** 협력 구조를 반영한다.
 
 > 반복 루프가 있어 가장 세분화가 필요한 **측정 흐름만 Level 2 자식 뷰**로 분리했다.

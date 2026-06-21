@@ -1,5 +1,5 @@
 <mxfile host="65bd71144e" pages="2">
-    <diagram name="Level 1 · 실행 수명주기 개요" id="4WXmwxUzOMuwG-a_MeMp">
+    <diagram name="Level 1 - run lifecycle overview" id="4WXmwxUzOMuwG-a_MeMp">
         <mxGraphModel dx="691" dy="483" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1545" pageHeight="1602" math="0" shadow="0">
             <root>
                 <mxCell id="0"/>
@@ -70,19 +70,19 @@
                 <mxCell id="level1_bar35" value="" style="html=1;points=[];perimeter=orthogonalPerimeter;fillColor=#bfdbfe;strokeColor=#1d4ed8;" parent="1" vertex="1">
                     <mxGeometry x="981.5" y="1240" width="12" height="92" as="geometry"/>
                 </mxCell>
-                <mxCell id="level1_m1" value="프로그램 실행" style="html=1;verticalAlign=bottom;startArrow=none;endArrow=block;rounded=0;labelBackgroundColor=#ffffff;strokeColor=#1f2937;fontColor=#111827;labelBorderColor=none;" parent="1" edge="1">
+                <mxCell id="level1_m1" value="App launches" style="html=1;verticalAlign=bottom;startArrow=none;endArrow=block;rounded=0;labelBackgroundColor=#ffffff;strokeColor=#1f2937;fontColor=#111827;labelBorderColor=none;" parent="1" edge="1">
                     <mxGeometry relative="1" as="geometry">
                         <mxPoint x="133.5" y="150" as="sourcePoint"/>
                         <mxPoint x="336.5" y="150" as="targetPoint"/>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="level1_m4" value="Start 클릭" style="html=1;verticalAlign=bottom;startArrow=none;endArrow=block;rounded=0;labelBackgroundColor=#ffffff;strokeColor=#1f2937;fontColor=#111827;labelBorderColor=none;" parent="1" edge="1">
+                <mxCell id="level1_m4" value="Click Start" style="html=1;verticalAlign=bottom;startArrow=none;endArrow=block;rounded=0;labelBackgroundColor=#ffffff;strokeColor=#1f2937;fontColor=#111827;labelBorderColor=none;" parent="1" edge="1">
                     <mxGeometry relative="1" as="geometry">
                         <mxPoint x="133.5" y="242" as="sourcePoint"/>
                         <mxPoint x="336.5" y="242" as="targetPoint"/>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="level1_m5" value="PlayPauseCommand 실행" style="html=1;verticalAlign=bottom;startArrow=none;endArrow=block;rounded=0;labelBackgroundColor=#ffffff;strokeColor=#1f2937;fontColor=#111827;labelBorderColor=none;" parent="1" edge="1">
+                <mxCell id="level1_m5" value="Execute PlayPauseCommand" style="html=1;verticalAlign=bottom;startArrow=none;endArrow=block;rounded=0;labelBackgroundColor=#ffffff;strokeColor=#1f2937;fontColor=#111827;labelBorderColor=none;" parent="1" edge="1">
                     <mxGeometry relative="1" as="geometry">
                         <mxPoint x="348.5" y="288" as="sourcePoint"/>
                         <mxPoint x="551.5" y="288" as="targetPoint"/>
@@ -118,7 +118,7 @@
                         <mxPoint x="348.5" y="564" as="targetPoint"/>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="level1_m13" value="입력 worker 시작" style="html=1;verticalAlign=bottom;startArrow=none;endArrow=block;rounded=0;labelBackgroundColor=#ffffff;strokeColor=#1f2937;fontColor=#111827;labelBorderColor=none;" parent="1" edge="1">
+                <mxCell id="level1_m13" value="Start input worker" style="html=1;verticalAlign=bottom;startArrow=none;endArrow=block;rounded=0;labelBackgroundColor=#ffffff;strokeColor=#1f2937;fontColor=#111827;labelBorderColor=none;" parent="1" edge="1">
                     <mxGeometry relative="1" as="geometry">
                         <mxPoint x="348.5" y="610" as="sourcePoint"/>
                         <mxPoint x="1196.5" y="610" as="targetPoint"/>
@@ -154,13 +154,13 @@
                         <mxPoint x="348.5" y="1072" as="targetPoint"/>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="level1_m30" value="WAV EOF — View 직접 처리" style="html=1;verticalAlign=bottom;startArrow=none;endArrow=open;rounded=0;labelBackgroundColor=#ffffff;strokeColor=#1f2937;fontColor=#111827;labelBorderColor=none;" parent="1" edge="1">
+                <mxCell id="level1_m30" value="WAV EOF - View handles directly" style="html=1;verticalAlign=bottom;startArrow=none;endArrow=open;rounded=0;labelBackgroundColor=#ffffff;strokeColor=#1f2937;fontColor=#111827;labelBorderColor=none;" parent="1" edge="1">
                     <mxGeometry relative="1" as="geometry">
                         <mxPoint x="1196.5" y="1170" as="sourcePoint"/>
                         <mxPoint x="348.5" y="1170" as="targetPoint"/>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="level1_m32" value="입력·분석 worker 정지" style="html=1;verticalAlign=bottom;startArrow=none;endArrow=block;rounded=0;labelBackgroundColor=#ffffff;strokeColor=#1f2937;fontColor=#111827;labelBorderColor=none;" parent="1" edge="1">
+                <mxCell id="level1_m32" value="Stop input and analysis workers" style="html=1;verticalAlign=bottom;startArrow=none;endArrow=block;rounded=0;labelBackgroundColor=#ffffff;strokeColor=#1f2937;fontColor=#111827;labelBorderColor=none;" parent="1" edge="1">
                     <mxGeometry relative="1" as="geometry">
                         <mxPoint x="348.5" y="1240" as="sourcePoint"/>
                         <mxPoint x="981.5" y="1240" as="targetPoint"/>
@@ -178,31 +178,31 @@
                         <mxPoint x="1411.5" y="1332" as="targetPoint"/>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="level1_m38" value="프로그램 종료 (창 닫기)" style="html=1;verticalAlign=bottom;startArrow=none;endArrow=block;rounded=0;labelBackgroundColor=#ffffff;strokeColor=#1f2937;fontColor=#111827;labelBorderColor=none;" parent="1" edge="1">
+                <mxCell id="level1_m38" value="App shutdown (window closed)" style="html=1;verticalAlign=bottom;startArrow=none;endArrow=block;rounded=0;labelBackgroundColor=#ffffff;strokeColor=#1f2937;fontColor=#111827;labelBorderColor=none;" parent="1" edge="1">
                     <mxGeometry relative="1" as="geometry">
                         <mxPoint x="133.5" y="1424" as="sourcePoint"/>
                         <mxPoint x="336.5" y="1424" as="targetPoint"/>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="level1_m40" value="프로세스 종료" style="html=1;verticalAlign=bottom;startArrow=none;endArrow=open;dashed=1;rounded=0;labelBackgroundColor=#ffffff;strokeColor=#475569;fontColor=#111827;labelBorderColor=none;" parent="1" edge="1">
+                <mxCell id="level1_m40" value="Process exits" style="html=1;verticalAlign=bottom;startArrow=none;endArrow=open;dashed=1;rounded=0;labelBackgroundColor=#ffffff;strokeColor=#475569;fontColor=#111827;labelBorderColor=none;" parent="1" edge="1">
                     <mxGeometry relative="1" as="geometry">
                         <mxPoint x="336.5" y="1516" as="sourcePoint"/>
                         <mxPoint x="133.5" y="1516" as="targetPoint"/>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="level1_refc18" value="Level 2 · 측정 중 분석 반복 흐름" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=12;fontColor=#0f172a;" parent="1" vertex="1">
+                <mxCell id="level1_refc18" value="Level 2 - measurement analysis loop" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=12;fontColor=#0f172a;" parent="1" vertex="1">
                     <mxGeometry x="257" y="672" width="1246" height="32" as="geometry"/>
                 </mxCell>
-                <mxCell id="level1_g19" value="[사용자 종료 — Pause 후 Reset]" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=11;fontColor=#0f172a;fontStyle=2;" parent="1" vertex="1">
+                <mxCell id="level1_g19" value="[User stop - Reset after Pause]" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=11;fontColor=#0f172a;fontStyle=2;" parent="1" vertex="1">
                     <mxGeometry x="56" y="750" width="1441" height="20" as="geometry"/>
                 </mxCell>
-                <mxCell id="level1_g24" value="[외부 비정상 종료 — Live capture 끊김]" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=11;fontColor=#0f172a;fontStyle=2;" parent="1" vertex="1">
+                <mxCell id="level1_g24" value="[External stop - Live capture ended]" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=11;fontColor=#0f172a;fontStyle=2;" parent="1" vertex="1">
                     <mxGeometry x="56" y="940" width="1441" height="20" as="geometry"/>
                 </mxCell>
-                <mxCell id="level1_g29" value="[Playback 자연 종료 — WAV EOF]" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=11;fontColor=#0f172a;fontStyle=2;" parent="1" vertex="1">
+                <mxCell id="level1_g29" value="[Playback natural end - WAV EOF]" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=11;fontColor=#0f172a;fontStyle=2;" parent="1" vertex="1">
                     <mxGeometry x="56" y="1130" width="1441" height="20" as="geometry"/>
                 </mxCell>
-                <mxCell id="F0YbUChb4yeJ4Bp75ddp-4" value="Reset 클릭 (ResetCommand)" style="html=1;verticalAlign=bottom;startArrow=none;endArrow=block;rounded=0;labelBackgroundColor=#ffffff;strokeColor=#1f2937;fontColor=#111827;labelBorderColor=none;" parent="1" edge="1">
+                <mxCell id="F0YbUChb4yeJ4Bp75ddp-4" value="Click Reset (ResetCommand)" style="html=1;verticalAlign=bottom;startArrow=none;endArrow=block;rounded=0;labelBackgroundColor=#ffffff;strokeColor=#1f2937;fontColor=#111827;labelBorderColor=none;" parent="1" edge="1">
                     <mxGeometry relative="1" as="geometry">
                         <mxPoint x="133.5" y="790" as="sourcePoint"/>
                         <mxPoint x="551.5" y="790" as="targetPoint"/>
@@ -217,7 +217,7 @@
                 <mxCell id="F0YbUChb4yeJ4Bp75ddp-10" value="" style="html=1;points=[];perimeter=orthogonalPerimeter;fillColor=#bfdbfe;strokeColor=#1d4ed8;" parent="1" vertex="1">
                     <mxGeometry x="342.5" y="1450" width="11" height="46" as="geometry"/>
                 </mxCell>
-                <mxCell id="F0YbUChb4yeJ4Bp75ddp-11" value="창 종료 정리" style="html=1;verticalAlign=middle;align=left;startArrow=none;endArrow=block;rounded=0;labelBackgroundColor=#ffffff;strokeColor=#1f2937;fontColor=#111827;labelBorderColor=none;entryX=0.958;entryY=0.986;entryDx=0;entryDy=0;entryPerimeter=0;" parent="1" target="F0YbUChb4yeJ4Bp75ddp-10" edge="1">
+                <mxCell id="F0YbUChb4yeJ4Bp75ddp-11" value="Window close cleanup" style="html=1;verticalAlign=middle;align=left;startArrow=none;endArrow=block;rounded=0;labelBackgroundColor=#ffffff;strokeColor=#1f2937;fontColor=#111827;labelBorderColor=none;entryX=0.958;entryY=0.986;entryDx=0;entryDy=0;entryPerimeter=0;" parent="1" target="F0YbUChb4yeJ4Bp75ddp-10" edge="1">
                     <mxGeometry x="0.007" relative="1" as="geometry">
                         <mxPoint as="offset"/>
                         <Array as="points">
@@ -228,7 +228,7 @@
                         <mxPoint x="353.5" y="1470" as="targetPoint"/>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="F0YbUChb4yeJ4Bp75ddp-12" value="녹음 세션 종료" style="html=1;verticalAlign=middle;align=left;startArrow=none;endArrow=block;rounded=0;labelBackgroundColor=#ffffff;strokeColor=#1f2937;fontColor=#111827;labelBorderColor=none;entryX=0.958;entryY=0.986;entryDx=0;entryDy=0;entryPerimeter=0;" parent="1" target="F0YbUChb4yeJ4Bp75ddp-9" edge="1">
+                <mxCell id="F0YbUChb4yeJ4Bp75ddp-12" value="End recording session" style="html=1;verticalAlign=middle;align=left;startArrow=none;endArrow=block;rounded=0;labelBackgroundColor=#ffffff;strokeColor=#1f2937;fontColor=#111827;labelBorderColor=none;entryX=0.958;entryY=0.986;entryDx=0;entryDy=0;entryPerimeter=0;" parent="1" target="F0YbUChb4yeJ4Bp75ddp-9" edge="1">
                     <mxGeometry x="0.007" relative="1" as="geometry">
                         <mxPoint as="offset"/>
                         <Array as="points">
@@ -242,7 +242,7 @@
                 <mxCell id="F0YbUChb4yeJ4Bp75ddp-17" value="" style="html=1;points=[];perimeter=orthogonalPerimeter;fillColor=#bfdbfe;strokeColor=#1d4ed8;" parent="1" vertex="1">
                     <mxGeometry x="342.5" y="180" width="11" height="46" as="geometry"/>
                 </mxCell>
-                <mxCell id="F0YbUChb4yeJ4Bp75ddp-18" value="&lt;span style=&quot;color: rgb(17, 24, 39);&quot;&gt;초기화&lt;/span&gt;" style="html=1;verticalAlign=middle;align=left;startArrow=none;endArrow=block;rounded=0;labelBackgroundColor=#ffffff;strokeColor=#1f2937;fontColor=#111827;labelBorderColor=none;entryX=0.958;entryY=0.986;entryDx=0;entryDy=0;entryPerimeter=0;" parent="1" target="F0YbUChb4yeJ4Bp75ddp-17" edge="1">
+                <mxCell id="F0YbUChb4yeJ4Bp75ddp-18" value="Initialize" style="html=1;verticalAlign=middle;align=left;startArrow=none;endArrow=block;rounded=0;labelBackgroundColor=#ffffff;strokeColor=#1f2937;fontColor=#111827;labelBorderColor=none;entryX=0.958;entryY=0.986;entryDx=0;entryDy=0;entryPerimeter=0;" parent="1" target="F0YbUChb4yeJ4Bp75ddp-17" edge="1">
                     <mxGeometry x="0.007" relative="1" as="geometry">
                         <mxPoint as="offset"/>
                         <Array as="points">
@@ -256,7 +256,7 @@
                 <mxCell id="F0YbUChb4yeJ4Bp75ddp-21" value="" style="html=1;points=[];perimeter=orthogonalPerimeter;fillColor=#bfdbfe;strokeColor=#1d4ed8;" parent="1" vertex="1">
                     <mxGeometry x="990" y="440" width="11" height="46" as="geometry"/>
                 </mxCell>
-                <mxCell id="F0YbUChb4yeJ4Bp75ddp-22" value="&lt;span style=&quot;color: rgb(17, 24, 39);&quot;&gt;MasterAudioBuffer·AnalysisWorker 생성&lt;/span&gt;" style="html=1;verticalAlign=middle;align=left;startArrow=none;endArrow=block;rounded=0;labelBackgroundColor=#ffffff;strokeColor=#1f2937;fontColor=#111827;labelBorderColor=none;entryX=0.958;entryY=0.986;entryDx=0;entryDy=0;entryPerimeter=0;" parent="1" target="F0YbUChb4yeJ4Bp75ddp-21" edge="1">
+                <mxCell id="F0YbUChb4yeJ4Bp75ddp-22" value="Create MasterAudioBuffer and AnalysisWorker" style="html=1;verticalAlign=middle;align=left;startArrow=none;endArrow=block;rounded=0;labelBackgroundColor=#ffffff;strokeColor=#1f2937;fontColor=#111827;labelBorderColor=none;entryX=0.958;entryY=0.986;entryDx=0;entryDy=0;entryPerimeter=0;" parent="1" target="F0YbUChb4yeJ4Bp75ddp-21" edge="1">
                     <mxGeometry x="0.007" relative="1" as="geometry">
                         <mxPoint as="offset"/>
                         <Array as="points">
@@ -270,7 +270,7 @@
             </root>
         </mxGraphModel>
     </diagram>
-    <diagram name="Level 2 · 측정 중 분석 반복 흐름" id="QyV4t9ta_UFomOPphuwq">
+    <diagram name="Level 2 - measurement analysis loop" id="QyV4t9ta_UFomOPphuwq">
         <mxGraphModel dx="658" dy="460" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1545" pageHeight="974" math="0" shadow="0">
             <root>
                 <mxCell id="0"/>
@@ -296,7 +296,7 @@
                 <mxCell id="level2_VM" value="ViewModel" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;collapsible=0;recursiveResize=0;outlineConnect=0;size=48;fillColor=#dae8fc;strokeColor=#1d4ed8;fontColor=#0f172a;fontSize=12;" parent="1" vertex="1">
                     <mxGeometry x="255" y="60" width="175" height="894" as="geometry"/>
                 </mxCell>
-                <mxCell id="level2_frag25" value="loop [측정 중: 입력 block마다]" style="shape=umlFrame;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#64748b;fontColor=#0f172a;fontSize=12;fontStyle=1;width=54;height=24;verticalAlign=top;align=left;" parent="1" vertex="1">
+                <mxCell id="level2_frag25" value="loop [measuring: each input block]" style="shape=umlFrame;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#64748b;fontColor=#0f172a;fontSize=12;fontStyle=1;width=54;height=24;verticalAlign=top;align=left;" parent="1" vertex="1">
                     <mxGeometry x="32" y="150" width="1481" height="772" as="geometry"/>
                 </mxCell>
                 <mxCell id="level2_latency_duration" value="{E2E &lt;= 1 beat period}&lt;br&gt;83.3 ms @ 43200 BPH&lt;br&gt;166.7 ms @ 21600 BPH" style="duration=1;html=1;endArrow=none;startArrow=none;rounded=0;strokeColor=#64748b;fontColor=#0f172a;labelBackgroundColor=#ffffff;" parent="1" edge="1">
@@ -377,7 +377,7 @@
                         <mxPoint x="1411.5" y="588" as="targetPoint"/>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="level2_m15" value="분석 결과" style="html=1;verticalAlign=bottom;startArrow=none;endArrow=open;dashed=1;rounded=0;labelBackgroundColor=#ffffff;strokeColor=#475569;fontColor=#111827;labelBorderColor=none;" parent="1" edge="1">
+                <mxCell id="level2_m15" value="analysis result" style="html=1;verticalAlign=bottom;startArrow=none;endArrow=open;dashed=1;rounded=0;labelBackgroundColor=#ffffff;strokeColor=#475569;fontColor=#111827;labelBorderColor=none;" parent="1" edge="1">
                     <mxGeometry relative="1" as="geometry">
                         <mxPoint x="1411.5" y="634" as="sourcePoint"/>
                         <mxPoint x="1208.5" y="634" as="targetPoint"/>
@@ -389,7 +389,7 @@
                         <mxPoint x="121.5" y="680" as="targetPoint"/>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="level2_m19" value="Present(): 표시 상태 갱신" style="html=1;verticalAlign=bottom;startArrow=none;endArrow=block;rounded=0;labelBackgroundColor=#ffffff;strokeColor=#1f2937;fontColor=#111827;labelBorderColor=none;" parent="1" edge="1">
+                <mxCell id="level2_m19" value="Present(): update display state" style="html=1;verticalAlign=bottom;startArrow=none;endArrow=block;rounded=0;labelBackgroundColor=#ffffff;strokeColor=#1f2937;fontColor=#111827;labelBorderColor=none;" parent="1" edge="1">
                     <mxGeometry relative="1" as="geometry">
                         <mxPoint x="133.5" y="772" as="sourcePoint"/>
                         <mxPoint x="336.5" y="772" as="targetPoint"/>
@@ -410,7 +410,7 @@
                 <mxCell id="cGTd8lHJzcvNNcAPq7sY-1" value="" style="html=1;points=[];perimeter=orthogonalPerimeter;fillColor=#bfdbfe;strokeColor=#1d4ed8;" vertex="1" parent="1">
                     <mxGeometry x="127" y="700" width="11" height="46" as="geometry"/>
                 </mxCell>
-                <mxCell id="cGTd8lHJzcvNNcAPq7sY-2" value="그래프 랜더링" style="html=1;verticalAlign=middle;align=left;startArrow=none;endArrow=block;rounded=0;labelBackgroundColor=#ffffff;strokeColor=#1f2937;fontColor=#111827;labelBorderColor=none;entryX=0.958;entryY=0.986;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" parent="1" target="cGTd8lHJzcvNNcAPq7sY-1">
+                <mxCell id="cGTd8lHJzcvNNcAPq7sY-2" value="Render graph" style="html=1;verticalAlign=middle;align=left;startArrow=none;endArrow=block;rounded=0;labelBackgroundColor=#ffffff;strokeColor=#1f2937;fontColor=#111827;labelBorderColor=none;entryX=0.958;entryY=0.986;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" parent="1" target="cGTd8lHJzcvNNcAPq7sY-1">
                     <mxGeometry x="0.007" relative="1" as="geometry">
                         <mxPoint as="offset"/>
                         <Array as="points">
@@ -424,7 +424,7 @@
                 <mxCell id="cGTd8lHJzcvNNcAPq7sY-3" value="" style="html=1;points=[];perimeter=orthogonalPerimeter;fillColor=#bfdbfe;strokeColor=#1d4ed8;" vertex="1" parent="1">
                     <mxGeometry x="556.5" y="340" width="11" height="46" as="geometry"/>
                 </mxCell>
-                <mxCell id="cGTd8lHJzcvNNcAPq7sY-4" value="&lt;span style=&quot;color: rgb(17, 24, 39);&quot;&gt;runSessionToken 확인&lt;/span&gt;" style="html=1;verticalAlign=middle;align=left;startArrow=none;endArrow=block;rounded=0;labelBackgroundColor=#ffffff;strokeColor=#1f2937;fontColor=#111827;labelBorderColor=none;entryX=0.958;entryY=0.986;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" parent="1" target="cGTd8lHJzcvNNcAPq7sY-3">
+                <mxCell id="cGTd8lHJzcvNNcAPq7sY-4" value="Check runSessionToken" style="html=1;verticalAlign=middle;align=left;startArrow=none;endArrow=block;rounded=0;labelBackgroundColor=#ffffff;strokeColor=#1f2937;fontColor=#111827;labelBorderColor=none;entryX=0.958;entryY=0.986;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" parent="1" target="cGTd8lHJzcvNNcAPq7sY-3">
                     <mxGeometry x="0.007" relative="1" as="geometry">
                         <mxPoint as="offset"/>
                         <Array as="points">
