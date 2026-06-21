@@ -58,6 +58,16 @@ Playback은 WAV 파일이 끝나면(`DoneReadingFile`) 현재 세션을 확인·
 
 ![표기 범례](assets/uml25/run-lifecycle-notation.svg)
 
+### 라벨 작성 규칙
+
+| 메시지 종류 | 표기 | 예 |
+| --- | --- | --- |
+| Actor(User) ↔ 시스템 | 사용자의 행위·의도 (사용자는 메서드를 호출하지 않는다) | `프로그램 실행`, `WAV 파일 선택`, `프로그램 종료` |
+| 시스템 객체 간 호출 | 오퍼레이션 시그니처(메서드명) — 코드 추적성 | `PrepareInputRun(sampleRate)`, `TryStop(timeout)` |
+| self-message | 상태 효과는 행위, 단일 메서드 호출은 메서드명 | `RunState = Stopping`(효과) / `OnWindowClosed()`(메서드) |
+
+`RunState = X`는 실행 제어 상태를 가리키는 맥락 표기이며, 전이 규칙은 [상태 머신 다이어그램](RUN_LIFECYCLE_STATE_MACHINE.md)에서 다룬다.
+
 ## 참여 객체 (lifeline)
 
 | Lifeline | 포함 구성요소 |
@@ -69,13 +79,3 @@ Playback은 WAV 파일이 끝나면(`DoneReadingFile`) 현재 세션을 확인·
 | MasterAudioBuffer | 입력↔분석 공유 오디오 ring buffer |
 | AnalysisWorker | 분석 스레드 |
 | Core pipeline | Detection / Metrics / Projectors |
-
-### 라벨 작성 규칙
-
-| 메시지 종류 | 표기 | 예 |
-| --- | --- | --- |
-| Actor(User) ↔ 시스템 | 사용자의 행위·의도 (사용자는 메서드를 호출하지 않는다) | `프로그램 실행`, `WAV 파일 선택`, `프로그램 종료` |
-| 시스템 객체 간 호출 | 오퍼레이션 시그니처(메서드명) — 코드 추적성 | `PrepareInputRun(sampleRate)`, `TryStop(timeout)` |
-| self-message | 상태 효과는 행위, 단일 메서드 호출은 메서드명 | `RunState = Stopping`(효과) / `OnWindowClosed()`(메서드) |
-
-`RunState = X`는 실행 제어 상태를 가리키는 맥락 표기이며, 전이 규칙은 [상태 머신 다이어그램](RUN_LIFECYCLE_STATE_MACHINE.md)에서 다룬다.
