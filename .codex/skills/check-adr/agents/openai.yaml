@@ -1,0 +1,4 @@
+interface:
+  display_name: "Check ADR"
+  short_description: "Review TimeGrapher ADR docs"
+  default_prompt: "Use $check-adr to review the TimeGrapher-Net ADR set."
