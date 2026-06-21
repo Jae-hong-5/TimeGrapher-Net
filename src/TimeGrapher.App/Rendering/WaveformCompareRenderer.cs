@@ -130,7 +130,6 @@ internal sealed class WaveformCompareRenderer
         plot.Clear();
         ApplyPlotTheme(plot);
         plot.YLabel("past \u2003\u2003\u2003\u2003\u2003\u2003\u2003\u2003\u25c0\u2003\u2003\u2003\u2003\u2003\u2003\u2003\u2003 current");
-        plot.Axes.Left.Label.FontName = _textFontFamily;
         plot.XLabel("(ms)");
         plot.Axes.Left.TickLabelStyle.IsVisible = false;
 
