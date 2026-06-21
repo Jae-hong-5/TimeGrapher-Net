@@ -347,16 +347,16 @@ def loopbody(pg):
 p.frag("loop", [("측정 중: 입력 block마다 — Live·Simulation은 정지까지 무한 반복, Playback은 WAV EOF까지", loopbody)])
 pages.append(p)
 
-# Level 2.4 · 측정 종료 (사용자 요청 / 외부 비정상 종료)
+# Level 2.4 · 측정 종료 (사용자 종료 / 외부 비정상 종료)
 # Two triggers converge on the same immediate-stop sequence (plain TryStop, no
 # input drain): a user Stop/Reset request (any mode; for Simulation this is the
 # only way its infinite loop ends), or Live capture dying on its own
 # (CaptureEnded -> HandleLiveCaptureEnded -> StopRunAndRefreshDevices).
-p = Page("level24", "Level 2.4 · 측정 종료 (사용자 요청 / 외부 비정상 종료)",
+p = Page("level24", "Level 2.4 · 측정 종료 (사용자 종료 / 외부 비정상 종료)",
          [("User", "User", True), ("App", "App layer", False), ("Sess", "RunSessionController", False),
           ("Input", "Input worker", False), ("Analysis", "AnalysisWorker", False)])
 p.frag("alt", [
-    ("사용자가 측정 종료를 요청한 경우 (Live/Playback/Simulation)",
+    ("사용자가 측정을 종료한 경우 (Live/Playback/Simulation)",
      lambda q: q.msg("User", "App", "Pause 후 Reset 또는 내부 stop 요청")),
     ("외부 비정상 종료된 경우 (Live capture 끊김 등)",
      lambda q: q.msg("Input", "App", "CaptureEnded (runSessionToken 일치 시 정지)", "ret")),
