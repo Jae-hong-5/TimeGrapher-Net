@@ -18,7 +18,7 @@
   <path d="M240 184 H310" class="line"/><text x="275" y="169" class="small" text-anchor="middle">concurrent</text><text x="275" y="183" class="small" text-anchor="middle">handoff</text>
   <path d="M500 184 H580" class="line"/><path d="M770 184 H845" class="line"/><text x="808" y="169" class="small" text-anchor="middle">concurrent</text><text x="808" y="183" class="small" text-anchor="middle">handoff</text>
   <path d="M1055 184 H1130" class="line"/>
-  <rect x="220" y="320" width="850" height="170" rx="14" fill="#f8fafc" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="7 5"/>
+  <rect x="220" y="320" width="930" height="170" rx="14" fill="#f8fafc" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="7 5"/>
   <text x="240" y="348" class="label">Inside Analysis worker: synchronous staged chain</text>
   <rect x="265" y="390" width="120" height="50" rx="10" class="boundary"/><text x="325" y="410" class="boxText" text-anchor="middle">Audio block</text><text x="325" y="428" class="boxText" text-anchor="middle">from ring buffer</text>
   <rect x="425" y="390" width="85" height="50" rx="10" class="stage"/><text x="467" y="421" class="boxText" text-anchor="middle">HPF</text>
