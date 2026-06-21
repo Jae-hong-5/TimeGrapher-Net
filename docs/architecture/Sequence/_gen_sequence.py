@@ -107,6 +107,15 @@ class Page:
             f'fillColor={C_BAR};strokeColor={C_LIFE};" vertex="1" parent="1">'
             f'<mxGeometry x="{c - BAR_W/2}" y="{start}" width="{BAR_W}" height="{h}" as="geometry" /></mxCell>')
 
+    def note(self, label, li=None, ri=None):
+        left, right = self.frame_span(li, ri)
+        y = self.y
+        self.texts.append(
+            f'<mxCell id="{self.nid("note")}" value="{esc(label)}" style="shape=note;whiteSpace=wrap;html=1;'
+            f'fillColor=#fef9c3;strokeColor=#ca8a04;fontColor=#0f172a;fontSize=11;align=center;verticalAlign=middle;size=10;" '
+            f'vertex="1" parent="1"><mxGeometry x="{left+10}" y="{y}" width="{right-left-20}" height="34" as="geometry" /></mxCell>')
+        self.y += 50
+
     def ref(self, caption, li=None, ri=None):
         left, right = self.frame_span(li, ri)
         top = self.y
@@ -191,7 +200,7 @@ def user_stop_body(pg):
 
 
 def natural_end(pg):
-    pg.msg("Input", "App", "DoneReadingFile / SimDone", "ret")
+    pg.msg("Input", "App", "DoneReadingFile (WAV EOF)", "ret")
     pg.act_on("App")
     pg.msg("App", "Sess", "IsCurrentRunSession(token)")
     pg.act_on("Sess"); pg.msg("Sess", "App", "current", "ret"); pg.act_off("Sess")
@@ -199,7 +208,7 @@ def natural_end(pg):
     pg.act_on("Sess"); pg.msg("Sess", "App", "token advanced", "ret"); pg.act_off("Sess")
     pg.selfmsg("App", "RunState = Stopping")
     pg.selfmsg("App", "RestorePlaybackOrSimulationAudioState()")
-    pg.msg("App", "Sess", "StopInputWorker(Playback/Simulation)")
+    pg.msg("App", "Sess", "StopInputWorker(Playback)")
     pg.act_on("Sess"); pg.msg("Sess", "Input", "TryStop(timeout)")
     pg.act_on("Input"); pg.msg("Input", "Sess", "stopped", "ret"); pg.act_off("Input")
     pg.msg("Sess", "App", "input stopped", "ret"); pg.act_off("Sess")
@@ -328,7 +337,7 @@ def loopbody(pg):
     pg.msg("App", "Analysis", "frame accepted", "ret")
     pg.act_off("App"); pg.act_off("Analysis")
 
-p.frag("loop", [("측정 중: 입력 block마다", loopbody)])
+p.frag("loop", [("측정 중: 입력 block마다 — Live·Simulation은 정지까지 무한 반복, Playback은 WAV EOF까지", loopbody)])
 pages.append(p)
 
 # Level 2.4 · 측정 종료 (사용자 요청 / Live capture 종료)
@@ -344,13 +353,14 @@ p.frag("alt", [
     ("Live capture가 비정상 종료된 경우",
      lambda q: q.msg("Input", "App", "CaptureEnded (runSessionToken 일치 시 정지)", "ret")),
 ])
-p.last_y = p.y  # start the activation bar just below the trigger alt
+p.note("입력 worker를 TryStop으로 즉시 중단 — Simulation의 무한 생성 루프도 여기서 interruption으로 종료된다")
+p.last_y = p.y  # start the activation bar just below the trigger note
 p.act_on("App")
 user_stop_body(p)
 pages.append(p)
 
 # Level 2.5 · Playback/Simulation 자연 종료
-p = Page("level25", "Level 2.5 · Playback/Simulation 자연 종료",
+p = Page("level25", "Level 2.5 · Playback 자연 종료",
          [("App", "App layer", False), ("Sess", "RunSessionController", False),
           ("Input", "Input worker", False), ("Analysis", "AnalysisWorker", False),
           ("Core", "Core pipeline", False)])
