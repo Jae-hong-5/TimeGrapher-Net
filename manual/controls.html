@@ -40,7 +40,7 @@
       <p class="ko">소리를 어디서 받을지 고릅니다. 세 종류가 한 드롭다운에 함께 나열됩니다.</p>
       <p class="en">Where the sound comes from. Three kinds appear in one dropdown.</p>
       <ul>
-        <li><span class="pill">Live</span> <span class="ko"><b>마이크</b> — 컴퓨터에 연결된 실제 캡처 장치. 장치 이름이 그대로 보입니다.</span><span class="en"><b>Microphone</b> — a real capture device on the computer; its name is listed.</span></li>
+        <li><span class="pill">Live</span> <span class="ko"><b>마이크</b> — 컴퓨터에 연결된 실제 캡처 장치. 장치 이름이 그대로 보입니다. 측정 전 <a href="#mic">마이크 설정(AGC·결합)</a>을 확인하세요.</span><span class="en"><b>Microphone</b> — a real capture device on the computer; its name is listed. Check <a href="#mic">microphone setup (AGC &amp; coupling)</a> before measuring.</span></li>
         <li><span class="pill">Playback</span> <span class="ko"><b>WAV 재생</b> — 선택하면 파일 선택 창이 열립니다. <code>sample/</code> 폴더의 예제(예: <code>28800BPH_3135_hulk.wav</code>)를 고르면 됩니다. 모노·표준 샘플레이트 WAV만 받습니다.</span><span class="en"><b>WAV playback</b> — opens a file picker. Use an example from <code>sample/</code>. Only mono, standard-rate WAV is accepted.</span></li>
         <li><span class="pill">Simulation</span> <span class="ko"><b>합성 신호</b> — 마이크 없이 아래 <a href="#sim">Simulation Parameters</a> 값으로 가짜 시계 소리를 만듭니다. 데모·학습용.</span><span class="en"><b>Synthetic signal</b> — builds a fake watch signal from the <a href="#sim">Simulation Parameters</a>; no mic needed. For demo/learning.</span></li>
       </ul>
@@ -51,9 +51,19 @@
       <p class="ko">초당 샘플 수. 선택지는 <code>48000 · 96000 · 192000</code> Hz입니다. 높을수록 똑/딱 충격의 시간 분해능이 좋아져 비트 오차·진폭 측정이 정밀해지지만 CPU 부담이 커집니다. 장치가 지원하는 값만 활성화됩니다. <b>192 kHz</b>가 정밀도와 부하의 일반적 절충점입니다.</p>
       <p class="en">Samples per second: <code>48000 · 96000 · 192000</code> Hz. Higher rates give finer timing resolution (more precise beat-error/amplitude) at higher CPU cost. Only rates the device supports are enabled. <b>192 kHz</b> is a common sweet spot.</p>
 
-      <h3>Gain</h3>
+      <h3 id="gain">Gain</h3>
       <p class="ko">입력 볼륨 슬라이더(0–1000). 파형이 너무 작아 검출이 안 되면 올리고, 클리핑(꼭대기가 잘림)되면 내립니다. <a href="graphs/rate-scope.html">Rate/Scope</a>의 스코프에서 트리거(빨간) 선을 적당히 넘는 정도가 적절합니다.</p>
       <p class="en">Input volume (0–1000). Raise it if the waveform is too small to detect; lower it if it clips. Aim for peaks that comfortably cross the red trigger line in <a href="graphs/rate-scope.html">Rate/Scope</a>.</p>
+
+      <h3 id="mic"><span class="ko">마이크 설정 (AGC·결합)</span><span class="sep"> · </span><span class="en">Microphone setup (AGC &amp; coupling)</span></h3>
+      <p class="ko"><span class="pill">Live</span> 입력에서만 해당합니다(Playback·Simulation은 무관). 마이크 캡처가 왜곡되면 진폭·비트 오차 등 <b>모든 측정</b>이 어긋나므로, 측정 전에 아래 두 가지를 확인하세요.</p>
+      <p class="en">Applies to the <span class="pill">Live</span> input only (Playback/Simulation are unaffected). A distorted mic capture skews <b>every</b> reading (amplitude, beat error, …), so check these two before measuring.</p>
+      <div class="note">
+        <p class="ko"><b>AGC를 끄세요</b> — <b>자동 게인(AGC)·노이즈 억제·"오디오 향상"</b>은 OS 사운드 설정에서 직접 꺼야 합니다. 앱은 이를 자동으로 끄지 못합니다. 켜져 있으면 똑/딱 충격을 눌러 평탄하게 만들거나 부풀려 측정을 무너뜨립니다. <i>Windows</i>: 사운드 설정 → 입력 장치 속성 → 향상(Enhancements)/고급에서 관련 항목 해제. <i>Linux</i>: <code>pw-record</code>/<code>arecord</code>는 기본적으로 AGC를 적용하지 않습니다.</p>
+        <p class="en"><b>Turn AGC off</b> — disable <b>auto gain control (AGC), noise suppression, and "audio enhancements"</b> in your OS sound settings yourself; the app cannot turn them off. Left on, they flatten or inflate the tic/toc impulses and corrupt readings. <i>Windows</i>: Sound settings → input-device properties → uncheck the enhancement/advanced options. <i>Linux</i>: <code>pw-record</code>/<code>arecord</code> apply no AGC by default.</p>
+      </div>
+      <p class="ko"><b>마이크 결합(coupling)</b> — 시계와 마이크 픽업을 <b>단단하고 안정적으로 밀착</b>시키세요. 결합이 헐겁거나 흔들리면 신호가 약해지거나 왜곡돼 검출이 불안정해집니다. 밀착한 뒤 <a href="#gain">Gain</a>으로 레벨을 맞추고, <a href="graphs/rate-scope.html">Rate/Scope</a>에서 파형이 트리거 선을 안정적으로 넘는지 확인하세요.</p>
+      <p class="en"><b>Microphone coupling</b> — hold the watch <b>firmly and steadily</b> against the microphone pickup. A loose or shifting coupling weakens or distorts the signal and makes detection unstable. Once seated, set the level with <a href="#gain">Gain</a> and confirm the waveform reliably crosses the trigger line in <a href="graphs/rate-scope.html">Rate/Scope</a>.</p>
 
       <h3>Avg. Period</h3>
       <p class="ko">측정값을 평균 내는 시간 창(초). 선택지는 <code>2 · 4 · 8 · 10 · 12 · 20 · 30 · 40 · 50 · 60 · 120 · 240</code>초. <b>짧게</b> 하면 변화에 빨리 반응하지만 값이 출렁이고, <b>길게</b> 하면 안정적이지만 반응이 느립니다. 정밀 측정은 길게, 조정 중 즉각 반응은 짧게.</p>
