@@ -1,5 +1,5 @@
 <mxfile host="app.diagrams.net" pages="5">
-  <diagram name="Level 1 · 실행 수명주기 개요" id="KtfYSLwTFr8AED0fYDew">
+  <diagram name="Level 1 · 실행 수명주기 개요" id="0hOzRspTqQbA4bO9ZZnX">
     <mxGraphModel dx="1046" dy="735" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1330" pageHeight="722" math="0" shadow="0">
       <root>
         <mxCell id="0" />
@@ -106,8 +106,8 @@
       </root>
     </mxGraphModel>
   </diagram>
-  <diagram name="Level 2.1 · 입력 실행 준비 공통 흐름" id="MpFyG6n_CQXzHxXcenWo">
-    <mxGraphModel dx="1046" dy="735" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="900" pageHeight="604" math="0" shadow="0">
+  <diagram name="Level 2.1 · 입력 실행 준비 공통 흐름" id="-QXvuyYWFeCpQoxt4yIQ">
+    <mxGraphModel grid="1" page="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" pageScale="1" pageWidth="900" pageHeight="604" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -197,8 +197,8 @@
       </root>
     </mxGraphModel>
   </diagram>
-  <diagram name="Level 2.2 · 입력 모드별 시작 흐름" id="40RgT8jYDXcxvkAmJ-9m">
-    <mxGraphModel dx="1231" dy="865" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="685" pageHeight="894" math="0" shadow="0">
+  <diagram name="Level 2.2 · 입력 모드별 시작 흐름" id="ooOFrNQ1DfKuizoMC_Te">
+    <mxGraphModel grid="1" page="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" pageScale="1" pageWidth="685" pageHeight="894" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -364,8 +364,8 @@
       </root>
     </mxGraphModel>
   </diagram>
-  <diagram name="Level 2.3 · 측정 중 분석 반복 흐름" id="oq0LVvDuCYEWxySlmPa3">
-    <mxGraphModel dx="1308" dy="919" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1330" pageHeight="882" math="0" shadow="0">
+  <diagram name="Level 2.3 · 측정 중 분석 반복 흐름" id="fvYkweD_fcfxrNAxiex9">
+    <mxGraphModel grid="1" page="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" pageScale="1" pageWidth="1330" pageHeight="882" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -502,8 +502,8 @@
       </root>
     </mxGraphModel>
   </diagram>
-  <diagram name="Level 2.4 · 종료 및 정리 흐름" id="rfUvSZ_6RRQu3Au-tgfc">
-    <mxGraphModel dx="1395" dy="980" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1330" pageHeight="2552" math="0" shadow="0">
+  <diagram name="Level 2.4 · 종료 및 정리 흐름" id="4HUVXib-u1zzBwoqTcgB">
+    <mxGraphModel grid="1" page="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" pageScale="1" pageWidth="1330" pageHeight="2552" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
