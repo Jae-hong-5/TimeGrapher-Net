@@ -1,39 +1,130 @@
-<mxfile host="app.diagrams.net" agent="Claude" type="device"><diagram id="notation" name="표기 범례"><mxGraphModel grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="700" pageHeight="540" math="0" shadow="0"><root><mxCell id="0" /><mxCell id="1" parent="0" />
-<mxCell id="h1" value="기호" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f1f5f9;strokeColor=#cbd5e1;fontSize=13;fontStyle=1;fontColor=#0f172a;" vertex="1" parent="1"><mxGeometry x="20" y="20" width="200" height="32" as="geometry" /></mxCell>
-<mxCell id="h2" value="의미" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f1f5f9;strokeColor=#cbd5e1;fontSize=13;fontStyle=1;fontColor=#0f172a;align=left;spacingLeft=12;" vertex="1" parent="1"><mxGeometry x="220" y="20" width="460" height="32" as="geometry" /></mxCell>
-
-<mxCell id="c1_0" value="" style="rounded=0;html=1;fillColor=none;strokeColor=#cbd5e1;" vertex="1" parent="1"><mxGeometry x="20" y="52" width="200" height="58" as="geometry" /></mxCell>
-<mxCell id="c2_0" value="actor — User(사용자)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#cbd5e1;align=left;verticalAlign=middle;spacingLeft=12;fontSize=13;fontColor=#0f172a;" vertex="1" parent="1"><mxGeometry x="220" y="52" width="460" height="58" as="geometry" /></mxCell>
-<mxCell id="s0" value="" style="shape=umlActor;html=1;fillColor=none;strokeColor=#1d4ed8;" vertex="1" parent="1"><mxGeometry x="107" y="60" width="26" height="42" as="geometry" /></mxCell>
-
-<mxCell id="c1_1" value="" style="rounded=0;html=1;fillColor=none;strokeColor=#cbd5e1;" vertex="1" parent="1"><mxGeometry x="20" y="110" width="200" height="58" as="geometry" /></mxCell>
-<mxCell id="c2_1" value="lifeline — 객체의 생존선 (머리 박스 + 세로 점선)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#cbd5e1;align=left;verticalAlign=middle;spacingLeft=12;fontSize=13;fontColor=#0f172a;" vertex="1" parent="1"><mxGeometry x="220" y="110" width="460" height="58" as="geometry" /></mxCell>
-<mxCell id="s1box" value="객체" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#1d4ed8;fontSize=11;" vertex="1" parent="1"><mxGeometry x="78" y="116" width="84" height="24" as="geometry" /></mxCell>
-<mxCell id="s1line" value="" style="html=1;endArrow=none;startArrow=none;dashed=1;strokeColor=#1d4ed8;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="120" y="140" as="sourcePoint" /><mxPoint x="120" y="164" as="targetPoint" /></mxGeometry></mxCell>
-
-<mxCell id="c1_2" value="" style="rounded=0;html=1;fillColor=none;strokeColor=#cbd5e1;" vertex="1" parent="1"><mxGeometry x="20" y="168" width="200" height="58" as="geometry" /></mxCell>
-<mxCell id="c2_2" value="activation — 호출을 처리하는 동안의 focus of control" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#cbd5e1;align=left;verticalAlign=middle;spacingLeft=12;fontSize=13;fontColor=#0f172a;" vertex="1" parent="1"><mxGeometry x="220" y="168" width="460" height="58" as="geometry" /></mxCell>
-<mxCell id="s2line" value="" style="html=1;endArrow=none;startArrow=none;dashed=1;strokeColor=#1d4ed8;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="120" y="172" as="sourcePoint" /><mxPoint x="120" y="222" as="targetPoint" /></mxGeometry></mxCell>
-<mxCell id="s2bar" value="" style="html=1;points=[];perimeter=orthogonalPerimeter;fillColor=#bfdbfe;strokeColor=#1d4ed8;" vertex="1" parent="1"><mxGeometry x="114" y="182" width="12" height="30" as="geometry" /></mxCell>
-
-<mxCell id="c1_3" value="" style="rounded=0;html=1;fillColor=none;strokeColor=#cbd5e1;" vertex="1" parent="1"><mxGeometry x="20" y="226" width="200" height="58" as="geometry" /></mxCell>
-<mxCell id="c2_3" value="동기 호출 (실선 + 채운 화살촉)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#cbd5e1;align=left;verticalAlign=middle;spacingLeft=12;fontSize=13;fontColor=#0f172a;" vertex="1" parent="1"><mxGeometry x="220" y="226" width="460" height="58" as="geometry" /></mxCell>
-<mxCell id="s3" value="" style="html=1;endArrow=block;startArrow=none;rounded=0;strokeColor=#1f2937;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="45" y="255" as="sourcePoint" /><mxPoint x="195" y="255" as="targetPoint" /></mxGeometry></mxCell>
-
-<mxCell id="c1_4" value="" style="rounded=0;html=1;fillColor=none;strokeColor=#cbd5e1;" vertex="1" parent="1"><mxGeometry x="20" y="284" width="200" height="58" as="geometry" /></mxCell>
-<mxCell id="c2_4" value="반환 / 응답 / 이벤트(콜백) (점선 + 열린 화살촉)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#cbd5e1;align=left;verticalAlign=middle;spacingLeft=12;fontSize=13;fontColor=#0f172a;" vertex="1" parent="1"><mxGeometry x="220" y="284" width="460" height="58" as="geometry" /></mxCell>
-<mxCell id="s4" value="" style="html=1;endArrow=open;startArrow=none;dashed=1;rounded=0;strokeColor=#475569;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="195" y="313" as="sourcePoint" /><mxPoint x="45" y="313" as="targetPoint" /></mxGeometry></mxCell>
-
-<mxCell id="c1_5" value="" style="rounded=0;html=1;fillColor=none;strokeColor=#cbd5e1;" vertex="1" parent="1"><mxGeometry x="20" y="342" width="200" height="58" as="geometry" /></mxCell>
-<mxCell id="c2_5" value="객체 생성 (« create »)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#cbd5e1;align=left;verticalAlign=middle;spacingLeft=12;fontSize=13;fontColor=#0f172a;" vertex="1" parent="1"><mxGeometry x="220" y="342" width="460" height="58" as="geometry" /></mxCell>
-<mxCell id="s5arrow" value="« create »" style="html=1;endArrow=open;startArrow=none;dashed=1;rounded=0;strokeColor=#1f2937;fontColor=#111827;fontSize=10;labelBackgroundColor=#ffffff;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="40" y="371" as="sourcePoint" /><mxPoint x="150" y="371" as="targetPoint" /></mxGeometry></mxCell>
-<mxCell id="s5box" value="" style="rounded=0;html=1;fillColor=#dae8fc;strokeColor=#1d4ed8;" vertex="1" parent="1"><mxGeometry x="150" y="359" width="44" height="24" as="geometry" /></mxCell>
-
-<mxCell id="c1_6" value="" style="rounded=0;html=1;fillColor=none;strokeColor=#cbd5e1;" vertex="1" parent="1"><mxGeometry x="20" y="400" width="200" height="58" as="geometry" /></mxCell>
-<mxCell id="c2_6" value="ref — 다른 다이어그램(Level 2.x)을 가리키는 참조 frame" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#cbd5e1;align=left;verticalAlign=middle;spacingLeft=12;fontSize=13;fontColor=#0f172a;" vertex="1" parent="1"><mxGeometry x="220" y="400" width="460" height="58" as="geometry" /></mxCell>
-<mxCell id="s6" value="ref" style="shape=umlFrame;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#1d4ed8;fontColor=#0f172a;fontSize=12;fontStyle=1;width=40;height=20;verticalAlign=top;align=left;" vertex="1" parent="1"><mxGeometry x="55" y="408" width="120" height="42" as="geometry" /></mxCell>
-
-<mxCell id="c1_7" value="" style="rounded=0;html=1;fillColor=none;strokeColor=#cbd5e1;" vertex="1" parent="1"><mxGeometry x="20" y="458" width="200" height="58" as="geometry" /></mxCell>
-<mxCell id="c2_7" value="alt / opt / loop — 조건 분기 · 선택 실행 · 반복 fragment" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#cbd5e1;align=left;verticalAlign=middle;spacingLeft=12;fontSize=13;fontColor=#0f172a;" vertex="1" parent="1"><mxGeometry x="220" y="458" width="460" height="58" as="geometry" /></mxCell>
-<mxCell id="s7" value="alt" style="shape=umlFrame;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#64748b;fontColor=#0f172a;fontSize=12;fontStyle=1;width=40;height=20;verticalAlign=top;align=left;" vertex="1" parent="1"><mxGeometry x="55" y="466" width="120" height="42" as="geometry" /></mxCell>
-</root></mxGraphModel></diagram></mxfile>
+<mxfile host="65bd71144e">
+    <diagram id="notation" name="표기 범례">
+        <mxGraphModel dx="591" dy="483" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="700" pageHeight="540" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="h1" value="기호" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f1f5f9;strokeColor=#cbd5e1;fontSize=13;fontStyle=1;fontColor=#0f172a;" parent="1" vertex="1">
+                    <mxGeometry x="20" y="20" width="200" height="32" as="geometry"/>
+                </mxCell>
+                <mxCell id="h2" value="의미" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f1f5f9;strokeColor=#cbd5e1;fontSize=13;fontStyle=1;fontColor=#0f172a;align=center;spacingLeft=12;" parent="1" vertex="1">
+                    <mxGeometry x="220" y="20" width="460" height="32" as="geometry"/>
+                </mxCell>
+                <mxCell id="c1_0" value="" style="rounded=0;html=1;fillColor=none;strokeColor=#cbd5e1;" parent="1" vertex="1">
+                    <mxGeometry x="20" y="52" width="200" height="58" as="geometry"/>
+                </mxCell>
+                <mxCell id="c2_0" value="actor — User(사용자)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#cbd5e1;align=left;verticalAlign=middle;spacingLeft=12;fontSize=13;fontColor=#0f172a;" parent="1" vertex="1">
+                    <mxGeometry x="220" y="52" width="460" height="58" as="geometry"/>
+                </mxCell>
+                <mxCell id="s0" value="" style="shape=umlActor;html=1;fillColor=none;strokeColor=#1d4ed8;" parent="1" vertex="1">
+                    <mxGeometry x="107" y="60" width="26" height="42" as="geometry"/>
+                </mxCell>
+                <mxCell id="c1_1" value="" style="rounded=0;html=1;fillColor=none;strokeColor=#cbd5e1;" parent="1" vertex="1">
+                    <mxGeometry x="20" y="110" width="200" height="58" as="geometry"/>
+                </mxCell>
+                <mxCell id="c2_1" value="lifeline — 객체의 생존선" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#cbd5e1;align=left;verticalAlign=middle;spacingLeft=12;fontSize=13;fontColor=#0f172a;" parent="1" vertex="1">
+                    <mxGeometry x="220" y="110" width="460" height="58" as="geometry"/>
+                </mxCell>
+                <mxCell id="s1box" value="객체" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#1d4ed8;fontSize=11;" parent="1" vertex="1">
+                    <mxGeometry x="78" y="116" width="84" height="24" as="geometry"/>
+                </mxCell>
+                <mxCell id="s1line" value="" style="html=1;endArrow=none;startArrow=none;dashed=1;strokeColor=#1d4ed8;" parent="1" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="120" y="140" as="sourcePoint"/>
+                        <mxPoint x="120" y="164" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="c1_2" value="" style="rounded=0;html=1;fillColor=none;strokeColor=#cbd5e1;" parent="1" vertex="1">
+                    <mxGeometry x="20" y="168" width="200" height="58" as="geometry"/>
+                </mxCell>
+                <mxCell id="c2_2" value="activation — 호출을 처리하는 동안의 focus of control" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#cbd5e1;align=left;verticalAlign=middle;spacingLeft=12;fontSize=13;fontColor=#0f172a;" parent="1" vertex="1">
+                    <mxGeometry x="220" y="168" width="460" height="58" as="geometry"/>
+                </mxCell>
+                <mxCell id="s2line" value="" style="html=1;endArrow=none;startArrow=none;dashed=1;strokeColor=#1d4ed8;" parent="1" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="120" y="172" as="sourcePoint"/>
+                        <mxPoint x="120" y="222" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="s2bar" value="" style="html=1;points=[];perimeter=orthogonalPerimeter;fillColor=#bfdbfe;strokeColor=#1d4ed8;" parent="1" vertex="1">
+                    <mxGeometry x="114" y="182" width="12" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="c1_3" value="" style="rounded=0;html=1;fillColor=none;strokeColor=#cbd5e1;" parent="1" vertex="1">
+                    <mxGeometry x="20" y="226" width="200" height="58" as="geometry"/>
+                </mxCell>
+                <mxCell id="c2_3" value="동기 호출" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#cbd5e1;align=left;verticalAlign=middle;spacingLeft=12;fontSize=13;fontColor=#0f172a;" parent="1" vertex="1">
+                    <mxGeometry x="220" y="226" width="460" height="58" as="geometry"/>
+                </mxCell>
+                <mxCell id="s3" value="" style="html=1;endArrow=block;startArrow=none;rounded=0;strokeColor=#1f2937;" parent="1" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="45" y="255" as="sourcePoint"/>
+                        <mxPoint x="195" y="255" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="c1_4" value="" style="rounded=0;html=1;fillColor=none;strokeColor=#cbd5e1;" parent="1" vertex="1">
+                    <mxGeometry x="20" y="284" width="200" height="58" as="geometry"/>
+                </mxCell>
+                <mxCell id="c2_4" value="반환 / 응답 / 이벤트(콜백)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#cbd5e1;align=left;verticalAlign=middle;spacingLeft=12;fontSize=13;fontColor=#0f172a;" parent="1" vertex="1">
+                    <mxGeometry x="220" y="284" width="460" height="58" as="geometry"/>
+                </mxCell>
+                <mxCell id="s4" value="" style="html=1;endArrow=open;startArrow=none;dashed=1;rounded=0;strokeColor=#475569;" parent="1" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="195" y="313" as="sourcePoint"/>
+                        <mxPoint x="45" y="313" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="c1_5" value="" style="rounded=0;html=1;fillColor=none;strokeColor=#cbd5e1;" parent="1" vertex="1">
+                    <mxGeometry x="20" y="342" width="200" height="58" as="geometry"/>
+                </mxCell>
+                <mxCell id="c2_5" value="객체 생성 (« create »)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#cbd5e1;align=left;verticalAlign=middle;spacingLeft=12;fontSize=13;fontColor=#0f172a;" parent="1" vertex="1">
+                    <mxGeometry x="220" y="342" width="460" height="58" as="geometry"/>
+                </mxCell>
+                <mxCell id="s5arrow" value="« create »" style="html=1;endArrow=open;startArrow=none;dashed=1;rounded=0;strokeColor=#1f2937;fontColor=#111827;fontSize=10;labelBackgroundColor=#ffffff;" parent="1" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="40" y="371" as="sourcePoint"/>
+                        <mxPoint x="150" y="371" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="s5box" value="" style="rounded=0;html=1;fillColor=#dae8fc;strokeColor=#1d4ed8;" parent="1" vertex="1">
+                    <mxGeometry x="150" y="359" width="44" height="24" as="geometry"/>
+                </mxCell>
+                <mxCell id="c1_6" value="" style="rounded=0;html=1;fillColor=none;strokeColor=#cbd5e1;" parent="1" vertex="1">
+                    <mxGeometry x="20" y="400" width="200" height="58" as="geometry"/>
+                </mxCell>
+                <mxCell id="c2_6" value="ref — 다른 다이어그램(Level 2.x)을 가리키는 참조 frame" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#cbd5e1;align=left;verticalAlign=middle;spacingLeft=12;fontSize=13;fontColor=#0f172a;" parent="1" vertex="1">
+                    <mxGeometry x="220" y="400" width="460" height="58" as="geometry"/>
+                </mxCell>
+                <mxCell id="s6" value="ref" style="shape=umlFrame;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#1d4ed8;fontColor=#0f172a;fontSize=12;fontStyle=1;width=40;height=20;verticalAlign=top;align=left;" parent="1" vertex="1">
+                    <mxGeometry x="55" y="408" width="120" height="42" as="geometry"/>
+                </mxCell>
+                <mxCell id="c1_7" value="" style="rounded=0;html=1;fillColor=none;strokeColor=#cbd5e1;" parent="1" vertex="1">
+                    <mxGeometry x="20" y="458" width="200" height="58" as="geometry"/>
+                </mxCell>
+                <mxCell id="c2_7" value="alt — 조건 분기 fragment" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#cbd5e1;align=left;verticalAlign=middle;spacingLeft=12;fontSize=13;fontColor=#0f172a;" parent="1" vertex="1">
+                    <mxGeometry x="220" y="458" width="460" height="58" as="geometry"/>
+                </mxCell>
+                <mxCell id="s7" value="alt" style="shape=umlFrame;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#64748b;fontColor=#0f172a;fontSize=12;fontStyle=1;width=40;height=20;verticalAlign=top;align=left;" parent="1" vertex="1">
+                    <mxGeometry x="55" y="466" width="120" height="42" as="geometry"/>
+                </mxCell>
+                <mxCell id="2" value="" style="rounded=0;html=1;fillColor=none;strokeColor=#cbd5e1;" vertex="1" parent="1">
+                    <mxGeometry x="20" y="516" width="200" height="58" as="geometry"/>
+                </mxCell>
+                <mxCell id="3" value="opt — 선택 실행 fragment" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#cbd5e1;align=left;verticalAlign=middle;spacingLeft=12;fontSize=13;fontColor=#0f172a;" vertex="1" parent="1">
+                    <mxGeometry x="220" y="516" width="460" height="58" as="geometry"/>
+                </mxCell>
+                <mxCell id="4" value="opt" style="shape=umlFrame;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#64748b;fontColor=#0f172a;fontSize=12;fontStyle=1;width=40;height=20;verticalAlign=top;align=left;" vertex="1" parent="1">
+                    <mxGeometry x="55" y="524" width="120" height="42" as="geometry"/>
+                </mxCell>
+                <mxCell id="5" value="" style="rounded=0;html=1;fillColor=none;strokeColor=#cbd5e1;" vertex="1" parent="1">
+                    <mxGeometry x="20" y="574" width="200" height="58" as="geometry"/>
+                </mxCell>
+                <mxCell id="6" value="loop — 반복 fragment" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#cbd5e1;align=left;verticalAlign=middle;spacingLeft=12;fontSize=13;fontColor=#0f172a;" vertex="1" parent="1">
+                    <mxGeometry x="220" y="574" width="460" height="58" as="geometry"/>
+                </mxCell>
+                <mxCell id="7" value="loop" style="shape=umlFrame;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#64748b;fontColor=#0f172a;fontSize=12;fontStyle=1;width=40;height=20;verticalAlign=top;align=left;" vertex="1" parent="1">
+                    <mxGeometry x="55" y="582" width="120" height="42" as="geometry"/>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+</mxfile>
