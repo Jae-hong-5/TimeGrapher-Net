@@ -171,9 +171,8 @@ class Page:
 
 
 # ---- termination flows (each is one page; no outer alt) ----
-def user_stop(pg):
-    pg.msg("User", "App", "Pause 후 Reset 또는 내부 stop 요청")
-    pg.act_on("App")
+def user_stop_body(pg):
+    # Shared "immediate stop" sequence; App is already activated by the caller.
     pg.selfmsg("App", "RunState = Stopping")
     pg.msg("App", "Sess", "StopInputWorker(CurrentMode)")
     pg.act_on("Sess"); pg.msg("Sess", "Input", "TryStop(timeout)")
@@ -198,6 +197,8 @@ def natural_end(pg):
     pg.act_on("Sess"); pg.msg("Sess", "App", "current", "ret"); pg.act_off("Sess")
     pg.msg("App", "Sess", "InvalidateRunSession()")
     pg.act_on("Sess"); pg.msg("Sess", "App", "token advanced", "ret"); pg.act_off("Sess")
+    pg.selfmsg("App", "RunState = Stopping")
+    pg.selfmsg("App", "RestorePlaybackOrSimulationAudioState()")
     pg.msg("App", "Sess", "StopInputWorker(Playback/Simulation)")
     pg.act_on("Sess"); pg.msg("Sess", "Input", "TryStop(timeout)")
     pg.act_on("Input"); pg.msg("Input", "Sess", "stopped", "ret"); pg.act_off("Input")
@@ -210,7 +211,6 @@ def natural_end(pg):
     pg.msg("App", "Analysis", "final frame accepted", "ret")
     pg.msg("Analysis", "Sess", "completed", "ret"); pg.act_off("Analysis")
     pg.msg("Sess", "App", "analysis completed", "ret"); pg.act_off("Sess")
-    pg.selfmsg("App", "RestorePlaybackOrSimulationAudioState()")
     pg.selfmsg("App", 'RunState = Stopped / Status = "Stopped"')
     pg.act_off("App")
 
@@ -252,7 +252,7 @@ p.ref("Level 2.2 · 입력 모드별 시작 흐름", 1, 5)
 p.selfmsg("App", 'RunState = Running / Status = "Running"')
 p.act_off("App")
 p.ref("Level 2.3 · 측정 중 분석 반복 흐름", 1, 5)
-p.ref("Level 2.4 / 2.5 · 측정 종료 (사용자 요청 / 자연 종료)", 0, 5)
+p.ref("Level 2.4 / 2.5 · 측정 종료", 0, 5)
 p.msg("User", "App", "프로그램 종료")
 p.act_on("App")
 p.ref("Level 2.6 · 프로그램 종료 teardown", 1, 5)
@@ -331,11 +331,22 @@ def loopbody(pg):
 p.frag("loop", [("측정 중: 입력 block마다", loopbody)])
 pages.append(p)
 
-# Level 2.4 · 사용자 요청 종료
-p = Page("level24", "Level 2.4 · 사용자 요청 종료",
+# Level 2.4 · 측정 종료 (사용자 요청 / Live capture 종료)
+# Two triggers converge on the same immediate-stop sequence (plain TryStop, no
+# input drain): a user Stop/Reset request, or Live capture ending on its own
+# (CaptureEnded -> HandleLiveCaptureEnded -> StopRunAndRefreshDevices).
+p = Page("level24", "Level 2.4 · 측정 종료 (사용자 요청 / Live capture 종료)",
          [("User", "User", True), ("App", "App layer", False), ("Sess", "RunSessionController", False),
           ("Input", "Input worker", False), ("Analysis", "AnalysisWorker", False)])
-user_stop(p)
+p.frag("alt", [
+    ("사용자가 측정 종료를 요청한 경우",
+     lambda q: q.msg("User", "App", "Pause 후 Reset 또는 내부 stop 요청")),
+    ("Live capture가 비정상 종료된 경우",
+     lambda q: q.msg("Input", "App", "CaptureEnded (runSessionToken 일치 시 정지)", "ret")),
+])
+p.last_y = p.y  # start the activation bar just below the trigger alt
+p.act_on("App")
+user_stop_body(p)
 pages.append(p)
 
 # Level 2.5 · Playback/Simulation 자연 종료
