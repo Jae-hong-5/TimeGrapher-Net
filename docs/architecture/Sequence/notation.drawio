@@ -1,0 +1,28 @@
+<mxfile host="app.diagrams.net" agent="Claude" type="device"><diagram id="notation" name="표기 범례"><mxGraphModel grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="680" pageHeight="520" math="0" shadow="0"><root><mxCell id="0" /><mxCell id="1" parent="0" />
+<mxCell id="n_actor" value="" style="shape=umlActor;html=1;fillColor=none;strokeColor=#1d4ed8;verticalLabelPosition=bottom;verticalAlign=top;" vertex="1" parent="1"><mxGeometry x="58" y="24" width="30" height="46" as="geometry" /></mxCell>
+<mxCell id="n_l1" value="actor — User(사용자)" style="text;html=1;align=left;verticalAlign=middle;fontSize=13;fontColor=#0f172a;" vertex="1" parent="1"><mxGeometry x="210" y="24" width="450" height="46" as="geometry" /></mxCell>
+
+<mxCell id="n_llbox" value="객체" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#1d4ed8;fontSize=11;" vertex="1" parent="1"><mxGeometry x="33" y="88" width="84" height="26" as="geometry" /></mxCell>
+<mxCell id="n_llline" value="" style="html=1;endArrow=none;startArrow=none;dashed=1;strokeColor=#1d4ed8;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="75" y="114" as="sourcePoint" /><mxPoint x="75" y="152" as="targetPoint" /></mxGeometry></mxCell>
+<mxCell id="n_l2" value="lifeline — 객체의 생존선 (머리 박스 + 세로 점선)" style="text;html=1;align=left;verticalAlign=middle;fontSize=13;fontColor=#0f172a;" vertex="1" parent="1"><mxGeometry x="210" y="90" width="450" height="40" as="geometry" /></mxCell>
+
+<mxCell id="n_actline" value="" style="html=1;endArrow=none;startArrow=none;dashed=1;strokeColor=#1d4ed8;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="75" y="166" as="sourcePoint" /><mxPoint x="75" y="226" as="targetPoint" /></mxGeometry></mxCell>
+<mxCell id="n_actbar" value="" style="html=1;points=[];perimeter=orthogonalPerimeter;fillColor=#bfdbfe;strokeColor=#1d4ed8;" vertex="1" parent="1"><mxGeometry x="69" y="178" width="12" height="34" as="geometry" /></mxCell>
+<mxCell id="n_l3" value="activation — 호출을 처리하는 동안의 focus of control" style="text;html=1;align=left;verticalAlign=middle;fontSize=13;fontColor=#0f172a;" vertex="1" parent="1"><mxGeometry x="210" y="178" width="450" height="34" as="geometry" /></mxCell>
+
+<mxCell id="n_sync" value="" style="html=1;endArrow=block;startArrow=none;rounded=0;strokeColor=#1f2937;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="33" y="258" as="sourcePoint" /><mxPoint x="152" y="258" as="targetPoint" /></mxGeometry></mxCell>
+<mxCell id="n_l4" value="동기 호출 (실선 + 채운 화살촉)" style="text;html=1;align=left;verticalAlign=middle;fontSize=13;fontColor=#0f172a;" vertex="1" parent="1"><mxGeometry x="210" y="242" width="450" height="32" as="geometry" /></mxCell>
+
+<mxCell id="n_ret" value="" style="html=1;endArrow=open;startArrow=none;dashed=1;rounded=0;strokeColor=#475569;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="152" y="306" as="sourcePoint" /><mxPoint x="33" y="306" as="targetPoint" /></mxGeometry></mxCell>
+<mxCell id="n_l5" value="반환 / 응답 / 이벤트(콜백) (점선 + 열린 화살촉)" style="text;html=1;align=left;verticalAlign=middle;fontSize=13;fontColor=#0f172a;" vertex="1" parent="1"><mxGeometry x="210" y="290" width="450" height="32" as="geometry" /></mxCell>
+
+<mxCell id="n_create" value="« create »" style="html=1;endArrow=open;startArrow=none;dashed=1;rounded=0;strokeColor=#1f2937;fontColor=#111827;fontSize=11;labelBackgroundColor=#ffffff;" edge="1" parent="1"><mxGeometry relative="1" as="geometry"><mxPoint x="33" y="356" as="sourcePoint" /><mxPoint x="120" y="356" as="targetPoint" /></mxGeometry></mxCell>
+<mxCell id="n_cbox" value="" style="rounded=0;html=1;fillColor=#dae8fc;strokeColor=#1d4ed8;" vertex="1" parent="1"><mxGeometry x="120" y="344" width="46" height="24" as="geometry" /></mxCell>
+<mxCell id="n_l6" value="객체 생성 («&#160;create&#160;»)" style="text;html=1;align=left;verticalAlign=middle;fontSize=13;fontColor=#0f172a;" vertex="1" parent="1"><mxGeometry x="210" y="344" width="450" height="24" as="geometry" /></mxCell>
+
+<mxCell id="n_ref" value="ref" style="shape=umlFrame;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#1d4ed8;fontColor=#0f172a;fontSize=12;fontStyle=1;width=40;height=20;verticalAlign=top;align=left;" vertex="1" parent="1"><mxGeometry x="33" y="388" width="124" height="46" as="geometry" /></mxCell>
+<mxCell id="n_l7" value="ref — 다른 다이어그램(Level 2.x)을 가리키는 참조 frame" style="text;html=1;align=left;verticalAlign=middle;fontSize=13;fontColor=#0f172a;" vertex="1" parent="1"><mxGeometry x="210" y="400" width="450" height="24" as="geometry" /></mxCell>
+
+<mxCell id="n_alt" value="alt" style="shape=umlFrame;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#64748b;fontColor=#0f172a;fontSize=12;fontStyle=1;width=40;height=20;verticalAlign=top;align=left;" vertex="1" parent="1"><mxGeometry x="33" y="454" width="124" height="46" as="geometry" /></mxCell>
+<mxCell id="n_l8" value="alt / opt / loop — 조건 분기 · 선택 실행 · 반복 fragment" style="text;html=1;align=left;verticalAlign=middle;fontSize=13;fontColor=#0f172a;" vertex="1" parent="1"><mxGeometry x="210" y="466" width="450" height="24" as="geometry" /></mxCell>
+</root></mxGraphModel></diagram></mxfile>

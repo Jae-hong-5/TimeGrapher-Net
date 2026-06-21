@@ -24,6 +24,22 @@
 | AnalysisWorker | 분석 스레드 |
 | Core pipeline | Detection / Metrics / Projectors |
 
+## 표기 (Notation)
+
+### 기호
+
+![표기 범례](assets/uml25/run-lifecycle-notation.svg)
+
+### 라벨 작성 규칙
+
+| 메시지 종류 | 표기 | 예 |
+| --- | --- | --- |
+| Actor(User) ↔ 시스템 | 사용자의 행위·의도 (사용자는 메서드를 호출하지 않는다) | `프로그램 실행`, `WAV 파일 선택`, `프로그램 종료` |
+| 시스템 객체 간 호출 | 오퍼레이션 시그니처(메서드명) — 코드 추적성 | `PrepareInputRun(sampleRate)`, `TryStop(timeout)` |
+| self-message | 상태 효과는 행위, 단일 메서드 호출은 메서드명 | `RunState = Stopping`(효과) / `OnWindowClosed()`(메서드) |
+
+`RunState = X`는 실행 제어 상태를 가리키는 맥락 표기이며, 전이 규칙은 [상태 머신 다이어그램](RUN_LIFECYCLE_STATE_MACHINE.md)에서 다룬다.
+
 ## Level 1 · 실행 수명주기 개요
 
 실행 → 시작 → 측정 → 종료 골격만 보여주고, 세부 흐름은 `ref [Level 2.x]`로 가린다.
@@ -67,28 +83,3 @@ Playback은 WAV 파일이 끝나면(`DoneReadingFile`) 현재 세션을 확인·
 창이 닫히면(`OnWindowClosed`) 현재 세션을 먼저 무효화한 뒤 입력·분석 worker를 정지하고 프로세스를 종료한다.
 
 ![Level 2.6 프로그램 종료 teardown](assets/uml25/run-lifecycle-seq-level26.svg)
-
-## 표기 (Notation)
-
-### 기호
-
-| 기호 | 의미 |
-| --- | --- |
-| 스틱피규어 | actor (User) |
-| 세로 점선 | lifeline — 객체의 생존선 |
-| 좁은 세로 막대 | activation — 호출을 처리하는 동안의 focus of control |
-| 실선 + 채운 화살촉 (→) | 동기 호출 |
-| 점선 + 열린 화살촉 (⇠) | 반환 / 응답 / 이벤트(콜백) |
-| `« create »` | 객체 생성 |
-| `ref` | 다른 다이어그램(Level 2.x)을 가리키는 참조 frame |
-| `alt` / `opt` / `loop` | 조건 분기 / 선택 실행 / 반복 interaction fragment |
-
-### 라벨 작성 규칙
-
-| 메시지 종류 | 표기 | 예 |
-| --- | --- | --- |
-| Actor(User) ↔ 시스템 | 사용자의 행위·의도 (사용자는 메서드를 호출하지 않는다) | `프로그램 실행`, `WAV 파일 선택`, `프로그램 종료` |
-| 시스템 객체 간 호출 | 오퍼레이션 시그니처(메서드명) — 코드 추적성 | `PrepareInputRun(sampleRate)`, `TryStop(timeout)` |
-| self-message | 상태 효과는 행위, 단일 메서드 호출은 메서드명 | `RunState = Stopping`(효과) / `OnWindowClosed()`(메서드) |
-
-`RunState = X`는 실행 제어 상태를 가리키는 맥락 표기이며, 전이 규칙은 [상태 머신 다이어그램](RUN_LIFECYCLE_STATE_MACHINE.md)에서 다룬다.
