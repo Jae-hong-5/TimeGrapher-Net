@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using ScottPlot;
 using ScottPlot.Avalonia;
 using ScottPlot.Plottables;
 using TimeGrapher.App.Rendering;
@@ -159,6 +160,8 @@ public sealed class TraceDisplayRendererTests
             t => Assert.Equal(PlotColor.FromARGB(0xFF2266CC), t.LabelFontColor));
         Assert.Equal(PlotColor.FromARGB(0xFF404040), MeanLine(ratePlot).LineColor);
         Assert.Equal(PlotColor.FromARGB(0xFF404040), MeanLine(amplitudePlot).LineColor);
+        Assert.Equal(PlotColor.FromARGB(0xFF404040), AvgLabel(ratePlot).LabelFontColor);
+        Assert.Equal(PlotColor.FromARGB(0xFF404040), AvgLabel(amplitudePlot).LabelFontColor);
     }
 
     [Fact]
@@ -235,6 +238,17 @@ public sealed class TraceDisplayRendererTests
         string amplitudeAvg = AvgLabelText(amplitudePlot);
         Assert.Contains("avg 285°", amplitudeAvg);
         Assert.Contains("σ 4.0", amplitudeAvg);
+
+        foreach (Annotation avgLabel in new[] { AvgLabel(ratePlot), AvgLabel(amplitudePlot) })
+        {
+            Assert.True(avgLabel.IsVisible);
+            Assert.Equal(Alignment.UpperLeft, avgLabel.Alignment);
+            Assert.Equal(8.0f, avgLabel.OffsetX);
+            Assert.Equal(6.0f, avgLabel.OffsetY);
+        }
+
+        AssertAverageReadoutInsideUpperLeft(ratePlot);
+        AssertAverageReadoutInsideUpperLeft(amplitudePlot);
     }
 
     [Fact]
@@ -318,23 +332,21 @@ public sealed class TraceDisplayRendererTests
     }
 
     [Fact]
-    public void SetSmoothing_TogglesSplineOnBothTraces()
+    public void Smoothing_DefaultsOnAndCanBeToggledOffAndOn()
     {
         TraceDisplayRenderer renderer = NewRenderer(out AvaPlot ratePlot, out AvaPlot amplitudePlot);
         renderer.CreateGraphs();
 
-        // Scatter.Smooth is set-only, so assert on the readable path strategy it
-        // drives: straight-segment lines by default, cubic spline once smoothed.
-        Assert.Equal("Straight", PathStrategy(ratePlot));
-        Assert.Equal("Straight", PathStrategy(amplitudePlot));
-
-        renderer.SetSmoothing(true);
         Assert.Equal("CubicSpline", PathStrategy(ratePlot));
         Assert.Equal("CubicSpline", PathStrategy(amplitudePlot));
 
         renderer.SetSmoothing(false);
         Assert.Equal("Straight", PathStrategy(ratePlot));
         Assert.Equal("Straight", PathStrategy(amplitudePlot));
+
+        renderer.SetSmoothing(true);
+        Assert.Equal("CubicSpline", PathStrategy(ratePlot));
+        Assert.Equal("CubicSpline", PathStrategy(amplitudePlot));
     }
 
     [Fact]
@@ -342,14 +354,12 @@ public sealed class TraceDisplayRendererTests
     {
         TraceDisplayRenderer renderer = NewRenderer(out AvaPlot ratePlot, out AvaPlot amplitudePlot);
         renderer.CreateGraphs();
-        renderer.SetSmoothing(true);
+        renderer.SetSmoothing(false);
 
-        // Reset rebuilds the scatters; the chosen smoothing is a view preference
-        // and must be re-applied to the fresh lines.
         renderer.Reset();
 
-        Assert.Equal("CubicSpline", PathStrategy(ratePlot));
-        Assert.Equal("CubicSpline", PathStrategy(amplitudePlot));
+        Assert.Equal("Straight", PathStrategy(ratePlot));
+        Assert.Equal("Straight", PathStrategy(amplitudePlot));
     }
 
     private static Scatter Line(AvaPlot plot) => plot.Plot.GetPlottables<Scatter>().Single();
@@ -367,9 +377,21 @@ public sealed class TraceDisplayRendererTests
     private static HorizontalLine MeanLine(AvaPlot plot) =>
         plot.Plot.GetPlottables<HorizontalLine>().Single();
 
+    private static Annotation AvgLabel(AvaPlot plot) =>
+        plot.Plot.GetPlottables<Annotation>().Single();
+
     private static string AvgLabelText(AvaPlot plot) =>
-        plot.Plot.GetPlottables<Text>()
-            .Single(t => t.LabelText.StartsWith("avg", StringComparison.Ordinal)).LabelText;
+        AvgLabel(plot).LabelText;
+
+    private static void AssertAverageReadoutInsideUpperLeft(AvaPlot plot)
+    {
+        plot.Plot.RenderInMemory(900, 240);
+        PixelRect dataRect = plot.Plot.RenderManager.LastRender.DataRect;
+        PixelRect labelRect = AvgLabel(plot).LabelLastRenderPixelRect;
+
+        Assert.InRange(labelRect.Left, dataRect.Left, dataRect.Left + 20);
+        Assert.InRange(labelRect.Top, dataRect.Top, dataRect.Top + 20);
+    }
 
     private static string[] VisibleTextLabels(AvaPlot plot) =>
         plot.Plot.GetPlottables<Text>()

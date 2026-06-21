@@ -796,16 +796,16 @@ public sealed class InfoTabRegistryTests
         static string Strategy(AvaPlot plot) =>
             plot.Plot.GetPlottables<Scatter>().Single().PathStrategy.GetType().Name;
 
-        Assert.All(plots, plot => Assert.Equal("Straight", Strategy(plot)));
-        Assert.DoesNotContain("active", smoothing.Classes);
-
-        smoothing.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         Assert.All(plots, plot => Assert.Equal("CubicSpline", Strategy(plot)));
         Assert.Contains("active", smoothing.Classes);
 
         smoothing.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         Assert.All(plots, plot => Assert.Equal("Straight", Strategy(plot)));
         Assert.DoesNotContain("active", smoothing.Classes);
+
+        smoothing.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        Assert.All(plots, plot => Assert.Equal("CubicSpline", Strategy(plot)));
+        Assert.Contains("active", smoothing.Classes);
     }
 
     [Fact]

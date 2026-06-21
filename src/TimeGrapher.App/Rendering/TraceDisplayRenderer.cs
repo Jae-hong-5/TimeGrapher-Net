@@ -67,15 +67,14 @@ internal sealed class TraceDisplayRenderer
     private ReviewCursorLayer? _rateCursor;
     private ReviewCursorLayer? _amplitudeCursor;
 
-    // Running-average overlay: a mean line, a ±σ deviation band, and an "avg … σ …"
-    // label per plot (the Long-Term OverallAverage tactic), driven by the
-    // snapshot's per-position RateStats/AmplitudeStats.
+    private const float AverageReadoutOffsetXPx = 8.0f;
+    private const float AverageReadoutOffsetYPx = 6.0f;
     private HorizontalLine? _rateMeanLine;
     private HorizontalLine? _amplitudeMeanLine;
     private VerticalSpan? _rateSigmaBand;
     private VerticalSpan? _amplitudeSigmaBand;
-    private Text? _rateAvgLabel;
-    private Text? _amplitudeAvgLabel;
+    private Annotation? _rateAvgLabel;
+    private Annotation? _amplitudeAvgLabel;
     private StatsSummary _rateStatsLatest;
     private StatsSummary _amplitudeStatsLatest;
 
@@ -87,7 +86,7 @@ internal sealed class TraceDisplayRenderer
     // Spline (smooth-curve) rendering of both traces, toggled by the tab's
     // Smoothing button. A view preference, not run data, so it survives a run
     // reset and is re-applied whenever CreateGraphs rebuilds the scatters.
-    private bool _smooth;
+    private bool _smooth = true;
 
     public TraceDisplayRenderer(
         AvaPlot ratePlot,
@@ -463,7 +462,7 @@ internal sealed class TraceDisplayRenderer
         }
     }
 
-    private void ThemeAverage(HorizontalLine? line, VerticalSpan? band, Text? label)
+    private void ThemeAverage(HorizontalLine? line, VerticalSpan? band, Annotation? label)
     {
         Color color = Color.FromARGB(_theme.TextPrimary);
         if (line != null)
@@ -543,13 +542,16 @@ internal sealed class TraceDisplayRenderer
         return line;
     }
 
-    /// <summary>The "avg … σ …" readout shown on the mean line (hidden until stats exist).</summary>
-    private static Text AddAvgLabel(Plot plot)
+    private static Annotation AddAvgLabel(Plot plot)
     {
-        Text label = plot.Add.Text(string.Empty, 0.0, 0.0);
+        Annotation label = plot.Add.Annotation(string.Empty, Alignment.UpperLeft);
         label.LabelBold = true;
         label.LabelFontSize = 12;
-        label.Alignment = Alignment.LowerLeft;
+        label.OffsetX = AverageReadoutOffsetXPx;
+        label.OffsetY = AverageReadoutOffsetYPx;
+        label.LabelBackgroundColor = Colors.Transparent;
+        label.LabelBorderColor = Colors.Transparent;
+        label.LabelShadowColor = Colors.Transparent;
         label.IsVisible = false;
         return label;
     }
@@ -603,20 +605,14 @@ internal sealed class TraceDisplayRenderer
         label.IsVisible = visible;
     }
 
-    /// <summary>
-    /// Places each plot's running-average overlay from the latest per-position
-    /// stats: the mean line at the mean, the ±σ band at mean±sigma, and the
-    /// "avg … σ …" label on the line near the left edge. Hidden until the stats
-    /// are valid, and the label hides when the mean leaves the Y view.
-    /// </summary>
     private void UpdateAverageOverlay()
     {
-        PositionAverage(_ratePlot, _rateStatsLatest, _rateMeanLine, _rateSigmaBand, _rateAvgLabel, "+0.0;-0.0;0.0", " s/d");
-        PositionAverage(_amplitudePlot, _amplitudeStatsLatest, _amplitudeMeanLine, _amplitudeSigmaBand, _amplitudeAvgLabel, "0", "°");
+        PositionAverage(_rateStatsLatest, _rateMeanLine, _rateSigmaBand, _rateAvgLabel, "+0.0;-0.0;0.0", " s/d");
+        PositionAverage(_amplitudeStatsLatest, _amplitudeMeanLine, _amplitudeSigmaBand, _amplitudeAvgLabel, "0", "°");
     }
 
     private static void PositionAverage(
-        AvaPlot plot, StatsSummary stats, HorizontalLine? line, VerticalSpan? band, Text? label, string valueFormat, string unit)
+        StatsSummary stats, HorizontalLine? line, VerticalSpan? band, Annotation? label, string valueFormat, string unit)
     {
         bool show = stats.Valid;
         if (line != null)
@@ -648,12 +644,6 @@ internal sealed class TraceDisplayRenderer
             culture, "avg {0}{1}  σ {2}",
             stats.Mean.ToString(valueFormat, culture), unit, stats.Sigma.ToString("0.0", culture));
 
-        AxisLimits limits = plot.Plot.Axes.GetLimits();
-        double left = limits.Left;
-        double right = limits.Right;
-        bool usable = !double.IsNaN(left) && !double.IsNaN(right) && right > left;
-        label.Location = new Coordinates(
-            usable ? left + (right - left) * AcceptLabelXInsetFraction : 0.0, stats.Mean);
-        label.IsVisible = usable && stats.Mean >= limits.Bottom && stats.Mean <= limits.Top;
+        label.IsVisible = true;
     }
 }

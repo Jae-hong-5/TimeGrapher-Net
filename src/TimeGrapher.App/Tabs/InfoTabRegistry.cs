@@ -452,9 +452,10 @@ internal sealed partial class InfoTabRegistry
             VerticalAlignment = VerticalAlignment.Center,
         };
         button.Classes.Add("PositionButton");
+        button.Classes.Add(activeClass);
         ToolTip.SetTip(button, "Draw the rate and amplitude traces as smooth spline curves");
 
-        bool smoothing = false;
+        bool smoothing = true;
         button.Click += (_, _) =>
         {
             smoothing = !smoothing;
