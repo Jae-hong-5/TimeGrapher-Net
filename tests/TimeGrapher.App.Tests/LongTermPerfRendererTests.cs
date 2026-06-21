@@ -31,9 +31,9 @@ public sealed class LongTermPerfRendererTests
         Assert.False(ratePlot.Plot.Axes.Right.TickLabelStyle.IsVisible);
         Assert.False(amplitudePlot.Plot.Axes.Right.TickLabelStyle.IsVisible);
         Assert.False(beatErrorPlot.Plot.Axes.Right.TickLabelStyle.IsVisible);
-        Assert.Equal(new[] { "-10", "+10" }, VisibleAcceptTextLabels(ratePlot));
-        Assert.Equal(new[] { "270", "300" }, VisibleAcceptTextLabels(amplitudePlot));
-        Assert.Equal(new[] { "-0.6", "+0.6" }, VisibleAcceptTextLabels(beatErrorPlot));
+        Assert.Equal(new[] { "-4", "+6" }, VisibleAcceptTextLabels(ratePlot));
+        Assert.Equal(new[] { "270", "315" }, VisibleAcceptTextLabels(amplitudePlot));
+        Assert.Equal(new[] { "-0.8", "+0.8" }, VisibleAcceptTextLabels(beatErrorPlot));
         Assert.Empty(AcceptLineLabels(ratePlot));
         Assert.Empty(AcceptLineLabels(amplitudePlot));
         Assert.Empty(AcceptLineLabels(beatErrorPlot));
@@ -55,7 +55,7 @@ public sealed class LongTermPerfRendererTests
         renderer.CreateGraphs();
         renderer.RenderFrame(SampleFrame(), new AnalysisTabRenderContext(48000));
         ratePlot.Plot.RenderInMemory(900, 220);
-        Assert.Equal(new[] { "-10", "+10" }, VisibleAcceptTextLabels(ratePlot));
+        Assert.Equal(new[] { "-4", "+6" }, VisibleAcceptTextLabels(ratePlot));
 
         AcceptBandSettings original = AcceptBandSettings.Current;
         try
@@ -205,15 +205,15 @@ public sealed class LongTermPerfRendererTests
 
         renderer.ShowTimeWindow(60 * 60);
 
-        AssertIncludes(ratePlot, -10, 10);
+        AssertIncludes(ratePlot, -4, 6);
         AssertIncludes(ratePlot, 1.8, 2.0);
-        AssertIncludes(amplitudePlot, 270, 300);
+        AssertIncludes(amplitudePlot, 270, 315);
         AssertIncludes(amplitudePlot, 282.0, 282.0);
-        AssertIncludes(beatErrorPlot, -0.6, 0.6);
+        AssertIncludes(beatErrorPlot, -0.8, 0.8);
         AssertIncludes(beatErrorPlot, 0.3, 0.3);
         Assert.True(AcceptBand(amplitudePlot).IsVisible);
         Assert.True(AcceptBand(beatErrorPlot).IsVisible);
-        Assert.Equal(new[] { "270", "300" }, VisibleAcceptTextLabels(amplitudePlot));
+        Assert.Equal(new[] { "270", "315" }, VisibleAcceptTextLabels(amplitudePlot));
     }
 
     [Fact]
@@ -229,11 +229,11 @@ public sealed class LongTermPerfRendererTests
 
         renderer.ShowTimeWindow(60 * 60);
 
-        // The amplitude trace runs just under its 300° max, so that edge is close
-        // enough to be pulled back into view (the hybrid corridor inclusion).
+        // The amplitude accept band is always pulled into view, so its limits and
+        // labels stay visible alongside the trace (the hybrid corridor inclusion).
         AssertIncludes(amplitudePlot, 298.5, 300.0);
         Assert.True(AcceptBand(amplitudePlot).IsVisible);
-        Assert.Equal(new[] { "270", "300" }, VisibleAcceptTextLabels(amplitudePlot));
+        Assert.Equal(new[] { "270", "315" }, VisibleAcceptTextLabels(amplitudePlot));
     }
 
     [Fact]
@@ -253,7 +253,7 @@ public sealed class LongTermPerfRendererTests
         Assert.True(AcceptBand(amplitudePlot).IsVisible);
         Assert.True(limits.Bottom <= LongTermAcceptPolicy.Amplitude.Min);
         Assert.True(limits.Top >= 305.0);
-        Assert.Equal(new[] { "270", "300" }, VisibleAcceptTextLabels(amplitudePlot));
+        Assert.Equal(new[] { "270", "315" }, VisibleAcceptTextLabels(amplitudePlot));
     }
 
     [Fact]

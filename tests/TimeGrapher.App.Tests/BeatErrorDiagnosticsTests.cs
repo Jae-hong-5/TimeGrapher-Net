@@ -6,7 +6,7 @@ namespace TimeGrapher.App.Tests;
 
 /// <summary>
 /// Beat Error Display diagnostic policy: tic/toc separation alert (|signed beat
-/// error| above 0.6 ms) and the major-fault slope rule (45 degrees in data
+/// error| above the acceptable magnitude, default 0.8 ms) and the major-fault slope rule (45 degrees in data
 /// units = 1 ms drift per beat on the ms-vs-beat-index Error Rate trace).
 /// </summary>
 public sealed class BeatErrorDiagnosticsTests
@@ -54,9 +54,9 @@ public sealed class BeatErrorDiagnosticsTests
     }
 
     [Theory]
-    [InlineData(0.6, (int)BeatErrorDiagState.Normal, null)]   // boundary value is still acceptable
-    [InlineData(0.7, (int)BeatErrorDiagState.SeparationAlert, "Tic/toc separation +0.70 ms exceeds the acceptable ±0.6 ms")]
-    [InlineData(-0.7, (int)BeatErrorDiagState.SeparationAlert, "Tic/toc separation -0.70 ms exceeds the acceptable ±0.6 ms")]
+    [InlineData(0.8, (int)BeatErrorDiagState.Normal, null)]   // boundary value is still acceptable
+    [InlineData(0.9, (int)BeatErrorDiagState.SeparationAlert, "Tic/toc separation +0.90 ms exceeds the acceptable ±0.8 ms")]
+    [InlineData(-0.9, (int)BeatErrorDiagState.SeparationAlert, "Tic/toc separation -0.90 ms exceeds the acceptable ±0.8 ms")]
     [InlineData(0.0, (int)BeatErrorDiagState.Normal, null)]
     public void Evaluate_SeparationAlertFiresOutsideAcceptableRange(
         double beatErrorMs,

@@ -14,14 +14,17 @@ namespace TimeGrapher.App.Tests;
 public sealed class AcceptBandSettingsTests
 {
     [Fact]
-    public void Default_ReproducesHistoricalBands()
+    public void Default_MatchesIndustryReferenceBands()
     {
+        // Defaults follow common industry references: rate -4/+6 s/d (COSC/ISO 3159
+        // chronometer rate), amplitude 270-315 deg (healthy modern movement), beat
+        // error +-0.8 ms (within the acceptable <=1 ms convention).
         AcceptBandSettings d = AcceptBandSettings.Default;
-        Assert.Equal(-10.0, d.RateMinSPerDay);
-        Assert.Equal(10.0, d.RateMaxSPerDay);
+        Assert.Equal(-4.0, d.RateMinSPerDay);
+        Assert.Equal(6.0, d.RateMaxSPerDay);
         Assert.Equal(270.0, d.AmplitudeMinDeg);
-        Assert.Equal(300.0, d.AmplitudeMaxDeg);
-        Assert.Equal(0.6, d.BeatErrorMagnitudeMs);
+        Assert.Equal(315.0, d.AmplitudeMaxDeg);
+        Assert.Equal(0.8, d.BeatErrorMagnitudeMs);
         Assert.True(d.IsValid);
     }
 

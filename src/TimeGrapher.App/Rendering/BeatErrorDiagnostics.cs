@@ -20,8 +20,8 @@ internal readonly record struct BeatErrorDiagnosis(BeatErrorDiagState State, str
 /// 1. Separation ALERT - when the two trace lines are shown, alert if their
 ///    separation exceeds an acceptable range. The tic/toc line separation IS the
 ///    signed beat error (each line is offset by half the tick-tock asymmetry),
-///    so the rule fires on |BeatErrorSignedMs| above 0.6 ms - the plan's intro
-///    calls a beat error under 0.6 ms good.
+///    so the rule fires on |BeatErrorSignedMs| above the editable acceptable
+///    magnitude (default 0.8 ms, within the industry "acceptable" ≤1 ms convention).
 ///
 /// 2. MAJOR FAULT - "slope greater than 45 degrees in magnitude". A screen
 ///    angle is meaningless across axis scales, so the rule is pinned to DATA

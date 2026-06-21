@@ -6,7 +6,7 @@ namespace TimeGrapher.App.Rendering;
 /// Pure display policy for the Vario value gauges: the acceptable (green)
 /// ranges and the gauge X-window derivation, kept free of UI types so both are
 /// unit-testable. The rate and amplitude bands are read live from the shared
-/// <see cref="AcceptBandSettings"/> (default rate ±10 s/d, amplitude 270–300°),
+/// <see cref="AcceptBandSettings"/> (default rate −4/+6 s/d, amplitude 270–315°),
 /// so a Settings-window edit moves the gauge band, the Trace/Long-Term bands and
 /// the alerts together. Amplitude aliases <see cref="TraceAlertEvaluator"/> so the
 /// two displays agree by construction.

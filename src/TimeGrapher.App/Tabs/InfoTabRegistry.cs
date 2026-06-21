@@ -821,8 +821,8 @@ internal sealed partial class InfoTabRegistry
             Margin = new Thickness(16, 0, 16, 6),
         };
 
-        Grid rateHeader = GaugeHeader("Error Rate (s/d)", "Acceptable band -10 to +10 s/d", out Border rateBandBadge, out TextBlock rateBandText);
-        Grid amplitudeHeader = GaugeHeader("Amplitude(°)", "Acceptable band 270 to 300°", out Border amplitudeBandBadge, out TextBlock amplitudeBandText);
+        Grid rateHeader = GaugeHeader("Error Rate (s/d)", "Acceptable band -4 to +6 s/d", out Border rateBandBadge, out TextBlock rateBandText);
+        Grid amplitudeHeader = GaugeHeader("Amplitude(°)", "Acceptable band 270 to 315°", out Border amplitudeBandBadge, out TextBlock amplitudeBandText);
         Border rateReadout = BuildReadoutStrip(rateCells);
         Border amplitudeReadout = BuildReadoutStrip(amplitudeCells);
 
