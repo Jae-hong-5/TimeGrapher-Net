@@ -10,6 +10,20 @@
 | Level 2.5 | Playback 자연 종료 |
 | Level 2.6 | 프로그램 종료 teardown |
 
+## 참여 객체 (lifeline)
+
+다이어그램의 lifeline은 역할명만 표시한다. 각 역할의 구성요소는 다음과 같다.
+
+| Lifeline | 포함 구성요소 |
+| --- | --- |
+| User | 사용자 |
+| App layer | `MainWindow`, `MainWindowViewModel`, `RunCommandService` — UI·시작/중지 orchestration |
+| RunSessionController | 실행 세션 token, 입력 worker attach/stop, 분석 worker 수명 |
+| Input worker | Live=`AudioCaptureWorker`, Playback=`PlaybackWorker`, Simulation=`SimWorker` |
+| MasterAudioBuffer | 입력↔분석 공유 오디오 ring buffer |
+| AnalysisWorker | 분석 스레드 |
+| Core pipeline | Detection / Metrics / Projectors |
+
 ## Level 1 · 실행 수명주기 개요
 
 실행 → 시작 → 측정 → 종료 골격만 보여주고, 세부 흐름은 `ref [Level 2.x]`로 가린다.
@@ -64,6 +78,4 @@ Playback은 WAV 파일이 끝나면(`DoneReadingFile`) 현재 세션을 확인·
 | 시스템 객체 간 호출 | 오퍼레이션 시그니처(메서드명)로 적어 코드 추적성을 둔다 | `PrepareInputRun(sampleRate)`, `TryStop(timeout)` |
 | self-message | 상태 효과는 행위, 단일 메서드 호출은 메서드명 | `RunState = Stopping`(효과) / `OnWindowClosed()`(메서드) |
 
-- 실선 화살표 = 동기 호출, 점선 화살표 = 반환·이벤트(콜백), 세로 막대 = activation(focus of control).
-- `ref` / `alt` / `opt` / `loop` = UML 2.x interaction fragment.
 - `RunState = X`는 실행 제어 상태를 가리키는 맥락 표기이며, 전이 규칙은 [상태 머신 다이어그램](RUN_LIFECYCLE_STATE_MACHINE.md)에서 다룬다.

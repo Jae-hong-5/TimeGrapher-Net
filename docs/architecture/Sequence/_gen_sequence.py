@@ -159,14 +159,21 @@ class Page:
     def build_lifelines(self):
         lh = self.y - TOP + 20
         for i, (key, label, is_actor) in enumerate(self.participants):
-            x = 40 + GAP * i
+            # Actors render a narrow stick-figure head centred on the lifeline;
+            # object lifelines keep the full box width.
+            if is_actor:
+                w = 60
+                x = self.cx[key] - w / 2
+            else:
+                w = LW
+                x = 40 + GAP * i
             extra = "participant=umlActor;" if is_actor else ""
             fill = "none" if is_actor else C_LIFEFILL
             self.lifelines.append(
                 f'<mxCell id="{self.pid}_{key}" value="{esc(label)}" style="shape=umlLifeline;{extra}'
                 f'perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;collapsible=0;recursiveResize=0;'
                 f'outlineConnect=0;size=48;fillColor={fill};strokeColor={C_LIFE};fontColor=#0f172a;fontSize=12;" '
-                f'vertex="1" parent="1"><mxGeometry x="{x}" y="{TOP}" width="{LW}" height="{lh}" as="geometry" /></mxCell>')
+                f'vertex="1" parent="1"><mxGeometry x="{x}" y="{TOP}" width="{w}" height="{lh}" as="geometry" /></mxCell>')
 
     def xml(self):
         self.build_lifelines()
@@ -246,11 +253,11 @@ pages = []
 # Level 1 · 실행 수명주기 개요
 p = Page("level1", "Level 1 · 실행 수명주기 개요",
          [("User", "User", True),
-          ("App", "App layer\nMainWindow/ViewModel/RunCommandService", False),
+          ("App", "App layer", False),
           ("Sess", "RunSessionController", False),
-          ("Input", "Input worker\nLive/Playback/Simulation", False),
+          ("Input", "Input worker", False),
           ("Analysis", "AnalysisWorker", False),
-          ("Core", "Core pipeline\nDetection/Metrics/Projectors", False)])
+          ("Core", "Core pipeline", False)])
 p.msg("User", "App", "프로그램 실행")
 p.act_on("App"); p.selfmsg("App", "UI·command·service 구성,\n입력 소스 목록 구성"); p.act_off("App")
 p.msg("User", "App", "Start 선택")
@@ -289,7 +296,7 @@ pages.append(p)
 # Level 2.2 · 입력 모드별 시작 흐름
 p = Page("level22", "Level 2.2 · 입력 모드별 시작 흐름",
          [("User", "User", True), ("App", "App layer", False),
-          ("Input", "Input worker\nLive/Playback/Simulation", False)])
+          ("Input", "Input worker", False)])
 p.act_on("App")
 
 def live(pg):
