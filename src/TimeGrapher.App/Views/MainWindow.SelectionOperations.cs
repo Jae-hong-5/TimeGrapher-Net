@@ -9,29 +9,32 @@ public partial class MainWindow
     private sealed class MainWindowSelectionOperations : IMainWindowSelectionOperations
     {
         private readonly MainWindow _owner;
+        private readonly AudioSelectionState _state;
 
-        public MainWindowSelectionOperations(MainWindow owner)
+        public MainWindowSelectionOperations(MainWindow owner, AudioSelectionState state)
         {
             _owner = owner;
+            _state = state;
         }
 
-        public IReadOnlyList<int> InputDeviceNumbers => _owner.mInputDeviceNumbers;
+        public IReadOnlyList<int> InputDeviceNumbers => _state.InputDeviceNumbers;
 
-        public int AvailableSampleRateCount => _owner.mNumberOfRates;
+        public int AvailableSampleRateCount => _state.AvailableSampleRateCount;
 
         public int GetAvailableSampleRate(int index)
         {
-            return _owner.mAvailableRates[index];
+            return _state.GetAvailableSampleRate(index);
         }
 
         public void PopulateSampleRates(int deviceNumber)
         {
+            // Still a View method (async device/rate probe) — relocated in the next unit.
             _owner.PopulateSampleRates(deviceNumber);
         }
 
         public void SetCurrentSampleRate(int sampleRate)
         {
-            _owner.mCurrentSamplesPerSecond = sampleRate;
+            _state.CurrentSampleRate = sampleRate;
         }
 
         public void SetAudioInputVolume(float normalizedVolume)

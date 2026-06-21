@@ -57,7 +57,7 @@ public partial class MainWindow
             return false;
         }
 
-        if (!mRunSelectionResolver.TryGetSelectedSampleRate(mAvailableRates, mNumberOfRates, out sampleRate))
+        if (!mRunSelectionResolver.TryGetSelectedSampleRate(mAudioSelection.AvailableSampleRates, mAudioSelection.AvailableSampleRateCount, out sampleRate))
         {
             userMessage = UserErrorMessages.SelectSampleRate;
             logDetail = "Live start rejected because no valid sample rate is selected.";
@@ -71,7 +71,7 @@ public partial class MainWindow
 
     private void StartAudioThread(int deviceNumber, int sampleRate)
     {
-        mCurrentSamplesPerSecond = sampleRate;
+        mAudioSelection.CurrentSampleRate = sampleRate;
         MasterAudioBuffer buffer = mRunSessionController.PrepareInputRun(sampleRate, out ulong runSessionToken);
 
         ILiveAudioWorker audioWorker = LiveAudioBackend.CreateWorker(buffer);
@@ -118,9 +118,9 @@ public partial class MainWindow
 
     private void StartPlaybackThread(string fileName)
     {
-        MasterAudioBuffer buffer = mRunSessionController.PrepareInputRun(mCurrentSamplesPerSecond, out ulong runSessionToken);
+        MasterAudioBuffer buffer = mRunSessionController.PrepareInputRun(mAudioSelection.CurrentSampleRate, out ulong runSessionToken);
 
-        var playbackWorker = new PlaybackWorker(buffer, mCurrentSamplesPerSecond);
+        var playbackWorker = new PlaybackWorker(buffer, mAudioSelection.CurrentSampleRate);
         Action<PlaybackCompletionReason> doneHandler = reason => OnPlaybackDoneReadingFile(runSessionToken, reason);
         playbackWorker.DoneReadingFile += doneHandler;
         mRunSessionController.AttachInputWorker(playbackWorker, runSessionToken, () => playbackWorker.DoneReadingFile -= doneHandler);
@@ -132,9 +132,9 @@ public partial class MainWindow
 
     private void StartSimThread(WatchSynthStreamConfig cfg)
     {
-        MasterAudioBuffer buffer = mRunSessionController.PrepareInputRun(mCurrentSamplesPerSecond, out ulong runSessionToken);
+        MasterAudioBuffer buffer = mRunSessionController.PrepareInputRun(mAudioSelection.CurrentSampleRate, out ulong runSessionToken);
 
-        var simWorker = new SimWorker(buffer, mCurrentSamplesPerSecond);
+        var simWorker = new SimWorker(buffer, mAudioSelection.CurrentSampleRate);
         Action<SimCompletionReason> doneHandler = reason => OnSimDone(runSessionToken, reason);
         simWorker.SimDone += doneHandler;
         mRunSessionController.AttachInputWorker(simWorker, runSessionToken, () => simWorker.SimDone -= doneHandler);
@@ -412,7 +412,7 @@ public partial class MainWindow
             ? WatchSynthStreamConfig.Realistic()
             : WatchSynthStreamConfig.Clean();
 
-        SimulationSelection selection = mRunSelectionResolver.GetSimulationSelection(mAvailableRates, mNumberOfRates);
+        SimulationSelection selection = mRunSelectionResolver.GetSimulationSelection(mAudioSelection.AvailableSampleRates, mAudioSelection.AvailableSampleRateCount);
         cfg.Bph = selection.Bph;
         cfg.SampleRateHz = (uint)selection.SampleRate;
         cfg.BeatErrorMs = -(double)mViewModel.SimBeatError;

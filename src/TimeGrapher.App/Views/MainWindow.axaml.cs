@@ -74,10 +74,7 @@ public partial class MainWindow : Window
     private AnalysisFrameRouter mFrameRouter = null!;
     private AnalysisFrameRenderScheduler mFrameRenderScheduler = null!;
     private InfoTabRegistry mInfoTabRegistry = null!;
-    private readonly int[] mAvailableRates = new int[5];
-    private int mNumberOfRates;
     private string mCurrentDir;
-    private int mCurrentSamplesPerSecond;
     private int mRateBeforePlaybackOrSim;
     private string mDeviceNameBeforePlaybackOrSim = "";
     private readonly AnalysisRunStatusReporter mRunStatusReporter = new();
@@ -86,6 +83,7 @@ public partial class MainWindow : Window
     private bool mIsClosing;
     private readonly MainWindowViewModel mViewModel;
     private readonly MainWindowSelectionCoordinator mSelectionCoordinator;
+    private readonly AudioSelectionState mAudioSelection = new();
     private readonly AcceptBandController mAcceptBandController;
     private readonly RunControlController mRunControlController;
     private readonly RunSelectionResolver mRunSelectionResolver;
@@ -93,8 +91,6 @@ public partial class MainWindow : Window
     private readonly RunSessionController mRunSessionController;
     private readonly AnalysisPerformanceLogger? mAnalysisPerformanceLogger;
     private readonly MeasurementLogController mMeasurementLogController;
-
-    private readonly List<int> mInputDeviceNumbers = new();
 
     public MainWindow()
     {
@@ -121,7 +117,7 @@ public partial class MainWindow : Window
         var dialogs = new MainWindowDialogService(this);
         mDialogs = dialogs;
         var adapters = new MainWindowViewAdapters(
-            new MainWindowSelectionOperations(this),
+            new MainWindowSelectionOperations(this, mAudioSelection),
             new RunCommandOperations(this),
             dialogs,
             new GraphAcceptBandOperations(mGraphFrameRenderer),
@@ -153,8 +149,6 @@ public partial class MainWindow : Window
 
         // Default working directory: current dir, then ../../sample if it exists (MainWindow ctor).
         mCurrentDir = ResolveInitialPlaybackDirectory(Directory.GetCurrentDirectory());
-
-        mCurrentSamplesPerSecond = 48000;
 
         string appTitle = BuildAppTitle();
         Title = appTitle;
@@ -453,7 +447,7 @@ public partial class MainWindow : Window
     {
         AnalysisSelection selection = mRunSelectionResolver.GetAnalysisSelection();
         return new AnalysisRunSettings(
-            SampleRate: mCurrentSamplesPerSecond,
+            SampleRate: mAudioSelection.CurrentSampleRate,
             LiftAngle: (double)mViewModel.LiftAngle,
             AveragingPeriod: selection.AveragingPeriod,
             UseCOnset: mViewModel.UseCOnset,
@@ -474,7 +468,7 @@ public partial class MainWindow : Window
     private AnalysisTabResetContext BuildTabResetContext()
     {
         return new AnalysisTabResetContext(
-            SampleRate: mCurrentSamplesPerSecond,
+            SampleRate: mAudioSelection.CurrentSampleRate,
             RateErrorYScale: ERROR_RATE_Y_SCALE,
             RateDataPoints: ERROR_RATE_X_DATA_POINTS,
             ActivePosition: (WatchPosition)mViewModel.SelectedPositionIndex);
@@ -495,7 +489,7 @@ public partial class MainWindow : Window
     /// </summary>
     private int FrameSampleRate(AnalysisFrame frame)
     {
-        return frame.SampleRate > 0 ? frame.SampleRate : mCurrentSamplesPerSecond;
+        return frame.SampleRate > 0 ? frame.SampleRate : mAudioSelection.CurrentSampleRate;
     }
 
     // "TimeGrapher v{Major}.{Minor}.{Build}" from the assembly version (set in Directory.Build.props).

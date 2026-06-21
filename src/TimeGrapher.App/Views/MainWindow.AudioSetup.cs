@@ -40,7 +40,7 @@ public partial class MainWindow
         }
 
         var deviceNames = new List<string>();
-        mInputDeviceNumbers.Clear();
+        mAudioSelection.ClearInputDevices();
         // Fresh cache instance per enumeration: a still-running pre-warm from a
         // previous enumeration keeps writing to its own (now-orphaned) instance, so
         // it can't pollute the new cache with stale rates for a reused device number.
@@ -62,18 +62,18 @@ public partial class MainWindow
             }
 
             deviceNames.Add("Live: " + description);
-            mInputDeviceNumbers.Add(device.Number);
+            mAudioSelection.AddInputDevice(device.Number);
         }
 
         deviceNames.Add(PLAYBACK_SOURCE);
-        mInputDeviceNumbers.Add(-1);
+        mAudioSelection.AddInputDevice(-1);
         deviceNames.Add(SIMULATION_SOURCE);
-        mInputDeviceNumbers.Add(-1);
+        mAudioSelection.AddInputDevice(-1);
 
         // Pre-warm the per-device probe cache off the UI thread so a later device
         // selection (and the rate restore after a Playback/Sim run) reads cached
         // rates instantly instead of running the per-rate probe on the UI thread.
-        int[] liveDeviceNumbers = mInputDeviceNumbers.Where(number => number >= 0).Distinct().ToArray();
+        int[] liveDeviceNumbers = mAudioSelection.InputDeviceNumbers.Where(number => number >= 0).Distinct().ToArray();
         if (liveDeviceNumbers.Length > 0)
         {
             Task.Run(() =>
@@ -252,8 +252,8 @@ public partial class MainWindow
     private int CurrentSelectedInputDeviceNumber()
     {
         int index = mViewModel.SelectedInputDeviceIndex;
-        return index >= 0 && index < mInputDeviceNumbers.Count
-            ? mInputDeviceNumbers[index]
+        return index >= 0 && index < mAudioSelection.InputDeviceNumbers.Count
+            ? mAudioSelection.InputDeviceNumbers[index]
             : int.MinValue;
     }
 
@@ -261,16 +261,17 @@ public partial class MainWindow
     {
         IReadOnlyList<int> standardRates = AudioSampleRates.Standard;
 
-        mNumberOfRates = 0;
+        mAudioSelection.ResetSampleRates();
         var labels = new List<string>(standardRates.Count);
 
         if (deviceNumber < 0)
         {
             foreach (int rate in standardRates)
             {
-                labels.Add(rate.ToString(CultureInfo.InvariantCulture) + " Hz");
-                mAvailableRates[mNumberOfRates] = rate;
-                mNumberOfRates++;
+                if (mAudioSelection.TryAddSampleRate(rate))
+                {
+                    labels.Add(rate.ToString(CultureInfo.InvariantCulture) + " Hz");
+                }
             }
         }
         else if (_sampleRateProbeCache.TryGetValue(deviceNumber, out IReadOnlyList<int>? supported))
@@ -279,11 +280,9 @@ public partial class MainWindow
             // backend startup remains the authoritative validation.
             foreach (int rate in standardRates)
             {
-                if (supported.Contains(rate) && mNumberOfRates < mAvailableRates.Length)
+                if (supported.Contains(rate) && mAudioSelection.TryAddSampleRate(rate))
                 {
                     labels.Add(rate.ToString(CultureInfo.InvariantCulture) + " Hz");
-                    mAvailableRates[mNumberOfRates] = rate;
-                    mNumberOfRates++;
                 }
             }
         }
@@ -295,11 +294,9 @@ public partial class MainWindow
             // thread and re-narrow once it returns if the device is still chosen.
             foreach (int rate in standardRates)
             {
-                if (mNumberOfRates < mAvailableRates.Length)
+                if (mAudioSelection.TryAddSampleRate(rate))
                 {
                     labels.Add(rate.ToString(CultureInfo.InvariantCulture) + " Hz");
-                    mAvailableRates[mNumberOfRates] = rate;
-                    mNumberOfRates++;
                 }
             }
 
@@ -336,7 +333,7 @@ public partial class MainWindow
 
     private void GetAudioRate(out int rate)
     {
-        rate = mCurrentSamplesPerSecond;
+        rate = mAudioSelection.CurrentSampleRate;
     }
 
     private void GetAudioDevice(out string name)
