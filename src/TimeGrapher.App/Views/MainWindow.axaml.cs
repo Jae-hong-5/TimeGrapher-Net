@@ -100,7 +100,7 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         ConfigurePlatformWindow();
-        mViewModel = new MainWindowViewModel(StartRunAsync, TogglePauseRun, ResetRun);
+        mViewModel = new MainWindowViewModel();
         mSelectionCoordinator = new MainWindowSelectionCoordinator(
             mViewModel,
             new MainWindowSelectionOperations(this),
@@ -117,6 +117,9 @@ public partial class MainWindow : Window
         mRecordingSessionService = new RecordingSessionService(mDialogs, new QueuedRecordingWriterFactory(), mErrorLog);
         mPlaybackFileService = new PlaybackFileService(mDialogs, mErrorLog);
         mRunCommandService = new RunCommandService(mViewModel, new RunCommandOperations(this));
+        // The play/pause and reset commands invoke the service directly; the service needs
+        // the view-model, so it is attached after construction rather than constructor-injected.
+        mViewModel.AttachRunCommandRunner(mRunCommandService);
         mAnalysisPerformanceLogger = AppStartupOptions.Current.AnalysisLogPath is string analysisLogPath
             ? new AnalysisPerformanceLogger(EnsureParentDirectory(analysisLogPath))
             : null;

@@ -27,6 +27,7 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     private readonly RelayCommand _reviewStepBackCommand;
     private readonly RelayCommand _reviewStepForwardCommand;
     private readonly RelayCommand _reviewLiveCommand;
+    private IRunCommandRunner? _runner;
     private RunUiState _runState = RunUiState.Stopped;
     private bool _modeAllowsSampleRate = true;
     private bool _modeAllowsGain = true;
@@ -72,25 +73,38 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     private string _reviewMetricsText = "";
     private bool _isLongTermTabActive;
 
-    public MainWindowViewModel(
-        Func<Task> startAsync,
-        Action pauseOrResume,
-        Action reset)
+    public MainWindowViewModel()
     {
-        _playPauseCommand = new AsyncRelayCommand(async () =>
-        {
-            if (_runState == RunUiState.Stopped)
-            {
-                await startAsync();
-                return;
-            }
-
-            pauseOrResume();
-        }, () => IsPlayPauseEnabled);
-        _resetCommand = new RelayCommand(reset, () => IsResetEnabled);
+        _playPauseCommand = new AsyncRelayCommand(ExecutePlayPauseAsync, () => IsPlayPauseEnabled);
+        _resetCommand = new RelayCommand(() => _runner?.Reset(), () => IsResetEnabled);
         _reviewStepBackCommand = new RelayCommand(() => StepReviewCursor(-ReviewStepS), () => IsReviewBarEnabled);
         _reviewStepForwardCommand = new RelayCommand(() => StepReviewCursor(ReviewStepS), () => IsReviewBarEnabled);
         _reviewLiveCommand = new RelayCommand(() => ReviewCursorTimeS = null, () => IsReviewBarEnabled);
+    }
+
+    /// <summary>
+    /// Attaches the run-command runner the play/pause and reset commands invoke. Called once
+    /// after the run-command service (which needs this view-model) is constructed, so the
+    /// command bodies live here instead of being passed in from the View as delegates.
+    /// </summary>
+    public void AttachRunCommandRunner(IRunCommandRunner runner) => _runner = runner;
+
+    // The play/pause button is one control: a stopped run starts, an active run toggles
+    // pause/resume. The runner's state machine decides what each call actually does.
+    private async Task ExecutePlayPauseAsync()
+    {
+        if (_runner is null)
+        {
+            return;
+        }
+
+        if (_runState == RunUiState.Stopped)
+        {
+            await _runner.StartAsync();
+            return;
+        }
+
+        _runner.TogglePause();
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;

@@ -2,7 +2,7 @@ using TimeGrapher.App.ViewModels;
 
 namespace TimeGrapher.App.Services;
 
-internal sealed partial class RunCommandService
+internal sealed partial class RunCommandService : IRunCommandRunner
 {
     private readonly MainWindowViewModel _viewModel;
     private readonly IRunCommandOperations _operations;

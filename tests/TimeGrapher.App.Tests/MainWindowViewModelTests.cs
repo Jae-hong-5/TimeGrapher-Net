@@ -70,44 +70,34 @@ public sealed class MainWindowViewModelTests
     [Fact]
     public void PlayPauseCommandStartsThenTogglesPauseResume()
     {
-        int starts = 0;
-        int pauseToggles = 0;
-        var vm = new MainWindowViewModel(
-            () =>
-            {
-                starts++;
-                return Task.CompletedTask;
-            },
-            () => pauseToggles++,
-            () => { });
+        var vm = new MainWindowViewModel();
+        var runner = new RecordingRunCommandRunner();
+        vm.AttachRunCommandRunner(runner);
 
         vm.PlayPauseCommand.Execute(null);
 
-        Assert.Equal(1, starts);
-        Assert.Equal(0, pauseToggles);
+        Assert.Equal(1, runner.Starts);
+        Assert.Equal(0, runner.Toggles);
 
         vm.SetRunning();
         vm.PlayPauseCommand.Execute(null);
 
-        Assert.Equal(1, starts);
-        Assert.Equal(1, pauseToggles);
+        Assert.Equal(1, runner.Starts);
+        Assert.Equal(1, runner.Toggles);
 
         vm.SetPaused();
         vm.PlayPauseCommand.Execute(null);
 
-        Assert.Equal(1, starts);
-        Assert.Equal(2, pauseToggles);
+        Assert.Equal(1, runner.Starts);
+        Assert.Equal(2, runner.Toggles);
     }
 
     [Fact]
     public void OperatorRunPolicyRequiresPauseBeforeReset()
     {
-        int pauseToggles = 0;
-        int resets = 0;
-        var vm = new MainWindowViewModel(
-            () => Task.CompletedTask,
-            () => pauseToggles++,
-            () => resets++);
+        var vm = new MainWindowViewModel();
+        var runner = new RecordingRunCommandRunner();
+        vm.AttachRunCommandRunner(runner);
 
         vm.SetRunning();
 
@@ -117,8 +107,8 @@ public sealed class MainWindowViewModelTests
 
         vm.PlayPauseCommand.Execute(null);
 
-        Assert.Equal(1, pauseToggles);
-        Assert.Equal(0, resets);
+        Assert.Equal(1, runner.Toggles);
+        Assert.Equal(0, runner.Resets);
 
         vm.SetPaused();
         Assert.Equal("Resume", vm.PlayPauseButtonText);
@@ -126,7 +116,7 @@ public sealed class MainWindowViewModelTests
 
         vm.ResetCommand.Execute(null);
 
-        Assert.Equal(1, resets);
+        Assert.Equal(1, runner.Resets);
     }
 
     [Fact]
@@ -264,29 +254,27 @@ public sealed class MainWindowViewModelTests
     [Fact]
     public void ResetCommandRunsInStoppedPausedAndRecoveryStates()
     {
-        int resets = 0;
-        var vm = new MainWindowViewModel(
-            () => Task.CompletedTask,
-            () => { },
-            () => resets++);
+        var vm = new MainWindowViewModel();
+        var runner = new RecordingRunCommandRunner();
+        vm.AttachRunCommandRunner(runner);
 
         vm.ResetCommand.Execute(null);
         vm.SetRunning();
         vm.ResetCommand.Execute(null);
 
-        Assert.Equal(1, resets);
+        Assert.Equal(1, runner.Resets);
 
         vm.SetPaused();
         vm.ResetCommand.Execute(null);
 
-        Assert.Equal(2, resets);
+        Assert.Equal(2, runner.Resets);
 
         vm.SetStopping();
         vm.ResetCommand.Execute(null);
         vm.SetStopFailed();
         vm.ResetCommand.Execute(null);
 
-        Assert.Equal(4, resets);
+        Assert.Equal(4, runner.Resets);
     }
 
     [Fact]
@@ -520,11 +508,36 @@ public sealed class MainWindowViewModelTests
         Assert.Contains(nameof(MainWindowViewModel.IsAwaitingBeatSync), raised);
     }
 
+    [Fact]
+    public void CommandsAreNoOpBeforeRunnerAttached()
+    {
+        var vm = new MainWindowViewModel();
+
+        // The runner is attached after construction; until then the commands must
+        // not throw (the play/pause and reset bodies guard on the unset runner).
+        vm.PlayPauseCommand.Execute(null);
+        vm.ResetCommand.Execute(null);
+    }
+
     private static MainWindowViewModel CreateViewModel()
     {
-        return new MainWindowViewModel(
-            () => Task.CompletedTask,
-            () => { },
-            () => { });
+        return new MainWindowViewModel();
+    }
+
+    private sealed class RecordingRunCommandRunner : IRunCommandRunner
+    {
+        public int Starts { get; private set; }
+        public int Toggles { get; private set; }
+        public int Resets { get; private set; }
+
+        public Task StartAsync()
+        {
+            Starts++;
+            return Task.CompletedTask;
+        }
+
+        public void TogglePause() => Toggles++;
+
+        public void Reset() => Resets++;
     }
 }

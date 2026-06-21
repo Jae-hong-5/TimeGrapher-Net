@@ -811,7 +811,7 @@ public sealed class InfoTabRegistryTests
     [Fact]
     public void LongTermTabOwnsReviewBarControls()
     {
-        var vm = new MainWindowViewModel(() => Task.CompletedTask, () => { }, () => { });
+        var vm = new MainWindowViewModel();
         Grid content = CreateLongTermContent(vm);
         content.DataContext = vm;
 
@@ -845,7 +845,7 @@ public sealed class InfoTabRegistryTests
     public void LongTermTabReportsReviewMetricsToViewModel()
     {
         var tabControl = new TabControl();
-        var vm = new MainWindowViewModel(() => Task.CompletedTask, () => { }, () => { });
+        var vm = new MainWindowViewModel();
         InfoTabRegistry registry = InfoTabRegistry.FromCatalog(tabControl, new Grid(), "Arial", vm);
         IAnalysisFrameConsumer consumer = registry.Consumers.Single(
             consumer => consumer.TabId == InfoTabCatalog.LongTermPerfTabId);

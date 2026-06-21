@@ -27,8 +27,7 @@ public sealed class AcceptBandControllerTests
         }
     }
 
-    private static MainWindowViewModel CreateViewModel() =>
-        new(() => Task.CompletedTask, () => { }, () => { });
+    private static MainWindowViewModel CreateViewModel() => new();
 
     private static FakeAcceptBandOperations SeededOperations() => new()
     {

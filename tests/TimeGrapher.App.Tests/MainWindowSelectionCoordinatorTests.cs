@@ -102,10 +102,7 @@ public sealed class MainWindowSelectionCoordinatorTests
 
     private static MainWindowViewModel CreateViewModel()
     {
-        return new MainWindowViewModel(
-            () => Task.CompletedTask,
-            () => { },
-            () => { });
+        return new MainWindowViewModel();
     }
 
     private static MainWindowSelectionCoordinator CreateCoordinator(

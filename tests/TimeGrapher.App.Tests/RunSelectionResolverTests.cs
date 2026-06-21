@@ -105,9 +105,6 @@ public sealed class RunSelectionResolverTests
 
     private static MainWindowViewModel CreateViewModel()
     {
-        return new MainWindowViewModel(
-            () => Task.CompletedTask,
-            () => { },
-            () => { });
+        return new MainWindowViewModel();
     }
 }

@@ -455,16 +455,6 @@ public partial class MainWindow
         return true;
     }
 
-    private async Task StartRunAsync()
-    {
-        await mRunCommandService.StartAsync();
-    }
-
-    private void TogglePauseRun()
-    {
-        mRunCommandService.TogglePause();
-    }
-
     private void SetWorkersPaused(bool paused)
     {
         mRunSessionController.SetWorkersPaused(paused);
@@ -473,10 +463,5 @@ public partial class MainWindow
     private void StopRunWithoutReset()
     {
         mRunCommandService.StopRunWithoutReset();
-    }
-
-    private void ResetRun()
-    {
-        mRunCommandService.Reset();
     }
 }

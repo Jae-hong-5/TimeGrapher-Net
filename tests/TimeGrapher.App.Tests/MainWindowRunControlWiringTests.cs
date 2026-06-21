@@ -187,10 +187,7 @@ public sealed class MainWindowRunControlWiringTests
     [Fact]
     public void PositionAutoPauseGateRequiresTheSettingAndRunningState()
     {
-        var vm = new MainWindowViewModel(
-            () => Task.CompletedTask,
-            () => { },
-            () => { });
+        var vm = new MainWindowViewModel();
 
         Assert.False(MainWindow.ShouldPauseAfterPositionChange(vm));
 
