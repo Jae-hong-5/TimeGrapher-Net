@@ -86,6 +86,7 @@ public partial class MainWindow : Window
     private bool mIsClosing;
     private readonly MainWindowViewModel mViewModel;
     private readonly MainWindowSelectionCoordinator mSelectionCoordinator;
+    private readonly AcceptBandController mAcceptBandController;
     private readonly RunSelectionResolver mRunSelectionResolver;
     private readonly RunCommandService mRunCommandService;
     private readonly RunSessionController mRunSessionController;
@@ -151,15 +152,14 @@ public partial class MainWindow : Window
             ActiveInfoTabRefreshIntervalMs,
             HandleAnalysisFrame);
 
-        // Seed the Settings inputs from the persisted accept bands before wiring
-        // the live-apply handler, so restoring saved limits raises no spurious save.
-        SeedAcceptBandInputs();
+        // The accept-band controller seeds the Settings inputs from the persisted bands
+        // and applies later edits to the graphs, so the View no longer owns that flow.
+        mAcceptBandController = new AcceptBandController(mViewModel, new GraphAcceptBandOperations(mGraphFrameRenderer));
 
         // Wire events (Qt auto-connected on_* slots + explicit connect()s).
         mViewModel.PropertyChanged += mSelectionCoordinator.OnViewModelPropertyChanged;
         mViewModel.PropertyChanged += OnRunControlPropertyChanged;
         mViewModel.PropertyChanged += OnReviewCursorPropertyChanged;
-        mViewModel.PropertyChanged += OnAcceptBandPropertyChanged;
         GraphicsTabWidget.SelectionChanged += OnGraphicsTabSelectionChanged;
         mViewModel.SetLongTermTabActive(ActiveInfoTabId() == InfoTabCatalog.LongTermPerfTabId);
 
@@ -280,50 +280,6 @@ public partial class MainWindow : Window
         // the MainWindow view-model so toggles reach the same run-settings flow.
         var settingsWindow = new SettingsWindow { DataContext = mViewModel };
         _ = settingsWindow.ShowDialog(this);
-    }
-
-    private void SeedAcceptBandInputs()
-    {
-        AcceptBandSettings bands = AcceptBandSettings.Current;
-        mViewModel.RateAcceptMin = (decimal)bands.RateMinSPerDay;
-        mViewModel.RateAcceptMax = (decimal)bands.RateMaxSPerDay;
-        mViewModel.AmplitudeAcceptMin = (decimal)bands.AmplitudeMinDeg;
-        mViewModel.AmplitudeAcceptMax = (decimal)bands.AmplitudeMaxDeg;
-        mViewModel.BeatErrorAcceptMag = (decimal)bands.BeatErrorMagnitudeMs;
-    }
-
-    // Live-apply for the editable normal bands: rebuild the shared AcceptBandSettings
-    // from the Settings inputs, skip an incomplete or inverted edit, then persist and
-    // fan the new limits out to every graph (no run reset, so the history is kept).
-    private void OnAcceptBandPropertyChanged(object? sender, PropertyChangedEventArgs e)
-    {
-        if (e.PropertyName is not (
-            nameof(MainWindowViewModel.RateAcceptMin) or
-            nameof(MainWindowViewModel.RateAcceptMax) or
-            nameof(MainWindowViewModel.AmplitudeAcceptMin) or
-            nameof(MainWindowViewModel.AmplitudeAcceptMax) or
-            nameof(MainWindowViewModel.BeatErrorAcceptMag)))
-        {
-            return;
-        }
-
-        var candidate = new AcceptBandSettings(
-            RateMinSPerDay: (double)mViewModel.RateAcceptMin,
-            RateMaxSPerDay: (double)mViewModel.RateAcceptMax,
-            AmplitudeMinDeg: (double)mViewModel.AmplitudeAcceptMin,
-            AmplitudeMaxDeg: (double)mViewModel.AmplitudeAcceptMax,
-            BeatErrorMagnitudeMs: (double)mViewModel.BeatErrorAcceptMag);
-
-        // An incomplete edit (e.g. min momentarily above max) or a no-op is not
-        // applied: leave the last good limits in place until the edit is consistent.
-        if (!AcceptBandSettings.Current.ShouldReplace(candidate))
-        {
-            return;
-        }
-
-        AcceptBandSettings.Current = candidate;
-        AcceptBandSettingsStore.Save(candidate);
-        mGraphFrameRenderer.ApplyAcceptBands();
     }
 
     private void OnMaximizeWindowButtonClick(object? sender, RoutedEventArgs e)
