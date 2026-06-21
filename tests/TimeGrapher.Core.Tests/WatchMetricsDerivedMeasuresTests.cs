@@ -304,20 +304,44 @@ public sealed class WatchMetricsDerivedMeasuresTests
         // mixing pre- and post-gap points would report as a slope spike of
         // thousands of s/d - permanently recorded by the cumulative rate
         // statistics. The estimators restart at the gap instead: the gap
-        // sample reports rate-invalid, the reading returns within a few
-        // beats, and no emitted sample ever carries the spike.
+        // sample reports rate-invalid, the reading returns once the post-gap
+        // segment refills past the warmup floor, and no emitted sample ever
+        // carries the spike. Both runs are long enough to clear RateWarmupPoints
+        // on each side of the gap (6 points per tic/toc phase).
         WatchMetrics metrics = NewMetrics();
-        double[] intervals = Enumerable.Repeat(125.0, 7)
+        double[] intervals = Enumerable.Repeat(125.0, 13)
             .Append(190.0)
-            .Concat(Enumerable.Repeat(125.0, 8))
+            .Concat(Enumerable.Repeat(125.0, 16))
             .ToArray();
         List<WatchMetricsUpdate> updates = FeedAEvents(metrics, intervals);
 
-        Assert.False(updates[8].BeatTimingSample.RateValid);
-        Assert.Contains(updates.Skip(9), u => u.BeatTimingSample.RateValid);
+        // Valid before the gap (the 13-beat run clears the warmup floor)...
+        Assert.Contains(updates.Take(14), u => u.BeatTimingSample.RateValid);
+        // ...the gap event resets both estimators, so it reports invalid...
+        Assert.False(updates[14].BeatTimingSample.RateValid);
+        // ...and the reading returns once the post-gap segment refills.
+        Assert.Contains(updates.Skip(15), u => u.BeatTimingSample.RateValid);
         Assert.All(
             updates.Where(u => u.BeatTimingSampleUpdated && u.BeatTimingSample.RateValid),
             u => Assert.InRange(u.BeatTimingSample.RateSPerDay, -1.0, 1.0));
+    }
+
+    [Fact]
+    public void RlsRate_WaitsForWarmupPointsBeforeFirstValidReading()
+    {
+        // A 2-point regression has zero residual degrees of freedom, so its slope
+        // is pure per-event jitter amplification (the first plotted rate point can
+        // read the wrong sign by tens of s/d). The rate is therefore withheld until
+        // each tic/toc window holds RateWarmupPoints (default 6) samples. With clean
+        // nominal beats that floor is first cleared on the 6th toc (beat 12, index
+        // 11) - not the 2-point beat-4 (index 3) the bare GetRate floor would allow.
+        WatchMetrics metrics = NewMetrics();
+        List<WatchMetricsUpdate> updates = FeedAEvents(metrics, Enumerable.Repeat(125.0, 12).ToArray());
+
+        Assert.DoesNotContain(updates.Take(11), u => u.BeatTimingSample.RateValid);
+        Assert.False(updates[3].BeatTimingSample.RateValid);   // old 2-point first-valid beat
+        Assert.False(updates[9].BeatTimingSample.RateValid);   // 5 points/phase, still short
+        Assert.True(updates[11].BeatTimingSample.RateValid);   // 6 points/phase clears the floor
     }
 
     [Fact]

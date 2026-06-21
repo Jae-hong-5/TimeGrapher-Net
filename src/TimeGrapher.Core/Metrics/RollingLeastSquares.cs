@@ -82,6 +82,9 @@ public sealed class RollingLeastSquares
         _head = (_head + 1) % _capacity; // Circular buffer
     }
 
+    /// <summary>Number of points currently held in the window (0..capacity).</summary>
+    public int Count => _size;
+
     public bool GetRate(out double slope)
     {
         slope = 0.0;

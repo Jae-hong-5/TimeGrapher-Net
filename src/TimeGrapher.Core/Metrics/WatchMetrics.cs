@@ -15,6 +15,17 @@ public struct WatchMetricsConfig
     public double RateErrorYScale;  // 10.0
     public int RlsWindowInit;       // 100
 
+    // Minimum points each tic/toc regression window must hold before the s/d rate
+    // is published. A 2-point slope has zero residual degrees of freedom, so its
+    // value is pure per-event jitter amplification (the first plotted rate point
+    // could read the wrong sign by tens of s/d); requiring several points first
+    // suppresses that startup transient at the cost of a slightly later first
+    // reading. 6 is the smallest floor at which the first plotted value lands on
+    // the correct sign within a few s/d across jitter seeds (measured); steady-
+    // state convergence is unaffected (the full window keeps filling afterwards).
+    // Not in the C++ original (which used the 2-point GetRate floor).
+    public int RateWarmupPoints;    // 6
+
     /// <summary>Mirror of the C++ struct's in-class default member initializers.</summary>
     public WatchMetricsConfig()
     {
@@ -24,6 +35,7 @@ public struct WatchMetricsConfig
         MaxRateDataPoints = 250;
         RateErrorYScale = 10.0;
         RlsWindowInit = 100;
+        RateWarmupPoints = 6;
     }
 }
 
@@ -346,7 +358,12 @@ public sealed class WatchMetrics
                 double slopeToc;
                 double rlsToc;
 
-                if ((_rlsTicRate.GetRate(out slopeTic)) &&
+                // Hold the rate invalid until both windows clear the warmup floor:
+                // a 2-point regression amplifies per-event jitter into a wild
+                // first reading, so the early beats are skipped rather than plotted.
+                if ((_rlsTicRate.Count >= _config.RateWarmupPoints) &&
+                    (_rlsTocRate.Count >= _config.RateWarmupPoints) &&
+                    (_rlsTicRate.GetRate(out slopeTic)) &&
                     (_rlsTocRate.GetRate(out slopeToc)))
                 {
                     rlsTic = slopeTic * 86400.00;
