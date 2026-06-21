@@ -212,7 +212,7 @@ public sealed class WatchMetricsDerivedMeasuresTests
         results = FeedAThenCAndGetResults(metrics, sample);
 
         Assert.Equal(
-            $"Error Rate ------ s/d | Amplitude {WatchMetrics.ValueSpanStart} 55{WatchMetrics.ValueSpanEnd}° | BEAT ERROR ---- ms | BPH {WatchMetrics.ValueSpanStart}28800{WatchMetrics.ValueSpanEnd}",
+            $"Error Rate ------ s/d | Amplitude {WatchMetrics.ValueSpanStart} 44{WatchMetrics.ValueSpanEnd}° | BEAT ERROR ---- ms | BPH {WatchMetrics.ValueSpanStart}28800{WatchMetrics.ValueSpanEnd}",
             results);
 
         sample += 125.0 / 1000.0 * SampleRate;
@@ -221,7 +221,7 @@ public sealed class WatchMetricsDerivedMeasuresTests
         results = FeedAThenCAndGetResults(metrics, sample);
 
         Assert.Equal(
-            $"Error Rate ------ s/d | Amplitude {WatchMetrics.ValueSpanStart} 55{WatchMetrics.ValueSpanEnd}° | BEAT ERROR {WatchMetrics.ValueSpanStart} 0.0{WatchMetrics.ValueSpanEnd} ms | BPH {WatchMetrics.ValueSpanStart}28800{WatchMetrics.ValueSpanEnd}",
+            $"Error Rate ------ s/d | Amplitude {WatchMetrics.ValueSpanStart} 44{WatchMetrics.ValueSpanEnd}° | BEAT ERROR {WatchMetrics.ValueSpanStart} 0.0{WatchMetrics.ValueSpanEnd} ms | BPH {WatchMetrics.ValueSpanStart}28800{WatchMetrics.ValueSpanEnd}",
             results);
     }
 
@@ -414,10 +414,11 @@ public sealed class WatchMetricsDerivedMeasuresTests
     [Fact]
     public void AmplitudeSample_EmittedPerCEvent_AndPairAverageOncePerTicTocPair()
     {
-        // BPH=3600: half-period 1 s. A->C interval of 1/6 s puts the sine argument at
-        // pi/6, so Amplitude = liftAngle / sin(pi/6) = 2 * 52 = 104 degrees.
+        // BPH=3600: T = 1 s, so 7200/BPH = 2T = 2 s. An A->C interval of 1/3 s puts the
+        // half-lift sine argument pi*t_AC/(2T) at pi/6, so Amplitude = liftAngle /
+        // (2*sin(pi/6)) = 52 degrees. (NewMetrics uses no onset-latency compensation.)
         const double bph = 3600.0;
-        const double aToCSamples = SampleRate / 6.0;
+        const double aToCSamples = SampleRate / 3.0;
         WatchMetrics metrics = NewMetrics();
 
         metrics.HandleAEvent(0.0, true, bph);                     // beat 1 (tic)
@@ -425,7 +426,7 @@ public sealed class WatchMetricsDerivedMeasuresTests
 
         Assert.True(ticC.AmplitudeSampleUpdated);
         Assert.True(ticC.AmplitudeSample.InstantValid);
-        Assert.Equal(104.0, ticC.AmplitudeSample.InstantDeg, 6);
+        Assert.Equal(52.0, ticC.AmplitudeSample.InstantDeg, 6);
         Assert.False(ticC.AmplitudeSample.PairAverageUpdated);
 
         double tocA = SampleRate * 1.0;                           // beat 2 (toc), 1 s later
@@ -433,19 +434,19 @@ public sealed class WatchMetricsDerivedMeasuresTests
         WatchMetricsUpdate tocC = metrics.HandleCEvent(tocA + aToCSamples, true, bph);
 
         Assert.True(tocC.AmplitudeSample.PairAverageUpdated);
-        Assert.Equal(104.0, tocC.AmplitudeSample.PairAverageDeg, 6);
+        Assert.Equal(52.0, tocC.AmplitudeSample.PairAverageDeg, 6);
     }
 
     [Fact]
     public void AmplitudeSample_NotEmittedWhenEstimateIsOutOfRange()
     {
-        // A->C of a quarter period at BPH=3600 gives sin(pi/2)=1 -> 52 deg; shrink the
-        // interval until the estimate exceeds 360 and the sample must be suppressed.
+        // A very short A->C makes the half-lift sine argument tiny, so amplitude blows
+        // up past 360 and the sample must be suppressed.
         const double bph = 3600.0;
         WatchMetrics metrics = NewMetrics();
         metrics.HandleAEvent(0.0, true, bph);
 
-        // sin arg ~ 0.04 rad -> amplitude ~ 1300 deg (> 360): invalid.
+        // t_AC = 0.0125 s: arg ~ 0.02 rad -> amplitude ~ 1300 deg (> 360): invalid.
         WatchMetricsUpdate update = metrics.HandleCEvent(600.0, true, bph);
 
         Assert.False(update.AmplitudeSampleUpdated);
@@ -454,15 +455,15 @@ public sealed class WatchMetricsDerivedMeasuresTests
     [Fact]
     public void AmplitudeSample_NotEmittedWhenEstimateIsNegative()
     {
-        // A C event past the half-cycle (t_AC > T/2) drives the escapement
+        // A C event past a full oscillation (t_AC > 2T) drives the half-lift
         // equation's Sin() negative, so the computed amplitude is negative. A
         // mispaired/delayed C must be rejected, not shown as a real measurement.
-        const double bph = 3600.0; // period 1 s, so t_AC > 0.5 s crosses the lobe
+        const double bph = 3600.0; // T = 1 s, so 2T = 2 s; t_AC > 2 s crosses the lobe
         WatchMetrics metrics = NewMetrics();
         metrics.HandleAEvent(0.0, true, bph);
 
-        // t_AC = 1.1 s: sin(1.1*pi) < 0 -> amplitude = 52 / sin(...) < 0.
-        WatchMetricsUpdate update = metrics.HandleCEvent(SampleRate * 1.1, true, bph);
+        // t_AC = 2.2 s: half-lift arg = 1.1*pi, sin(1.1*pi) < 0 -> amplitude < 0.
+        WatchMetricsUpdate update = metrics.HandleCEvent(SampleRate * 2.2, true, bph);
 
         Assert.False(update.AmplitudeSampleUpdated);
     }

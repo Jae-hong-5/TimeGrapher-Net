@@ -26,6 +26,14 @@ public struct WatchMetricsConfig
     // Not in the C++ original (which used the 2-point GetRate floor).
     public int RateWarmupPoints;    // 6
 
+    // Seconds added to the measured A->C interval before the amplitude formula, to
+    // offset the detector's onset-detection latency (the A onset is timestamped at a
+    // threshold crossing, which lags the true onset more than the C peak does, so the
+    // raw A->C is slightly short and amplitude reads high). 0 = no compensation, which
+    // keeps the bare formula behaviour for direct callers/unit tests; the live pipeline
+    // sets it from DetectorMetricsEngineConfig.AmplitudeOnsetLatencyS.
+    public double AmplitudeOnsetLatencyS;
+
     /// <summary>Mirror of the C++ struct's in-class default member initializers.</summary>
     public WatchMetricsConfig()
     {
@@ -36,6 +44,7 @@ public struct WatchMetricsConfig
         RateErrorYScale = 10.0;
         RlsWindowInit = 100;
         RateWarmupPoints = 6;
+        AmplitudeOnsetLatencyS = 0.0;
     }
 }
 
@@ -229,9 +238,37 @@ public sealed class WatchMetrics
     /// </summary>
     public ulong MissedBeats => _missedBeats;
 
+    // Balance amplitude from the A->C interval, using the SYMMETRIC HALF-LIFT model:
+    //
+    //     Amp = liftAngle / (2 * sin(pi * t_AC / (2T))),   T = 3600 / BPH
+    //
+    // This formula is a DELIBERATE, physics-driven choice. For rigorous accuracy we
+    // intentionally use NEITHER of the two other forms that exist in this project:
+    //
+    //   * NOT the original Qt code's formula  liftAngle / sin(pi * t_AC / T)  (the
+    //     "full-lift" form this method shipped with). It implicitly assumes the
+    //     balance sweeps the whole lift angle from the dead-point; it is internally
+    //     consistent but is NOT the inverse of the physical swing, so it over-reads
+    //     (a true 270 deg reads ~271.3 deg, the error growing at low amplitude).
+    //
+    //   * NOT the requirement doc's formula either (TimeGrapher Equations_v1.md,
+    //     Part IV:  Amp = 3600 * lambda / (pi * BPH * t_AC)). That is only the
+    //     SMALL-ANGLE LINEAR approximation -- it drops the sine curvature.
+    //
+    // We use the half-lift sine form because it is the rigorous model. The balance
+    // swings theta(t) = A * sin(pi * t / T); the impulse/lift zone is centered on the
+    // dead-point, so the A and C landmarks sit at -lambda/2 and +lambda/2 and t_AC
+    // spans the full lift zone. Inverting that geometry gives sin(pi * t_AC / (2T)) =
+    // lambda / (2A), i.e. the expression below. Consequences:
+    //   - it is the EXACT inverse of the synthesiser's A->C model
+    //     (WatchSynthStream.ComputeAToCTimeS), so a configured amplitude is recovered
+    //     without formula bias; and
+    //   - it matches the canonical open-source timegrapher "tg" (vacaboja), whose
+    //     amplitude is 0.5 * liftAngle / sin(pi * pulse / period_full).
+    // Note 7200/BPH == 2T, so the argument below is pi * t_AC / (2T).
     public static double Amplitude(double liftAngle, double t1, double bph)
     {
-        return liftAngle / Math.Sin((2.0 * Math.PI * t1) / (7200.0 / bph));
+        return liftAngle / (2.0 * Math.Sin((Math.PI * t1) / (7200.0 / bph)));
     }
 
     private bool ComputeRateError(double eventSample, bool haveValidBph, double bph, WatchMetricsUpdate update)
@@ -497,7 +534,10 @@ public sealed class WatchMetrics
         if ((_haveAEvent) && (_bphValid))
         {
             int ticOrToc = CurrentBeatPhase();
-            double time = (eventSample - _lastAEvent) / (double)_config.SampleRate;
+            // Compensate the detector's A-onset latency so the A->C interval reflects
+            // the true onset-to-C span the amplitude model expects (see Amplitude()).
+            double time = (eventSample - _lastAEvent) / (double)_config.SampleRate
+                          + _config.AmplitudeOnsetLatencyS;
             double tempAmp = Amplitude(_config.LiftAngle, time, bph);
             // Valid amplitude is a positive angle below 360 deg. A mispaired or
             // delayed C can push t_AC past the half-cycle so Sin() goes negative
@@ -537,7 +577,10 @@ public sealed class WatchMetrics
     {
         if ((haveValidBph) && (_bphValid) && (_haveAEvent))
         {
-            int amplitudeDeg = QRound(Amplitude(_config.LiftAngle, beatTimeSeconds, bph));
+            // Amplitude uses the latency-compensated A->C span (matching ComputeAmplitude);
+            // the displayed "ms" below stays the raw measured interval.
+            int amplitudeDeg = QRound(Amplitude(
+                _config.LiftAngle, beatTimeSeconds + _config.AmplitudeOnsetLatencyS, bph));
             if (amplitudeDeg > 0 && amplitudeDeg < 360)
             {
                 // " %1 ms\n%2%3" : ms (f,1), amplitude degrees (int), degree sign (U+00B0)
