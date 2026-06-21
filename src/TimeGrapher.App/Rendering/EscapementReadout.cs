@@ -16,8 +16,12 @@ internal static class EscapementReadout
     private const string SignedTenthsMsFormat = "+0.0;-0.0;0.0";
     private const string SignedHundredthsMsFormat = "+0.00;-0.00;0.00";
 
-    /// <summary>A is the cycle's zero reference, so its label is fixed.</summary>
-    public const string AMarkerLabel = "A 0.0 ms";
+    /// <summary>
+    /// A marks each beat's cycle start; the millisecond reading lives on that
+    /// beat's C label (the A→C interval), so the A marker carries just the
+    /// event name — shared by both the tic and toc A markers.
+    /// </summary>
+    public const string AMarkerLabel = "A";
 
     /// <summary>Panel labels; <see cref="Values"/> returns matching positions.</summary>
     public static readonly string[] Labels =

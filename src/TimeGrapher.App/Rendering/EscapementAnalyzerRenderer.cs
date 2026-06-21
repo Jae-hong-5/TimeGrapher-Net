@@ -13,18 +13,33 @@ namespace TimeGrapher.App.Rendering;
 /// BeatSegmentsSnapshot the frame carries (the Beat Noise's segment
 /// infrastructure reused for fine-grained intra-beat timing).
 ///
-/// One large plot shows the latest beat's real raw waveform — the un-rectified
-/// bipolar signal as captured, drawn as the per-point min/max outlines so the
-/// vertically-symmetric scope look is the actual data, not the negated envelope
-/// (it falls back to the rectified envelope only when the producer fed no raw).
-/// Over it sit pooled vertical timing markers and millisecond labels for the
-/// escapement-cycle events: A (green dashed, the cycle's zero reference), C peak
-/// (red dashed) and C onset (red dotted, only when the detector located the
-/// cluster's rising edge). The
-/// numeric panel below reads the current A→C interval per reference, the
-/// onset-vs-peak delta, and — via EscapementTimingTracker fed here on each
-/// snapshot-version change — the windowed mean±sigma of both references plus
-/// which reference is more repeatable.
+/// One large plot shows a full oscillation — the tic beat and the toc beat that
+/// follows it — as the real raw waveform: the un-rectified bipolar signal as
+/// captured, drawn as the per-point min/max outlines so the vertically-symmetric
+/// scope look is the actual data, not the negated envelope (it falls back to the
+/// rectified envelope only when the producer fed no raw). Both beats come from
+/// the tic segment's own window, which is long enough (400 ms) to span the toc
+/// that follows ~half a beat later, so the two noise groups sit at their true
+/// spacing on one continuous trace. Over it sit pooled vertical timing markers
+/// and millisecond labels for each beat's escapement-cycle events: A (green
+/// dashed), C peak (red dashed) and C onset (red dotted, only when the detector
+/// located the cluster's rising edge). The numeric panel below reads the latest
+/// beat's A→C interval per reference, the onset-vs-peak delta, and — via
+/// EscapementTimingTracker fed here on each snapshot-version change — the
+/// windowed mean±sigma of both references plus which reference is more
+/// repeatable.
+///
+/// The displayed pair is the latest COMPLETE tic→toc pair, always anchored on
+/// the tic phase, so the pattern stays "tic-toc, tic-toc" frame after frame
+/// rather than flipping to "toc-tic" whenever the newest beat happens to be a
+/// tic. (Selecting "the latest two beats" would alternate the lead phase every
+/// beat.)
+///
+/// The X axis is milliseconds relative to the tic's A (tic A at 0, matching the
+/// reference figure's zeroed axis) and is zoomed to frame both noise groups — a
+/// short pre-A roll on the left through the toc's last event plus a label tail —
+/// rather than the full 400 ms capture window. Y scales to the visible bursts
+/// only, so anything past the toc never inflates it.
 ///
 /// All plottables refill in place; re-renders only when the snapshot version
 /// changes, so coalesced or repeated frames cost nothing. Segments reference
@@ -40,6 +55,20 @@ internal sealed class EscapementAnalyzerRenderer
     /// <summary>Second label row (C onset, which sits close to C peak), kept below the top row.</summary>
     private const double SecondLabelFraction = 0.97;
 
+    /// <summary>Empty space (ms) kept to the right of the last marker so its label fits.</summary>
+    private const double ViewRightTailMs = 8.0;
+    /// <summary>Smallest visible span (ms), so a very tight single-beat A→C still frames sensibly.</summary>
+    private const double MinViewSpanMs = 18.0;
+
+    // Marker slots: the tic group (A, C peak, C onset) then the toc group.
+    private const int MarkerCount = 6;
+    private const int MarkerTicA = 0;
+    private const int MarkerTicCPeak = 1;
+    private const int MarkerTicCOnset = 2;
+    private const int MarkerTocA = 3;
+    private const int MarkerTocCPeak = 4;
+    private const int MarkerTocCOnset = 5;
+
     private readonly AvaPlot _plot;
     private readonly TextBlock[] _valueTexts;
     private readonly string _textFontFamily;
@@ -53,16 +82,14 @@ internal sealed class EscapementAnalyzerRenderer
 
     private Scatter? _envelopeScatter;
     private Scatter? _rawMinScatter;
-    private VerticalLine? _aMarker;
-    private VerticalLine? _cPeakMarker;
-    private VerticalLine? _cOnsetMarker;
-    private Text? _aLabel;
-    private Text? _cPeakLabel;
-    private Text? _cOnsetLabel;
+    private readonly VerticalLine?[] _markers = new VerticalLine?[MarkerCount];
+    private readonly Text?[] _labels = new Text?[MarkerCount];
 
     private PlotThemePalette _theme = PlotThemePalette.Current;
     private ulong _lastVersion;
     private ulong _lastObservedVersion;
+
+    private static bool IsAMarker(int index) => index == MarkerTicA || index == MarkerTocA;
 
     public EscapementAnalyzerRenderer(AvaPlot plot, TextBlock[] valueTexts, string textFontFamily)
     {
@@ -96,7 +123,7 @@ internal sealed class EscapementAnalyzerRenderer
         _rawMinY.Clear();
         ApplyPlotTheme(plot);
         plot.YLabel("Signal Level");
-        plot.XLabel("ms");
+        plot.XLabel("ms from A");
         _envelopeScatter = plot.Add.Scatter(_envelopeX, _envelopeY);
         _envelopeScatter.LineWidth = 1;
         _envelopeScatter.MarkerStyle.IsVisible = false;
@@ -104,14 +131,19 @@ internal sealed class EscapementAnalyzerRenderer
         _rawMinScatter.LineWidth = 1;
         _rawMinScatter.MarkerStyle.IsVisible = false;
         _rawMinScatter.IsVisible = false;
-        _aMarker = AddMarker(plot, LinePattern.Dashed);
-        _cPeakMarker = AddMarker(plot, LinePattern.Dashed);
-        _cOnsetMarker = AddMarker(plot, LinePattern.Dotted);
-        _aLabel = AddLabel(plot);
-        _cPeakLabel = AddLabel(plot);
-        _cOnsetLabel = AddLabel(plot);
-        plot.Axes.SetLimitsX(0, BeatSegmentCapture.WindowMs);
-        PlotAxisRules.ClampLeftEdgeToZero(plot);
+        // Two beats' worth of markers: A and C peak dashed, C onset dotted.
+        for (int i = 0; i < MarkerCount; i++)
+        {
+            bool onset = i == MarkerTicCOnset || i == MarkerTocCOnset;
+            _markers[i] = AddMarker(plot, onset ? LinePattern.Dotted : LinePattern.Dashed);
+            _labels[i] = AddLabel(plot);
+        }
+        // A-relative, escapement-zoomed view: A at 0 with the capture's pre-A
+        // roll showing as negative time. The window start is exactly -AOffsetMs
+        // (the segment opens AOffsetMs before A, capped at PreEventMs), so floor
+        // the left edge there rather than at 0 or pan/zoom-out would hide the roll.
+        plot.Axes.SetLimitsX(-BeatSegmentCapture.PreEventMs, MinViewSpanMs - BeatSegmentCapture.PreEventMs);
+        PlotAxisRules.ClampLeftEdge(plot, -BeatSegmentCapture.PreEventMs);
 
         ApplySeriesTheme();
         _plot.Refresh();
@@ -142,10 +174,10 @@ internal sealed class EscapementAnalyzerRenderer
 
     public void RenderFrame(AnalysisFrame frame, AnalysisTabRenderContext context)
     {
-        // Review cursor deliberately not rendered here: this is a single-beat
-        // (latest segment) inspection view whose x-domain is milliseconds
-        // within that beat's window, not stream time, so
-        // context.ReviewCursorTimeS has no meaningful x mapping on this plot.
+        // Review cursor deliberately not rendered here: this is a tic→toc
+        // inspection view whose x-domain is milliseconds relative to the tic's
+        // A, not stream time, so context.ReviewCursorTimeS has no meaningful x
+        // mapping on this plot.
         _ = context;
 
         BeatSegmentsSnapshot? snapshot = frame.BeatSegments;
@@ -159,25 +191,59 @@ internal sealed class EscapementAnalyzerRenderer
         // observe path already consumed - Accumulate is watermark-idempotent.
         ObserveSegments(frame);
 
+        (BeatSegment? tic, BeatSegment? toc) = SelectPair(snapshot);
         BeatSegment? latest = snapshot.Segments.Count > 0 ? snapshot.Segments[^1] : null;
-        double labelExtent = RenderTrace(latest);
-        UpdateMarkers(latest, labelExtent);
+        double labelExtent = RenderPair(tic, toc);
+        UpdateMarkers(tic, toc, labelExtent);
         UpdateReadout(latest);
         _plot.Refresh();
     }
 
     /// <summary>
-    /// Refills the trace series and rescales the axes; returns the signal level the
-    /// marker labels sit above. Draws the real raw bipolar waveform (RawMin/Max
-    /// outlines, symmetric about zero) when the segment carries raw, and falls
-    /// back to the rectified envelope otherwise.
+    /// The latest COMPLETE tic→toc pair, oldest-of-pair first: the newest toc
+    /// segment together with the tic immediately before it. Anchoring on the tic
+    /// keeps the displayed order stable ("tic-toc, tic-toc") rather than letting
+    /// the lead phase alternate with whichever beat is newest. Falls back to the
+    /// latest single segment when no adjacent tic→toc pair exists yet (the first
+    /// beat, or a missed beat broke the alternation); toc is null then.
     /// </summary>
-    private double RenderTrace(BeatSegment? segment)
+    private static (BeatSegment? Tic, BeatSegment? Toc) SelectPair(BeatSegmentsSnapshot snapshot)
+    {
+        IReadOnlyList<BeatSegment> segments = snapshot.Segments;
+        for (int j = segments.Count - 1; j >= 1; j--)
+        {
+            if (!segments[j].IsTic && segments[j - 1].IsTic)
+            {
+                return (segments[j - 1], segments[j]);
+            }
+        }
+
+        return (segments.Count > 0 ? segments[^1] : null, null);
+    }
+
+    /// <summary>
+    /// Offset (ms) added to the toc segment's own in-window event offsets to place
+    /// them on the tic-A-relative axis: the real stream-time gap between the two
+    /// window starts, minus the tic's A offset (which defines axis zero). Zero
+    /// when there is no toc (single-beat fallback).
+    /// </summary>
+    private static double TocBaseMs(BeatSegment tic, BeatSegment? toc) =>
+        toc == null ? 0.0 : (toc.StartTimeS - tic.StartTimeS) * 1000.0 - tic.AOffsetMs;
+
+    /// <summary>
+    /// Refills the trace series (the tic anchor's window, which spans the toc too)
+    /// and rescales the axes; returns the signal level the marker labels sit
+    /// above. Draws the real raw bipolar waveform (RawMin/Max outlines, symmetric
+    /// about zero) when the anchor carries raw, and falls back to the rectified
+    /// envelope otherwise. X is re-zeroed at the tic's A and the view is zoomed to
+    /// frame both beats (see <see cref="ComputeView"/>).
+    /// </summary>
+    private double RenderPair(BeatSegment? tic, BeatSegment? toc)
     {
         _envelopeX.Clear();
         _envelopeY.Clear();
         _rawMinY.Clear();
-        if (segment == null)
+        if (tic == null)
         {
             if (_rawMinScatter != null)
             {
@@ -187,21 +253,75 @@ internal sealed class EscapementAnalyzerRenderer
             return 1.0;
         }
 
-        return segment.RawValid ? RenderRaw(segment) : RenderEnvelope(segment);
+        (double startRel, double endRel, double visibleEndAbsMs) = ComputeView(tic, toc, TocBaseMs(tic, toc));
+        return tic.RawValid
+            ? RenderRaw(tic, startRel, endRel, visibleEndAbsMs)
+            : RenderEnvelope(tic, startRel, endRel, visibleEndAbsMs);
+    }
+
+    /// <summary>
+    /// Tic-A-relative, zoomed X view: tic A sits at 0, the window starts at the
+    /// anchor's pre-A roll (-AOffsetMs) and ends a label tail past the last event
+    /// — the toc's C (or A, when its C is missing) when a toc is shown, otherwise
+    /// the tic's own C — floored at <see cref="MinViewSpanMs"/>. Returns the view
+    /// edges in tic-A-relative ms and the absolute-ms cutoff (into the anchor
+    /// window) past which points are off-screen, so Y can scale to the visible
+    /// bursts only.
+    /// </summary>
+    private static (double StartRel, double EndRel, double VisibleEndAbsMs) ComputeView(
+        BeatSegment tic, BeatSegment? toc, double tocBaseMs)
+    {
+        double aMs = tic.AOffsetMs;
+        double lastEventRel = 0.0;
+        if (tic.CPeakValid)
+        {
+            lastEventRel = Math.Max(lastEventRel, tic.CPeakOffsetMs - aMs);
+        }
+
+        if (tic.COnsetValid)
+        {
+            lastEventRel = Math.Max(lastEventRel, tic.COnsetOffsetMs - aMs);
+        }
+
+        if (toc != null)
+        {
+            // The toc's A is always shown; its C extends the frame when present.
+            lastEventRel = Math.Max(lastEventRel, tocBaseMs + toc.AOffsetMs);
+            if (toc.CPeakValid)
+            {
+                lastEventRel = Math.Max(lastEventRel, tocBaseMs + toc.CPeakOffsetMs);
+            }
+
+            if (toc.COnsetValid)
+            {
+                lastEventRel = Math.Max(lastEventRel, tocBaseMs + toc.COnsetOffsetMs);
+            }
+        }
+
+        double startRel = -aMs;
+        double endRel = Math.Max(lastEventRel + ViewRightTailMs, startRel + MinViewSpanMs);
+        return (startRel, endRel, endRel + aMs);
     }
 
     /// <summary>Raw bipolar waveform: max outline up, min outline down, symmetric Y.</summary>
-    private double RenderRaw(BeatSegment segment)
+    private double RenderRaw(BeatSegment segment, double startRel, double endRel, double visibleEndAbsMs)
     {
+        double aMs = segment.AOffsetMs;
         ReadOnlySpan<float> min = segment.RawMin.Span;
         ReadOnlySpan<float> max = segment.RawMax.Span;
         int count = Math.Min(min.Length, max.Length);
         double extent = 0.0;
         for (int i = 0; i < count; i++)
         {
-            _envelopeX.Add(i * segment.MsPerPoint);
+            double absMs = i * segment.MsPerPoint;
+            _envelopeX.Add(absMs - aMs);
             _envelopeY.Add(max[i]);
             _rawMinY.Add(min[i]);
+            if (absMs > visibleEndAbsMs)
+            {
+                continue;
+            }
+
             double pointExtent = Math.Max(Math.Abs(min[i]), Math.Abs(max[i]));
             if (pointExtent > extent)
             {
@@ -219,29 +339,30 @@ internal sealed class EscapementAnalyzerRenderer
             _rawMinScatter.IsVisible = true;
         }
 
-        _plot.Plot.Axes.SetLimitsX(0, segment.MsPerPoint * count);
+        _plot.Plot.Axes.SetLimitsX(startRel, endRel);
         _plot.Plot.Axes.SetLimitsY(-YHeadroom * extent, YHeadroom * extent);
         return extent;
     }
 
     /// <summary>Fallback rectified envelope (no raw fed); returns the envelope max.</summary>
-    private double RenderEnvelope(BeatSegment segment)
+    private double RenderEnvelope(BeatSegment segment, double startRel, double endRel, double visibleEndAbsMs)
     {
         if (_rawMinScatter != null)
         {
             _rawMinScatter.IsVisible = false;
         }
 
+        double aMs = segment.AOffsetMs;
         ReadOnlySpan<float> samples = segment.Samples.Span;
         double max = 0.0;
         for (int i = 0; i < samples.Length; i++)
         {
-            double y = samples[i];
-            _envelopeX.Add(i * segment.MsPerPoint);
-            _envelopeY.Add(y);
-            if (y > max)
+            double absMs = i * segment.MsPerPoint;
+            _envelopeX.Add(absMs - aMs);
+            _envelopeY.Add(samples[i]);
+            if (absMs <= visibleEndAbsMs && samples[i] > max)
             {
-                max = y;
+                max = samples[i];
             }
         }
 
@@ -250,34 +371,65 @@ internal sealed class EscapementAnalyzerRenderer
             max = 1.0;
         }
 
-        _plot.Plot.Axes.SetLimitsX(0, segment.MsPerPoint * samples.Length);
+        _plot.Plot.Axes.SetLimitsX(startRel, endRel);
         _plot.Plot.Axes.SetLimitsY(-0.02 * max, YHeadroom * max);
         return max;
     }
 
-    private void UpdateMarkers(BeatSegment? segment, double traceExtent)
+    /// <summary>
+    /// Places both beats' A / C peak / C onset markers on the tic-A-relative axis.
+    /// The tic group is measured against its own A (tic A at 0); the toc group is
+    /// shifted by <see cref="TocBaseMs"/> to its real position, while each C label
+    /// still reports that beat's own A→C interval.
+    /// </summary>
+    private void UpdateMarkers(BeatSegment? tic, BeatSegment? toc, double traceExtent)
     {
-        if (segment == null)
+        if (tic == null)
         {
-            SetMarker(_aMarker, _aLabel, null, "");
-            SetMarker(_cPeakMarker, _cPeakLabel, null, "");
-            SetMarker(_cOnsetMarker, _cOnsetLabel, null, "");
+            for (int i = 0; i < MarkerCount; i++)
+            {
+                SetMarker(i, null, "");
+            }
+
             return;
         }
 
         double topLabelY = TopLabelFraction * traceExtent;
         double secondLabelY = SecondLabelFraction * traceExtent;
 
-        SetMarker(_aMarker, _aLabel, segment.AOffsetMs, EscapementReadout.AMarkerLabel, topLabelY);
+        double ticAMs = tic.AOffsetMs;
+        SetMarker(MarkerTicA, 0.0, EscapementReadout.AMarkerLabel, topLabelY);
         SetMarker(
-            _cPeakMarker, _cPeakLabel,
-            segment.CPeakValid ? segment.CPeakOffsetMs : null,
-            EscapementReadout.CPeakMarkerLabel(segment.CPeakOffsetMs - segment.AOffsetMs),
+            MarkerTicCPeak,
+            tic.CPeakValid ? tic.CPeakOffsetMs - ticAMs : null,
+            EscapementReadout.CPeakMarkerLabel(tic.CPeakOffsetMs - ticAMs),
             topLabelY);
         SetMarker(
-            _cOnsetMarker, _cOnsetLabel,
-            segment.COnsetValid ? segment.COnsetOffsetMs : null,
-            EscapementReadout.COnsetMarkerLabel(segment.COnsetOffsetMs - segment.AOffsetMs),
+            MarkerTicCOnset,
+            tic.COnsetValid ? tic.COnsetOffsetMs - ticAMs : null,
+            EscapementReadout.COnsetMarkerLabel(tic.COnsetOffsetMs - ticAMs),
+            secondLabelY);
+
+        if (toc == null)
+        {
+            SetMarker(MarkerTocA, null, "");
+            SetMarker(MarkerTocCPeak, null, "");
+            SetMarker(MarkerTocCOnset, null, "");
+            return;
+        }
+
+        double tocBaseMs = TocBaseMs(tic, toc);
+        double tocAMs = toc.AOffsetMs;
+        SetMarker(MarkerTocA, tocBaseMs + tocAMs, EscapementReadout.AMarkerLabel, topLabelY);
+        SetMarker(
+            MarkerTocCPeak,
+            toc.CPeakValid ? tocBaseMs + toc.CPeakOffsetMs : null,
+            EscapementReadout.CPeakMarkerLabel(toc.CPeakOffsetMs - tocAMs),
+            topLabelY);
+        SetMarker(
+            MarkerTocCOnset,
+            toc.COnsetValid ? tocBaseMs + toc.COnsetOffsetMs : null,
+            EscapementReadout.COnsetMarkerLabel(toc.COnsetOffsetMs - tocAMs),
             secondLabelY);
     }
 
@@ -310,9 +462,10 @@ internal sealed class EscapementAnalyzerRenderer
         return label;
     }
 
-    private static void SetMarker(
-        VerticalLine? marker, Text? label, double? x, string text, double labelY = 0.0)
+    private void SetMarker(int index, double? x, string text, double labelY = 0.0)
     {
+        VerticalLine? marker = _markers[index];
+        Text? label = _labels[index];
         if (marker == null || label == null)
         {
             return;
@@ -341,31 +494,20 @@ internal sealed class EscapementAnalyzerRenderer
             _rawMinScatter.LineColor = Color.FromARGB(_theme.TraceWave);
         }
 
-        // A = tick green, C = tock red: the same themed event color mapping the
-        // scope markers use (RateScopeRenderer.ThemeColor).
-        if (_aMarker != null)
+        // Color by event type, not beat: A = tick green, C = tock red — the same
+        // themed event color mapping the scope markers use
+        // (RateScopeRenderer.ThemeColor) — so both beats read consistently.
+        for (int i = 0; i < MarkerCount; i++)
         {
-            _aMarker.LineColor = Color.FromARGB(_theme.TraceTick);
-        }
-
-        if (_aLabel != null)
-        {
-            _aLabel.LabelFontColor = Color.FromARGB(_theme.TraceTick);
-        }
-
-        foreach (VerticalLine? marker in new[] { _cPeakMarker, _cOnsetMarker })
-        {
-            if (marker != null)
+            uint color = IsAMarker(i) ? _theme.TraceTick : _theme.TraceTock;
+            if (_markers[i] != null)
             {
-                marker.LineColor = Color.FromARGB(_theme.TraceTock);
+                _markers[i]!.LineColor = Color.FromARGB(color);
             }
-        }
 
-        foreach (Text? label in new[] { _cPeakLabel, _cOnsetLabel })
-        {
-            if (label != null)
+            if (_labels[i] != null)
             {
-                label.LabelFontColor = Color.FromARGB(_theme.TraceTock);
+                _labels[i]!.LabelFontColor = Color.FromARGB(color);
             }
         }
     }

@@ -26,7 +26,7 @@ public sealed class EscapementReadoutTests
     [Fact]
     public void MarkerLabels_ReportTheElapsedMsFromA()
     {
-        Assert.Equal("A 0.0 ms", EscapementReadout.AMarkerLabel);
+        Assert.Equal("A", EscapementReadout.AMarkerLabel);
         Assert.Equal("C peak +142.5 ms", EscapementReadout.CPeakMarkerLabel(142.5));
         Assert.Equal("C onset +141.8 ms", EscapementReadout.COnsetMarkerLabel(141.8));
     }
