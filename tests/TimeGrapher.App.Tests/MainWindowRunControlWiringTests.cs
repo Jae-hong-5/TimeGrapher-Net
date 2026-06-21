@@ -189,16 +189,16 @@ public sealed class MainWindowRunControlWiringTests
     {
         var vm = new MainWindowViewModel();
 
-        Assert.False(MainWindow.ShouldPauseAfterPositionChange(vm));
+        Assert.False(vm.ShouldPauseOnPositionChange);
 
         vm.PauseOnPositionChange = true;
-        Assert.False(MainWindow.ShouldPauseAfterPositionChange(vm));
+        Assert.False(vm.ShouldPauseOnPositionChange);
 
         vm.SetRunning();
-        Assert.True(MainWindow.ShouldPauseAfterPositionChange(vm));
+        Assert.True(vm.ShouldPauseOnPositionChange);
 
         vm.SetPaused();
-        Assert.False(MainWindow.ShouldPauseAfterPositionChange(vm));
+        Assert.False(vm.ShouldPauseOnPositionChange);
     }
 
     [Fact]

@@ -276,6 +276,11 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
         set => SetProperty(ref _pauseOnPositionChange, value);
     }
 
+    /// <summary>True when a watch-position change should auto-pause the run: the operator
+    /// enabled the option and a run is active. Read by the run-control controller after a
+    /// position edit; pure view-model state, so it is unit-testable without the window.</summary>
+    public bool ShouldPauseOnPositionChange => _pauseOnPositionChange && _runState == RunUiState.Running;
+
     /// <summary>Scope Sweep window length as a multiple of the beat period (1x / 2x / 3x).</summary>
     public int SweepMultiple
     {

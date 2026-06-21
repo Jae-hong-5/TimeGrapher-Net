@@ -162,9 +162,9 @@ public partial class MainWindow : Window
 
         // Wire events (Qt auto-connected on_* slots + explicit connect()s).
         mViewModel.PropertyChanged += mSelectionCoordinator.OnViewModelPropertyChanged;
-        // Forwards the live run-control knobs (sweep/position/sigma) to the worker; subscribed
-        // before OnRunControlPropertyChanged so SetActivePosition still precedes the auto-pause.
-        mRunControlController = new RunControlController(mViewModel, mRunSessionController);
+        // Forwards the live run-control knobs (sweep/position/sigma) to the worker and
+        // auto-pauses an active run on a position change.
+        mRunControlController = new RunControlController(mViewModel, mRunSessionController, mRunCommandService);
         mViewModel.PropertyChanged += OnRunControlPropertyChanged;
         mViewModel.PropertyChanged += OnReviewCursorPropertyChanged;
         GraphicsTabWidget.SelectionChanged += OnGraphicsTabSelectionChanged;
@@ -390,19 +390,11 @@ public partial class MainWindow : Window
 
     // --- Event handlers (Qt on_* slots) ---
 
-    // View-side reactions to run-control view-model edits that still need MainWindow state:
-    // the auto-pause on a position change and the measurement-log toggle. The sweep/position/
-    // sigma worker knobs are now forwarded by RunControlController.
+    // View-side reaction to a run-control view-model edit that still needs MainWindow state:
+    // the measurement-log toggle. The sweep/position/sigma knobs and the position auto-pause
+    // are owned by RunControlController.
     private void OnRunControlPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(MainWindowViewModel.SelectedPositionIndex))
-        {
-            if (ShouldPauseAfterPositionChange(mViewModel))
-            {
-                mRunCommandService.PauseIfRunning();
-            }
-        }
-
         if (e.PropertyName == nameof(MainWindowViewModel.IsMeasurementLogEnabled))
         {
             ConfigureMeasurementResultLogger(mViewModel.IsMeasurementLogEnabled);
@@ -466,11 +458,6 @@ public partial class MainWindow : Window
         // 5.0) and parenthesized negation ("(500)" -> -500).
         if (string.IsNullOrEmpty(text)) return 0.0;
         return double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out double v) ? v : 0.0;
-    }
-
-    internal static bool ShouldPauseAfterPositionChange(MainWindowViewModel viewModel)
-    {
-        return viewModel.PauseOnPositionChange && viewModel.RunState == RunUiState.Running;
     }
 
     private void ConfigureMeasurementResultLogger(bool enabled)

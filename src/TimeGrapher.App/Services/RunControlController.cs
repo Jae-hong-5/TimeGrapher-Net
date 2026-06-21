@@ -14,11 +14,16 @@ internal sealed class RunControlController
 {
     private readonly MainWindowViewModel _viewModel;
     private readonly IRunSessionControls _controls;
+    private readonly IRunCommandPause _pause;
 
-    public RunControlController(MainWindowViewModel viewModel, IRunSessionControls controls)
+    public RunControlController(
+        MainWindowViewModel viewModel,
+        IRunSessionControls controls,
+        IRunCommandPause pause)
     {
         _viewModel = viewModel;
         _controls = controls;
+        _pause = pause;
         _viewModel.PropertyChanged += OnViewModelPropertyChanged;
     }
 
@@ -30,7 +35,13 @@ internal sealed class RunControlController
                 _controls.SetSweepMultiple(_viewModel.SweepMultiple);
                 break;
             case nameof(MainWindowViewModel.SelectedPositionIndex):
+                // Forward the new position to the worker first, then auto-pause an active run
+                // if the operator enabled it — the order the code-behind ran these in.
                 _controls.SetActivePosition((WatchPosition)_viewModel.SelectedPositionIndex);
+                if (_viewModel.ShouldPauseOnPositionChange)
+                {
+                    _pause.PauseIfRunning();
+                }
                 break;
             case nameof(MainWindowViewModel.SigmaAveraging):
                 _controls.SetSigmaAveraging(_viewModel.SigmaAveraging);
