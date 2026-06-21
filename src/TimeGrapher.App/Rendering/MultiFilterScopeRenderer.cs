@@ -67,16 +67,9 @@ internal sealed class MultiFilterScopeRenderer
     // a wheel leaves it false (a wheel changes only the zoom, not the offset).
     private bool _syncDeriveYOffset;
 
-    // Shared Y-zoom level for all four lanes: the visible Y half-range as a
-    // multiple of each lane's own data peak (the max input value). The wheel
-    // adjusts it for every lane at once, and it is capped at MaxYZoom so a
-    // zoom-out can never show more than 1.5x the peak (e.g. a 0.08 peak tops
-    // out at 0.12). Y stays per-lane in scale — each lane uses its own peak.
-    private const double DefaultYZoom = 1.1;  // fit with a little headroom
-    private const double MaxYZoom = 1.5;      // zoom-out cap: <= 1.5x the peak
-    private const double MinYZoom = 0.1;      // zoom-in floor
-    private const double YZoomStep = 1.15;    // per wheel notch
-    private double _yZoom = DefaultYZoom;
+    // Bound on the shared vertical-pan offset, in multiples of each lane's data
+    // peak: a drag can shift the view at most this far from center.
+    private const double MaxYOffset = 1.5;
 
     // Shared Y pan offset for all lanes, in units of each lane's data peak
     // (0 = centered). A vertical drag updates it so every lane pans together;
@@ -153,25 +146,11 @@ internal sealed class MultiFilterScopeRenderer
             _yMirror[i] = new List<double>();
 
             int idx = i;
-            // Any zoom (wheel), drag (pan / zoom-rectangle, while a button is
-            // held), or interaction end re-links the other lanes onto this one's
-            // X window. PointerPressed just drops live-follow; it changes no axis.
+            // A drag (pan / zoom-rectangle, while a button is held) or interaction
+            // end re-links the other lanes onto this one's X window. PointerPressed
+            // just drops live-follow; it changes no axis. Wheel zoom is disabled
+            // (the response is removed below), so the scope stays beat-locked.
             _plots[idx].PointerPressed += (_, _) => _followLive = false;
-            _plots[idx].PointerWheelChanged += (_, e) =>
-            {
-                // Wheel down (Delta.Y < 0) zooms out, up zooms in — applied to
-                // every lane through the shared _yZoom and capped at MaxYZoom.
-                if (e.Delta.Y < 0)
-                {
-                    _yZoom = Math.Min(MaxYZoom, _yZoom * YZoomStep);
-                }
-                else if (e.Delta.Y > 0)
-                {
-                    _yZoom = Math.Max(MinYZoom, _yZoom / YZoomStep);
-                }
-
-                OnUserAxisInteraction(idx, deriveYOffset: false);
-            };
             // Drag (pan): sync X and re-derive the shared Y offset so a vertical
             // drag pans every lane together.
             _plots[idx].PointerReleased += (_, _) => OnUserAxisInteraction(idx, deriveYOffset: true);
@@ -184,13 +163,17 @@ internal sealed class MultiFilterScopeRenderer
                 }
             };
 
-            // ScottPlot's built-in double-click toggles the benchmark overlay, and
-            // it counts two quick drags as a double-click — so fast panning keeps
-            // flashing it on. Drop that response and instead toggle the benchmark
-            // only on a genuine Avalonia double-tap (which a drag, having moved,
-            // never raises).
-            _plots[idx].UserInputProcessor.UserActionResponses.RemoveAll(
-                response => response.GetType().Name.Contains("Benchmark", StringComparison.Ordinal));
+            // Drop two built-in ScottPlot wheel/click responses: the mouse-wheel
+            // zoom (the scope is beat-locked, so wheel zoom is unwanted) and the
+            // double-click benchmark toggle (two quick drags trip it, flashing the
+            // overlay). The benchmark is instead toggled on a genuine Avalonia
+            // double-tap below (which a drag, having moved, never raises).
+            _plots[idx].UserInputProcessor.UserActionResponses.RemoveAll(response =>
+            {
+                string name = response.GetType().Name;
+                return name.Contains("Wheel", StringComparison.Ordinal)
+                    || name.Contains("Benchmark", StringComparison.Ordinal);
+            });
             _plots[idx].DoubleTapped += (_, _) =>
             {
                 Plot plot = _plots[idx].Plot;
@@ -223,7 +206,6 @@ internal sealed class MultiFilterScopeRenderer
     {
         _followLive = true;
         _hasDataExtent = false;
-        _yZoom = DefaultYZoom;
         _yOffset = 0.0;
         Array.Clear(_lanePeakMax);
         for (int i = 0; i < _plots.Length; i++)
@@ -282,7 +264,6 @@ internal sealed class MultiFilterScopeRenderer
     public void ResetView()
     {
         _followLive = true;
-        _yZoom = DefaultYZoom;
         _yOffset = 0.0;
         for (int i = 0; i < _plots.Length; i++)
         {
@@ -349,9 +330,8 @@ internal sealed class MultiFilterScopeRenderer
             // X window transfers directly. Keep it inside the drawn-data extent
             // (no empty margins): a zoom-out to the full buffer snaps to the
             // whole extent and re-arms live follow; otherwise the window is
-            // shifted back inside the data. Y is set on every lane from the
-            // shared _yZoom level (overriding the wheel's own Y zoom), each
-            // scaled to its own data peak.
+            // shifted back inside the data. Y is auto-fit on every lane (1.2x the
+            // running peak) by ApplyY.
             AxisLimits limits = _plots[source].Plot.Axes.GetLimits();
             double left = limits.Left;
             double right = limits.Right;
@@ -396,7 +376,7 @@ internal sealed class MultiFilterScopeRenderer
                 if (peak > 0.0)
                 {
                     double center = (limits.Top + limits.Bottom) / 2.0;
-                    _yOffset = Math.Clamp(center / peak, -MaxYZoom, MaxYZoom);
+                    _yOffset = Math.Clamp(center / peak, -MaxYOffset, MaxYOffset);
                 }
             }
 
