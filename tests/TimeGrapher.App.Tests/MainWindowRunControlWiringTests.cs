@@ -128,6 +128,16 @@ public sealed class MainWindowRunControlWiringTests
     }
 
     [Fact]
+    public void TitleBarResultsUsesAppFontForMetricReadout()
+    {
+        XDocument document = XDocument.Load(FindSourceFile("src/TimeGrapher.App/Views/MainWindow.axaml"));
+
+        XElement results = FindNamedElement(document, "Results");
+
+        Assert.Equal("{StaticResource AppFontFamily}", results.Attribute("FontFamily")?.Value);
+    }
+
+    [Fact]
     public void SettingsPopupBindsTheMovedRunOptionCheckboxes()
     {
         XDocument document = XDocument.Load(FindSourceFile("src/TimeGrapher.App/Views/SettingsWindow.axaml"));

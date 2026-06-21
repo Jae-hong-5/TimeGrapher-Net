@@ -109,7 +109,7 @@
                    HorizontalAlignment="Center"
                    VerticalAlignment="Center"
                    IsHitTestVisible="False"
-                   FontFamily="{StaticResource TitleFontFamily}"
+                   FontFamily="{StaticResource AppFontFamily}"
                    FontSize="16" FontWeight="Bold"
                    Foreground="{DynamicResource TextPrimaryBrush}" />
       </Grid>
