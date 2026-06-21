@@ -1004,11 +1004,12 @@ internal sealed partial class InfoTabRegistry
             int rowPair = i / columns;
             var description = new TextBlock
             {
-                Text = lanes[i].Label + " — " + lanes[i].Description,
-                FontSize = 11,
-                Opacity = 0.65,
+                Text = lanes[i].Label,
+                FontSize = 16,
+                FontWeight = FontWeight.SemiBold,
+                Opacity = 0.85,
+                HorizontalAlignment = HorizontalAlignment.Center,
                 Margin = new Thickness(8, 3, 8, 0),
-                TextTrimming = Avalonia.Media.TextTrimming.CharacterEllipsis,
             };
             plots[i] = new AvaPlot();
             Grid.SetColumn(description, col);
@@ -1021,10 +1022,6 @@ internal sealed partial class InfoTabRegistry
 
         var renderer = new MultiFilterScopeRenderer(plots);
         context.ResetViews.Register(renderer.ResetView);
-        Button resetButton = CreatePinnedResetViewButton(
-            ResetAllGraphViewsTooltip, row: 1, context.ResetViews.ResetAll);
-        Grid.SetColumnSpan(resetButton, columns); // pin to the top-right of the whole grid
-        grid.Children.Add(resetButton);
 
         // Density slider across the top: peak-decimate the trace to fewer points
         // for lighter rendering (e.g. on the Pi), or up to the producer's full
@@ -1061,6 +1058,12 @@ internal sealed partial class InfoTabRegistry
         Grid.SetRow(grid, 1);
         root.Children.Add(toolbar);
         root.Children.Add(grid);
+
+        // Reset View lives in the top toolbar strip (row 0), pinned right, so it
+        // sits above the plots instead of overlapping the top-right lane.
+        Button resetButton = CreatePinnedResetViewButton(
+            ResetAllGraphViewsTooltip, row: 0, context.ResetViews.ResetAll);
+        root.Children.Add(resetButton);
 
         var consumer = new MultiFilterScopeFrameConsumer(renderer);
         return new InfoTabRegistration(definition, CreateTabItem(definition, root), consumer);

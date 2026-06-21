@@ -218,7 +218,6 @@ internal sealed class MultiFilterScopeRenderer
             _mirrorScatters[i] = null;
             _lastSeries[i] = null;
             ApplyPlotTheme(plot);
-            plot.YLabel(MultiFilterScopeLanes.All[i].Label);
             // Time ruler: a minor tick every 0.1 s, a longer major tick every
             // 0.5 s, and a number label only on whole seconds. Same on every lane.
             plot.Axes.Bottom.TickLabelStyle.IsVisible = true;
