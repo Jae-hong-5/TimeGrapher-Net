@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" role="img" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="720" viewBox="0 0 1280 720" role="img" aria-labelledby="title desc">
   <title id="title">Worker-Level Partial Pipe-and-Filter</title>
   <desc id="desc">Worker-level Pipe-and-Filter flow with bounded ring buffer and latest-wins scheduler as pipes, plus synchronous Analysis worker internals.</desc>
   <defs>
