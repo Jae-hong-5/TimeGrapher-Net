@@ -62,6 +62,7 @@ internal static class MainWindowBootstrapper
 
         var acceptBandController = new AcceptBandController(viewModel, adapters.AcceptBandOperations);
         var runControlController = new RunControlController(viewModel, runSessionController, runCommandService);
+        var analysisFramePresenter = new AnalysisFramePresenter(viewModel, errorLog);
 
         return new MainWindowComposition(
             selectionCoordinator,
@@ -74,6 +75,7 @@ internal static class MainWindowBootstrapper
             runSessionController,
             runControlController,
             acceptBandController,
+            analysisFramePresenter,
             analysisPerformanceLogger);
     }
 }

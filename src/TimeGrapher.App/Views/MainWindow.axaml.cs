@@ -77,8 +77,7 @@ public partial class MainWindow : Window
     private string mCurrentDir;
     private int mRateBeforePlaybackOrSim;
     private string mDeviceNameBeforePlaybackOrSim = "";
-    private readonly AnalysisRunStatusReporter mRunStatusReporter = new();
-    private readonly LatencyStatsTracker mLatencyStats = new();
+    private readonly AnalysisFramePresenter mFramePresenter;
     private AnalysisFrame? mLastAnalysisFrame;
     private bool mIsClosing;
     private readonly MainWindowViewModel mViewModel;
@@ -155,6 +154,7 @@ public partial class MainWindow : Window
         mRunSessionController = composition.RunSessionController;
         mRunControlController = composition.RunControlController;
         mAcceptBandController = composition.AcceptBandController;
+        mFramePresenter = composition.AnalysisFramePresenter;
         mAnalysisPerformanceLogger = composition.AnalysisPerformanceLogger;
 
         // DataContext after Build, which seeds startup-derived view-model state (IsMeasurementLogEnabled).
@@ -330,54 +330,27 @@ public partial class MainWindow : Window
         }
 
         mLastAnalysisFrame = frame;
-        // The drained final frame of a completed run arrives after the GUI
-        // reached Stopped (completeInput keeps the session id alive); it must
-        // not re-raise the waiting overlay.
-        if (mViewModel.RunState != RunUiState.Stopped)
-        {
-            mViewModel.IsAwaitingBeatSync = !frame.BeatSynced;
-        }
         mGraphFrameRenderer.UpdateResults(frame);
         mFrameRouter.Route(frame, ActiveInfoTabId(), BuildTabRenderContext(frame));
 
-        // Grow the review scrub range to the newest captured reading.
-        mViewModel.UpdateReviewMaximum(frame.MetricsHistory?.LatestTimeS ?? 0.0);
-
         // Display leg of the latency evidence: stamped after the frame rendered.
         long displayTicks = System.Diagnostics.Stopwatch.GetTimestamp();
-        mLatencyStats.Observe(frame, droppedFrames, displayTicks);
+
+        // The view-model-facing updates (awaiting-beat-sync, review maximum, latency readout, run
+        // status + its log/console side effects) are owned by the frame presenter. Run them before
+        // the displayed-frame observers so the view-model still reflects this frame even if an
+        // observer were to fail.
+        mFramePresenter.Present(frame, droppedFrames, displayTicks, FrameSampleRate(frame));
+
         mAnalysisPerformanceLogger?.ObserveDisplayed(frame, displayTicks);
         mMeasurementLogController.ObserveDisplayed(frame);
-        if (mLatencyStats.TryFormatStatus(displayTicks) is string latencyText)
-        {
-            mViewModel.LatencyText = latencyText;
-        }
-
-        AnalysisRunStatusReporter.Report report =
-            mRunStatusReporter.Describe(frame, droppedFrames, FrameSampleRate(frame));
-        if (report.StatusText != null)
-        {
-            mViewModel.StatusText = report.StatusText;
-            if (report.LogDetail != null)
-            {
-                mErrorLog.Write(report.StatusText, report.LogDetail);
-            }
-        }
-        if (report.ConsoleWarning != null)
-        {
-            Console.Error.WriteLine(report.ConsoleWarning);
-        }
     }
 
     private void Reset()
     {
         mGraphFrameRenderer.Reset(BuildTabResetContext());
         mInfoTabRegistry.ResetViews.ResetAll();
-
-        mRunStatusReporter.Reset();
-        mLatencyStats.Reset();
-        mViewModel.LatencyText = "";
-        mViewModel.ResetReview();
+        mFramePresenter.Reset();
     }
 
     private void ReportUserErrorStatus(string message, string detail)

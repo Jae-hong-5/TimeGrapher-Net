@@ -16,4 +16,5 @@ internal sealed record MainWindowComposition(
     RunSessionController RunSessionController,
     RunControlController RunControlController,
     AcceptBandController AcceptBandController,
+    AnalysisFramePresenter AnalysisFramePresenter,
     AnalysisPerformanceLogger? AnalysisPerformanceLogger);
