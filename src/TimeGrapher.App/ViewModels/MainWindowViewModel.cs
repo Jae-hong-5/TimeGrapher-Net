@@ -55,6 +55,15 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     private int _selectedPositionIndex; // 0 = WatchPosition.CH (dial up)
     private bool _sigmaAveraging;
     private bool _isMeasurementLogEnabled;
+    // Accept-band ("normal" range) limits the user edits in Settings. Decimal to
+    // bind cleanly to the NumericUpDown controls (the LiftAngle pattern); seeded
+    // from the persisted AcceptBandSettings on startup and applied live by the
+    // window. Literal defaults match AcceptBandSettings.Default.
+    private decimal _rateAcceptMin = -10m;
+    private decimal _rateAcceptMax = 10m;
+    private decimal _amplitudeAcceptMin = 270m;
+    private decimal _amplitudeAcceptMax = 300m;
+    private decimal _beatErrorAcceptMag = 0.6m;
     private double? _reviewCursorTimeS;
     private double _reviewMaximumS;
     private double _reviewMinimumS;
@@ -271,6 +280,41 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     {
         get => _isMeasurementLogEnabled;
         set => SetProperty(ref _isMeasurementLogEnabled, value);
+    }
+
+    /// <summary>Error Rate normal-band lower limit (s/d); applied live to every graph.</summary>
+    public decimal RateAcceptMin
+    {
+        get => _rateAcceptMin;
+        set => SetProperty(ref _rateAcceptMin, value);
+    }
+
+    /// <summary>Error Rate normal-band upper limit (s/d); applied live to every graph.</summary>
+    public decimal RateAcceptMax
+    {
+        get => _rateAcceptMax;
+        set => SetProperty(ref _rateAcceptMax, value);
+    }
+
+    /// <summary>Amplitude normal-band lower limit (°); applied live to every graph.</summary>
+    public decimal AmplitudeAcceptMin
+    {
+        get => _amplitudeAcceptMin;
+        set => SetProperty(ref _amplitudeAcceptMin, value);
+    }
+
+    /// <summary>Amplitude normal-band upper limit (°); applied live to every graph.</summary>
+    public decimal AmplitudeAcceptMax
+    {
+        get => _amplitudeAcceptMax;
+        set => SetProperty(ref _amplitudeAcceptMax, value);
+    }
+
+    /// <summary>Beat Error normal-band magnitude (± ms, symmetric about zero); applied live to every graph.</summary>
+    public decimal BeatErrorAcceptMag
+    {
+        get => _beatErrorAcceptMag;
+        set => SetProperty(ref _beatErrorAcceptMag, value);
     }
 
     /// <summary>Active watch position as a <see cref="WatchPosition"/> ordinal (0 = CH, dial up).</summary>

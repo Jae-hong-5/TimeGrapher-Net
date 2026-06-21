@@ -3,7 +3,7 @@
         x:Class="TimeGrapher.App.Views.SettingsWindow"
         Title="Settings"
         Icon="/Assets/App/AppIcon-256.png"
-        Width="420" Height="332"
+        Width="420" Height="520"
         CanResize="False"
         SystemDecorations="None"
         ShowInTaskbar="False"
@@ -81,6 +81,68 @@
                 IsEnabled="{Binding AreRunParametersEnabled}"
                 IsChecked="{Binding IsMeasurementLogEnabled, Mode=TwoWay}"
                 ToolTip.Tip="Save result rows to the executable log folder" />
+      <Border Height="1"
+              Background="{DynamicResource ChromeBorderBrush}"
+              Margin="0,2" />
+      <TextBlock Text="Acceptable Bands"
+                 Classes="SectionHeader"
+                 HorizontalAlignment="Left" />
+      <!-- The normal-range limits every graph judges against (Error Rate /
+           Amplitude / Beat Error). Always editable: the bands are display policy,
+           applied live and persisted, so they are not gated on the run state. -->
+      <Grid ColumnDefinitions="*,Auto,Auto" RowDefinitions="Auto,Auto,Auto,Auto"
+            HorizontalAlignment="Stretch">
+        <TextBlock Grid.Row="0" Grid.Column="1" Text="Min"
+                   HorizontalAlignment="Center" FontWeight="Bold" Margin="6,0,6,2"
+                   Foreground="{DynamicResource TextPrimaryBrush}" />
+        <TextBlock Grid.Row="0" Grid.Column="2" Text="Max"
+                   HorizontalAlignment="Center" FontWeight="Bold" Margin="6,0,6,2"
+                   Foreground="{DynamicResource TextPrimaryBrush}" />
+
+        <TextBlock Grid.Row="1" Grid.Column="0" Text="Error Rate"
+                   VerticalAlignment="Center" FontWeight="Bold" />
+        <NumericUpDown Name="RateAcceptMinSpinBox" Grid.Row="1" Grid.Column="1"
+                       Width="112" Margin="6,3"
+                       AutomationProperties.Name="Error Rate band minimum (s/d)"
+                       Value="{Binding RateAcceptMin, Mode=TwoWay}"
+                       FontWeight="Bold" FormatString="0' s/d'"
+                       Minimum="-120" Maximum="120" Increment="1"
+                       ToolTip.Tip="Error Rate normal-band lower limit (s/d)" />
+        <NumericUpDown Name="RateAcceptMaxSpinBox" Grid.Row="1" Grid.Column="2"
+                       Width="112" Margin="6,3"
+                       AutomationProperties.Name="Error Rate band maximum (s/d)"
+                       Value="{Binding RateAcceptMax, Mode=TwoWay}"
+                       FontWeight="Bold" FormatString="0' s/d'"
+                       Minimum="-120" Maximum="120" Increment="1"
+                       ToolTip.Tip="Error Rate normal-band upper limit (s/d)" />
+
+        <TextBlock Grid.Row="2" Grid.Column="0" Text="Amplitude"
+                   VerticalAlignment="Center" FontWeight="Bold" />
+        <NumericUpDown Name="AmplitudeAcceptMinSpinBox" Grid.Row="2" Grid.Column="1"
+                       Width="112" Margin="6,3"
+                       AutomationProperties.Name="Amplitude band minimum (degrees)"
+                       Value="{Binding AmplitudeAcceptMin, Mode=TwoWay}"
+                       FontWeight="Bold" FormatString="0'°'"
+                       Minimum="0" Maximum="360" Increment="1"
+                       ToolTip.Tip="Amplitude normal-band lower limit (°)" />
+        <NumericUpDown Name="AmplitudeAcceptMaxSpinBox" Grid.Row="2" Grid.Column="2"
+                       Width="112" Margin="6,3"
+                       AutomationProperties.Name="Amplitude band maximum (degrees)"
+                       Value="{Binding AmplitudeAcceptMax, Mode=TwoWay}"
+                       FontWeight="Bold" FormatString="0'°'"
+                       Minimum="0" Maximum="360" Increment="1"
+                       ToolTip.Tip="Amplitude normal-band upper limit (°)" />
+
+        <TextBlock Grid.Row="3" Grid.Column="0" Text="Beat Error (±)"
+                   VerticalAlignment="Center" FontWeight="Bold" />
+        <NumericUpDown Name="BeatErrorAcceptMagSpinBox" Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="2"
+                       Margin="6,3"
+                       AutomationProperties.Name="Beat Error band magnitude, symmetric (± ms)"
+                       Value="{Binding BeatErrorAcceptMag, Mode=TwoWay}"
+                       FontWeight="Bold" FormatString="'±'0.0' ms'"
+                       Minimum="0.1" Maximum="10" Increment="0.1"
+                       ToolTip.Tip="Beat Error normal band, symmetric about zero (± ms)" />
+      </Grid>
     </StackPanel>
   </Grid>
   </Border>
