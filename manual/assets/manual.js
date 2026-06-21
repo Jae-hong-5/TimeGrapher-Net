@@ -28,8 +28,9 @@
     { f: "graphs/spectrogram.html",  n: 13, t: "Spectrogram" }
   ];
 
-  /* Manual build date — bump this when regenerating the manual/screenshots. */
-  var BUILD_DATE = "2026-06-15";
+  /* App version + manual build date — bump these when regenerating the manual/screenshots. */
+  var APP_VERSION = "0.7.6";
+  var BUILD_DATE = "2026-06-21";
 
   var inGraphs = /\/graphs\//.test(location.pathname);
   var prefix = inGraphs ? "../" : "";
@@ -53,7 +54,8 @@
       START.map(link).join("") + "</div>" +
       "<div class=\"nav-group\"><h4>그래프 · Graphs</h4>" +
       GRAPHS.map(link).join("") + "</div>" +
-      "<div class=\"nav-foot\"><b>빌드 · Build</b><br>" + BUILD_DATE + "</div>";
+      "<div class=\"nav-foot\"><b>앱 · App</b><br>v" + APP_VERSION +
+      "<br><b>빌드 · Build</b><br>" + BUILD_DATE + "</div>";
     el.innerHTML = html;
   }
 
