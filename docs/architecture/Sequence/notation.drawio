@@ -1,6 +1,6 @@
 <mxfile host="65bd71144e">
     <diagram id="notation" name="표기 범례">
-        <mxGraphModel dx="591" dy="483" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="700" pageHeight="540" math="0" shadow="0">
+        <mxGraphModel dx="591" dy="483" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="700" pageHeight="720" math="0" shadow="0">
             <root>
                 <mxCell id="0"/>
                 <mxCell id="1" parent="0"/>
@@ -123,6 +123,15 @@
                 </mxCell>
                 <mxCell id="7" value="loop" style="shape=umlFrame;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#64748b;fontColor=#0f172a;fontSize=12;fontStyle=1;width=40;height=20;verticalAlign=top;align=left;" vertex="1" parent="1">
                     <mxGeometry x="55" y="582" width="120" height="42" as="geometry"/>
+                </mxCell>
+                <mxCell id="note_c1" value="" style="rounded=0;html=1;fillColor=none;strokeColor=#cbd5e1;" vertex="1" parent="1">
+                    <mxGeometry x="20" y="632" width="200" height="58" as="geometry"/>
+                </mxCell>
+                <mxCell id="note_c2" value="note — 다이어그램 흐름 밖의 부연 설명 / 주석" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#cbd5e1;align=left;verticalAlign=middle;spacingLeft=12;fontSize=13;fontColor=#0f172a;" vertex="1" parent="1">
+                    <mxGeometry x="220" y="632" width="460" height="58" as="geometry"/>
+                </mxCell>
+                <mxCell id="note_s" value="" style="shape=note;whiteSpace=wrap;html=1;fillColor=#fef9c3;strokeColor=#ca8a04;fontColor=#0f172a;size=14;" vertex="1" parent="1">
+                    <mxGeometry x="92" y="641" width="56" height="40" as="geometry"/>
                 </mxCell>
             </root>
         </mxGraphModel>
