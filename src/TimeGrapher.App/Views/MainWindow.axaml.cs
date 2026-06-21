@@ -100,44 +100,55 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         ConfigurePlatformWindow();
-        mViewModel = new MainWindowViewModel();
-        mSelectionCoordinator = new MainWindowSelectionCoordinator(
-            mViewModel,
+
+        // The bootstrapper owns the application/service object graph; the View creates only the
+        // view-model, the renderers (XAML controls) and the view adapters, then asks it to wire the
+        // rest. The View ctor is no longer the composition root.
+        mViewModel = MainWindowBootstrapper.CreateViewModel();
+
+        // Renderers need the view-model and named XAML controls, so they are View-created.
+        mInfoTabRegistry = InfoTabRegistry.FromCatalog(GraphicsTabWidget, PositionButtonStrip, APP_FONT_FAMILY, mViewModel);
+        mGraphFrameRenderer = new GraphFrameRenderer(mInfoTabRegistry.Consumers, Results);
+        mGraphFrameRenderer.ApplyTheme(CurrentPlotTheme());
+        mFrameRouter = mInfoTabRegistry.CreateRouter();
+        mFrameRenderScheduler = new AnalysisFrameRenderScheduler(
+            action => Dispatcher.UIThread.Post(action),
+            ActiveInfoTabRefreshIntervalMs,
+            HandleAnalysisFrame);
+
+        // View adapters: bound to this window / the renderer (the operations adapters are the
+        // service->View edge addressed by a later unit) and the View-method run-session callbacks.
+        var dialogs = new MainWindowDialogService(this);
+        mDialogs = dialogs;
+        var adapters = new MainWindowViewAdapters(
             new MainWindowSelectionOperations(this),
-            new MainWindowSelectionOptions(
-                PLAYBACK_SOURCE,
-                SIMULATION_SOURCE));
-        mRunSelectionResolver = new RunSelectionResolver(
-            mViewModel,
-            AveragingPeriodList,
-            BphCatalog.ManualAutoBph,
-            BphCatalog.ManualBph);
-        mDialogs = new MainWindowDialogService(this);
-        mErrorLog = new UserErrorLog(UserErrorLog.DefaultPath());
-        mRecordingSessionService = new RecordingSessionService(mDialogs, new QueuedRecordingWriterFactory(), mErrorLog);
-        mPlaybackFileService = new PlaybackFileService(mDialogs, mErrorLog);
-        mRunCommandService = new RunCommandService(mViewModel, new RunCommandOperations(this));
-        // The play/pause and reset commands invoke the service directly; the service needs
-        // the view-model, so it is attached after construction rather than constructor-injected.
-        mViewModel.AttachRunCommandRunner(mRunCommandService);
-        mAnalysisPerformanceLogger = AppStartupOptions.Current.AnalysisLogPath is string analysisLogPath
-            ? new AnalysisPerformanceLogger(LogFilePaths.EnsureParentDirectory(analysisLogPath))
-            : null;
-        // The measurement-log controller owns the log lifecycle, the enable toggle and the
-        // one-shot CLI path; seed the enable state from the CLI before constructing it.
-        mViewModel.IsMeasurementLogEnabled = AppStartupOptions.Current.MeasurementLogPath != null;
-        mMeasurementLogController = new MeasurementLogController(
-            mViewModel,
-            AppStartupOptions.Current.MeasurementLogPath,
-            path => new MeasurementResultLogger(path));
-        mRunSessionController = new RunSessionController(
+            new RunCommandOperations(this),
+            dialogs,
+            new GraphAcceptBandOperations(mGraphFrameRenderer),
+            new MainWindowSelectionOptions(PLAYBACK_SOURCE, SIMULATION_SOURCE),
+            AveragingPeriodList);
+        var runSessionCallbacks = new MainWindowRunSessionCallbacks(
             sessionId => BuildRunSettings().ToWorkerConfig(sessionId, mWavWriter),
             Reset,
             ClearPendingAnalysisFrames,
             () => mFrameRenderScheduler.ResetTiming(),
-            OnAnalysisFrameReady,
-            status => mViewModel.StatusText = status,
-            mErrorLog);
+            OnAnalysisFrameReady);
+
+        MainWindowComposition composition = MainWindowBootstrapper.Build(
+            mViewModel, adapters, runSessionCallbacks, AppStartupOptions.Current);
+        mSelectionCoordinator = composition.SelectionCoordinator;
+        mRunSelectionResolver = composition.RunSelectionResolver;
+        mErrorLog = composition.ErrorLog;
+        mRecordingSessionService = composition.RecordingSessionService;
+        mPlaybackFileService = composition.PlaybackFileService;
+        mRunCommandService = composition.RunCommandService;
+        mMeasurementLogController = composition.MeasurementLogController;
+        mRunSessionController = composition.RunSessionController;
+        mRunControlController = composition.RunControlController;
+        mAcceptBandController = composition.AcceptBandController;
+        mAnalysisPerformanceLogger = composition.AnalysisPerformanceLogger;
+
+        // DataContext after Build, which seeds startup-derived view-model state (IsMeasurementLogEnabled).
         DataContext = mViewModel;
 
         // Default working directory: current dir, then ../../sample if it exists (MainWindow ctor).
@@ -149,25 +160,9 @@ public partial class MainWindow : Window
         Title = appTitle;
         AppTitleText.Text = appTitle;
 
-        // Results->setAlignment(Qt::AlignHCenter); set in XAML.
-        mInfoTabRegistry = InfoTabRegistry.FromCatalog(GraphicsTabWidget, PositionButtonStrip, APP_FONT_FAMILY, mViewModel);
-        mGraphFrameRenderer = new GraphFrameRenderer(mInfoTabRegistry.Consumers, Results);
-        mGraphFrameRenderer.ApplyTheme(CurrentPlotTheme());
-        mFrameRouter = mInfoTabRegistry.CreateRouter();
-        mFrameRenderScheduler = new AnalysisFrameRenderScheduler(
-            action => Dispatcher.UIThread.Post(action),
-            ActiveInfoTabRefreshIntervalMs,
-            HandleAnalysisFrame);
-
-        // The accept-band controller seeds the Settings inputs from the persisted bands
-        // and applies later edits to the graphs, so the View no longer owns that flow.
-        mAcceptBandController = new AcceptBandController(mViewModel, new GraphAcceptBandOperations(mGraphFrameRenderer));
-
-        // Wire events (Qt auto-connected on_* slots + explicit connect()s).
+        // Wire events (Qt auto-connected on_* slots + explicit connect()s). The accept-band and
+        // run-control controllers self-subscribe to the view-model inside Build.
         mViewModel.PropertyChanged += mSelectionCoordinator.OnViewModelPropertyChanged;
-        // Forwards the live run-control knobs (sweep/position/sigma) to the worker and
-        // auto-pauses an active run on a position change.
-        mRunControlController = new RunControlController(mViewModel, mRunSessionController, mRunCommandService);
         mViewModel.PropertyChanged += OnReviewCursorPropertyChanged;
         GraphicsTabWidget.SelectionChanged += OnGraphicsTabSelectionChanged;
         mViewModel.SetLongTermTabActive(ActiveInfoTabId() == InfoTabCatalog.LongTermPerfTabId);
