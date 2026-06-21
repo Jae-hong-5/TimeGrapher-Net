@@ -17,7 +17,7 @@ internal static class LongTermAcceptPolicy
     public static (double Min, double Max) Rate =>
         (VarioGaugePolicy.RateAcceptMinSPerDay, VarioGaugePolicy.RateAcceptMaxSPerDay);
 
-    /// <summary>Amplitude corridor (°): the plan's 270–300° normal range the Trace display alerts on.</summary>
+    /// <summary>Amplitude corridor (°): the editable normal range (default 270–300°) the Trace display alerts on.</summary>
     public static (double Min, double Max) Amplitude =>
         (VarioGaugePolicy.AmplitudeAcceptMinDeg, VarioGaugePolicy.AmplitudeAcceptMaxDeg);
 

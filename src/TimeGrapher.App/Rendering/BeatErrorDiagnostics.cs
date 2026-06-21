@@ -34,8 +34,13 @@ internal readonly record struct BeatErrorDiagnosis(BeatErrorDiagState State, str
 /// </summary>
 internal static class BeatErrorDiagnostics
 {
-    /// <summary>Acceptable tic/toc line separation (= signed beat error), ms.</summary>
-    public const double SeparationAlertThresholdMs = 0.6;
+    /// <summary>
+    /// Acceptable tic/toc line separation (= signed beat error magnitude), ms.
+    /// This IS the beat-error normal band the other displays draw (±this value),
+    /// so it is read live from the shared AcceptBandSettings and a Settings-window
+    /// edit moves both the alert threshold and the Long-Term band together.
+    /// </summary>
+    public static double SeparationAlertThresholdMs => AcceptBandSettings.Current.BeatErrorMagnitudeMs;
 
     /// <summary>The 45-degree (y=x) slope of the ms-vs-beat-index trace.</summary>
     public const double MajorFaultSlopeMsPerBeat = 1.0;

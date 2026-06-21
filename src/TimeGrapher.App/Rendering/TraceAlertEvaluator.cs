@@ -7,15 +7,20 @@ internal readonly record struct TraceAlertState(bool RateSlow, bool AmplitudeOut
 
 /// <summary>
 /// Trace-display alert policy from the project plan: alert when the watch runs
-/// late (losing time) and when amplitude leaves the 270-300 degree normal range
-/// (the plan's "shall" band for this project). Pure so the thresholds are
-/// unit-testable; evaluated against the same snapshot the graphs render, which
-/// keeps numbers and visuals consistent by construction.
+/// late (losing time) and when amplitude leaves its normal range (default
+/// 270-300°, now read live from the shared <see cref="AcceptBandSettings"/> so the
+/// band is user-editable). Pure so the thresholds are unit-testable; evaluated
+/// against the same snapshot the graphs render, which keeps numbers and visuals
+/// consistent by construction. The late-running threshold below is an asymmetric
+/// alert gate, deliberately separate from the editable amplitude band.
 /// </summary>
 internal static class TraceAlertEvaluator
 {
-    public const double AmplitudeMinDeg = 270.0;
-    public const double AmplitudeMaxDeg = 300.0;
+    // The amplitude normal band: the single source for every amplitude display.
+    // Read live from AcceptBandSettings.Current so a Settings-window edit reaches
+    // this evaluator, the Vario gauge and the Trace/Long-Term bands at once.
+    public static double AmplitudeMinDeg => AcceptBandSettings.Current.AmplitudeMinDeg;
+    public static double AmplitudeMaxDeg => AcceptBandSettings.Current.AmplitudeMaxDeg;
 
     // Small deadband below zero so the banner does not flicker on a healthy
     // watch hovering around on-time.

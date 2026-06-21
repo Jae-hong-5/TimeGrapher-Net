@@ -5,18 +5,23 @@ namespace TimeGrapher.App.Rendering;
 /// <summary>
 /// Pure display policy for the Vario value gauges: the acceptable (green)
 /// ranges and the gauge X-window derivation, kept free of UI types so both are
-/// unit-testable. Rate ±10 s/d is this project's acceptance band for a healthy
-/// mechanical watch; amplitude reuses the project plan's 270–300° normal
-/// operating range — the same band <see cref="TraceAlertEvaluator"/> alerts
-/// on, so the two displays agree by construction.
+/// unit-testable. The rate and amplitude bands are read live from the shared
+/// <see cref="AcceptBandSettings"/> (default rate ±10 s/d, amplitude 270–300°),
+/// so a Settings-window edit moves the gauge band, the Trace/Long-Term bands and
+/// the alerts together. Amplitude aliases <see cref="TraceAlertEvaluator"/> so the
+/// two displays agree by construction.
 /// </summary>
 internal static class VarioGaugePolicy
 {
-    public const double RateAcceptMinSPerDay = -10.0;
-    public const double RateAcceptMaxSPerDay = 10.0;
+    // The rate normal band, read live from the shared AcceptBandSettings so a
+    // Settings-window edit reaches the gauge, the Trace and the Long-Term displays.
+    public static double RateAcceptMinSPerDay => AcceptBandSettings.Current.RateMinSPerDay;
+    public static double RateAcceptMaxSPerDay => AcceptBandSettings.Current.RateMaxSPerDay;
 
-    public const double AmplitudeAcceptMinDeg = TraceAlertEvaluator.AmplitudeMinDeg;
-    public const double AmplitudeAcceptMaxDeg = TraceAlertEvaluator.AmplitudeMaxDeg;
+    // Amplitude still aliases TraceAlertEvaluator (now itself live), so the two
+    // displays keep agreeing by construction.
+    public static double AmplitudeAcceptMinDeg => TraceAlertEvaluator.AmplitudeMinDeg;
+    public static double AmplitudeAcceptMaxDeg => TraceAlertEvaluator.AmplitudeMaxDeg;
 
     /// <summary>Fraction of the spanned width added on each side so edge markers stay visible.</summary>
     public const double GaugePaddingFraction = 0.05;
