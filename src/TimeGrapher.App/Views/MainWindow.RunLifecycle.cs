@@ -21,6 +21,7 @@ public partial class MainWindow
         mIsClosing = true;
         mViewModel.PropertyChanged -= mSelectionCoordinator.OnViewModelPropertyChanged;
         mRunControlController.Detach();
+        mAcceptBandController.Detach();
         mViewModel.PropertyChanged -= OnReviewCursorPropertyChanged;
         mRunSessionController.InvalidateRunSession();
         mRunSessionController.StopInputWorker("Input");

@@ -193,6 +193,13 @@ flowchart TB
 - **좁은 시밍 인터페이스**로 결합을 좁히고 테스트를 가능케 한다: `IRunCommandRunner`는 `ViewModels`, 나머지(`IAcceptBandOperations`/`IRunSessionControls`/`IRunCommandPause`/`IMeasurementResultSink`/`IAudioDeviceBackend`/`IUiDispatcher`/`ISelectionEventGate`)는 `Services`. `ISelectionEventGate`(코디네이터가 구현)+late-attach가 코디네이터↔디바이스 컨트롤러 생성 순환을 끊는다.
 - **View 쪽 어댑터**(`GraphAcceptBandOperations`/`LiveAudioDeviceBackend`/`UiThreadDispatcher`)는 `Views`에서 이 `Services` 계약을 구현한다(창이 아니라 렌더러/`LiveAudioBackend`/`Dispatcher`를 감싸므로 view back-edge가 아니다). 따라서 **폴더 수준 엣지는 변하지 않는다**(`Views→Services`/`Views→Audio`/`Services→ViewModels` 모두 기존 엣지). 추가된 폴더 간 엣지는 `MainWindowBootstrapper`가 `BphCatalog`(`Core.Detection`)를 직접 참조하는 `Services→Core.Detection` 하나뿐이며, 위 표의 `Services` 행에 반영했다.
 
+#### 순수성 상태와 받아들인 잔여물 (accepted residuals)
+
+이 리팩토링 후 **`ViewModels`는 Avalonia 무의존**이다(마지막으로 남아 있던 review-slider 마진의 `Avalonia.Thickness`가 View 계층 `ReviewSliderMarginConverter`로 옮겨졌고, `ViewModelPurityTests`가 이를 잠근다). 전면 "순수 MVVM"이라고 단정하지는 않는다 — 행위 보존과 아키텍처 변경 최소화를 위해 다음 두 잔여물을 의도적으로 View에 남겼다:
+
+- **실행 수명주기 어댑터**: `RunCommandService`(`Services`)는 여전히 View-중첩 `RunCommandOperations`(`IRunCommandOperations` 구현)를 통해 `MainWindow`의 실행 본문(`LiveStart`/`PlaybackStart`/`SimStart`, 정지/복원)과 `BuildRunSettings`(실행 설정 조립)를 호출한다. 컴파일 시점 의존은 인터페이스로 역전됐지만(서비스→인터페이스, 창 아님), 본문은 아직 code-behind에 있다. 이를 서비스로 추출하는 것은 별도의 더 큰 변경이라 이번 패스의 범위 밖이다.
+- **선택-operations 볼륨 통과**: `MainWindowSelectionOperations`는 `SetAudioInputVolume`(→ `RunSessionController.SetLiveInputVolume`) 한 호출을 위해서만 `_owner`(창)를 보유한다. 한 통과 호출에 새 시밍+late-attach를 도입할 가치가 없어 그대로 둔다.
+
 ## 3. TimeGrapher.Core 내부 사용 관계
 
 `using TimeGrapher.Core.<sub>` 전수 조사로 검증했다. `Shared`는 의존 없는 최하위 계약 모듈이고, `Analysis`가 가장 결합도가 높다.

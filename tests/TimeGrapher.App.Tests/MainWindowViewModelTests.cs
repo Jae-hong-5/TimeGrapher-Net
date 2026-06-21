@@ -512,11 +512,18 @@ public sealed class MainWindowViewModelTests
     public void CommandsAreNoOpBeforeRunnerAttached()
     {
         var vm = new MainWindowViewModel();
+        RunUiState stateBefore = vm.RunState;
+        string statusBefore = vm.StatusText;
+        bool awaitingBefore = vm.IsAwaitingBeatSync;
 
-        // The runner is attached after construction; until then the commands must
-        // not throw (the play/pause and reset bodies guard on the unset runner).
+        // The runner is attached after construction; until then the commands must neither throw nor
+        // mutate run state (the play/pause and reset bodies guard on the unset runner).
         vm.PlayPauseCommand.Execute(null);
         vm.ResetCommand.Execute(null);
+
+        Assert.Equal(stateBefore, vm.RunState);
+        Assert.Equal(statusBefore, vm.StatusText);
+        Assert.Equal(awaitingBefore, vm.IsAwaitingBeatSync);
     }
 
     private static MainWindowViewModel CreateViewModel()

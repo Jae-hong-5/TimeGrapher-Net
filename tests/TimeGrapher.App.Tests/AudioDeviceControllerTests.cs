@@ -20,10 +20,12 @@ public sealed class AudioDeviceControllerTests
     private sealed class FakeBackend : IAudioDeviceBackend
     {
         public bool CanCapture { get; set; } = true;
+        public bool ThrowOnEnumerate { get; set; }
         public List<LiveAudioDevice> Devices { get; } = new();
         public Dictionary<int, IReadOnlyList<int>> RatesByDevice { get; } = new();
 
-        public IReadOnlyList<LiveAudioDevice> EnumerateInputDevices() => Devices;
+        public IReadOnlyList<LiveAudioDevice> EnumerateInputDevices() =>
+            ThrowOnEnumerate ? throw new InvalidOperationException("enumeration failed") : Devices;
 
         public IReadOnlyList<int> GetCandidateSampleRates(int deviceNumber) =>
             RatesByDevice.TryGetValue(deviceNumber, out IReadOnlyList<int>? rates) ? rates : Array.Empty<int>();
@@ -85,7 +87,9 @@ public sealed class AudioDeviceControllerTests
         public ControllableRunner Runner { get; } = new();
         public AudioDeviceController Controller { get; }
 
-        public Harness(Func<string, string>? rename = null)
+        public Harness(
+            Func<string, string>? rename = null,
+            Func<IReadOnlyList<string>, string?, int>? selector = null)
         {
             Controller = new AudioDeviceController(
                 ViewModel,
@@ -93,7 +97,7 @@ public sealed class AudioDeviceControllerTests
                 Backend,
                 new ImmediateDispatcher(),
                 rename ?? (name => name),
-                selectInputDeviceIndexAfterReload: (_, _) => 0,
+                selectInputDeviceIndexAfterReload: selector ?? ((_, _) => 0),
                 playbackSourceName: "Playback",
                 simulationSourceName: "Simulation",
                 runOffThread: Runner.Run);
@@ -128,6 +132,31 @@ public sealed class AudioDeviceControllerTests
         Assert.Equal(
             new[] { "Live: R(Welshi)", "Live: R(Other)", "Playback", "Simulation" },
             h.ViewModel.InputDeviceNames);
+    }
+
+    [Fact]
+    public void LoadAudioDevices_EnumerationThrows_FallsBackToPlaybackSimulation()
+    {
+        var h = new Harness();
+        h.Backend.Devices.Add(new LiveAudioDevice(1, "Mic"));
+        h.Backend.ThrowOnEnumerate = true; // backend enumeration fails
+
+        h.Controller.LoadAudioDevices(); // the catch swallows it; only the synthetic sources remain
+
+        Assert.Equal(new[] { -1, -1 }, h.State.InputDeviceNumbers);
+        Assert.Equal(new[] { "Playback", "Simulation" }, h.ViewModel.InputDeviceNames);
+    }
+
+    [Fact]
+    public void LoadAudioDevices_NoPreferredMatch_SelectsIndexZeroWithoutForce()
+    {
+        var h = new Harness(selector: (_, _) => -1); // no preferred device matched
+        h.Backend.Devices.Add(new LiveAudioDevice(1, "Mic"));
+
+        h.Controller.LoadAudioDevices();
+
+        // Fallback to index 0; the initial selected index is -1 (not 0), so forceChanged stays false.
+        Assert.Equal(new[] { (0, false) }, h.Gate.SelectedInputDeviceCalls);
     }
 
     [Fact]

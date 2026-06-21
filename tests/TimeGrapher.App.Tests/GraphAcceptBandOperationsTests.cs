@@ -82,4 +82,39 @@ public sealed class GraphAcceptBandOperationsTests
         Assert.False(applied);
         Assert.Equal(0, band.ApplyCalls);
     }
+
+    [Fact]
+    public void TryApplyEditedBands_ValidChange_SwapsPersistsAndFansOut()
+    {
+        AcceptBandSettings original = AcceptBandSettings.Current;
+        try
+        {
+            // Known starting band so the candidate is a genuine change (test runs serially, so the
+            // static Current swap is safe; restored in finally). Persistence is injected, so no file.
+            AcceptBandSettings.Current = AcceptBandSettings.Default;
+            var band = new BandConsumer();
+            var renderer = new GraphFrameRenderer(new IAnalysisFrameConsumer[] { band }, new TextBlock());
+            AcceptBandSettings? persisted = null;
+            var ops = new GraphAcceptBandOperations(renderer, b => persisted = b);
+
+            var candidate = new AcceptBandValues(
+                RateMinSPerDay: AcceptBandSettings.Default.RateMinSPerDay - 1.0, // changed, still valid
+                RateMaxSPerDay: AcceptBandSettings.Default.RateMaxSPerDay,
+                AmplitudeMinDeg: AcceptBandSettings.Default.AmplitudeMinDeg,
+                AmplitudeMaxDeg: AcceptBandSettings.Default.AmplitudeMaxDeg,
+                BeatErrorMagnitudeMs: AcceptBandSettings.Default.BeatErrorMagnitudeMs);
+
+            bool applied = ops.TryApplyEditedBands(candidate);
+
+            Assert.True(applied);
+            Assert.Equal(candidate.RateMinSPerDay, AcceptBandSettings.Current.RateMinSPerDay); // swapped
+            Assert.NotNull(persisted);                                                         // persisted
+            Assert.Equal(candidate.RateMinSPerDay, persisted!.RateMinSPerDay);
+            Assert.Equal(1, band.ApplyCalls);                                                  // fanned out
+        }
+        finally
+        {
+            AcceptBandSettings.Current = original;
+        }
+    }
 }

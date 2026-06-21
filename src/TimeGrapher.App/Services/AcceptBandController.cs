@@ -31,6 +31,10 @@ internal sealed class AcceptBandController
         _viewModel.PropertyChanged += OnViewModelPropertyChanged;
     }
 
+    /// <summary>Stops reacting to view-model edits (called on window close, matching the other
+    /// view-model-subscriber controllers).</summary>
+    public void Detach() => _viewModel.PropertyChanged -= OnViewModelPropertyChanged;
+
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName is not (

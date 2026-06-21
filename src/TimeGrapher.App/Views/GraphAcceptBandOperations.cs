@@ -15,10 +15,14 @@ namespace TimeGrapher.App.Views;
 internal sealed class GraphAcceptBandOperations : IAcceptBandOperations
 {
     private readonly GraphFrameRenderer _renderer;
+    private readonly Action<AcceptBandSettings> _persist;
 
-    public GraphAcceptBandOperations(GraphFrameRenderer renderer)
+    public GraphAcceptBandOperations(GraphFrameRenderer renderer, Action<AcceptBandSettings>? persist = null)
     {
         _renderer = renderer;
+        // Persistence is injectable so the accepted path is testable without writing the real
+        // user-config file; production uses the static store.
+        _persist = persist ?? AcceptBandSettingsStore.Save;
     }
 
     public AcceptBandValues CurrentBands
@@ -50,7 +54,7 @@ internal sealed class GraphAcceptBandOperations : IAcceptBandOperations
         }
 
         AcceptBandSettings.Current = bands;
-        AcceptBandSettingsStore.Save(bands);
+        _persist(bands);
         _renderer.ApplyAcceptBands();
         return true;
     }

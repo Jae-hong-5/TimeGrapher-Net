@@ -89,6 +89,21 @@ public sealed class RunControlControllerTests
     }
 
     [Fact]
+    public void AfterDetach_EditsAreNotForwarded()
+    {
+        var vm = new MainWindowViewModel();
+        var controls = new RecordingRunControls();
+        var controller = new RunControlController(vm, controls, controls);
+
+        controller.Detach();
+        vm.SweepMultiple += 1;
+        vm.SigmaAveraging = true;
+
+        Assert.Empty(controls.SweepMultiples);
+        Assert.Empty(controls.SigmaModes);
+    }
+
+    [Fact]
     public void UnrelatedPropertyEdit_DoesNotForward()
     {
         (MainWindowViewModel vm, RecordingRunControls controls) = Create();

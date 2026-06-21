@@ -99,6 +99,19 @@ public sealed class AcceptBandControllerTests
     }
 
     [Fact]
+    public void AfterDetach_BandEditsAreNotForwarded()
+    {
+        MainWindowViewModel vm = CreateViewModel();
+        FakeAcceptBandOperations ops = SeededOperations();
+        var controller = new AcceptBandController(vm, ops);
+
+        controller.Detach();
+        vm.RateAcceptMin = -5.0m;
+
+        Assert.Empty(ops.Applied);
+    }
+
+    [Fact]
     public void EditingANonBandProperty_DoesNotForward()
     {
         MainWindowViewModel vm = CreateViewModel();
