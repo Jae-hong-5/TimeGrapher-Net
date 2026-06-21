@@ -87,6 +87,7 @@ public partial class MainWindow : Window
     private readonly MainWindowViewModel mViewModel;
     private readonly MainWindowSelectionCoordinator mSelectionCoordinator;
     private readonly AcceptBandController mAcceptBandController;
+    private readonly RunControlController mRunControlController;
     private readonly RunSelectionResolver mRunSelectionResolver;
     private readonly RunCommandService mRunCommandService;
     private readonly RunSessionController mRunSessionController;
@@ -161,6 +162,9 @@ public partial class MainWindow : Window
 
         // Wire events (Qt auto-connected on_* slots + explicit connect()s).
         mViewModel.PropertyChanged += mSelectionCoordinator.OnViewModelPropertyChanged;
+        // Forwards the live run-control knobs (sweep/position/sigma) to the worker; subscribed
+        // before OnRunControlPropertyChanged so SetActivePosition still precedes the auto-pause.
+        mRunControlController = new RunControlController(mViewModel, mRunSessionController);
         mViewModel.PropertyChanged += OnRunControlPropertyChanged;
         mViewModel.PropertyChanged += OnReviewCursorPropertyChanged;
         GraphicsTabWidget.SelectionChanged += OnGraphicsTabSelectionChanged;
@@ -386,28 +390,17 @@ public partial class MainWindow : Window
 
     // --- Event handlers (Qt on_* slots) ---
 
-    // Analysis-worker run-control knobs forwarded from view-model properties.
-    // Kept in MainWindow (not the selection coordinator, which owns input-device/
-    // sample-rate/gain selection): the SetSoundBackgroundColor flow.
+    // View-side reactions to run-control view-model edits that still need MainWindow state:
+    // the auto-pause on a position change and the measurement-log toggle. The sweep/position/
+    // sigma worker knobs are now forwarded by RunControlController.
     private void OnRunControlPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(MainWindowViewModel.SweepMultiple))
-        {
-            mRunSessionController.SetSweepMultiple(mViewModel.SweepMultiple);
-        }
-
         if (e.PropertyName == nameof(MainWindowViewModel.SelectedPositionIndex))
         {
-            mRunSessionController.SetActivePosition((WatchPosition)mViewModel.SelectedPositionIndex);
             if (ShouldPauseAfterPositionChange(mViewModel))
             {
                 mRunCommandService.PauseIfRunning();
             }
-        }
-
-        if (e.PropertyName == nameof(MainWindowViewModel.SigmaAveraging))
-        {
-            mRunSessionController.SetSigmaAveraging(mViewModel.SigmaAveraging);
         }
 
         if (e.PropertyName == nameof(MainWindowViewModel.IsMeasurementLogEnabled))

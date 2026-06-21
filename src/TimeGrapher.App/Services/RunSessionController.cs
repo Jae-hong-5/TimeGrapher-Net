@@ -9,7 +9,7 @@ internal enum RunSessionStopOutcome
     Stopping,
 }
 
-internal sealed class RunSessionController : IDisposable
+internal sealed class RunSessionController : IDisposable, IRunSessionControls
 {
     private const int WorkerStopTimeoutMs = 2000;
 
