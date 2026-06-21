@@ -571,7 +571,7 @@ internal sealed partial class InfoTabRegistry
     {
         var font = new FontFamily(context.TextFontFamily);
 
-        Grid GaugeHeader(string text, string bandText, out Border bandBadge)
+        Grid GaugeHeader(string text, string bandText, out Border bandBadge, out TextBlock badgeLabel)
         {
             var header = new Grid
             {
@@ -585,19 +585,22 @@ internal sealed partial class InfoTabRegistry
                 FontWeight = FontWeight.Bold,
                 VerticalAlignment = VerticalAlignment.Center,
             };
+            // The renderer rewrites this label from the live band on CreateGraphs /
+            // ApplyAcceptBands; the literal here is only a pre-init placeholder.
+            badgeLabel = new TextBlock
+            {
+                Text = bandText,
+                FontSize = VarioMinimumFontSize,
+                FontWeight = FontWeight.SemiBold,
+                VerticalAlignment = VerticalAlignment.Center,
+            };
             bandBadge = new Border
             {
                 BorderThickness = new Thickness(1),
                 IsVisible = false,
                 Padding = new Thickness(6, 1, 6, 1),
                 Margin = new Thickness(10, 0, 0, 0),
-                Child = new TextBlock
-                {
-                    Text = bandText,
-                    FontSize = VarioMinimumFontSize,
-                    FontWeight = FontWeight.SemiBold,
-                    VerticalAlignment = VerticalAlignment.Center,
-                },
+                Child = badgeLabel,
             };
             bandBadge.Bind(Border.BackgroundProperty, bandBadge.GetResourceObservable("VarioAcceptBandBadgeBrush"));
             bandBadge.Bind(Border.BorderBrushProperty, bandBadge.GetResourceObservable("VarioAcceptBandEdgeBrush"));
@@ -631,6 +634,14 @@ internal sealed partial class InfoTabRegistry
         elapsedColumn.Children.Add(new TextBlock { Text = "ELAPSED", FontSize = VarioMinimumFontSize, Opacity = 0.9, FontWeight = FontWeight.SemiBold });
         elapsedColumn.Children.Add(elapsedValue);
 
+        var criteriaFlyout = new Flyout
+        {
+            Placement = PlacementMode.BottomEdgeAlignedRight,
+            Content = BuildVarioCriteria(),
+        };
+        // Rebuild the criteria content on every open so it always states the live
+        // (possibly edited) bands, not values snapshotted once at tab construction.
+        criteriaFlyout.Opening += (_, _) => criteriaFlyout.Content = BuildVarioCriteria();
         var criteriaButton = new Button
         {
             Content = "View criteria ▾",
@@ -641,11 +652,7 @@ internal sealed partial class InfoTabRegistry
             HorizontalAlignment = HorizontalAlignment.Right,
             VerticalAlignment = VerticalAlignment.Top,
             Margin = new Thickness(12, 4, 8, 0),
-            Flyout = new Flyout
-            {
-                Placement = PlacementMode.BottomEdgeAlignedRight,
-                Content = BuildVarioCriteria(),
-            },
+            Flyout = criteriaFlyout,
         };
 
         var summaryColumns = new Grid { ColumnDefinitions = new ColumnDefinitions("*,*,160") };
@@ -814,8 +821,8 @@ internal sealed partial class InfoTabRegistry
             Margin = new Thickness(16, 0, 16, 6),
         };
 
-        Grid rateHeader = GaugeHeader("Error Rate (s/d)", "Acceptable band -10 to +10 s/d", out Border rateBandBadge);
-        Grid amplitudeHeader = GaugeHeader("Amplitude(°)", "Acceptable band 270 to 300°", out Border amplitudeBandBadge);
+        Grid rateHeader = GaugeHeader("Error Rate (s/d)", "Acceptable band -10 to +10 s/d", out Border rateBandBadge, out TextBlock rateBandText);
+        Grid amplitudeHeader = GaugeHeader("Amplitude(°)", "Acceptable band 270 to 300°", out Border amplitudeBandBadge, out TextBlock amplitudeBandText);
         Border rateReadout = BuildReadoutStrip(rateCells);
         Border amplitudeReadout = BuildReadoutStrip(amplitudeCells);
 
@@ -845,7 +852,8 @@ internal sealed partial class InfoTabRegistry
         var summary = new VarioSummaryControls(
             rateStatus, amplitudeStatus, elapsedValue, overallText);
         var renderer = new VarioRenderer(
-            ratePlot, amplitudePlot, summary, new VarioBandBadgeControls(rateBandBadge, amplitudeBandBadge),
+            ratePlot, amplitudePlot, summary,
+            new VarioBandBadgeControls(rateBandBadge, rateBandText, amplitudeBandBadge, amplitudeBandText),
             new VarioReadoutControls(rateCells, amplitudeCells), context.TextFontFamily);
         var consumer = new VarioFrameConsumer(renderer);
         return new InfoTabRegistration(definition, CreateTabItem(definition, grid), consumer);
@@ -857,7 +865,8 @@ internal sealed partial class InfoTabRegistry
     /// </summary>
     private static Control BuildVarioCriteria()
     {
-        double band = VarioGaugePolicy.RateAcceptMaxSPerDay;
+        double rateMin = VarioGaugePolicy.RateAcceptMinSPerDay;
+        double rateMax = VarioGaugePolicy.RateAcceptMaxSPerDay;
         double amplitudeMin = VarioGaugePolicy.AmplitudeAcceptMinDeg;
         double amplitudeMax = VarioGaugePolicy.AmplitudeAcceptMaxDeg;
         double service = VarioVerdict.AmplitudeServiceDeg;
@@ -890,9 +899,9 @@ internal sealed partial class InfoTabRegistry
             Margin = new Thickness(0, 2, 0, 0),
         });
         panel.Children.Add(Title("Error Rate (s/d)"));
-        panel.Children.Add(Rule($"Stable · in range: average within ±{band:0} s/d and σ ≤ {sigma:0}", "VarioGoodBrush"));
-        panel.Children.Add(Rule($"In range · unstable: average within ±{band:0} s/d but σ > {sigma:0}", "VarioWarnBrush"));
-        panel.Children.Add(Rule($"Fast / Slow · out of range: average beyond ±{band:0} s/d", "VarioBadBrush"));
+        panel.Children.Add(Rule($"Stable · in range: average within {rateMin:0} to {rateMax:0} s/d and σ ≤ {sigma:0}", "VarioGoodBrush"));
+        panel.Children.Add(Rule($"In range · unstable: average within {rateMin:0} to {rateMax:0} s/d but σ > {sigma:0}", "VarioWarnBrush"));
+        panel.Children.Add(Rule($"Fast / Slow · out of range: average outside {rateMin:0} to {rateMax:0} s/d", "VarioBadBrush"));
         panel.Children.Add(Title("Amplitude(°)"));
         panel.Children.Add(Rule($"Healthy: average {amplitudeMin:0}–{amplitudeMax:0}°", "VarioGoodBrush"));
         panel.Children.Add(Rule($"Slightly low / High: average {service:0}–{amplitudeMin:0}° or above {amplitudeMax:0}°", "VarioWarnBrush"));

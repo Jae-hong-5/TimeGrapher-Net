@@ -82,6 +82,7 @@ internal sealed class TraceDisplayRenderer
     private PlotThemePalette _theme = PlotThemePalette.Current;
     private ulong _lastVersion;
     private bool _followLive = true;
+    private BeatMetricsHistorySnapshot? _lastHistory;
 
     // Spline (smooth-curve) rendering of both traces, toggled by the tab's
     // Smoothing button. A view preference, not run data, so it survives a run
@@ -147,6 +148,7 @@ internal sealed class TraceDisplayRenderer
     public void CreateGraphs()
     {
         _lastVersion = 0;
+        _lastHistory = null;
         _followLive = true;
         _alertBanner.IsVisible = false;
 
@@ -215,6 +217,75 @@ internal sealed class TraceDisplayRenderer
     }
 
     /// <summary>
+    /// Re-reads the shared accept-band limits: repositions both shaded bands,
+    /// rewrites the limit-value labels (their text is baked at creation), and
+    /// re-evaluates the alert banner against the last reading, all without clearing
+    /// the trace — so an edit shows immediately even while playback is stopped.
+    /// </summary>
+    public void ApplyAcceptBands()
+    {
+        (double Min, double Max) rate = LongTermAcceptPolicy.Rate;
+        (double Min, double Max) amplitude = LongTermAcceptPolicy.Amplitude;
+
+        if (_rateBand != null)
+        {
+            _rateBand.Y1 = rate.Min;
+            _rateBand.Y2 = rate.Max;
+        }
+
+        if (_amplitudeBand != null)
+        {
+            _amplitudeBand.Y1 = amplitude.Min;
+            _amplitudeBand.Y2 = amplitude.Max;
+        }
+
+        SetAcceptLabelText(_rateMinLabel, rate.Min, "+0;-0;0");
+        SetAcceptLabelText(_rateMaxLabel, rate.Max, "+0;-0;0");
+        SetAcceptLabelText(_amplitudeMinLabel, amplitude.Min, "0");
+        SetAcceptLabelText(_amplitudeMaxLabel, amplitude.Max, "0");
+
+        // Reframe Y so a widened/moved band (an autoscale participant) stays on
+        // screen even while stopped — when running, the next frame does this, so
+        // mirror it here. Preserve the user's X window when not following live.
+        if (_followLive)
+        {
+            _ratePlot.Plot.Axes.AutoScale();
+            _amplitudePlot.Plot.Axes.AutoScale();
+            PinLiveXAxisToData();
+        }
+        else
+        {
+            ReframeYPreservingX(_ratePlot);
+            ReframeYPreservingX(_amplitudePlot);
+        }
+
+        UpdateAcceptLabels();
+        UpdateAverageOverlay();
+        if (_lastHistory != null)
+        {
+            UpdateAlerts(_lastHistory);
+        }
+
+        _ratePlot.Refresh();
+        _amplitudePlot.Refresh();
+    }
+
+    private static void ReframeYPreservingX(AvaPlot plot)
+    {
+        AxisLimits before = plot.Plot.Axes.GetLimits();
+        plot.Plot.Axes.AutoScale();
+        plot.Plot.Axes.SetLimitsX(before.Left, before.Right);
+    }
+
+    private static void SetAcceptLabelText(Text? label, double value, string format)
+    {
+        if (label != null)
+        {
+            label.LabelText = value.ToString(format, System.Globalization.CultureInfo.InvariantCulture);
+        }
+    }
+
+    /// <summary>
     /// Toggles spline (smooth-curve) rendering of the rate and amplitude traces,
     /// driven by the tab's Smoothing button. The flag is retained so a run reset
     /// (which rebuilds the scatters in CreateGraphs) keeps the chosen smoothing.
@@ -257,6 +328,7 @@ internal sealed class TraceDisplayRenderer
         }
 
         _lastVersion = history.Version;
+        _lastHistory = history;
 
         // History series are already bounded by DecimatingSeries; budget 0 = copy as-is.
         SeriesDataReducer.ReplaceSeriesData(_rateX, _rateY, history.Rate.X, history.Rate.Y, targetPointBudget: 0);

@@ -63,10 +63,11 @@ internal sealed class LongTermPerfRenderer
         public required string YLabel { get; init; }
         public required string AcceptLabelFormat { get; init; }
 
-        // Fixed acceptable-range corridor for this measure (s/d, °, ms). Drawn as
-        // a shaded band so a glance shows whether the long-term trace stays in
-        // tolerance; the values come from LongTermAcceptPolicy.
-        public required (double Min, double Max) Accept { get; init; }
+        // Acceptable-range corridor for this measure (s/d, °, ms). Drawn as a
+        // shaded band so a glance shows whether the long-term trace stays in
+        // tolerance; the values come from LongTermAcceptPolicy. Settable so
+        // ApplyAcceptBands can re-read the shared limits without clearing history.
+        public required (double Min, double Max) Accept { get; set; }
 
         public readonly List<double> X = new();
         public readonly List<double> Y = new();
@@ -176,6 +177,59 @@ internal sealed class LongTermPerfRenderer
         }
 
         ApplySeriesTheme();
+        UpdateSummary();
+        RefreshAll();
+    }
+
+    /// <summary>
+    /// Re-reads the shared accept-band limits into all three panes: repositions
+    /// each shaded corridor, rewrites the limit-value labels (their text is baked
+    /// at creation), and re-frames Y (whose autoscale includes the limits) and the
+    /// label/band visibility — keeping the plotted history, so an edit shows
+    /// immediately even while playback is stopped.
+    /// </summary>
+    public void ApplyAcceptBands()
+    {
+        _rate.Accept = LongTermAcceptPolicy.Rate;
+        _amplitude.Accept = LongTermAcceptPolicy.Amplitude;
+        _beatError.Accept = LongTermAcceptPolicy.BeatError;
+
+        foreach (Pane pane in _panes)
+        {
+            if (pane.AcceptBand != null)
+            {
+                pane.AcceptBand.Y1 = pane.Accept.Min;
+                pane.AcceptBand.Y2 = pane.Accept.Max;
+            }
+
+            if (pane.AcceptMinLabel != null)
+            {
+                pane.AcceptMinLabel.LabelText = AcceptLimitLabel(pane.Accept.Min, pane.AcceptLabelFormat);
+            }
+
+            if (pane.AcceptMaxLabel != null)
+            {
+                pane.AcceptMaxLabel.LabelText = AcceptLimitLabel(pane.Accept.Max, pane.AcceptLabelFormat);
+            }
+        }
+
+        if (TryGetDataXRange(out double xMin, out double xMax))
+        {
+            if (_followLive)
+            {
+                ApplyFollowLiveWindow(xMin, xMax);
+            }
+            else
+            {
+                foreach (Pane pane in _panes)
+                {
+                    AxisLimits limits = pane.Plot.Plot.Axes.GetLimits();
+                    AutoScaleYIncludingNearbyLimits(pane);
+                    UpdateAcceptVisuals(pane, limits.Left, limits.Right);
+                }
+            }
+        }
+
         UpdateSummary();
         RefreshAll();
     }

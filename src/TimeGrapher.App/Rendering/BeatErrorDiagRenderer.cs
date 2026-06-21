@@ -34,6 +34,7 @@ internal sealed class BeatErrorDiagRenderer
 
     private PlotThemePalette _theme = PlotThemePalette.Current;
     private ulong _lastVersion;
+    private BeatMetricsHistorySnapshot? _lastHistory;
     private double _rateErrorYScale;
     private int _rateDataPoints;
 
@@ -62,11 +63,25 @@ internal sealed class BeatErrorDiagRenderer
         _tracePlot.Refresh();
     }
 
+    /// <summary>
+    /// The Beat Error tab draws no shaded band, so only the diagnostic banner
+    /// depends on the limit (the separation alert magnitude). Re-evaluate it
+    /// against the last reading so an edit shows immediately even while stopped.
+    /// </summary>
+    public void ApplyAcceptBands()
+    {
+        if (_lastHistory != null)
+        {
+            UpdateDiagnosis(_lastHistory);
+        }
+    }
+
     public void CreateGraphs(double rateErrorYScale, int rateDataPoints)
     {
         _rateErrorYScale = rateErrorYScale;
         _rateDataPoints = rateDataPoints;
         _lastVersion = 0;
+        _lastHistory = null;
         _alertBanner.IsVisible = false;
         foreach (TextBlock value in _valueTexts)
         {
@@ -112,11 +127,15 @@ internal sealed class BeatErrorDiagRenderer
         bool rateUpdated = ReplaceRateSeries(frame);
 
         BeatMetricsHistorySnapshot? history = frame.MetricsHistory;
-        if (history != null && history.Version != _lastVersion)
+        if (history != null)
         {
-            _lastVersion = history.Version;
-            UpdateReadout(history);
-            UpdateDiagnosis(history);
+            _lastHistory = history;
+            if (history.Version != _lastVersion)
+            {
+                _lastVersion = history.Version;
+                UpdateReadout(history);
+                UpdateDiagnosis(history);
+            }
         }
 
         if (rateUpdated)

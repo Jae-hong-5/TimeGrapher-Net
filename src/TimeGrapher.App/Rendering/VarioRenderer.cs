@@ -13,7 +13,8 @@ internal sealed record VarioSummaryControls(
     TextBlock Elapsed,
     TextBlock OverallText);
 
-internal sealed record VarioBandBadgeControls(Control Rate, Control Amplitude);
+internal sealed record VarioBandBadgeControls(
+    Control RateBadge, TextBlock RateText, Control AmplitudeBadge, TextBlock AmplitudeText);
 
 internal sealed record VarioReadoutControls(
     IReadOnlyList<TextBlock> RateCells,
@@ -53,9 +54,16 @@ internal sealed class VarioRenderer
         public required IReadOnlyList<TextBlock> Cells { get; init; }
         public required TextBlock StatusText { get; init; }
         public required Control AcceptBandBadge { get; init; }
+
+        // The badge's inner label, so ApplyAcceptBands can rewrite its text to the
+        // current band (it is otherwise built once with a literal string).
+        public TextBlock? AcceptBandText { get; init; }
         public required Func<StatsSummary, VarioVerdict> Assess { get; init; }
-        public required double AcceptMin { get; init; }
-        public required double AcceptMax { get; init; }
+
+        // Settable so ApplyAcceptBands can re-read the shared limits without
+        // rebuilding the gauge (which would clear the run's stats).
+        public required double AcceptMin { get; set; }
+        public required double AcceptMax { get; set; }
         public required string Unit { get; init; }
         public required string NumericFormat { get; init; }
         public required string RangeFormat { get; init; }
@@ -76,6 +84,7 @@ internal sealed class VarioRenderer
     private PlotThemePalette _theme = PlotThemePalette.Current;
     private ulong _lastVersion;
     private double? _lastCursor;
+    private BeatMetricsHistorySnapshot? _lastHistory;
 
     public VarioRenderer(
         AvaPlot ratePlot, AvaPlot amplitudePlot,
@@ -91,7 +100,8 @@ internal sealed class VarioRenderer
             Plot = ratePlot,
             Cells = readouts.RateCells,
             StatusText = summary.RateStatus,
-            AcceptBandBadge = bandBadges.Rate,
+            AcceptBandBadge = bandBadges.RateBadge,
+            AcceptBandText = bandBadges.RateText,
             Assess = s => VarioVerdict.ForRate(s, VarioGaugePolicy.RateAcceptMinSPerDay, VarioGaugePolicy.RateAcceptMaxSPerDay),
             AcceptMin = VarioGaugePolicy.RateAcceptMinSPerDay,
             AcceptMax = VarioGaugePolicy.RateAcceptMaxSPerDay,
@@ -104,7 +114,8 @@ internal sealed class VarioRenderer
             Plot = amplitudePlot,
             Cells = readouts.AmplitudeCells,
             StatusText = summary.AmpStatus,
-            AcceptBandBadge = bandBadges.Amplitude,
+            AcceptBandBadge = bandBadges.AmplitudeBadge,
+            AcceptBandText = bandBadges.AmplitudeText,
             Assess = s => VarioVerdict.ForAmplitude(s, VarioGaugePolicy.AmplitudeAcceptMinDeg, VarioGaugePolicy.AmplitudeAcceptMaxDeg),
             AcceptMin = VarioGaugePolicy.AmplitudeAcceptMinDeg,
             AcceptMax = VarioGaugePolicy.AmplitudeAcceptMaxDeg,
@@ -135,8 +146,9 @@ internal sealed class VarioRenderer
     {
         _lastVersion = 0;
         _lastCursor = null;
-        _bandBadges.Rate.IsVisible = false;
-        _bandBadges.Amplitude.IsVisible = false;
+        _lastHistory = null;
+        _bandBadges.RateBadge.IsVisible = false;
+        _bandBadges.AmplitudeBadge.IsVisible = false;
         foreach (Gauge gauge in new[] { _rate, _amplitude })
         {
             Plot plot = gauge.Plot.Plot;
@@ -174,10 +186,24 @@ internal sealed class VarioRenderer
             (double lo, double hi) = VarioGaugePolicy.GaugeRange(gauge.AcceptMin, gauge.AcceptMax, default, null);
             plot.Axes.SetLimitsX(lo, hi);
             plot.Axes.SetLimitsY(0.0, YMax);
+            UpdateBandBadgeText(gauge);
             gauge.Plot.Refresh();
         }
 
         SetPlaceholderSummary();
+    }
+
+    // Rewrites a gauge's "Acceptable band …" badge from its current limits so the
+    // badge text, the amber span and the verdict all state the same (possibly
+    // edited, possibly asymmetric) band — the single-source consistency driver.
+    private static void UpdateBandBadgeText(Gauge gauge)
+    {
+        if (gauge.AcceptBandText != null)
+        {
+            gauge.AcceptBandText.Text = string.Format(
+                System.Globalization.CultureInfo.InvariantCulture,
+                "Acceptable band {0:0} to {1:0}{2}", gauge.AcceptMin, gauge.AcceptMax, gauge.Unit);
+        }
     }
 
     public void Reset()
@@ -200,11 +226,16 @@ internal sealed class VarioRenderer
 
         _lastVersion = history.Version;
         _lastCursor = context.ReviewCursorTimeS;
+        _lastHistory = history;
+        Render(history, context.ReviewCursorTimeS);
+    }
 
-        double? rateCurrent = context.ReviewCursorTimeS is double rt
+    private void Render(BeatMetricsHistorySnapshot history, double? cursor)
+    {
+        double? rateCurrent = cursor is double rt
             ? VarioReadout.ValueAt(history.Rate, rt)
             : history.RateValid ? history.RateSPerDay : null;
-        double? amplitudeCurrent = context.ReviewCursorTimeS is double at
+        double? amplitudeCurrent = cursor is double at
             ? VarioReadout.ValueAt(history.Amplitude, at)
             : history.AmplitudeValid ? history.AmplitudeDeg : null;
 
@@ -213,6 +244,44 @@ internal sealed class VarioRenderer
 
         _summary.Elapsed.Text = VarioReadout.FormatElapsed(history.StatsElapsedS);
         UpdateOverall(rateVerdict, amplitudeVerdict);
+    }
+
+    /// <summary>
+    /// Re-reads the shared accept-band limits into both gauges and repositions the
+    /// amber band, then re-renders the last reading so the X-window, labels and
+    /// verdict track the new band immediately — even while playback is stopped.
+    /// </summary>
+    public void ApplyAcceptBands()
+    {
+        _rate.AcceptMin = VarioGaugePolicy.RateAcceptMinSPerDay;
+        _rate.AcceptMax = VarioGaugePolicy.RateAcceptMaxSPerDay;
+        _amplitude.AcceptMin = VarioGaugePolicy.AmplitudeAcceptMinDeg;
+        _amplitude.AcceptMax = VarioGaugePolicy.AmplitudeAcceptMaxDeg;
+
+        foreach (Gauge gauge in new[] { _rate, _amplitude })
+        {
+            if (gauge.AcceptBand != null)
+            {
+                gauge.AcceptBand.X1 = gauge.AcceptMin;
+                gauge.AcceptBand.X2 = gauge.AcceptMax;
+            }
+
+            UpdateBandBadgeText(gauge);
+        }
+
+        if (_lastHistory != null)
+        {
+            Render(_lastHistory, _lastCursor);
+            return;
+        }
+
+        // No reading yet: just re-frame each gauge's X-window to the new band.
+        foreach (Gauge gauge in new[] { _rate, _amplitude })
+        {
+            (double lo, double hi) = VarioGaugePolicy.GaugeRange(gauge.AcceptMin, gauge.AcceptMax, default, null);
+            gauge.Plot.Plot.Axes.SetLimitsX(lo, hi);
+            gauge.Plot.Refresh();
+        }
     }
 
     private VarioVerdict UpdateGauge(Gauge gauge, StatsSummary stats, double? current)

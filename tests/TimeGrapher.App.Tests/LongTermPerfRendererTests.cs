@@ -45,6 +45,42 @@ public sealed class LongTermPerfRendererTests
     }
 
     [Fact]
+    public void ApplyAcceptBands_MovesBandsAndLabelsLiveWithoutClearingHistory()
+    {
+        var ratePlot = new AvaPlot();
+        var amplitudePlot = new AvaPlot();
+        var beatErrorPlot = new AvaPlot();
+        var renderer = new LongTermPerfRenderer(ratePlot, amplitudePlot, beatErrorPlot);
+
+        renderer.CreateGraphs();
+        renderer.RenderFrame(SampleFrame(), new AnalysisTabRenderContext(48000));
+        ratePlot.Plot.RenderInMemory(900, 220);
+        Assert.Equal(new[] { "-10", "+10" }, VisibleAcceptTextLabels(ratePlot));
+
+        AcceptBandSettings original = AcceptBandSettings.Current;
+        try
+        {
+            AcceptBandSettings.Current = new AcceptBandSettings(-7.0, 5.0, 250.0, 310.0, 1.2);
+            renderer.ApplyAcceptBands();
+            ratePlot.Plot.RenderInMemory(900, 220);
+            amplitudePlot.Plot.RenderInMemory(900, 220);
+            beatErrorPlot.Plot.RenderInMemory(900, 220);
+
+            // Bands and limit labels track the edited values, live, with no CreateGraphs.
+            Assert.Equal(new[] { "-7", "+5" }, VisibleAcceptTextLabels(ratePlot));
+            Assert.Equal(new[] { "250", "310" }, VisibleAcceptTextLabels(amplitudePlot));
+            Assert.Equal(new[] { "-1.2", "+1.2" }, VisibleAcceptTextLabels(beatErrorPlot));
+            // History is retained: the plotted reading is still in view after the edit.
+            AssertIncludes(ratePlot, 1.8, 2.0);
+            AssertIncludes(amplitudePlot, 282.0, 282.0);
+        }
+        finally
+        {
+            AcceptBandSettings.Current = original;
+        }
+    }
+
+    [Fact]
     public void CreateGraphs_HidesAcceptLimitLabelsUntilFirstBeat()
     {
         var ratePlot = new AvaPlot();

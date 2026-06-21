@@ -152,6 +152,18 @@ internal sealed class GraphFrameRenderer
         }
     }
 
+    /// <summary>
+    /// Re-reads the acceptable-band limits into every banded tab after the user
+    /// edits them, keeping each tab's accumulated history intact (unlike Reset).
+    /// </summary>
+    public void ApplyAcceptBands()
+    {
+        foreach (IAcceptBandConsumer consumer in _consumers.OfType<IAcceptBandConsumer>())
+        {
+            consumer.ApplyAcceptBands();
+        }
+    }
+
     public void UpdateResults(AnalysisFrame frame)
     {
         if (frame.MetricsUpdate.ResultsUpdated)

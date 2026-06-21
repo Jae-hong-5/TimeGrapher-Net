@@ -3,7 +3,7 @@ using TimeGrapher.Core.Shared;
 
 namespace TimeGrapher.App.Rendering;
 
-internal sealed class BeatErrorDiagFrameConsumer : IAnalysisFrameConsumer, IThemedFrameConsumer
+internal sealed class BeatErrorDiagFrameConsumer : IAnalysisFrameConsumer, IThemedFrameConsumer, IAcceptBandConsumer
 {
     private readonly BeatErrorDiagRenderer _renderer;
 
@@ -17,6 +17,11 @@ internal sealed class BeatErrorDiagFrameConsumer : IAnalysisFrameConsumer, IThem
     public void ApplyTheme(PlotThemePalette theme)
     {
         _renderer.ApplyTheme(theme);
+    }
+
+    public void ApplyAcceptBands()
+    {
+        _renderer.ApplyAcceptBands();
     }
 
     public void Initialize(AnalysisTabResetContext context)

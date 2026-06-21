@@ -3,7 +3,7 @@ using TimeGrapher.Core.Shared;
 
 namespace TimeGrapher.App.Rendering;
 
-internal sealed class VarioFrameConsumer : IAnalysisFrameConsumer, IThemedFrameConsumer
+internal sealed class VarioFrameConsumer : IAnalysisFrameConsumer, IThemedFrameConsumer, IAcceptBandConsumer
 {
     private readonly VarioRenderer _renderer;
 
@@ -17,6 +17,11 @@ internal sealed class VarioFrameConsumer : IAnalysisFrameConsumer, IThemedFrameC
     public void ApplyTheme(PlotThemePalette theme)
     {
         _renderer.ApplyTheme(theme);
+    }
+
+    public void ApplyAcceptBands()
+    {
+        _renderer.ApplyAcceptBands();
     }
 
     public void Initialize(AnalysisTabResetContext context)
