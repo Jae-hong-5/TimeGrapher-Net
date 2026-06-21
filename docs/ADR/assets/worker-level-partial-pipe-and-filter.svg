@@ -28,9 +28,15 @@
   <rect x="1000" y="390" width="105" height="50" rx="10" class="boundary"/><text x="1052" y="410" class="boxText" text-anchor="middle">Analysis</text><text x="1052" y="428" class="boxText" text-anchor="middle">frame</text>
   <path d="M385 415 H425" class="thin"/><path d="M510 415 H550" class="thin"/><path d="M655 415 H695" class="thin"/><path d="M800 415 H840" class="thin"/><path d="M960 415 H1000" class="thin"/>
   <text x="690" y="472" class="small" text-anchor="middle">single Analysis worker thread / no internal pipe or queue</text>
-  <rect x="900" y="545" width="320" height="115" rx="12" fill="#fff" stroke="#cbd5e1"/><text x="920" y="570" class="label">Legend</text>
-  <rect x="920" y="585" width="130" height="30" rx="8" class="filter"/><text x="985" y="605" class="boxText" text-anchor="middle">Filter / component</text>
-  <polygon points="1080,585 1190,585 1200,600 1190,615 1080,615 1070,600" class="pipe"/><text x="1135" y="605" class="boxText" text-anchor="middle">Pipe / connector</text>
-  <rect x="920" y="625" width="140" height="30" rx="8" class="consumer"/><text x="990" y="645" class="boxText" text-anchor="middle">Display consumer</text>
-  <rect x="1070" y="625" width="130" height="30" rx="8" class="stage"/><text x="1135" y="645" class="boxText" text-anchor="middle">Internal sync stage</text>
+  <rect x="70" y="538" width="1300" height="168" rx="12" fill="#fff" stroke="#cbd5e1"/><text x="92" y="565" class="label">Legend</text>
+  <!-- Row 1 -->
+  <rect x="92" y="580" width="40" height="26" rx="6" class="filter"/><text x="142" y="598" class="boxText">Filter / component</text>
+  <polygon points="424,580 460,580 470,593 460,606 424,606 414,593" class="pipe"/><text x="480" y="598" class="boxText">Pipe / connector</text>
+  <rect x="748" y="580" width="40" height="26" rx="6" class="consumer"/><text x="798" y="598" class="boxText">Display consumer</text>
+  <rect x="1076" y="580" width="40" height="26" rx="6" class="stage"/><text x="1126" y="598" class="boxText">Internal sync stage</text>
+  <!-- Row 2 -->
+  <rect x="92" y="632" width="40" height="26" rx="6" class="boundary"/><text x="142" y="650" class="boxText">Boundary I/O node</text>
+  <rect x="420" y="632" width="40" height="26" rx="6" fill="#f8fafc" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="7 5"/><text x="480" y="650" class="boxText">Worker sync region</text>
+  <path d="M748 645 H792" class="line"/><text x="802" y="650" class="boxText">Pipe handoff (concurrent)</text>
+  <path d="M1076 645 H1116" class="thin"/><text x="1126" y="650" class="boxText">Internal sync link</text>
 </svg>
