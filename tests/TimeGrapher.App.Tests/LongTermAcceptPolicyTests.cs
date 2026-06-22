@@ -10,27 +10,10 @@ namespace TimeGrapher.App.Tests;
 /// </summary>
 public sealed class LongTermAcceptPolicyTests
 {
-    [Fact]
-    public void Rate_AliasesVarioGaugeBand()
-    {
-        Assert.Equal(VarioGaugePolicy.RateAcceptMinSPerDay, LongTermAcceptPolicy.Rate.Min);
-        Assert.Equal(VarioGaugePolicy.RateAcceptMaxSPerDay, LongTermAcceptPolicy.Rate.Max);
-    }
-
-    [Fact]
-    public void Amplitude_AliasesTraceNormalRange()
-    {
-        Assert.Equal(TraceAlertEvaluator.AmplitudeMinDeg, LongTermAcceptPolicy.Amplitude.Min);
-        Assert.Equal(TraceAlertEvaluator.AmplitudeMaxDeg, LongTermAcceptPolicy.Amplitude.Max);
-    }
-
-    [Fact]
-    public void BeatError_IsSymmetricAboutZeroAtDiagnosticThreshold()
-    {
-        Assert.Equal(-BeatErrorDiagnostics.SeparationAlertThresholdMs, LongTermAcceptPolicy.BeatError.Min);
-        Assert.Equal(BeatErrorDiagnostics.SeparationAlertThresholdMs, LongTermAcceptPolicy.BeatError.Max);
-    }
-
+    // The default-value alias checks (Rate/Amplitude/BeatError aliasing the Vario /
+    // Trace / diagnostics bands) were removed as subsumed by
+    // AcceptBandSettingsTests.ReplacingCurrent_MovesEveryPerMeasurePolicy, which
+    // proves the same aliases hold under MUTATED bands (a strictly stronger check).
     [Fact]
     public void EveryCorridor_HasMinBelowMax()
     {

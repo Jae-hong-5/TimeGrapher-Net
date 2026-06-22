@@ -43,14 +43,9 @@ public sealed class VarioLogicTests
         Assert.True(VarioGaugePolicy.ShouldShowAcceptBand(default, current: 1.0));
     }
 
-    [Fact]
-    public void AmplitudePolicy_MatchesTraceAlertBand()
-    {
-        // One source of truth: the vario green zone IS the trace alert band.
-        Assert.Equal(TraceAlertEvaluator.AmplitudeMinDeg, VarioGaugePolicy.AmplitudeAcceptMinDeg);
-        Assert.Equal(TraceAlertEvaluator.AmplitudeMaxDeg, VarioGaugePolicy.AmplitudeAcceptMaxDeg);
-    }
-
+    // AmplitudePolicy_MatchesTraceAlertBand (the default vario==trace amplitude alias)
+    // was removed as subsumed by AcceptBandSettingsTests.ReplacingCurrent_MovesEvery-
+    // PerMeasurePolicy, which proves that alias under mutated bands.
     [Fact]
     public void Format_RendersValueWithUnitOrDash()
     {

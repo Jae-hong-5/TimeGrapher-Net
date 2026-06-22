@@ -9,16 +9,10 @@ namespace TimeGrapher.App.Tests;
 
 public sealed class AppXamlLoadTests
 {
-    [Fact]
-    public void InitializeLoadsCompiledAppXaml()
-    {
-        var app = new App();
-
-        app.Initialize();
-
-        Assert.NotEmpty(app.Styles);
-    }
-
+    // Note: a standalone "Initialize loads compiled App.axaml" smoke test was removed
+    // as redundant - every test below calls app.Initialize() and then asserts a
+    // TimeGrapher-specific resource/style, which proves the compiled App.axaml (not
+    // just the Avalonia FluentTheme) actually loaded.
     [Fact]
     public void AppResourcesExposeVarioPalette()
     {

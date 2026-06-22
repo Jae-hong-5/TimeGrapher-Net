@@ -35,8 +35,28 @@ public sealed class AnalysisBenchmarkRunnerTests
         // latency/deadline fields.
         Assert.Contains("expected_bph=43200", output);
         Assert.Contains("detected_bph=43200", output);
-        Assert.Contains("max_lag_ms=", output);
-        Assert.Contains("max_deadline_level=", output);
+        // Parse the evidence values, not just the presence of the field names: a
+        // regression emitting a malformed/negative/NaN budget line must fail. The
+        // short deterministic synthetic feed is not real-time paced, so it never
+        // breaches the deadline budget (level 0).
+        Assert.True(ParseNumericField(output, "frames=") > 0.0);
+        double maxLagMs = ParseNumericField(output, "max_lag_ms=");
+        Assert.True(double.IsFinite(maxLagMs) && maxLagMs >= 0.0);
+        Assert.Equal(0, (int)ParseNumericField(output, "max_deadline_level="));
+    }
+
+    private static double ParseNumericField(string output, string key)
+    {
+        int keyIndex = output.IndexOf(key, System.StringComparison.Ordinal);
+        Assert.True(keyIndex >= 0, key + " missing from benchmark output");
+        int valueStart = keyIndex + key.Length;
+        int valueEnd = valueStart;
+        while (valueEnd < output.Length && !char.IsWhiteSpace(output[valueEnd]))
+        {
+            valueEnd++;
+        }
+
+        return double.Parse(output[valueStart..valueEnd], System.Globalization.CultureInfo.InvariantCulture);
     }
 
     [Fact]

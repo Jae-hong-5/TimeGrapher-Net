@@ -39,6 +39,13 @@ public sealed class ScopeRateFrameProjectorTests
         Assert.True(pcmSeries.Replace);
         Assert.InRange(pcmSeries.X.Count, 1, 256);
         Assert.Equal(pcmSeries.X.Count, pcmSeries.Y.Count);
+        // The threshold (trigger) line must actually be published over the same
+        // window as the PCM: without these the Assert.All below is vacuous and the
+        // trigger line could silently disappear while the test still passes.
+        Assert.True(threshold.Replace);
+        Assert.NotEmpty(threshold.Y);
+        Assert.Equal(pcmSeries.Y.Count, threshold.Y.Count);
+        Assert.Equal(threshold.X.Count, threshold.Y.Count);
         Assert.All(threshold.Y, y => Assert.Equal(0.2, y, 5));
     }
 

@@ -252,6 +252,10 @@ public sealed class BeatSegmentCaptureTests
         // The published snapshot's buffer was skipped for the whole burst: no
         // segment of the new snapshot lives in that buffer instance.
         BeatSegmentsSnapshot after = capture.CurrentSnapshot()!;
+        // Guard against a vacuous pass: the burst must actually fill the ring, or
+        // Assert.All over an empty/short segment list would "pass" without ever
+        // exercising the buffer-protection contract this test claims to lock.
+        Assert.Equal(BeatSegmentCapture.SegmentRingCount, after.Segments.Count);
         Assert.All(after.Segments, segment => Assert.False(publishedBuffer.Equals(segment.Samples)));
     }
 
