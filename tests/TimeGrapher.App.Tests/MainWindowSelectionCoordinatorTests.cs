@@ -7,6 +7,19 @@ namespace TimeGrapher.App.Tests;
 public sealed class MainWindowSelectionCoordinatorTests
 {
     [Fact]
+    public void FindText_ContainsMatchIsCaseInsensitive()
+    {
+        // Preferred-device matching is a substring match, and device-name casing
+        // varies by driver (preferred token "CUBILUX CA7" vs a "Cubilux CA7" device),
+        // so the substring match must ignore case or auto-select silently fails.
+        var items = new[] { "Built-in Audio", "Cubilux CA7 Mono [card 2]" };
+
+        int index = MainWindowSelectionCoordinator.FindText(items, "CUBILUX CA7", matchContains: true);
+
+        Assert.Equal(1, index);
+    }
+
+    [Fact]
     public void SelectingPlaybackSourceUsesVirtualDeviceAndDisablesSampleRate()
     {
         MainWindowViewModel vm = CreateViewModel();
