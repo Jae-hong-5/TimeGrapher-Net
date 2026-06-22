@@ -3,7 +3,7 @@
         x:Class="TimeGrapher.App.Views.SettingsWindow"
         Title="Settings"
         Icon="/Assets/App/AppIcon-256.png"
-        Width="420" Height="520"
+        Width="420" Height="640"
         CanResize="False"
         SystemDecorations="None"
         ShowInTaskbar="False"
@@ -68,6 +68,41 @@
                 IsEnabled="{Binding AreRunParametersEnabled}"
                 IsChecked="{Binding PauseOnPositionChange, Mode=TwoWay}"
                 ToolTip.Tip="Pause a running measurement after a position button changes the active position" />
+      <Border Height="1"
+              Background="{DynamicResource ChromeBorderBrush}"
+              Margin="0,2" />
+      <TextBlock Text="Sampling"
+                 Classes="SectionHeader"
+                 HorizontalAlignment="Left" />
+      <!-- Block size (the detector input window, in samples) and capture buffer (ms) are
+           construction-time inputs to the analysis/capture pipeline, so they are read at
+           run start and gated on the run state like the other run parameters: edits apply
+           on the next run, and persist across restarts. -->
+      <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto"
+            HorizontalAlignment="Stretch">
+        <TextBlock Grid.Row="0" Grid.Column="0" Text="Block Size"
+                   VerticalAlignment="Center" FontWeight="Bold" />
+        <NumericUpDown Name="AnalysisBlockSizeSpinBox" Grid.Row="0" Grid.Column="1"
+                       Margin="6,3"
+                       AutomationProperties.Name="Analysis block size (samples)"
+                       Value="{Binding AnalysisBlockSize, Mode=TwoWay}"
+                       IsEnabled="{Binding AreRunParametersEnabled}"
+                       FontWeight="Bold" FormatString="0' samples'"
+                       Minimum="256" Maximum="16384" Increment="256"
+                       ClipValueToMinMax="True"
+                       ToolTip.Tip="Detector input window in samples (~85 ms at 48 kHz for 4096). Applies on the next run." />
+        <TextBlock Grid.Row="1" Grid.Column="0" Text="Capture Buffer"
+                   VerticalAlignment="Center" FontWeight="Bold" />
+        <NumericUpDown Name="CaptureBufferMsSpinBox" Grid.Row="1" Grid.Column="1"
+                       Margin="6,3"
+                       AutomationProperties.Name="Capture buffer length (milliseconds)"
+                       Value="{Binding CaptureBufferMs, Mode=TwoWay}"
+                       IsEnabled="{Binding AreRunParametersEnabled}"
+                       FontWeight="Bold" FormatString="0' ms'"
+                       Minimum="5" Maximum="200" Increment="5"
+                       ClipValueToMinMax="True"
+                       ToolTip.Tip="Audio capture buffer length in ms (latency vs. stability). Applies on the next run." />
+      </Grid>
       <Border Height="1"
               Background="{DynamicResource ChromeBorderBrush}"
               Margin="0,2" />
