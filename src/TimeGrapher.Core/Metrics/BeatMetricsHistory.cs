@@ -103,11 +103,12 @@ public sealed class BeatMetricsHistory
         _rateStats.Reset();
         _amplitudeStats.Reset();
         _statsStartTimeS = _latestTimeS;
-        // Rate/beat-error validity self-heal on the next beat (they are refreshed
-        // from every sample in Record), but amplitude validity is only ever set
-        // true (it tracks pair averages), so without this clear a freshly-turned
-        // position would inherit the previous position's amplitude as a current
-        // valid reading - including into the graded measurement CSV.
+        // Clear rate/beat-error/amplitude validity so the immediate snapshot forced
+        // below (_publishImmediately) does not attribute the PREVIOUS position's last
+        // reading to the freshly-turned position - including into the graded
+        // measurement CSV. Each re-validates from the next beat's sample in Record.
+        _rateValid = false;
+        _beatErrorValid = false;
         _amplitudeValid = false;
         // Record the turn on the change timeline only once the run has data: the
         // start entry is seeded at the first plotted point, not the first beat (so
