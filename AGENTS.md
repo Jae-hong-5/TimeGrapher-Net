@@ -15,6 +15,8 @@
 ## Commits
 
 - Split commits into the **smallest logically separable units**.
+- Do not force-push or rewrite remote history. This includes `git push --force`, `git push --force-with-lease`, and any equivalent operation that replaces already-pushed commits; if a push is rejected, report the divergence instead.
+- If a normal push is rejected because the remote branch has new commits, do not force it. Run `git fetch`, inspect the ahead/behind state, rebase the local branch onto the remote branch, resolve any conflicts by preserving both the user's work and the remote changes, rerun the relevant validation, then push normally.
 - Write the commit **subject in English**, following the **Conventional Commits** spec.
   - Format: `<type>(<scope>): <description>` — scope is optional (e.g. `feat(splash):`, `fix(install.sh):`, `docs:`, `chore:`, `test:`, `ci:`, `build:`).
   - `<type>` is lowercase.
@@ -35,6 +37,9 @@
 
 Base every change on **software architecture principles and the existing structure**.
 
+- Preserve the design patterns already used by the touched area. For UI work, respect the existing MVVM boundary: keep view state and commands in view models, keep presentation in XAML/views, keep coordination in services/controllers, and use view adapters for UI-specific operations. For platform integration, respect the Adapter boundary: translate OS or library APIs behind the existing Core/App contracts instead of leaking platform-specific types across layers.
+- If a requested change appears to require breaking an established pattern, report the tradeoff before editing and prefer a pattern-preserving implementation unless the user explicitly approves the pattern change.
+
 ### Architecture & documentation
 
 - The architecture and its decisions live under `docs/for-ai/`. Check only the relevant documents in that directory before making changes, and update the matching document whenever a change affects the system's structure:
@@ -45,6 +50,7 @@ Base every change on **software architecture principles and the existing structu
 
 ### UI & rendering conventions
 
+- Treat Avalonia as an intentional architecture and deployment choice, not an interchangeable UI detail. The rationale is documented in `docs/ADR/en/ADR-001.md` and `docs/ADR/ko/ADR-001.md`; UI-framework, deployment, or platform changes must stay consistent with that rationale unless the user explicitly approves changing it.
 - Reuse the colors, brushes, fonts, default font sizes, and common styles defined in `src/TimeGrapher.App/App.axaml` instead of introducing new ones.
 - Never hardcode graph colors. Colors flow from `App.axaml` into the graph palette through `src/TimeGrapher.App/Rendering/PlotThemePalette.cs`.
 - Apply graph background, axis, and grid theming through the existing helper in `src/TimeGrapher.App/Rendering/PlotThemeHelper.cs`.
