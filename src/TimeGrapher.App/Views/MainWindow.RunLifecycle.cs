@@ -22,6 +22,7 @@ public partial class MainWindow
         mViewModel.PropertyChanged -= mSelectionCoordinator.OnViewModelPropertyChanged;
         mRunControlController.Detach();
         mAcceptBandController.Detach();
+        mSamplingSettingsController.Detach();
         mViewModel.PropertyChanged -= OnReviewCursorPropertyChanged;
         mRunSessionController.InvalidateRunSession();
         mRunSessionController.StopInputWorker("Input");

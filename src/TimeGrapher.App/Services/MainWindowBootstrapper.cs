@@ -61,6 +61,10 @@ internal static class MainWindowBootstrapper
             errorLog);
 
         var acceptBandController = new AcceptBandController(viewModel, adapters.AcceptBandOperations);
+        // Seeds the Settings inputs from the persisted sampling parameters and saves each
+        // valid edit; the values are read at the next run start, not applied live.
+        var samplingSettingsController = new SamplingSettingsController(
+            viewModel, SamplingSettings.Current, SamplingSettingsStore.Save);
         var runControlController = new RunControlController(viewModel, runSessionController, runCommandService);
         var analysisFramePresenter = new AnalysisFramePresenter(viewModel, errorLog);
 
@@ -75,6 +79,7 @@ internal static class MainWindowBootstrapper
             runSessionController,
             runControlController,
             acceptBandController,
+            samplingSettingsController,
             analysisFramePresenter,
             analysisPerformanceLogger);
     }

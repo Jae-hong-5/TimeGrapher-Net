@@ -85,6 +85,7 @@ public partial class MainWindow : Window
     private readonly AudioSelectionState mAudioSelection = new();
     private readonly AudioDeviceController mAudioDeviceController;
     private readonly AcceptBandController mAcceptBandController;
+    private readonly SamplingSettingsController mSamplingSettingsController;
     private readonly RunControlController mRunControlController;
     private readonly RunSelectionResolver mRunSelectionResolver;
     private readonly RunCommandService mRunCommandService;
@@ -154,6 +155,7 @@ public partial class MainWindow : Window
         mRunSessionController = composition.RunSessionController;
         mRunControlController = composition.RunControlController;
         mAcceptBandController = composition.AcceptBandController;
+        mSamplingSettingsController = composition.SamplingSettingsController;
         mFramePresenter = composition.AnalysisFramePresenter;
         mAnalysisPerformanceLogger = composition.AnalysisPerformanceLogger;
 

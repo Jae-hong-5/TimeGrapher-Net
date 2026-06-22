@@ -118,6 +118,7 @@ public sealed class MainWindowBootstrapperTests
         Assert.NotNull(composition.RunSessionController);
         Assert.NotNull(composition.RunControlController);
         Assert.NotNull(composition.AcceptBandController);
+        Assert.NotNull(composition.SamplingSettingsController);
         Assert.Null(composition.AnalysisPerformanceLogger); // no --analysis-log
     }
 
