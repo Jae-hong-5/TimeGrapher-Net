@@ -90,7 +90,7 @@
       <!-- The normal-range limits every graph judges against (Error Rate /
            Amplitude / Beat Error). Always editable: the bands are display policy,
            applied live and persisted, so they are not gated on the run state. -->
-      <Grid ColumnDefinitions="*,Auto,Auto" RowDefinitions="Auto,Auto,Auto,Auto"
+      <Grid ColumnDefinitions="Auto,*,*" RowDefinitions="Auto,Auto,Auto,Auto"
             HorizontalAlignment="Stretch">
         <TextBlock Grid.Row="0" Grid.Column="1" Text="Min"
                    HorizontalAlignment="Center" FontWeight="Bold" Margin="6,0,6,2"
@@ -102,14 +102,14 @@
         <TextBlock Grid.Row="1" Grid.Column="0" Text="Error Rate"
                    VerticalAlignment="Center" FontWeight="Bold" />
         <NumericUpDown Name="RateAcceptMinSpinBox" Grid.Row="1" Grid.Column="1"
-                       Width="112" Margin="6,3"
+                       Margin="6,3"
                        AutomationProperties.Name="Error Rate band minimum (s/d)"
                        Value="{Binding RateAcceptMin, Mode=TwoWay}"
                        FontWeight="Bold" FormatString="0' s/d'"
                        Minimum="-120" Maximum="120" Increment="1"
                        ToolTip.Tip="Error Rate normal-band lower limit (s/d)" />
         <NumericUpDown Name="RateAcceptMaxSpinBox" Grid.Row="1" Grid.Column="2"
-                       Width="112" Margin="6,3"
+                       Margin="6,3"
                        AutomationProperties.Name="Error Rate band maximum (s/d)"
                        Value="{Binding RateAcceptMax, Mode=TwoWay}"
                        FontWeight="Bold" FormatString="0' s/d'"
@@ -119,14 +119,14 @@
         <TextBlock Grid.Row="2" Grid.Column="0" Text="Amplitude"
                    VerticalAlignment="Center" FontWeight="Bold" />
         <NumericUpDown Name="AmplitudeAcceptMinSpinBox" Grid.Row="2" Grid.Column="1"
-                       Width="112" Margin="6,3"
+                       Margin="6,3"
                        AutomationProperties.Name="Amplitude band minimum (degrees)"
                        Value="{Binding AmplitudeAcceptMin, Mode=TwoWay}"
                        FontWeight="Bold" FormatString="0'°'"
                        Minimum="0" Maximum="360" Increment="1"
                        ToolTip.Tip="Amplitude normal-band lower limit (°)" />
         <NumericUpDown Name="AmplitudeAcceptMaxSpinBox" Grid.Row="2" Grid.Column="2"
-                       Width="112" Margin="6,3"
+                       Margin="6,3"
                        AutomationProperties.Name="Amplitude band maximum (degrees)"
                        Value="{Binding AmplitudeAcceptMax, Mode=TwoWay}"
                        FontWeight="Bold" FormatString="0'°'"
