@@ -133,7 +133,7 @@
                        Minimum="0" Maximum="360" Increment="1"
                        ToolTip.Tip="Amplitude normal-band upper limit (°)" />
 
-        <TextBlock Grid.Row="3" Grid.Column="0" Text="Beat Error (±)"
+        <TextBlock Grid.Row="3" Grid.Column="0" Text="Beat Error"
                    VerticalAlignment="Center" FontWeight="Bold" />
         <NumericUpDown Name="BeatErrorAcceptMagSpinBox" Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="2"
                        Margin="6,3"
