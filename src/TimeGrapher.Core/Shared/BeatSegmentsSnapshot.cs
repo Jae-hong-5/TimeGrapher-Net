@@ -20,6 +20,18 @@ public enum BeatNoiseMarkerKind
     COnset,
 }
 
+[Flags]
+public enum SignalQualityFlags
+{
+    None = 0,
+    WeakSignal = 1 << 0,
+    NoisySignal = 1 << 1,
+    CTimingUnstable = 1 << 2,
+    PossibleFalseC = 1 << 3,
+    ClippedSignal = 1 << 4,
+    NoSignal = 1 << 5,
+}
+
 public sealed class BeatNoiseMarker
 {
     /// <summary>Absolute stream time of this marker, in seconds.</summary>
@@ -79,6 +91,8 @@ public sealed class BeatSegment
     /// <summary>C onset offset within the window (ms); valid only when the detector located the C cluster's rising edge.</summary>
     public bool COnsetValid { get; init; }
     public double COnsetOffsetMs { get; init; }
+
+    public SignalQualityFlags Quality { get; init; }
 }
 
 /// <summary>
@@ -150,4 +164,6 @@ public sealed class BeatSegmentsSnapshot
 
     /// <summary>Scope 2 lane-averaging state of the same capture.</summary>
     public BeatNoiseAverageSnapshot Average { get; init; } = BeatNoiseAverageSnapshot.Empty;
+
+    public SignalQualityFlags Quality { get; init; }
 }

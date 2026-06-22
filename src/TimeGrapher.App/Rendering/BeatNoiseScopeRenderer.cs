@@ -535,7 +535,7 @@ internal sealed class BeatNoiseScopeRenderer
         if (segment == null)
         {
             SetMarker(_cOnsetMarker, null);
-            SetWeakSignalVisible(true);
+            SetSignalQuality(SignalQualityFlags.WeakSignal);
             return;
         }
 
@@ -594,7 +594,12 @@ internal sealed class BeatNoiseScopeRenderer
         }
 
         SetMarker(_cOnsetMarker, null);
-        SetWeakSignalVisible(cMarkerXs.Count == 0);
+        SignalQualityFlags quality = segment.Quality;
+        if (cMarkerXs.Count == 0)
+        {
+            quality |= SignalQualityFlags.WeakSignal;
+        }
+        SetSignalQuality(quality);
     }
 
     private void RenderMainRaw(BeatSegment segment)
@@ -1157,16 +1162,18 @@ internal sealed class BeatNoiseScopeRenderer
         return label;
     }
 
-    private void SetWeakSignalVisible(bool visible)
+    private void SetSignalQuality(SignalQualityFlags quality)
     {
         if (_weakSignalLabel == null)
         {
             return;
         }
 
+        bool visible = quality != SignalQualityFlags.None;
         _weakSignalLabel.IsVisible = visible;
         if (visible)
         {
+            _weakSignalLabel.LabelText = SignalQualityText.Overlay(quality);
             _weakSignalLabel.Location = new Coordinates(_rangeMs, _mainYUpper ?? 1.0);
         }
     }

@@ -135,6 +135,33 @@ public sealed class BeatSegmentCaptureTests
     }
 
     [Fact]
+    public void Capture_FlagsEarlyCAsPossibleFalseCWhenAcTimingBreaksPattern()
+    {
+        var capture = NewCapture();
+        ulong start = 0;
+        const int beatSamples = 6000;
+
+        for (int beat = 0; beat < 4; beat++)
+        {
+            double a = start + 1000;
+            Feed(capture, start, beatSamples, spikes: null, AEvent(a), CEvent(a + 480));
+            start += beatSamples;
+        }
+
+        double anomalyA = start + 1000;
+        Feed(capture, start, beatSamples, spikes: null, AEvent(anomalyA), CEvent(anomalyA + 120));
+        start += beatSamples;
+        Feed(capture, start, WindowSamples + 1000);
+
+        BeatSegmentsSnapshot snapshot = capture.CurrentSnapshot()!;
+        BeatSegment anomalous = snapshot.Segments[^1];
+
+        Assert.True((anomalous.Quality & SignalQualityFlags.CTimingUnstable) != 0);
+        Assert.True((anomalous.Quality & SignalQualityFlags.PossibleFalseC) != 0);
+        Assert.True((snapshot.Quality & SignalQualityFlags.PossibleFalseC) != 0);
+    }
+
+    [Fact]
     public void Capture_WindowSpansBlockBoundaries()
     {
         var capture = NewCapture();

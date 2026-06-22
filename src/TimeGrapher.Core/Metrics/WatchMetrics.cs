@@ -69,6 +69,12 @@ public sealed class WatchMetrics
     private double _amplitudeTic = 0.0;
     private double _amplitudeToc = 0.0;
     private bool _amplitudeTicValid = false;
+    private const int AcHistoryCount = 8;
+    private const double AcDeviationFloorMs = 1.5;
+    private const double AcDeviationMadScale = 4.0;
+    private readonly double[] _recentAcMs = new double[AcHistoryCount];
+    private int _recentAcHead;
+    private int _recentAcCount;
 
     // Derived timing measures (project plan "Expected Enhancements"): DiffTicTac,
     // DiffPeriod (short fixed window) and AvgPeriod (since start / last segment
@@ -132,6 +138,8 @@ public sealed class WatchMetrics
         _missedBeats = 0;
         _lastAmplitudeInstValid = false;
         _lastAmplitudePairUpdated = false;
+        _recentAcHead = 0;
+        _recentAcCount = 0;
     }
 
     private void ResetDerivedMeasures()
@@ -481,6 +489,15 @@ public sealed class WatchMetrics
         {
             int ticOrToc = CurrentBeatPhase();
             double time = (eventSample - _lastAEvent) / (double)_config.SampleRate;
+            if (!AcceptAcInterval(time * 1000.0))
+            {
+                if (ticOrToc == Tic)
+                {
+                    _amplitudeTicValid = false;
+                }
+                return;
+            }
+
             double tempAmp = Amplitude(_config.LiftAngle, time, bph);
             // Valid amplitude is a positive angle below 360 deg. A mispaired or
             // delayed C can push t_AC past the half-cycle so Sin() goes negative
@@ -514,6 +531,58 @@ public sealed class WatchMetrics
                 _amplitudeTicValid = false;
             }
         }
+    }
+
+    private bool AcceptAcInterval(double acMs)
+    {
+        bool accepted = true;
+        if (_recentAcCount >= 4)
+        {
+            double median = Median(_recentAcMs, _recentAcCount);
+            double mad = MedianAbsoluteDeviation(_recentAcMs, _recentAcCount, median);
+            double threshold = Math.Max(AcDeviationFloorMs, AcDeviationMadScale * mad);
+            accepted = Math.Abs(acMs - median) <= threshold;
+        }
+
+        if (accepted)
+        {
+            _recentAcMs[_recentAcHead] = acMs;
+            _recentAcHead = (_recentAcHead + 1) % _recentAcMs.Length;
+            if (_recentAcCount < _recentAcMs.Length)
+            {
+                _recentAcCount++;
+            }
+        }
+
+        return accepted;
+    }
+
+    private static double Median(double[] ring, int count)
+    {
+        Span<double> values = stackalloc double[AcHistoryCount];
+        for (int i = 0; i < count; i++)
+        {
+            values[i] = ring[i];
+        }
+
+        values = values[..count];
+        values.Sort();
+        int mid = count / 2;
+        return (count & 1) != 0 ? values[mid] : 0.5 * (values[mid - 1] + values[mid]);
+    }
+
+    private static double MedianAbsoluteDeviation(double[] ring, int count, double median)
+    {
+        Span<double> values = stackalloc double[AcHistoryCount];
+        for (int i = 0; i < count; i++)
+        {
+            values[i] = Math.Abs(ring[i] - median);
+        }
+
+        values = values[..count];
+        values.Sort();
+        int mid = count / 2;
+        return (count & 1) != 0 ? values[mid] : 0.5 * (values[mid - 1] + values[mid]);
     }
 
     private string FormatCMarkerText(double beatTimeSeconds, bool haveValidBph, double bph)

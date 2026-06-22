@@ -13,7 +13,7 @@ public sealed class WaveformCompareLogicTests
 {
     private static BeatSegment Segment(
         double startTimeS = 0.0, bool isTic = false, double aMs = 5.0, double? cPeakMs = null,
-        float samplePeak = 0.0f)
+        float samplePeak = 0.0f, SignalQualityFlags quality = SignalQualityFlags.None)
     {
         var samples = new float[1600];
         if (samplePeak != 0.0f)
@@ -30,6 +30,7 @@ public sealed class WaveformCompareLogicTests
             AOffsetMs = aMs,
             CPeakValid = cPeakMs is not null,
             CPeakOffsetMs = cPeakMs ?? 0.0,
+            Quality = quality,
         };
     }
 
@@ -70,6 +71,17 @@ public sealed class WaveformCompareLogicTests
 
         var tocLabel = WaveformCompareLogic.LaneLabel(Segment(isTic: false, cPeakMs: null), bph, liftAngleDeg: 52.0);
         Assert.Equal("TOC\nA to C: —\nAmplitude: —", tocLabel);
+    }
+
+    [Fact]
+    public void LaneLabel_AppendsSignalQualityWhenPresent()
+    {
+        var label = WaveformCompareLogic.LaneLabel(
+            Segment(isTic: true, aMs: 5.0, cPeakMs: 17.0, quality: SignalQualityFlags.PossibleFalseC | SignalQualityFlags.CTimingUnstable),
+            bph: 28800,
+            liftAngleDeg: 52.0);
+
+        Assert.Contains("Signal: Possible false C", label);
     }
 
     [Fact]
@@ -201,6 +213,18 @@ public sealed class WaveformCompareLogicTests
         Assert.Equal(145.0, WaveformCompareLogic.MeanCPeakOffsetMs(segments)!.Value, 6);
         Assert.Null(WaveformCompareLogic.MeanCPeakOffsetMs(new[] { Segment(cPeakMs: null) }));
         Assert.Null(WaveformCompareLogic.MeanCPeakOffsetMs(Array.Empty<BeatSegment>()));
+    }
+
+    [Fact]
+    public void MeanCPeakOffset_ExcludesPossibleFalseC()
+    {
+        var segments = new[]
+        {
+            Segment(aMs: 5.0, cPeakMs: 145.0),
+            Segment(aMs: 5.0, cPeakMs: 15.0, quality: SignalQualityFlags.PossibleFalseC),
+        };
+
+        Assert.Equal(140.0, WaveformCompareLogic.MeanCPeakOffsetMs(segments)!.Value, 6);
     }
 
     [Fact]

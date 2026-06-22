@@ -111,6 +111,24 @@ public sealed class AnalysisRunStatusReporterTests
     }
 
     [Fact]
+    public void SignalQualityWarningReportsRecoveryGuidance()
+    {
+        var reporter = new AnalysisRunStatusReporter();
+        var frame = new AnalysisFrame
+        {
+            BeatSegments = new BeatSegmentsSnapshot
+            {
+                Quality = SignalQualityFlags.PossibleFalseC | SignalQualityFlags.CTimingUnstable,
+            },
+        };
+
+        AnalysisRunStatusReporter.Report report = reporter.Describe(frame, 0, SampleRate);
+
+        Assert.Equal("Possible false C marker. Check Beat Noise and reduce handling noise.", report.StatusText);
+        Assert.Equal("Signal quality warning: Possible false C.", report.LogDetail);
+    }
+
+    [Fact]
     public void ResetClearsRememberedThroughput()
     {
         var reporter = new AnalysisRunStatusReporter();

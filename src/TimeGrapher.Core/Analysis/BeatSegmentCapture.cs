@@ -111,7 +111,12 @@ public sealed class BeatSegmentCapture
         public double CPeakOffsetMs;
         public bool COnsetValid;
         public double COnsetOffsetMs;
+        public SignalQualityFlags Quality;
     }
+
+    private const int AcHistoryCount = 8;
+    private const double AcDeviationFloorMs = 1.5;
+    private const double AcDeviationMadScale = 4.0;
 
     private readonly int _sampleRate;
     private readonly double _liftAngleDeg;
@@ -143,6 +148,9 @@ public sealed class BeatSegmentCapture
     private bool _lastIsTic;
 
     private readonly CompletedSegment[] _completed = new CompletedSegment[SegmentRingCount];
+    private readonly double[] _recentAcMs = new double[AcHistoryCount];
+    private int _recentAcHead;
+    private int _recentAcCount;
     private int _completedHead;
     private int _completedCount;
     private readonly List<BeatNoiseMarker> _markers = new();
@@ -292,10 +300,12 @@ public sealed class BeatSegmentCapture
 
         _version++;
         var segments = new List<BeatSegment>(_completedCount);
+        SignalQualityFlags quality = SignalQualityFlags.None;
         for (int i = 0; i < _completedCount; i++)
         {
             CompletedSegment completed = _completed[(_completedHead + i) % SegmentRingCount];
             _bufferPublishedVersion[completed.PoolIndex] = _version;
+            quality |= completed.Quality;
             segments.Add(new BeatSegment
             {
                 Samples = completed.Buffer,
@@ -311,6 +321,7 @@ public sealed class BeatSegmentCapture
                 CPeakOffsetMs = completed.CPeakOffsetMs,
                 COnsetValid = completed.COnsetValid,
                 COnsetOffsetMs = completed.COnsetOffsetMs,
+                Quality = completed.Quality,
             });
         }
 
@@ -332,6 +343,7 @@ public sealed class BeatSegmentCapture
             Markers = markers,
             LiftAngleDeg = _liftAngleDeg,
             Average = _averager.Snapshot(),
+            Quality = quality,
         };
         _dirty = false;
         return _snapshot;
@@ -557,6 +569,8 @@ public sealed class BeatSegmentCapture
         double cOnsetOffsetMs = pending.HasC && pending.COnsetValid
             ? (pending.COnsetSample - pending.StartSample) * samplesToMs
             : 0.0;
+        bool cPeakValid = pending.HasC && cPeakOffsetMs < WindowMs;
+        SignalQualityFlags quality = ClassifyQuality(pending, cPeakValid, cPeakOffsetMs);
 
         int slot;
         if (_completedCount == SegmentRingCount)
@@ -579,12 +593,85 @@ public sealed class BeatSegmentCapture
             IsTic = pending.IsTic,
             AOffsetMs = (pending.ASample - pending.StartSample) * samplesToMs,
             PeakValue = pending.PeakValue,
-            CPeakValid = pending.HasC && cPeakOffsetMs < WindowMs,
+            CPeakValid = cPeakValid,
             CPeakOffsetMs = cPeakOffsetMs,
             COnsetValid = pending.HasC && pending.COnsetValid && cOnsetOffsetMs is >= 0.0 and < WindowMs,
             COnsetOffsetMs = cOnsetOffsetMs,
+            Quality = quality,
         };
         _dirty = true;
+    }
+
+    private SignalQualityFlags ClassifyQuality(in PendingSegment pending, bool cPeakValid, double cPeakOffsetMs)
+    {
+        if (!cPeakValid)
+        {
+            return SignalQualityFlags.WeakSignal;
+        }
+
+        double samplesToMs = 1000.0 / _sampleRate;
+        double acMs = cPeakOffsetMs - (pending.ASample - pending.StartSample) * samplesToMs;
+        SignalQualityFlags quality = SignalQualityFlags.None;
+        if (_recentAcCount >= 4)
+        {
+            double median = Median(_recentAcMs, _recentAcCount);
+            double mad = MedianAbsoluteDeviation(_recentAcMs, _recentAcCount, median);
+            double threshold = Math.Max(AcDeviationFloorMs, AcDeviationMadScale * mad);
+            double delta = acMs - median;
+            if (Math.Abs(delta) > threshold)
+            {
+                quality |= SignalQualityFlags.CTimingUnstable | SignalQualityFlags.NoisySignal;
+                if (delta < 0.0)
+                {
+                    quality |= SignalQualityFlags.PossibleFalseC;
+                }
+            }
+        }
+
+        if ((quality & SignalQualityFlags.CTimingUnstable) == 0)
+        {
+            PushAcHistory(acMs);
+        }
+
+        return quality;
+    }
+
+    private void PushAcHistory(double acMs)
+    {
+        _recentAcMs[_recentAcHead] = acMs;
+        _recentAcHead = (_recentAcHead + 1) % _recentAcMs.Length;
+        if (_recentAcCount < _recentAcMs.Length)
+        {
+            _recentAcCount++;
+        }
+    }
+
+    private static double Median(double[] ring, int count)
+    {
+        Span<double> values = stackalloc double[AcHistoryCount];
+        for (int i = 0; i < count; i++)
+        {
+            values[i] = ring[i];
+        }
+
+        values = values[..count];
+        values.Sort();
+        int mid = count / 2;
+        return (count & 1) != 0 ? values[mid] : 0.5 * (values[mid - 1] + values[mid]);
+    }
+
+    private static double MedianAbsoluteDeviation(double[] ring, int count, double median)
+    {
+        Span<double> values = stackalloc double[AcHistoryCount];
+        for (int i = 0; i < count; i++)
+        {
+            values[i] = Math.Abs(ring[i] - median);
+        }
+
+        values = values[..count];
+        values.Sort();
+        int mid = count / 2;
+        return (count & 1) != 0 ? values[mid] : 0.5 * (values[mid - 1] + values[mid]);
     }
 
     /// <summary>

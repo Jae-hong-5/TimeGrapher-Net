@@ -38,4 +38,24 @@ public sealed class WatchMetricsTests
         double large = WatchMetrics.Amplitude(52.0, quarter * 0.75, bph);
         Assert.True(small > large, $"expected amplitude to fall as t1 rises toward quarter period (small={small}, large={large})");
     }
+
+    [Fact]
+    public void HandleCEvent_DoesNotUpdateAmplitudeWhenAcTimingBreaksRecentPattern()
+    {
+        var metrics = new WatchMetrics(new WatchMetricsConfig { SampleRate = 48000, LiftAngle = 52.0 });
+        const double bph = 28800.0;
+        double a = 0.0;
+
+        for (int i = 0; i < 5; i++)
+        {
+            metrics.HandleAEvent(a, true, bph);
+            metrics.HandleCEvent(a + 480, true, bph);
+            a += 6000;
+        }
+
+        metrics.HandleAEvent(a, true, bph);
+        var update = metrics.HandleCEvent(a + 120, true, bph);
+
+        Assert.False(update.AmplitudeSampleUpdated);
+    }
 }

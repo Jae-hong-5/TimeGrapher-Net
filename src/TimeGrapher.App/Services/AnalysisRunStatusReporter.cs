@@ -1,5 +1,6 @@
 using System;
 using System.Globalization;
+using TimeGrapher.App.Rendering;
 using TimeGrapher.Core.Analysis;
 using TimeGrapher.Core.Shared;
 
@@ -89,6 +90,11 @@ internal sealed class AnalysisRunStatusReporter
                 "Deadline pressure: rendering quality reduced (level {0}/{1}).",
                 frame.DeadlineDegradationLevel,
                 AnalysisDeadlineMonitor.MaxLevel);
+        }
+        else if (frame.BeatSegments?.Quality is SignalQualityFlags quality && quality != SignalQualityFlags.None)
+        {
+            statusText = SignalQualityText.Guidance(quality);
+            logDetail = "Signal quality warning: " + SignalQualityText.Summary(quality) + ".";
         }
         else if (droppedFrames != 0)
         {

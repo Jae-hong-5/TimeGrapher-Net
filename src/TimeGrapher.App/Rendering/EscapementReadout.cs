@@ -53,8 +53,18 @@ internal static class EscapementReadout
             VarioReadout.Format(onsetMs - peakMs, SignedHundredthsMsFormat, " ms"),
             MeanSigma(tracker.PeakMeanMs, tracker.PeakSigmaMs, tracker.PeakCount),
             MeanSigma(tracker.OnsetMeanMs, tracker.OnsetSigmaMs, tracker.OnsetCount),
-            VerdictLabel(tracker.Verdict),
+            SignalAwareVerdict(latest, tracker),
         };
+    }
+
+    private static string SignalAwareVerdict(BeatSegment? latest, EscapementTimingTracker tracker)
+    {
+        if (latest is { Quality: not SignalQualityFlags.None } segment)
+        {
+            return SignalQualityText.Summary(segment.Quality);
+        }
+
+        return VerdictLabel(tracker.Verdict);
     }
 
     public static string VerdictLabel(EscapementReferenceVerdict verdict) => verdict switch

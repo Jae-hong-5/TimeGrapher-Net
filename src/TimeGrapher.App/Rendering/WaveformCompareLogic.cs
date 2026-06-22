@@ -77,7 +77,13 @@ internal static class WaveformCompareLogic
         "Amplitude: " + (segment.Samples.Length > 0 && segment.CPeakValid && bph > 0
             && CalculateAmplitude(segment, bph, liftAngleDeg) is double amplitudeDeg
             ? amplitudeDeg.ToString("F1", CultureInfo.InvariantCulture) + "°"
-            : VarioReadout.Missing);
+            : VarioReadout.Missing) + QualitySuffix(segment.Quality);
+
+    public static string QualitySuffix(SignalQualityFlags quality)
+    {
+        string summary = SignalQualityText.Summary(quality);
+        return summary.Length == 0 ? string.Empty : "\nSignal: " + summary;
+    }
 
     /// <summary>
     /// Balance-wheel amplitude (degrees) from the A→C peak interval, via the
@@ -174,7 +180,7 @@ internal static class WaveformCompareLogic
                 continue;
             }
 
-            if (segment.CPeakValid)
+            if (segment.CPeakValid && (segment.Quality & SignalQualityFlags.PossibleFalseC) == 0)
             {
                 sum += segment.CPeakOffsetMs - segment.AOffsetMs;
                 count++;

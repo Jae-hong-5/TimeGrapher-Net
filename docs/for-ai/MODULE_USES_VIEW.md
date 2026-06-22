@@ -91,6 +91,8 @@ flowchart TB
 
 검출 강건성 동작(적응 플로어, 레짐 가드, PLL 후행 A-onset 게이팅)은 `Detection` 알고리즘에 흡수되어 있고, 이벤트 게이트 소켓(`IBeatEventGate`/`BeatEventGateHost`)은 `Core` 내부 요소라 **프로젝트 간 신규 엣지를 만들지 않는다**. 미래의 TinyML 게이트는 ONNX Runtime을 참조하는 리프 프로젝트 `TimeGrapher.Inference`로 들어올 계획이며, 그때 엣지는 `App → Inference → Core`, `Verify → Inference`로 `Platform.*` 패턴을 미러링한다. `Core`는 계속 무의존을 유지한다.
 
+그 전 단계의 신호 품질 표시는 `Core.Shared.SignalQualityFlags`와 `BeatSegmentsSnapshot.Quality`에 담긴 DTO 계약으로 처리한다. `BeatSegmentCapture`는 A→C 반복성에서 벗어난 C 후보를 `CTimingUnstable`/`PossibleFalseC`로 표시하고, `WatchMetrics`는 같은 이상 C를 amplitude 갱신에서 제외한다. App 계층은 `SignalQualityText`로 상단 readout, 상태바 recovery guidance, Beat Noise, Waveform Compare, Escapement Analyzer의 문구를 통일한다. 이 경로는 `Core → Shared DTO → App Rendering/Services` 단방향 소비라 신규 외부 패키지나 프로젝트 엣지를 만들지 않는다.
+
 ## 2. TimeGrapher.App 내부 사용 관계
 
 폴더 수준 추상화로 묶었고, 코드 엣지는 실제 `using`/타입 참조에 근거한다. 예외는 `Views → Assets`로, 이는 `using`/타입 참조가 아니라 `avares://` 리소스 URI·XAML `Icon` 참조다(`Assets`는 png/ttf 리소스 폴더이며 코드 네임스페이스가 아니다). `Program` 노드는 루트 네임스페이스(`Program`, `App`, `AppStartupOptions`, `AnalysisRunSettings`)를 가리킨다.
