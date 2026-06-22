@@ -79,7 +79,7 @@ internal static class AudioSmokeRunner
 
         try
         {
-            worker.Start(selected.Number, sampleRate, volume: 1.0f);
+            worker.Start(selected.Number, sampleRate, volume: 1.0f, bufferMilliseconds: LiveAudioDefaults.BufferMilliseconds);
             Thread.Sleep(durationMs);
         }
         catch (Exception ex)

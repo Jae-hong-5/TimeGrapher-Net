@@ -80,7 +80,7 @@ public partial class MainWindow
         Action captureEndedHandler = () => OnLiveCaptureEnded(runSessionToken);
         audioWorker.CaptureEnded += captureEndedHandler;
         mRunSessionController.AttachInputWorker(audioWorker, runSessionToken, () => audioWorker.CaptureEnded -= captureEndedHandler);
-        audioWorker.Start(deviceNumber, sampleRate, (float)(mViewModel.Gain / 1000.0));
+        audioWorker.Start(deviceNumber, sampleRate, (float)(mViewModel.Gain / 1000.0), mViewModel.CaptureBufferMs);
     }
 
     private void OnLiveCaptureEnded(ulong runSessionToken)

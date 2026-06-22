@@ -176,7 +176,7 @@ public sealed class LinuxLiveAudioWorker : ILiveAudioWorker
         return supportedRates;
     }
 
-    public void Start(int deviceNumber, int sampleRate, float volume)
+    public void Start(int deviceNumber, int sampleRate, float volume, int bufferMilliseconds)
     {
         _volume = volume;
         _paused = false;
@@ -190,11 +190,11 @@ public sealed class LinuxLiveAudioWorker : ILiveAudioWorker
 
         if (TryDecodeAlsaDeviceNumber(deviceNumber, out int card, out int device))
         {
-            StartAlsaCapture(card, device, sampleRate);
+            StartAlsaCapture(card, device, sampleRate, bufferMilliseconds);
             return;
         }
 
-        StartPipeWireCapture(deviceNumber, sampleRate);
+        StartPipeWireCapture(deviceNumber, sampleRate, bufferMilliseconds);
     }
 
     private static bool CanOpenDeviceAtSampleRate(int deviceNumber, int sampleRate)
@@ -246,14 +246,14 @@ public sealed class LinuxLiveAudioWorker : ILiveAudioWorker
         }
     }
 
-    private void StartPipeWireCapture(int deviceNumber, int sampleRate)
+    private void StartPipeWireCapture(int deviceNumber, int sampleRate, int bufferMilliseconds)
     {
-        StartProcess(BuildPipeWireStartInfo(deviceNumber, sampleRate), PcmSampleFormat.Float32LittleEndian, "pw-record");
+        StartProcess(BuildPipeWireStartInfo(deviceNumber, sampleRate, bufferMilliseconds), PcmSampleFormat.Float32LittleEndian, "pw-record");
     }
 
-    private void StartAlsaCapture(int card, int device, int sampleRate)
+    private void StartAlsaCapture(int card, int device, int sampleRate, int bufferMilliseconds)
     {
-        StartProcess(BuildAlsaStartInfo(card, device, sampleRate), PcmSampleFormat.Int16LittleEndian, "arecord");
+        StartProcess(BuildAlsaStartInfo(card, device, sampleRate, bufferMilliseconds), PcmSampleFormat.Int16LittleEndian, "arecord");
     }
 
     private static ProcessStartInfo BuildPipeWireProbeStartInfo(int deviceNumber, int sampleRate)
@@ -263,7 +263,7 @@ public sealed class LinuxLiveAudioWorker : ILiveAudioWorker
         return startInfo;
     }
 
-    private static ProcessStartInfo BuildPipeWireStartInfo(int deviceNumber, int sampleRate)
+    internal static ProcessStartInfo BuildPipeWireStartInfo(int deviceNumber, int sampleRate, int bufferMilliseconds = LiveAudioDefaults.BufferMilliseconds)
     {
         var startInfo = new ProcessStartInfo
         {
@@ -286,6 +286,14 @@ public sealed class LinuxLiveAudioWorker : ILiveAudioWorker
             startInfo.ArgumentList.Add("--target");
             startInfo.ArgumentList.Add(deviceNumber.ToString(CultureInfo.InvariantCulture));
         }
+        // A non-default buffer requests an explicit capture latency; the default omits the
+        // flag so pw-record keeps its native buffering (current behaviour). The trailing
+        // "-" stays last so the probe builder can swap it for /dev/null.
+        if (bufferMilliseconds != LiveAudioDefaults.BufferMilliseconds)
+        {
+            startInfo.ArgumentList.Add("--latency");
+            startInfo.ArgumentList.Add(bufferMilliseconds.ToString(CultureInfo.InvariantCulture) + "ms");
+        }
         startInfo.ArgumentList.Add("-");
         return startInfo;
     }
@@ -297,7 +305,7 @@ public sealed class LinuxLiveAudioWorker : ILiveAudioWorker
         return startInfo;
     }
 
-    private static ProcessStartInfo BuildAlsaStartInfo(int card, int device, int sampleRate)
+    internal static ProcessStartInfo BuildAlsaStartInfo(int card, int device, int sampleRate, int bufferMilliseconds = LiveAudioDefaults.BufferMilliseconds)
     {
         var startInfo = new ProcessStartInfo
         {
@@ -318,6 +326,13 @@ public sealed class LinuxLiveAudioWorker : ILiveAudioWorker
         startInfo.ArgumentList.Add(Channels.ToString(CultureInfo.InvariantCulture));
         startInfo.ArgumentList.Add("-r");
         startInfo.ArgumentList.Add(sampleRate.ToString(CultureInfo.InvariantCulture));
+        // arecord takes buffer time in microseconds; omit at the default so ALSA keeps its
+        // negotiated buffer (current behaviour). The trailing "-" stays last for the probe swap.
+        if (bufferMilliseconds != LiveAudioDefaults.BufferMilliseconds)
+        {
+            startInfo.ArgumentList.Add("--buffer-time");
+            startInfo.ArgumentList.Add((bufferMilliseconds * 1000).ToString(CultureInfo.InvariantCulture));
+        }
         startInfo.ArgumentList.Add("-");
         return startInfo;
     }
