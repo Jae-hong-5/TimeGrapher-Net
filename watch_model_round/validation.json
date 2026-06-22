@@ -1,0 +1,81 @@
+{
+  "watch_model_round.glb": {
+    "geometryCount": 26,
+    "nodeCount": 28,
+    "geometryNodes": [
+      "Case",
+      "Bezel",
+      "Dial",
+      "CaseBack",
+      "CaseBackRing",
+      "Marker_12_Accent",
+      "Marker_1",
+      "Marker_2",
+      "Marker_3",
+      "Marker_4",
+      "Marker_5",
+      "Marker_6",
+      "Marker_7",
+      "Marker_8",
+      "Marker_9",
+      "Marker_10",
+      "Marker_11",
+      "HourHand",
+      "MinuteHand",
+      "SecondHand",
+      "CenterPin",
+      "CrownStem",
+      "Crown",
+      "CrownBand_0.0221",
+      "CrownBand_0.0234",
+      "CrownBand_0.0247"
+    ],
+    "boundsMeters": [
+      [
+        -0.0206,
+        -0.0206,
+        -0.00391
+      ],
+      [
+        0.02525,
+        0.0206,
+        0.00476
+      ]
+    ],
+    "extentsMeters": [
+      0.04585,
+      0.0412,
+      0.00867
+    ],
+    "triangles": 3540,
+    "bytes": 62080,
+    "forbiddenPartsPresent": []
+  },
+  "watch_model_round_vertexcolor.glb": {
+    "geometryCount": 1,
+    "nodeCount": 3,
+    "geometryNodes": [
+      "RoundWatch"
+    ],
+    "boundsMeters": [
+      [
+        -0.0206,
+        -0.0206,
+        -0.00391
+      ],
+      [
+        0.02525,
+        0.0206,
+        0.00476
+      ]
+    ],
+    "extentsMeters": [
+      0.04585,
+      0.0412,
+      0.00867
+    ],
+    "triangles": 3540,
+    "bytes": 72732,
+    "forbiddenPartsPresent": []
+  }
+}

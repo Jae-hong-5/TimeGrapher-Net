@@ -1283,15 +1283,12 @@ internal sealed partial class InfoTabRegistry
         }
 
         var initialPosition = (WatchPosition)(context.ViewModel?.SelectedPositionIndex ?? 0);
-        var diagram = new WatchPositionDiagram
+        var diagram = new WatchModelView
         {
             Position = initialPosition,
-            ShowLabels = false,
-            Width = 236,
-            Height = 126,
-            Margin = new Thickness(0, 4, 0, 0),
-            HorizontalAlignment = HorizontalAlignment.Center,
-            VerticalAlignment = VerticalAlignment.Top,
+            Margin = new Thickness(0, 2, 0, 2),
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            VerticalAlignment = VerticalAlignment.Stretch,
         };
         ToolTip.SetTip(diagram, "Active watch position orientation");
         var positionRenderer = new WatchPositionsRenderer(buttons, diagram, initialPosition);
@@ -1416,13 +1413,13 @@ internal sealed partial class InfoTabRegistry
     }
 
     private static Border CreateActivePositionPanel(
-        WatchPositionDiagram diagram,
+        WatchModelView diagram,
         out TextBlock activePositionText,
         out TextBlock activeOrientationText)
     {
         activePositionText = new TextBlock
         {
-            FontSize = 28,
+            FontSize = 20,
             HorizontalAlignment = HorizontalAlignment.Center,
             TextAlignment = TextAlignment.Center,
         };
@@ -1433,24 +1430,33 @@ internal sealed partial class InfoTabRegistry
             TextAlignment = TextAlignment.Center,
         };
 
-        var stack = new StackPanel
+        // The model fills the middle (* row) so it is as large as the panel
+        // allows; the position labels are pinned to the bottom Auto row.
+        var labels = new StackPanel
         {
             Spacing = 2,
-            Children =
-            {
-                CreatePositionSectionHeader("ACTIVE"),
-                diagram,
-                activePositionText,
-                activeOrientationText,
-            },
+            VerticalAlignment = VerticalAlignment.Bottom,
+            Children = { activePositionText, activeOrientationText },
         };
+
+        var layout = new Grid
+        {
+            RowDefinitions = new RowDefinitions("Auto,*,Auto"),
+        };
+        TextBlock header = CreatePositionSectionHeader("ACTIVE");
+        Grid.SetRow(header, 0);
+        Grid.SetRow(diagram, 1);
+        Grid.SetRow(labels, 2);
+        layout.Children.Add(header);
+        layout.Children.Add(diagram);
+        layout.Children.Add(labels);
 
         return new Border
         {
             Classes = { "PositionPanel" },
             Padding = new Thickness(10, 8),
             Margin = new Thickness(4, 0, 10, 0),
-            Child = stack,
+            Child = layout,
         };
     }
 

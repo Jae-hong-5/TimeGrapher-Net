@@ -177,11 +177,12 @@ flowchart TB
 | Services | ViewModels | Analysis, AudioIo, Detection, Metrics, Shared |
 | Audio | — | Analysis, AudioIo, Shared, Sim, 플랫폼 백엔드(RID 조건부) |
 | Tabs | ViewModels, Rendering | Analysis, Shared |
-| Rendering | Tabs | Analysis, Metrics, Shared |
+| Rendering | Tabs, Assets | Analysis, Metrics, Shared |
 
 - `Program`은 `AnalysisRunSettings`에서 `AnalysisWorker.Config`를 조립하며 `PllMatchGate`(`Core.Detection.Scoring`)와 `PlotThemePalette`(`Rendering`)를 직접 사용한다. 또한 시작 시 `AcceptBandSettingsStore.Load()`로 사용자 정상 밴드를 `AcceptBandSettings.Current`(`Rendering`)에 복원한다(그래프 생성 이전).
 - `ViewModels`는 스윕 배수 기본값을 `SweepFrameProjector.DefaultSweepMultiple`(`Core.Analysis`)로 초기화하므로 `Shared` 외에 `Analysis`에도 의존한다.
 - `Rendering`과 `Tabs`는 순환처럼 보이지만 분리되어 있다: `Rendering`의 프레임 컨슈머가 `Tabs`의 라우팅 계약(`IAnalysisFrameConsumer`/`IThemedFrameConsumer`/`IAcceptBandConsumer`)을 구현하고, `Tabs`의 레지스트리가 컨슈머를 등록한다. `IAcceptBandConsumer`는 사용자 정상 밴드 편집을 모든 밴드 그래프에 라이브로 팬아웃하는 두 번째 브로드캐스트 계약으로, 테마 팬아웃(`IThemedFrameConsumer`)과 같은 패턴이다.
+- Positions 탭의 활성 워치 자세는 `WatchModelView`(자체 CPU 소프트웨어 렌더)가 표시한다. 번들된 vertex-color GLB(`Assets/Model/watch_model_round_vertexcolor.glb`)를 `GlbMeshLoader`가 읽고 `WatchModelRasterizer`가 `System.Numerics`만으로 원근 투영·z-buffer·flat 음영 래스터화한다(GPU/외부 3D 라이브러리 무의존 — 이식성 driver, `SAP_TACTICS_ANALYSIS.md` 참고). 포지션 버튼이 `WatchPositionsRenderer`를 통해 `Position`을 바꾸면 `WatchModelOrientation`이 정한 목표 사원수로 `Quaternion.Slerp`(650 ms) 애니메이션한다. 즉 `Rendering`이 `Assets`(avares 모델 리소스)를 사용한다.
 
 ### MVVM 리팩토링 후 App 내부 구조 (순수 MVVM 정리)
 
