@@ -129,6 +129,22 @@ public sealed class DetectorStressScenarioTests
     }
 
     [Fact]
+    public void SustainedLoudGainStep_TripsLibraryRegimeResetAndReacquires()
+    {
+        // A sustained ~10x gain step after lock is a genuine regime change. The
+        // library-level flush (TgDetector's hasLockContext branch: DetectorResetEvent
+        // + sync/lock flush + gate re-seed) is only reachable through the full engine,
+        // not the TgDetectorCore-only RegimeGuardTests. Assert the reset fires and the
+        // detector re-acquires lock at the same BPH afterward.
+        StressResult result = Run(pcmPeak: 0.05, noisePeak: 0.005,
+            bph: 21600, seconds: 16, gainStepAtS: 6.0, gainStepFactor: 10.0);
+
+        Assert.True(result.Resets > 0, "a sustained loud gain step must trip the library regime reset");
+        Assert.Equal(TgSyncStatus.Synced, result.FinalSync);
+        Assert.Equal(21600, result.DetectedBph);
+    }
+
+    [Fact]
     public void WeakSignal_DefaultDetectorKeepsTimedEvents()
     {
         StressResult result = Run(pcmPeak: 0.035, noisePeak: 0.010,
