@@ -80,7 +80,13 @@ public partial class MainWindow
         Action captureEndedHandler = () => OnLiveCaptureEnded(runSessionToken);
         audioWorker.CaptureEnded += captureEndedHandler;
         mRunSessionController.AttachInputWorker(audioWorker, runSessionToken, () => audioWorker.CaptureEnded -= captureEndedHandler);
-        audioWorker.Start(deviceNumber, sampleRate, (float)(mViewModel.Gain / 1000.0), mViewModel.CaptureBufferMs);
+        // Normalize at the boundary so an out-of-range/off-step value can never reach the
+        // capture buffer (the controller already snaps on edit).
+        audioWorker.Start(
+            deviceNumber,
+            sampleRate,
+            (float)(mViewModel.Gain / 1000.0),
+            SamplingSettings.NormalizeCaptureBufferMs(mViewModel.CaptureBufferMs));
     }
 
     private void OnLiveCaptureEnded(ulong runSessionToken)

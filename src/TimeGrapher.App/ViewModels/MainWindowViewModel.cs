@@ -41,8 +41,10 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     // Sampling parameters read at run start; seeded from SamplingSettings on startup. The
     // literal defaults mirror SamplingSettings.Default (kept here rather than referencing
     // Core, like the band fields above), so an un-seeded view-model still builds sane runs.
-    private int _analysisBlockSize = 4096;
-    private int _captureBufferMs = 20;
+    // decimal (not int) to match Avalonia NumericUpDown.Value (decimal?), like the band
+    // inputs; the controller snaps these to an in-range step multiple on each edit.
+    private decimal _analysisBlockSize = 4096m;
+    private decimal _captureBufferMs = 20m;
     private int _selectedInputDeviceIndex = -1;
     private int _selectedSampleRateIndex = -1;
     private int _selectedAveragingPeriodIndex = -1;
@@ -342,14 +344,14 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     }
 
     /// <summary>Analysis block size in samples (the detector input window); read at run start, so a run restart applies a change.</summary>
-    public int AnalysisBlockSize
+    public decimal AnalysisBlockSize
     {
         get => _analysisBlockSize;
         set => SetProperty(ref _analysisBlockSize, value);
     }
 
     /// <summary>Audio capture buffer length in milliseconds; read at run start, so a run restart applies a change.</summary>
-    public int CaptureBufferMs
+    public decimal CaptureBufferMs
     {
         get => _captureBufferMs;
         set => SetProperty(ref _captureBufferMs, value);
