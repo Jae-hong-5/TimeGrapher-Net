@@ -33,13 +33,19 @@ public sealed class AnalysisWorker : IDisposable
         public int SoundImageWidth = 0;
         public int SoundImageHeight = 0;
         public int ScopeSnapshotPointBudget = 8000;
+        /// <summary>Detector input block size in samples; a larger block trades latency for
+        /// fewer analysis wake-ups. Fixed at construction, so a run restart applies a change.</summary>
+        public int AnalysisBlockSize = DefaultBlockSamples;
         public uint SoundImageBackgroundColor = 0xFFFFFFFFu;
         /// <summary>True under the light UI theme. The spectrogram colormap is one shared viridis LUT for both themes; only the empty (no-input) background follows this.</summary>
         public bool SpectrogramLightColormap = false;
         public ISampleWriter? SampleWriter = null;
     }
 
-    private const uint DetectorNumberOfSamples = 4096u;
+    /// <summary>Default detector input block size in samples (~85 ms at 48 kHz). The
+    /// detector is stream-processing, so this is purely an analysis-cadence/latency knob,
+    /// not a power-of-two FFT window (the spectrogram owns its own window).</summary>
+    public const int DefaultBlockSamples = 4096;
     private readonly MasterAudioBuffer _rawAudio;
     private readonly Config _config;
     private readonly DetectorMetricsEngine _pipeline;
@@ -98,7 +104,7 @@ public sealed class AnalysisWorker : IDisposable
             config.HpfCutoffHz,
             config.EventGate != null ? new BeatEventGateConfig(config.EventGate) : null));
 
-        _inputBlock = new float[DetectorNumberOfSamples];
+        _inputBlock = new float[config.AnalysisBlockSize];
         _scopeRateProjector = new ScopeRateFrameProjector(
             config.SampleRate,
             config.UseCOnset,
@@ -113,7 +119,7 @@ public sealed class AnalysisWorker : IDisposable
             config.SampleRate,
             config.LiftAngle,
             config.EventGate?.WindowPostMs ?? 0.0,
-            (int)DetectorNumberOfSamples);
+            config.AnalysisBlockSize);
         _sweepProjector = new SweepFrameProjector(config.SampleRate);
         _multiFilterProjector = new MultiFilterFrameProjector(config.SampleRate);
     }
