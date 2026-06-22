@@ -58,6 +58,27 @@ public sealed class WatchMetricsDerivedMeasuresTests
     }
 
     [Fact]
+    public void RateRls_WarmsUpAtLowManualBph()
+    {
+        // At a low BPH (7200 = 2 beats/s) the per-phase RLS window used to be
+        // AveragingPeriod*beatsPerSecond = 4, below RateWarmupPoints (6), so the
+        // rate-valid gate (Count >= 6) could never be satisfied and error-rate
+        // s/day stayed permanently unproduced. The window is now floored at
+        // RateWarmupPoints, so a steady low-BPH stream eventually validates.
+        var metrics = new WatchMetrics(new WatchMetricsConfig { SampleRate = SampleRate, AveragingPeriod = 2 });
+        const double lowBph = 7200.0; // 2 beats/s -> 500 ms between A events
+        var intervals = new double[24];
+        for (int i = 0; i < intervals.Length; i++)
+        {
+            intervals[i] = 500.0;
+        }
+
+        List<WatchMetricsUpdate> updates = FeedAEventsAtBph(metrics, lowBph, intervals);
+
+        Assert.Contains(updates, u => u.BeatTimingSampleUpdated && u.BeatTimingSample.RateValid);
+    }
+
+    [Fact]
     public void SignedBeatErrorAndDiffTicTac_FollowEquationsWorkedExample()
     {
         // t1=125.8 ms (tick), t2=124.2 ms (tock) -> BE = (t1-t2)/2 = +0.8 ms,

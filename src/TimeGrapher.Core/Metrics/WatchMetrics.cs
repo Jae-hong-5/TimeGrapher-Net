@@ -299,8 +299,14 @@ public sealed class WatchMetrics
             _zeroOffsetValue = 0.0;
             _rlsRateValid = false;
             _beatsPerSecondWindow = BeatWindowSize(_bph, seconds: 1);
-            _rlsTicRate.Resize(_config.AveragingPeriod * _beatsPerSecondWindow);
-            _rlsTocRate.Resize(_config.AveragingPeriod * _beatsPerSecondWindow);
+            // The rate RLS window must hold at least RateWarmupPoints samples per
+            // phase, or the rate-valid gate (Count >= RateWarmupPoints) can never be
+            // satisfied. For low manual BPH (e.g. 3600-7800) AveragingPeriod*beats-
+            // per-second falls below that floor, which would otherwise leave error-
+            // rate s/day permanently unproduced for those supported rates.
+            int rateWindow = Math.Max(_config.RateWarmupPoints, _config.AveragingPeriod * _beatsPerSecondWindow);
+            _rlsTicRate.Resize(rateWindow);
+            _rlsTocRate.Resize(rateWindow);
             _rlsTicRate.Reset();
             _rlsTocRate.Reset();
 
@@ -311,6 +317,10 @@ public sealed class WatchMetrics
             _beatErrorIdx = 0;
             _rollBeatError.Reset();
             _rollAmplitude.Reset();
+            // A tic amplitude staged before the sync loss must not pair with the
+            // first toc after re-lock. Reset() clears this on a full reset, but the
+            // inline re-sync path here did not, so clear the staged tic on (re)sync.
+            _amplitudeTicValid = false;
 
             // Derived measures restart with the sync segment: a stale _lastAEvent
             // from before a sync loss must not contribute a bogus period delta.
