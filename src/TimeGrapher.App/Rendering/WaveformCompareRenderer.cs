@@ -235,9 +235,14 @@ internal sealed class WaveformCompareRenderer
         UpdateHeader(frame.MetricsHistory);
 
         BeatSegmentsSnapshot? snapshot = frame.BeatSegments;
-        if (snapshot != null)
+        if (snapshot != null && (snapshot.Version != _lastVersion || _lastSnapshot == null))
         {
-            _lastSnapshot = snapshot;
+            // Deep-copy once per version: the cached snapshot is read later by the
+            // interaction handlers (SelectPairAtPixelY / ghost overlay) long after the
+            // BeatSegmentCapture pool (protected only two snapshot versions) recycles
+            // the buffers. Gating on Version avoids re-copying every frame while the
+            // same snapshot instance is reattached between segment completions.
+            _lastSnapshot = CopyForCache(snapshot);
         }
 
         bool changed = false;
@@ -271,6 +276,53 @@ internal sealed class WaveformCompareRenderer
 
         _lastHistoryVersion = history.Version;
         _headerText.Text = WaveformCompareLogic.HeaderLine(history);
+    }
+
+    /// <summary>
+    /// Deep-copies the pooled segment envelope/raw arrays into UI-owned storage so
+    /// the cached snapshot (read later by SelectPairAtPixelY / ghost overlay on a
+    /// click) never references a BeatSegmentCapture pool buffer that has since been
+    /// recycled. Mirrors BeatNoiseScopeRenderer.CopyForCache; scalar fields, markers,
+    /// and the average snapshot are immutable and shared as-is.
+    /// </summary>
+    private static BeatSegmentsSnapshot CopyForCache(BeatSegmentsSnapshot snapshot)
+    {
+        IReadOnlyList<BeatSegment> cached = snapshot.Segments;
+        if (cached.Count == 0)
+        {
+            return snapshot;
+        }
+
+        var owned = new BeatSegment[cached.Count];
+        for (int i = 0; i < cached.Count; i++)
+        {
+            BeatSegment s = cached[i];
+            owned[i] = new BeatSegment
+            {
+                Samples = s.Samples.ToArray(),
+                RawValid = s.RawValid,
+                RawMin = s.RawMin.ToArray(),
+                RawMax = s.RawMax.ToArray(),
+                MsPerPoint = s.MsPerPoint,
+                StartTimeS = s.StartTimeS,
+                IsTic = s.IsTic,
+                AOffsetMs = s.AOffsetMs,
+                PeakValue = s.PeakValue,
+                CPeakValid = s.CPeakValid,
+                CPeakOffsetMs = s.CPeakOffsetMs,
+                COnsetValid = s.COnsetValid,
+                COnsetOffsetMs = s.COnsetOffsetMs,
+            };
+        }
+
+        return new BeatSegmentsSnapshot
+        {
+            Version = snapshot.Version,
+            Segments = owned,
+            Markers = snapshot.Markers,
+            LiftAngleDeg = snapshot.LiftAngleDeg,
+            Average = snapshot.Average,
+        };
     }
 
     private void RenderLanes(BeatSegmentsSnapshot snapshot, BeatMetricsHistorySnapshot? history)
