@@ -6,7 +6,17 @@ namespace TimeGrapher.Core.Analysis;
 
 public sealed class ScopeRateFrameProjector
 {
-    private const int ScopeSnapshotSeconds = 2;
+    // How much scope history the Core retains (and so how far back the user can
+    // pan in the Rate/Scope tab). Decoupled from the on-screen zoom-out ceiling:
+    // the renderer still caps any single view at 2 s (MaxScopeWindowSeconds), but
+    // the buffer keeps 10 s so a pan can reveal earlier audio.
+    private const int ScopeRetentionSeconds = 10;
+
+    // Reference window for the decimation stride. The stride is sized so that a 2 s
+    // span carries the full point budget, which keeps the on-screen resolution of
+    // any (≤2 s) view constant regardless of how long the retention buffer is. The
+    // retained point count then scales with ScopeRetentionSeconds, not the stride.
+    private const int ScopeStrideReferenceSeconds = 2;
 
     private readonly int _sampleRate;
     private readonly bool _useCOnset;
@@ -244,7 +254,7 @@ public sealed class ScopeRateFrameProjector
     private int ScopeSnapshotStride()
     {
         int baseStride = Math.Max(1, _sampleRate / 48000);
-        int maxWindowSamples = Math.Max(1, ScopeSnapshotSeconds * _sampleRate);
+        int maxWindowSamples = Math.Max(1, ScopeStrideReferenceSeconds * _sampleRate);
         int pointBudget = Math.Max(1, _scopeSnapshotPointBudget);
         int budgetStride = (int)Math.Ceiling(maxWindowSamples / (double)pointBudget);
         return Math.Max(baseStride, budgetStride) * _strideScale;
@@ -253,7 +263,7 @@ public sealed class ScopeRateFrameProjector
     private void TrimScopeWindow()
     {
         double minX = 0.0;
-        ulong historySamples = (ulong)(ScopeSnapshotSeconds * _sampleRate);
+        ulong historySamples = (ulong)(ScopeRetentionSeconds * _sampleRate);
         if (_localGraphTicks > historySamples)
         {
             minX = _localGraphTicks - historySamples;

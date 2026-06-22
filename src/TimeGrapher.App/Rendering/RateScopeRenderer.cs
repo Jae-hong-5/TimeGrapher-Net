@@ -49,9 +49,10 @@ internal sealed class RateScopeRenderer
     private int _sampleRate = 44100;
 
     // Default live scope window shown on screen (500 ms) and the maximum span the
-    // user may zoom out to (2 s). The Core retains 2 s of scope history
-    // (ScopeRateFrameProjector.ScopeSnapshotSeconds), so 2 s is also the hard
-    // zoom-out ceiling enforced by ScopeXViewBoundsRule.
+    // user may zoom out to (2 s), enforced by ScopeXViewBoundsRule. The Core retains
+    // more history than this (ScopeRateFrameProjector.ScopeRetentionSeconds, 10 s),
+    // so a pan can scroll back earlier than the 2 s view while no single view ever
+    // shows more than 2 s.
     private const double DefaultScopeWindowSeconds = 0.5;
     private const double MaxScopeWindowSeconds = 2.0;
 
@@ -337,8 +338,8 @@ internal sealed class RateScopeRenderer
                 return;
             }
 
-            // Largest visible span = the smaller of the retained data and the 2 s
-            // zoom-out ceiling, so the user can never show more than 2 s at once.
+            // Zoom-out ceiling: the user can never show more than 2 s at once (nor
+            // more than the retained data when that is shorter).
             double cap = Math.Min(extent, MaxScopeWindowSeconds * _owner._sampleRate);
 
             double left = _xAxis.Range.Min;
@@ -349,29 +350,35 @@ internal sealed class RateScopeRenderer
                 return;
             }
 
-            if (span >= cap)
+            // Clamp the span to the zoom-out ceiling, anchored on the view's right
+            // edge so an over-zoom shrinks in place instead of snapping to the newest
+            // data. (The old "span >= cap -> right = max" pinned the view to the
+            // newest 2 s, which blocked panning once the retained window grew past
+            // the 2 s ceiling — at full zoom every frame dragged the view back to now.)
+            if (span > cap)
+            {
+                left = right - cap;
+                span = cap;
+            }
+
+            // Confine the window to the retained data extent, preserving its span so
+            // a pan stops at the data edges with the start point pinned to the data.
+            if (right > max)
             {
                 right = max;
-                left = max - cap;
+                left = max - span;
             }
-            else
+
+            if (left < min)
             {
-                if (left < min)
-                {
-                    left = min;
-                    right = min + span;
-                }
+                left = min;
+                right = min + span;
+            }
 
-                if (right > max)
-                {
-                    right = max;
-                    left = max - span;
-                }
-
-                if (left < min)
-                {
-                    left = min;
-                }
+            // Span still wider than the data after capping: snap to the full extent.
+            if (right > max)
+            {
+                right = max;
             }
 
             _xAxis.Range.Min = left;
