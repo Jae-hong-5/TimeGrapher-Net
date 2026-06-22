@@ -130,7 +130,8 @@ Build on a dev PC (one prepared via the Windows steps above) and copy only the o
 - The **Positions** tab combines compact position-selection buttons on the left with per-position sequence measurements on the right.
 - Three inputs: **Live** (mic), **Playback** (WAV file), **Simulation** (synthetic signal).
 - Optionally records the input to WAV while analyzing (offered for Live and Simulation runs; Playback only replays an existing file).
-- A console mode to check detection accuracy and audio devices headlessly.
+- A **Settings** window tunes run options (C-onset timing, PLL impulse veto, pause-on-position-change), **sampling parameters** (analysis block size, capture-buffer length), CSV measurement logging, and the acceptable (normal-range) bands for Error Rate / Amplitude / Beat Error.
+- A console mode to check detection accuracy (`--generated` / `--byte-fixtures`, `--adverse`) and audio devices headlessly.
 
 ## Why Avalonia / .NET
 
@@ -169,7 +170,7 @@ flowchart LR
 ### Input worker contract
 
 All three inputs (Live · Playback · Simulation) implement the shared `IAudioInputWorker` (pause · stop ·
-data-ready). Only mic input adds device selection, volume, and capture-end via `ILiveAudioWorker`.
+data-ready). Only mic input adds device selection, volume, capture-buffer length, and capture-end via `ILiveAudioWorker`.
 Core only needs to know this small contract, so per-OS backends drop in freely.
 
 ```mermaid
@@ -184,7 +185,7 @@ classDiagram
     class ILiveAudioWorker {
         <<interface>>
         +event CaptureEnded
-        +Start(device, rate, volume)
+        +Start(device, rate, volume, bufferMs)
         +SetVolume(float)
     }
     IAudioInputWorker <|-- ILiveAudioWorker
@@ -244,7 +245,7 @@ whole app (chrome *and* graphs) means editing only the `App.axaml` color block.
 | `TimeGrapher.Platform.WindowsAudio` | Windows mic input (NAudio) |
 | `TimeGrapher.Platform.LinuxAudio` | Raspberry Pi mic input (PipeWire → ALSA) |
 | `TimeGrapher.Verify` | Headless console that checks BPH detection accuracy on WAV files |
-| `*.Tests` | xUnit tests (Core / App / WindowsAudio / LinuxAudio) |
+| `*.Tests` | xUnit tests (Core / App / WindowsAudio / LinuxAudio / Verify) |
 
 For deeper design background and the Qt→.NET porting story, see the `docs/` folder.
 
