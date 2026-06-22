@@ -8,6 +8,38 @@ namespace TimeGrapher.Platform.LinuxAudio.Tests;
 public sealed class LinuxLiveAudioWorkerTests
 {
     [Fact]
+    public void ParseWpctlSources_IncludesSourceWhoseNameContainsVideo()
+    {
+        // A source line whose NAME contains "Video" (a real USB capture device with
+        // an audio source) must not terminate enumeration: the parser breaks the
+        // Sources block only on a real section header, never on a source-name
+        // substring, so that source and every source after it stay selectable.
+        const string status = """
+Audio
+ Sources:
+    *   65. USB Video Capture Mono [vol: 1.00]
+        66. Cubilux CA7 Mono [vol: 0.80]
+ Filters:
+ Streams:
+""";
+
+        IReadOnlyList<LiveAudioDevice> devices = LinuxLiveAudioWorker.ParseWpctlSources(status);
+
+        Assert.Collection(
+            devices,
+            first =>
+            {
+                Assert.Equal(65, first.Number);
+                Assert.Equal("USB Video Capture Mono", first.Name);
+            },
+            second =>
+            {
+                Assert.Equal(66, second.Number);
+                Assert.Equal("Cubilux CA7 Mono", second.Name);
+            });
+    }
+
+    [Fact]
     public void ParseWpctlSources_ReturnsSourceNodesOnly()
     {
         const string status = """

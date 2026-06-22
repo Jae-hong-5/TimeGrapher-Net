@@ -92,6 +92,23 @@ public sealed class LinuxLiveAudioWorker : ILiveAudioWorker
                 continue;
             }
 
+            // A source line carries an id (e.g. "65. USB Video Capture [vol: 1.00]")
+            // and must be added even when its NAME contains a section keyword such
+            // as "Video": the break below only ends the Sources block on a real
+            // section header, which never matches the id-prefixed source pattern.
+            Match match = SourceLineRegex.Match(line);
+            if (match.Success &&
+                int.TryParse(match.Groups["id"].Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int id))
+            {
+                string name = match.Groups["name"].Value.Trim();
+                if (name.Length != 0)
+                {
+                    devices.Add(new LiveAudioDevice(id, name));
+                }
+
+                continue;
+            }
+
             if (line.Contains("Filters:", StringComparison.Ordinal) ||
                 line.Contains("Streams:", StringComparison.Ordinal) ||
                 line.Contains("Video", StringComparison.Ordinal) ||
@@ -99,21 +116,6 @@ public sealed class LinuxLiveAudioWorker : ILiveAudioWorker
             {
                 break;
             }
-
-            Match match = SourceLineRegex.Match(line);
-            if (!match.Success ||
-                !int.TryParse(match.Groups["id"].Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int id))
-            {
-                continue;
-            }
-
-            string name = match.Groups["name"].Value.Trim();
-            if (name.Length == 0)
-            {
-                continue;
-            }
-
-            devices.Add(new LiveAudioDevice(id, name));
         }
 
         return devices;
@@ -667,6 +669,11 @@ public sealed class LinuxLiveAudioWorker : ILiveAudioWorker
             if (!process.WaitForExit(timeout))
             {
                 TryKillProcessTree(process);
+                // Observe the abandoned stdout/stderr read tasks: killing the child
+                // closes the pipes and faults the in-flight reads, which would
+                // otherwise surface as unobserved task exceptions on the finalizer.
+                _ = outputTask.ContinueWith(static t => { _ = t.Exception; }, TaskScheduler.Default);
+                _ = errorTask.ContinueWith(static t => { _ = t.Exception; }, TaskScheduler.Default);
                 return "";
             }
 
