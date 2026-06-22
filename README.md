@@ -134,42 +134,7 @@ Build on a dev PC (one prepared via the Windows steps above) and copy only the o
 
 ## Why Avalonia / .NET
 
-This project is a port of the original **Qt/C++** implementation to **Avalonia + C# (.NET 8)**.
-The goal was "maintain and ship for both Windows and the Raspberry Pi together, from one codebase,
-at low cost" — and in practice it paid off as follows.
-
-### 1. Cross-building & releasing is nearly free
-
-.NET uses a CPU-neutral **IL (intermediate language) + bundled runtime** model, so there is no
-per-architecture recompile. `dotnet publish -r <RID>` isn't a recompile — it just bundles the
-target's runtime pack with the same IL — so **two stock GitHub runners (Windows + Ubuntu) produce
-all four targets** (nothing is executed, so no emulation is needed).
-
-| Step | Avalonia / .NET (this project) | If it were Qt / C++ |
-|---|---|---|
-| Per-arch build | swap the `-r` value | a **cross-compile toolchain + sysroot** per target (aarch64-gcc, MSVC ARM64 …) |
-| UI framework | NuGet resolves it per RID automatically | build/obtain **Qt per architecture** (ARM Linux is often built from source) |
-| Native deps | automatic per-RID NuGet assets (e.g. SkiaSharp `.dll`/`.so`) | compile/obtain each library for the target ABI yourself (vcpkg·Conan) |
-| Bundling | one single-file `--self-contained` publish | gather libraries/plugins and fix rpath with `windeployqt`/`linuxdeployqt` |
-| CI | four targets on two stock GitHub runners | per-target environment setup + usually **ARM runners or QEMU emulation** to run/test |
-
-> This repo's multi-arch release (win-x64 · win-arm64 · linux-x64 · linux-arm64) took, in practice,
-> **5 lines of csproj + a workflow matrix** — and zero lines of C# change.
-
-### 2. Usability
-
-**For users (end users)**
-- **Single-file self-contained distribution** — download and run, no .NET install. On Windows
-  extract and run the `.exe`; on the Raspberry Pi, one `./install.sh`.
-- **Four official binaries** — Windows x64/ARM and Linux x64/ARM64, served straight from Releases.
-- **Consistent modern UI** — the Avalonia Fluent theme gives the same look across OSes, with
-  real-time graphs via ScottPlot.
-
-**For developers**
-- **One solution, one language** — the only per-OS divergence is at the audio-backend boundary; everything else is shared.
-- **Safety & productivity** — GC and nullable reference types cut out whole classes of manual-memory/pointer bugs and speed up iteration.
-- **Simple tests & CI** — `Core` has no UI/OS dependencies, so unit testing is easy (currently 700
-  tests) and runs on stock runners with no special setup.
+See [ADR 1: Switch the UI Framework from Qt + C++ to Avalonia UI + .NET + C#](docs/ADR/en/ADR-001.md).
 
 ## Architecture
 
@@ -297,6 +262,8 @@ Package versions are managed centrally in `Directory.Packages.props` and pinned 
 `packages.lock.json`, so restores are always reproducible.
 
 ## Tests / CI
+
+Architecture decision: [ADR 4: Separate App, Test, and Verify Module Structure for AI Usage, TDD Support, and Team Collaboration](docs/ADR/en/ADR-004.md).
 
 **All 700 tests pass** under `dotnet test` (App 391 / Core 285 / WindowsAudio 11 / LinuxAudio 13).
 
