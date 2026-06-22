@@ -265,6 +265,42 @@ public sealed class InfoTabRegistryTests
     }
 
     [Fact]
+    public void ActivePositionButtonStillColorsOnlyItsOwnLabelWhite()
+    {
+        EnsureAvaloniaPlatform();
+        var tabControl = new TabControl();
+        var positionStrip = new Grid();
+        InfoTabRegistry registry = InfoTabRegistry.FromCatalog(tabControl, positionStrip, "Arial");
+        var window = new Window { Content = positionStrip };
+        window.Show();
+
+        try
+        {
+            registry.CreateRouter().Route(
+                new AnalysisFrame
+                {
+                    MetricsHistory = new BeatMetricsHistorySnapshot
+                    {
+                        Version = 1,
+                        ActivePosition = WatchPosition.P6H,
+                    },
+                },
+                InfoTabCatalog.WatchPositionsTabId,
+                new AnalysisTabRenderContext(48000));
+
+            Button activeButton = Assert.Single(positionStrip.Children.OfType<Button>(),
+                button => button.Classes.Contains("active"));
+            TextBlock activeButtonText = Assert.IsType<TextBlock>(activeButton.Content);
+
+            Assert.Equal(Brushes.White, activeButtonText.Foreground);
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    [Fact]
     public void PositionButtonClickBeforePlayUpdatesPositionTabText()
     {
         var tabControl = new TabControl();

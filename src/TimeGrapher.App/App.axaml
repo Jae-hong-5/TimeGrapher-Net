@@ -254,7 +254,7 @@
       <Setter Property="Background" Value="{DynamicResource ChromeAccentBrush}" />
       <Setter Property="Foreground" Value="White" />
     </Style>
-    <Style Selector="Button.PositionButton.active TextBlock">
+    <Style Selector="Button.PositionButton.active > TextBlock">
       <Setter Property="Foreground" Value="White" />
     </Style>
     <Style Selector="Border.SeqActiveRow">

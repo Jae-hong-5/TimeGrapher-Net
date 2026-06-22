@@ -162,6 +162,21 @@ public sealed class AppXamlLoadTests
         Assert.Equal(36.0, SetterDouble(SetterValue(style, Button.MaxHeightProperty)));
     }
 
+    [Fact]
+    public void ActivePositionButtonTextStyleDoesNotReachTooltips()
+    {
+        var app = new App();
+        app.Initialize();
+
+        Assert.DoesNotContain(app.Styles.OfType<Style>(),
+            style => style.Selector?.ToString() == "Button.PositionButton.active TextBlock");
+        Style style = Assert.Single(app.Styles.OfType<Style>(),
+            style => style.Selector?.ToString() == "Button.PositionButton.active > TextBlock");
+
+        Assert.Contains(style.Setters.OfType<Setter>(),
+            setter => setter.Property == TextBlock.ForegroundProperty);
+    }
+
     private static object? SetterValue(Style style, AvaloniaProperty property)
     {
         return style.Setters
