@@ -265,15 +265,16 @@ Package versions are managed centrally in `Directory.Packages.props` and pinned 
 
 Architecture decision: [ADR 4: Separate App, Test, and Verify Module Structure for AI Usage, TDD Support, and Team Collaboration](docs/ADR/en/ADR-004.md).
 
-**All 700 tests pass** under `dotnet test` (App 391 / Core 285 / WindowsAudio 11 / LinuxAudio 13).
+**All 933 tests pass** under `dotnet test` (App 569 / Core 316 / WindowsAudio 11 / LinuxAudio 22 / Verify 15).
 
 ```mermaid
 pie showData
-    title Test distribution (700 total)
-    "App.Tests" : 391
-    "Core.Tests" : 285
+    title Test distribution (933 total)
+    "App.Tests" : 569
+    "Core.Tests" : 316
     "Platform.WindowsAudio.Tests" : 11
-    "Platform.LinuxAudio.Tests" : 13
+    "Platform.LinuxAudio.Tests" : 22
+    "Verify.Tests" : 15
 ```
 
 *Figure 4. Test distribution.*
@@ -296,7 +297,7 @@ git tag v0.1.0 && git push origin v0.1.0
 | Item | Command | Status |
 |---|---|---|
 | Build | `dotnet build TimeGrapherNet.sln -c Release` | ✅ |
-| Test | `dotnet test TimeGrapherNet.sln -c Release` (700/700) | ✅ |
+| Test | `dotnet test TimeGrapherNet.sln -c Release` (933/933) | ✅ |
 | Detection check | `... TimeGrapher.Verify -- --generated --byte-fixtures` (exit 0, generated and byte-built fixtures) | ✅ |
 | GUI run | `dotnet run --project src/TimeGrapher.App` | ✅ |
 | Deploy — Raspberry Pi (linux-arm64) | `dotnet publish ... -r linux-arm64 --self-contained true` | ✅ |
