@@ -349,6 +349,26 @@ card 4: CA7 [Cubilux CA7], device 0: USB Audio [USB Audio]
         Assert.Equal("-", info.ArgumentList[^1]);
     }
 
+    [Fact]
+    public void BuildPipeWireProbeStartInfo_TargetsDevNull_WithNoLatencyFlag()
+    {
+        // The probe swaps the trailing capture target for /dev/null; it must call the
+        // builder at the default buffer so no --latency flag is appended before the swap.
+        ProcessStartInfo info = LinuxLiveAudioWorker.BuildPipeWireProbeStartInfo(deviceNumber: 0, sampleRate: 48000);
+
+        Assert.Equal("/dev/null", info.ArgumentList[^1]);
+        Assert.DoesNotContain("--latency", info.ArgumentList);
+    }
+
+    [Fact]
+    public void BuildAlsaProbeStartInfo_TargetsDevNull_WithNoBufferTimeFlag()
+    {
+        ProcessStartInfo info = LinuxLiveAudioWorker.BuildAlsaProbeStartInfo(card: 3, device: 0, sampleRate: 48000);
+
+        Assert.Equal("/dev/null", info.ArgumentList[^1]);
+        Assert.DoesNotContain("--buffer-time", info.ArgumentList);
+    }
+
     private static ProcessStartInfo BuildStartInfo(string fileName, string[] arguments)
     {
         var startInfo = new ProcessStartInfo { FileName = fileName };

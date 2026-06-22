@@ -256,7 +256,7 @@ public sealed class LinuxLiveAudioWorker : ILiveAudioWorker
         StartProcess(BuildAlsaStartInfo(card, device, sampleRate, bufferMilliseconds), PcmSampleFormat.Int16LittleEndian, "arecord");
     }
 
-    private static ProcessStartInfo BuildPipeWireProbeStartInfo(int deviceNumber, int sampleRate)
+    internal static ProcessStartInfo BuildPipeWireProbeStartInfo(int deviceNumber, int sampleRate)
     {
         ProcessStartInfo startInfo = BuildPipeWireStartInfo(deviceNumber, sampleRate);
         startInfo.ArgumentList[^1] = "/dev/null";
@@ -298,7 +298,7 @@ public sealed class LinuxLiveAudioWorker : ILiveAudioWorker
         return startInfo;
     }
 
-    private static ProcessStartInfo BuildAlsaProbeStartInfo(int card, int device, int sampleRate)
+    internal static ProcessStartInfo BuildAlsaProbeStartInfo(int card, int device, int sampleRate)
     {
         ProcessStartInfo startInfo = BuildAlsaStartInfo(card, device, sampleRate);
         startInfo.ArgumentList[^1] = "/dev/null";
