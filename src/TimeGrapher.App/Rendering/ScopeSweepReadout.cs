@@ -27,7 +27,8 @@ internal static class ScopeSweepReadout
         + "   |   Instantaneous Beat Err " + VarioReadout.Format(
             snapshot is { BeatErrorValid: true } ? snapshot.BeatErrorSignedMs : null, "+0.00;-0.00;0.00", " ms")
         + "   |   A to C " + FormatAtoC(segments)
-        + "   |   Period " + FormatPeriod(snapshot);
+        + "   |   Nominal BPH " + VarioReadout.Format(
+            snapshot is { Bph: > 0 } ? snapshot.Bph : (int?)null, "0", "");
 
     /// <summary>A→C interval from the most recent segment that has a valid C peak.</summary>
     internal static string FormatAtoC(BeatSegmentsSnapshot? segments)
@@ -41,13 +42,6 @@ internal static class ScopeSweepReadout
                     .ToString("+0.0;-0.0;0.0", CultureInfo.InvariantCulture) + " ms";
         }
         return VarioReadout.Missing;
-    }
-
-    /// <summary>Beat period (ms) derived from the current BPH; em dash until synced.</summary>
-    internal static string FormatPeriod(BeatMetricsHistorySnapshot? snapshot)
-    {
-        if (snapshot is not { Bph: > 0 }) return VarioReadout.Missing;
-        return (3600000.0 / snapshot.Bph).ToString("0.0", CultureInfo.InvariantCulture) + " ms";
     }
 
     /// <summary>
