@@ -11,7 +11,7 @@ namespace TimeGrapher.App.Tests;
 /// </summary>
 public sealed class AnalysisRunSettingsTests
 {
-    private static AnalysisRunSettings NewSettings(bool pllEventVeto) => new(
+    private static AnalysisRunSettings NewSettings(bool pllEventVeto, int analysisBlockSize = 4096) => new(
         SampleRate: 48000,
         LiftAngle: 52.0,
         AveragingPeriod: 2,
@@ -22,7 +22,8 @@ public sealed class AnalysisRunSettingsTests
         SoundImageWidth: 100,
         SoundImageHeight: 100,
         ScopeSnapshotPointBudget: 8000,
-        PllEventVeto: pllEventVeto);
+        PllEventVeto: pllEventVeto,
+        AnalysisBlockSize: analysisBlockSize);
 
     [Fact]
     public void Default_DoesNotWireTheVeto()
@@ -40,5 +41,14 @@ public sealed class AnalysisRunSettingsTests
             .ToWorkerConfig(sessionId: 1, sampleWriter: null);
 
         Assert.IsType<PllMatchGate>(config.EventGate);
+    }
+
+    [Fact]
+    public void AnalysisBlockSize_FlowsToWorkerConfig()
+    {
+        AnalysisWorker.Config config = NewSettings(pllEventVeto: false, analysisBlockSize: 8192)
+            .ToWorkerConfig(sessionId: 1, sampleWriter: null);
+
+        Assert.Equal(8192, config.AnalysisBlockSize);
     }
 }
