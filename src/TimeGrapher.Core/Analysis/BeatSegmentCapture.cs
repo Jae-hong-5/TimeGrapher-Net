@@ -191,7 +191,7 @@ public sealed class BeatSegmentCapture
         }
     }
 
-    private static int PendingSlotsFor(int sampleRate, int deliveryBlockSamples)
+    internal static int PendingSlotsFor(int sampleRate, int deliveryBlockSamples)
     {
         double blockMs = deliveryBlockSamples / (double)sampleRate * 1000.0;
         double fastestBeatMs = 3600.0 / FastestSupportedBph * 1000.0;
