@@ -142,7 +142,7 @@ public sealed class PllMatchGateTests
         // Precision: spurious impulse events are vetoed before metrics.
         Assert.True(pllArm.Score.Precision >= baseArm.Score.Precision + 0.03,
             $"pll precision {pllArm.Score.Precision:F3} vs base {baseArm.Score.Precision:F3}");
-        Assert.True(pllArm.Score.Precision >= 0.95, $"pll precision {pllArm.Score.Precision:F3}");
+        Assert.True(pllArm.Score.Precision >= 0.99, $"pll precision {pllArm.Score.Precision:F3}");
 
         // Recall cost stays marginal.
         Assert.True(pllArm.Score.Recall >= baseArm.Score.Recall - 0.05,
