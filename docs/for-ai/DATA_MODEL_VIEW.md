@@ -383,6 +383,25 @@ class PixelBuffer {
     +uint[] Pixels
 }
 
+class TgBphMode {
+    <<enumeration>>
+    Auto
+    Manual
+}
+
+class TgEventType {
+    <<enumeration>>
+    Unknown
+    A
+    C
+}
+
+class TgCPlacement {
+    <<enumeration>>
+    Peak
+    Onset
+}
+
 class TgConfig {
     +double SampleRate
     +TgBphMode BphMode
@@ -513,8 +532,11 @@ WavData "1" --> "0..*" MasterAudioBuffer : 벤치마크 경로(AnalysisBenchmark
 MasterAudioBuffer "1" --> "1" TgResult : 분석 워커가 블록 단위로 읽어 검출(엔진이 재사용 버퍼 1개에 채움)
 
 TgConfig "1" --> "1" TgResult : 검출 설정(엔진 내부 재사용 결과)
+TgConfig "1" --> "1" TgBphMode : BPH 모드
+TgConfig "1" --> "1" TgCPlacement : C 배치
 TgResult "1" --> "1" TgSyncStatus : sync 상태
 TgResult "1" *-- "0..*" TgEvent : 이벤트 목록
+TgEvent "1" --> "1" TgEventType : 이벤트 종류
 DetectorResultSnapshot "1" --> "1" TgSyncStatus : sync 상태
 DetectorMetricsEngineConfig "1" --> "0..*" DetectorMetricsBlockUpdate : 공유 엔진 계약(블록당 산출)
 DetectorMetricsEngineConfig "1" --> "1" TgConfig : 엔진이 내부 검출기 설정 파생
