@@ -488,4 +488,31 @@ public sealed class WatchMetricsDerivedMeasuresTests
 
         Assert.False(update.AmplitudeSampleUpdated);
     }
+
+    [Fact]
+    public void AmplitudeSample_DoesNotPairStaleTicAcrossDetectionGap()
+    {
+        // Regression: a staged tic amplitude must not pair with the toc that ends
+        // a detection gap. The gap re-anchors tic/toc parity, so without clearing
+        // the staged tic the post-gap toc would publish a bogus pair average mixing
+        // a pre-gap tic with a post-gap toc (and pollute the position aggregate).
+        const double bph = 3600.0;                 // T = 1 s; A->C of 1/3 s -> 52 deg
+        const double aToCSamples = SampleRate / 3.0;
+        WatchMetrics metrics = NewMetrics();
+
+        metrics.HandleAEvent(0.0, true, bph);                          // beat 1 (tic)
+        WatchMetricsUpdate ticC = metrics.HandleCEvent(aToCSamples, true, bph);
+        Assert.True(ticC.AmplitudeSample.InstantValid);                // tic amplitude staged
+        Assert.False(ticC.AmplitudeSample.PairAverageUpdated);
+
+        // The next A is 3 T after the last one: a two-beat detection gap that
+        // re-anchors parity so the gap-ending event lands on toc.
+        double gapEndingA = SampleRate * 3.0;
+        metrics.HandleAEvent(gapEndingA, true, bph);
+        WatchMetricsUpdate tocC = metrics.HandleCEvent(gapEndingA + aToCSamples, true, bph);
+
+        Assert.True(tocC.AmplitudeSample.InstantValid);                // instant still measured
+        Assert.Equal(52.0, tocC.AmplitudeSample.InstantDeg, 6);
+        Assert.False(tocC.AmplitudeSample.PairAverageUpdated);         // no stale-tic mispair
+    }
 }
