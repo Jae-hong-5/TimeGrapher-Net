@@ -442,6 +442,10 @@ public sealed class TgDetector
                 {
                     _rawPllMatch[i] = (byte)matched;
                 }
+                if (_rawEvents[i].IsOnset != 0)
+                {
+                    _sync.NoteAInterval(_rawEvents[i].TimeSeconds);
+                }
                 if (_sync.Synced == 0) break;
             }
         }
@@ -455,6 +459,14 @@ public sealed class TgDetector
             {
                 _sync.Synced = 0;
             }
+        }
+        /* V5.7: windowed A-to-A consistency guard - demote a held lock whose
+         * recent A-to-A intervals scatter far from their own median (false-lock
+         * rejection on irregular, non-watch impulse trains). Mirrors the time
+         * watchdog's _sync.Synced=0 so the transition handler below does cleanup. */
+        if (_sync.Synced != 0 && _sync.ConsistencyDemote())
+        {
+            _sync.Synced = 0;
         }
         if (prevSynced != 0 && _sync.Synced == 0)
         {

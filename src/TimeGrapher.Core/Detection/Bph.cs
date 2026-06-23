@@ -132,6 +132,32 @@ internal sealed class TgSync
     public double PeriodGain;       // default 0.01
     public double AcGain;           // default 0.05
 
+    /* V5.7: windowed A-to-A interval consistency guard (false-lock rejection).
+     * The consecutive-miss counter cannot see sustained period dispersion: an
+     * irregular non-watch impulse train keeps landing the odd event in-phase,
+     * resetting ConsecutiveMisses below MaxMisses and holding a bogus lock.
+     * The in-band fraction over the recent A-to-A intervals does see it. The
+     * window is cleared on every Lock/Reset so the guard cannot fire until a
+     * full window of post-lock A events has been observed (acquisition is never
+     * starved). Thresholds are internal constants, like the detector's own
+     * tuning constants. */
+    private const int ConsistencyWindow = 64;          // A-to-A intervals
+    private const double ConsistencyBandFrac = 0.25;   // +/- around the window median
+    private const double ConsistencyMinInBand = 0.80;  // demote below this in-band fraction
+    private readonly double[] _intervalRing = new double[ConsistencyWindow];
+    private int _intervalHead;
+    private int _intervalCount;
+    private double _lastATime;
+    private bool _haveLastATime;
+
+    private void ResetConsistencyWindow()
+    {
+        _intervalHead = 0;
+        _intervalCount = 0;
+        _lastATime = 0.0;
+        _haveLastATime = false;
+    }
+
     // tg_sync_init: memset(s, 0, sizeof(*s)) -- all fields zeroed.
     public void Init()
     {
@@ -145,6 +171,7 @@ internal sealed class TgSync
         MaxMisses = 0;
         PeriodGain = 0.0;
         AcGain = 0.0;
+        ResetConsistencyWindow();
     }
 
     // tg_sync_reset
@@ -152,6 +179,7 @@ internal sealed class TgSync
     {
         Synced = 0;
         ConsecutiveMisses = 0;
+        ResetConsistencyWindow();
     }
 
     // tg_sync_lock
@@ -168,6 +196,7 @@ internal sealed class TgSync
         MaxMisses = maxMisses;
         PeriodGain = periodGain;
         AcGain = acGain;
+        ResetConsistencyWindow();
     }
 
     // tg_sync_update
@@ -224,5 +253,53 @@ internal sealed class TgSync
             Synced = 0;
         }
         return 0;
+    }
+
+    /// <summary>
+    /// Records an accepted onset (A) event time, tracking the rolling A-to-A
+    /// interval window the consistency guard reads. No-op for the first A after
+    /// a lock (no previous A to difference against).
+    /// </summary>
+    public void NoteAInterval(double aTime)
+    {
+        if (_haveLastATime)
+        {
+            double interval = aTime - _lastATime;
+            if (interval > 0.0)
+            {
+                _intervalRing[_intervalHead] = interval;
+                _intervalHead = (_intervalHead + 1) % ConsistencyWindow;
+                if (_intervalCount < ConsistencyWindow) _intervalCount++;
+            }
+        }
+        _lastATime = aTime;
+        _haveLastATime = true;
+    }
+
+    /// <summary>
+    /// True when the rolling A-to-A interval window is full and too many of
+    /// those intervals lie far from the window median - sustained period
+    /// inconsistency that indicates a false lock on an irregular (non-watch)
+    /// impulse train. Only ever signals demotion of an already-held lock; it
+    /// cannot fire until <see cref="ConsistencyWindow"/> post-lock A events have
+    /// been observed, so it never blocks acquisition.
+    /// </summary>
+    public bool ConsistencyDemote()
+    {
+        if (_intervalCount < ConsistencyWindow) return false;
+
+        Span<double> sorted = stackalloc double[ConsistencyWindow];
+        _intervalRing.AsSpan(0, ConsistencyWindow).CopyTo(sorted);
+        sorted.Sort();
+        double median = sorted[ConsistencyWindow / 2];
+        if (median <= 0.0) return false;
+
+        double band = ConsistencyBandFrac * median;
+        int inBand = 0;
+        for (int i = 0; i < ConsistencyWindow; i++)
+        {
+            if (Math.Abs(_intervalRing[i] - median) <= band) inBand++;
+        }
+        return (double)inBand / ConsistencyWindow < ConsistencyMinInBand;
     }
 }
