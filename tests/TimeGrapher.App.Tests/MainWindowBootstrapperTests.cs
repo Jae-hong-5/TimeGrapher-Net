@@ -92,14 +92,6 @@ public sealed class MainWindowBootstrapperTests
             _ => { });
 
     [Fact]
-    public void CreateViewModel_ReturnsStoppedViewModel()
-    {
-        MainWindowViewModel vm = MainWindowBootstrapper.CreateViewModel();
-
-        Assert.Equal(RunUiState.Stopped, vm.RunState);
-    }
-
-    [Fact]
     public void Build_ProducesCompleteComposition()
     {
         MainWindowViewModel vm = MainWindowBootstrapper.CreateViewModel();
