@@ -11,7 +11,7 @@ public sealed class MeasurementResultLoggerTests
     {
         string path = NewTempCsvPath();
 
-        using (var logger = new MeasurementResultLogger(path))
+        using (var logger = new MeasurementResultLogger(path, 54m))
         {
             logger.ObserveDisplayed(SampleFrame(sessionId: 7, sourceId: 42, version: 5));
         }
@@ -19,6 +19,7 @@ public sealed class MeasurementResultLoggerTests
         string[] lines = File.ReadAllLines(path);
         File.Delete(path);
 
+        Assert.Equal("lift_angle_deg,54.000000", lines[0]);
         Assert.Equal(
             "session_id,source_id,history_version,latest_time_s,bph,active_position," +
             "rate_valid,rate_s_per_day,amplitude_valid,amplitude_deg,beat_error_valid,beat_error_ms," +
@@ -26,12 +27,12 @@ public sealed class MeasurementResultLoggerTests
             "rate_count,rate_mean_s_per_day,rate_sigma_s_per_day," +
             "amplitude_count,amplitude_mean_deg,amplitude_sigma_deg," +
             "missed_beat_detections,sync_loss_count",
-            lines[0]);
+            lines[1]);
         Assert.Equal(
             "7,42,5,12.500000,28800,CH,true,-2.500000,true,270.250000,true,0.125000," +
             "true,0.300000,true,-0.400000,true,0.500000,4,-1.000000,0.500000," +
             "3,268.000000,1.500000,6,2",
-            lines[1]);
+            lines[2]);
     }
 
     [Fact]
@@ -39,7 +40,7 @@ public sealed class MeasurementResultLoggerTests
     {
         string path = NewTempCsvPath();
 
-        using (var logger = new MeasurementResultLogger(path))
+        using (var logger = new MeasurementResultLogger(path, 52m))
         {
             logger.ObserveDisplayed(SampleFrame(sessionId: 7, sourceId: 42, version: 5));
             logger.ObserveDisplayed(SampleFrame(sessionId: 7, sourceId: 43, version: 5));
@@ -49,9 +50,9 @@ public sealed class MeasurementResultLoggerTests
         string[] lines = File.ReadAllLines(path);
         File.Delete(path);
 
-        Assert.Equal(3, lines.Length);
-        Assert.StartsWith("7,42,5,", lines[1], StringComparison.Ordinal);
-        Assert.StartsWith("7,44,6,", lines[2], StringComparison.Ordinal);
+        Assert.Equal(4, lines.Length);
+        Assert.StartsWith("7,42,5,", lines[2], StringComparison.Ordinal);
+        Assert.StartsWith("7,44,6,", lines[3], StringComparison.Ordinal);
     }
 
     [Fact]
@@ -59,7 +60,7 @@ public sealed class MeasurementResultLoggerTests
     {
         string path = NewTempCsvPath();
 
-        using (var logger = new MeasurementResultLogger(path))
+        using (var logger = new MeasurementResultLogger(path, 52m))
         {
             logger.ObserveDisplayed(SampleFrame(sessionId: 7, sourceId: 42, version: 5));
             logger.ObserveDisplayed(SampleFrame(sessionId: 8, sourceId: 1, version: 5));
@@ -68,9 +69,9 @@ public sealed class MeasurementResultLoggerTests
         string[] lines = File.ReadAllLines(path);
         File.Delete(path);
 
-        Assert.Equal(3, lines.Length);
-        Assert.StartsWith("7,42,5,", lines[1], StringComparison.Ordinal);
-        Assert.StartsWith("8,1,5,", lines[2], StringComparison.Ordinal);
+        Assert.Equal(4, lines.Length);
+        Assert.StartsWith("7,42,5,", lines[2], StringComparison.Ordinal);
+        Assert.StartsWith("8,1,5,", lines[3], StringComparison.Ordinal);
     }
 
     [Fact]
@@ -78,7 +79,7 @@ public sealed class MeasurementResultLoggerTests
     {
         string path = NewTempCsvPath();
 
-        using (var logger = new MeasurementResultLogger(path))
+        using (var logger = new MeasurementResultLogger(path, 52m))
         {
             logger.ObserveDisplayed(new AnalysisFrame { SessionId = 7, SourceId = 42 });
         }
@@ -86,7 +87,7 @@ public sealed class MeasurementResultLoggerTests
         string[] lines = File.ReadAllLines(path);
         File.Delete(path);
 
-        Assert.Single(lines);
+        Assert.Equal(2, lines.Length);
     }
 
     [Fact]
@@ -94,7 +95,7 @@ public sealed class MeasurementResultLoggerTests
     {
         string path = NewTempCsvPath();
 
-        using (var logger = new MeasurementResultLogger(path))
+        using (var logger = new MeasurementResultLogger(path, 52m))
         {
             logger.ObserveDisplayed(new AnalysisFrame
             {
@@ -112,7 +113,7 @@ public sealed class MeasurementResultLoggerTests
         string[] lines = File.ReadAllLines(path);
         File.Delete(path);
 
-        Assert.Single(lines);
+        Assert.Equal(2, lines.Length);
     }
 
     private static AnalysisFrame SampleFrame(ulong sessionId, ulong sourceId, ulong version)

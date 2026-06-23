@@ -7,6 +7,8 @@ namespace TimeGrapher.App.Services;
 
 internal sealed class MeasurementResultLogger : IMeasurementResultSink
 {
+    private const string LiftAngleMetadataKey = "lift_angle_deg";
+
     private const string Header =
         "session_id,source_id,history_version,latest_time_s,bph,active_position," +
         "rate_valid,rate_s_per_day,amplitude_valid,amplitude_deg,beat_error_valid,beat_error_ms," +
@@ -24,9 +26,12 @@ internal sealed class MeasurementResultLogger : IMeasurementResultSink
     private bool _haveLastHistory;
     private bool _disposed;
 
-    public MeasurementResultLogger(string path)
+    public MeasurementResultLogger(string path, decimal liftAngleDeg)
     {
         _writer = new StreamWriter(path, append: false, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+        _writer.Write(LiftAngleMetadataKey);
+        _writer.Write(',');
+        _writer.WriteLine(liftAngleDeg.ToString("F6", CultureInfo.InvariantCulture));
         _writer.WriteLine(Header);
 
         _writerThread = new Thread(WriteLoop)

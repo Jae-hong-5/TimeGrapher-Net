@@ -17,14 +17,14 @@ namespace TimeGrapher.App.Services;
 internal sealed class MeasurementLogController : IDisposable
 {
     private readonly MainWindowViewModel _viewModel;
-    private readonly Func<string, IMeasurementResultSink> _sinkFactory;
+    private readonly Func<string, decimal, IMeasurementResultSink> _sinkFactory;
     private string? _pendingLogPath;
     private IMeasurementResultSink? _sink;
 
     public MeasurementLogController(
         MainWindowViewModel viewModel,
         string? pendingLogPath,
-        Func<string, IMeasurementResultSink> sinkFactory)
+        Func<string, decimal, IMeasurementResultSink> sinkFactory)
     {
         _viewModel = viewModel;
         _pendingLogPath = pendingLogPath;
@@ -57,7 +57,7 @@ internal sealed class MeasurementLogController : IDisposable
     private void Configure(bool enabled)
     {
         _sink?.Dispose();
-        _sink = enabled ? _sinkFactory(NextLogPath()) : null;
+        _sink = enabled ? _sinkFactory(NextLogPath(), _viewModel.LiftAngle) : null;
     }
 
     // The CLI --measurement-log path opens the first enabled session; later sessions get a

@@ -19,7 +19,7 @@ internal static class MainWindowBootstrapper
         MainWindowViewAdapters adapters,
         MainWindowRunSessionCallbacks runSessionCallbacks,
         AppStartupOptions startupOptions,
-        Func<string, IMeasurementResultSink>? measurementSinkFactory = null)
+        Func<string, decimal, IMeasurementResultSink>? measurementSinkFactory = null)
     {
         var errorLog = new UserErrorLog(UserErrorLog.DefaultPath());
 
@@ -47,7 +47,7 @@ internal static class MainWindowBootstrapper
         // Seed the enable state from the CLI before the controller (and the View's DataContext)
         // read it. The sink factory defaults to the real CSV logger; tests inject a fake.
         viewModel.IsMeasurementLogEnabled = startupOptions.MeasurementLogPath != null;
-        measurementSinkFactory ??= static path => new MeasurementResultLogger(path);
+        measurementSinkFactory ??= static (path, liftAngleDeg) => new MeasurementResultLogger(path, liftAngleDeg);
         var measurementLogController = new MeasurementLogController(
             viewModel, startupOptions.MeasurementLogPath, measurementSinkFactory);
 

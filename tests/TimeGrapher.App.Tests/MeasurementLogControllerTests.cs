@@ -28,11 +28,13 @@ public sealed class MeasurementLogControllerTests
     private sealed class RecordingFactory
     {
         public List<string> Paths { get; } = new();
+        public List<decimal> LiftAngles { get; } = new();
         public List<FakeSink> Sinks { get; } = new();
 
-        public IMeasurementResultSink Create(string path)
+        public IMeasurementResultSink Create(string path, decimal liftAngleDeg)
         {
             Paths.Add(path);
+            LiftAngles.Add(liftAngleDeg);
             var sink = new FakeSink();
             Sinks.Add(sink);
             return sink;
@@ -61,11 +63,14 @@ public sealed class MeasurementLogControllerTests
     public void StartupEnabledWithPendingPath_OpensThePendingPath()
     {
         var factory = new RecordingFactory();
+        var vm = EnabledViewModel(true);
+        vm.LiftAngle = 54m;
 
         // A bare filename has no parent directory, so EnsureParentDirectory touches no disk.
-        using var controller = new MeasurementLogController(EnabledViewModel(true), "seed.csv", factory.Create);
+        using var controller = new MeasurementLogController(vm, "seed.csv", factory.Create);
 
         Assert.Equal(new[] { "seed.csv" }, factory.Paths);
+        Assert.Equal(new[] { 54m }, factory.LiftAngles);
     }
 
     [Fact]
@@ -102,6 +107,7 @@ public sealed class MeasurementLogControllerTests
             Assert.Equal(2, factory.Paths.Count);
             Assert.Equal("seed.csv", factory.Paths[0]);
             Assert.NotEqual("seed.csv", factory.Paths[1]);
+            Assert.Equal(new[] { 52m, 52m }, factory.LiftAngles);
         }
         finally
         {
@@ -141,5 +147,18 @@ public sealed class MeasurementLogControllerTests
         vm.IsMeasurementLogEnabled = true;
 
         Assert.Single(factory.Paths);
+    }
+
+    [Fact]
+    public void ToggleOn_UsesCurrentLiftAngleForNewSession()
+    {
+        var vm = EnabledViewModel(false);
+        var factory = new RecordingFactory();
+        using var controller = new MeasurementLogController(vm, "seed.csv", factory.Create);
+
+        vm.LiftAngle = 57m;
+        vm.IsMeasurementLogEnabled = true;
+
+        Assert.Equal(new[] { 57m }, factory.LiftAngles);
     }
 }
