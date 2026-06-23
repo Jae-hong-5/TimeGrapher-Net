@@ -333,6 +333,27 @@ public sealed class MainWindowRunControlWiringTests
         }
     }
 
+    [Fact]
+    public void MainWindowAndSettingsWindowApplyTheGlassLayer()
+    {
+        XDocument mainWindow = XDocument.Load(FindSourceFile("src/TimeGrapher.App/Views/MainWindow.axaml"));
+        XDocument settingsWindow = XDocument.Load(FindSourceFile("src/TimeGrapher.App/Views/SettingsWindow.axaml"));
+
+        // The guard resource tests prove the glass tokens resolve; this proves the windows
+        // actually consume them - the root floats on the ambient backdrop and content is wrapped
+        // in reusable GlassCard panes - so deleting the application would fail a test, not silently
+        // fall back to flat fills.
+        foreach (XDocument window in new[] { mainWindow, settingsWindow })
+        {
+            Assert.Contains(
+                window.Descendants(),
+                element => element.Attribute("Background")?.Value == "{DynamicResource AmbientBackdropBrush}");
+            Assert.Contains(
+                window.Descendants(),
+                element => element.Attribute("Classes")?.Value == "GlassCard");
+        }
+    }
+
     private static XElement FindNamedElement(XDocument document, string name)
     {
         return document.Descendants()
