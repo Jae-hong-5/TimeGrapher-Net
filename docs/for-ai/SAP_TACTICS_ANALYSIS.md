@@ -98,7 +98,7 @@ work requests** — 점진적 저하). 패스마다 백로그를 **비트 주기
 
 | Tactic | 적용 방식 | 근거 | |
 |---|---|---|---|
-| **introduce concurrency** | 분석과 합성/재생 입력 워커는 `ThreadPriority.Highest`, 녹음 writer는 `Normal`로 각자 전용 스레드에서 돌고, 라이브 캡처(Windows `WaveInEvent` 콜백·Linux stdout/stderr 리더 스레드)는 .NET 스레드 우선순위를 따로 지정하지 않는다. UI 스레드는 렌더링만. 생산자는 소비자를 기다리지 않음 | `AnalysisWorker.cs`, `SimWorker.cs`, `PlaybackWorker.cs`, `QueuedWavStreamWriter.cs`, `AudioCaptureWorker.cs`, `LinuxLiveAudioWorker.cs` | ✓ |
+| **introduce concurrency** | 분석과 합성/재생 입력 워커는 `ThreadPriority.Highest`, 녹음 writer는 `Normal`로 각자 전용 스레드에서 돌고, 라이브 캡처(Windows `WaveInEvent` 콜백·Linux stdout/stderr 리더 스레드)는 .NET 스레드 우선순위를 따로 지정하지 않는다. UI 스레드는 렌더링만. 생산자는 소비자를 기다리지 않음. ⚠ .NET `Thread.Priority`는 Linux에서 no-op이라 Pi에서는 우선순위가 무효과이며 실제 보호 장치는 바운드 큐 구조다(5.1절) | `AnalysisWorker.cs`, `SimWorker.cs`, `PlaybackWorker.cs`, `QueuedWavStreamWriter.cs`, `AudioCaptureWorker.cs`, `LinuxLiveAudioWorker.cs` | ✓ |
 | **limit event response** | 렌더 스케줄러가 **"최신 프레임 1개"만 유지** — 렌더 진행 중 들어온 프레임은 병합/폐기(`_droppedFrames`)하고, 일회성 신호(오버런 등)는 병합으로 보존 | `AnalysisFrameRenderScheduler.cs` | ✓ |
 | **schedule resources** | 일반 프레임은 모든 탭이 가벼운 `ObserveFrame`만 받고 **활성 탭만** 무거운 `RenderFrame` 수행. pause 종료 또는 Long-Term 탭 이탈 때 리뷰 커서를 지우기 위한 `RenderToAll`은 저장된 마지막 프레임을 한 번 다시 그리는 예외라 입력/분석 작업을 늘리지 않음 | `AnalysisFrameRouter.cs`, `MainWindow.axaml.cs` | ✓ |
 | **bound queue sizes** | 녹음 큐 = `BlockingCollection(128)`. 초과 시 블록을 **드롭**(분석 스레드를 막지 않음) | `QueuedWavStreamWriter.cs` | ✓ |
