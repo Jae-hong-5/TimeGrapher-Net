@@ -102,6 +102,63 @@ public sealed class AdverseGateTests
         Assert.Equal(expected, verdict);
     }
 
+    [Theory]
+    [InlineData(0.90, "PASS")]   // exactly at the gate
+    [InlineData(0.8999, "FAIL")] // just below
+    public void MinPrecision_IsInclusiveBoundary(double precision, string expected)
+    {
+        var gates = new AdverseGates(MinPrecision: 0.90);
+        string verdict = AdverseScenarios.Evaluate(
+            gates, Snapshot(TgSyncStatus.Synced, 21600), Score(precision: precision), resets: 0, expectedBph: 21600);
+        Assert.Equal(expected, verdict);
+    }
+
+    [Theory]
+    [InlineData(0.10, "PASS")]   // recall at/below the cap is fine (e.g. noise-only must not over-detect)
+    [InlineData(0.1001, "FAIL")] // exceeding the cap fails
+    public void MaxRecall_FailsWhenExceeded(double recall, string expected)
+    {
+        var gates = new AdverseGates(MaxRecall: 0.10);
+        string verdict = AdverseScenarios.Evaluate(
+            gates, Snapshot(TgSyncStatus.Synced, 21600), Score(recall: recall), resets: 0, expectedBph: 21600);
+        Assert.Equal(expected, verdict);
+    }
+
+    [Theory]
+    [InlineData(1.0, "PASS")]    // +1.0 ms median, exactly at the |.| gate
+    [InlineData(-1.0, "PASS")]   // gate is on the absolute value
+    [InlineData(1.001, "FAIL")]
+    [InlineData(-1.001, "FAIL")]
+    public void MaxAbsMedianOffsetMs_GatesTheAbsoluteMedian(double medianMs, string expected)
+    {
+        var gates = new AdverseGates(MaxAbsMedianOffsetMs: 1.0);
+        string verdict = AdverseScenarios.Evaluate(
+            gates, Snapshot(TgSyncStatus.Synced, 21600), Score(medianMs: medianMs), resets: 0, expectedBph: 21600);
+        Assert.Equal(expected, verdict);
+    }
+
+    [Theory]
+    [InlineData(2.0, "PASS")]    // exactly at the gate
+    [InlineData(2.001, "FAIL")]
+    public void MaxRmsAfterOffsetMs_IsInclusiveBoundary(double rmsMs, string expected)
+    {
+        var gates = new AdverseGates(MaxRmsAfterOffsetMs: 2.0);
+        string verdict = AdverseScenarios.Evaluate(
+            gates, Snapshot(TgSyncStatus.Synced, 21600), Score(rmsMs: rmsMs), resets: 0, expectedBph: 21600);
+        Assert.Equal(expected, verdict);
+    }
+
+    [Theory]
+    [InlineData(2, "PASS")]   // at least MinResets recoveries observed
+    [InlineData(1, "FAIL")]   // too few resets fails the recovery contract
+    public void MinResets_FailsWhenBelow(int resets, string expected)
+    {
+        var gates = new AdverseGates(MinResets: 2);
+        string verdict = AdverseScenarios.Evaluate(
+            gates, Snapshot(TgSyncStatus.Synced, 21600), Score(), resets, expectedBph: 21600);
+        Assert.Equal(expected, verdict);
+    }
+
     [Fact]
     public void TryResolveArm_OffSelectsDefaultArm()
     {
