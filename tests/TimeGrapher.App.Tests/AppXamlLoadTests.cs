@@ -171,6 +171,41 @@ public sealed class AppXamlLoadTests
             setter => setter.Property == TextBlock.ForegroundProperty);
     }
 
+    [Fact]
+    public void AppResourcesExposeSapphireCrystalGlassLayer()
+    {
+        // The glass redesign floats chrome surfaces on an ambient backdrop using a
+        // translucent frost fill, a top-lit rim bevel, and an elevation shadow. All
+        // four tokens must resolve in both themes, and the reusable GlassCard style
+        // must wire them, or panels silently fall back to flat fills.
+        var app = new App();
+        app.Initialize();
+
+        foreach (ThemeVariant theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
+        {
+            foreach (string brushKey in new[] { "AmbientBackdropBrush", "GlassPanelBrush", "GlassRimBrush" })
+            {
+                Assert.True(app.TryGetResource(brushKey, theme, out object? brush), $"{brushKey} ({theme})");
+                Assert.IsAssignableFrom<IBrush>(brush);
+            }
+
+            Assert.True(app.TryGetResource("GlassShadow", theme, out object? shadow), $"GlassShadow ({theme})");
+            Assert.IsType<BoxShadows>(shadow);
+        }
+
+        Style glassCard = Assert.Single(app.Styles
+            .OfType<Style>(), style => style.Selector?.ToString() == "Border.GlassCard");
+        Assert.Contains(glassCard.Setters.OfType<Setter>(), setter =>
+            setter.Property == Border.BackgroundProperty &&
+            DynamicResourceKey(setter.Value) == "GlassPanelBrush");
+        Assert.Contains(glassCard.Setters.OfType<Setter>(), setter =>
+            setter.Property == Border.BorderBrushProperty &&
+            DynamicResourceKey(setter.Value) == "GlassRimBrush");
+        Assert.Contains(glassCard.Setters.OfType<Setter>(), setter =>
+            setter.Property == Border.BoxShadowProperty &&
+            DynamicResourceKey(setter.Value) == "GlassShadow");
+    }
+
     private static object? SetterValue(Style style, AvaloniaProperty property)
     {
         return style.Setters
