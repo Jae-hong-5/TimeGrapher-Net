@@ -46,7 +46,7 @@ flowchart TB
     AppTests -. "전이 · Core 타입 직접 사용(Shared·Analysis·Detection·Detection.Scoring·Metrics·AudioIo·Sim)" .-> Core
     CoreTests --> Core
     VerifyTests --> Verify
-    VerifyTests -. "전이 · Core 게이트/DTO 사용" .-> Core
+    VerifyTests -. "전이 · Core Analysis/Detection/Sim 타입 사용" .-> Core
     WindowsAudioTests --> WindowsAudio
     WindowsAudioTests -. "전이 · Core DTO 사용" .-> Core
     LinuxAudioTests --> LinuxAudio
@@ -145,6 +145,7 @@ flowchart TB
     ViewModels --> CoreShared
 
     Services --> ViewModels
+    Services --> Program
     Services --> CoreAnalysis
     Services --> CoreAudioIo
     Services --> CoreDetection
@@ -176,7 +177,7 @@ flowchart TB
 | Program / 앱 시작 | Views, Audio, Rendering | Analysis, AudioIo, Detection.Scoring, Shared |
 | Views | Program, ViewModels, Services, Audio, Tabs, Rendering, Assets | AudioIo, Detection, Shared, Sim |
 | ViewModels | — | Analysis, Shared |
-| Services | ViewModels | Analysis, AudioIo, Detection, Metrics, Shared |
+| Services | ViewModels, Program | Analysis, AudioIo, Detection, Metrics, Shared |
 | Audio | — | Analysis, AudioIo, Shared, Sim, 플랫폼 백엔드(RID 조건부) |
 | Tabs | ViewModels, Rendering | Analysis, Shared |
 | Rendering | Tabs, Assets | Analysis, Metrics, Shared |
@@ -194,7 +195,7 @@ flowchart TB
 - **명시적 호출로 구동되는 소유자**(`PropertyChanged` 구독자가 아님): `AudioDeviceController`(입력장치 열거·레이트 프로브; `LoadAudioDevices`/`PopulateSampleRates`를 ctor·콤보 드롭다운·디바이스 새로고침·선택-operations에서 명시적으로 호출, 캐시 식별성+UI 스레드 재진입 보존), `RunSessionController`(분석/입력 워커 생명주기), `AudioSelectionState`(입력장치/레이트 선택 상태 보관).
 - **composition root** `MainWindowBootstrapper`: 서비스 그래프 생성·배선(`Build`가 view-model을 시드하고 `RunCommandService`를 `IRunCommandRunner`로 view-model에 attach). 단 `AudioDeviceController`는 view 어댑터·델리게이트가 필요하므로 `MainWindow` 생성자가 직접 생성하고, bootstrapper가 만든 코디네이터를 `ISelectionEventGate`로 late-attach한다. 커맨드 본문은 view-model로 옮겨 주입된 `IRunCommandRunner`(`ViewModels`)를 호출한다.
 - **좁은 시밍 인터페이스**로 결합을 좁히고 테스트를 가능케 한다: `IRunCommandRunner`는 `ViewModels`, 나머지(`IAcceptBandOperations`/`IRunSessionControls`/`IRunCommandPause`/`IMeasurementResultSink`/`IAudioDeviceBackend`/`IUiDispatcher`/`ISelectionEventGate`)는 `Services`. `ISelectionEventGate`(코디네이터가 구현)+late-attach가 코디네이터↔디바이스 컨트롤러 생성 순환을 끊는다.
-- **View 쪽 어댑터**(`GraphAcceptBandOperations`/`LiveAudioDeviceBackend`/`UiThreadDispatcher`)는 `Views`에서 이 `Services` 계약을 구현한다(창이 아니라 렌더러/`LiveAudioBackend`/`Dispatcher`를 감싸므로 view back-edge가 아니다). 따라서 **폴더 수준 엣지는 변하지 않는다**(`Views→Services`/`Views→Audio`/`Services→ViewModels` 모두 기존 엣지). 추가된 폴더 간 엣지는 `MainWindowBootstrapper`가 `BphCatalog`(`Core.Detection`)를 직접 참조하는 `Services→Core.Detection` 하나뿐이며, 위 표의 `Services` 행에 반영했다.
+- **View 쪽 어댑터**(`GraphAcceptBandOperations`/`LiveAudioDeviceBackend`/`UiThreadDispatcher`)는 `Views`에서 이 `Services` 계약을 구현한다(창이 아니라 렌더러/`LiveAudioBackend`/`Dispatcher`를 감싸므로 view back-edge가 아니다). 따라서 **폴더 수준 엣지는 변하지 않는다**(`Views→Services`/`Views→Audio`/`Services→ViewModels` 모두 기존 엣지). 추가된 폴더 간 엣지는 둘이다 — `MainWindowBootstrapper`가 `BphCatalog`(`Core.Detection`)를 직접 참조하는 `Services→Core.Detection`, 그리고 `MainWindowBootstrapper`/`SamplingSettingsController`가 루트 네임스페이스 타입 `SamplingSettings`/`SamplingSettingsStore`를 사용하는 `Services→Program`. 둘 다 위 표의 `Services` 행에 반영했다.
 
 #### 순수성 상태와 받아들인 잔여물 (accepted residuals)
 
@@ -252,4 +253,4 @@ flowchart TB
 | `TimeGrapher.Platform.LinuxAudio` | `TimeGrapher.Core.Shared`, `wpctl`·`pw-record`·`arecord` | Linux 입력 백엔드가 Core 라이브 오디오 계약과 Linux 오디오 CLI 도구에 결합 |
 | `TimeGrapher.App.Rendering` | `TimeGrapher.App.Tabs`, `Core.Analysis`, `Core.Metrics`, `Core.Shared` | 프레임 컨슈머가 탭 라우팅 계약을 구현하고 Core 프레임/메트릭 DTO를 렌더 |
 | `TimeGrapher.Core.Analysis` | `Detection`, `Detection.Scoring`, `Metrics`, `Imaging`, `AudioIo`, `Shared` | 핵심 알고리즘 모듈을 조율하는 가장 결합도 높은 Core 하위모듈 |
-| `*.Tests` | 검증 대상 프로젝트(직접), `Core` DTO(전이), App UI 라이브러리(컨트롤 테스트), xUnit | 검증 대상과 어서션에 쓰이는 계약 DTO, 테스트 프레임워크에 의존 |
+| `*.Tests` | 검증 대상 프로젝트(직접), `Core` 타입(전이 — App.Tests는 DTO 외 Analysis/Detection/Detection.Scoring/Metrics/AudioIo/Sim, Verify.Tests는 Analysis/Detection/Sim을 테스트 입력으로 직접 `using`), App UI 라이브러리(컨트롤 테스트), xUnit | 검증 대상과 어서션·테스트 입력에 쓰이는 Core 계약/타입, 테스트 프레임워크에 의존 |
