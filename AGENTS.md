@@ -15,6 +15,7 @@
 ## Commits
 
 - Split commits into the **smallest logically separable units**.
+- Unless the request explicitly mentions a separate branch, a pull request (PR), or a merge request (MR), commit and push **directly to `main`**.
 - Do not force-push or rewrite remote history. This includes `git push --force`, `git push --force-with-lease`, and any equivalent operation that replaces already-pushed commits; if a push is rejected, report the divergence instead.
 - If a normal push is rejected because the remote branch has new commits, do not force it. Run `git fetch`, inspect the ahead/behind state, rebase the local branch onto the remote branch, resolve any conflicts by preserving both the user's work and the remote changes, rerun the relevant validation, then push normally.
 - Write the commit **subject in English**, following the **Conventional Commits** spec.
