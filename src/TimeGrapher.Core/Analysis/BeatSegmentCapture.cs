@@ -80,10 +80,16 @@ public sealed class BeatSegmentCapture
     /// </summary>
     private const double DetectorEnvelopeDelayMs = 50.0;
 
-    // Bounded backlog of open (not yet filled) windows. Windows complete after
-    // WindowMs, so at most ceil(WindowMs / beat period) + 1 are open at once
-    // (5 at the fastest standard 43200 BPH); overflow drops the oldest.
-    private const int PendingSlots = 8;
+    // Bounded backlog of open (not yet filled) windows; overflow drops the
+    // oldest. A window completes WindowMs after it opens, but
+    // CompleteReadySegments only runs once per delivery block, so completion
+    // lags by up to one block: the true simultaneous-open bound is
+    // ceil((WindowMs + block) / beat period), not ceil(WindowMs / beat period).
+    // The ring is therefore sized in the constructor (see PendingSlotsFor) for
+    // the fastest supported beat and the configured block, so a fast watch on a
+    // large analysis block never evicts a still-completing window.
+    private const double FastestSupportedBph = 43200.0;
+    private const int MinPendingSlots = 8;
 
     private struct PendingSegment
     {
@@ -137,7 +143,7 @@ public sealed class BeatSegmentCapture
     // from reuse; see the class doc.
     private readonly ulong[] _bufferPublishedVersion = new ulong[SegmentPoolCount];
 
-    private readonly PendingSegment[] _pending = new PendingSegment[PendingSlots];
+    private readonly PendingSegment[] _pending;
     private int _pendingHead;
     private int _pendingCount;
     private bool _lastIsTic;
@@ -171,6 +177,7 @@ public sealed class BeatSegmentCapture
     {
         _sampleRate = sampleRate;
         _liftAngleDeg = liftAngleDeg;
+        _pending = new PendingSegment[PendingSlotsFor(sampleRate, deliveryBlockSamples)];
         _envelopeRing = new float[EnvelopeRingLength(sampleRate, maxDisplayDelayMs, deliveryBlockSamples)];
         _rawRing = new float[RawRingLength(sampleRate, maxDisplayDelayMs, deliveryBlockSamples)];
         _segmentPool = new float[SegmentPoolCount][];
@@ -182,6 +189,15 @@ public sealed class BeatSegmentCapture
             _rawMinPool[i] = new float[SegmentPoints];
             _rawMaxPool[i] = new float[SegmentPoints];
         }
+    }
+
+    private static int PendingSlotsFor(int sampleRate, int deliveryBlockSamples)
+    {
+        double blockMs = deliveryBlockSamples / (double)sampleRate * 1000.0;
+        double fastestBeatMs = 3600.0 / FastestSupportedBph * 1000.0;
+        // Worst case open windows = ceil((WindowMs + one delivery block) / fastest beat) + slack.
+        int slots = (int)Math.Ceiling((WindowMs + blockMs) / fastestBeatMs) + 2;
+        return Math.Max(MinPendingSlots, slots);
     }
 
     private static int EnvelopeRingLength(int sampleRate, double maxDisplayDelayMs, int deliveryBlockSamples)
