@@ -25,8 +25,10 @@ namespace TimeGrapher.App.Rendering;
 /// snapshot version changes and the header only when the metrics-history
 /// version changes, so coalesced or repeated frames cost nothing. Segments
 /// reference pooled Core buffers that stay valid only until rotated out, so
-/// every render re-reads from the latest snapshot and nothing UI-side caches
-/// sample data beyond it.
+/// each new snapshot version is deep-copied into a UI-owned cache (CopyForCache
+/// -> _lastSnapshot); the lanes plus the delayed interaction state
+/// (SelectPairAtPixelY, ghost overlay) read that cached copy, never a recycled
+/// Core pool buffer.
 /// </summary>
 internal sealed class WaveformCompareRenderer
 {
