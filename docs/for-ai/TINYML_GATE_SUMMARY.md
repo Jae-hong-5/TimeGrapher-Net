@@ -1,5 +1,9 @@
 # TinyML 적용 결정 메모
 
+> 최신 구현 방향: 잡음 후보를 버리는 drop-only gate 계획은 후순위로 미룬다.
+> B가 A 또는 C로 잘못 잡히는 문제를 다루기 위한 현재 구현 메모는
+> `docs/for-ai/TINYML_LANDMARK_REFINER_PLAN.md`를 우선 참조한다.
+
 ## 결론
 
 TinyML은 검출기 전체를 대체하는 방식으로 적용하지 않는다.
