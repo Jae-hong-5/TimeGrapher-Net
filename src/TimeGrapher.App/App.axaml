@@ -63,8 +63,10 @@
             AmbientBackdrop is the lit field the glass floats on; GlassPanel is a
             translucent top-lit frost; GlassRim is the crystal bevel - a bright top
             edge fading to the chrome hairline; GlassShadow lifts each pane off the
-            backdrop. Edges stay sharp (0px). Tones derive from the palette above so
-            a recolor still flows from this one block.
+            backdrop. Edges stay sharp (0px). The glass tones are theme-specific
+            literal values defined once per theme block here (not derived from the
+            palette Color keys above); the active ThemeDictionary still swaps the
+            whole brush on a theme toggle, so the recolor stays one-place per theme.
           -->
           <LinearGradientBrush x:Key="AmbientBackdropBrush" StartPoint="0%,0%" EndPoint="0%,100%">
             <GradientStop Offset="0" Color="#E8E9EA" />
