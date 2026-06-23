@@ -13,7 +13,6 @@ internal readonly record struct SimulationSelection(
 
 internal sealed class RunSelectionResolver
 {
-    public const int DefaultAveragingPeriodSeconds = SamplingSettings.DefaultAveragingPeriodSeconds;
     public const int MinAveragingPeriodSeconds = SamplingSettings.AveragingPeriodFloorSeconds;
     public const int MaxAveragingPeriodSeconds = SamplingSettings.AveragingPeriodCeilingSeconds;
     public const int DefaultSimulationBph = 28800;
