@@ -44,6 +44,12 @@
           <SolidColorBrush x:Key="TextSecondaryBrush" Color="{DynamicResource TextSecondaryColor}" />
           <SolidColorBrush x:Key="ChromeBorderBrush" Color="{DynamicResource ChromeBorderColor}" />
           <SolidColorBrush x:Key="ChromeAccentBrush" Color="{DynamicResource ChromeAccentColor}" />
+          <SolidColorBrush x:Key="ToggleSwitchFillOn" Color="{DynamicResource ChromeAccentColor}" />
+          <SolidColorBrush x:Key="ToggleSwitchFillOnPointerOver" Color="{DynamicResource ChromeAccentColor}" />
+          <SolidColorBrush x:Key="ToggleSwitchFillOnPressed" Color="{DynamicResource ChromeAccentColor}" />
+          <SolidColorBrush x:Key="ToggleSwitchStrokeOn" Color="{DynamicResource ChromeAccentColor}" />
+          <SolidColorBrush x:Key="ToggleSwitchStrokeOnPointerOver" Color="{DynamicResource ChromeAccentColor}" />
+          <SolidColorBrush x:Key="ToggleSwitchStrokeOnPressed" Color="{DynamicResource ChromeAccentColor}" />
           <SolidColorBrush x:Key="VarioAcceptBandBadgeBrush" Color="{DynamicResource VarioAcceptBandColor}" Opacity="0.22" />
           <SolidColorBrush x:Key="VarioAcceptBandEdgeBrush" Color="{DynamicResource VarioAcceptBandEdgeColor}" />
           <SolidColorBrush x:Key="VarioMinMaxBrush" Color="{DynamicResource VarioMinMaxColor}" />
@@ -86,6 +92,12 @@
           <SolidColorBrush x:Key="TextSecondaryBrush" Color="{DynamicResource TextSecondaryColor}" />
           <SolidColorBrush x:Key="ChromeBorderBrush" Color="{DynamicResource ChromeBorderColor}" />
           <SolidColorBrush x:Key="ChromeAccentBrush" Color="{DynamicResource ChromeAccentColor}" />
+          <SolidColorBrush x:Key="ToggleSwitchFillOn" Color="{DynamicResource ChromeAccentColor}" />
+          <SolidColorBrush x:Key="ToggleSwitchFillOnPointerOver" Color="{DynamicResource ChromeAccentColor}" />
+          <SolidColorBrush x:Key="ToggleSwitchFillOnPressed" Color="{DynamicResource ChromeAccentColor}" />
+          <SolidColorBrush x:Key="ToggleSwitchStrokeOn" Color="{DynamicResource ChromeAccentColor}" />
+          <SolidColorBrush x:Key="ToggleSwitchStrokeOnPointerOver" Color="{DynamicResource ChromeAccentColor}" />
+          <SolidColorBrush x:Key="ToggleSwitchStrokeOnPressed" Color="{DynamicResource ChromeAccentColor}" />
           <SolidColorBrush x:Key="VarioAcceptBandBadgeBrush" Color="{DynamicResource VarioAcceptBandColor}" Opacity="0.22" />
           <SolidColorBrush x:Key="VarioAcceptBandEdgeBrush" Color="{DynamicResource VarioAcceptBandEdgeColor}" />
           <SolidColorBrush x:Key="VarioMinMaxBrush" Color="{DynamicResource VarioMinMaxColor}" />

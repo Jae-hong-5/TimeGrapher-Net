@@ -110,6 +110,36 @@ public sealed class AppXamlLoadTests
     }
 
     [Fact]
+    public void ToggleSwitchOnBrushesUseChromeAccent()
+    {
+        var app = new App();
+        app.Initialize();
+
+        string[] onBrushKeys =
+        {
+            "ToggleSwitchFillOn",
+            "ToggleSwitchFillOnPointerOver",
+            "ToggleSwitchFillOnPressed",
+            "ToggleSwitchStrokeOn",
+            "ToggleSwitchStrokeOnPointerOver",
+            "ToggleSwitchStrokeOnPressed",
+        };
+
+        foreach (ThemeVariant theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
+        {
+            Assert.True(app.TryGetResource("ChromeAccentColor", theme, out object? accentValue), theme.ToString());
+            Color accent = Assert.IsType<Color>(accentValue);
+
+            foreach (string key in onBrushKeys)
+            {
+                Assert.True(app.TryGetResource(key, theme, out object? brushValue), key);
+                ISolidColorBrush brush = Assert.IsAssignableFrom<ISolidColorBrush>(brushValue);
+                Assert.Equal(accent, brush.Color);
+            }
+        }
+    }
+
+    [Fact]
     public void AppAxamlEnforcesSquareCorners()
     {
         var app = new App();

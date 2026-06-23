@@ -293,10 +293,15 @@
                                FontWeight="Bold" FormatString="0.0' ms'"
                                Minimum="-10" Maximum="10" Increment="0.1" />
 
-                <CheckBox Name="RealisticCheckBox" Grid.Row="4" Grid.ColumnSpan="2"
-                          HorizontalAlignment="Right"
-                          IsEnabled="{Binding AreSimulationParametersEnabled}"
-                          FontWeight="Bold" Content="Realistic" IsChecked="{Binding Realistic, Mode=TwoWay}" />
+                <TextBlock Name="RealisticLabel" Grid.Row="4" Grid.Column="0"
+                           VerticalAlignment="Center" HorizontalAlignment="Left" FontWeight="Bold" Text="Realistic" />
+                <ToggleSwitch Name="RealisticToggleSwitch" Grid.Row="4" Grid.Column="1"
+                              AutomationProperties.Name="Realistic"
+                              HorizontalAlignment="Right"
+                              OffContent=""
+                              OnContent=""
+                              IsEnabled="{Binding AreSimulationParametersEnabled}"
+                              FontWeight="Bold" IsChecked="{Binding Realistic, Mode=TwoWay}" />
               </Grid>
             </StackPanel>
           </Border>

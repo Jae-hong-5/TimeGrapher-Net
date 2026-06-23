@@ -414,8 +414,6 @@ public partial class MainWindow
 
     private async Task<bool> SimStart()
     {
-        // RealisticCheckBox -> realistic config; otherwise clean config
-        // (MainWindow.cpp: watch_synth_stream_realistic_config / watch_synth_stream_clean_config).
         WatchSynthStreamConfig cfg = mViewModel.Realistic
             ? WatchSynthStreamConfig.Realistic()
             : WatchSynthStreamConfig.Clean();

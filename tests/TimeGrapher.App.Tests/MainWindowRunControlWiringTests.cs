@@ -198,7 +198,7 @@ public sealed class MainWindowRunControlWiringTests
     }
 
     [Fact]
-    public void SettingsPopupBindsTheMovedRunOptionCheckboxes()
+    public void SettingsPopupBindsTheMovedRunOptionToggleSwitches()
     {
         XDocument document = XDocument.Load(FindSourceFile("src/TimeGrapher.App/Views/SettingsWindow.axaml"));
 
@@ -217,28 +217,40 @@ public sealed class MainWindowRunControlWiringTests
                 .Select(element => element.Attribute("Text")?.Value)
                 .ToArray());
 
-        XElement[] checkBoxes = document.Descendants()
-            .Where(element => element.Name.LocalName == "CheckBox")
+        XElement[] toggleSwitches = document.Descendants()
+            .Where(element => element.Name.LocalName == "ToggleSwitch")
             .ToArray();
 
         Assert.Equal(
             new[]
             {
-                "UseConsetCheckBox",
-                "PllEventVetoCheckBox",
-                "PauseOnPositionChangeCheckBox",
-                "MeasurementLogEnabledCheckBox",
+                "UseConsetToggleSwitch",
+                "PllEventVetoToggleSwitch",
+                "PauseOnPositionChangeToggleSwitch",
+                "MeasurementLogEnabledToggleSwitch",
             },
-            checkBoxes.Select(checkBox => checkBox.Attribute("Name")?.Value).ToArray());
+            toggleSwitches.Select(toggleSwitch => toggleSwitch.Attribute("Name")?.Value).ToArray());
+        string[] labels =
+        {
+            "Use C-onset timing",
+            "PLL Event Veto (impulse rejection)",
+            "Pause on position change",
+            "Save measurement CSV log",
+        };
+        Assert.Equal(labels, toggleSwitches.Select(toggleSwitch => toggleSwitch.Attribute("AutomationProperties.Name")?.Value).ToArray());
+        Assert.All(toggleSwitches, toggleSwitch => Assert.Equal("", toggleSwitch.Attribute("OnContent")?.Value));
+        Assert.All(toggleSwitches, toggleSwitch => Assert.Equal("", toggleSwitch.Attribute("OffContent")?.Value));
+        Assert.All(toggleSwitches, toggleSwitch => Assert.Equal("1", toggleSwitch.Attribute("Grid.Column")?.Value));
+        Assert.All(toggleSwitches, toggleSwitch => Assert.Equal("Right", toggleSwitch.Attribute("HorizontalAlignment")?.Value));
         Assert.Equal(
-            new[]
-            {
-                "Use C-onset timing",
-                "PLL Event Veto (impulse rejection)",
-                "Pause on position change",
-                "Save measurement CSV log",
-            },
-            checkBoxes.Select(checkBox => checkBox.Attribute("Content")?.Value).ToArray());
+            labels,
+            toggleSwitches
+                .Select(toggleSwitch => toggleSwitch.Parent?.Elements().Single(element => element.Name.LocalName == "TextBlock"))
+                .Select(label => label?.Attribute("Text")?.Value)
+                .ToArray());
+        Assert.All(
+            toggleSwitches,
+            toggleSwitch => Assert.Equal("Left", toggleSwitch.Parent?.Elements().Single(element => element.Name.LocalName == "TextBlock").Attribute("HorizontalAlignment")?.Value));
 
         Assert.Equal(
             new[]
@@ -248,15 +260,39 @@ public sealed class MainWindowRunControlWiringTests
                 "{Binding PauseOnPositionChange, Mode=TwoWay}",
                 "{Binding IsMeasurementLogEnabled, Mode=TwoWay}",
             },
-            checkBoxes.Select(checkBox => checkBox.Attribute("IsChecked")?.Value).ToArray());
+            toggleSwitches.Select(toggleSwitch => toggleSwitch.Attribute("IsChecked")?.Value).ToArray());
         Assert.All(
-            checkBoxes,
-            checkBox => Assert.Equal("{Binding AreRunParametersEnabled}", checkBox.Attribute("IsEnabled")?.Value));
+            toggleSwitches,
+            toggleSwitch => Assert.Equal("{Binding AreRunParametersEnabled}", toggleSwitch.Attribute("IsEnabled")?.Value));
         Assert.DoesNotContain(
             document.Descendants().Attributes("Name").Select(attribute => attribute.Value),
             name => name.Contains("MeasurementLogPath", StringComparison.Ordinal) ||
                 name.Contains("MeasurementLogBrowse", StringComparison.Ordinal) ||
                 name.Contains("MeasurementLogClear", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void SimulationRealisticOptionUsesRightAlignedToggleSwitch()
+    {
+        XDocument document = XDocument.Load(FindSourceFile("src/TimeGrapher.App/Views/MainWindow.axaml"));
+
+        XElement label = FindNamedElement(document, "RealisticLabel");
+        XElement toggleSwitch = FindNamedElement(document, "RealisticToggleSwitch");
+
+        Assert.Equal("TextBlock", label.Name.LocalName);
+        Assert.Equal("Realistic", label.Attribute("Text")?.Value);
+        Assert.Equal("Left", label.Attribute("HorizontalAlignment")?.Value);
+        Assert.Equal("ToggleSwitch", toggleSwitch.Name.LocalName);
+        Assert.Equal("1", toggleSwitch.Attribute("Grid.Column")?.Value);
+        Assert.Equal("Realistic", toggleSwitch.Attribute("AutomationProperties.Name")?.Value);
+        Assert.Equal("Right", toggleSwitch.Attribute("HorizontalAlignment")?.Value);
+        Assert.Equal("", toggleSwitch.Attribute("OnContent")?.Value);
+        Assert.Equal("", toggleSwitch.Attribute("OffContent")?.Value);
+        Assert.Equal("{Binding AreSimulationParametersEnabled}", toggleSwitch.Attribute("IsEnabled")?.Value);
+        Assert.Equal("{Binding Realistic, Mode=TwoWay}", toggleSwitch.Attribute("IsChecked")?.Value);
+        Assert.DoesNotContain(
+            document.Descendants().Attributes("Name").Select(attribute => attribute.Value),
+            name => name == "RealisticCheckBox");
     }
 
     [Fact]
