@@ -27,7 +27,7 @@ internal static class MainWindowBootstrapper
             viewModel, adapters.SelectionOperations, adapters.SelectionOptions);
 
         var runSelectionResolver = new RunSelectionResolver(
-            viewModel, adapters.AveragingPeriods, BphCatalog.ManualAutoBph, BphCatalog.ManualBph);
+            viewModel, BphCatalog.ManualAutoBph, BphCatalog.ManualBph);
 
         var recordingSessionService = new RecordingSessionService(
             adapters.Dialogs, new QueuedRecordingWriterFactory(), errorLog);
@@ -61,7 +61,7 @@ internal static class MainWindowBootstrapper
             errorLog);
 
         var acceptBandController = new AcceptBandController(viewModel, adapters.AcceptBandOperations);
-        // Seeds the Settings inputs from the persisted sampling parameters and saves each
+        // Seeds the Settings inputs from the persisted run-start parameters and saves each
         // valid edit; the values are read at the next run start, not applied live.
         var samplingSettingsController = new SamplingSettingsController(
             viewModel, SamplingSettings.Current, SamplingSettingsStore.Save);

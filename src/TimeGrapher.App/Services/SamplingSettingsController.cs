@@ -4,15 +4,11 @@ using TimeGrapher.App.ViewModels;
 namespace TimeGrapher.App.Services;
 
 /// <summary>
-/// Bridges the editable sampling-parameter view-model properties (analysis block size,
-/// capture buffer length) to persistence: seeds the Settings inputs from the persisted
-/// values on construction, then on each edit snaps the input to an in-range, step-aligned
-/// value (so the UI only ever shows a usable value), persists it when it is valid and
-/// changed, and keeps the shared <see cref="SamplingSettings.Current"/> snapshot in sync.
-/// Unlike <see cref="AcceptBandController"/> there is no live re-apply — both values are
-/// read at the next run start — so this controller only normalizes, saves, and updates the
-/// snapshot. The persist target is injected so the gate logic is unit-testable without
-/// touching the user-config file.
+/// Bridges editable run-start view-model properties to persistence: seeds the Settings
+/// inputs from persisted values, snaps each edit to an in-range, step-aligned value,
+/// persists valid changes, and keeps <see cref="SamplingSettings.Current"/> in sync.
+/// Unlike <see cref="AcceptBandController"/> there is no live re-apply; these values are
+/// read at the next run start.
 /// </summary>
 internal sealed class SamplingSettingsController
 {
@@ -35,6 +31,7 @@ internal sealed class SamplingSettingsController
         // initial comes from the store (already valid + step-aligned) or Default.
         _viewModel.AnalysisBlockSize = initial.AnalysisBlockSize;
         _viewModel.CaptureBufferMs = initial.CaptureBufferMs;
+        _viewModel.AveragingPeriod = initial.AveragingPeriod;
 
         _viewModel.PropertyChanged += OnViewModelPropertyChanged;
     }
@@ -52,7 +49,8 @@ internal sealed class SamplingSettingsController
 
         if (e.PropertyName is not (
             nameof(MainWindowViewModel.AnalysisBlockSize) or
-            nameof(MainWindowViewModel.CaptureBufferMs)))
+            nameof(MainWindowViewModel.CaptureBufferMs) or
+            nameof(MainWindowViewModel.AveragingPeriod)))
         {
             return;
         }
@@ -62,13 +60,15 @@ internal sealed class SamplingSettingsController
         // user sees equals what is persisted and used.
         int block = SamplingSettings.NormalizeAnalysisBlockSize(_viewModel.AnalysisBlockSize);
         int buffer = SamplingSettings.NormalizeCaptureBufferMs(_viewModel.CaptureBufferMs);
+        int averagingPeriod = SamplingSettings.NormalizeAveragingPeriod(_viewModel.AveragingPeriod);
 
         _suppress = true;
         _viewModel.AnalysisBlockSize = block;
         _viewModel.CaptureBufferMs = buffer;
+        _viewModel.AveragingPeriod = averagingPeriod;
         _suppress = false;
 
-        var candidate = new SamplingSettings(block, buffer);
+        var candidate = new SamplingSettings(block, buffer, averagingPeriod);
         if (!_applied.ShouldReplace(candidate))
         {
             return;

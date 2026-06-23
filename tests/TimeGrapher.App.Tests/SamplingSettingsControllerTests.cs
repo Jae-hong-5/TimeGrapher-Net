@@ -32,16 +32,17 @@ public sealed class SamplingSettingsControllerTests : IDisposable
     [Fact]
     public void Construction_SeedsViewModelFromPersistedValues()
     {
-        (_, MainWindowViewModel vm, _) = Build(new SamplingSettings(8192, 50));
+        (_, MainWindowViewModel vm, _) = Build(new SamplingSettings(8192, 50, 30));
 
         Assert.Equal(8192m, vm.AnalysisBlockSize);
         Assert.Equal(50m, vm.CaptureBufferMs);
+        Assert.Equal(30m, vm.AveragingPeriod);
     }
 
     [Fact]
     public void Construction_DoesNotPersist()
     {
-        (List<SamplingSettings> persisted, _, _) = Build(new SamplingSettings(8192, 50));
+        (List<SamplingSettings> persisted, _, _) = Build(new SamplingSettings(8192, 50, 30));
 
         Assert.Empty(persisted);
     }
@@ -56,6 +57,7 @@ public sealed class SamplingSettingsControllerTests : IDisposable
         SamplingSettings saved = Assert.Single(persisted);
         Assert.Equal(8192, saved.AnalysisBlockSize);
         Assert.Equal(20, saved.CaptureBufferMs);
+        Assert.Equal(20, saved.AveragingPeriod);
         Assert.Equal(8192m, vm.AnalysisBlockSize);
     }
 
@@ -69,7 +71,22 @@ public sealed class SamplingSettingsControllerTests : IDisposable
         SamplingSettings saved = Assert.Single(persisted);
         Assert.Equal(4096, saved.AnalysisBlockSize);
         Assert.Equal(50, saved.CaptureBufferMs);
+        Assert.Equal(20, saved.AveragingPeriod);
         Assert.Equal(50m, vm.CaptureBufferMs);
+    }
+
+    [Fact]
+    public void EditingAveragingPeriod_PersistsAllCurrentValues()
+    {
+        (List<SamplingSettings> persisted, MainWindowViewModel vm, _) = Build(new SamplingSettings(4096, 20, 20));
+
+        vm.AveragingPeriod = 45m;
+
+        SamplingSettings saved = Assert.Single(persisted);
+        Assert.Equal(4096, saved.AnalysisBlockSize);
+        Assert.Equal(20, saved.CaptureBufferMs);
+        Assert.Equal(45, saved.AveragingPeriod);
+        Assert.Equal(45m, vm.AveragingPeriod);
     }
 
     [Fact]
@@ -94,6 +111,18 @@ public sealed class SamplingSettingsControllerTests : IDisposable
         Assert.Equal(5m, vm.CaptureBufferMs);
         SamplingSettings saved = Assert.Single(persisted);
         Assert.Equal(5, saved.CaptureBufferMs);
+    }
+
+    [Fact]
+    public void FractionalAveragingPeriodEdit_SnapsBackAndPersistsTheSnappedValue()
+    {
+        (List<SamplingSettings> persisted, MainWindowViewModel vm, _) = Build(new SamplingSettings(4096, 20, 20));
+
+        vm.AveragingPeriod = 17.5m;
+
+        Assert.Equal(18m, vm.AveragingPeriod);
+        SamplingSettings saved = Assert.Single(persisted);
+        Assert.Equal(18, saved.AveragingPeriod);
     }
 
     [Fact]
@@ -126,7 +155,7 @@ public sealed class SamplingSettingsControllerTests : IDisposable
 
         vm.AnalysisBlockSize = 8192m;
 
-        Assert.Equal(new SamplingSettings(8192, 20), SamplingSettings.Current);
+        Assert.Equal(new SamplingSettings(8192, 20, 20), SamplingSettings.Current);
     }
 
     [Fact]

@@ -182,19 +182,14 @@
                         IsEnabled="{Binding IsGainEnabled}"
                         Minimum="0" Maximum="1000" Value="{Binding Gain, Mode=TwoWay}" Orientation="Horizontal" />
 
-                <TextBlock Name="AveragingPeriodLabel" Grid.Row="2" Grid.Column="0"
-                           VerticalAlignment="Center" HorizontalAlignment="Center" FontWeight="Bold" Text="Avg. Period" />
-                <Grid Grid.Row="2" Grid.Column="1" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
-                  <ComboBox Name="AveragingPeriodComboBox" Grid.Column="0"
-                            HorizontalAlignment="Stretch"
-                            Height="32"
-                            IsEnabled="{Binding AreRunParametersEnabled}"
-                            ItemsSource="{Binding AveragingPeriodLabels}"
-                            SelectedIndex="{Binding SelectedAveragingPeriodIndex, Mode=TwoWay}"
-                            FontWeight="Bold" />
-
-                  <Button Name="ResetPushButton" Grid.Column="1"
+                <Grid Grid.Row="2" Grid.Column="1"
+                      ColumnDefinitions="Auto,Auto"
+                      ColumnSpacing="8"
+                      HorizontalAlignment="Right">
+                  <Button Name="ResetPushButton" Grid.Column="0"
                           Classes="RunIconButton InlineComboIconButton"
+                          Width="68"
+                          MinWidth="68"
                           Command="{Binding ResetCommand}"
                           IsEnabled="{Binding IsResetEnabled}"
                           ToolTip.Tip="Reset and refresh input devices">
@@ -204,8 +199,10 @@
                     </Viewbox>
                   </Button>
 
-                  <Button Name="PlayPausePushButton" Grid.Column="2"
+                  <Button Name="PlayPausePushButton" Grid.Column="1"
                           Classes="RunIconButton InlineComboIconButton PrimaryRunIconButton"
+                          Width="68"
+                          MinWidth="68"
                           Command="{Binding PlayPauseCommand}"
                           IsEnabled="{Binding IsPlayPauseEnabled}"
                           ToolTip.Tip="{Binding PlayPauseButtonText}">

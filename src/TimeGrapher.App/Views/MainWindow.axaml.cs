@@ -62,8 +62,6 @@ public partial class MainWindow : Window
         "CUBILUX CA7",
     };
 
-    private static readonly int[] AveragingPeriodList = { 2, 4, 8, 10, 12, 20, 20, 30, 40, 50, 60, 120, 240 };
-
     // --- Members (mirror MainWindow.h) ---
     private IRecordingWriter? mWavWriter;
     private readonly ITimeGrapherDialogService mDialogs;
@@ -131,8 +129,7 @@ public partial class MainWindow : Window
             new RunCommandOperations(this),
             dialogs,
             new GraphAcceptBandOperations(mGraphFrameRenderer),
-            new MainWindowSelectionOptions(PLAYBACK_SOURCE, SIMULATION_SOURCE),
-            AveragingPeriodList);
+            new MainWindowSelectionOptions(PLAYBACK_SOURCE, SIMULATION_SOURCE));
         var runSessionCallbacks = new MainWindowRunSessionCallbacks(
             sessionId => BuildRunSettings().ToWorkerConfig(sessionId, mWavWriter),
             Reset,
@@ -180,7 +177,6 @@ public partial class MainWindow : Window
         LoadSimBph();
         mAudioDeviceController.LoadAudioDevices();
         mGraphFrameRenderer.Initialize(BuildTabResetContext());
-        LoadAveragingPeriod();
         mGraphFrameRenderer.SetResults(GraphFrameRenderer.PlaceholderResults);
         SetGuiStopMode();
 

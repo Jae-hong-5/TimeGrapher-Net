@@ -3,8 +3,8 @@ using System.Text.Json;
 namespace TimeGrapher.App;
 
 /// <summary>
-/// Loads and saves the user's sampling parameters (analysis block size, capture buffer
-/// length) as JSON under the per-user application-data folder, so a tuned value survives
+/// Loads and saves the user's run-start parameters (analysis block size, capture buffer
+/// length, averaging period) as JSON under the per-user application-data folder, so a tuned value survives
 /// an app restart. Settings live in the OS user-config location (roaming AppData on
 /// Windows, ~/.config on Linux/Raspberry Pi) rather than the executable's log folder,
 /// which may be read-only on a packaged install. A missing or malformed file falls back

@@ -47,7 +47,7 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     private decimal _captureBufferMs = 20m;
     private int _selectedInputDeviceIndex = -1;
     private int _selectedSampleRateIndex = -1;
-    private int _selectedAveragingPeriodIndex = -1;
+    private decimal _averagingPeriod = 20m;
     private int _selectedBphIndex;
     private decimal _liftAngle = 52m;
     private int _selectedSimBphIndex = -1;
@@ -124,7 +124,6 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
 
     public ObservableCollection<string> InputDeviceNames { get; } = new();
     public ObservableCollection<string> SampleRateLabels { get; } = new();
-    public ObservableCollection<string> AveragingPeriodLabels { get; } = new();
     public ObservableCollection<string> BphLabels { get; } = new();
     public ObservableCollection<string> SimBphLabels { get; } = new();
 
@@ -205,10 +204,10 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
         set => SetProperty(ref _selectedSampleRateIndex, value);
     }
 
-    public int SelectedAveragingPeriodIndex
+    public decimal AveragingPeriod
     {
-        get => _selectedAveragingPeriodIndex;
-        set => SetProperty(ref _selectedAveragingPeriodIndex, value);
+        get => _averagingPeriod;
+        set => SetProperty(ref _averagingPeriod, value);
     }
 
     public int SelectedBphIndex
@@ -576,8 +575,6 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     public void SetInputDeviceNames(IEnumerable<string> values) => ReplaceItems(InputDeviceNames, values);
 
     public void SetSampleRateLabels(IEnumerable<string> values) => ReplaceItems(SampleRateLabels, values);
-
-    public void SetAveragingPeriodLabels(IEnumerable<string> values) => ReplaceItems(AveragingPeriodLabels, values);
 
     public void SetBphLabels(IEnumerable<string> values) => ReplaceItems(BphLabels, values);
 

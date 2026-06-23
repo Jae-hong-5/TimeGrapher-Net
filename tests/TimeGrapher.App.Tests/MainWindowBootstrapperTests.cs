@@ -79,8 +79,7 @@ public sealed class MainWindowBootstrapperTests
             runCommandOps,
             new FakeDialogs(),
             acceptBandOps,
-            new MainWindowSelectionOptions("Playback", "Simulation"),
-            new[] { 2, 4, 8 });
+            new MainWindowSelectionOptions("Playback", "Simulation"));
 
     private static MainWindowRunSessionCallbacks Callbacks() =>
         new(

@@ -12,17 +12,19 @@ namespace TimeGrapher.App.Tests;
 public sealed class SamplingSettingsTests
 {
     [Theory]
-    [InlineData(4096, 20, true)]    // Default
-    [InlineData(256, 5, true)]      // floors
-    [InlineData(16384, 200, true)]  // ceilings
-    [InlineData(255, 20, false)]    // block below floor
-    [InlineData(16385, 20, false)]  // block above ceiling
-    [InlineData(257, 20, false)]    // block off-step
-    [InlineData(4096, 4, false)]    // buffer below floor
-    [InlineData(4096, 201, false)]  // buffer above ceiling
-    [InlineData(4096, 6, false)]    // buffer off-step
-    public void IsValid_EnforcesRangeAndStep(int block, int buffer, bool expected)
-        => Assert.Equal(expected, new SamplingSettings(block, buffer).IsValid);
+    [InlineData(4096, 20, 20, true)]    // Default
+    [InlineData(256, 5, 1, true)]       // floors
+    [InlineData(16384, 200, 240, true)] // ceilings
+    [InlineData(255, 20, 20, false)]    // block below floor
+    [InlineData(16385, 20, 20, false)]  // block above ceiling
+    [InlineData(257, 20, 20, false)]    // block off-step
+    [InlineData(4096, 4, 20, false)]    // buffer below floor
+    [InlineData(4096, 201, 20, false)]  // buffer above ceiling
+    [InlineData(4096, 6, 20, false)]    // buffer off-step
+    [InlineData(4096, 20, 0, false)]
+    [InlineData(4096, 20, 241, false)]
+    public void IsValid_EnforcesRangeAndStep(int block, int buffer, int averagingPeriod, bool expected)
+        => Assert.Equal(expected, new SamplingSettings(block, buffer, averagingPeriod).IsValid);
 
     [Fact]
     public void Default_IsValid()
@@ -48,8 +50,22 @@ public sealed class SamplingSettingsTests
         => Assert.Equal(expected, SamplingSettings.NormalizeCaptureBufferMs(input));
 
     [Theory]
+    [InlineData(0, 1)]
+    [InlineData(1, 1)]
+    [InlineData(17, 17)]
+    [InlineData(500, 240)]
+    public void NormalizeAveragingPeriod_SnapsAndClamps(int input, int expected)
+        => Assert.Equal(expected, SamplingSettings.NormalizeAveragingPeriod(input));
+
+    [Theory]
     [InlineData(257.4, 256)]   // decimal input rounds then snaps
     [InlineData(8191.6, 8192)]
     public void NormalizeAnalysisBlockSize_FromDecimal_RoundsThenSnaps(double input, int expected)
         => Assert.Equal(expected, SamplingSettings.NormalizeAnalysisBlockSize((decimal)input));
+
+    [Theory]
+    [InlineData(17.4, 17)]
+    [InlineData(17.5, 18)]
+    public void NormalizeAveragingPeriod_FromDecimal_RoundsThenSnaps(double input, int expected)
+        => Assert.Equal(expected, SamplingSettings.NormalizeAveragingPeriod((decimal)input));
 }

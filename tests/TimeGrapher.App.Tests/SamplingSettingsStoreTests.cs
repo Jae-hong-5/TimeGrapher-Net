@@ -27,7 +27,7 @@ public sealed class SamplingSettingsStoreTests : IDisposable
     [Fact]
     public void SaveThenLoad_RoundTripsEditedParameters()
     {
-        var saved = new SamplingSettings(AnalysisBlockSize: 8192, CaptureBufferMs: 50);
+        var saved = new SamplingSettings(AnalysisBlockSize: 8192, CaptureBufferMs: 50, AveragingPeriod: 45);
         SamplingSettingsStore.SaveTo(_path, saved);
 
         Assert.Equal(saved, SamplingSettingsStore.LoadFrom(_path));
@@ -49,34 +49,40 @@ public sealed class SamplingSettingsStoreTests : IDisposable
     }
 
     [Fact]
+    public void LoadFrom_FileWithoutAveragingPeriod_UsesDefaultAveragingPeriod()
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
+        File.WriteAllText(_path, "{\"AnalysisBlockSize\":8192,\"CaptureBufferMs\":50}");
+
+        Assert.Equal(new SamplingSettings(8192, 50, 20), SamplingSettingsStore.LoadFrom(_path));
+    }
+
+    [Fact]
     public void LoadFrom_OutOfRangeValue_FallsBackToDefault()
     {
-        // A block size below the editable floor is not a usable window, so the loader
-        // rejects it rather than seeding the NumericUpDown with a value the UI cannot
-        // represent or that would starve the analysis pass.
-        SamplingSettingsStore.SaveTo(_path, new SamplingSettings(AnalysisBlockSize: 16, CaptureBufferMs: 20));
+        SamplingSettingsStore.SaveTo(_path, new SamplingSettings(AnalysisBlockSize: 16, CaptureBufferMs: 20, AveragingPeriod: 20));
 
         Assert.Equal(SamplingSettings.Default, SamplingSettingsStore.LoadFrom(_path));
     }
 
     [Theory]
-    [InlineData(257, 20)]   // block off the 256-step grid
-    [InlineData(4096, 6)]   // buffer off the 5-step grid
-    public void LoadFrom_OffStepValue_FallsBackToDefault(int block, int buffer)
+    [InlineData(257, 20, 20)]
+    [InlineData(4096, 6, 20)]
+    [InlineData(4096, 20, 0)]
+    [InlineData(4096, 20, 241)]
+    public void LoadFrom_InvalidValue_FallsBackToDefault(int block, int buffer, int averagingPeriod)
     {
-        // An off-step value is not UI-representable on the NumericUpDown grid, so the
-        // loader rejects it the same way it rejects an out-of-range value.
-        SamplingSettingsStore.SaveTo(_path, new SamplingSettings(block, buffer));
+        SamplingSettingsStore.SaveTo(_path, new SamplingSettings(block, buffer, averagingPeriod));
 
         Assert.Equal(SamplingSettings.Default, SamplingSettingsStore.LoadFrom(_path));
     }
 
     [Theory]
-    [InlineData(256, 5)]        // floors
-    [InlineData(16384, 200)]    // ceilings
-    public void SaveThenLoad_RoundTripsBoundaryValues(int block, int buffer)
+    [InlineData(256, 5, 1)]
+    [InlineData(16384, 200, 240)]
+    public void SaveThenLoad_RoundTripsBoundaryValues(int block, int buffer, int averagingPeriod)
     {
-        var saved = new SamplingSettings(block, buffer);
+        var saved = new SamplingSettings(block, buffer, averagingPeriod);
         SamplingSettingsStore.SaveTo(_path, saved);
 
         Assert.Equal(saved, SamplingSettingsStore.LoadFrom(_path));
