@@ -378,6 +378,12 @@ public sealed class WatchMetrics
                 _rlsTicRate.Reset();
                 _rlsTocRate.Reset();
                 _rlsRateValid = false;
+                // A staged tic amplitude belongs to the pre-gap schedule; the
+                // gap re-anchors tic/toc parity, so the gap-ending event can be
+                // a toc that would otherwise pair the stale pre-gap tic with a
+                // post-gap toc into a bogus pair average. Drop it, mirroring the
+                // re-sync clear and the rate-estimator restart above.
+                _amplitudeTicValid = false;
             }
 
             double wrappedRateError = WrapIntoRange(
