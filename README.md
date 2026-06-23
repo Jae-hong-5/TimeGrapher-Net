@@ -197,45 +197,6 @@ classDiagram
 
 *Figure 3. The input-worker hierarchy. Mic backends are implemented in per-OS assemblies.*
 
-## UI Design Guide
-
-The interface is deliberately **minimal and functional** — square, flat chrome and
-charts that exist to convey data, not to decorate. New UI follows these rules, and the
-tokens/helpers listed below are where they are enforced; reuse them instead of adding
-new styles.
-
-### Principles
-
-- **Right angles only.** Every shape has square corners (`border-radius: 0`); rounded
-  corners are not used. The base `FluentTheme` rounds corners by default, so this is
-  enforced app-wide in `App.axaml`: the `ControlCornerRadius`/`OverlayCornerRadius`
-  tokens are `0`, and `CornerRadius="0"` is set on `TemplatedControl`, `Border`,
-  `Thumb`, the slider thumb, and `CheckBox`. A local `CornerRadius` beats a style
-  setter, so never assign a non-zero `CornerRadius` in markup or code.
-- **Straight lines, simple markers.** Plotted data traces are straight, solid strokes
-  (1–2 px); summary/emphasis lines may be heavier when needed for readability.
-  Dashed/dotted patterns are reserved for reference guides (average lines, A/C
-  escapement markers, the review cursor) — never the primary data. There are no
-  arrowheads or decorative connectors; discrete samples use a plain filled-circle marker.
-- **No decoration on charts.** Charts carry data, so the visual effects are dropped:
-  **no shadows, no 3D, no gradients.** Fills are flat solid colors (translucent only to
-  shade a data band or selection), the grid is intentionally low-contrast, and every
-  brush in the app is a solid color.
-- **Reuse the existing tokens.** Colors, brushes, fonts, and default sizes are defined
-  once and shared — do not introduce new ones.
-
-### Where it's enforced
-
-| Concern | Source of truth |
-|---|---|
-| Colors, brushes, fonts, sizes, square-corner styles | `src/TimeGrapher.App/App.axaml` (`ThemeDictionaries` + `Application.Styles`) |
-| Graph colors (read from `App.axaml`, never hardcoded) | `Rendering/PlotThemePalette.cs` (`FromResources`) |
-| Graph background / axis / grid theming | `Rendering/PlotThemeHelper.cs` (`Apply`) |
-| Tab IDs, names, refresh intervals, graph series | `Tabs/InfoTabCatalog.cs` |
-
-Color flows one way — `App.axaml` → `PlotThemePalette` → the plots — so recoloring the
-whole app (chrome *and* graphs) means editing only the `App.axaml` color block.
-
 ## Projects
 
 | Project | Role |
