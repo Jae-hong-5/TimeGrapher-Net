@@ -14,12 +14,23 @@ public sealed class AnalysisFrameRouterTests
         var soundPrint = new FakeConsumer(InfoTabCatalog.SoundPrintTabId);
         var router = new AnalysisFrameRouter(new IAnalysisFrameConsumer[] { rateScope, soundPrint });
 
-        router.Route(new AnalysisFrame(), InfoTabCatalog.SoundPrintTabId, new AnalysisTabRenderContext(48000));
+        var frame = new AnalysisFrame();
+        var context = new AnalysisTabRenderContext(48000);
+        router.Route(frame, InfoTabCatalog.SoundPrintTabId, context);
 
         Assert.Equal(0, rateScope.RenderCount);
         Assert.Equal(1, soundPrint.RenderCount);
         Assert.Equal(1, rateScope.ObserveCount);
         Assert.Equal(1, soundPrint.ObserveCount);
+
+        // The router must pass the routed frame/context THROUGH unchanged, not merely
+        // invoke the callbacks: every consumer observes the same frame instance, and
+        // the active tab renders that same frame with the same context.
+        Assert.Same(frame, rateScope.LastObservedFrame);
+        Assert.Same(frame, soundPrint.LastObservedFrame);
+        Assert.Same(frame, soundPrint.LastRenderedFrame);
+        Assert.Same(context, soundPrint.LastRenderContext);
+        Assert.Null(rateScope.LastRenderedFrame); // inactive tab did not render
     }
 
     [Fact]
@@ -29,10 +40,15 @@ public sealed class AnalysisFrameRouterTests
         var soundPrint = new FakeConsumer(InfoTabCatalog.SoundPrintTabId);
         var router = new AnalysisFrameRouter(new IAnalysisFrameConsumer[] { rateScope, soundPrint });
 
-        router.RenderToAll(new AnalysisFrame(), new AnalysisTabRenderContext(48000, ReviewCursorTimeS: null));
+        var frame = new AnalysisFrame();
+        var context = new AnalysisTabRenderContext(48000, ReviewCursorTimeS: null);
+        router.RenderToAll(frame, context);
 
         Assert.Equal(1, rateScope.RenderCount);
         Assert.Equal(1, soundPrint.RenderCount);
+        Assert.Same(frame, rateScope.LastRenderedFrame);
+        Assert.Same(frame, soundPrint.LastRenderedFrame);
+        Assert.Same(context, soundPrint.LastRenderContext);
     }
 
     [Fact]
@@ -57,6 +73,9 @@ public sealed class AnalysisFrameRouterTests
         public int ResetCount { get; private set; }
         public int ObserveCount { get; private set; }
         public int RenderCount { get; private set; }
+        public AnalysisFrame? LastObservedFrame { get; private set; }
+        public AnalysisFrame? LastRenderedFrame { get; private set; }
+        public AnalysisTabRenderContext? LastRenderContext { get; private set; }
 
         public void Initialize(AnalysisTabResetContext context)
         {
@@ -72,14 +91,14 @@ public sealed class AnalysisFrameRouterTests
 
         public void ObserveFrame(AnalysisFrame frame)
         {
-            _ = frame;
+            LastObservedFrame = frame;
             ObserveCount++;
         }
 
         public void RenderFrame(AnalysisFrame frame, AnalysisTabRenderContext context)
         {
-            _ = frame;
-            _ = context;
+            LastRenderedFrame = frame;
+            LastRenderContext = context;
             RenderCount++;
         }
     }
