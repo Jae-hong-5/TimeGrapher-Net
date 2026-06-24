@@ -394,13 +394,13 @@ public sealed class WatchMetrics
             if (ticOrToc == Tic)
             {
                 _rlsTicRate.AddPoint(timeMeasured, instTimingError);
-                AddOrOverwrite(_xTic, _yTic, wrappedRateError, _config.MaxRateDataPoints, ref _xTicIndex);
+                AddRatePoint(_xTic, _yTic, wrappedRateError, _config.MaxRateDataPoints, ref _xTicIndex);
                 update.SetTicRate(_xTic, _yTic);
             }
             else
             {
                 _rlsTocRate.AddPoint(timeMeasured, instTimingError);
-                AddOrOverwrite(_xToc, _yToc, wrappedRateError, _config.MaxRateDataPoints, ref _xTocIndex);
+                AddRatePoint(_xToc, _yToc, wrappedRateError, _config.MaxRateDataPoints, ref _xTocIndex);
                 update.SetTocRate(_xToc, _yToc);
             }
 
@@ -659,18 +659,23 @@ public sealed class WatchMetrics
         return wrapped + lowerBound;
     }
 
-    private void AddOrOverwrite(List<double> xvec, List<double> yvec, double value, int maxSize, ref int index)
+    // Appends the newest rate-error point and keeps only the latest maxSize, so the
+    // plot shows a scrolling window of the most recent beats. X is the absolute beat
+    // index (monotonically increasing, never wrapped), so the renderer can follow the
+    // newest window and older points scroll off the left edge. The old ring-overwrite
+    // kept the buffer pinned at maxSize and mutated existing slots in place, so past
+    // ~250 beats no new point ever appeared and the plot froze as a static cloud.
+    private void AddRatePoint(List<double> xvec, List<double> yvec, double value, int maxSize, ref int beatIndex)
     {
-        if (yvec.Count < maxSize)
+        xvec.Add(beatIndex);
+        yvec.Add(value);
+        beatIndex++;
+
+        if (xvec.Count > maxSize)
         {
-            yvec.Add(value);
-            xvec.Add(index);
-            index = (index + 1) % maxSize;
-        }
-        else
-        {
-            yvec[index] = value;
-            index = (index + 1) % maxSize;
+            int excess = xvec.Count - maxSize;
+            xvec.RemoveRange(0, excess);
+            yvec.RemoveRange(0, excess);
         }
     }
 

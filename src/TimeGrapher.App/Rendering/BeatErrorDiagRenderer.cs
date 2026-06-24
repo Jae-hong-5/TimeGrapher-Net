@@ -108,20 +108,21 @@ internal sealed class BeatErrorDiagRenderer
         _tracePlot.Refresh();
     }
 
-    /// <summary>Restores the trace plot to its configured limits.</summary>
+    /// <summary>Restores the trace plot: signed-rate Y and the current scrolling window.</summary>
     public void ResetView()
     {
         _tracePlot.Plot.Axes.SetLimitsY(-_rateErrorYScale, _rateErrorYScale);
         _tracePlot.Plot.Axes.SetLimitsX(0, _rateDataPoints);
+        UpdateAdaptiveXLimits();
         _tracePlot.Refresh();
     }
 
     public void RenderFrame(AnalysisFrame frame, AnalysisTabRenderContext context)
     {
         // Review cursor deliberately not rendered here: this trace's x-domain is
-        // the WatchMetrics ring-buffer beat index (0..MaxRateDataPoints), not
-        // stream time, so context.ReviewCursorTimeS has no meaningful x mapping
-        // on this plot.
+        // the WatchMetrics absolute beat index (a scrolling latest-MaxRateDataPoints
+        // window), not stream time, so context.ReviewCursorTimeS has no meaningful x
+        // mapping on this plot.
         _ = context;
 
         bool rateUpdated = ReplaceRateSeries(frame);
@@ -205,19 +206,19 @@ internal sealed class BeatErrorDiagRenderer
         double maxBeat = 0.0;
         foreach (List<double> seriesX in _rateX)
         {
-            foreach (double x in seriesX)
+            // X is ascending (absolute beat index), so the last point is the newest.
+            if (seriesX.Count > 0 && seriesX[^1] > maxBeat)
             {
-                if (x > maxBeat)
-                {
-                    maxBeat = x;
-                }
+                maxBeat = seriesX[^1];
             }
         }
 
-        double visibleMax = Math.Min(
-            _rateDataPoints,
-            Math.Max(MinimumBeatWindow, Math.Ceiling(maxBeat + BeatWindowPadding)));
-        _tracePlot.Plot.Axes.SetLimitsX(0, visibleMax);
+        // Grow from a minimum window while the first beats fill in, then scroll: once
+        // more than rateDataPoints beats have arrived the window slides to keep the
+        // newest rateDataPoints visible and older points leave the left edge.
+        double right = Math.Max(MinimumBeatWindow, Math.Ceiling(maxBeat + BeatWindowPadding));
+        double left = Math.Max(0.0, right - _rateDataPoints);
+        _tracePlot.Plot.Axes.SetLimitsX(left, right);
     }
 
     private void ApplySeriesTheme()
