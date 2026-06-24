@@ -10,8 +10,8 @@ namespace TimeGrapher.Verify;
 /// beat where the detector latches B as A shows two matching signatures: the A
 /// phase residual (deviation from the locked, beat-error-corrected cadence) is a
 /// positive outlier (A is ~2-4 ms late), and that beat's A->C interval (the
-/// amplitude proxy) shortens. Running with a refiner arm
-/// (<c>--landmark=...</c>) lets off-vs-refiner be compared by the same measure.
+/// amplitude proxy) shortens. Run with and without <c>--rescue=&lt;scale&gt;</c>
+/// to compare the phase-guided onset rescue by the same measure.
 /// See docs/for-ai/LANDMARK_REFINER_BEAT_DIAGNOSIS.md.
 /// </summary>
 internal static class BeatDiagnostics
@@ -23,13 +23,13 @@ internal static class BeatDiagnostics
         int ACount, double ResidStdMs, double MaxLateMs, int Late1Ms, int Late2Ms,
         double AcMedianMs, int AcShort, int AcCount);
 
-    public static void Run(TextWriter outw, string path, BeatLandmarkRefinerConfig? refiner, double rescueScale = 0.0)
+    public static void Run(TextWriter outw, string path, double rescueScale = 0.0)
     {
         WavData wav = WavFileReader.ReadMonoFloat(path, WavAcceptanceProfile.PlaybackFloatMonoStandardRates);
         int fs = wav.SampleRate;
         var engine = new DetectorMetricsEngine(new DetectorMetricsEngineConfig(
             SampleRate: fs, LiftAngle: 52.0, AveragingPeriod: 2, UseCOnset: false,
-            AutoBph: true, ManualBph: 0, HpfCutoffHz: 0.0, Refiner: refiner,
+            AutoBph: true, ManualBph: 0, HpfCutoffHz: 0.0,
             PhaseGuideOnsetRescueScale: rescueScale));
 
         var aTimes = new List<double>();
@@ -51,7 +51,7 @@ internal static class BeatDiagnostics
         while (off < s.Length) { int n = Math.Min(Block, s.Length - off); Consume(engine.Process(new ReadOnlySpan<float>(s, off, n))); off += n; }
         Consume(engine.Flush());
 
-        string arm = refiner?.Refiner.Name ?? (rescueScale > 0.0 ? $"rescue:{rescueScale:0.##}" : "off");
+        string arm = rescueScale > 0.0 ? $"rescue:{rescueScale:0.##}" : "off";
         string name = Path.GetFileName(path);
         Result r = Analyze(aTimes, beats, SettleS);
         if (r.ACount < 10)

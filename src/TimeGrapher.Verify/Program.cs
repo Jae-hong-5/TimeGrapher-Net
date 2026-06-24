@@ -9,12 +9,10 @@
 // Adds deterministic generated and byte-built WAV fixtures for CI.
 //   TimeGrapher.Verify --adverse [--gate=off|pll]
 // Adverse-condition rows with optional PLL event-gate measurement.
-//   TimeGrapher.Verify <wav-or-dir> [--landmark=off|stub:noop|stub:cpeak]
-// Re-times the metrics/display A/C landmarks through a refiner (off = unchanged).
 //   TimeGrapher.Verify --export-training=<dir>
-// Writes weak-A-weighted synthetic refiner-training rows to <dir>/landmark_training.csv.
-//   TimeGrapher.Verify <wav-or-dir> --diagnose [--landmark=...]
-// Prints the per-file B->A signature (A phase residual + A->C dips); add --landmark to compare arms.
+// Writes weak-A-weighted synthetic training rows to <dir>/landmark_training.csv.
+//   TimeGrapher.Verify <wav-or-dir> --diagnose [--rescue=<scale>]
+// Prints the per-file B->A signature (A phase residual + A->C dips); add --rescue to compare arms.
 //
 // Exit codes: 0 = all gates passed, 1 = a verification gate failed,
 // 2 = usage error (unknown option, malformed spec, flags without a runner).
@@ -28,7 +26,6 @@ using TimeGrapher.Core.Detection.Scoring;
 using TimeGrapher.Core.Metrics;
 using TimeGrapher.Core.Shared;
 using TimeGrapher.Core.Sim;
-using TimeGrapher.Inference;
 using TimeGrapher.Verify;
 
 const int DetectorNumberOfSamples = 4096;
@@ -41,7 +38,6 @@ var generatedFiles = new List<string>();
 var expectationsByFile = new Dictionary<string, GeneratedFixtureExpectation>(StringComparer.OrdinalIgnoreCase);
 bool runAdverse = false;
 string gateSpec = "off";
-string landmarkSpec = "off";
 string? exportTrainingDir = null;
 bool diagnose = false;
 double rescueScale = 0.0;
@@ -56,12 +52,6 @@ foreach (string arg in args)
     if (arg.StartsWith("--gate=", StringComparison.Ordinal))
     {
         gateSpec = arg["--gate=".Length..];
-        continue;
-    }
-
-    if (arg.StartsWith("--landmark=", StringComparison.Ordinal))
-    {
-        landmarkSpec = arg["--landmark=".Length..];
         continue;
     }
 
@@ -139,23 +129,13 @@ bool allMatch = true;
 
 try
 {
-    if (!TryResolveLandmark(landmarkSpec, out BeatLandmarkRefinerConfig? landmarkRefiner, out string? landmarkError))
-    {
-        Console.Error.WriteLine("TimeGrapher.Verify: " + landmarkError);
-        return 2;
-    }
-    if (landmarkRefiner != null)
-    {
-        Console.WriteLine("landmark: " + landmarkRefiner.Refiner.Name);
-    }
-
     if (diagnose)
     {
-        // B->A diagnostic over the (optionally refined) metrics stream; run with
-        // and without --landmark to compare off vs refiner by the same measure.
+        // B->A diagnostic over the metrics stream; run with and without
+        // --rescue to compare the phase-guided rescue by the same measure.
         foreach (string file in files)
         {
-            BeatDiagnostics.Run(Console.Out, file, landmarkRefiner, rescueScale);
+            BeatDiagnostics.Run(Console.Out, file, rescueScale);
         }
         return 0;
     }
@@ -171,8 +151,7 @@ try
             UseCOnset: false,
             AutoBph: true,
             ManualBph: 0,
-            HpfCutoffHz: 0.0,
-            Refiner: landmarkRefiner));
+            HpfCutoffHz: 0.0));
 
         int detectedBph = 0;
         var syncStatus = TgSyncStatus.NotSynced;
@@ -405,50 +384,6 @@ if (runAdverse)
 }
 
 return allMatch ? 0 : 1;
-
-// Resolves the --landmark spec to a refiner config. off -> null (pipeline
-// unchanged); stub:* -> the deterministic stub; onnx:<path> is reserved for the
-// future TimeGrapher.Inference refiner. Unknown values are a usage error.
-static bool TryResolveLandmark(string spec, out BeatLandmarkRefinerConfig? refiner, out string? error)
-{
-    refiner = null;
-    error = null;
-    switch (spec)
-    {
-        case "off":
-            return true;
-        case "stub":
-        case "stub:cpeak":
-            refiner = new BeatLandmarkRefinerConfig(new StubBeatLandmarkRefiner(StubBeatLandmarkRefiner.Mode.CPeak));
-            return true;
-        case "stub:noop":
-            refiner = new BeatLandmarkRefinerConfig(new StubBeatLandmarkRefiner(StubBeatLandmarkRefiner.Mode.NoOp));
-            return true;
-    }
-
-    if (spec.StartsWith("onnx:", StringComparison.Ordinal))
-    {
-        string modelPath = spec["onnx:".Length..];
-        if (!File.Exists(modelPath))
-        {
-            error = $"--landmark=onnx: model not found: '{modelPath}'";
-            return false;
-        }
-        try
-        {
-            refiner = new BeatLandmarkRefinerConfig(new OnnxBeatLandmarkRefiner(modelPath));
-            return true;
-        }
-        catch (Exception ex)
-        {
-            error = $"--landmark=onnx: failed to load '{modelPath}': {ex.Message}";
-            return false;
-        }
-    }
-
-    error = $"unknown --landmark value '{spec}' (off|stub:noop|stub:cpeak|onnx:<path>)";
-    return false;
-}
 
 static IEnumerable<string> GenerateSyntheticFixtures(Dictionary<string, GeneratedFixtureExpectation> expectationsByFile)
 {
