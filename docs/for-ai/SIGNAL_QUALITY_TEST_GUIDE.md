@@ -28,7 +28,7 @@ overlay를 추가하여 사용자가 현재 보고 있는 diagnostic view 안에
 
 ### Uses View
 
-`A --> B`는 "A가 B를 사용한다"는 뜻이다. 이 뷰는 compile-time/code-level 책임 분리를 설명한다.
+이 뷰는 compile-time/code-level 책임 분리를 설명한다. 실선 `A --> B`는 A가 B를 직접 사용·소유·호출한다는 뜻이고, 점선 `A -.-> B`는 이미 전달받은 `frame.BeatSegments` DTO를 읽는 소비 관계를 뜻한다. 점선은 callback, ownership, 역방향 runtime dependency를 의미하지 않는다.
 
 ![AnalysisFrame.BeatSegments Uses View](assets/signal-quality-beatsegments-uses.svg)
 
@@ -82,12 +82,12 @@ flowchart TB
     WaveformCompare --> SignalText
     Escapement --> SignalText
 
-    GraphFrameRenderer --> BeatSegmentsSnapshot
-    StatusReporter --> BeatSegmentsSnapshot
-    BeatNoise --> BeatSegmentsSnapshot
-    WaveformCompare --> BeatSegmentsSnapshot
-    Escapement --> BeatSegmentsSnapshot
-    OtherConsumers --> BeatSegmentsSnapshot
+    GraphFrameRenderer -.-> BeatSegmentsSnapshot
+    StatusReporter -.-> BeatSegmentsSnapshot
+    BeatNoise -.-> BeatSegmentsSnapshot
+    WaveformCompare -.-> BeatSegmentsSnapshot
+    Escapement -.-> BeatSegmentsSnapshot
+    OtherConsumers -.-> BeatSegmentsSnapshot
 ```
 
 정적 책임은 다음과 같이 나뉜다.
@@ -100,60 +100,32 @@ flowchart TB
 
 ### Runtime Sequence View
 
-이 뷰는 한 analysis frame이 생성되어 UI와 각 graph consumer까지 전달되는 순서를 보여준다.
+이 뷰는 구현 메서드 호출을 모두 펼치지 않고, signal-quality 정보가 Core에서 판단되어 `AnalysisFrame.BeatSegments` DTO로 App 표시 계층까지 전달되는 큰 흐름만 보여준다.
 
 ![AnalysisFrame.BeatSegments Runtime Sequence View](assets/signal-quality-beatsegments-sequence.svg)
 
 ```mermaid
 sequenceDiagram
     autonumber
-    participant Detector as Detector/Metrics pipeline
-    participant Capture as BeatSegmentCapture
-    participant Worker as AnalysisWorker
+    participant Metrics as Detector metrics
+    participant Core as Core analysis
     participant Frame as AnalysisFrame
-    participant Window as MainWindow
-    participant Scheduler as AnalysisFrameRenderScheduler
-    participant Top as GraphFrameRenderer
-    participant Router as AnalysisFrameRouter
-    participant Status as AnalysisRunStatusReporter
-    participant BeatNoise as Beat Noise
-    participant Waveform as Waveform Compare
-    participant Escapement as Escapement Analyzer
+    participant Ui as UI scheduler
+    participant Presentation as Readout / Status / Graphs
 
-    Detector->>Capture: DetectorMetricsBlockUpdate with A/C events
-    Capture->>Capture: Complete beat segment
-    Capture->>Capture: ClassifyQuality(pending, cPeakValid, cPeakOffsetMs)
-    Capture->>Capture: Store per-beat BeatSegment.Quality
-    Worker->>Capture: AppendSnapshot(frame)
-    Capture->>Frame: frame.BeatSegments = CurrentSnapshot()
-    Note over Capture,Frame: Snapshot carries Segments, Markers, Average, and ORed Quality flags
-    Worker->>Window: AnalysisFrameReady(frame)
-    Window->>Scheduler: Enqueue(frame)
-    Scheduler->>Window: HandleAnalysisFrame(frame, droppedFrames)
-    Window->>Top: UpdateResults(frame)
-    Top->>Frame: read BeatSegments.Quality
-    Top-->>Window: append "Signal ..." to top readout
-    Window->>Router: Route(frame, activeTabId, context)
-    Router->>BeatNoise: ObserveFrame(frame)
-    Router->>Waveform: ObserveFrame(frame)
-    Router->>Escapement: ObserveFrame(frame)
-    Router->>BeatNoise: RenderFrame(frame) if active
-    Router->>Waveform: RenderFrame(frame) if active
-    Router->>Escapement: RenderFrame(frame) if active
-    BeatNoise->>Frame: read BeatSegments / segment Quality
-    Waveform->>Frame: read BeatSegments / segment Quality
-    Escapement->>Frame: read BeatSegments / latest segment Quality
-    Window->>Status: Present(frame, droppedFrames, displayTicks)
-    Status->>Frame: read BeatSegments.Quality
-    Status-->>Window: recovery guidance text
+    Metrics->>Core: A/C event metrics arrive
+    Core->>Core: classify beat quality and aggregate flags
+    Core->>Frame: attach BeatSegmentsSnapshot to BeatSegments
+    Note over Core,Frame: AnalysisFrame.BeatSegments is the single DTO handoff point
+    Frame->>Ui: publish latest analysis frame
+    Ui->>Presentation: render using the same BeatSegments DTO
 ```
 
 전달 경로에서 중요한 점은 다음과 같다.
 
-- `AnalysisFrameReady`는 analysis thread에서 발생하고, `MainWindow.OnAnalysisFrameReady()`가 render scheduler에 enqueue한다.
-- UI thread의 `HandleAnalysisFrame()`에서 상단 readout 갱신, frame routing, status guidance 갱신이 같은 frame 기준으로 수행된다.
-- `AnalysisFrameRouter.Route()`는 모든 graph consumer에 `ObserveFrame(frame)`을 먼저 호출하고, 활성 탭 하나에만 `RenderFrame(frame)`을 호출한다. 따라서 누적 상태가 필요한 graph는 frame을 계속 관찰하면서도 heavy render는 활성 탭에 제한된다.
-- signal-quality warning은 별도 이벤트 버스가 아니라 `AnalysisFrame.BeatSegments` DTO를 통해 전달된다. 그래서 readout, status, Beat Noise, Waveform Compare, Escapement Analyzer가 같은 flag source를 공유한다.
+- `Core`는 beat 품질을 판단하고 최근 beat ring의 품질을 `BeatSegmentsSnapshot.Quality`로 집계한다.
+- `AnalysisFrame.BeatSegments`는 Core에서 App으로 signal-quality 상태를 넘기는 단일 DTO 슬롯이다.
+- App의 readout, status guidance, graph overlay는 별도 이벤트 버스나 역참조 없이 같은 `BeatSegmentsSnapshot`을 읽어 표시만 담당한다.
 
 ## 프로젝트 플랜 기반 그래프별 비정상 신호 안내 체크리스트
 
