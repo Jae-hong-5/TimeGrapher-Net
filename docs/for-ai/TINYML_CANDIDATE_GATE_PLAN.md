@@ -63,8 +63,10 @@ interface." 즉 재구성은 새 소켓이 아니라 **이미 있는 gate(분류
 
 ## 한계 (정직)
 
-- **완전히 묻힌 A(<refPeak ~10%)**: ML로 못 고친다 → PLL/phase-guided(결정론)가 답. 이 부분은
-  ML 프로젝트가 아니라 detector의 phase guidance를 강화하는 일이다.
+- **트리거 아래의 약한 A**: 실측 결과 worst-case B->A의 A는 노이즈에 *묻힌* 게 아니라 노이즈
+  위·트리거 아래에 있었다(NH35 envelope 0.0021 vs onset 트리거 0.0024). 따라서 **phase-guide
+  창에서 트리거를 낮추는 결정론적 rescue로 복구된다 — 구현·검증 완료**(아래 "구현 현황"). ML
+  불필요. 진짜로 노이즈 아래인 A만 복구 불가(그건 픽업/하드웨어 문제).
 - **민감 threshold의 대가**: 후보가 급증(노이즈 포함) → gate 분류 부담↑ → 잘못 열면 false A가
   PLL/주기를 흔들 수 있다. gate accept 후에도 PLL 입력은 raw가 아니라 **검증된 후보**로 좁혀야
   안전.
@@ -78,5 +80,17 @@ interface." 즉 재구성은 새 소켓이 아니라 **이미 있는 gate(분류
    개선되는지 측정(`--diagnose`).
 4. real 라벨 확보 후 gate 분류기 학습/검증. offset refiner는 보이는 케이스 한정 보조.
 
-> 우선순위: 3번(결정론 phase-guided)은 데이터·ML 없이 당장 가능하고 묻힌-A에 직접 작용하므로
+> 우선순위: 3번(결정론 phase-guided)은 데이터·ML 없이 당장 가능하고 약한-A에 직접 작용하므로
 > **먼저** 시도한다. ML gate는 real 데이터가 모인 뒤. 이 순서가 헛수고를 막는다.
+
+### 구현 현황 (2026-06-24)
+
+**3번 구현·검증 완료** (commit `b64197d`): `PhaseGuideOnsetRescueScale` — opt-in, default 0 = off
+(golden master bit-identical). post-lock phase-guide 창에서 onset 트리거를 설정 scale로 낮춰
+약한 A를 잡는다. verifier `--diagnose --rescue=<scale>`로 측정.
+
+scale 0.4 실파일 결과: late-A(>2ms) NH35 1→0, mine 5→0, **mine_adapter 30→0**, 최대 late
+3.44→0.35 / 4.23→0.34 / 2.88→0.96 ms, A->C 진폭 dip 대부분 제거, **clean mine_usb 악화 없음**.
+tradeoff: 약한 onset을 더 일찍 잡아 mostly-clean 시계에 작은 sub-ms scatter(NH35 residual std
+0.27→0.79) — scale로 조절. 1·2번(ML gate)은 real 라벨 확보 후.
+
