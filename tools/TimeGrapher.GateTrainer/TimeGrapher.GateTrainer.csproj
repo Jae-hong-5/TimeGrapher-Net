@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Dev-only tool: trains the signal-quality gate model and exports
+    src/TimeGrapher.Inference/Models/tick-quality.onnx. Intentionally NOT part of
+    TimeGrapherNet.sln so the shipped build does not pull the (large) ML.NET
+    training stack; the runtime only needs ONNX Runtime. Run from the repo root
+    with: dotnet run (project tools/TimeGrapher.GateTrainer) in Release.
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>TimeGrapher.GateTrainer</RootNamespace>
+    <AssemblyName>TimeGrapher.GateTrainer</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.ML" />
+    <PackageReference Include="Microsoft.ML.OnnxConverter" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\TimeGrapher.Core\TimeGrapher.Core.csproj" />
+  </ItemGroup>
+
+</Project>
