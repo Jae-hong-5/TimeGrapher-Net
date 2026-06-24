@@ -302,20 +302,6 @@
             </StackPanel>
           </Border>
 
-          <Border Classes="GlassCard" Padding="8,6">
-            <StackPanel Spacing="7">
-              <TextBlock Name="MiscLabel"
-                         Classes="SectionHeader"
-                         Text="Misc. Parameters" />
-              <Grid ColumnDefinitions="132,*" RowDefinitions="Auto" RowSpacing="6" ColumnSpacing="8">
-                <TextBlock Name="HighPassLabel" Grid.Row="0" Grid.Column="0"
-                           VerticalAlignment="Center" HorizontalAlignment="Center" FontWeight="Bold" Text="High Pass Cutoff" />
-                <TextBox Name="HighLineEdit" Grid.Row="0" Grid.Column="1"
-                         IsEnabled="{Binding AreRunParametersEnabled}"
-                         Text="{Binding HighPassCutoffText, Mode=TwoWay}" />
-              </Grid>
-            </StackPanel>
-          </Border>
         </StackPanel>
       </ScrollViewer>
 

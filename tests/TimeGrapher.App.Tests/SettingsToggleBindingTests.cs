@@ -24,13 +24,13 @@ public sealed class SettingsToggleBindingTests
         var window = new SettingsWindow
         {
             DataContext = vm,
-            Width = 420,
-            Height = 720,
+            Width = 760,
+            Height = 520,
         };
 
         Control content = Assert.IsAssignableFrom<Control>(window.Content);
-        content.Measure(new Size(420, 720));
-        content.Arrange(new Rect(0, 0, 420, 720));
+        content.Measure(new Size(760, 520));
+        content.Arrange(new Rect(0, 0, 760, 520));
 
         AssertTwoWay(window, "UseConsetToggleSwitch", v => vm.UseCOnset = v, () => vm.UseCOnset);
         AssertTwoWay(window, "PllEventVetoToggleSwitch", v => vm.PllEventVeto = v, () => vm.PllEventVeto);

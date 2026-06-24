@@ -75,12 +75,13 @@ public sealed class MainWindowRunControlWiringTests
     }
 
     [Fact]
-    public void AveragingPeriodMovedToSettingsRunParameters()
+    public void RunStartInputsLiveInSettingsRunParameters()
     {
         XDocument mainWindow = XDocument.Load(FindSourceFile("src/TimeGrapher.App/Views/MainWindow.axaml"));
         XDocument settingsWindow = XDocument.Load(FindSourceFile("src/TimeGrapher.App/Views/SettingsWindow.axaml"));
 
         XElement averagingPeriodInput = FindNamedElement(settingsWindow, "AveragingPeriodSpinBox");
+        XElement highPassInput = FindNamedElement(settingsWindow, "HighLineEdit");
 
         Assert.Equal("NumericUpDown", averagingPeriodInput.Name.LocalName);
         Assert.Equal("{Binding AreRunParametersEnabled}", averagingPeriodInput.Attribute("IsEnabled")?.Value);
@@ -88,9 +89,14 @@ public sealed class MainWindowRunControlWiringTests
         Assert.Equal("1", averagingPeriodInput.Attribute("Minimum")?.Value);
         Assert.Equal("240", averagingPeriodInput.Attribute("Maximum")?.Value);
         Assert.Equal("1", averagingPeriodInput.Attribute("Increment")?.Value);
+
+        Assert.Equal("TextBox", highPassInput.Name.LocalName);
+        Assert.Equal("{Binding AreRunParametersEnabled}", highPassInput.Attribute("IsEnabled")?.Value);
+        Assert.Equal("{Binding HighPassCutoffText, Mode=TwoWay}", highPassInput.Attribute("Text")?.Value);
         Assert.DoesNotContain(
             mainWindow.Descendants().Attributes("Name").Select(attribute => attribute.Value),
-            value => value is "AveragingPeriodComboBox" or "AveragingPeriodSpinBox" or "AveragingPeriodLabel");
+            value => value is "AveragingPeriodComboBox" or "AveragingPeriodSpinBox" or "AveragingPeriodLabel" or
+                "MiscLabel" or "HighPassLabel" or "HighLineEdit");
     }
 
     [Fact]
@@ -101,12 +107,12 @@ public sealed class MainWindowRunControlWiringTests
         var window = new SettingsWindow
         {
             DataContext = new MainWindowViewModel(),
-            Width = 420,
-            Height = 720,
+            Width = 760,
+            Height = 520,
         };
         Control content = Assert.IsAssignableFrom<Control>(window.Content);
-        content.Measure(new Size(420, 720));
-        content.Arrange(new Rect(0, 0, 420, 720));
+        content.Measure(new Size(760, 520));
+        content.Arrange(new Rect(0, 0, 760, 520));
 
         NumericUpDown averagingPeriod = Assert.IsType<NumericUpDown>(
             window.FindControl<Control>("AveragingPeriodSpinBox"));
@@ -114,16 +120,19 @@ public sealed class MainWindowRunControlWiringTests
             window.FindControl<Control>("AnalysisBlockSizeSpinBox"));
         NumericUpDown captureBuffer = Assert.IsType<NumericUpDown>(
             window.FindControl<Control>("CaptureBufferMsSpinBox"));
+        TextBox highPass = Assert.IsType<TextBox>(
+            window.FindControl<Control>("HighLineEdit"));
 
         Assert.True(averagingPeriod.Bounds.Width > 0);
         Assert.True(blockSize.Bounds.Width > 0);
         Assert.True(captureBuffer.Bounds.Width > 0);
-        Assert.True(captureBuffer.Bounds.Bottom <= 720);
+        Assert.True(highPass.Bounds.Width > 0);
+        Assert.True(highPass.Bounds.Bottom <= 520);
 
-        var target = new RenderTargetBitmap(new PixelSize(420, 720), new Vector(96, 96));
+        var target = new RenderTargetBitmap(new PixelSize(760, 520), new Vector(96, 96));
         target.Render(content);
 
-        Assert.True(CountOpaquePixels(target, 420, 720) > 10000);
+        Assert.True(CountOpaquePixels(target, 760, 520) > 10000);
     }
 
     [Fact]
@@ -202,7 +211,8 @@ public sealed class MainWindowRunControlWiringTests
     {
         XDocument document = XDocument.Load(FindSourceFile("src/TimeGrapher.App/Views/SettingsWindow.axaml"));
 
-        Assert.Equal("720", document.Root?.Attribute("Height")?.Value);
+        Assert.Equal("760", document.Root?.Attribute("Width")?.Value);
+        Assert.Equal("520", document.Root?.Attribute("Height")?.Value);
         Assert.Equal(
             new[]
             {
