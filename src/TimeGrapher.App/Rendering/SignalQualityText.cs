@@ -16,11 +16,14 @@ internal static class SignalQualityText
             return "Signal clipping";
         }
 
+        if ((quality & SignalQualityFlags.PossibleFalseC) != 0)
+        {
+            return "Possible false C";
+        }
+
         if ((quality & SignalQualityFlags.CTimingUnstable) != 0)
         {
-            return (quality & SignalQualityFlags.PossibleFalseC) != 0
-                ? "Possible false C"
-                : "C timing unstable";
+            return "C timing unstable";
         }
 
         if ((quality & SignalQualityFlags.NoisySignal) != 0)

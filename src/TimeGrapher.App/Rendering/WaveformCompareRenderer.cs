@@ -75,6 +75,8 @@ internal sealed class WaveformCompareRenderer
     private readonly Text?[] _cLabelsTic;
     private readonly Text?[] _cLabelsToc;
     private ReviewCursorLayer? _reviewCursor;
+    private Text? _signalQualityLabel;
+    private readonly SignalQualityOverlayState _signalQualityOverlay = new();
 
     // Ghost overlay: selected pair's waveform re-drawn at every other lane's baseline
     private readonly List<double>[] _ghostTicX;
@@ -215,6 +217,8 @@ internal sealed class WaveformCompareRenderer
         }
 
         _reviewCursor = AddCursor(plot);
+        _signalQualityLabel = AddSignalQualityLabel(plot);
+        _signalQualityOverlay.Reset();
 
         plot.Axes.SetLimitsX(XMinMs, XMaxMs);
         plot.Axes.SetLimitsY(-0.1, YTop(0));
@@ -483,8 +487,10 @@ internal sealed class WaveformCompareRenderer
         UpdateGuides(_visibleSegments, pairCount, clipMs);
         UpdateGhostOverlay(snapshot, pairCount, clipMs);
         UpdateSelectionSpan(pairCount);
+        double yTop = YTop(pairCount);
         _plot.Plot.Axes.SetLimitsX(XMinMs, xMaxMs);
-        _plot.Plot.Axes.SetLimitsY(-0.1, YTop(pairCount));
+        _plot.Plot.Axes.SetLimitsY(-0.1, yTop);
+        SetSignalQuality(snapshot.Quality, xMaxMs, yTop);
     }
 
     /// <summary>
@@ -691,6 +697,33 @@ internal sealed class WaveformCompareRenderer
         return cursor;
     }
 
+    private Text AddSignalQualityLabel(Plot plot)
+    {
+        Text label = plot.Add.Text("", 0.0, 0.0);
+        label.LabelFontName = _textFontFamily;
+        label.LabelFontSize = 13;
+        label.LabelBold = true;
+        label.Alignment = Alignment.UpperRight;
+        label.IsVisible = false;
+        return label;
+    }
+
+    private void SetSignalQuality(SignalQualityFlags quality, double xRight, double yTop)
+    {
+        if (_signalQualityLabel == null)
+        {
+            return;
+        }
+
+        bool visible = _signalQualityOverlay.Update(quality, out string text, out byte alpha);
+        _signalQualityLabel.IsVisible = visible;
+        if (visible)
+        {
+            _signalQualityLabel.LabelText = text;
+            _signalQualityLabel.LabelFontColor = Color.FromARGB(SignalQualityOverlayState.WithAlpha(_theme.VarioBad, alpha));
+            _signalQualityLabel.Location = new Coordinates(xRight, yTop);
+        }
+    }
     private void ApplySeriesTheme()
     {
         for (int i = 0; i < _laneScatters.Length; i++)

@@ -72,6 +72,7 @@ internal sealed class BeatNoiseScopeRenderer
     private readonly List<VerticalLine> _dynamicCPeakMarkers = new();
     private VerticalLine? _cOnsetMarker;
     private Text? _weakSignalLabel;
+    private readonly SignalQualityOverlayState _signalQualityOverlay = new();
     private ReviewCursorLayer? _reviewCursor;
     private readonly Scatter?[] _stripScatters;
     private readonly VerticalLine?[] _stripDividers;
@@ -254,6 +255,7 @@ internal sealed class BeatNoiseScopeRenderer
         _dynamicCPeakMarkers.Clear();
         _cOnsetMarker = AddMarker(main, LinePattern.Dotted);
         _weakSignalLabel = AddWeakSignalLabel(main);
+        _signalQualityOverlay.Reset();
         _reviewCursor = AddCursor(main);
         ApplyRangeLimits();
         PlotAxisRules.ClampLeftEdgeToZero(main);
@@ -1170,11 +1172,12 @@ internal sealed class BeatNoiseScopeRenderer
             return;
         }
 
-        bool visible = quality != SignalQualityFlags.None;
+        bool visible = _signalQualityOverlay.Update(quality, out string text, out byte alpha);
         _weakSignalLabel.IsVisible = visible;
         if (visible)
         {
-            _weakSignalLabel.LabelText = SignalQualityText.Overlay(quality);
+            _weakSignalLabel.LabelText = text;
+            _weakSignalLabel.LabelFontColor = Color.FromARGB(SignalQualityOverlayState.WithAlpha(_theme.VarioBad, alpha));
             _weakSignalLabel.Location = new Coordinates(_rangeMs, _mainYUpper ?? 1.0);
         }
     }

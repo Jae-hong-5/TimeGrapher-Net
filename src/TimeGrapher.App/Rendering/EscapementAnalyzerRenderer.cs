@@ -91,10 +91,14 @@ internal sealed class EscapementAnalyzerRenderer
     private Scatter? _rawMinScatter;
     private readonly VerticalLine?[] _markers = new VerticalLine?[MarkerCount];
     private readonly Text?[] _labels = new Text?[MarkerCount];
+    private Text? _signalQualityLabel;
+    private readonly SignalQualityOverlayState _signalQualityOverlay = new();
 
     private PlotThemePalette _theme = PlotThemePalette.Current;
     private ulong _lastVersion;
     private ulong _lastObservedVersion;
+    private double _lastViewRight = MinViewSpanMs - BeatSegmentCapture.PreEventMs;
+    private double _lastViewTop = 1.0;
 
     private static bool IsAMarker(int index) => index == MarkerTicA || index == MarkerTocA;
 
@@ -145,6 +149,8 @@ internal sealed class EscapementAnalyzerRenderer
             _markers[i] = AddMarker(plot, onset ? LinePattern.Dotted : LinePattern.Dashed);
             _labels[i] = AddLabel(plot);
         }
+        _signalQualityLabel = AddSignalQualityLabel(plot);
+        _signalQualityOverlay.Reset();
         // A-relative, escapement-zoomed view: A at 0 with the capture's pre-A
         // roll showing as negative time. The window start is exactly -AOffsetMs
         // (the segment opens AOffsetMs before A, capped at PreEventMs), so floor
@@ -202,6 +208,7 @@ internal sealed class EscapementAnalyzerRenderer
         BeatSegment? latest = snapshot.Segments.Count > 0 ? snapshot.Segments[^1] : null;
         double labelExtent = RenderPair(tic, toc);
         UpdateMarkers(tic, toc, labelExtent);
+        SetSignalQuality(latest?.Quality ?? SignalQualityFlags.None);
         UpdateReadout(latest);
         _plot.Refresh();
     }
@@ -257,6 +264,8 @@ internal sealed class EscapementAnalyzerRenderer
                 _rawMinScatter.IsVisible = false;
             }
 
+            _lastViewRight = MinViewSpanMs - BeatSegmentCapture.PreEventMs;
+            _lastViewTop = 1.0;
             return 1.0;
         }
 
@@ -361,8 +370,10 @@ internal sealed class EscapementAnalyzerRenderer
             _rawMinScatter.IsVisible = true;
         }
 
+        _lastViewRight = endRel;
+        _lastViewTop = YHeadroom * extent;
         _plot.Plot.Axes.SetLimitsX(startRel, endRel);
-        _plot.Plot.Axes.SetLimitsY(-YHeadroom * extent, YHeadroom * extent);
+        _plot.Plot.Axes.SetLimitsY(-_lastViewTop, _lastViewTop);
         return extent;
     }
 
@@ -393,8 +404,10 @@ internal sealed class EscapementAnalyzerRenderer
             max = 1.0;
         }
 
+        _lastViewRight = endRel;
+        _lastViewTop = YHeadroom * max;
         _plot.Plot.Axes.SetLimitsX(startRel, endRel);
-        _plot.Plot.Axes.SetLimitsY(-0.02 * max, YHeadroom * max);
+        _plot.Plot.Axes.SetLimitsY(-0.02 * max, _lastViewTop);
         return max;
     }
 
@@ -504,6 +517,33 @@ internal sealed class EscapementAnalyzerRenderer
         }
     }
 
+    private Text AddSignalQualityLabel(Plot plot)
+    {
+        Text label = plot.Add.Text("", 0.0, 0.0);
+        label.LabelFontName = _textFontFamily;
+        label.LabelFontSize = 13;
+        label.LabelBold = true;
+        label.Alignment = Alignment.UpperRight;
+        label.IsVisible = false;
+        return label;
+    }
+
+    private void SetSignalQuality(SignalQualityFlags quality)
+    {
+        if (_signalQualityLabel == null)
+        {
+            return;
+        }
+
+        bool visible = _signalQualityOverlay.Update(quality, out string text, out byte alpha);
+        _signalQualityLabel.IsVisible = visible;
+        if (visible)
+        {
+            _signalQualityLabel.LabelText = text;
+            _signalQualityLabel.LabelFontColor = Color.FromARGB(SignalQualityOverlayState.WithAlpha(_theme.VarioBad, alpha));
+            _signalQualityLabel.Location = new Coordinates(_lastViewRight, _lastViewTop);
+        }
+    }
     private void ApplySeriesTheme()
     {
         if (_envelopeScatter != null)
