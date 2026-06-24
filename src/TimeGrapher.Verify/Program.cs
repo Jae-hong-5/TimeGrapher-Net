@@ -44,6 +44,7 @@ string gateSpec = "off";
 string landmarkSpec = "off";
 string? exportTrainingDir = null;
 bool diagnose = false;
+double rescueScale = 0.0;
 foreach (string arg in args)
 {
     if (arg == "--adverse")
@@ -73,6 +74,12 @@ foreach (string arg in args)
     if (arg == "--diagnose")
     {
         diagnose = true;
+        continue;
+    }
+
+    if (arg.StartsWith("--rescue=", StringComparison.Ordinal))
+    {
+        rescueScale = double.Parse(arg["--rescue=".Length..], CultureInfo.InvariantCulture);
         continue;
     }
 
@@ -148,7 +155,7 @@ try
         // and without --landmark to compare off vs refiner by the same measure.
         foreach (string file in files)
         {
-            BeatDiagnostics.Run(Console.Out, file, landmarkRefiner);
+            BeatDiagnostics.Run(Console.Out, file, landmarkRefiner, rescueScale);
         }
         return 0;
     }

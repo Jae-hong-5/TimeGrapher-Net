@@ -107,6 +107,7 @@ public sealed class TgDetector
             SuppressPreSyncEvents = cfg.SuppressPreSyncEvents,
             CPlacement = cfg.CPlacement,
             TrackEventPllMatch = cfg.TrackEventPllMatch,
+            PhaseGuideOnsetRescueScale = cfg.PhaseGuideOnsetRescueScale,
         };
 
         /* Apply zero-defaults at runtime */
@@ -287,7 +288,8 @@ public sealed class TgDetector
                 if (guideWindow < minWindow) guideWindow = minWindow;
                 double maxWindow = 0.12 * _currentBeatPeriod;
                 if (guideWindow > maxWindow) guideWindow = maxWindow;
-                _det.SetPhaseGuide(_sync.NextATime, _currentBeatPeriod, _sync.AcOffset, guideWindow);
+                _det.SetPhaseGuide(_sync.NextATime, _currentBeatPeriod, _sync.AcOffset, guideWindow,
+                                   _cfg.PhaseGuideOnsetRescueScale);
             }
             else
             {

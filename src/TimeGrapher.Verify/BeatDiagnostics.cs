@@ -23,13 +23,14 @@ internal static class BeatDiagnostics
         int ACount, double ResidStdMs, double MaxLateMs, int Late1Ms, int Late2Ms,
         double AcMedianMs, int AcShort, int AcCount);
 
-    public static void Run(TextWriter outw, string path, BeatLandmarkRefinerConfig? refiner)
+    public static void Run(TextWriter outw, string path, BeatLandmarkRefinerConfig? refiner, double rescueScale = 0.0)
     {
         WavData wav = WavFileReader.ReadMonoFloat(path, WavAcceptanceProfile.PlaybackFloatMonoStandardRates);
         int fs = wav.SampleRate;
         var engine = new DetectorMetricsEngine(new DetectorMetricsEngineConfig(
             SampleRate: fs, LiftAngle: 52.0, AveragingPeriod: 2, UseCOnset: false,
-            AutoBph: true, ManualBph: 0, HpfCutoffHz: 0.0, Refiner: refiner));
+            AutoBph: true, ManualBph: 0, HpfCutoffHz: 0.0, Refiner: refiner,
+            PhaseGuideOnsetRescueScale: rescueScale));
 
         var aTimes = new List<double>();
         var beats = new List<(double A, double C)>();
@@ -50,7 +51,7 @@ internal static class BeatDiagnostics
         while (off < s.Length) { int n = Math.Min(Block, s.Length - off); Consume(engine.Process(new ReadOnlySpan<float>(s, off, n))); off += n; }
         Consume(engine.Flush());
 
-        string arm = refiner?.Refiner.Name ?? "off";
+        string arm = refiner?.Refiner.Name ?? (rescueScale > 0.0 ? $"rescue:{rescueScale:0.##}" : "off");
         string name = Path.GetFileName(path);
         Result r = Analyze(aTimes, beats, SettleS);
         if (r.ACount < 10)

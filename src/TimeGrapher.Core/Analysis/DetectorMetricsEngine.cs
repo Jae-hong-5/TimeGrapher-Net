@@ -21,7 +21,8 @@ public sealed record DetectorMetricsEngineConfig(
     // reference synthesiser at the default 0.15 ms envelope smoothing; it is exposed
     // here so a real measuring rig can recalibrate it. 0 disables compensation.
     double AmplitudeOnsetLatencyS = 0.000045,
-    BeatLandmarkRefinerConfig? Refiner = null);
+    BeatLandmarkRefinerConfig? Refiner = null,
+    double PhaseGuideOnsetRescueScale = 0.0);
 
 public readonly record struct DetectedEventUpdate(
     TgEvent Event,
@@ -98,6 +99,7 @@ public sealed class DetectorMetricsEngine
         detectorConfig.ManualBph = config.ManualBph;
         detectorConfig.SuppressPreSyncEvents = true;
         detectorConfig.HpfCutoffHz = config.HpfCutoffHz;
+        detectorConfig.PhaseGuideOnsetRescueScale = config.PhaseGuideOnsetRescueScale;
 
         /* The gate consumes the per-event PLL match verdicts, so configuring
          * a gate implies TrackEventPllMatch on the detector. */

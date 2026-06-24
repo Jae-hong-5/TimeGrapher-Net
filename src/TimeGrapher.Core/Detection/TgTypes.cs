@@ -65,6 +65,12 @@ public sealed class TgConfig
     public double OnsetFractionInit;
     public double MinPeakFractionInit;
 
+    /* >0 lowers the post-lock onset threshold INSIDE the phase-guide window to
+     * this scale (multiplies OnsetFraction) so a weak A sitting just below the
+     * trigger is caught at the expected phase. 0 = off: the default hardening
+     * (1.5/3.0) applies and detection stays bit-identical. */
+    public double PhaseGuideOnsetRescueScale;
+
     /* If true, drop events emitted before BPH lock from the output. */
     public bool SuppressPreSyncEvents;
 
@@ -93,6 +99,7 @@ public sealed class TgConfig
             PllAcGain = 0.05,
             OnsetFractionInit = 0.0,
             MinPeakFractionInit = 0.0,
+            PhaseGuideOnsetRescueScale = 0.0,
             SuppressPreSyncEvents = false,
             CPlacement = TgCPlacement.Peak, // V5.4 default
             TrackEventPllMatch = false,
