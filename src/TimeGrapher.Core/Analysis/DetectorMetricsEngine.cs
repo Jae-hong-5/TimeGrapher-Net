@@ -20,7 +20,8 @@ public sealed record DetectorMetricsEngineConfig(
     // default ~45 us is the A-onset-minus-C-peak latency characterised against the
     // reference synthesiser at the default 0.15 ms envelope smoothing; it is exposed
     // here so a real measuring rig can recalibrate it. 0 disables compensation.
-    double AmplitudeOnsetLatencyS = 0.000045);
+    double AmplitudeOnsetLatencyS = 0.000045,
+    BeatLandmarkRefinerConfig? Refiner = null);
 
 public readonly record struct DetectedEventUpdate(
     TgEvent Event,
@@ -73,6 +74,7 @@ public sealed class DetectorMetricsEngine
     private readonly WatchMetrics _metrics;
     private readonly TgDetector _detector;
     private readonly BeatEventGateHost? _gate;
+    private readonly BeatLandmarkRefinerHost? _refiner;
     private readonly TgResult _result = new();
     private uint _syncLossCount;
 
@@ -105,6 +107,14 @@ public sealed class DetectorMetricsEngine
             _gate = new BeatEventGateHost(config.EventGate.Gate, config.SampleRate);
         }
 
+        /* The landmark refiner re-times the metrics/display stream only; it needs
+         * no per-event PLL verdict (it reasons over the A/C envelope window), so
+         * unlike the gate it does not force TrackEventPllMatch. */
+        if (config.Refiner != null)
+        {
+            _refiner = new BeatLandmarkRefinerHost(config.Refiner, config.SampleRate);
+        }
+
         _detector = new TgDetector(detectorConfig);
         _metrics.Reset();
     }
@@ -131,7 +141,37 @@ public sealed class DetectorMetricsEngine
         var displayUpdates = new List<DetectedEventUpdate>(_result.Events.Count);
         var metricsUpdates = new List<DetectedEventUpdate>(_result.Events.Count);
 
-        if (_gate == null)
+        if (_refiner != null)
+        {
+            _refiner.AppendEnvelope(_result.ProcessedPcm, _result.ProcessedPcmLen, _result.ProcessedPcmStartSample);
+            foreach (TgEvent ev in _result.Events)
+            {
+                _refiner.Submit(ev, synced, _result.DetectedBph, _result.MeasuredPeriodS,
+                                _result.NoiseFloor, _result.ReferencePeak);
+            }
+
+            /* Force-release pending beats at stream and sync boundaries so the
+             * refiner never holds an event across a state flush. */
+            bool force = endOfStream || _result.SyncLostEvent || _result.DetectorResetEvent;
+            foreach (BeatLandmarkRefinerHost.RefinedEvent refined in _refiner.Release(force))
+            {
+                double eventSample = EventSample(refined.Event);
+                WatchMetricsUpdate metricsUpdate = refined.Event.Type switch
+                {
+                    TgEventType.A => _metrics.HandleAEvent(eventSample, refined.Synced, refined.DetectedBph),
+                    TgEventType.C => _metrics.HandleCEvent(eventSample, refined.Synced, refined.DetectedBph),
+                    _ => new WatchMetricsUpdate(),
+                };
+                var update = new DetectedEventUpdate(refined.Event, eventSample, metricsUpdate);
+                displayUpdates.Add(update);
+                metricsUpdates.Add(update);
+            }
+            if (_result.SyncLostEvent || _result.DetectorResetEvent)
+            {
+                _refiner.ResetRefiner();
+            }
+        }
+        else if (_gate == null)
         {
             foreach (TgEvent ev in _result.Events)
             {
