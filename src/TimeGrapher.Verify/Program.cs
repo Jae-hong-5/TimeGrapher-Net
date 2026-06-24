@@ -9,8 +9,6 @@
 // Adds deterministic generated and byte-built WAV fixtures for CI.
 //   TimeGrapher.Verify --adverse [--gate=off|pll]
 // Adverse-condition rows with optional PLL event-gate measurement.
-//   TimeGrapher.Verify --export-training=<dir>
-// Writes weak-A-weighted synthetic training rows to <dir>/landmark_training.csv.
 //   TimeGrapher.Verify <wav-or-dir> --diagnose [--rescue=<scale>]
 // Prints the per-file B->A signature (A phase residual + A->C dips); add --rescue to compare arms.
 //
@@ -38,7 +36,6 @@ var generatedFiles = new List<string>();
 var expectationsByFile = new Dictionary<string, GeneratedFixtureExpectation>(StringComparer.OrdinalIgnoreCase);
 bool runAdverse = false;
 string gateSpec = "off";
-string? exportTrainingDir = null;
 bool diagnose = false;
 double rescueScale = 0.0;
 foreach (string arg in args)
@@ -52,12 +49,6 @@ foreach (string arg in args)
     if (arg.StartsWith("--gate=", StringComparison.Ordinal))
     {
         gateSpec = arg["--gate=".Length..];
-        continue;
-    }
-
-    if (arg.StartsWith("--export-training=", StringComparison.Ordinal))
-    {
-        exportTrainingDir = arg["--export-training=".Length..];
         continue;
     }
 
@@ -102,12 +93,6 @@ foreach (string arg in args)
     {
         files.Add(arg);
     }
-}
-
-// Training-data export is a standalone mode (no WAV inputs needed).
-if (exportTrainingDir != null)
-{
-    return TrainingDataExporter.Export(exportTrainingDir);
 }
 
 // Gate-selection flags configure only the adverse runner.
