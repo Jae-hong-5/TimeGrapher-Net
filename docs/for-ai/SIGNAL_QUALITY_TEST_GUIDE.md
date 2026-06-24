@@ -100,7 +100,7 @@ flowchart TB
 
 ### Runtime Sequence View
 
-이 뷰는 구현 메서드 호출을 모두 펼치지 않고, signal-quality 정보가 Core에서 판단되어 `AnalysisFrame.BeatSegments` DTO로 App 표시 계층까지 전달되는 큰 흐름만 보여준다.
+이 뷰는 구현 메서드 호출을 모두 펼치지 않고, `AnalysisFrame` 하나가 signal-quality 정보뿐 아니라 metrics, graph payload, image payload, runtime 상태를 같은 UI update 단위로 App 표시 계층까지 전달하는 큰 흐름을 보여준다.
 
 ![AnalysisFrame.BeatSegments Runtime Sequence View](assets/signal-quality-beatsegments-sequence.svg)
 
@@ -114,18 +114,19 @@ sequenceDiagram
     participant Presentation as Readout / Status / Graphs
 
     Metrics->>Core: A/C event metrics arrive
-    Core->>Core: classify beat quality and aggregate flags
-    Core->>Frame: attach BeatSegmentsSnapshot to BeatSegments
-    Note over Core,Frame: AnalysisFrame.BeatSegments is the single DTO handoff point
-    Frame->>Ui: publish latest analysis frame
-    Ui->>Presentation: render using the same BeatSegments DTO
+    Core->>Core: classify beat quality and build UI payloads
+    Core->>Frame: publish one AnalysisFrame
+    Note over Core,Frame: Payloads include BeatSegmentsSnapshot, WatchMetricsUpdate, BeatMetricsHistorySnapshot, GraphSeries/markers, SoundImage/SpectrogramImage, and runtime stats
+    Frame->>Ui: coalesce latest frame for UI thread
+    Ui->>Presentation: render readout, status, graphs, and overlays from the same frame
 ```
 
 전달 경로에서 중요한 점은 다음과 같다.
 
 - `Core`는 beat 품질을 판단하고 최근 beat ring의 품질을 `BeatSegmentsSnapshot.Quality`로 집계한다.
-- `AnalysisFrame.BeatSegments`는 Core에서 App으로 signal-quality 상태를 넘기는 단일 DTO 슬롯이다.
-- App의 readout, status guidance, graph overlay는 별도 이벤트 버스나 역참조 없이 같은 `BeatSegmentsSnapshot`을 읽어 표시만 담당한다.
+- `AnalysisFrame.BeatSegments`는 Core에서 App으로 signal-quality 상태를 넘기는 전용 DTO 슬롯이다.
+- 같은 frame에는 `MetricsUpdate`, `MetricsHistory`, `ScopeSeries`/`RateSeries`, scope markers, `SoundImage`, `SpectrogramImage`, latency/deadline/runtime stats도 함께 실린다.
+- App의 readout, status guidance, graph overlay는 별도 이벤트 버스나 역참조 없이 같은 `AnalysisFrame`에서 필요한 payload를 읽어 표시만 담당한다.
 
 ## 프로젝트 플랜 기반 그래프별 비정상 신호 안내 체크리스트
 
