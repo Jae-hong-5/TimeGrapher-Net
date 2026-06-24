@@ -28,6 +28,11 @@ internal sealed class RateScopeRenderer
     // ScopeHistorySeconds so a pan/pause can reach back through earlier audio.
     private readonly List<double>[] _scopeHistX;
     private readonly List<double>[] _scopeHistY;
+    // Last scope GraphSeriesFrame merged per series. The throttled producer
+    // re-attaches the same immutable frame between rebuilds, so an unchanged
+    // reference means the merge (and the view-limited reduction) would reproduce
+    // the same arrays — skip them. Reset whenever the history is cleared.
+    private readonly GraphSeriesFrame?[] _lastScopeSeries;
     private readonly List<double>[] _rateX;
     private readonly List<double>[] _rateY;
 
@@ -131,6 +136,7 @@ internal sealed class RateScopeRenderer
         _scopeY = CreateSeriesLists(_scopeSeries.Length);
         _scopeHistX = CreateSeriesLists(_scopeSeries.Length);
         _scopeHistY = CreateSeriesLists(_scopeSeries.Length);
+        _lastScopeSeries = new GraphSeriesFrame?[_scopeSeries.Length];
         _rateX = CreateSeriesLists(_rateSeries.Length);
         _rateY = CreateSeriesLists(_rateSeries.Length);
     }
@@ -171,6 +177,7 @@ internal sealed class RateScopeRenderer
         scope.Axes.Bottom.MaximumSize = ScopeBottomAxisSizePx;
         ClearSeriesData(_scopeX, _scopeY);
         ClearSeriesData(_scopeHistX, _scopeHistY);
+        System.Array.Clear(_lastScopeSeries, 0, _lastScopeSeries.Length);
         DropScopeMarkerPool();
         AddScopePlottables();
         _scopeReviewCursor = AddReviewCursor(scope);
@@ -205,6 +212,7 @@ internal sealed class RateScopeRenderer
         ApplyPlotTheme(scope);
         ClearSeriesData(_scopeX, _scopeY);
         ClearSeriesData(_scopeHistX, _scopeHistY);
+        System.Array.Clear(_lastScopeSeries, 0, _lastScopeSeries.Length);
         DropScopeMarkerPool();
         AddScopePlottables();
         _scopeReviewCursor = AddReviewCursor(scope);
@@ -228,7 +236,7 @@ internal sealed class RateScopeRenderer
     {
         _sampleRate = context.SampleRate;
 
-        bool scopeUpdated = MergeScopeHistory(frame);
+        bool scopeUpdated = MergeScopeHistory(frame, out bool scopeDataChanged);
         bool rateUpdated = ReplaceRateSeries(frame);
         // Review cursor on the waveform pane only: its x base is absolute sample
         // ticks, so stream time maps onto it (the Filter Scope mapping).
@@ -268,16 +276,21 @@ internal sealed class RateScopeRenderer
             // Reduce the now-visible X range out of the accumulated history into the
             // plottable arrays: the on-screen trace then carries the producer's full
             // resolution over the visible window instead of the budget being spread
-            // across the entire retention.
-            ReduceVisibleScope();
-
-            if (_scopeFollowLive)
+            // across the entire retention. Skipped when the producer re-attached an
+            // unchanged slice — the data and the (latched) X window are identical, so
+            // the reduction would only reproduce the existing arrays.
+            if (scopeDataChanged)
             {
-                _scopePlot.Plot.Axes.AutoScaleY();
-            }
+                ReduceVisibleScope();
 
-            // Re-lay the fixed 0.2 s ruler over whatever X range is now shown.
-            ApplyScopeTimeTicks();
+                if (_scopeFollowLive)
+                {
+                    _scopePlot.Plot.Axes.AutoScaleY();
+                }
+
+                // Re-lay the fixed 0.2 s ruler over whatever X range is now shown.
+                ApplyScopeTimeTicks();
+            }
         }
 
         if (scopeUpdated || cursorMoved)
@@ -421,11 +434,14 @@ internal sealed class RateScopeRenderer
     /// <summary>
     /// Merges each incoming scope slice (the producer's newest ~2 s, keyed on absolute
     /// X ticks) into the rolling per-series history, trimmed to
-    /// <see cref="ScopeHistorySeconds"/>. Returns true if any scope series was present.
+    /// <see cref="ScopeHistorySeconds"/>. Returns true if any scope series was present;
+    /// sets <paramref name="dataChanged"/> only when a new (non-reattached) slice was
+    /// actually merged.
     /// </summary>
-    private bool MergeScopeHistory(AnalysisFrame frame)
+    private bool MergeScopeHistory(AnalysisFrame frame, out bool dataChanged)
     {
-        bool merged = false;
+        bool present = false;
+        dataChanged = false;
         double retentionSamples = ScopeHistorySeconds * _sampleRate;
         for (int i = 0; i < _scopeSeries.Length; i++)
         {
@@ -435,11 +451,21 @@ internal sealed class RateScopeRenderer
                 continue;
             }
 
+            present = true;
+            // The throttled producer re-attaches the same immutable frame between
+            // rebuilds; re-merging it is idempotent, so skip the merge when the
+            // reference is unchanged.
+            if (ReferenceEquals(series, _lastScopeSeries[i]))
+            {
+                continue;
+            }
+
+            _lastScopeSeries[i] = series;
             MergeScopeSlice(_scopeHistX[i], _scopeHistY[i], series.X, series.Y, retentionSamples);
-            merged = true;
+            dataChanged = true;
         }
 
-        return merged;
+        return present;
     }
 
     /// <summary>
