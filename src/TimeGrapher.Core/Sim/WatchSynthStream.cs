@@ -244,6 +244,13 @@ public struct WatchSynthStreamEvent
     public double AToCTimeS;              // seconds. Ground-truth A/onset to C-like lobe time.
     public double WatchAmplitudeDegrees;  // degrees. Copied from config for traceability.
     public double LiftAngleDegrees;       // degrees. Copied from config for traceability.
+
+    // Per-cluster amplitude scales applied to this packet, copied from config. Ground-truth
+    // for B-risk labels: relative cluster strength (e.g. B high vs A/C) is the supervision
+    // signal for whether B could be mistaken for A or C.
+    public double AClusterLevelScale;     // unitless. 1.0 = nominal A cluster.
+    public double BClusterLevelScale;     // unitless. 1.0 = nominal B cluster.
+    public double CClusterLevelScale;     // unitless. 1.0 = nominal C cluster.
 }
 
 /// <summary>Port of WatchSynthStreamFillResult.</summary>
@@ -676,6 +683,9 @@ public sealed class WatchSynthStream
         e.AToCTimeS = aToCS;
         e.WatchAmplitudeDegrees = cfg.WatchAmplitudeDegrees;
         e.LiftAngleDegrees = cfg.LiftAngleDegrees;
+        e.AClusterLevelScale = cfg.AClusterLevelScale;
+        e.BClusterLevelScale = cfg.BClusterLevelScale;
+        e.CClusterLevelScale = cfg.CClusterLevelScale;
         e.BphWanderUs = _currentBphWanderUs;
         if (_beatIndex > 0)
         {

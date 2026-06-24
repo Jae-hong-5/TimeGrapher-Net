@@ -117,6 +117,25 @@ public sealed class WatchSynthStreamTests
     }
 
     [Fact]
+    public void Event_CarriesClusterLevelScales()
+    {
+        WatchSynthStreamConfig cfg = RealisticDeterministic();
+        cfg.AClusterLevelScale = 0.5;
+        cfg.BClusterLevelScale = 3.0;
+        cfg.CClusterLevelScale = 0.25;
+
+        var synth = new WatchSynthStream(cfg);
+        var pcm = new float[48000];
+        var events = new WatchSynthStreamEvent[8];
+        WatchSynthStreamFillResult r = synth.FillF32(pcm, events);
+
+        Assert.True(r.EventsWritten > 0, "expected at least one beat event");
+        Assert.Equal(0.5, events[0].AClusterLevelScale);
+        Assert.Equal(3.0, events[0].BClusterLevelScale);
+        Assert.Equal(0.25, events[0].CClusterLevelScale);
+    }
+
+    [Fact]
     public void BoostedBClusterScale_IncreasesMiddleWindowEnergy()
     {
         const int fs = 48000;
