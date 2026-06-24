@@ -38,12 +38,12 @@ raw audio -> envelope
 | 1. 민감 후보 | 낮은 threshold로 약한 A/C 후보 다수 emit | detector threshold config(`OnsetFraction` 등) |
 | 2. 분류 gate | 후보를 A/C/noise로 분류, 노이즈 후보 veto | **`IBeatEventGate`/`BeatEventGateHost`** |
 | 3. PLL accept | 위상·주기 일치 후보 선택, 묻힌 A는 위상으로 배치 | detector `PhaseGuide*`, sync PLL |
-| (옵션) offset | 보이는 C/A peak 미세 보정 | `IBeatLandmarkRefiner`/host |
+| (옵션) offset | 보이는 C/A peak 미세 보정 | ~~`IBeatLandmarkRefiner`/host~~ (제거됨 `0d2b22b`; 필요 시 재도입) |
 
 **중요**: `IBeatEventGate`는 *원래부터* 이 용도로 설계됐다 — 그 파일 주석: "the TinyML socket:
 classical ref impl is `PllMatchGate`; a future ONNX tick/noise classifier ... implements the same
 interface." 즉 재구성은 새 소켓이 아니라 **이미 있는 gate(분류기) 소켓을 민감한 threshold와 함께
-주력으로 쓰는 것**이고, relocate refiner는 보조(offset)로 격하된다.
+주력으로 쓰는 것**이다. relocate refiner(`IBeatLandmarkRefiner` 스택)는 안 풀려 제거됐다(`0d2b22b`); offset 보정이 필요하면 같은 패턴으로 재도입한다.
 
 ## ML이 할 일 / 결정론이 할 일 (분담)
 

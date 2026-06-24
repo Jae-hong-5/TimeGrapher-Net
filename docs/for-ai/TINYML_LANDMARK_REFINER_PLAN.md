@@ -1,8 +1,10 @@
 # TinyML A/C Landmark Refiner 구현 메모
 
+> **상태 (2026-06-24): 이 landmark-refiner(relocate) 접근은 코드에서 제거되었습니다** (commit `0d2b22b`). 실험 결과 실제 문제에 안 맞았다 — worst-case B→A는 onset 트리거 *아래*의 약한 A(재배치할 metrics 윈도우에 그 정보가 없음)이고, 합성-only 모델은 real 샘플을 악화시켰다(sim→real gap, `LANDMARK_REFINER_BEAT_DIAGNOSIS.md`/`TimeGrapher-Refiner` repo). weak-A는 **결정론적 phase-guided onset rescue**로 해결했고(`PhaseGuideOnsetRescueScale` — 출시됨, App "Weak-A onset rescue" 토글), 가짜비트/false-lock 방향은 기존 `IBeatEventGate` 분류기 소켓의 몫이다(`TINYML_CANDIDATE_GATE_PLAN.md`). **이 문서는 그 탐색의 기록으로 보존**하며, 아래 "구현 순서/현황"은 *제거 전* 상태를 가리킨다.
+
 ## 목적
 
-이 문서는 TinyML 기반 A/C landmark 보정 기능의 설계와 구현 현황을 정리한다. **2026-06-24 기준 계획 1~12단계가 모두 main에 구현·검증되었고**(아래 "구현 순서" 절), 유일한 잔여 작업은 repo 밖의 실제 ONNX 모델 학습이다. 아래 본문은 설계 의도(원안)와 구현 결과(정정 표시)를 함께 담는다.
+이 문서는 TinyML 기반 A/C landmark 보정 기능의 설계와 구현 현황을 정리한다. 아래 본문은 설계 의도(원안)와 구현 결과(정정 표시)를 함께 담는다.
 
 기존 TinyML 계획은 `IBeatEventGate`를 통해 후보 이벤트를 통과/거부하는 drop-only 필터였다. 그 방향은 잡음 후보를 줄이는 데는 유효하지만, 이번에 해결하려는 문제와는 다르다.
 
