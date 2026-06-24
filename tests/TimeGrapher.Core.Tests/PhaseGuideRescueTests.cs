@@ -86,7 +86,7 @@ public sealed class PhaseGuideRescueTests
     {
         (float[] pcm, double[] trueAs) = WeakAStream();
         double off = MedianAErrorMs(pcm, trueAs, rescue: 0.0);
-        double rescue = MedianAErrorMs(pcm, trueAs, rescue: 0.4);
+        double rescue = MedianAErrorMs(pcm, trueAs, rescue: 1.0); // recommended: removes the in-window hardening
 
         Assert.True(off > 1.0, $"weak-A fixture should mis-time A without rescue, got {off:F2} ms");
         Assert.True(rescue < off * 0.6, $"rescue should cut the weak-A timing error: {rescue:F2} vs {off:F2} ms");

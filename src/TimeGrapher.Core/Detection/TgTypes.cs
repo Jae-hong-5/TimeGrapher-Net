@@ -65,10 +65,12 @@ public sealed class TgConfig
     public double OnsetFractionInit;
     public double MinPeakFractionInit;
 
-    /* >0 lowers the post-lock onset threshold INSIDE the phase-guide window to
-     * this scale (multiplies OnsetFraction) so a weak A sitting just below the
-     * trigger is caught at the expected phase. 0 = off: the default hardening
-     * (1.5/3.0) applies and detection stays bit-identical. */
+    /* >0 replaces the post-lock in-window onset hardening (x1.5/x3.0) with this
+     * scale (multiplies OnsetFraction) so a weak A the hardening suppressed is
+     * caught at the expected phase. ~1.0 is recommended: it uses the normal
+     * out-of-window threshold in-window (just removes the hardening) with the
+     * usual noise margin; values well below 1.0 lower past normal and start
+     * catching noise. 0 = off: hardening applies, detection bit-identical. */
     public double PhaseGuideOnsetRescueScale;
 
     /* If true, drop events emitted before BPH lock from the output. */

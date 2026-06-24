@@ -86,11 +86,22 @@ interface." 즉 재구성은 새 소켓이 아니라 **이미 있는 gate(분류
 ### 구현 현황 (2026-06-24)
 
 **3번 구현·검증 완료** (commit `b64197d`): `PhaseGuideOnsetRescueScale` — opt-in, default 0 = off
-(golden master bit-identical). post-lock phase-guide 창에서 onset 트리거를 설정 scale로 낮춰
-약한 A를 잡는다. verifier `--diagnose --rescue=<scale>`로 측정.
+(golden master bit-identical). >0이면 post-lock phase-guide 창의 onset 하드닝(×1.5/×3.0)을 이
+scale로 대체. verifier `--diagnose --rescue=<scale>`로 측정.
 
-scale 0.4 실파일 결과: late-A(>2ms) NH35 1→0, mine 5→0, **mine_adapter 30→0**, 최대 late
-3.44→0.35 / 4.23→0.34 / 2.88→0.96 ms, A->C 진폭 dip 대부분 제거, **clean mine_usb 악화 없음**.
-tradeoff: 약한 onset을 더 일찍 잡아 mostly-clean 시계에 작은 sub-ms scatter(NH35 residual std
-0.27→0.79) — scale로 조절. 1·2번(ML gate)은 real 라벨 확보 후.
+scale 스윕(NH35/mine_adapter)으로 **권장값 = ~1.0** 확정:
+
+| scale | NH35 resid_std | mine_adapter resid_std | 비고 |
+|---|---|---|---|
+| off | 0.270 | 1.451 | late-A 1 / 30 |
+| 0.3 | 0.873 | 3.249 | 너무 낮춤 → **노이즈 포착**(가짜 late 38→100) |
+| **1.0** | **0.133** | **0.298** | late-A 모두 0, resid_std 개선, 노이즈 없음 |
+
+핵심: weak A는 정상 트리거 위·하드닝 트리거 아래에 끼어 있었다. **1.0 = 창 안 하드닝 제거(정상
+트리거 사용)** 가 약한 A를 잡으면서 노이즈 마진은 정상 수준 — late-A(>2ms) NH35 1→0, mine 5→0,
+mine_adapter 30→0, clean mine_usb 악화 없음. 0.3~0.5는 정상보다 더 낮춰 불필요한 노이즈/scatter를
+더한다(0.4에서 NH35 std 0.27→0.79).
+
+단, 하드닝은 noisy-idle 시계의 보호막이라 1.0이 만능은 아니다 — watch별 opt-in. 1·2번(ML gate)은
+real 라벨 확보 후.
 
