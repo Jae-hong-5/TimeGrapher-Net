@@ -22,6 +22,135 @@ Stage 2에서는 recovery guidance를 추가하고, 의심스러운 C 후보를 
 overlay를 추가하여 사용자가 현재 보고 있는 diagnostic view 안에서 바로 경고를 볼 수
 있게 했다.
 
+## Architecture View: `AnalysisFrame.BeatSegments` 전달 구조
+
+이 섹션은 signal-quality 평가값이 어디에 저장되고 어떤 경로로 각 그래프에 전달되는지 보여준다. 핵심은 `Core`가 품질을 판단하고, `Core.Shared` DTO인 `BeatSegmentsSnapshot`을 `AnalysisFrame.BeatSegments`에 실어 `App`으로 전달하며, App의 renderer와 service는 같은 DTO를 읽어 표시만 담당한다는 점이다.
+
+### Uses View
+
+`A --> B`는 "A가 B를 사용한다"는 뜻이다. 이 뷰는 compile-time/code-level 책임 분리를 설명한다.
+
+```mermaid
+flowchart TB
+    subgraph Core["TimeGrapher.Core"]
+        AnalysisWorker["AnalysisWorker<br/>frame 생성·발행"]
+        BeatSegmentCapture["BeatSegmentCapture<br/>beat segment 수집·품질 분류"]
+        WatchMetrics["WatchMetrics<br/>의심 C amplitude 갱신 제외"]
+    end
+
+    subgraph Shared["TimeGrapher.Core.Shared"]
+        AnalysisFrame["AnalysisFrame<br/>BeatSegments field"]
+        BeatSegmentsSnapshot["BeatSegmentsSnapshot<br/>Version · Segments · Markers · Average · Quality"]
+        BeatSegment["BeatSegment<br/>per-beat Quality"]
+        SignalQualityFlags["SignalQualityFlags<br/>Weak · Noisy · CTimingUnstable · PossibleFalseC"]
+    end
+
+    subgraph App["TimeGrapher.App"]
+        MainWindow["MainWindow<br/>OnAnalysisFrameReady / HandleAnalysisFrame"]
+        FrameRouter["AnalysisFrameRouter<br/>Observe all · Render active tab"]
+        GraphFrameRenderer["GraphFrameRenderer<br/>top readout Signal suffix"]
+        StatusReporter["AnalysisRunStatusReporter<br/>recovery guidance"]
+        BeatNoise["BeatNoiseScopeRenderer"]
+        WaveformCompare["WaveformCompareRenderer"]
+        Escapement["EscapementAnalyzerRenderer"]
+        OtherConsumers["Scope/Spectrogram/Filter consumers<br/>segments·markers 해석 보조"]
+        SignalText["SignalQualityText / SignalQualityOverlayState"]
+    end
+
+    AnalysisWorker --> BeatSegmentCapture
+    BeatSegmentCapture --> AnalysisFrame
+    BeatSegmentCapture --> BeatSegmentsSnapshot
+    BeatSegmentsSnapshot --> BeatSegment
+    BeatSegmentsSnapshot --> SignalQualityFlags
+    BeatSegment --> SignalQualityFlags
+    WatchMetrics --> SignalQualityFlags
+
+    MainWindow --> AnalysisFrame
+    MainWindow --> FrameRouter
+    MainWindow --> GraphFrameRenderer
+    MainWindow --> StatusReporter
+    FrameRouter --> BeatNoise
+    FrameRouter --> WaveformCompare
+    FrameRouter --> Escapement
+    FrameRouter --> OtherConsumers
+
+    GraphFrameRenderer --> SignalText
+    StatusReporter --> SignalText
+    BeatNoise --> SignalText
+    WaveformCompare --> SignalText
+    Escapement --> SignalText
+
+    GraphFrameRenderer --> BeatSegmentsSnapshot
+    StatusReporter --> BeatSegmentsSnapshot
+    BeatNoise --> BeatSegmentsSnapshot
+    WaveformCompare --> BeatSegmentsSnapshot
+    Escapement --> BeatSegmentsSnapshot
+    OtherConsumers --> BeatSegmentsSnapshot
+```
+
+정적 책임은 다음과 같이 나뉜다.
+
+- `BeatSegmentCapture`는 beat window를 만들고 `ClassifyQuality()`로 `WeakSignal`, `CTimingUnstable`, `NoisySignal`, `PossibleFalseC`를 결정한다.
+- 개별 beat의 품질은 `BeatSegment.Quality`에 저장된다.
+- 최근 beat ring 전체의 품질은 `BeatSegmentsSnapshot.Quality`에 OR 집계되어 저장된다.
+- `AnalysisFrame.BeatSegments`는 이 snapshot을 App으로 넘기는 단일 전달 슬롯이다.
+- App의 readout, status, graph renderer는 같은 `BeatSegmentsSnapshot`을 읽고 `SignalQualityText`/`SignalQualityOverlayState`로 문구와 overlay만 만든다.
+
+### Runtime Sequence View
+
+이 뷰는 한 analysis frame이 생성되어 UI와 각 graph consumer까지 전달되는 순서를 보여준다.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Detector as Detector/Metrics pipeline
+    participant Capture as BeatSegmentCapture
+    participant Worker as AnalysisWorker
+    participant Frame as AnalysisFrame
+    participant Window as MainWindow
+    participant Scheduler as AnalysisFrameRenderScheduler
+    participant Top as GraphFrameRenderer
+    participant Router as AnalysisFrameRouter
+    participant Status as AnalysisRunStatusReporter
+    participant BeatNoise as Beat Noise
+    participant Waveform as Waveform Compare
+    participant Escapement as Escapement Analyzer
+
+    Detector->>Capture: DetectorMetricsBlockUpdate with A/C events
+    Capture->>Capture: Complete beat segment
+    Capture->>Capture: ClassifyQuality(pending, cPeakValid, cPeakOffsetMs)
+    Capture->>Capture: Store per-beat BeatSegment.Quality
+    Worker->>Capture: AppendSnapshot(frame)
+    Capture->>Frame: frame.BeatSegments = CurrentSnapshot()
+    Note over Capture,Frame: Snapshot carries Segments, Markers, Average, and ORed Quality flags
+    Worker->>Window: AnalysisFrameReady(frame)
+    Window->>Scheduler: Enqueue(frame)
+    Scheduler->>Window: HandleAnalysisFrame(frame, droppedFrames)
+    Window->>Top: UpdateResults(frame)
+    Top->>Frame: read BeatSegments.Quality
+    Top-->>Window: append "Signal ..." to top readout
+    Window->>Router: Route(frame, activeTabId, context)
+    Router->>BeatNoise: ObserveFrame(frame)
+    Router->>Waveform: ObserveFrame(frame)
+    Router->>Escapement: ObserveFrame(frame)
+    Router->>BeatNoise: RenderFrame(frame) if active
+    Router->>Waveform: RenderFrame(frame) if active
+    Router->>Escapement: RenderFrame(frame) if active
+    BeatNoise->>Frame: read BeatSegments / segment Quality
+    Waveform->>Frame: read BeatSegments / segment Quality
+    Escapement->>Frame: read BeatSegments / latest segment Quality
+    Window->>Status: Present(frame, droppedFrames, displayTicks)
+    Status->>Frame: read BeatSegments.Quality
+    Status-->>Window: recovery guidance text
+```
+
+전달 경로에서 중요한 점은 다음과 같다.
+
+- `AnalysisFrameReady`는 analysis thread에서 발생하고, `MainWindow.OnAnalysisFrameReady()`가 render scheduler에 enqueue한다.
+- UI thread의 `HandleAnalysisFrame()`에서 상단 readout 갱신, frame routing, status guidance 갱신이 같은 frame 기준으로 수행된다.
+- `AnalysisFrameRouter.Route()`는 모든 graph consumer에 `ObserveFrame(frame)`을 먼저 호출하고, 활성 탭 하나에만 `RenderFrame(frame)`을 호출한다. 따라서 누적 상태가 필요한 graph는 frame을 계속 관찰하면서도 heavy render는 활성 탭에 제한된다.
+- signal-quality warning은 별도 이벤트 버스가 아니라 `AnalysisFrame.BeatSegments` DTO를 통해 전달된다. 그래서 readout, status, Beat Noise, Waveform Compare, Escapement Analyzer가 같은 flag source를 공유한다.
+
 ## 프로젝트 플랜 기반 그래프별 비정상 신호 안내 체크리스트
 
 프로젝트 플랜은 TimeGrapher가 단순히 값을 보여주는 것이 아니라, 약한 신호, 잡음, 누락, clipping, 잘못 잡힌 이벤트처럼 측정값을 오해하게 만들 수 있는 조건을 사용자에게 알려야 한다고 요구한다. 특히 "signal too noisy", "reposition watch", "microphone gain too high", "measurement confidence low" 같은 guidance와, weak/noisy/partially missing signal에서 불안정하거나 misleading한 출력을 내지 않는 graceful degradation이 핵심이다.
@@ -95,25 +224,32 @@ dotnet test TimeGrapherNet.sln -c Release --no-build
 반복 가능한 수동 검증을 위해 bad-signal playback fixture를 포함했다.
 
 ```text
-manual-fixtures/21600BPH_bad-signal_falseC_weak_48000Hz.wav
+manual-fixtures/43200BPH_bad-signal_falseC_weak_192000Hz.wav
 ```
 
-이 파일은 48 kHz / 21600 BPH watch-like signal이며 weak/false-C 조건을 포함한다.
-Headless verifier는 nominal beat rate를 계속 감지해야 하고, GUI에서는 signal-quality
-warning 경로를 확인할 수 있어야 한다.
+이 파일은 192 kHz / 43200 BPH watch-like signal이다. 43200 BPH는 현재 표준 BPH catalog의 최고값이며 beat period는 약 83.3 ms다. fixture는 high-rate 환경에서도 detector가 nominal beat rate를 유지하면서 signal-quality warning 경로를 확인할 수 있도록 weak-C / B-dominant / false-C-risk 조건을 포함한다.
+
+파형 특징:
+
+- A/B/C realistic packet을 사용한다. A cluster는 약간 낮추고, B cluster는 상대적으로 강하게, C cluster와 C anchor는 약하게 만들어 B 또는 noise peak가 C처럼 보일 수 있는 조건을 만든다.
+- 192 kHz sample rate라 A-to-C marker와 C peak 주변의 미세 timing 차이를 더 촘촘한 sample 간격으로 볼 수 있다.
+- 약한 C와 강한 B 때문에 일부 beat에서 `PossibleFalseC` 또는 `CTimingUnstable` warning이 발생할 수 있다.
+- 낮은 band-limited noise와 드문 impulse noise를 포함하므로 clean synthetic signal이 아니라 handling/ambient-noise 위험을 흉내 내는 수동 검증용 입력이다.
+
+Headless verifier는 nominal beat rate를 계속 감지해야 하고, GUI에서는 signal-quality warning 경로를 확인할 수 있어야 한다.
 
 Verifier 기준 명령은 다음과 같다.
 
 ```powershell
-dotnet run --project src/TimeGrapher.Verify -c Release -- manual-fixtures/21600BPH_bad-signal_falseC_weak_48000Hz.wav
+dotnet run --project src/TimeGrapher.Verify -c Release -- manual-fixtures/43200BPH_bad-signal_falseC_weak_192000Hz.wav
 ```
 
 생성된 fixture의 기대 기준 결과는 다음과 같다.
 
 ```text
-detected_bph=21600
+detected_bph=43200
 sync_status=Synced
-results include Error Rate, Amplitude, Beat Error, and BPH 21600
+results include Error Rate, Amplitude, Beat Error, and BPH 43200
 ```
 
 ## 수동 검증
@@ -133,7 +269,7 @@ results include Error Rate, Amplitude, Beat Error, and BPH 21600
 
 ### 2. Possible False C / Unstable C
 
-Playback mode에서 `manual-fixtures/21600BPH_bad-signal_falseC_weak_48000Hz.wav`를
+Playback mode에서 `manual-fixtures/43200BPH_bad-signal_falseC_weak_192000Hz.wav`를
 사용한다. 또는 B/noise peak가 C로 선택되는 경우처럼, 특정 beat의 C marker가 최근
 A-to-C pattern보다 비정상적으로 이르게 잡히는 synthetic capture를 사용한다.
 
