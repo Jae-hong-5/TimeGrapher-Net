@@ -38,6 +38,8 @@ synthetic fixture 스윕(`tests/TimeGrapher.Core.Tests/BeatLandmarkRefinerSynthe
 - synthetic 학습 데이터는 weak-A(B -> A) 케이스를 더 비중 있게 만든다.
 - B -> C는 부차적 caricature로 두고, C 보정 경로 검증 용도로만 쓴다.
 
+real sample 진단에서도 B->A가 확인되었다(`LANDMARK_REFINER_BEAT_DIAGNOSIS.md`): clean 레퍼런스(ST3600/NH39A)는 A 위상 이상치가 0인데, NH35는 드물게(1비트), `mine.wav`는 간헐적으로(~1.5%), 약신호 `mine_adapter.wav`는 만연하게(비트의 17%가 A>+2 ms 늦음, 42%가 진폭 dip) 나타난다 — 빈도가 신호 약화에 비례한다. 즉 합성 추정이 아니라 실측으로 A 우선이 뒷받침된다.
+
 단, refiner는 metrics/display 스트림만 보정한다. 보정된 A는 rate/beat error 측정을 개선하지만, PLL/BPH lock 입력은 raw 스트림을 유지하므로 lock 자체는 보정하지 않는다(설계상 경계, "기존 C-onset timing과의 경계" 절 참조).
 
 ## 결론
@@ -293,7 +295,7 @@ PoC는 synthetic data로 먼저 가능하다.
 ### 그 밖의 학습 리스크
 
 - 이 repo에는 추론(ONNX Runtime) 계획만 있고 **모델 학습 스택(예: PyTorch + ONNX export)은 없다.** 데이터 생성은 C#로 가능해도 학습 루프/export 파이프라인은 별도 정의가 필요하다.
-- **B 오인식이 실제 worst-case의 주원인인지 아직 미확인이다.** 학습에 투자하기 전에 기존 샘플에서 이를 먼저 진단하는 편이 헛수고를 막는다.
+- **B 오인식(B->A)이 real sample에서 실재함을 진단으로 확인했다**(`LANDMARK_REFINER_BEAT_DIAGNOSIS.md`). 빈도가 신호 약화에 비례하며 약신호 worst-case(`mine_adapter.wav`)에서 만연하다. 학습 데이터 믹스는 이 분포에 맞춰 weak-A 비중을 ~64%로 보강했다(`b114099`). 다만 ground truth가 없어 "정확히 B"는 단정 불가다.
 - `UseCOnset`가 켜진 경우 onset 타이밍이 이미 peak 지터에 강건하므로 C peak 보정의 *타이밍* 이득은 작아지고 *진폭* 이득만 남을 수 있다.
 
 학습 label:
