@@ -259,6 +259,27 @@ PoC는 synthetic data로 먼저 가능하다.
 - pickup gain 변화
 - beat error 주입
 
+### 선행조건: WatchSynthStream 개조 (중요)
+
+위 변형 중 핵심 4가지(A 약화 / C 약화 / B>A / B>C)는 **현재 `WatchSynthStream`으로는 만들 수 없다.** 데이터 생성에 들어가기 전에 생성기 개조가 선행되어야 한다. 코드에서 확인한 제약:
+
+- 생성기는 A/B/C 구조를 만들기는 한다. `EnableRealisticPacket`이 A 온셋 클러스터, 중간 충격(B), C 클러스터를 넣는다(`src/TimeGrapher.Core/Sim/WatchSynthStream.cs`의 `WsStartPacket`).
+- 그러나 각 클러스터 진폭이 **코드에 하드코딩**되어 있다. config의 진폭 노브는 전부 패킷 전체(`PcmPeakSignalLevel`, `PacketGainVariation`, `SignalLevelDrift`) 또는 C 전용(`CPeakAnchorGain`, `PostCLobeScale`)이다. **A만 약화하거나 B를 A/C 위로 올리는 노브가 없다.**
+- `EnableCPeakLock`(기본 ON)이 의도적으로 C 앵커가 후속 링잉을 압도하게 설계되어 있어 B>C를 막는 방향이다.
+- ground-truth 사이드채널(`WatchSynthStreamEvent`)은 **A 온셋 시각과 `AToCTimeS`만** 노출한다. true A/true C 라벨은 유도 가능(`true C = SampleIndex + AToCTimeS*fs`)하지만 **B landmark나 클러스터별 진폭 정답은 없다.**
+
+따라서 학습 데이터 단계 진입 전에 다음을 별도 작업으로 분리한다.
+
+1. A/B/C 클러스터별 진폭 config 노브 추가
+2. B>A·B>C를 만들 수 있도록 (필요 시 C-peak-lock 우회 경로 포함)
+3. 이벤트 구조에 B landmark(또는 클러스터별 진폭) 정답 노출
+
+### 그 밖의 학습 리스크
+
+- 이 repo에는 추론(ONNX Runtime) 계획만 있고 **모델 학습 스택(예: PyTorch + ONNX export)은 없다.** 데이터 생성은 C#로 가능해도 학습 루프/export 파이프라인은 별도 정의가 필요하다.
+- **B 오인식이 실제 worst-case의 주원인인지 아직 미확인이다.** 학습에 투자하기 전에 기존 샘플에서 이를 먼저 진단하는 편이 헛수고를 막는다.
+- `UseCOnset`가 켜진 경우 onset 타이밍이 이미 peak 지터에 강건하므로 C peak 보정의 *타이밍* 이득은 작아지고 *진폭* 이득만 남을 수 있다.
+
 학습 label:
 
 ```text
