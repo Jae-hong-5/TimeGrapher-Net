@@ -73,6 +73,16 @@ public sealed class WatchSynthStreamConfig
     public double CPeakAnchorGain;       // unitless. Dominant exact C anchor gain.
     public double CPeakAnchorWidthS;     // seconds. Gaussian width for exact C anchor, e.g. 20 us.
 
+    // Per-cluster amplitude scales for the realistic A/B/C packet (EnableRealisticPacket).
+    // Each multiplies the relative signal level of its cluster's lobes before packet_gain;
+    // CClusterLevelScale also scales the exact C-peak anchor. Default 1.0 leaves the packet
+    // bit-identical and draws no extra RNG. These synthesize weak-A / weak-C / B-dominant
+    // beats for the TinyML landmark-refiner training set. No effect on the simple packet.
+    // Not part of the original C generator.
+    public double AClusterLevelScale = 1.0; // scales the A onset cluster lobes.
+    public double BClusterLevelScale = 1.0; // scales the middle (B) impact lobes.
+    public double CClusterLevelScale = 1.0; // scales the C cluster lobes and the C-peak anchor.
+
     public double PacketTailAfterCS;     // seconds. Ringing duration after computed C time.
     public double PacketGainVariation;   // fraction. Per-packet random PCM gain variation.
     public double ShapeDelayJitterUs;    // us. Random lobe delay perturbation.
@@ -146,6 +156,10 @@ public sealed class WatchSynthStreamConfig
             PostCLobeScale = 0.22,
             CPeakAnchorGain = 3.00,
             CPeakAnchorWidthS = 0.000020,
+
+            AClusterLevelScale = 1.0,
+            BClusterLevelScale = 1.0,
+            CClusterLevelScale = 1.0,
 
             PacketTailAfterCS = 0.0080,
             PacketGainVariation = 0.0,
@@ -404,6 +418,7 @@ public sealed class WatchSynthStream
         if (cfg.PostCLobeScale < 0.0 || cfg.PostCLobeScale > 2.0) { err = "post_c_lobe_scale must be 0..2"; return false; }
         if (cfg.CPeakAnchorGain < 0.0 || cfg.CPeakAnchorGain > 10.0) { err = "c_peak_anchor_gain must be 0..10"; return false; }
         if (cfg.CPeakAnchorWidthS <= 0.0 || cfg.CPeakAnchorWidthS > 0.0010) { err = "c_peak_anchor_width_s must be >0 and <=1 ms"; return false; }
+        if (cfg.AClusterLevelScale < 0.0 || cfg.BClusterLevelScale < 0.0 || cfg.CClusterLevelScale < 0.0) { err = "cluster level scales must be >= 0"; return false; }
         if (cfg.MinAToCTimeS <= 0.0 || cfg.MaxAToCTimeS <= cfg.MinAToCTimeS) { err = "A-to-C clamp range is invalid"; return false; }
         if (cfg.StartTimeS < 0.0) { err = "start_time_s must be >=0"; return false; }
         if (cfg.ImpulseNoiseRatePerSecond < 0.0 || cfg.ImpulseNoiseRatePerSecond > 50.0) { err = "impulse_noise_rate_per_second must be 0..50"; return false; }
@@ -599,14 +614,19 @@ public sealed class WatchSynthStream
         }
         if (cfg.EnableRealisticPacket != 0)
         {
+            // Per-cluster amplitude scales (default 1.0; weak-A / weak-C / B-dominant synthesis).
+            double aScale = cfg.AClusterLevelScale;
+            double bScale = cfg.BClusterLevelScale;
+            double cScale = cfg.CClusterLevelScale;
+
             // A-like onset cluster: early impulse/fork activity near event time.
-            WsAddVariedLobe(p, packetDurationS, 0.00000, 0.22, 2300.0, 0.00085, freqScale);
-            WsAddVariedLobe(p, packetDurationS, 0.00028, 0.18, 4100.0, 0.00070, freqScale);
-            WsAddVariedLobe(p, packetDurationS, 0.00072, 0.13, 6800.0, 0.00055, freqScale);
+            WsAddVariedLobe(p, packetDurationS, 0.00000, 0.22 * aScale, 2300.0, 0.00085, freqScale);
+            WsAddVariedLobe(p, packetDurationS, 0.00028, 0.18 * aScale, 4100.0, 0.00070, freqScale);
+            WsAddVariedLobe(p, packetDurationS, 0.00072, 0.13 * aScale, 6800.0, 0.00055, freqScale);
 
             // Middle low-energy impacts/rattle before the main C zone.
-            WsAddVariedLobe(p, packetDurationS, 0.00215, 0.16, 5200.0, 0.00085, freqScale);
-            WsAddVariedLobe(p, packetDurationS, 0.00305, 0.10, 8800.0, 0.00060, freqScale);
+            WsAddVariedLobe(p, packetDurationS, 0.00215, 0.16 * bScale, 5200.0, 0.00085, freqScale);
+            WsAddVariedLobe(p, packetDurationS, 0.00305, 0.10 * bScale, 8800.0, 0.00060, freqScale);
 
             /*
                 C-like locking/banking cluster.
@@ -617,19 +637,19 @@ public sealed class WatchSynthStream
             if (cfg.EnableCPeakLock != 0)
             {
                 double post = cfg.PostCLobeScale;
-                WsAddVariedLobe(p, packetDurationS, aToCS - 0.00105, 0.12 * cGain, 4700.0, 0.00065, freqScale);
-                WsSetCAnchor(p, aToCS, cfg.CPeakAnchorGain * cGain, cfg.CPeakAnchorWidthS);
-                WsAddVariedLobe(p, packetDurationS, aToCS + 0.00072, 0.18 * post * cGain, 10300.0, 0.00065, freqScale);
-                WsAddVariedLobe(p, packetDurationS, aToCS + 0.00175, 0.10 * post * cGain, 6100.0, 0.00090, freqScale);
-                WsAddVariedLobe(p, packetDurationS, aToCS + 0.00320, 0.05 * post * cGain, 2900.0, 0.00150, freqScale);
+                WsAddVariedLobe(p, packetDurationS, aToCS - 0.00105, 0.12 * cGain * cScale, 4700.0, 0.00065, freqScale);
+                WsSetCAnchor(p, aToCS, cfg.CPeakAnchorGain * cGain * cScale, cfg.CPeakAnchorWidthS);
+                WsAddVariedLobe(p, packetDurationS, aToCS + 0.00072, 0.18 * post * cGain * cScale, 10300.0, 0.00065, freqScale);
+                WsAddVariedLobe(p, packetDurationS, aToCS + 0.00175, 0.10 * post * cGain * cScale, 6100.0, 0.00090, freqScale);
+                WsAddVariedLobe(p, packetDurationS, aToCS + 0.00320, 0.05 * post * cGain * cScale, 2900.0, 0.00150, freqScale);
             }
             else
             {
-                WsAddVariedLobe(p, packetDurationS, aToCS - 0.00105, 0.34 * cGain, 4700.0, 0.00110, freqScale);
-                WsAddVariedLobe(p, packetDurationS, aToCS, 1.00 * cGain, 7600.0, 0.00185, freqScale);
-                WsAddVariedLobe(p, packetDurationS, aToCS + 0.00062, 0.53 * cGain, 10300.0, 0.00120, freqScale);
-                WsAddVariedLobe(p, packetDurationS, aToCS + 0.00170, 0.24 * cGain, 6100.0, 0.00180, freqScale);
-                WsAddVariedLobe(p, packetDurationS, aToCS + 0.00320, 0.12 * cGain, 2900.0, 0.00300, freqScale);
+                WsAddVariedLobe(p, packetDurationS, aToCS - 0.00105, 0.34 * cGain * cScale, 4700.0, 0.00110, freqScale);
+                WsAddVariedLobe(p, packetDurationS, aToCS, 1.00 * cGain * cScale, 7600.0, 0.00185, freqScale);
+                WsAddVariedLobe(p, packetDurationS, aToCS + 0.00062, 0.53 * cGain * cScale, 10300.0, 0.00120, freqScale);
+                WsAddVariedLobe(p, packetDurationS, aToCS + 0.00170, 0.24 * cGain * cScale, 6100.0, 0.00180, freqScale);
+                WsAddVariedLobe(p, packetDurationS, aToCS + 0.00320, 0.12 * cGain * cScale, 2900.0, 0.00300, freqScale);
             }
         }
         else
