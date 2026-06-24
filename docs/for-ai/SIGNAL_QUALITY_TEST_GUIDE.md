@@ -153,6 +153,55 @@ sequenceDiagram
 
 데모에서는 모든 항목을 길게 보여주기보다, `공통 readout/status -> Beat Noise -> Waveform Compare -> Escapement Analyzer`를 signal-quality 직접 경고 경로로 보여주고, Trace/Beat Error/Long-Term/Vario/Scope/Filter 계열은 각 그래프의 reference line, range, marker, trend가 비정상 가능성을 어떻게 보조하는지 짧게 연결하면 된다.
 
+## 체크리스트 테스트 환경 Matrix
+
+아래 WAV 세트로 `프로젝트 플랜 기반 그래프별 비정상 신호 안내 체크리스트`의 직접 경고와 해석 보조 항목을 반복 검증한다. 모든 파일은 192 kHz float mono WAV이며, headless verifier에서 nominal BPH sync가 유지되는 입력이다.
+
+| Fixture | 목적 | 주요 확인 항목 |
+|---|---|---|
+| `manual-fixtures/28800BPH_clean_reference_192000Hz.wav` | clean baseline | warning이 없는 상태, reference/range/marker가 정상 신호 기준으로 보이는지 확인 |
+| `manual-fixtures/43200BPH_bad-signal_falseC_weak_192000Hz.wav` | high-rate false-C / weak-C risk | 공통 readout/status, Beat Noise, Waveform Compare, Escapement의 `PossibleFalseC`/`CTimingUnstable` 직접 경고 확인 |
+| `manual-fixtures/28800BPH_noisy_handling_impulse_192000Hz.wav` | ambient/handling noise | noisy/low-confidence 설명, spectrogram 외부 잡음 band, rate/beat-error 변동 해석 주의 확인 |
+| `manual-fixtures/28800BPH_weak_missingC_192000Hz.wav` | weak or partially missing C | `Amplitude ---°`, weak/missing signal guidance, mean-C/marker 신뢰도 저하 확인 |
+| `manual-fixtures/28800BPH_clipping_gain_high_192000Hz.wav` | gain too high / clipping risk | gain 조정 guidance, clipping/high-level waveform 시각 확인, clipping과 runtime deadline warning 구분 확인 |
+
+Verifier smoke test:
+
+```powershell
+dotnet run --project src/TimeGrapher.Verify -c Release -- manual-fixtures/28800BPH_clean_reference_192000Hz.wav manual-fixtures/43200BPH_bad-signal_falseC_weak_192000Hz.wav manual-fixtures/28800BPH_noisy_handling_impulse_192000Hz.wav manual-fixtures/28800BPH_weak_missingC_192000Hz.wav manual-fixtures/28800BPH_clipping_gain_high_192000Hz.wav
+```
+
+기대 결과: 각 파일이 filename의 BPH(`28800` 또는 `43200`)로 `sync_status=Synced`를 출력한다. `28800BPH_weak_missingC_192000Hz.wav`는 amplitude가 `---°`로 나올 수 있으며, 이는 missing/low-confidence C 검증에 사용한다.
+
+Benchmark smoke test:
+
+```powershell
+dotnet run --project src/TimeGrapher.App -c Release -- --analysis-benchmark --wav manual-fixtures/28800BPH_clean_reference_192000Hz.wav
+dotnet run --project src/TimeGrapher.App -c Release -- --analysis-benchmark --wav manual-fixtures/28800BPH_noisy_handling_impulse_192000Hz.wav
+dotnet run --project src/TimeGrapher.App -c Release -- --analysis-benchmark --wav manual-fixtures/28800BPH_weak_missingC_192000Hz.wav
+dotnet run --project src/TimeGrapher.App -c Release -- --analysis-benchmark --wav manual-fixtures/28800BPH_clipping_gain_high_192000Hz.wav
+```
+
+기대 결과: `detected_bph=28800`, `max_deadline_level=0`. 이미 포함된 43200 fixture는 아래 수동 fixture 섹션의 benchmark 명령으로 확인한다.
+
+### 체크리스트별 수동 QA 절차
+
+| 그래프 / 표시 영역 | 사용할 입력 | 확인 방법 |
+|---|---|---|
+| 공통 상단 readout / status guidance | clean, false-C, weak, noisy, clipping | clean에서는 `Signal ...` suffix가 없어야 한다. false-C/weak/noisy/clipping fixture에서는 readout suffix와 status guidance가 각각 Beat Noise 확인, reposition/gain 조정, handling/ambient noise 감소처럼 사용자가 취할 행동을 말하는지 확인한다. Benchmark의 `max_deadline_level=0` 상태에서는 acoustic warning과 runtime quality warning이 섞이지 않아야 한다. |
+| Sound Graph / Sound Print | clean, noisy, weak, clipping | 같은 입력을 Sound Print와 Rate/Scope에서 번갈아 보며 raw/processed signal이 같은 구간을 설명하는지 확인한다. noisy/weak/clipping에서는 warning context를 함께 언급하고, averaging/filtering이 약한 성분을 숨길 수 있음을 데모 설명에 포함한다. pause/review 후에도 마지막 warning 문맥이 사라지지 않는지 확인한다. |
+| Rate/Scope | clean, false-C, noisy | raw signal, threshold/reference, A/C marker가 Sound Print와 같은 입력 구간을 기준으로 보이는지 확인한다. false-C/noisy에서 marker가 흔들릴 때 readout/status warning과 모순되는 clean 판정처럼 설명하지 않는다. |
+| Trace Display | clean, noisy, weak | clean으로 정상 trace를 확인한 뒤 noisy/weak에서 rate/amplitude 값을 확정 진단으로 말하지 않는다. `weak_missingC`에서 amplitude가 `---°` 또는 불안정하게 보이면 out-of-range/low-confidence 사례로 설명한다. |
+| Vario / Rate-Amplitude Stability | clean, noisy, weak | clean 장기 통계와 noisy/weak 장기 통계를 비교한다. min/max/average/sigma가 variation 증가를 드러내는지 확인하고, warning이 있었던 구간의 통계는 clean long-term stability와 직접 비교하지 않는다고 설명한다. |
+| Multi-Position Sequence / Positions | clean + 동일 fixture를 position별로 수동 전환 | 같은 fixture를 재생하면서 active position을 바꿔 position 결과가 현재 position과 연결되는지 확인한다. noisy/weak fixture로 기록한 position은 실제 자세별 성능 차이가 아니라 signal-quality 문제일 수 있음을 표시한다. |
+| Beat Noise Scope | false-C, weak, noisy | false-C fixture에서 `POSSIBLE FALSE C` 또는 `C TIMING UNSTABLE`, weak fixture에서 `WEAK SIGNAL` 또는 C marker 부재/불안정을 확인한다. Scope 1 A/C marker가 의심 C를 clean C처럼 보이게 하지 않는지, Scope 2 averaging이 random noise 감소 목적임을 설명할 수 있는지 확인한다. strip 선택/확대 후에도 warning context가 유지되는지 확인한다. |
+| Beat Error Display / Diagnostic Trace | clean, noisy, weak | clean의 spacing/slope 기준을 먼저 보여준 뒤 noisy/weak에서 spacing/slope 이상을 watch fault로 단정하지 않는다. acceptable range/warning이 보이는지 확인하고 signal-quality warning과 함께 해석한다. |
+| Long-Term Performance Graph | clean, noisy | 12초 fixture를 반복 재생하거나 longer manual run으로 average와 variation range를 확인한다. noisy fixture의 variation이 장기 추세 해석을 오염시킬 수 있음을 설명한다. |
+| Escapement Analyzer / Marker-Line Display | false-C, weak | 우측 상단 overlay warning을 확인한다. C marker 위치와 waveform feature가 어긋나면 repeatability sample로 확정하지 않고 confidence 낮음/status guidance와 연결한다. |
+| Time-Frequency Spectrogram | clean, noisy, clipping | clean의 반복 beat energy와 noisy/clipping의 외부 band 또는 high-energy saturation risk를 비교한다. color intensity로 약한/강한 에너지를 구분하고, spectrogram만으로 rate/amplitude를 확정하지 않는다. |
+| Waveform Compare | false-C, weak, noisy | false-C/weak에서 우측 상단 overlay와 lane label의 signal-quality warning을 확인한다. `PossibleFalseC` beat가 mean-C guide에서 제외되는지 확인하고, lane 간 shape/spacing inconsistency를 noise 또는 weak signal 가능성과 연결한다. |
+| Scope Sweep | clean, noisy, weak | clean에서는 pattern이 sweep window에 안정적으로 머무는지 확인한다. noisy/weak에서는 drift처럼 보이는 현상을 sync 불안정 또는 signal-quality 문제와 구분해 설명하고 watch fault로 단정하지 않는다. |
+| Filter Scope / F0-F3 | clean, noisy, weak | 네 filter view가 같은 input/time axis를 공유하는지 확인한다. F0를 closest raw representation으로 설명하고, F1 smoothing은 noise를 줄이지만 low-amplitude component를 숨길 수 있으며, F2/F3 emphasis는 원신호와 다른 해석일 수 있음을 설명한다. |
 ## Overlay Fade 규칙
 
 그래프가 clean하지 않은 `SignalQualityFlags` 값을 받으면 overlay는 가장 최근 warning을
