@@ -86,6 +86,24 @@
       <Grid ColumnDefinitions="*,Auto"
             HorizontalAlignment="Stretch"
             IsEnabled="{Binding AreRunParametersEnabled}">
+        <TextBlock Text="Weak-A onset rescue"
+                   FontWeight="Bold"
+                   HorizontalAlignment="Left"
+                   VerticalAlignment="Center" />
+        <ToggleSwitch Name="WeakAOnsetRescueToggleSwitch"
+                      Grid.Column="1"
+                      AutomationProperties.Name="Weak-A onset rescue"
+                      OffContent=""
+                      OnContent=""
+                      FontWeight="Bold"
+                      HorizontalAlignment="Right"
+                      IsEnabled="{Binding AreRunParametersEnabled}"
+                      IsChecked="{Binding WeakAOnsetRescue, Mode=TwoWay}"
+                      ToolTip.Tip="Catch a weak A near the locked phase (lowers the in-window onset trigger)" />
+      </Grid>
+      <Grid ColumnDefinitions="*,Auto"
+            HorizontalAlignment="Stretch"
+            IsEnabled="{Binding AreRunParametersEnabled}">
         <TextBlock Text="Pause on position change"
                    FontWeight="Bold"
                    HorizontalAlignment="Left"

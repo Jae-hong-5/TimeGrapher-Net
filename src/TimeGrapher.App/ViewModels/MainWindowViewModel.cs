@@ -58,6 +58,7 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     private string _highPassCutoffText = "200";
     private bool _useCOnset;
     private bool _pllEventVeto;
+    private bool _weakAOnsetRescue;
     private bool _pauseOnPositionChange;
     private int _sweepMultiple = SweepFrameProjector.DefaultSweepMultiple;
     private int _selectedPositionIndex; // 0 = WatchPosition.CH (dial up)
@@ -274,6 +275,17 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     {
         get => _pllEventVeto;
         set => SetProperty(ref _pllEventVeto, value);
+    }
+
+    /// <summary>
+    /// Opt-in post-lock weak-A onset rescue (a run parameter): lowers the onset
+    /// trigger inside the phase-guide window so a weak A just below the trigger
+    /// is caught instead of latching B. Off by default.
+    /// </summary>
+    public bool WeakAOnsetRescue
+    {
+        get => _weakAOnsetRescue;
+        set => SetProperty(ref _weakAOnsetRescue, value);
     }
 
     public bool PauseOnPositionChange

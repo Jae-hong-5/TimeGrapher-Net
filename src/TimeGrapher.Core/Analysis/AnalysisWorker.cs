@@ -30,6 +30,8 @@ public sealed class AnalysisWorker : IDisposable
         public double HpfCutoffHz = 0.0;
         /// <summary>Opt-in veto gate at the metrics choke point; null = no gate.</summary>
         public IBeatEventGate? EventGate = null;
+        /// <summary>&gt;0 enables the post-lock weak-A onset rescue (see TgConfig.PhaseGuideOnsetRescueScale); 0 = off.</summary>
+        public double PhaseGuideOnsetRescueScale = 0.0;
         public int SoundImageWidth = 0;
         public int SoundImageHeight = 0;
         public int ScopeSnapshotPointBudget = 8000;
@@ -102,7 +104,8 @@ public sealed class AnalysisWorker : IDisposable
             config.AutoBph,
             config.ManualBph,
             config.HpfCutoffHz,
-            config.EventGate != null ? new BeatEventGateConfig(config.EventGate) : null));
+            config.EventGate != null ? new BeatEventGateConfig(config.EventGate) : null,
+            PhaseGuideOnsetRescueScale: config.PhaseGuideOnsetRescueScale));
 
         _inputBlock = new float[config.AnalysisBlockSize];
         _scopeRateProjector = new ScopeRateFrameProjector(
