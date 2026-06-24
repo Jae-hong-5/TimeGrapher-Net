@@ -25,6 +25,21 @@
 
 이 문제는 단순 event veto로는 충분히 해결되지 않는다. 잘못 잡은 후보를 버릴 수는 있지만, 진짜 A/C 위치로 시간을 보정할 수 없기 때문이다.
 
+### 검증 결과: A 보정을 우선한다
+
+synthetic fixture 스윕(`tests/TimeGrapher.Core.Tests/BeatLandmarkRefinerSyntheticTests.cs`)에서 두 실패의 성격이 다르게 나타났다.
+
+- **B -> A**: A 클러스터만 약화해도(B/C 정상) 발생한다. A는 onset threshold 교차로 잡히므로 약하면 못 넘고 B가 첫 교차가 되기 때문이다. 정상 A는 onset이 약 0.13 ms로 정확히 잡히지만, 약한 A(클러스터 스케일 0.3)는 B로 점프해 약 2.4 ms 오차가 난다. 극단적 조건이 필요 없는 **현실적** 실패이고, rate/beat error의 기준이 되는 A 타이밍을 오염시키므로 더 **심각**하다.
+- **B -> C**: detector가 강건하다. C가 약하고(스케일 <= ~0.05) **동시에** B가 압도적(>= ~10x)일 때만 깨지며, 더 완만한 weak-C는 C를 정확히 잡는다. 흔한 실패가 아니라 극단적 조건에서만 나타나는 caricature다.
+
+따라서 우선순위는 다음과 같다.
+
+- 모델/보정 설계와 학습 데이터는 **A 보정을 C 보정보다 우선**한다.
+- synthetic 학습 데이터는 weak-A(B -> A) 케이스를 더 비중 있게 만든다.
+- B -> C는 부차적 caricature로 두고, C 보정 경로 검증 용도로만 쓴다.
+
+단, refiner는 metrics/display 스트림만 보정한다. 보정된 A는 rate/beat error 측정을 개선하지만, PLL/BPH lock 입력은 raw 스트림을 유지하므로 lock 자체는 보정하지 않는다(설계상 경계, "기존 C-onset timing과의 경계" 절 참조).
+
 ## 결론
 
 TinyML 적용 방향은 `IBeatEventGate` 기반 drop-only 필터가 아니라 **TinyML Beat Landmark Refiner**로 잡는다.
