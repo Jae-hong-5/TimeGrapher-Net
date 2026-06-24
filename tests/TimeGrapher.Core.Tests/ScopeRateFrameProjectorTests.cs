@@ -127,6 +127,85 @@ public sealed class ScopeRateFrameProjectorTests
     }
 
     [Fact]
+    public void AppendSnapshot_ThrottlesScopeSliceRebuildWithinPublishInterval()
+    {
+        var projector = new ScopeRateFrameProjector(SampleRate, useCOnset: false, scopeSnapshotPointBudget: 256);
+
+        GraphSeriesFrame PublishBlock(int length)
+        {
+            var data = new float[length];
+            Array.Fill(data, 0.1f);
+            var frame = new AnalysisFrame();
+            projector.Project(new DetectorMetricsBlockUpdate(
+                Result(TgSyncStatus.Synced, data, data.Length, 0.2f),
+                Array.Empty<DetectedEventUpdate>()), frame);
+            projector.AppendSnapshot(frame);
+            return Assert.Single(frame.ScopeSeries, s => s.Id == AnalysisGraphSeries.ScopePcm);
+        }
+
+        // First snapshot publishes; a second within the 0.05 s (2400-sample) floor
+        // re-attaches the same immutable slice instead of re-copying it.
+        GraphSeriesFrame first = PublishBlock(1000);
+        GraphSeriesFrame second = PublishBlock(1000);
+        Assert.Same(first, second);
+
+        // Crossing the floor rebuilds a fresh slice.
+        GraphSeriesFrame third = PublishBlock(3000);
+        Assert.NotSame(first, third);
+    }
+
+    [Fact]
+    public void AppendSnapshot_ForceRepublishesSliceWithinInterval()
+    {
+        var projector = new ScopeRateFrameProjector(SampleRate, useCOnset: false, scopeSnapshotPointBudget: 256);
+
+        var frame1 = new AnalysisFrame();
+        var block = new float[1000];
+        Array.Fill(block, 0.1f);
+        projector.Project(new DetectorMetricsBlockUpdate(
+            Result(TgSyncStatus.Synced, block, block.Length, 0.2f),
+            Array.Empty<DetectedEventUpdate>()), frame1);
+        projector.AppendSnapshot(frame1);
+        GraphSeriesFrame first = Assert.Single(frame1.ScopeSeries, s => s.Id == AnalysisGraphSeries.ScopePcm);
+
+        // A tiny advance stays within the publish floor, but force (the drain/flush
+        // path) rebuilds anyway so the final frame carries the freshest slice.
+        var frame2 = new AnalysisFrame();
+        var tiny = new float[100];
+        Array.Fill(tiny, 0.1f);
+        projector.Project(new DetectorMetricsBlockUpdate(
+            Result(TgSyncStatus.Synced, tiny, tiny.Length, 0.2f),
+            Array.Empty<DetectedEventUpdate>()), frame2);
+        projector.AppendSnapshot(frame2, force: true);
+        GraphSeriesFrame forced = Assert.Single(frame2.ScopeSeries, s => s.Id == AnalysisGraphSeries.ScopePcm);
+
+        Assert.NotSame(first, forced);
+    }
+
+    [Fact]
+    public void AppendSnapshot_PublishesOnlyLatestWindowSlice()
+    {
+        var projector = new ScopeRateFrameProjector(SampleRate, useCOnset: false, scopeSnapshotPointBudget: 32000);
+        // ~3.125 s of audio: more than the 2 s publish window, so the slice must drop
+        // the earliest samples rather than copying the whole retained buffer.
+        var block = new float[150000];
+        Array.Fill(block, 0.1f);
+        var frame = new AnalysisFrame();
+        projector.Project(new DetectorMetricsBlockUpdate(
+            Result(TgSyncStatus.Synced, block, block.Length, 0.2f),
+            Array.Empty<DetectedEventUpdate>()), frame);
+        projector.AppendSnapshot(frame);
+
+        GraphSeriesFrame pcm = Assert.Single(frame.ScopeSeries, s => s.Id == AnalysisGraphSeries.ScopePcm);
+        // Newest tick = 150000; the 2 s window keeps only X >= 150000 - 96000 = 54000.
+        Assert.NotEmpty(pcm.X);
+        Assert.True(pcm.X[0] >= 54000.0, $"slice should start within the 2 s window, was {pcm.X[0]}");
+        Assert.True(pcm.X[^1] <= 150000.0);
+        // Genuinely a slice, not the full ~3 s (50000-point) retained buffer.
+        Assert.True(pcm.X.Count < 50000, $"slice should be smaller than the full buffer, was {pcm.X.Count}");
+    }
+
+    [Fact]
     public void Project_NotSyncedClearsBeatSyncedFlag()
     {
         var projector = new ScopeRateFrameProjector(SampleRate, useCOnset: false, scopeSnapshotPointBudget: 256);

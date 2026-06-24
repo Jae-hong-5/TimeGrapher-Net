@@ -474,6 +474,7 @@ public sealed class AnalysisWorker : IDisposable
         _spectrogramProjector.SetPublishIntervalScale(level < 2 ? 1 : 4);
         _sweepProjector.SetPublishIntervalScale(level < 2 ? 1 : 8);
         _multiFilterProjector.SetPublishIntervalScale(level < 2 ? 1 : 8);
+        _scopeRateProjector.SetPublishIntervalScale(level < 2 ? 1 : 4);
         _scopeRateProjector.SetScopeStrideScale(level < 3 ? 1 : 2);
         _beatSegmentCapture.SetCaptureSuspended(level >= 3);
     }
@@ -510,7 +511,7 @@ public sealed class AnalysisWorker : IDisposable
         _beatMetricsProjector.Project(flushUpdate);
         _beatSegmentCapture.Project(flushUpdate);
         _sweepProjector.Project(flushUpdate);
-        _scopeRateProjector.AppendSnapshot(frame);
+        _scopeRateProjector.AppendSnapshot(frame, force: true);
         _soundPrintProjector.AppendSnapshot(frame, force: true);
         _spectrogramProjector.AppendSnapshot(frame, force: true);
         if (frame.SpectrogramImageUpdated)

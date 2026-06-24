@@ -61,7 +61,12 @@ internal static class InfoTabCatalog
 
     public const int DefaultUiRefreshIntervalMs = 33;
     public const int SoundPrintRefreshIntervalMs = 100;
-    public const int ScopeTargetPointBudget = 8000;
+    // Scope point budget, used both as the Core decimation budget over the 2 s
+    // stride-reference window (ScopeRateFrameProjector) and as the renderer's
+    // view-limited reduction budget over the visible window. 32000 points across a
+    // 2 s window is ~0.0625 ms/point at 48 kHz — the same time resolution the Sweep
+    // tab paints (SweepFrameProjector.SweepBinBudget over one tick-tick window).
+    public const int ScopeTargetPointBudget = 32000;
     public const int RateTargetPointBudget = 250;
 
     private static readonly GraphSeriesDefinition[] RateScopeSeries =

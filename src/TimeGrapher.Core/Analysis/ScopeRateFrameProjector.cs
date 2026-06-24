@@ -18,6 +18,26 @@ public sealed class ScopeRateFrameProjector
     // retained point count then scales with ScopeRetentionSeconds, not the stride.
     private const int ScopeStrideReferenceSeconds = 2;
 
+    // Per-publish copy window. Only the newest <see cref="ScopePublishWindowSeconds"/>
+    // of decimated scope samples are copied onto each frame; the renderer merges
+    // those slices into its own rolling history (so a pan/pause can still reach the
+    // earlier ScopeRetentionSeconds). This bounds the steady-state snapshot copy to
+    // the visible window instead of the full retention buffer — at stride 3 / 48 kHz
+    // a 2 s slice is ~32 kpts versus ~160 kpts for the whole 10 s window. Sized to
+    // the renderer's zoom-out ceiling (RateScopeRenderer.MaxScopeWindowSeconds) and
+    // kept ≥ one publish interval of overlap so dropped frames leave no gap.
+    private const double ScopePublishWindowSeconds = 2.0;
+
+    /// <summary>
+    /// Stream-time floor between scope-slice rebuilds (the SweepFrameProjector /
+    /// MultiFilterFrameProjector throttle). The PCM/threshold slice changes every
+    /// audio block (50-100 Hz) but the UI coalesces frames latest-wins, so rebuilding
+    /// the ~32 kpt slice every pass is wasted copy; frames in between re-attach the
+    /// same immutable slice. Markers and the rate series are independent (event-driven
+    /// and already shared) and stay live per frame.
+    /// </summary>
+    public const double PublishIntervalS = 0.05;
+
     private readonly int _sampleRate;
     private readonly bool _useCOnset;
     private readonly int _scopeSnapshotPointBudget;
@@ -44,6 +64,18 @@ public sealed class ScopeRateFrameProjector
 
     private int _strideScale = 1;
 
+    // Scope-slice publish throttle (see PublishIntervalS). The cached slice is
+    // re-attached to frames produced between rebuilds; GraphTickEnd is latched to
+    // the slice's instant so the trace's right edge and the view advance together
+    // (QAS-4 single-frame consistency) instead of the view racing ahead of a frozen
+    // trace.
+    private volatile int _publishIntervalScale = 1;
+    private GraphSeriesFrame? _lastScopePcmSeries;
+    private GraphSeriesFrame? _lastScopeThresholdSeries;
+    private ulong _lastPublishedSample;
+    private ulong _lastPublishedGraphTickEnd;
+    private bool _hasPublishedScope;
+
     public ScopeRateFrameProjector(int sampleRate, bool useCOnset, int scopeSnapshotPointBudget)
     {
         _sampleRate = sampleRate;
@@ -58,6 +90,16 @@ public sealed class ScopeRateFrameProjector
     public void SetScopeStrideScale(int scale)
     {
         _strideScale = Math.Max(1, scale);
+    }
+
+    /// <summary>
+    /// Deadline-degradation knob: multiplies the scope-slice publish floor
+    /// (1 = normal). The cheap knob to reach for before <see cref="SetScopeStrideScale"/>
+    /// coarsens the stored resolution. Thread-safe; applied on the next AppendSnapshot.
+    /// </summary>
+    public void SetPublishIntervalScale(int scale)
+    {
+        _publishIntervalScale = Math.Max(1, scale);
     }
 
     public void Project(DetectorMetricsBlockUpdate update, AnalysisFrame frame)
@@ -104,31 +146,35 @@ public sealed class ScopeRateFrameProjector
         }
     }
 
-    public void AppendSnapshot(AnalysisFrame frame)
+    public void AppendSnapshot(AnalysisFrame frame, bool force = false)
     {
         TrimScopeWindow();
-        frame.GraphTickEnd = _localGraphTicks;
 
-        if (_scopeWindowX.Count != 0)
+        // force: the drain/flush path republishes regardless of the gate (the sibling
+        // projectors' convention) so the final kept frame carries the freshest slice.
+        ulong intervalSamples = (ulong)(PublishIntervalS * _sampleRate) * (ulong)_publishIntervalScale;
+        if (force || !_hasPublishedScope || _localGraphTicks - _lastPublishedSample >= intervalSamples)
         {
-            var scopeX = new List<double>(_scopeWindowX);
-            frame.AddScopeSeries(new GraphSeriesFrame
-            {
-                Id = AnalysisGraphSeries.ScopePcm,
-                X = scopeX,
-                Y = new List<double>(_scopeWindowPcm),
-                Replace = true,
-            });
-
-            frame.AddScopeSeries(new GraphSeriesFrame
-            {
-                Id = AnalysisGraphSeries.ScopeThreshold,
-                X = scopeX,
-                Y = new List<double>(_scopeWindowThreshold),
-                Replace = true,
-            });
+            RebuildScopeSlice();
+            _lastPublishedGraphTickEnd = _localGraphTicks;
+            _lastPublishedSample = _localGraphTicks;
+            _hasPublishedScope = true;
         }
 
+        // Latch the view edge to the published slice so the renderer's live-follow
+        // window does not run ahead of a throttled (frozen) trace.
+        frame.GraphTickEnd = _lastPublishedGraphTickEnd;
+
+        if (_lastScopePcmSeries != null)
+        {
+            frame.AddScopeSeries(_lastScopePcmSeries);
+            frame.AddScopeSeries(_lastScopeThresholdSeries!);
+        }
+
+        // Markers are bounded by events over the retention window (~hundreds of
+        // structs), not the per-sample PCM, so they ride every frame at the full
+        // retained extent — the renderer needs them when a pan reaches back into the
+        // history it has accumulated from earlier slices.
         frame.SetScopeMarkers(_scopeWindowVerticalMarkers, _scopeWindowHorizontalMarkers, _scopeWindowTextMarkers);
 
         if (_hasLatestResultsText)
@@ -145,6 +191,61 @@ public sealed class ScopeRateFrameProjector
         {
             frame.AddRateSeries(_latestTocRateSeries);
         }
+    }
+
+    // Copies only the newest ScopePublishWindowSeconds of decimated scope samples
+    // into fresh immutable series. The renderer merges these slices (keyed on the
+    // absolute X ticks) into its own rolling history, so the earlier retention is
+    // never re-copied per frame.
+    private void RebuildScopeSlice()
+    {
+        int count = _scopeWindowX.Count;
+        if (count == 0)
+        {
+            _lastScopePcmSeries = null;
+            _lastScopeThresholdSeries = null;
+            return;
+        }
+
+        double minX = 0.0;
+        ulong windowSamples = (ulong)(ScopePublishWindowSeconds * _sampleRate);
+        if (_localGraphTicks > windowSamples)
+        {
+            minX = _localGraphTicks - windowSamples;
+        }
+
+        int start = 0;
+        while (start < count && _scopeWindowX[start] < minX)
+        {
+            start++;
+        }
+
+        int sliceLen = count - start;
+        var sliceX = new List<double>(sliceLen);
+        var slicePcm = new List<double>(sliceLen);
+        var sliceThreshold = new List<double>(sliceLen);
+        for (int i = start; i < count; i++)
+        {
+            sliceX.Add(_scopeWindowX[i]);
+            slicePcm.Add(_scopeWindowPcm[i]);
+            sliceThreshold.Add(_scopeWindowThreshold[i]);
+        }
+
+        _lastScopePcmSeries = new GraphSeriesFrame
+        {
+            Id = AnalysisGraphSeries.ScopePcm,
+            X = sliceX,
+            Y = slicePcm,
+            Replace = true,
+        };
+
+        _lastScopeThresholdSeries = new GraphSeriesFrame
+        {
+            Id = AnalysisGraphSeries.ScopeThreshold,
+            X = sliceX,
+            Y = sliceThreshold,
+            Replace = true,
+        };
     }
 
     private void AppendAEventMarker(double eventSample, float peakValue)
