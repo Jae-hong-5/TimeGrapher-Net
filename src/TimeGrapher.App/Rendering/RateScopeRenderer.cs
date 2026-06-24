@@ -264,8 +264,21 @@ internal sealed class RateScopeRenderer
     {
         _sampleRate = context.SampleRate;
 
-        bool scopeUpdated = MergeScopeHistory(frame, out bool scopeDataChanged);
-        bool rateUpdated = ReplaceRateSeries(frame);
+        // While paused (follow off) each pane holds the snapshot captured when the user
+        // panned: skip merging new data and advancing the extent so the trace stays
+        // static and its bounds rule confines pan/zoom to the frozen window — the live
+        // buffer can no longer slide past it and drag the view forward. Upstream
+        // production continues; ResetScopeView / ResetRateView re-arm follow and resume
+        // the live display. (Panning still re-reduces the frozen history at full
+        // resolution via ScheduleScopeAxisRefresh.)
+        bool scopeUpdated = false;
+        bool scopeDataChanged = false;
+        if (_scopeFollowLive)
+        {
+            scopeUpdated = MergeScopeHistory(frame, out scopeDataChanged);
+        }
+
+        bool rateUpdated = _rateFollowLive && ReplaceRateSeries(frame);
         // Review cursor on the waveform pane only: its x base is absolute sample
         // ticks, so stream time maps onto it (the Filter Scope mapping).
         // The rate pane plots a scrolling beat-index window (the latest
@@ -275,11 +288,11 @@ internal sealed class RateScopeRenderer
 
         if (rateUpdated)
         {
-            // Refresh the retained beat extent every frame (even while panned) so the
-            // bounds rule confines pan/zoom to the current [oldest .. newest] range.
+            // Live only (paused freezes this block): advance the retained beat extent so
+            // the bounds rule tracks [oldest .. newest], then follow the newest beat.
             _hasRateDataExtent = RateDataExtent(out _rateDataMinX, out _rateDataMaxX);
 
-            if (_rateFollowLive && _hasRateDataExtent)
+            if (_hasRateDataExtent)
             {
                 // Default 50-beat live window; the user can zoom out to at most the
                 // whole retained buffer (RateXViewBoundsRule caps the span at the extent).
@@ -293,24 +306,19 @@ internal sealed class RateScopeRenderer
         {
             UpdateScopeMarkers(frame.VerticalMarkers, frame.HorizontalMarkers, frame.TextMarkers);
 
-            // Refresh the drawn-data extent every frame (even while panned) so the
-            // bounds rule confines pan/zoom to the current [oldest .. now] range and
-            // the X-axis start point stays pinned to the data.
-            // Extent spans the accumulated history (oldest retained .. newest), so the
-            // bounds rule lets a pan reach back through the whole retained window even
-            // though each frame only delivered the newest ~2 s slice.
+            // Live only (paused freezes this whole block): advance the drawn-data extent
+            // so the bounds rule tracks [oldest retained .. now] — the extent spans the
+            // accumulated history even though each frame delivered only the newest ~2 s
+            // slice — then follow the newest data with the default 500 ms window.
             _dataMaxX = frame.GraphTickEnd;
             _dataMinX = ScopeOldestTick();
             _hasDataExtent = _dataMaxX > _dataMinX;
 
-            if (_scopeFollowLive)
-            {
-                // Default 500 ms live window; the user can zoom out to at most 2 s
-                // (ScopeXViewBoundsRule caps the span at the retained extent).
-                double width = DefaultScopeWindowSeconds * context.SampleRate;
-                double end = frame.GraphTickEnd;
-                _scopePlot.Plot.Axes.SetLimitsX(end - width, end);
-            }
+            // Default 500 ms live window; the user can zoom out to at most 2 s
+            // (ScopeXViewBoundsRule caps the span at the retained extent).
+            double width = DefaultScopeWindowSeconds * context.SampleRate;
+            double end = frame.GraphTickEnd;
+            _scopePlot.Plot.Axes.SetLimitsX(end - width, end);
 
             // Reduce the now-visible X range out of the accumulated history into the
             // plottable arrays: the on-screen trace then carries the producer's full
@@ -321,11 +329,7 @@ internal sealed class RateScopeRenderer
             if (scopeDataChanged)
             {
                 ReduceVisibleScope();
-
-                if (_scopeFollowLive)
-                {
-                    _scopePlot.Plot.Axes.AutoScaleY();
-                }
+                _scopePlot.Plot.Axes.AutoScaleY();
 
                 // Re-lay the fixed 0.2 s ruler over whatever X range is now shown.
                 ApplyScopeTimeTicks();
