@@ -16,18 +16,18 @@ public sealed class MainWindowRunControlWiringTests
     {
         XDocument document = XDocument.Load(FindSourceFile("src/TimeGrapher.App/Views/MainWindow.axaml"));
 
-        XElement resetButton = FindNamedElement(document, "ResetPushButton");
+        XElement stopButton = FindNamedElement(document, "StopPushButton");
         XElement playPauseButton = FindNamedElement(document, "PlayPausePushButton");
 
-        Assert.Equal("{Binding ResetCommand}", resetButton.Attribute("Command")?.Value);
-        Assert.Equal("{Binding IsResetEnabled}", resetButton.Attribute("IsEnabled")?.Value);
-        Assert.Equal("Stop", resetButton.Attribute("AutomationProperties.Name")?.Value);
-        Assert.Equal("Stop current run", resetButton.Attribute("ToolTip.Tip")?.Value);
-        Assert.Equal("68", resetButton.Attribute("Width")?.Value);
-        Assert.Equal("68", resetButton.Attribute("MinWidth")?.Value);
+        Assert.Equal("{Binding StopCommand}", stopButton.Attribute("Command")?.Value);
+        Assert.Equal("{Binding IsStopEnabled}", stopButton.Attribute("IsEnabled")?.Value);
+        Assert.Equal("Stop", stopButton.Attribute("AutomationProperties.Name")?.Value);
+        Assert.Equal("Stop current run", stopButton.Attribute("ToolTip.Tip")?.Value);
+        Assert.Equal("68", stopButton.Attribute("Width")?.Value);
+        Assert.Equal("68", stopButton.Attribute("MinWidth")?.Value);
         Assert.Equal(
             "M6 6H18V18H6V6Z",
-            resetButton
+            stopButton
                 .Descendants()
                 .Single(element => element.Name.LocalName == "Path")
                 .Attribute("Data")?.Value);
@@ -40,17 +40,17 @@ public sealed class MainWindowRunControlWiringTests
     }
 
     [Fact]
-    public void RunControlSurfaceDoesNotExposeLegacyStopOrSequenceResetControls()
+    public void RunControlSurfaceDoesNotExposeLegacyResetControls()
     {
         XDocument document = XDocument.Load(FindSourceFile("src/TimeGrapher.App/Views/MainWindow.axaml"));
 
         Assert.DoesNotContain(
             document.Descendants().Attributes("Command").Select(attribute => attribute.Value),
-            value => value.Contains("StopCommand", StringComparison.Ordinal) ||
+            value => value.Contains("ResetCommand", StringComparison.Ordinal) ||
                 value.Contains("ResetSequenceCommand", StringComparison.Ordinal));
         Assert.DoesNotContain(
             document.Descendants().Attributes("Name").Select(attribute => attribute.Value),
-            value => value.Contains("StopPushButton", StringComparison.Ordinal) ||
+            value => value.Contains("ResetPushButton", StringComparison.Ordinal) ||
                 value.Contains("ResetSequence", StringComparison.Ordinal));
     }
 

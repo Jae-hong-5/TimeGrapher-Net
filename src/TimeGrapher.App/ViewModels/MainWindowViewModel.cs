@@ -23,6 +23,7 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     public const double ReviewStepS = 1.0;
 
     private readonly AsyncRelayCommand _playPauseCommand;
+    private readonly RelayCommand _stopCommand;
     private readonly RelayCommand _resetCommand;
     private readonly RelayCommand _reviewStepBackCommand;
     private readonly RelayCommand _reviewStepForwardCommand;
@@ -84,6 +85,7 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     public MainWindowViewModel()
     {
         _playPauseCommand = new AsyncRelayCommand(ExecutePlayPauseAsync, () => IsPlayPauseEnabled);
+        _stopCommand = new RelayCommand(() => _runner?.StopRunWithoutReset(), () => IsStopEnabled);
         _resetCommand = new RelayCommand(() => _runner?.Reset(), () => IsResetEnabled);
         _reviewStepBackCommand = new RelayCommand(() => StepReviewCursor(-ReviewStepS), () => IsReviewBarEnabled);
         _reviewStepForwardCommand = new RelayCommand(() => StepReviewCursor(ReviewStepS), () => IsReviewBarEnabled);
@@ -118,6 +120,7 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     public event PropertyChangedEventHandler? PropertyChanged;
 
     public ICommand PlayPauseCommand => _playPauseCommand;
+    public ICommand StopCommand => _stopCommand;
     public ICommand ResetCommand => _resetCommand;
     public ICommand ReviewStepBackCommand => _reviewStepBackCommand;
     public ICommand ReviewStepForwardCommand => _reviewStepForwardCommand;
@@ -133,6 +136,8 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     public bool AreRunParametersEnabled => _runState == RunUiState.Stopped;
 
     public bool IsPlayPauseEnabled => _runState is RunUiState.Stopped or RunUiState.Running or RunUiState.Paused;
+
+    public bool IsStopEnabled => _runState is RunUiState.Running or RunUiState.Paused or RunUiState.Stopping or RunUiState.StopFailed;
 
     public bool IsResetEnabled => _runState is RunUiState.Stopped or RunUiState.Paused or RunUiState.Stopping or RunUiState.StopFailed;
 
@@ -626,6 +631,7 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(IsReviewBarEnabled));
         OnPropertyChanged(nameof(AreRunParametersEnabled));
         OnPropertyChanged(nameof(IsPlayPauseEnabled));
+        OnPropertyChanged(nameof(IsStopEnabled));
         OnPropertyChanged(nameof(IsResetEnabled));
         OnPropertyChanged(nameof(IsSampleRateEnabled));
         OnPropertyChanged(nameof(AreSimulationParametersEnabled));
@@ -633,6 +639,7 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(IsPlayPauseButtonShowingPause));
         OnPropertyChanged(nameof(IsPlayPauseButtonShowingPlay));
         _playPauseCommand.NotifyCanExecuteChanged();
+        _stopCommand.NotifyCanExecuteChanged();
         _resetCommand.NotifyCanExecuteChanged();
         _reviewStepBackCommand.NotifyCanExecuteChanged();
         _reviewStepForwardCommand.NotifyCanExecuteChanged();

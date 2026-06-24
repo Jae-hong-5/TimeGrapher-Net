@@ -186,12 +186,12 @@
                       ColumnDefinitions="Auto,Auto"
                       ColumnSpacing="8"
                       HorizontalAlignment="Right">
-                  <Button Name="ResetPushButton" Grid.Column="0"
+                  <Button Name="StopPushButton" Grid.Column="0"
                           Classes="RunIconButton InlineComboIconButton"
                           Width="68"
                           MinWidth="68"
-                          Command="{Binding ResetCommand}"
-                          IsEnabled="{Binding IsResetEnabled}"
+                          Command="{Binding StopCommand}"
+                          IsEnabled="{Binding IsStopEnabled}"
                           AutomationProperties.Name="Stop"
                           ToolTip.Tip="Stop current run">
                     <Viewbox Width="14" Height="14">

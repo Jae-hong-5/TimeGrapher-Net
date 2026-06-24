@@ -213,9 +213,10 @@ internal sealed partial class RunCommandService : IRunCommandRunner, IRunCommand
         };
     }
 
-    private static bool ShouldRestoreAudioState(RunCommandMode mode)
+    private static bool ShouldRestoreAudioState(RunCommandMode mode, PendingStopIntent intent)
     {
-        return mode is RunCommandMode.Playback or RunCommandMode.Simulation;
+        return intent == PendingStopIntent.ResetAfterStop &&
+            (mode is RunCommandMode.Playback or RunCommandMode.Simulation);
     }
 
     private void SetStarting()
@@ -257,7 +258,7 @@ internal sealed partial class RunCommandService : IRunCommandRunner, IRunCommand
     private void CompleteStop(RunCommandMode mode, PendingStopIntent intent)
     {
         _operations.InvalidateRunSession();
-        if (ShouldRestoreAudioState(mode))
+        if (ShouldRestoreAudioState(mode, intent))
         {
             _operations.RestorePlaybackOrSimulationAudioState();
         }

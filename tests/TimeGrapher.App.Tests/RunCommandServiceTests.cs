@@ -160,7 +160,7 @@ public sealed class RunCommandServiceTests
     }
 
     [Fact]
-    public void StopPlaybackStopsClosesInvalidatesAndRestoresAudioState()
+    public void StopPlaybackStopsClosesInvalidatesAndKeepsPlaybackSelection()
     {
         MainWindowViewModel vm = CreateViewModel();
         vm.SetRunning();
@@ -178,7 +178,7 @@ public sealed class RunCommandServiceTests
         Assert.Equal(1, operations.StopPlaybackCalls);
         Assert.Equal(1, operations.CloseAudioCalls);
         Assert.Equal(1, operations.InvalidateRunSessionCalls);
-        Assert.Equal(1, operations.RestorePlaybackOrSimulationAudioStateCalls);
+        Assert.Equal(0, operations.RestorePlaybackOrSimulationAudioStateCalls);
         Assert.Equal(RunUiState.Stopped, vm.RunState);
         Assert.Equal("Stopped", vm.StatusText);
         Assert.False(vm.IsSampleRateEnabled);
@@ -223,7 +223,7 @@ public sealed class RunCommandServiceTests
     }
 
     [Fact]
-    public void StopSimulationRestoresSampleRateButKeepsGainDisabled()
+    public void StopSimulationKeepsSimulationSelectionAndGainDisabled()
     {
         MainWindowViewModel vm = CreateViewModel();
         vm.SetRunning();
@@ -238,7 +238,7 @@ public sealed class RunCommandServiceTests
         service.StopRunWithoutReset();
 
         Assert.Equal(1, operations.StopSimulationCalls);
-        Assert.Equal(1, operations.RestorePlaybackOrSimulationAudioStateCalls);
+        Assert.Equal(0, operations.RestorePlaybackOrSimulationAudioStateCalls);
         Assert.Equal(RunUiState.Stopped, vm.RunState);
         Assert.True(vm.IsSampleRateEnabled);
         Assert.False(vm.IsGainEnabled);
