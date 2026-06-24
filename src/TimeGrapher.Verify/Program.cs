@@ -7,8 +7,9 @@
 // A directory argument is expanded to its *.wav files.
 //   TimeGrapher.Verify --generated --byte-fixtures
 // Adds deterministic generated and byte-built WAV fixtures for CI.
-//   TimeGrapher.Verify --adverse [--gate=off|pll]
-// Adverse-condition rows with optional PLL event-gate measurement.
+//   TimeGrapher.Verify --adverse [--gate=off|pll|onnx]
+// Adverse-condition rows with optional event-gate measurement (pll = classical
+// PllMatchGate, onnx = TinyML OnnxBeatEventGate).
 //   TimeGrapher.Verify <wav-or-dir> --diagnose [--rescue=<scale>]
 // Prints the per-file B->A signature (A phase residual + A->C dips); add --rescue to compare arms.
 //

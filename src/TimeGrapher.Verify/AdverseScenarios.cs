@@ -11,16 +11,21 @@ using TimeGrapher.Core.Analysis;
 using TimeGrapher.Core.Detection;
 using TimeGrapher.Core.Detection.Scoring;
 using TimeGrapher.Core.Sim;
+using TimeGrapher.Inference;
 
 namespace TimeGrapher.Verify;
 
 /// <summary>
-/// One verification arm: default detector plus optional PLL veto gate.
+/// One verification arm: the default detector, or the detector plus an event
+/// veto gate. The gate factory is null for the default arm, the classical
+/// <see cref="PllMatchGate"/> for the pll arm, and the TinyML
+/// <see cref="OnnxBeatEventGate"/> for the onnx arm.
 /// </summary>
-internal sealed record ArmSpec(string Name, bool UsePllGate)
+internal sealed record ArmSpec(string Name, Func<IBeatEventGate>? GateFactory)
 {
-    internal static ArmSpec Default { get; } = new("default", false);
-    internal static ArmSpec PllGate { get; } = new("pll-gate", true);
+    internal static ArmSpec Default { get; } = new("default", null);
+    internal static ArmSpec PllGate { get; } = new("pll-gate", () => new PllMatchGate());
+    internal static ArmSpec OnnxGate { get; } = new("onnx-gate", () => OnnxBeatEventGate.LoadDefault());
 }
 
 /// <summary>
@@ -174,7 +179,7 @@ internal static class AdverseScenarios
             AutoBph: true,
             ManualBph: 0,
             HpfCutoffHz: 0.0,
-            EventGate: arm.UsePllGate ? new BeatEventGateConfig(new PllMatchGate()) : null));
+            EventGate: arm.GateFactory != null ? new BeatEventGateConfig(arm.GateFactory()) : null));
 
         double leadInS = (double)row.SilenceLeadInSamples / row.SampleRate;
         var truthTimes = new List<double>();
@@ -229,9 +234,13 @@ internal static class AdverseScenarios
             toleranceS: 0.005, evalStartS: leadInS + row.EvalStartS);
 
         DetectorResultSnapshot snapshot = update.Result;
-        AdverseGates gates = arm.UsePllGate
-            ? row.PllGate ?? new AdverseGates(InfoOnly: true)
-            : row.Default ?? new AdverseGates(InfoOnly: true);
+        // The default arm uses the row's Default gates; the pll arm uses the
+        // row's PllGate gates; any other gate arm (onnx) reports INFO-only
+        // numbers until per-row pass/fail thresholds are calibrated for it.
+        AdverseGates gates =
+            arm.Name == ArmSpec.PllGate.Name ? row.PllGate ?? new AdverseGates(InfoOnly: true)
+            : arm.GateFactory == null ? row.Default ?? new AdverseGates(InfoOnly: true)
+            : new AdverseGates(InfoOnly: true);
         string verdict = Evaluate(gates, snapshot, score, resets, row.Bph);
 
         return new RowResult(
@@ -267,13 +276,15 @@ internal static class AdverseScenarios
     {
         arm = ArmSpec.Default;
         error = null;
-        if (gateSpec != "off" && gateSpec != "pll")
+        switch (gateSpec)
         {
-            error = $"unknown --gate value '{gateSpec}' (off|pll)";
-            return false;
+            case "off": arm = ArmSpec.Default; return true;
+            case "pll": arm = ArmSpec.PllGate; return true;
+            case "onnx": arm = ArmSpec.OnnxGate; return true;
+            default:
+                error = $"unknown --gate value '{gateSpec}' (off|pll|onnx)";
+                return false;
         }
-        arm = gateSpec == "pll" ? ArmSpec.PllGate : ArmSpec.Default;
-        return true;
     }
 
     internal static string Evaluate(

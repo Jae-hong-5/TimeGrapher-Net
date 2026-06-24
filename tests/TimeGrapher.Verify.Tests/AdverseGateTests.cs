@@ -164,7 +164,7 @@ public sealed class AdverseGateTests
     {
         Assert.True(AdverseScenarios.TryResolveArm("off", out ArmSpec arm, out string? error));
         Assert.Null(error);
-        Assert.False(arm.UsePllGate);
+        Assert.Null(arm.GateFactory);
     }
 
     [Fact]
@@ -172,7 +172,17 @@ public sealed class AdverseGateTests
     {
         Assert.True(AdverseScenarios.TryResolveArm("pll", out ArmSpec arm, out string? error));
         Assert.Null(error);
-        Assert.True(arm.UsePllGate);
+        Assert.NotNull(arm.GateFactory);
+        Assert.Equal(ArmSpec.PllGate.Name, arm.Name);
+    }
+
+    [Fact]
+    public void TryResolveArm_OnnxSelectsOnnxGateArm()
+    {
+        Assert.True(AdverseScenarios.TryResolveArm("onnx", out ArmSpec arm, out string? error));
+        Assert.Null(error);
+        Assert.NotNull(arm.GateFactory);
+        Assert.Equal(ArmSpec.OnnxGate.Name, arm.Name);
     }
 
     [Theory]

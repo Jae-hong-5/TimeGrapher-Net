@@ -14,6 +14,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\TimeGrapher.Core\TimeGrapher.Core.csproj" />
+    <ProjectReference Include="..\TimeGrapher.Inference\TimeGrapher.Inference.csproj" />
   </ItemGroup>
 
   <ItemGroup>
