@@ -75,6 +75,23 @@ public sealed class RateScopeHistoryTests
     }
 
     [Fact]
+    public void ReduceRangeTo_IncludesNeighbourJustRightOfViewEdge()
+    {
+        var sx = Enumerable.Range(0, 10).Select(i => (double)i).ToList();
+        var sy = sx.Select(v => v * 10.0).ToList();
+        var tx = new List<double>();
+        var ty = new List<double>();
+
+        // Non-exact right edge (6.5): the reduction must include 7.0, the point just
+        // right of the view, so the drawn line reaches the edge. (right: 6.0 lands on a
+        // sample, so it never exercises the right-neighbour inclusion.)
+        RateScopeRenderer.ReduceRangeTo(sx, sy, left: 3.0, right: 6.5, targetPointBudget: 100, tx, ty);
+
+        Assert.Equal(new[] { 2.0, 3.0, 4.0, 5.0, 6.0, 7.0 }, tx);
+        Assert.Equal(new[] { 20.0, 30.0, 40.0, 50.0, 60.0, 70.0 }, ty);
+    }
+
+    [Fact]
     public void ReduceRangeTo_SubsamplesToBudget()
     {
         var sx = Enumerable.Range(0, 10).Select(i => (double)i).ToList();

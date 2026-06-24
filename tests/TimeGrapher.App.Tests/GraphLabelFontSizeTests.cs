@@ -10,7 +10,7 @@ namespace TimeGrapher.App.Tests;
 
 public sealed class GraphLabelFontSizeTests
 {
-    private const float ExpectedGraphLabelFontSize = 14;
+    private const float ExpectedGraphLabelFontSize = PlotThemeHelper.GraphLabelFontSize;
 
     [Fact]
     public void RenderersUseSharedGraphLabelFontSize()
@@ -26,12 +26,20 @@ public sealed class GraphLabelFontSizeTests
         AddVarioPlots(plots);
         AddWaveformComparePlot(plots);
 
-        Text[] labels = plots
+        Text[] textLabels = plots
             .SelectMany(plot => plot.Plot.GetPlottables<Text>())
             .ToArray();
+        // TraceDisplay's average readout is an Annotation, not a Text, so the
+        // standardized size must be asserted over that type too (it was changed
+        // 12 -> 14 in the same pass and would otherwise be uncovered).
+        Annotation[] annotationLabels = plots
+            .SelectMany(plot => plot.Plot.GetPlottables<Annotation>())
+            .ToArray();
 
-        Assert.NotEmpty(labels);
-        Assert.All(labels, label => Assert.Equal(ExpectedGraphLabelFontSize, label.LabelFontSize));
+        Assert.NotEmpty(textLabels);
+        Assert.NotEmpty(annotationLabels);
+        Assert.All(textLabels, label => Assert.Equal(ExpectedGraphLabelFontSize, label.LabelFontSize));
+        Assert.All(annotationLabels, label => Assert.Equal(ExpectedGraphLabelFontSize, label.LabelFontSize));
     }
 
     private static void AddBeatNoisePlots(List<AvaPlot> plots)
