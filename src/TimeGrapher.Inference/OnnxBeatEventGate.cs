@@ -20,36 +20,45 @@ namespace TimeGrapher.Inference;
 ///
 /// The model classifies the peak-normalized, <see cref="BeatWindowFeatures.Points"/>-point
 /// envelope window (<see cref="BeatWindowFeatures"/>, the single feature
-/// contract shared with the offline training pipeline) and emits the
-/// probability that the candidate is a good escapement event; a candidate is
-/// accepted when that probability is at least <c>acceptThreshold</c>.
+/// contract shared with the offline trainer) and the gate accepts a candidate
+/// when the modeled probability that it is a good escapement event is at least
+/// <c>acceptThreshold</c>.
 /// </summary>
 public sealed class OnnxBeatEventGate : IBeatEventGate, IDisposable
 {
+    // ML.NET's ONNX exporter emits the training schema verbatim: the feature
+    // column and the label column become graph inputs, and each column also
+    // becomes an output. We feed Features (real) plus a dummy Label, and read
+    // only Score.output - the raw decision value, a plain float tensor that
+    // bypasses the calibrator's ZipMap/sequence path (reading Probability.output
+    // instead trips an OnnxRuntime TensorSeq error). Probability is recovered
+    // as the logistic of the score.
+    private const string FeaturesInput = "Features";
+    private const string LabelInput = "Label";
+    private const string ScoreOutput = "Score.output";
+
     // Envelope context captured around each event. The offline trainer extracts
-    // the same pre/post window around every labeled event so the inference
-    // features reproduce the training recipe; changing these here is a contract
-    // change that requires retraining.
+    // the same pre/post window around every labeled event so inference features
+    // reproduce the training recipe; changing these is a contract change that
+    // requires retraining.
     private const double WindowPreMsConst = 2.0;
     private const double WindowPostMsConst = 6.0;
 
     private readonly InferenceSession _session;
-    private readonly string _inputName;
-    private readonly string _outputName;
     private readonly float _acceptThreshold;
     private readonly float[] _features = new float[BeatWindowFeatures.Points];
+    private readonly DenseTensor<bool> _dummyLabel = new(new[] { false }, new[] { 1, 1 });
+    private readonly string[] _outputs = { ScoreOutput };
 
     /// <summary>
-    /// Loads a classifier from a serialized ONNX model. The model takes a
-    /// [1, <see cref="BeatWindowFeatures.Points"/>] float input and produces a
-    /// single float output: the probability in [0, 1] that the candidate is a
-    /// good escapement event.
+    /// Loads a classifier from a serialized ONNX model exported by the gate
+    /// trainer (ML.NET SDCA logistic regression over the 128-point feature
+    /// vector). <paramref name="acceptThreshold"/> is the minimum P(good) in
+    /// [0, 1] for a candidate to pass.
     /// </summary>
     public OnnxBeatEventGate(byte[] onnxModel, float acceptThreshold = 0.5f)
     {
         _session = new InferenceSession(onnxModel);
-        _inputName = _session.InputMetadata.Keys.First();
-        _outputName = _session.OutputMetadata.Keys.First();
         _acceptThreshold = acceptThreshold;
     }
 
@@ -69,9 +78,16 @@ public sealed class OnnxBeatEventGate : IBeatEventGate, IDisposable
         }
 
         var input = new DenseTensor<float>(_features, new[] { 1, BeatWindowFeatures.Points });
-        using IDisposableReadOnlyCollection<DisposableNamedOnnxValue> results =
-            _session.Run(new[] { NamedOnnxValue.CreateFromTensor(_inputName, input) });
-        float pGood = results.First().AsEnumerable<float>().First();
+        using IDisposableReadOnlyCollection<DisposableNamedOnnxValue> results = _session.Run(
+            new[]
+            {
+                NamedOnnxValue.CreateFromTensor(FeaturesInput, input),
+                NamedOnnxValue.CreateFromTensor(LabelInput, _dummyLabel),
+            },
+            _outputs);
+
+        float score = results.First().AsEnumerable<float>().First();
+        float pGood = 1f / (1f + MathF.Exp(-score));
         return pGood >= _acceptThreshold;
     }
 
