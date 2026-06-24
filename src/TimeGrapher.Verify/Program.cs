@@ -9,6 +9,8 @@
 // Adds deterministic generated and byte-built WAV fixtures for CI.
 //   TimeGrapher.Verify --adverse [--gate=off|pll]
 // Adverse-condition rows with optional PLL event-gate measurement.
+//   TimeGrapher.Verify <wav-or-dir> [--landmark=off|stub:noop|stub:cpeak]
+// Re-times the metrics/display A/C landmarks through a refiner (off = unchanged).
 //
 // Exit codes: 0 = all gates passed, 1 = a verification gate failed,
 // 2 = usage error (unknown option, malformed spec, flags without a runner).
@@ -18,6 +20,7 @@ using System.Text.RegularExpressions;
 using TimeGrapher.Core.Analysis;
 using TimeGrapher.Core.AudioIo;
 using TimeGrapher.Core.Detection;
+using TimeGrapher.Core.Detection.Scoring;
 using TimeGrapher.Core.Metrics;
 using TimeGrapher.Core.Shared;
 using TimeGrapher.Core.Sim;
@@ -33,6 +36,7 @@ var generatedFiles = new List<string>();
 var expectationsByFile = new Dictionary<string, GeneratedFixtureExpectation>(StringComparer.OrdinalIgnoreCase);
 bool runAdverse = false;
 string gateSpec = "off";
+string landmarkSpec = "off";
 foreach (string arg in args)
 {
     if (arg == "--adverse")
@@ -44,6 +48,12 @@ foreach (string arg in args)
     if (arg.StartsWith("--gate=", StringComparison.Ordinal))
     {
         gateSpec = arg["--gate=".Length..];
+        continue;
+    }
+
+    if (arg.StartsWith("--landmark=", StringComparison.Ordinal))
+    {
+        landmarkSpec = arg["--landmark=".Length..];
         continue;
     }
 
@@ -97,6 +107,16 @@ bool allMatch = true;
 
 try
 {
+    if (!TryResolveLandmark(landmarkSpec, out BeatLandmarkRefinerConfig? landmarkRefiner, out string? landmarkError))
+    {
+        Console.Error.WriteLine("TimeGrapher.Verify: " + landmarkError);
+        return 2;
+    }
+    if (landmarkRefiner != null)
+    {
+        Console.WriteLine("landmark: " + landmarkRefiner.Refiner.Name);
+    }
+
     foreach (string file in files)
     {
         WavData wav = WavFileReader.ReadMonoFloat(file, WavAcceptanceProfile.PlaybackFloatMonoStandardRates);
@@ -108,7 +128,8 @@ try
             UseCOnset: false,
             AutoBph: true,
             ManualBph: 0,
-            HpfCutoffHz: 0.0));
+            HpfCutoffHz: 0.0,
+            Refiner: landmarkRefiner));
 
         int detectedBph = 0;
         var syncStatus = TgSyncStatus.NotSynced;
@@ -341,6 +362,36 @@ if (runAdverse)
 }
 
 return allMatch ? 0 : 1;
+
+// Resolves the --landmark spec to a refiner config. off -> null (pipeline
+// unchanged); stub:* -> the deterministic stub; onnx:<path> is reserved for the
+// future TimeGrapher.Inference refiner. Unknown values are a usage error.
+static bool TryResolveLandmark(string spec, out BeatLandmarkRefinerConfig? refiner, out string? error)
+{
+    refiner = null;
+    error = null;
+    switch (spec)
+    {
+        case "off":
+            return true;
+        case "stub":
+        case "stub:cpeak":
+            refiner = new BeatLandmarkRefinerConfig(new StubBeatLandmarkRefiner(StubBeatLandmarkRefiner.Mode.CPeak));
+            return true;
+        case "stub:noop":
+            refiner = new BeatLandmarkRefinerConfig(new StubBeatLandmarkRefiner(StubBeatLandmarkRefiner.Mode.NoOp));
+            return true;
+    }
+
+    if (spec.StartsWith("onnx:", StringComparison.Ordinal))
+    {
+        error = "--landmark=onnx:<path> is reserved for the TimeGrapher.Inference refiner (not yet implemented)";
+        return false;
+    }
+
+    error = $"unknown --landmark value '{spec}' (off|stub:noop|stub:cpeak)";
+    return false;
+}
 
 static IEnumerable<string> GenerateSyntheticFixtures(Dictionary<string, GeneratedFixtureExpectation> expectationsByFile)
 {
