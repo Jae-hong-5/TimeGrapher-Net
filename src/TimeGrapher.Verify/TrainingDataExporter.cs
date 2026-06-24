@@ -28,33 +28,53 @@ internal static class TrainingDataExporter
     private const double PostMs = 14.0;
 
     private readonly record struct Scenario(
-        string Label, double AScale, double BScale, double CScale, double Noise, int Bph, ulong Seed);
+        string Label, double AScale, double BScale, double CScale,
+        double Pcm, double Noise, double Amp, double Lift, int Bph, ulong Seed, bool Vary);
 
-    // The mix mirrors the real-sample diagnostic: B->A is the dominant failure and
-    // its frequency rises as the pickup signal weakens (rare on a clean NH35,
-    // ~1.5% on mine.wav, pervasive on the weak-signal mine_adapter.wav). So the
-    // weak-A family dominates and spans A-weakness x noise; the rest is a small
-    // contrast set (B->C is a rare caricature, kept minimal).
-    private static Scenario[] BuildScenarios() =>
-    [
-        // weak-A: A too weak to cross the onset threshold, so B is latched as A.
-        new("weak-a", 0.40, 1.0, 1.0, 0.000, 21600, 0x1001), // mild (intermittent late-A)
-        new("weak-a", 0.30, 1.0, 1.0, 0.000, 18000, 0x1002),
-        new("weak-a", 0.30, 1.0, 1.0, 0.000, 28800, 0x1003),
-        new("weak-a", 0.20, 1.0, 1.0, 0.000, 21600, 0x1004), // strongly weak A
-        // weak-A + noise: the weak-signal regime (mine_adapter-like, pervasive late-A).
-        new("weak-a-noisy", 0.30, 1.0, 1.0, 0.006, 21600, 0x1005),
-        new("weak-a-noisy", 0.25, 1.0, 1.0, 0.012, 21600, 0x1006),
-        new("weak-a-noisy", 0.20, 1.0, 1.0, 0.012, 18000, 0x1007),
-        // weak-A + elevated B (B more likely to win the onset threshold).
-        new("weak-a-strongb", 0.30, 3.0, 1.0, 0.000, 21600, 0x1008),
-        new("weak-a-strongb", 0.25, 3.0, 1.0, 0.006, 28800, 0x1009),
-        // contrast (minority): the detector handles these well.
-        new("clean", 1.0, 1.0, 1.0, 0.000, 21600, 0x2001),
-        new("weak-c", 1.0, 1.0, 0.30, 0.000, 21600, 0x2002),
-        new("b-gt-c", 1.0, 10.0, 0.05, 0.000, 21600, 0x2003), // B->C caricature (rare in reality)
-        new("noisy", 1.0, 1.0, 1.0, 0.012, 21600, 0x2004),
-    ];
+    // Domain-randomized mix MATCHED to the real-sample diagnostic
+    // (LANDMARK_REFINER_BEAT_DIAGNOSIS.md): real watches show A->C ~9.5-13 ms
+    // (amplitude ~210-290 deg), SNR ~40-300 (always noisy), and B->A whose
+    // frequency rises as SNR drops. Each instance randomizes amplitude, lift,
+    // signal/noise level (-> SNR), cluster scales, and enables WatchSynthStream's
+    // shape/resonance/drift variation so the model can't overfit one fixed
+    // synthetic shape. The weak-A family dominates (B->A is the target failure).
+    private static Scenario[] BuildScenarios()
+    {
+        var rng = new Random(20260624);
+        int[] bphs = { 21600, 28800 }; // real samples are 21600; 28800 for BPH diversity
+        double D(double lo, double hi) => lo + rng.NextDouble() * (hi - lo);
+        double LogD(double lo, double hi) => Math.Exp(D(Math.Log(lo), Math.Log(hi)));
+
+        // family: label, A-scale range, B-scale range, C-scale range, instance count
+        (string Label, double ALo, double AHi, double BLo, double BHi, double CLo, double CHi, int Count)[] families =
+        {
+            ("weak-a", 0.20, 0.50, 0.8, 1.5, 0.8, 1.2, 16),
+            ("weak-a-strongb", 0.20, 0.45, 2.0, 4.0, 0.8, 1.2, 8),
+            ("clean", 0.90, 1.30, 0.8, 1.2, 0.8, 1.2, 6),
+            ("weak-c", 0.90, 1.30, 0.8, 1.2, 0.2, 0.5, 4),
+            ("b-gt-c", 0.90, 1.30, 6.0, 12.0, 0.03, 0.10, 3), // B->C caricature (rare in reality)
+        };
+
+        var list = new List<Scenario>();
+        ulong seed = 0x4000;
+        foreach ((string label, double aLo, double aHi, double bLo, double bHi, double cLo, double cHi, int count) in families)
+        {
+            for (int i = 0; i < count; i++)
+            {
+                list.Add(new Scenario(
+                    label,
+                    AScale: D(aLo, aHi), BScale: D(bLo, bHi), CScale: D(cLo, cHi),
+                    Pcm: D(0.12, 0.45),
+                    Noise: LogD(0.0003, 0.006),   // SNR ~40-300, always noisy
+                    Amp: D(210.0, 290.0),         // -> A->C ~9.5-13 ms, within the 14 ms post-window
+                    Lift: D(48.0, 56.0),
+                    Bph: bphs[rng.Next(bphs.Length)],
+                    Seed: seed++,
+                    Vary: true));
+            }
+        }
+        return list.ToArray();
+    }
 
     public static int Export(string outDir)
     {
@@ -152,12 +172,16 @@ internal static class TrainingDataExporter
 
     private static (float[] Pcm, double[] TrueAs, double[] TrueCs) Generate(Scenario sc)
     {
-        WatchSynthStreamConfig cfg = WatchSynthStreamConfig.Clean();
+        WatchSynthStreamConfig cfg = sc.Vary
+            ? WatchSynthStreamConfig.Realistic()  // shape jitter + resonance + drift + tick/tock spectral diff
+            : WatchSynthStreamConfig.Clean();
         cfg.SampleRateHz = Fs;
         cfg.Bph = sc.Bph;
         cfg.Seed = sc.Seed;
-        cfg.PcmPeakSignalLevel = 0.40;
+        cfg.PcmPeakSignalLevel = sc.Pcm;
         cfg.NoisePeakSignalLevel = sc.Noise;
+        cfg.WatchAmplitudeDegrees = sc.Amp;
+        cfg.LiftAngleDegrees = sc.Lift;
         cfg.EnableRealisticPacket = 1;
         cfg.AClusterLevelScale = sc.AScale;
         cfg.BClusterLevelScale = sc.BScale;
