@@ -92,10 +92,10 @@ internal sealed class BeatErrorDiagRenderer
         trace.Clear();
         ApplyPlotTheme(trace);
         trace.YLabel("Error Rate (ms)");
-        trace.XLabel("Beat");
+        trace.XLabel("Beat Index");
         trace.Axes.SetLimitsY(-rateErrorYScale, rateErrorYScale);
         trace.Axes.SetLimitsX(0, Math.Min(rateDataPoints, MinimumBeatWindow));
-        trace.Axes.Bottom.TickLabelStyle.IsVisible = false;
+        trace.Axes.Bottom.TickLabelStyle.IsVisible = true;
         for (int i = 0; i < _rateSeries.Length; i++)
         {
             _rateX[i].Clear();
