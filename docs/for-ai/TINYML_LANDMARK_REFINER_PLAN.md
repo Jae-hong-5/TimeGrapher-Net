@@ -141,6 +141,29 @@ C correction: candidate C 기준 [-4 ms, +6 ms]
 
 이 값은 임시 시작점이다. synthetic fixture와 real sample 검증 후 조정한다.
 
+## 기존 C-onset timing과의 경계
+
+앱에는 이미 `UseCOnset`("Use C-onset timing") 설정이 있다. 이 설정과 landmark refiner는 둘 다 "C 시각을 앞으로 당기는" 동작이므로, 경계를 명시하지 않으면 서로 충돌하거나 보정이 이중으로 겹친다.
+
+현재 동작(코드에서 확인됨):
+
+- detector는 C를 낼 때마다 onset을 **항상** 계산한다(`src/TimeGrapher.Core/Detection/Detector.cs`의 `FindCOnset` 무조건 호출). 따라서 C 이벤트는 peak 시각과 onset 시각을 모두 들고 다닌다.
+- onset은 C peak에서 50% threshold 지점까지 뒤로 걷는 backward-walk로 구한다.
+- `UseCOnset`는 계산을 켜고 끄는 스위치가 아니라, metrics/display가 peak 시각을 쓸지 onset 시각을 쓸지 고르는 **선택 스위치**다(`src/TimeGrapher.Core/Analysis/DetectorMetricsEngine.cs`의 C event sample 선택). 끄더라도 onset 계산 자체는 그대로 돈다.
+
+경계 결정(이 계획의 규칙으로 고정한다):
+
+1. **refiner는 peak 전용 보정기다.** `CorrectedCSample`은 "보정된 C peak"를 의미한다. ML은 "어느 충격음이 진짜 C peak냐"만 책임지고, onset은 계속 결정론적 DSP가 담당한다.
+2. **순서는 refiner -> onset 재유도다.** 보정된 peak를 기준으로 onset을 다시 계산하거나, 원래 peak->onset 거리를 그대로 유지해 평행 이동한다. onset을 더하지 않고 다시 그리므로 이중 보정이 생기지 않는다.
+3. **clamp와 학습 정답은 peak 프레임으로 고정한다.** clamp 창(candidate C 기준 window)과 학습 label("true C offset")은 모두 peak 기준이다. 토글이 런타임에 바뀌어도 모델 정의가 흔들리지 않는다.
+
+결과:
+
+- refiner는 `UseCOnset` 상태를 알 필요가 없다(독립).
+- onset backward-walk 로직은 바꾸지 않는다.
+- `UseCOnset`는 순수하게 표시/측정용 선택으로 남는다.
+- 삽입 위치는 `DetectorMetricsEngine`의 C event sample 선택 직전이다. C 이벤트의 peak/onset을 미리 보정해두면 기존 선택 코드는 바꾸지 않고 보정된 이벤트로 동작한다.
+
 ## 노이즈 리스크
 
 TinyML landmark refiner는 시끄러운 환경에서 더 취약해질 수 있다.
