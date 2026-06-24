@@ -21,9 +21,16 @@ public sealed class MainWindowRunControlWiringTests
 
         Assert.Equal("{Binding ResetCommand}", resetButton.Attribute("Command")?.Value);
         Assert.Equal("{Binding IsResetEnabled}", resetButton.Attribute("IsEnabled")?.Value);
-        Assert.Equal("Reset and refresh input devices", resetButton.Attribute("ToolTip.Tip")?.Value);
+        Assert.Equal("Stop", resetButton.Attribute("AutomationProperties.Name")?.Value);
+        Assert.Equal("Stop current run", resetButton.Attribute("ToolTip.Tip")?.Value);
         Assert.Equal("68", resetButton.Attribute("Width")?.Value);
         Assert.Equal("68", resetButton.Attribute("MinWidth")?.Value);
+        Assert.Equal(
+            "M6 6H18V18H6V6Z",
+            resetButton
+                .Descendants()
+                .Single(element => element.Name.LocalName == "Path")
+                .Attribute("Data")?.Value);
 
         Assert.Equal("{Binding PlayPauseCommand}", playPauseButton.Attribute("Command")?.Value);
         Assert.Equal("{Binding IsPlayPauseEnabled}", playPauseButton.Attribute("IsEnabled")?.Value);
