@@ -2,6 +2,7 @@ using Avalonia.Controls;
 using ScottPlot;
 using ScottPlot.Avalonia;
 using ScottPlot.Plottables;
+using ScottPlot.Rendering;
 using TimeGrapher.App.Tabs;
 using TimeGrapher.Core.Analysis;
 using TimeGrapher.Core.Shared;
@@ -71,6 +72,17 @@ internal sealed class ScopeSweepRenderer
     private ulong _lastReadoutSegmentVersion;
     private bool _followLive = true;
 
+    // Canonical "initial output" view captured at each live fit (and on a window
+    // change). X spans [XPreRollMs, _viewWindowMs] and Y is locked to
+    // [_viewYMin, _viewYMax]. SweepViewRule enforces these on every render, so a
+    // mouse zoom acts on X only (Y is held), zoom-out cannot pass the full
+    // window, and Reset/AutoScale restores exactly this captured view. False
+    // until the first fit has data.
+    private double _viewWindowMs;
+    private double _viewYMin;
+    private double _viewYMax;
+    private bool _hasView;
+
     public ScopeSweepRenderer(AvaPlot sweepPlot, TextBlock referenceText, string textFontFamily)
     {
         _sweepPlot = sweepPlot;
@@ -97,6 +109,10 @@ internal sealed class ScopeSweepRenderer
         _followLive = true;
         _ticPhaseOffsetMs = 0.0;
         _lastWindowMs = 0.0;
+        _viewWindowMs = 0.0;
+        _viewYMin = 0.0;
+        _viewYMax = 0.0;
+        _hasView = false;
         _referenceText.Text = ScopeSweepReadout.ReferenceLine(null);
 
         Plot sweep = _sweepPlot.Plot;
@@ -129,7 +145,8 @@ internal sealed class ScopeSweepRenderer
         }
 
         _reviewCursor = AddCursor(sweep);
-        PlotAxisRules.ClampLeftEdge(sweep, XPreRollMs);
+        sweep.Axes.Rules.Clear();
+        sweep.Axes.Rules.Add(new SweepViewRule(this, sweep.Axes.Bottom, sweep.Axes.Left));
 
         ApplySeriesTheme();
         _sweepPlot.Refresh();
@@ -141,24 +158,47 @@ internal sealed class ScopeSweepRenderer
     }
 
     /// <summary>
-    /// Re-arms live auto-fitting after a pan/zoom (the one-way follow-live
-    /// latch otherwise sticks until the session restarts — which also hid the
-    /// rest of a longer window after a 1x→3x sweep change mid-pan).
+    /// Re-arms live auto-fitting and restores the captured canonical view, so
+    /// AutoScale reproduces the initial graph output exactly (the same
+    /// <see cref="FitCanonicalView"/> path the live fit uses).
     /// </summary>
     public void ResetView()
     {
         _followLive = true;
-        double windowMs = ScopeSweepReadout.WindowMs(_sweepX);
-        if (windowMs > 0)
-        {
-            _sweepPlot.Plot.Axes.AutoScale();
-            _sweepPlot.Plot.Axes.SetLimitsX(XPreRollMs, windowMs);
-        }
-        else
+        if (!FitCanonicalView())
         {
             _sweepPlot.Plot.Axes.AutoScale();
         }
+
         _sweepPlot.Refresh();
+    }
+
+    /// <summary>
+    /// Captures the canonical "initial output" view from the current data and
+    /// applies it: X pinned to [XPreRollMs, window] and Y to the data autoscale
+    /// fit. <see cref="SweepViewRule"/> then holds Y locked and bounds X to this
+    /// window, so zoom is X-only and cannot pass the full window, and Reset
+    /// restores exactly this. Returns false (view unchanged) before any sweep
+    /// data exists.
+    /// </summary>
+    private bool FitCanonicalView()
+    {
+        double windowMs = ScopeSweepReadout.WindowMs(_sweepX);
+        if (windowMs <= 0)
+        {
+            return false;
+        }
+
+        // Let ScottPlot fit Y to the data, capture that range as the locked
+        // canonical Y, then pin X to the pre-roll..window span.
+        _sweepPlot.Plot.Axes.AutoScale();
+        AxisLimits limits = _sweepPlot.Plot.Axes.GetLimits();
+        _viewWindowMs = windowMs;
+        _viewYMin = limits.Bottom;
+        _viewYMax = limits.Top;
+        _hasView = true;
+        _sweepPlot.Plot.Axes.SetLimits(XPreRollMs, windowMs, _viewYMin, _viewYMax);
+        return true;
     }
 
     public void RenderFrame(AnalysisFrame frame, AnalysisTabRenderContext context)
@@ -200,13 +240,7 @@ internal sealed class ScopeSweepRenderer
 
         if (dataUpdated && _followLive)
         {
-            double windowMs = ScopeSweepReadout.WindowMs(_sweepX);
-            if (windowMs > 0)
-            {
-                // Start from the leftmost (tic onset) position; let Y autoscale.
-                _sweepPlot.Plot.Axes.AutoScale();
-                _sweepPlot.Plot.Axes.SetLimitsX(XPreRollMs, windowMs);
-            }
+            FitCanonicalView();
         }
 
         UpdateReferenceLine(frame.MetricsHistory, frame.BeatSegments);
@@ -449,6 +483,81 @@ internal sealed class ScopeSweepRenderer
     private void ApplyPlotTheme(Plot plot)
     {
         PlotThemeHelper.Apply(plot, _theme);
+    }
+
+    /// <summary>
+    /// Holds the sweep view at its captured canonical extent: Y is locked to
+    /// [<see cref="_viewYMin"/>, <see cref="_viewYMax"/>] so a mouse zoom/pan
+    /// never moves it (zoom acts on X only), and X is floored at
+    /// <see cref="XPreRollMs"/> and capped at the window so zoom-out cannot pass
+    /// the initial output. No-op until the first fit captures a view.
+    /// </summary>
+    private sealed class SweepViewRule : IAxisRule
+    {
+        private readonly ScopeSweepRenderer _owner;
+        private readonly IXAxis _xAxis;
+        private readonly IYAxis _yAxis;
+
+        public SweepViewRule(ScopeSweepRenderer owner, IXAxis xAxis, IYAxis yAxis)
+        {
+            _owner = owner;
+            _xAxis = xAxis;
+            _yAxis = yAxis;
+        }
+
+        public void Apply(RenderPack rp, bool beforeLayout)
+        {
+            if (!_owner._hasView)
+            {
+                return;
+            }
+
+            // Lock Y to the captured fit: zoom/pan acts on X only.
+            _yAxis.Range.Min = _owner._viewYMin;
+            _yAxis.Range.Max = _owner._viewYMax;
+
+            // Bound X to [XPreRollMs, window]: a zoom-out at or past the full
+            // span snaps to it; otherwise the window is shifted back inside the
+            // bound. Mirrors the MultiFilterScope/RateScope X-bounds rules.
+            double min = XPreRollMs;
+            double max = _owner._viewWindowMs;
+            double extent = max - min;
+            if (extent <= 0.0)
+            {
+                return;
+            }
+
+            double left = _xAxis.Range.Min;
+            double right = _xAxis.Range.Max;
+            double span = right - left;
+            if (span >= extent)
+            {
+                left = min;
+                right = max;
+            }
+            else
+            {
+                if (left < min)
+                {
+                    left = min;
+                    right = min + span;
+                }
+
+                if (right > max)
+                {
+                    right = max;
+                    left = max - span;
+                }
+
+                if (left < min)
+                {
+                    left = min;
+                }
+            }
+
+            _xAxis.Range.Min = left;
+            _xAxis.Range.Max = right;
+        }
     }
 
 }
