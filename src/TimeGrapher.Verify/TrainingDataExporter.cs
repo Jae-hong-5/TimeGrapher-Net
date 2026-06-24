@@ -30,19 +30,30 @@ internal static class TrainingDataExporter
     private readonly record struct Scenario(
         string Label, double AScale, double BScale, double CScale, double Noise, int Bph, ulong Seed);
 
+    // The mix mirrors the real-sample diagnostic: B->A is the dominant failure and
+    // its frequency rises as the pickup signal weakens (rare on a clean NH35,
+    // ~1.5% on mine.wav, pervasive on the weak-signal mine_adapter.wav). So the
+    // weak-A family dominates and spans A-weakness x noise; the rest is a small
+    // contrast set (B->C is a rare caricature, kept minimal).
     private static Scenario[] BuildScenarios() =>
     [
-        // weak-A family (over-weighted): weak A latches B as the A timing reference.
-        new("weak-a", 0.3, 1.0, 1.0, 0.0, 21600, 0x1001),
-        new("weak-a", 0.3, 1.0, 1.0, 0.0, 18000, 0x1002),
-        new("weak-a", 0.3, 1.0, 1.0, 0.0, 28800, 0x1003),
-        new("weak-a-noisy", 0.3, 1.0, 1.0, 0.01, 21600, 0x1004),
-        new("weak-a-strongb", 0.3, 3.0, 1.0, 0.0, 21600, 0x1005),
-        // the rest, for contrast.
-        new("clean", 1.0, 1.0, 1.0, 0.0, 21600, 0x2001),
-        new("weak-c", 1.0, 1.0, 0.3, 0.0, 21600, 0x2002),
-        new("b-gt-c", 1.0, 10.0, 0.05, 0.0, 21600, 0x2003),
-        new("noisy", 1.0, 1.0, 1.0, 0.02, 21600, 0x2004),
+        // weak-A: A too weak to cross the onset threshold, so B is latched as A.
+        new("weak-a", 0.40, 1.0, 1.0, 0.000, 21600, 0x1001), // mild (intermittent late-A)
+        new("weak-a", 0.30, 1.0, 1.0, 0.000, 18000, 0x1002),
+        new("weak-a", 0.30, 1.0, 1.0, 0.000, 28800, 0x1003),
+        new("weak-a", 0.20, 1.0, 1.0, 0.000, 21600, 0x1004), // strongly weak A
+        // weak-A + noise: the weak-signal regime (mine_adapter-like, pervasive late-A).
+        new("weak-a-noisy", 0.30, 1.0, 1.0, 0.006, 21600, 0x1005),
+        new("weak-a-noisy", 0.25, 1.0, 1.0, 0.012, 21600, 0x1006),
+        new("weak-a-noisy", 0.20, 1.0, 1.0, 0.012, 18000, 0x1007),
+        // weak-A + elevated B (B more likely to win the onset threshold).
+        new("weak-a-strongb", 0.30, 3.0, 1.0, 0.000, 21600, 0x1008),
+        new("weak-a-strongb", 0.25, 3.0, 1.0, 0.006, 28800, 0x1009),
+        // contrast (minority): the detector handles these well.
+        new("clean", 1.0, 1.0, 1.0, 0.000, 21600, 0x2001),
+        new("weak-c", 1.0, 1.0, 0.30, 0.000, 21600, 0x2002),
+        new("b-gt-c", 1.0, 10.0, 0.05, 0.000, 21600, 0x2003), // B->C caricature (rare in reality)
+        new("noisy", 1.0, 1.0, 1.0, 0.012, 21600, 0x2004),
     ];
 
     public static int Export(string outDir)
