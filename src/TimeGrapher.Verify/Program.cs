@@ -13,6 +13,8 @@
 // Re-times the metrics/display A/C landmarks through a refiner (off = unchanged).
 //   TimeGrapher.Verify --export-training=<dir>
 // Writes weak-A-weighted synthetic refiner-training rows to <dir>/landmark_training.csv.
+//   TimeGrapher.Verify <wav-or-dir> --diagnose [--landmark=...]
+// Prints the per-file B->A signature (A phase residual + A->C dips); add --landmark to compare arms.
 //
 // Exit codes: 0 = all gates passed, 1 = a verification gate failed,
 // 2 = usage error (unknown option, malformed spec, flags without a runner).
@@ -41,6 +43,7 @@ bool runAdverse = false;
 string gateSpec = "off";
 string landmarkSpec = "off";
 string? exportTrainingDir = null;
+bool diagnose = false;
 foreach (string arg in args)
 {
     if (arg == "--adverse")
@@ -64,6 +67,12 @@ foreach (string arg in args)
     if (arg.StartsWith("--export-training=", StringComparison.Ordinal))
     {
         exportTrainingDir = arg["--export-training=".Length..];
+        continue;
+    }
+
+    if (arg == "--diagnose")
+    {
+        diagnose = true;
         continue;
     }
 
@@ -131,6 +140,17 @@ try
     if (landmarkRefiner != null)
     {
         Console.WriteLine("landmark: " + landmarkRefiner.Refiner.Name);
+    }
+
+    if (diagnose)
+    {
+        // B->A diagnostic over the (optionally refined) metrics stream; run with
+        // and without --landmark to compare off vs refiner by the same measure.
+        foreach (string file in files)
+        {
+            BeatDiagnostics.Run(Console.Out, file, landmarkRefiner);
+        }
+        return 0;
     }
 
     foreach (string file in files)
