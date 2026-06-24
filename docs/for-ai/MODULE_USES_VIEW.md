@@ -15,6 +15,7 @@ flowchart TB
         WindowsAudio["TimeGrapher.Platform.WindowsAudio<br/>Windows 라이브 오디오"]
         LinuxAudio["TimeGrapher.Platform.LinuxAudio<br/>Linux 라이브 오디오"]
         Core["TimeGrapher.Core<br/>분석 엔진과 계약"]
+        Inference["TimeGrapher.Inference<br/>ONNX 랜드마크 refiner 리프"]
     end
 
     subgraph Tests["테스트 프로젝트"]
@@ -31,6 +32,7 @@ flowchart TB
         Avalonia["Avalonia"]
         ScottPlot["ScottPlot.Avalonia"]
         NAudio["NAudio (Wasapi · WinMM)"]
+        OnnxRuntime["Microsoft.ML.OnnxRuntime"]
         LinuxAudioStack["PipeWire / ALSA 도구<br/>wpctl · pw-record · arecord"]
         Xunit["테스트 스택<br/>xUnit · xunit.runner.visualstudio · Microsoft.NET.Test.Sdk<br/>(Directory.Packages.props 중앙 버전)"]
     end
@@ -39,6 +41,8 @@ flowchart TB
     App -. "RID 조건부" .-> WindowsAudio
     App -. "RID 조건부" .-> LinuxAudio
     Verify --> Core
+    Verify --> Inference
+    Inference --> Core
     WindowsAudio --> Core
     LinuxAudio --> Core
 
@@ -47,6 +51,7 @@ flowchart TB
     CoreTests --> Core
     VerifyTests --> Verify
     VerifyTests -. "전이 · Core Analysis/Detection/Sim 타입 사용" .-> Core
+    VerifyTests -. "전이 · Inference OnnxBeatLandmarkRefiner 사용" .-> Inference
     WindowsAudioTests --> WindowsAudio
     WindowsAudioTests -. "전이 · Core DTO 사용" .-> Core
     LinuxAudioTests --> LinuxAudio
@@ -56,6 +61,7 @@ flowchart TB
     App --> ScottPlot
     WindowsAudio --> NAudio
     LinuxAudio --> LinuxAudioStack
+    Inference --> OnnxRuntime
     AppTests --> Avalonia
     AppTests --> ScottPlot
     AppTests --> Xunit
@@ -68,7 +74,7 @@ flowchart TB
 ### 의존 규칙
 
 - `TimeGrapher.Core`는 **아무것도 참조하지 않는다**(UI·플랫폼 무의존). 외부 패키지도 없다.
-- 프로젝트 참조(`ProjectReference`) 기준으로 `TimeGrapher.Platform.*`와 `TimeGrapher.Verify`는 `Core`만 참조한다. 단 `TimeGrapher.Platform.WindowsAudio`는 외부 NuGet 패키지 `NAudio.Wasapi`·`NAudio.WinMM`도 참조한다(위 도식의 `WindowsAudio --> NAudio` 엣지). `TimeGrapher.Platform.LinuxAudio`는 CLI 도구를 프로세스로 구동하므로 패키지 의존이 없고, `TimeGrapher.Verify`도 외부 패키지가 없다.
+- 프로젝트 참조(`ProjectReference`) 기준으로 `TimeGrapher.Platform.*`는 `Core`만 참조하고, `TimeGrapher.Verify`는 `Core`와 `TimeGrapher.Inference`를 참조한다. 단 `TimeGrapher.Platform.WindowsAudio`는 외부 NuGet 패키지 `NAudio.Wasapi`·`NAudio.WinMM`도 참조한다(위 도식의 `WindowsAudio --> NAudio` 엣지). `TimeGrapher.Platform.LinuxAudio`는 CLI 도구를 프로세스로 구동하므로 패키지 의존이 없다. `TimeGrapher.Inference`는 ONNX Runtime(`Microsoft.ML.OnnxRuntime`)을 참조하는 유일한 프로젝트이며, `Verify`는 이를 통해 ONNX를 전이로만 가진다(직접 패키지 참조 없음).
 - 두 플랫폼 어댑터는 각각 `Core.Shared`만 사용한다(`AudioCaptureWorker`, `LinuxLiveAudioWorker`).
 
 ### App의 플랫폼 어댑터 참조 (RID 조건부)
@@ -87,9 +93,9 @@ flowchart TB
 
 `*.Tests`는 각자 검증 대상 프로젝트 **하나만** `ProjectReference`로 직접 참조한다(`App.Tests→App`, `Core.Tests→Core`, `Verify.Tests→Verify`, `WindowsAudio.Tests→WindowsAudio`, `LinuxAudio.Tests→LinuxAudio`). `Verify.Tests`는 `Verify`가 `InternalsVisibleTo`로 노출한 악조건 게이트 평가기(`AdverseScenarios.Evaluate`)와 `--gate` 스펙 해석(`TryResolveArm`)을 직접 단언하고, `Core`의 `DetectorResultSnapshot`/`TgEvent`/`DetectionScorer.Score`를 전이로 구성한다. `Core`는 전이 참조이지만, 어서션·테스트 지원에서 `Core` 타입을 직접 `using`하므로 점선으로 표시했다 — `App.Tests`는 `Shared`(DTO)에 더해 `Analysis`·`Detection`·`Detection.Scoring`·`Metrics`(예: `AnalysisRunSettingsTests`, `GraphFrameRendererTests`, `RunSelectionResolverTests`)와 `Core.AudioIo`·`Core.Sim`(`AnalysisBenchmarkRunnerTests`의 `WavStreamWriter`·`WatchSynthStream`)까지 직접 `using`한다(그래도 `ProjectReference`는 App 하나뿐이라 여전히 전이 참조다). `Core.Tests`만 `Core`를 직접 참조한다. `App.Tests`는 컨트롤(`AvaPlot`, `SplashWindow`)을 구성하므로 `Avalonia`·`ScottPlot`도 직접 사용한다.
 
-### 미래 계획 노드: TimeGrapher.Inference
+### 리프 노드: TimeGrapher.Inference
 
-검출 강건성 동작(적응 플로어, 레짐 가드, PLL 후행 A-onset 게이팅)은 `Detection` 알고리즘에 흡수되어 있고, 이벤트 게이트 소켓(`IBeatEventGate`/`BeatEventGateHost`)은 `Core` 내부 요소라 **프로젝트 간 신규 엣지를 만들지 않는다**. 미래의 TinyML 게이트는 ONNX Runtime을 참조하는 리프 프로젝트 `TimeGrapher.Inference`로 들어올 계획이며, 그때 엣지는 `App → Inference → Core`, `Verify → Inference`로 `Platform.*` 패턴을 미러링한다. `Core`는 계속 무의존을 유지한다.
+TinyML 랜드마크 refiner는 ONNX Runtime을 참조하는 리프 프로젝트 `TimeGrapher.Inference`로 들어왔다(`OnnxBeatLandmarkRefiner : IBeatLandmarkRefiner`). ONNX Runtime은 이 프로젝트에만 있으므로 `Core`는 계속 무의존을 유지한다. 현재 합성 루트는 `Verify`의 `--landmark=onnx:<path>` arm으로, `Verify → Inference → Core` 엣지를 만든다(`Platform.*` 패턴 미러링). `App`은 아직 `Inference`를 참조하지 않는다(필요 시 동일 패턴으로 `App → Inference` 추가 가능). 검출 강건성 동작(적응 플로어, 레짐 가드, PLL 후행 A-onset 게이팅)과 이벤트 게이트 소켓(`IBeatEventGate`/`BeatEventGateHost`), 랜드마크 refiner 호스트(`IBeatLandmarkRefiner`/`BeatLandmarkRefinerHost`)는 `Core` 내부 요소라 프로젝트 간 엣지를 만들지 않는다.
 
 ## 2. TimeGrapher.App 내부 사용 관계
 
