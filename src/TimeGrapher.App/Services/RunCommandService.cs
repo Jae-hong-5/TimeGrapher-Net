@@ -155,6 +155,14 @@ internal sealed partial class RunCommandService : IRunCommandRunner, IRunCommand
         BeginStop(intent);
     }
 
+    private void RetryStopWithoutReset()
+    {
+        PendingStopIntent intent = _pendingStopIntent == PendingStopIntent.ResetAfterStop
+            ? PendingStopIntent.StopOnly
+            : _pendingStopIntent;
+        BeginStop(intent == PendingStopIntent.None ? PendingStopIntent.StopOnly : intent);
+    }
+
     private void BeginStop(PendingStopIntent intent)
     {
         if (_startInProgress || _operations.IsClosing)

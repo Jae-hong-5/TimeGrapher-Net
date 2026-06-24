@@ -10,7 +10,7 @@ internal static class UserErrorMessages
     public const string LiveAudioStopped = "Live audio stopped unexpectedly. Please check your device connection.";
     public const string PlaybackStoppedWithError = "Playback stopped unexpectedly. Please try again.";
     public const string SimulationStoppedWithError = "Simulation stopped unexpectedly. Please try again.";
-    public const string StopDidNotFinish = "Stop could not finish. Please press Reset and try again.";
+    public const string StopDidNotFinish = "Stop could not finish. Please press Stop and try again.";
     public const string RecordingCloseFailed = "We couldn't finish saving the WAV recording. Please try again.";
     public const string RecordingMayBeIncomplete = "The WAV recording may be incomplete. Please check the saved file.";
     public const string RecordingOpenFailed = "We couldn't start WAV recording. Please choose a different save location.";
