@@ -176,9 +176,9 @@ public sealed class AdverseGateTests
     }
 
     [Theory]
-    [InlineData("onnx:model.onnx")] // reserved for the future inference gate
+    [InlineData("onnx:model.onnx")] // unknown value (colon form)
     [InlineData("bogus")]            // unknown value
-    public void TryResolveArm_RejectsReservedAndUnknownSpecs(string spec)
+    public void TryResolveArm_RejectsUnknownSpecs(string spec)
     {
         Assert.False(AdverseScenarios.TryResolveArm(spec, out _, out string? error));
         Assert.False(string.IsNullOrEmpty(error));
