@@ -11,6 +11,8 @@
 // Adverse-condition rows with optional PLL event-gate measurement.
 //   TimeGrapher.Verify <wav-or-dir> [--landmark=off|stub:noop|stub:cpeak]
 // Re-times the metrics/display A/C landmarks through a refiner (off = unchanged).
+//   TimeGrapher.Verify --export-training=<dir>
+// Writes weak-A-weighted synthetic refiner-training rows to <dir>/landmark_training.csv.
 //
 // Exit codes: 0 = all gates passed, 1 = a verification gate failed,
 // 2 = usage error (unknown option, malformed spec, flags without a runner).
@@ -37,6 +39,7 @@ var expectationsByFile = new Dictionary<string, GeneratedFixtureExpectation>(Str
 bool runAdverse = false;
 string gateSpec = "off";
 string landmarkSpec = "off";
+string? exportTrainingDir = null;
 foreach (string arg in args)
 {
     if (arg == "--adverse")
@@ -54,6 +57,12 @@ foreach (string arg in args)
     if (arg.StartsWith("--landmark=", StringComparison.Ordinal))
     {
         landmarkSpec = arg["--landmark=".Length..];
+        continue;
+    }
+
+    if (arg.StartsWith("--export-training=", StringComparison.Ordinal))
+    {
+        exportTrainingDir = arg["--export-training=".Length..];
         continue;
     }
 
@@ -86,6 +95,12 @@ foreach (string arg in args)
     {
         files.Add(arg);
     }
+}
+
+// Training-data export is a standalone mode (no WAV inputs needed).
+if (exportTrainingDir != null)
+{
+    return TrainingDataExporter.Export(exportTrainingDir);
 }
 
 // Gate-selection flags configure only the adverse runner.
