@@ -2,7 +2,7 @@
 
 ## 목적
 
-이 문서는 다음 세션에서 TinyML 기반 A/C landmark 보정 기능을 구현할 수 있도록 현재 논의 내용을 정리한 것이다.
+이 문서는 TinyML 기반 A/C landmark 보정 기능의 설계와 구현 현황을 정리한다. **2026-06-24 기준 계획 1~12단계가 모두 main에 구현·검증되었고**(아래 "구현 순서" 절), 유일한 잔여 작업은 repo 밖의 실제 ONNX 모델 학습이다. 아래 본문은 설계 의도(원안)와 구현 결과(정정 표시)를 함께 담는다.
 
 기존 TinyML 계획은 `IBeatEventGate`를 통해 후보 이벤트를 통과/거부하는 drop-only 필터였다. 그 방향은 잡음 후보를 줄이는 데는 유효하지만, 이번에 해결하려는 문제와는 다르다.
 
@@ -73,7 +73,7 @@ raw audio/envelope
 
 Core에는 ML runtime을 넣지 않는다. Core에는 dependency-free contract만 둔다.
 
-예상 interface:
+구현된 interface (`IBeatLandmarkRefiner`, `be5ca5f` — 아래 시그니처대로 구현됨):
 
 ```csharp
 public interface IBeatLandmarkRefiner
@@ -93,22 +93,20 @@ public interface IBeatLandmarkRefiner
 }
 ```
 
-예상 result:
+구현된 result (`BeatLandmarkRefinement`, `be5ca5f`): 초기 제안의 `BAsARisk`/`BAsCRisk` 필드는 런타임 refinement에서 **제거**하고 학습 데이터 라벨로 옮겼다(아래 "모델 출력" 참조). C를 주 보정 대상으로 두어 C 필드를 앞에 두고, A 보정은 optional 기본값으로 둔다.
 
 ```csharp
 public readonly record struct BeatLandmarkRefinement(
     bool Accepted,
-    bool CorrectedA,
-    double CorrectedASample,
     bool CorrectedC,
     double CorrectedCSample,
-    float AConfidence,
     float CConfidence,
-    float BAsARisk,
-    float BAsCRisk);
+    bool CorrectedA = false,
+    double CorrectedASample = 0.0,
+    float AConfidence = 0.0f);
 ```
 
-`Accepted=false`는 fallback을 의미하게 한다. 이 경우 기존 detector A/C를 그대로 사용한다.
+`Accepted=false`(= `BeatLandmarkRefinement.Fallback`)는 fallback을 의미한다. 이 경우 기존 detector A/C를 그대로 사용한다.
 
 ## 모델 출력
 
@@ -133,6 +131,8 @@ b_as_c_risk
 ```
 
 `B` 자체를 화면에 표시할 필요는 없다. 하지만 모델이 B를 A/C와 구분해야 하므로 학습 label 또는 보조 output에 B risk를 포함하는 편이 설명력이 좋다.
+
+구현된 ONNX 계약 (`OnnxBeatLandmarkRefiner`, `b2a85cc`): 입력은 엔벨로프 윈도우 `[1, N]`(A를 `WindowPreMs` 위치에 앵커), 출력은 `[a_off, c_off, a_conf, c_conf, ...]`로 **ms가 아니라 윈도우 샘플 단위 offset**이다(학습 데이터 `--export-training`의 `true_a_off`/`true_c_off`와 동일 프레임). `b_as_a_risk`/`b_as_c_risk`는 런타임 출력이 아니라 **학습 데이터 라벨**(`--export-training`의 `b_risk_a`/`b_risk_c`, 클러스터 스케일)로 들어간다. host가 출력을 절대 A/C 샘플로 매핑한 뒤 clamp/confidence를 적용한다.
 
 ## 보정 제한
 
@@ -247,17 +247,18 @@ Core는 ONNX Runtime을 참조하지 않는다.
 - `src/TimeGrapher.Verify/AdverseScenarios.cs`
 - `src/TimeGrapher.Verify/Program.cs`
 
-기존 `--gate=onnx:<path>` reserved 문구는 landmark refiner용 옵션으로 바꾼다.
+`--gate`(이벤트 게이트)는 그대로 두고 별도 `--landmark` CLI를 추가했다(`425767e`). onnx 모델 경로 해석은 `--landmark=onnx:<path>`가 담당하며(`b2a85cc`), 모델 누락/로드 실패는 usage error(exit 2)다. `AdverseScenarios.cs`는 게이트 전용이라 손대지 않았다.
 
-권장 CLI:
+구현된 CLI:
 
 ```text
 --landmark=off
+--landmark=stub:noop
+--landmark=stub:cpeak
 --landmark=onnx:<path>
---landmark=stub:<mode>
 ```
 
-`stub`은 테스트와 demo를 위한 deterministic refiner이다. 실제 ONNX 모델이 없을 때 pipeline을 검증하는 데 쓴다.
+`stub`은 테스트와 demo를 위한 deterministic refiner다(`StubBeatLandmarkRefiner`). `cpeak`은 C를 검색 반경 내 엔벨로프 국소 최대값으로 스냅하는 휴리스틱으로, 정확도를 주장하지 않고 실제 ONNX 모델이 없을 때 pipeline을 검증하는 용도다(real sample에서는 detector가 이미 최대를 잡으므로 변화 없음 — `LANDMARK_REFINER_SAMPLE_REPORT.md`).
 
 ## 데이터와 학습
 
@@ -309,31 +310,35 @@ window -> true A offset, true C offset, confidence target, optional B risk
 
 ## 구현 순서
 
-1. Core에 `IBeatLandmarkRefiner` contract와 no-op implementation을 추가한다.
-2. `DetectorMetricsEngine`에 optional refiner config를 추가한다.
-3. A/C event pair를 하나의 beat candidate로 묶고, delayed envelope window를 refiner에 넘기는 host를 추가한다.
-4. confidence/fallback/clamp 정책을 Core에서 적용한다.
-5. corrected A/C를 metrics/display stream에만 흘린다.
-6. raw detector stream은 diagnostics와 sync용으로 유지한다.
-7. `stub` refiner로 B->A, B->C 보정 path를 unit test한다.
-8. synthetic weak-A/weak-C fixtures를 추가한다.
-9. `TimeGrapher.Inference` project에 ONNX Runtime 기반 implementation을 추가한다.
-10. Verify CLI에 `--landmark=off|stub:*|onnx:<path>`를 추가한다.
-11. `sample/mine_adapter.wav`, `sample/21600BPH_8215_InCase .wav`, `sample/mine.wav`, `sample/mine_usb.wav`, `sample/num.wav`로 regression report를 만든다.
-12. Raspberry Pi 또는 linux-arm64 publish target에서 latency smoke를 확인한다.
+> **구현 현황 (2026-06-24):** 1~12단계 모두 main에 구현·검증됨. 유일한 외부 잔여 작업은 실제 ONNX 모델 학습(아래 "데이터와 학습" 참조). 관련 리포트: `LANDMARK_REFINER_SAMPLE_REPORT.md`(off vs stub real sample), `LANDMARK_REFINER_PI_LATENCY.md`(arm64 publish + latency).
+
+1. ✅ `be5ca5f` Core에 `IBeatLandmarkRefiner` contract와 no-op(`NoOpBeatLandmarkRefiner`) 추가.
+2. ✅ `7dee846` `DetectorMetricsEngine`에 optional refiner config(`BeatLandmarkRefinerConfig`) 추가.
+3. ✅ `7dee846` A/C event pair를 beat candidate로 묶고 delayed envelope window를 넘기는 `BeatLandmarkRefinerHost` 추가.
+4. ✅ `7dee846` confidence/fallback/clamp 정책을 host(Core)에서 적용.
+5. ✅ `7dee846` corrected A/C를 metrics/display stream에만 흘림.
+6. ✅ `7dee846` raw detector stream(`Result.Events`)은 그대로 유지(BPH/PLL 입력 불변).
+7. ✅ `7dee846` scripted-refiner로 보정/clamp/fallback path unit test(stub 역할 겸).
+8. ✅ `ab617b8`(B->C) `423fc8c`(B->A) synthetic weak-A/weak-C truth fixture로 보정이 truth에 수렴함을 증명. 생성기 선행 노브는 `91103b9`/`e0d2a89`.
+9. ✅ `b2a85cc` `TimeGrapher.Inference`에 ONNX Runtime 기반 `OnnxBeatLandmarkRefiner` 추가(uses-view 갱신 `588a5c5`).
+10. ✅ `791fb57`(stub) `425767e`(CLI) 배포용 `StubBeatLandmarkRefiner` + Verify `--landmark=off|stub:noop|stub:cpeak|onnx:<path>`.
+11. ✅ `286c183` 5개 real sample off vs stub regression report(`LANDMARK_REFINER_SAMPLE_REPORT.md`).
+12. ✅ `24e0884` linux-arm64 publish(arm64 native onnxruntime 포함) + latency smoke(`LANDMARK_REFINER_PI_LATENCY.md`).
+
+> 9·11·12의 *실제 ONNX 모델* 경로는 학습된 `.onnx`가 있어야 런타임 검증된다. 학습 데이터 export(`--export-training`, `89b0483`)까지 완료했고, 모델 학습은 repo 밖(PyTorch 등) 작업이다.
 
 ## 테스트 전략
 
-필수 unit tests:
+필수 unit tests (현황 — `BeatLandmarkRefinerTests`, `StubBeatLandmarkRefinerTests`, `BeatLandmarkRefinerSyntheticTests`, `OnnxBeatLandmarkRefinerTests`):
 
-- no-op refiner는 기존 detector output을 bit-equivalent로 유지한다.
-- low confidence result는 fallback한다.
-- correction clamp 밖의 output은 clamp 또는 reject된다.
-- B->A synthetic fixture에서 corrected A가 truth에 가까워진다.
-- B->C synthetic fixture에서 corrected C가 truth에 가까워진다.
-- C correction이 amplitude 계산을 개선한다.
-- A correction이 rate/beat-error outlier를 줄인다.
-- sync acquisition은 raw stream 기준으로 유지된다.
+- ✅ no-op refiner는 기존 detector output(raw·metrics·display)을 동일하게 유지한다.
+- ✅ low confidence / 거부 result는 fallback한다.
+- ✅ correction은 clamp 창으로 제한된다(metrics만 이동, raw 불변).
+- ✅ B->A synthetic fixture에서 corrected A가 truth에 가까워진다(oracle).
+- ✅ B->C synthetic fixture에서 corrected C가 truth에 가까워진다(oracle).
+- ⏳ "C correction의 amplitude 개선" / "A correction의 rate·beat-error outlier 감소"는 *타이밍 오차 수렴*으로 간접 증명된다(전용 metric 단언은 미작성; 실제 모델 단계에서 추가 권장).
+- ✅ sync는 raw stream 기준 유지(refined 경로에서도 raw snapshot 불변·sync 유지, sync-loss 시 refiner reset).
+- ✅ (ONNX) 출력 디코드(윈도우 offset -> 절대 A/C)와 모델 누락 가드. 실제 추론 경로는 학습된 모델이 있을 때 검증.
 
 필수 integration/verify:
 
@@ -353,17 +358,19 @@ dotnet run --project src/TimeGrapher.Verify -c Release -- sample --landmark=onnx
 
 ## Acceptance criteria
 
-다음 조건을 만족해야 한다.
+다음 조건을 만족해야 한다 (현황 2026-06-24).
 
-- 기본값 `landmark=off`에서 기존 detector 결과가 바뀌지 않는다.
-- Core는 ONNX Runtime 또는 UI/platform dependency를 갖지 않는다.
-- TinyML implementation은 leaf project에만 있다.
-- weak-A synthetic case에서 A timing median/RMS error가 개선된다.
-- weak-C synthetic case에서 C timing 또는 amplitude error가 개선된다.
-- `mine_adapter.wav`에서 confidence/fallback이 과보정을 만들지 않는다.
-- `mine_false.wav`에 대해 landmark refiner가 false-lock 자체를 해결한다고 주장하지 않는다.
-- Verify output에 off vs tinyml 비교가 남는다.
-- Pi 배포 가능성을 위해 inference latency가 analysis block budget 안에 들어간다.
+- ✅ 기본값 `landmark=off`(refiner 미설정)에서 기존 detector 결과가 바뀌지 않는다.
+- ✅ Core는 ONNX Runtime 또는 UI/platform dependency를 갖지 않는다.
+- ✅ TinyML(ONNX) implementation은 leaf project(`TimeGrapher.Inference`)에만 있다.
+- ✅ weak-A synthetic case에서 A timing 오차가 개선된다(oracle로 ~2.4 ms -> <0.5 ms; median 기준. 실제 모델은 학습 후 정량화).
+- ✅ weak-C synthetic case에서 C timing 오차가 개선된다(oracle로 ~5 ms -> <1 ms; amplitude 전용 단언은 미작성).
+- ✅ `mine_adapter.wav`에서 confidence/fallback이 과보정을 만들지 않는다(stub에서 off와 동일, `LANDMARK_REFINER_SAMPLE_REPORT.md`).
+- ✅ `mine_false.wav`는 비교에서 제외하여 false-lock 해결을 주장하지 않는다.
+- ✅ Verify output에 off vs (stub) 비교가 남는다(`LANDMARK_REFINER_SAMPLE_REPORT.md`). onnx arm 비교는 모델 확보 후.
+- ✅/⏳ linux-arm64 publish가 arm64 onnxruntime을 포함하고 host+stub latency는 block budget 안(`LANDMARK_REFINER_PI_LATENCY.md`). 실제 모델 추론 latency는 Pi에서 모델 확보 후 측정.
+
+> 위 "개선" 항목은 **파이프라인 능력**(oracle/synthetic truth) 기준으로 충족된다. *실제 ONNX 모델*의 개선은 학습 후 별도 검증이 필요하다.
 
 ## 데모 메시지
 
