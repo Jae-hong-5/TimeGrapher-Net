@@ -30,6 +30,8 @@ overlay를 추가하여 사용자가 현재 보고 있는 diagnostic view 안에
 
 `A --> B`는 "A가 B를 사용한다"는 뜻이다. 이 뷰는 compile-time/code-level 책임 분리를 설명한다.
 
+![AnalysisFrame.BeatSegments Uses View](assets/signal-quality-beatsegments-uses.svg)
+
 ```mermaid
 flowchart TB
     subgraph Core["TimeGrapher.Core"]
@@ -99,6 +101,8 @@ flowchart TB
 ### Runtime Sequence View
 
 이 뷰는 한 analysis frame이 생성되어 UI와 각 graph consumer까지 전달되는 순서를 보여준다.
+
+![AnalysisFrame.BeatSegments Runtime Sequence View](assets/signal-quality-beatsegments-sequence.svg)
 
 ```mermaid
 sequenceDiagram
