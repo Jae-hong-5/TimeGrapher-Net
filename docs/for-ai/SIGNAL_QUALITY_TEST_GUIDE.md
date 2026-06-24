@@ -1,90 +1,89 @@
-# Signal Quality Test Guide
+# Signal Quality 테스트 가이드
 
-This guide covers the stage 1, stage 2, and graph-overlay signal-quality changes on
-`feature/signal-quality-propagation`.
+이 문서는 `feature/signal-quality-propagation` 브랜치의 stage 1, stage 2,
+그리고 그래프 overlay signal-quality 변경사항을 검증하기 위한 가이드다.
 
-## What Changed
+## 변경 내용
 
-The app now carries signal-quality warnings through the shared beat-segment DTOs.
-The current flags are:
+앱은 이제 beat-segment 공유 DTO를 통해 signal-quality warning을 전달한다.
+현재 사용하는 flag는 다음과 같다.
 
-- `WeakSignal`: no usable C marker was found for the displayed beat segment.
-- `NoisySignal`: the detected C timing is inconsistent with recent A-to-C timing.
-- `CTimingUnstable`: the A-to-C interval deviates from the recent median/MAD band.
-- `PossibleFalseC`: the C candidate is unusually early and may be B/noise.
-- `ClippedSignal`: reserved for clipping classification.
-- `NoSignal`: reserved for no-signal classification.
+- `WeakSignal`: 표시 중인 beat segment에서 사용할 수 있는 C marker를 찾지 못했다.
+- `NoisySignal`: 감지된 C timing이 최근 A-to-C timing과 일관되지 않는다.
+- `CTimingUnstable`: A-to-C interval이 최근 median/MAD band에서 벗어났다.
+- `PossibleFalseC`: C 후보가 비정상적으로 이르며 B/noise가 C로 잡혔을 가능성이 있다.
+- `ClippedSignal`: clipping classification을 위해 예약된 flag다.
+- `NoSignal`: no-signal classification을 위해 예약된 flag다.
 
-Stage 1 made the shared quality state visible in the top readout and Beat Noise.
-Stage 2 adds recovery guidance, excludes suspicious C candidates from amplitude
-updates, and propagates quality into beat-aligned analysis views. The graph-overlay
-pass adds a top-right warning overlay to Beat Noise, Waveform Compare, and
-Escapement Analyzer so the warning is visible in the diagnostic view the user is
-currently inspecting.
+Stage 1에서는 공유 quality 상태를 상단 readout과 Beat Noise에 표시했다.
+Stage 2에서는 recovery guidance를 추가하고, 의심스러운 C 후보를 amplitude 갱신에서
+제외하며, quality 상태를 beat-aligned analysis view까지 전달했다. 이번 graph-overlay
+변경에서는 Beat Noise, Waveform Compare, Escapement Analyzer의 우측 상단에 warning
+overlay를 추가하여 사용자가 현재 보고 있는 diagnostic view 안에서 바로 경고를 볼 수
+있게 했다.
 
-## Overlay Fade Contract
+## Overlay Fade 규칙
 
-When a graph receives a non-clean `SignalQualityFlags` value, the overlay shows the
-latest warning at full opacity. When subsequent frames are clean, the overlay keeps
-the last warning visible for 10 consecutive clean updates, then fades linearly until
-it disappears on the 100th clean update.
+그래프가 clean하지 않은 `SignalQualityFlags` 값을 받으면 overlay는 가장 최근 warning을
+불투명하게 표시한다. 이후 clean frame이 들어오면 마지막 warning을 clean update 10회 동안
+그대로 유지하고, 그 다음부터 선형으로 희미해지다가 100번째 clean update에서 사라진다.
 
-This is intentionally frame-count based, not wall-clock based, so Playback, Live,
-and Simulation modes behave consistently under the same analysis-frame sequence.
+이 동작은 wall-clock 시간이 아니라 frame count 기반이다. 따라서 Playback, Live,
+Simulation mode에서 같은 analysis-frame sequence가 들어오면 동일하게 동작한다.
 
-## Automated Verification
+## 자동 검증
 
-Run the full build:
+전체 build를 실행한다.
 
 ```powershell
 dotnet build TimeGrapherNet.sln -c Release
 ```
 
-Run focused Core tests:
+Core 관련 focused test를 실행한다.
 
 ```powershell
 dotnet test tests/TimeGrapher.Core.Tests/TimeGrapher.Core.Tests.csproj -c Release --no-build --filter "BeatSegmentCaptureTests|WatchMetricsTests"
 ```
 
-Run focused App tests:
+App 관련 focused test를 실행한다.
 
 ```powershell
 dotnet test tests/TimeGrapher.App.Tests/TimeGrapher.App.Tests.csproj -c Release --no-build --filter "WaveformCompareLogicTests|AnalysisRunStatusReporterTests|SignalQualityTextTests"
 ```
 
-Run the combined focused suite used for this branch:
+이 브랜치에서 사용한 통합 focused suite를 실행한다.
 
 ```powershell
 dotnet test TimeGrapherNet.sln -c Release --no-build --filter "SignalQualityTextTests|AnalysisRunStatusReporterTests|WaveformCompareLogicTests|BeatSegmentCaptureTests|WatchMetricsTests|BeatNoiseScopeRendererTests|Escapement"
 ```
 
-Run the full test suite:
+전체 test suite를 실행한다.
 
 ```powershell
 dotnet test TimeGrapherNet.sln -c Release --no-build
 ```
 
-Expected result: all tests pass with zero build warnings.
+기대 결과: 모든 test가 통과하고 build warning은 0개여야 한다.
 
-## Manual Fixture
+## 수동 테스트 Fixture
 
-A bad-signal playback fixture is included for repeatable manual checks:
+반복 가능한 수동 검증을 위해 bad-signal playback fixture를 포함했다.
 
 ```text
 manual-fixtures/21600BPH_bad-signal_falseC_weak_48000Hz.wav
 ```
 
-This file is a 48 kHz / 21600 BPH watch-like signal with weak/false-C conditions.
-The headless verifier should still detect the nominal beat rate while surfacing the
-signal-quality warning path in the GUI.
+이 파일은 48 kHz / 21600 BPH watch-like signal이며 weak/false-C 조건을 포함한다.
+Headless verifier는 nominal beat rate를 계속 감지해야 하고, GUI에서는 signal-quality
+warning 경로를 확인할 수 있어야 한다.
 
-Reference verify command:
+Verifier 기준 명령은 다음과 같다.
 
 ```powershell
 dotnet run --project src/TimeGrapher.Verify -c Release -- manual-fixtures/21600BPH_bad-signal_falseC_weak_48000Hz.wav
 ```
 
-Expected reference result from the generated fixture:
+생성된 fixture의 기대 기준 결과는 다음과 같다.
 
 ```text
 detected_bph=21600
@@ -92,77 +91,73 @@ sync_status=Synced
 results include Error Rate, Amplitude, Beat Error, and BPH 21600
 ```
 
-## Manual Verification
+## 수동 검증
 
 ### 1. Baseline Clean Signal
 
-1. Start the app in Simulation mode with default or clean settings.
-2. Wait for beat sync.
-3. Open Beat Noise, Waveform Compare, and Escapement Analyzer.
+1. 앱을 Simulation mode에서 기본 설정 또는 clean setting으로 시작한다.
+2. beat sync가 잡힐 때까지 기다린다.
+3. Beat Noise, Waveform Compare, Escapement Analyzer를 연다.
 
-Expected result:
+기대 결과:
 
-- The top measurement readout has no `Signal ...` suffix.
-- Beat Noise shows no quality overlay.
-- Waveform Compare lane labels do not include `Signal: ...`.
-- Escapement Analyzer shows the normal repeatability verdict.
+- 상단 measurement readout에 `Signal ...` suffix가 없어야 한다.
+- Beat Noise에 quality overlay가 없어야 한다.
+- Waveform Compare lane label에 `Signal: ...` 문구가 없어야 한다.
+- Escapement Analyzer는 정상 repeatability verdict를 보여야 한다.
 
 ### 2. Possible False C / Unstable C
 
-Use `manual-fixtures/21600BPH_bad-signal_falseC_weak_48000Hz.wav` in Playback mode,
-or use a synthetic capture where one beat has an early C marker relative to the
-recent A-to-C pattern, such as a B/noise peak being selected as C.
+Playback mode에서 `manual-fixtures/21600BPH_bad-signal_falseC_weak_48000Hz.wav`를
+사용한다. 또는 B/noise peak가 C로 선택되는 경우처럼, 특정 beat의 C marker가 최근
+A-to-C pattern보다 비정상적으로 이르게 잡히는 synthetic capture를 사용한다.
 
-Expected result:
+기대 결과:
 
-- The top measurement readout shows `Signal Possible false C` or
-  `Signal C timing unstable`.
-- Beat Noise displays `POSSIBLE FALSE C` or `C TIMING UNSTABLE` in the graph area.
-- Waveform Compare displays the same warning as a top-right overlay and labels the
-  affected lane with `Signal: Possible false C`.
-- Escapement Analyzer displays the same top-right warning instead of treating the
-  beat as a normal repeatability sample.
-- Status guidance says to check Beat Noise and reduce handling noise.
-- Waveform Compare mean-C guide ignores the possible-false-C beat.
-- The suspicious C does not update the amplitude reading.
+- 상단 measurement readout에 `Signal Possible false C` 또는 `Signal C timing unstable`이 표시된다.
+- Beat Noise graph area에 `POSSIBLE FALSE C` 또는 `C TIMING UNSTABLE`이 표시된다.
+- Waveform Compare 우측 상단 overlay에도 같은 warning이 표시되고, 영향받은 lane에는
+  `Signal: Possible false C` label이 붙는다.
+- Escapement Analyzer 우측 상단에도 같은 warning이 표시되며, 해당 beat를 정상
+  repeatability sample처럼 처리하지 않는다.
+- Status guidance는 Beat Noise를 확인하고 handling noise를 줄이라고 안내한다.
+- Waveform Compare mean-C guide는 possible-false-C beat를 제외한다.
+- 의심스러운 C는 amplitude reading을 갱신하지 않는다.
 
 ### 3. Overlay Fade-Out
 
-1. Trigger a warning with the bad-signal fixture or equivalent input.
-2. Switch back to a clean Simulation or Playback signal without resetting the graph.
-3. Watch Beat Noise, Waveform Compare, and Escapement Analyzer.
+1. bad-signal fixture 또는 동등한 입력으로 warning을 발생시킨다.
+2. graph를 reset하지 않고 clean Simulation 또는 Playback signal로 전환한다.
+3. Beat Noise, Waveform Compare, Escapement Analyzer를 관찰한다.
 
-Expected result:
+기대 결과:
 
-- The last warning remains fully visible for 10 consecutive clean signal updates.
-- The warning fades gradually after the 10th clean update.
-- The warning disappears on the 100th consecutive clean update.
-- A new warning during the fade returns the overlay to full opacity with the new
-  latest warning text.
+- 마지막 warning은 clean signal update 10회 동안 완전히 보인다.
+- 10번째 clean update 이후 warning이 점진적으로 희미해진다.
+- 100번째 연속 clean update에서 warning이 사라진다.
+- fade 중 새 warning이 발생하면 overlay는 새 warning text로 바뀌고 다시 완전히 보인다.
 
 ### 4. Weak Signal
 
-Use a capture where A is detected but no C marker is available in the beat window.
+A는 감지되지만 beat window 안에서 C marker를 사용할 수 없는 capture를 사용한다.
 
-Expected result:
+기대 결과:
 
-- Beat Noise displays `WEAK SIGNAL`.
-- The top readout shows `Signal Weak signal` when that quality reaches the shared
-  snapshot.
-- Status guidance recommends repositioning the watch or increasing input gain.
+- Beat Noise에 `WEAK SIGNAL`이 표시된다.
+- 해당 quality가 shared snapshot에 도달하면 상단 readout에 `Signal Weak signal`이 표시된다.
+- Status guidance는 watch 위치를 다시 잡거나 input gain을 높이라고 안내한다.
 
-### 5. Runtime Quality Is Separate
+### 5. Runtime Quality와 Acoustic Signal Quality 구분
 
-Trigger rendering deadline pressure or analysis lag separately from acoustic
-signal issues.
+Acoustic signal 문제가 아니라 rendering deadline pressure 또는 analysis lag를 별도로 발생시킨다.
 
-Expected result:
+기대 결과:
 
-- `Display quality was reduced to keep measurements responsive.` remains a
-  runtime/performance warning, not an acoustic signal-quality warning.
-- Signal-quality labels are only used for beat/signal interpretation issues.
+- `Display quality was reduced to keep measurements responsive.`는 runtime/performance warning으로 유지된다.
+- 이 문구는 acoustic signal-quality warning으로 처리하지 않는다.
+- Signal-quality label은 beat/signal interpretation 문제에만 사용한다.
 
-## Files To Inspect
+## 확인할 파일
 
 - `src/TimeGrapher.Core/Shared/BeatSegmentsSnapshot.cs`
 - `src/TimeGrapher.Core/Analysis/BeatSegmentCapture.cs`
