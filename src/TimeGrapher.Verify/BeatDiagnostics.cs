@@ -12,7 +12,6 @@ namespace TimeGrapher.Verify;
 /// positive outlier (A is ~2-4 ms late), and that beat's A->C interval (the
 /// amplitude proxy) shortens. Run with and without <c>--rescue=&lt;scale&gt;</c>
 /// to compare the phase-guided onset rescue by the same measure.
-/// See docs/for-ai/LANDMARK_REFINER_BEAT_DIAGNOSIS.md.
 /// </summary>
 internal static class BeatDiagnostics
 {

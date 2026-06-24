@@ -4,14 +4,14 @@
 
 ## 왜 재구성하나 (실측 근거)
 
-기존 방향(`TINYML_LANDMARK_REFINER_PLAN.md`)은 detector가 잡은 A/C를 **윈도우로 보고 제자리로
+기존 방향(제거된 landmark relocate refiner, `0d2b22b`)은 detector가 잡은 A/C를 **윈도우로 보고 제자리로
 재배치(relocate)** 하는 refiner였다. 실험과 진단으로 두 가지가 드러났다:
 
 1. **합성-only 모델은 real에 전이되지 않는다**(오히려 악화) — sim→real gap이 통계가 아니라 음향
    미세구조에 있음. (TimeGrapher-Refiner `RESULTS.md`)
 2. **worst-case B->A는 "보이는 A를 B로 잘못 잡은" 게 아니라 "A가 음향적으로 묻혀 detector가 B에
    lock한" 것**이다. 오프라인 cadence-guided 라벨러로도 NH35·mine_adapter의 late 비트에서 약한
-   A를 **0% 복구**(refPeak의 10% 미만, 노이즈 레벨). (`LANDMARK_REFINER_BEAT_DIAGNOSIS.md`)
+   A를 **0% 복구**(refPeak의 10% 미만, 노이즈 레벨).
 
 → **윈도우 relocate refiner는 worst-case에 구조적으로 안 맞는다**: 윈도우 안에 복구할 A 정보가
 없는데 ML이 만들어낼 수 없다. 따라서 접근을 바꾼다.
