@@ -1151,7 +1151,7 @@ internal sealed class BeatNoiseScopeRenderer
     private Text AddWeakSignalLabel(Plot plot)
     {
         Text label = plot.Add.Text("WEAK SIGNAL", 0.0, 0.0);
-        label.LabelFontSize = 13;
+        label.LabelFontSize = 14;
         label.LabelBold = true;
         label.Alignment = Alignment.UpperRight;
         label.IsVisible = false;
