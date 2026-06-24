@@ -365,6 +365,9 @@ public sealed class MainWindowRunControlWiringTests
                 window.Descendants(),
                 element => element.Attribute("Classes")?.Value == "GlassCard");
         }
+
+        Assert.True(
+            settingsWindow.Descendants().Count(element => element.Attribute("Classes")?.Value == "GlassCard") >= 2);
     }
 
     private static XElement FindNamedElement(XDocument document, string name)

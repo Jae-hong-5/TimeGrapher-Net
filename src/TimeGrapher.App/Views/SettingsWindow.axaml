@@ -39,15 +39,15 @@
       </Grid>
     </Border>
 
-    <Border Grid.Row="1" Classes="GlassCard" Margin="12,8,12,12">
-    <Grid Margin="14"
+    <Grid Grid.Row="1"
+          Margin="12,8,12,12"
           ColumnDefinitions="*,*"
-          ColumnSpacing="20"
+          ColumnSpacing="14"
           HorizontalAlignment="Stretch"
-          VerticalAlignment="Top">
-      <StackPanel Grid.Column="0"
-                  Spacing="12"
-                  HorizontalAlignment="Stretch">
+          VerticalAlignment="Stretch">
+      <Border Grid.Column="0" Classes="GlassCard" Padding="14">
+        <StackPanel Spacing="12"
+                    HorizontalAlignment="Stretch">
         <TextBlock Text="Run Settings"
                    Classes="SectionHeader"
                    HorizontalAlignment="Left" />
@@ -176,11 +176,12 @@
                    Text="{Binding HighPassCutoffText, Mode=TwoWay}"
                    ToolTip.Tip="High-pass filter cutoff in Hz. Applies on the next run." />
         </Grid>
-      </StackPanel>
+        </StackPanel>
+      </Border>
 
-      <StackPanel Grid.Column="1"
-                  Spacing="12"
-                  HorizontalAlignment="Stretch">
+      <Border Grid.Column="1" Classes="GlassCard" Padding="14">
+        <StackPanel Spacing="12"
+                    HorizontalAlignment="Stretch">
         <TextBlock Text="Acceptable Bands"
                    Classes="SectionHeader"
                    HorizontalAlignment="Left" />
@@ -264,9 +265,9 @@
                         IsChecked="{Binding IsMeasurementLogEnabled, Mode=TwoWay}"
                         ToolTip.Tip="Save result rows to the executable log folder" />
         </Grid>
-      </StackPanel>
+        </StackPanel>
+      </Border>
     </Grid>
-    </Border>
   </Grid>
   </Border>
 </Window>
