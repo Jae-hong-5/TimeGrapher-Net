@@ -749,7 +749,7 @@ internal sealed class LongTermPerfRenderer
     {
         Text label = plot.Add.Text(AcceptLimitLabel(value, format), 0.0, value);
         label.LabelBold = true;
-        label.LabelFontSize = 14;
+        label.LabelFontSize = PlotThemeHelper.GraphLabelFontSize;
         label.Alignment = Alignment.MiddleRight;
         label.IsVisible = false;
         return label;

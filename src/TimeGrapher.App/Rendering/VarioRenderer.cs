@@ -42,7 +42,7 @@ internal sealed class VarioRenderer
     public const int CellCount = 6;
 
     private const byte AcceptBandAlpha = 64;
-    private const float MarkerLabelFontSize = 14;
+    private const float MarkerLabelFontSize = PlotThemeHelper.GraphLabelFontSize;
 
     // Y layout inside each gauge: bands fill the plot; labels sit in the headroom.
     private const double YMax = 1.9;

@@ -872,7 +872,7 @@ internal sealed class RateScopeRenderer
 
         Text created = _scopePlot.Plot.Add.Text("", 0.0, 0.0);
         created.LabelFontName = _textFontFamily;
-        created.LabelFontSize = 14;
+        created.LabelFontSize = PlotThemeHelper.GraphLabelFontSize;
         _scopeTextPool.Add(created);
         _scopeTextSourceColors.Add(sourceColor);
         _scopeTextsUsed++;

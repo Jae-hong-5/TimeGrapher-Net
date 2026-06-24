@@ -416,7 +416,7 @@ internal sealed class ScopeSweepRenderer
     {
         Text label = plot.Add.Text("", 0.0, 0.0);
         label.LabelFontName = _textFontFamily;
-        label.LabelFontSize = 14;
+        label.LabelFontSize = PlotThemeHelper.GraphLabelFontSize;
         label.Alignment = Alignment.UpperLeft;
         label.IsVisible = false;
         return label;
