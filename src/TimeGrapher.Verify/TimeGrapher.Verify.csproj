@@ -14,6 +14,9 @@
 
   <ItemGroup>
     <ProjectReference Include="..\TimeGrapher.Core\TimeGrapher.Core.csproj" />
+    <!-- The ONNX landmark refiner is injected here (the onnx landmark CLI arm);
+         ONNX Runtime stays confined to the TimeGrapher.Inference leaf. -->
+    <ProjectReference Include="..\TimeGrapher.Inference\TimeGrapher.Inference.csproj" />
   </ItemGroup>
 
   <ItemGroup>

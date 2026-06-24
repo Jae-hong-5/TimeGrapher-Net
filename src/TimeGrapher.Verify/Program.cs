@@ -26,6 +26,7 @@ using TimeGrapher.Core.Detection.Scoring;
 using TimeGrapher.Core.Metrics;
 using TimeGrapher.Core.Shared;
 using TimeGrapher.Core.Sim;
+using TimeGrapher.Inference;
 using TimeGrapher.Verify;
 
 const int DetectorNumberOfSamples = 4096;
@@ -400,11 +401,25 @@ static bool TryResolveLandmark(string spec, out BeatLandmarkRefinerConfig? refin
 
     if (spec.StartsWith("onnx:", StringComparison.Ordinal))
     {
-        error = "--landmark=onnx:<path> is reserved for the TimeGrapher.Inference refiner (not yet implemented)";
-        return false;
+        string modelPath = spec["onnx:".Length..];
+        if (!File.Exists(modelPath))
+        {
+            error = $"--landmark=onnx: model not found: '{modelPath}'";
+            return false;
+        }
+        try
+        {
+            refiner = new BeatLandmarkRefinerConfig(new OnnxBeatLandmarkRefiner(modelPath));
+            return true;
+        }
+        catch (Exception ex)
+        {
+            error = $"--landmark=onnx: failed to load '{modelPath}': {ex.Message}";
+            return false;
+        }
     }
 
-    error = $"unknown --landmark value '{spec}' (off|stub:noop|stub:cpeak)";
+    error = $"unknown --landmark value '{spec}' (off|stub:noop|stub:cpeak|onnx:<path>)";
     return false;
 }
 
