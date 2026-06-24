@@ -8,6 +8,38 @@ namespace TimeGrapher.Platform.LinuxAudio.Tests;
 public sealed class LinuxLiveAudioWorkerTests
 {
     [Fact]
+    public void ParseWpctlSources_IncludesSourceWhoseNameContainsVideo()
+    {
+        // A source line whose NAME contains "Video" (a real USB capture device with
+        // an audio source) must not terminate enumeration: the parser breaks the
+        // Sources block only on a real section header, never on a source-name
+        // substring, so that source and every source after it stay selectable.
+        const string status = """
+Audio
+ Sources:
+    *   65. USB Video Capture Mono [vol: 1.00]
+        66. Cubilux CA7 Mono [vol: 0.80]
+ Filters:
+ Streams:
+""";
+
+        IReadOnlyList<LiveAudioDevice> devices = LinuxLiveAudioWorker.ParseWpctlSources(status);
+
+        Assert.Collection(
+            devices,
+            first =>
+            {
+                Assert.Equal(65, first.Number);
+                Assert.Equal("USB Video Capture Mono", first.Name);
+            },
+            second =>
+            {
+                Assert.Equal(66, second.Number);
+                Assert.Equal("Cubilux CA7 Mono", second.Name);
+            });
+    }
+
+    [Fact]
     public void ParseWpctlSources_ReturnsSourceNodesOnly()
     {
         const string status = """
@@ -272,6 +304,69 @@ card 4: CA7 [Cubilux CA7], device 0: USB Audio [USB Audio]
             () => worker.StartCaptureProcessForTests(BuildStartInfo(fileName, args), startupProbeTimeoutMs: 5000));
 
         Assert.False(raised, "a startup failure must not also raise CaptureEnded");
+    }
+
+    [Fact]
+    public void BuildPipeWireStartInfo_DefaultBuffer_OmitsLatencyFlag()
+    {
+        // At the default buffer pw-record keeps its native latency, so no --latency flag
+        // is emitted and the capture target "-" stays last for the probe builder's swap.
+        ProcessStartInfo info = LinuxLiveAudioWorker.BuildPipeWireStartInfo(deviceNumber: 0, sampleRate: 48000);
+
+        Assert.DoesNotContain("--latency", info.ArgumentList);
+        Assert.Equal("-", info.ArgumentList[^1]);
+    }
+
+    [Fact]
+    public void BuildPipeWireStartInfo_NonDefaultBuffer_AddsLatencyInMilliseconds()
+    {
+        ProcessStartInfo info = LinuxLiveAudioWorker.BuildPipeWireStartInfo(deviceNumber: 0, sampleRate: 48000, bufferMilliseconds: 50);
+
+        int index = info.ArgumentList.IndexOf("--latency");
+        Assert.True(index >= 0);
+        Assert.Equal("50ms", info.ArgumentList[index + 1]);
+        Assert.Equal("-", info.ArgumentList[^1]);
+    }
+
+    [Fact]
+    public void BuildAlsaStartInfo_DefaultBuffer_OmitsBufferTimeFlag()
+    {
+        ProcessStartInfo info = LinuxLiveAudioWorker.BuildAlsaStartInfo(card: 3, device: 0, sampleRate: 48000);
+
+        Assert.DoesNotContain("--buffer-time", info.ArgumentList);
+        Assert.Equal("-", info.ArgumentList[^1]);
+    }
+
+    [Fact]
+    public void BuildAlsaStartInfo_NonDefaultBuffer_AddsBufferTimeInMicroseconds()
+    {
+        // arecord takes buffer time in microseconds, so 50 ms maps to 50000.
+        ProcessStartInfo info = LinuxLiveAudioWorker.BuildAlsaStartInfo(card: 3, device: 0, sampleRate: 48000, bufferMilliseconds: 50);
+
+        int index = info.ArgumentList.IndexOf("--buffer-time");
+        Assert.True(index >= 0);
+        Assert.Equal("50000", info.ArgumentList[index + 1]);
+        Assert.Equal("-", info.ArgumentList[^1]);
+    }
+
+    [Fact]
+    public void BuildPipeWireProbeStartInfo_TargetsDevNull_WithNoLatencyFlag()
+    {
+        // The probe swaps the trailing capture target for /dev/null; it must call the
+        // builder at the default buffer so no --latency flag is appended before the swap.
+        ProcessStartInfo info = LinuxLiveAudioWorker.BuildPipeWireProbeStartInfo(deviceNumber: 0, sampleRate: 48000);
+
+        Assert.Equal("/dev/null", info.ArgumentList[^1]);
+        Assert.DoesNotContain("--latency", info.ArgumentList);
+    }
+
+    [Fact]
+    public void BuildAlsaProbeStartInfo_TargetsDevNull_WithNoBufferTimeFlag()
+    {
+        ProcessStartInfo info = LinuxLiveAudioWorker.BuildAlsaProbeStartInfo(card: 3, device: 0, sampleRate: 48000);
+
+        Assert.Equal("/dev/null", info.ArgumentList[^1]);
+        Assert.DoesNotContain("--buffer-time", info.ArgumentList);
     }
 
     private static ProcessStartInfo BuildStartInfo(string fileName, string[] arguments)

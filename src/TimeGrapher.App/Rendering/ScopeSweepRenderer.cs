@@ -25,13 +25,20 @@ internal sealed class ScopeSweepRenderer
 
     private readonly List<double> _sweepX = new();
     private readonly List<double> _sweepY = new();
+    // Wrap-around copy of the last XPreRollMs worth of sweep bins, shifted
+    // left by windowMs so the pre-onset region appears at negative X values.
+    private readonly List<double> _preRollX = new();
+    private readonly List<double> _preRollY = new();
 
     private Scatter? _sweepScatter;
+    private Scatter? _preRollScatter;
     private ReviewCursorLayer? _reviewCursor;
 
     // A/C beat markers: one dashed/dotted vertical line + label per tic/toc phase per sweep
     // repetition. 1x shows one set; 2x/3x windows add a second/third copy spaced one beat period apart.
     private const int MaxSweepMultiple = 3;
+    /// <summary>Pre-roll margin shown to the left of the A onset (ms).</summary>
+    private const double XPreRollMs = -10.0;
     private readonly VerticalLine?[] _aTicMarkers = new VerticalLine?[MaxSweepMultiple];
     private readonly Text?[]         _aTicLabels  = new Text?[MaxSweepMultiple];
     private readonly VerticalLine?[] _aTocMarkers = new VerticalLine?[MaxSweepMultiple];
@@ -53,6 +60,11 @@ internal sealed class ScopeSweepRenderer
     // Last known window size (ms); a change re-arms live fitting so the
     // view snaps to [0, new window] when 1x/2x/3x is pressed.
     private double _lastWindowMs;
+
+    // Last-seen beat-segment snapshot version; lets RenderFrame update marker
+    // positions when a new beat arrives even if the sweep bins haven't
+    // published yet (sweep publishes on a slower interval than beats arrive).
+    private ulong _lastSegmentVersion;
 
     private PlotThemePalette _theme = PlotThemePalette.Current;
     private ulong _lastReadoutVersion;
@@ -81,6 +93,7 @@ internal sealed class ScopeSweepRenderer
     {
         _lastReadoutVersion = 0;
         _lastReadoutSegmentVersion = 0;
+        _lastSegmentVersion = 0;
         _followLive = true;
         _ticPhaseOffsetMs = 0.0;
         _lastWindowMs = 0.0;
@@ -90,6 +103,8 @@ internal sealed class ScopeSweepRenderer
         sweep.Clear();
         _sweepX.Clear();
         _sweepY.Clear();
+        _preRollX.Clear();
+        _preRollY.Clear();
         _lastSweepSeries = null;
         ApplyPlotTheme(sweep);
         sweep.YLabel("Signal Level");
@@ -97,6 +112,9 @@ internal sealed class ScopeSweepRenderer
         _sweepScatter = sweep.Add.Scatter(_sweepX, _sweepY);
         _sweepScatter.LineWidth = 1;
         _sweepScatter.MarkerStyle.IsVisible = false;
+        _preRollScatter = sweep.Add.Scatter(_preRollX, _preRollY);
+        _preRollScatter.LineWidth = 1;
+        _preRollScatter.MarkerStyle.IsVisible = false;
 
         for (int k = 0; k < MaxSweepMultiple; k++)
         {
@@ -111,7 +129,7 @@ internal sealed class ScopeSweepRenderer
         }
 
         _reviewCursor = AddCursor(sweep);
-        PlotAxisRules.ClampLeftEdgeToZero(sweep);
+        PlotAxisRules.ClampLeftEdge(sweep, XPreRollMs);
 
         ApplySeriesTheme();
         _sweepPlot.Refresh();
@@ -134,7 +152,7 @@ internal sealed class ScopeSweepRenderer
         if (windowMs > 0)
         {
             _sweepPlot.Plot.Axes.AutoScale();
-            _sweepPlot.Plot.Axes.SetLimitsX(0, windowMs);
+            _sweepPlot.Plot.Axes.SetLimitsX(XPreRollMs, windowMs);
         }
         else
         {
@@ -162,6 +180,19 @@ internal sealed class ScopeSweepRenderer
                 _followLive = true;
             }
 
+            UpdatePreRoll();
+        }
+
+        // Update markers whenever the sweep data refreshes OR a new beat segment
+        // arrives — segments publish at the beat rate while sweep data publishes
+        // on a slower interval, so gating on dataUpdated alone leaves markers
+        // stale for several beats between sweep publishes.
+        ulong segVersion = frame.BeatSegments?.Version ?? 0;
+        bool segmentsChanged = segVersion != _lastSegmentVersion;
+        if (segmentsChanged) _lastSegmentVersion = segVersion;
+
+        if (dataUpdated || segmentsChanged)
+        {
             UpdateSweepMarkerPositions(frame.BeatSegments, frame.MetricsHistory);
         }
 
@@ -174,13 +205,13 @@ internal sealed class ScopeSweepRenderer
             {
                 // Start from the leftmost (tic onset) position; let Y autoscale.
                 _sweepPlot.Plot.Axes.AutoScale();
-                _sweepPlot.Plot.Axes.SetLimitsX(0, windowMs);
+                _sweepPlot.Plot.Axes.SetLimitsX(XPreRollMs, windowMs);
             }
         }
 
         UpdateReferenceLine(frame.MetricsHistory, frame.BeatSegments);
 
-        if (dataUpdated || cursorMoved)
+        if (dataUpdated || cursorMoved || segmentsChanged)
         {
             _sweepPlot.Refresh();
         }
@@ -215,16 +246,22 @@ internal sealed class ScopeSweepRenderer
 
         // Keep last-known positions during a sweep window retune or startup
         // accumulation — hiding here would cause a visible blink every time
-        // the 1x/2x/3x selector is pressed.
-        if (snapshot == null || snapshot.Segments.Count == 0 || windowMs <= 0)
+        // the 1x/2x/3x selector is pressed. After a retune, all bins are
+        // cleared to zero; skip updates until real signal returns so the
+        // markers hold their pre-switch positions rather than jumping to the
+        // phase-unaligned (offset = 0) coordinates the projector emits
+        // immediately after the window reset.
+        double yTop = _sweepY.Count > 0 ? _sweepY.Max() : 0.0;
+        if (snapshot == null || snapshot.Segments.Count == 0 || windowMs <= 0 || yTop <= 0)
         {
             return;
         }
 
-        // Beat period: full tic+toc half-cycle. Round the sweep multiple so a
-        // 2x window gets exactly 2 copies and a 3x window gets 3.
+        // Beat period: one full oscillation (tic→tic), which equals two BPH
+        // half-beats. Using 3600000/bph (the half-oscillation) would give twice
+        // as many repetitions as needed and double-paint every marker.
         double beatPeriodMs = history is { Bph: > 0 }
-            ? 3600000.0 / history.Bph
+            ? 7200000.0 / history.Bph
             : windowMs;
         int nReps = Math.Clamp((int)Math.Round(windowMs / beatPeriodMs), 1, MaxSweepMultiple);
 
@@ -236,6 +273,15 @@ internal sealed class ScopeSweepRenderer
         }
 
         double? aTicPhase = PhaseMs(latestTic, isC: false, windowMs);
+        // The projector aligns the tic onset to near bin 0. Floating-point
+        // residuals can push the modulo to just below windowMs instead of
+        // just above 0; folding such a value back makes the marker appear at
+        // the correct leftmost position (or in the pre-roll region near x=0)
+        // rather than at the right edge of the sweep.
+        if (aTicPhase is double ap && ap > windowMs * 0.75)
+        {
+            aTicPhase = ap - windowMs; // small negative → pre-roll range
+        }
         double? aTocPhase = PhaseMs(latestToc, isC: false, windowMs);
         double? cTicPhase = PhaseMs(
             latestTic is { CPeakValid: true } ? latestTic : null, isC: true, windowMs);
@@ -251,10 +297,7 @@ internal sealed class ScopeSweepRenderer
             SetMarkerLine(_cTocMarkers[k], active ? RepeatPhase(cTocPhase, k, beatPeriodMs, windowMs) : null);
         }
 
-        // Only anchor labels to the signal peak when the sweep has real data;
-        // skip the Y update while bins are flat-zero during re-accumulation so
-        // labels stay at their last valid height rather than collapsing to zero.
-        double yTop = _sweepY.Count > 0 ? _sweepY.Max() : 0.0;
+        // Anchor labels to the signal peak (yTop was computed above the early return).
         if (yTop > 0)
         {
             for (int k = 0; k < MaxSweepMultiple; k++)
@@ -345,20 +388,49 @@ internal sealed class ScopeSweepRenderer
         return label;
     }
 
+    /// <summary>
+    /// Fills <see cref="_preRollX"/>/<see cref="_preRollY"/> with the last
+    /// |<see cref="XPreRollMs"/>| worth of sweep bins shifted left by the window
+    /// width so the periodic signal wraps into the negative-X pre-onset region.
+    /// The pre-roll scatter uses the same data source as the main sweep scatter
+    /// but spans [XPreRollMs, 0) instead of [0, windowMs).
+    /// </summary>
+    private void UpdatePreRoll()
+    {
+        _preRollX.Clear();
+        _preRollY.Clear();
+        double windowMs = ScopeSweepReadout.WindowMs(_sweepX);
+        if (windowMs <= 0 || _sweepX.Count != _sweepY.Count) return;
+
+        double preRollStartMs = windowMs + XPreRollMs; // windowMs - 10
+        for (int i = 0; i < _sweepX.Count; i++)
+        {
+            if (_sweepX[i] > preRollStartMs)
+            {
+                _preRollX.Add(_sweepX[i] - windowMs); // shift into [-10, 0)
+                _preRollY.Add(_sweepY[i]);
+            }
+        }
+    }
+
     private void ApplySeriesTheme()
     {
         if (_sweepScatter != null)
         {
-            _sweepScatter.LineColor = Color.FromARGB(_theme.TraceWave);
+            // Trace uses TraceTick (green) to match the tic waveform color of the
+            // newest Waveform Compare lane, giving visual consistency across tabs.
+            _sweepScatter.LineColor = Color.FromARGB(_theme.TraceTick);
         }
 
-        // A and C escapement markers are colored by event type, not by tic/toc
-        // phase: A reuses the green tick color and C the red tock color from the
-        // App.axaml palette (no new colors introduced). The tic/toc phase is still
-        // read from each marker's position in the sweep window, and A/C also differ
-        // by line pattern (A dashed, C dotted).
-        Color aColor = Color.FromARGB(_theme.TraceTick); // A -> green
-        Color cColor = Color.FromARGB(_theme.TraceTock); // C -> red
+        if (_preRollScatter != null)
+        {
+            _preRollScatter.LineColor = Color.FromARGB(_theme.TraceTick);
+        }
+
+        // A and C markers use TextPrimary, matching the Waveform Compare A/C
+        // guide color, so both tabs share the same escapement-event color contract.
+        Color aColor = Color.FromARGB(_theme.TextPrimary);
+        Color cColor = Color.FromARGB(_theme.TextPrimary);
         for (int k = 0; k < MaxSweepMultiple; k++)
         {
             if (_aTicMarkers[k] != null) _aTicMarkers[k]!.LineColor     = aColor;

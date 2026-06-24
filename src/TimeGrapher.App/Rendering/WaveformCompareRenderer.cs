@@ -25,8 +25,10 @@ namespace TimeGrapher.App.Rendering;
 /// snapshot version changes and the header only when the metrics-history
 /// version changes, so coalesced or repeated frames cost nothing. Segments
 /// reference pooled Core buffers that stay valid only until rotated out, so
-/// every render re-reads from the latest snapshot and nothing UI-side caches
-/// sample data beyond it.
+/// each new snapshot version is deep-copied into a UI-owned cache (CopyForCache
+/// -> _lastSnapshot); the lanes plus the delayed interaction state
+/// (SelectPairAtPixelY, ghost overlay) read that cached copy, never a recycled
+/// Core pool buffer.
 /// </summary>
 internal sealed class WaveformCompareRenderer
 {
@@ -35,6 +37,8 @@ internal sealed class WaveformCompareRenderer
     /// 12 lanes x 800 points stays inside the scope point budget.
     /// </summary>
     private const int LanePointBudget = 800;
+    private const byte GhostAlpha = 120;
+    private const byte SelectionFillAlpha = 35;
 
     /// <summary>X range: tic occupies the left half, toc the right half.</summary>
     private const double XMinMs = -2.0 * BeatSegmentCapture.PreEventMs;
@@ -72,6 +76,15 @@ internal sealed class WaveformCompareRenderer
     private readonly Text?[] _cLabelsToc;
     private ReviewCursorLayer? _reviewCursor;
 
+    // Ghost overlay: selected pair's waveform re-drawn at every other lane's baseline
+    private readonly List<double>[] _ghostTicX;
+    private readonly List<double>[] _ghostTicY;
+    private readonly List<double>[] _ghostTocX;
+    private readonly List<double>[] _ghostTocY;
+    private readonly Scatter?[] _ghostTicScatters;
+    private readonly Scatter?[] _ghostTocScatters;
+    private VerticalSpan? _selectionSpan;
+    private int _selectedPair = 0;
 
     private PlotThemePalette _theme = PlotThemePalette.Current;
     private ulong _lastVersion;
@@ -101,12 +114,22 @@ internal sealed class WaveformCompareRenderer
         _cGuidesToc   = new LinePlot?[WaveformCompareLogic.PairLanes];
         _cLabelsTic   = new Text?[WaveformCompareLogic.PairLanes];
         _cLabelsToc   = new Text?[WaveformCompareLogic.PairLanes];
+        _ghostTicX       = new List<double>[WaveformCompareLogic.PairLanes];
+        _ghostTicY       = new List<double>[WaveformCompareLogic.PairLanes];
+        _ghostTocX       = new List<double>[WaveformCompareLogic.PairLanes];
+        _ghostTocY       = new List<double>[WaveformCompareLogic.PairLanes];
+        _ghostTicScatters = new Scatter?[WaveformCompareLogic.PairLanes];
+        _ghostTocScatters = new Scatter?[WaveformCompareLogic.PairLanes];
         for (int i = 0; i < WaveformCompareLogic.PairLanes; i++)
         {
             _laneX[i] = new List<double>();
             _laneY[i] = new List<double>();
             _tocX[i]  = new List<double>();
             _tocY[i]  = new List<double>();
+            _ghostTicX[i] = new List<double>();
+            _ghostTicY[i] = new List<double>();
+            _ghostTocX[i] = new List<double>();
+            _ghostTocY[i] = new List<double>();
         }
     }
 
@@ -124,12 +147,13 @@ internal sealed class WaveformCompareRenderer
         _lastHistoryVersion = 0;
         _lastSnapshot = null;
         _visibleSegments = Array.Empty<BeatSegment>();
+        _selectedPair = 0;
         _headerText.Text = WaveformCompareLogic.HeaderLine(null);
 
         Plot plot = _plot.Plot;
         plot.Clear();
         ApplyPlotTheme(plot);
-        plot.YLabel("past \u2003\u2003\u2003\u2003\u2003\u2003\u2003\u2003\u25c0\u2003\u2003\u2003\u2003\u2003\u2003\u2003\u2003 current");
+        plot.YLabel("past \u2003\u2003\u2003\u2003\u2003\u2003\u2003\u2003\u25c4\u2003\u2003\u2003\u2003\u2003\u2003\u2003\u2003 current");
         plot.XLabel("(ms)");
         plot.Axes.Left.TickLabelStyle.IsVisible = false;
 
@@ -147,6 +171,26 @@ internal sealed class WaveformCompareRenderer
             _laneScatters[i * 2 + 1]!.LineWidth = 1;
             _laneScatters[i * 2 + 1]!.MarkerStyle.IsVisible = false;
             _laneLabels[i * 2 + 1] = AddLabel(plot);
+        }
+
+        // Ghost overlay: selection span background + semi-transparent reference traces
+        _selectionSpan = plot.Add.VerticalSpan(0.0, WaveformCompareLogic.LaneSpacing);
+        _selectionSpan.IsVisible = false;
+        _selectionSpan.LineStyle.IsVisible = false;
+        for (int i = 0; i < WaveformCompareLogic.PairLanes; i++)
+        {
+            _ghostTicX[i].Clear();
+            _ghostTicY[i].Clear();
+            _ghostTocX[i].Clear();
+            _ghostTocY[i].Clear();
+            _ghostTicScatters[i] = plot.Add.Scatter(_ghostTicX[i], _ghostTicY[i]);
+            _ghostTicScatters[i]!.LineWidth = 1;
+            _ghostTicScatters[i]!.MarkerStyle.IsVisible = false;
+            _ghostTicScatters[i]!.IsVisible = false;
+            _ghostTocScatters[i] = plot.Add.Scatter(_ghostTocX[i], _ghostTocY[i]);
+            _ghostTocScatters[i]!.LineWidth = 1;
+            _ghostTocScatters[i]!.MarkerStyle.IsVisible = false;
+            _ghostTocScatters[i]!.IsVisible = false;
         }
 
         // Legend: tic (green) left half, toc (red) right half — readable without axis text.
@@ -193,9 +237,14 @@ internal sealed class WaveformCompareRenderer
         UpdateHeader(frame.MetricsHistory);
 
         BeatSegmentsSnapshot? snapshot = frame.BeatSegments;
-        if (snapshot != null)
+        if (snapshot != null && (snapshot.Version != _lastVersion || _lastSnapshot == null))
         {
-            _lastSnapshot = snapshot;
+            // Deep-copy once per version: the cached snapshot is read later by the
+            // interaction handlers (SelectPairAtPixelY / ghost overlay) long after the
+            // BeatSegmentCapture pool (protected only two snapshot versions) recycles
+            // the buffers. Gating on Version avoids re-copying every frame while the
+            // same snapshot instance is reattached between segment completions.
+            _lastSnapshot = CopyForCache(snapshot);
         }
 
         bool changed = false;
@@ -229,6 +278,53 @@ internal sealed class WaveformCompareRenderer
 
         _lastHistoryVersion = history.Version;
         _headerText.Text = WaveformCompareLogic.HeaderLine(history);
+    }
+
+    /// <summary>
+    /// Deep-copies the pooled segment envelope/raw arrays into UI-owned storage so
+    /// the cached snapshot (read later by SelectPairAtPixelY / ghost overlay on a
+    /// click) never references a BeatSegmentCapture pool buffer that has since been
+    /// recycled. Mirrors BeatNoiseScopeRenderer.CopyForCache; scalar fields, markers,
+    /// and the average snapshot are immutable and shared as-is.
+    /// </summary>
+    private static BeatSegmentsSnapshot CopyForCache(BeatSegmentsSnapshot snapshot)
+    {
+        IReadOnlyList<BeatSegment> cached = snapshot.Segments;
+        if (cached.Count == 0)
+        {
+            return snapshot;
+        }
+
+        var owned = new BeatSegment[cached.Count];
+        for (int i = 0; i < cached.Count; i++)
+        {
+            BeatSegment s = cached[i];
+            owned[i] = new BeatSegment
+            {
+                Samples = s.Samples.ToArray(),
+                RawValid = s.RawValid,
+                RawMin = s.RawMin.ToArray(),
+                RawMax = s.RawMax.ToArray(),
+                MsPerPoint = s.MsPerPoint,
+                StartTimeS = s.StartTimeS,
+                IsTic = s.IsTic,
+                AOffsetMs = s.AOffsetMs,
+                PeakValue = s.PeakValue,
+                CPeakValid = s.CPeakValid,
+                CPeakOffsetMs = s.CPeakOffsetMs,
+                COnsetValid = s.COnsetValid,
+                COnsetOffsetMs = s.COnsetOffsetMs,
+            };
+        }
+
+        return new BeatSegmentsSnapshot
+        {
+            Version = snapshot.Version,
+            Segments = owned,
+            Markers = snapshot.Markers,
+            LiftAngleDeg = snapshot.LiftAngleDeg,
+            Average = snapshot.Average,
+        };
     }
 
     private void RenderLanes(BeatSegmentsSnapshot snapshot, BeatMetricsHistorySnapshot? history)
@@ -385,6 +481,8 @@ internal sealed class WaveformCompareRenderer
         }
 
         UpdateGuides(_visibleSegments, pairCount, clipMs);
+        UpdateGhostOverlay(snapshot, pairCount, clipMs);
+        UpdateSelectionSpan(pairCount);
         _plot.Plot.Axes.SetLimitsX(XMinMs, xMaxMs);
         _plot.Plot.Axes.SetLimitsY(-0.1, YTop(pairCount));
     }
@@ -443,6 +541,99 @@ internal sealed class WaveformCompareRenderer
             _visibleSegments,
             _lastClipMs);
         return _reviewCursor.Update(offsetMs);
+    }
+
+    /// <summary>
+    /// Selects the pair lane that contains the given pixel Y coordinate and
+    /// re-draws the ghost overlay if the selection changes.
+    /// </summary>
+    public void SelectPairAtPixelY(double pixelY)
+    {
+        int pairCount = _lastSnapshot is { } s
+            ? Math.Min(s.Segments.Count / 2, WaveformCompareLogic.PairLanes)
+            : 0;
+        Coordinates coords = _plot.Plot.GetCoordinates(0f, (float)pixelY);
+        int pair = WaveformCompareLogic.PairFromDataY(coords.Y, pairCount);
+        if (pair < 0 || pair == _selectedPair)
+        {
+            return;
+        }
+
+        _selectedPair = pair;
+        if (_lastSnapshot is { } snapshot)
+        {
+            UpdateGhostOverlay(snapshot, pairCount, _lastClipMs);
+            UpdateSelectionSpan(pairCount);
+            _plot.Refresh();
+        }
+    }
+
+    private void UpdateGhostOverlay(BeatSegmentsSnapshot snapshot, int pairCount, double clipMs)
+    {
+        IReadOnlyList<BeatSegment> segments = snapshot.Segments;
+
+        // Resolve the selected pair's tic/toc segments.
+        BeatSegment? selTic = null;
+        BeatSegment? selToc = null;
+        int selIdxLast  = segments.Count - 1 - _selectedPair * 2;
+        int selIdxFirst = selIdxLast - 1;
+        if (selIdxFirst >= 0 && _selectedPair < pairCount)
+        {
+            (selTic, selToc) = WaveformCompareLogic.AssignPairHalves(
+                segments[selIdxFirst], segments[selIdxLast]);
+        }
+
+        for (int k = 0; k < WaveformCompareLogic.PairLanes; k++)
+        {
+            _ghostTicX[k].Clear();
+            _ghostTicY[k].Clear();
+            _ghostTocX[k].Clear();
+            _ghostTocY[k].Clear();
+
+            // No ghost on the selected lane itself, or when no source data.
+            if (k == _selectedPair || (selTic == null && selToc == null) || k >= pairCount)
+            {
+                if (_ghostTicScatters[k] != null) _ghostTicScatters[k]!.IsVisible = false;
+                if (_ghostTocScatters[k] != null) _ghostTocScatters[k]!.IsVisible = false;
+                continue;
+            }
+
+            double kBaseline = (WaveformCompareLogic.PairLanes - 1 - k) * WaveformCompareLogic.LaneSpacing;
+
+            if (selTic is BeatSegment ticSeg)
+            {
+                FillLane(ticSeg, kBaseline, _ghostTicX[k], _ghostTicY[k], xOffset: 0.0, clipMs);
+            }
+
+            if (selToc is BeatSegment tocSeg)
+            {
+                FillLane(tocSeg, kBaseline, _ghostTocX[k], _ghostTocY[k], xOffset: clipMs, clipMs);
+            }
+
+            if (_ghostTicScatters[k] != null)
+            {
+                _ghostTicScatters[k]!.IsVisible = _ghostTicX[k].Count > 0;
+            }
+
+            if (_ghostTocScatters[k] != null)
+            {
+                _ghostTocScatters[k]!.IsVisible = _ghostTocX[k].Count > 0;
+            }
+        }
+    }
+
+    private void UpdateSelectionSpan(int pairCount)
+    {
+        if (_selectionSpan == null || pairCount == 0)
+        {
+            if (_selectionSpan != null) _selectionSpan.IsVisible = false;
+            return;
+        }
+
+        double baseline = (WaveformCompareLogic.PairLanes - 1 - _selectedPair) * WaveformCompareLogic.LaneSpacing;
+        _selectionSpan.Y1 = baseline;
+        _selectionSpan.Y2 = baseline + WaveformCompareLogic.LaneSpacing;
+        _selectionSpan.IsVisible = true;
     }
 
     private static VerticalLine AddGuide(Plot plot)
@@ -535,6 +726,14 @@ internal sealed class WaveformCompareRenderer
         foreach (LinePlot? cGuide in _cGuidesToc) if (cGuide != null) cGuide.LineColor = guideColor;
         foreach (Text? cLabel in _cLabelsTic) if (cLabel != null) cLabel.LabelFontColor = guideColor;
         foreach (Text? cLabel in _cLabelsToc) if (cLabel != null) cLabel.LabelFontColor = guideColor;
+        Color ghostColor = Color.FromARGB(_theme.TraceGhost).WithAlpha(GhostAlpha);
+        foreach (Scatter? s in _ghostTicScatters) if (s != null) s.LineColor = ghostColor;
+        foreach (Scatter? s in _ghostTocScatters) if (s != null) s.LineColor = ghostColor;
+        if (_selectionSpan != null)
+        {
+            _selectionSpan.FillStyle.Color = Color.FromARGB(_theme.TraceGhost).WithAlpha(SelectionFillAlpha);
+        }
+
         _reviewCursor?.ApplyTheme(_theme);
     }
 

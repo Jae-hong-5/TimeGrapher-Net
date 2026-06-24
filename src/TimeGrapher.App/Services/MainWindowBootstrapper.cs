@@ -19,7 +19,7 @@ internal static class MainWindowBootstrapper
         MainWindowViewAdapters adapters,
         MainWindowRunSessionCallbacks runSessionCallbacks,
         AppStartupOptions startupOptions,
-        Func<string, IMeasurementResultSink>? measurementSinkFactory = null)
+        Func<string, decimal, IMeasurementResultSink>? measurementSinkFactory = null)
     {
         var errorLog = new UserErrorLog(UserErrorLog.DefaultPath());
 
@@ -27,7 +27,7 @@ internal static class MainWindowBootstrapper
             viewModel, adapters.SelectionOperations, adapters.SelectionOptions);
 
         var runSelectionResolver = new RunSelectionResolver(
-            viewModel, adapters.AveragingPeriods, BphCatalog.ManualAutoBph, BphCatalog.ManualBph);
+            viewModel, BphCatalog.ManualAutoBph, BphCatalog.ManualBph);
 
         var recordingSessionService = new RecordingSessionService(
             adapters.Dialogs, new QueuedRecordingWriterFactory(), errorLog);
@@ -47,7 +47,7 @@ internal static class MainWindowBootstrapper
         // Seed the enable state from the CLI before the controller (and the View's DataContext)
         // read it. The sink factory defaults to the real CSV logger; tests inject a fake.
         viewModel.IsMeasurementLogEnabled = startupOptions.MeasurementLogPath != null;
-        measurementSinkFactory ??= static path => new MeasurementResultLogger(path);
+        measurementSinkFactory ??= static (path, liftAngleDeg) => new MeasurementResultLogger(path, liftAngleDeg);
         var measurementLogController = new MeasurementLogController(
             viewModel, startupOptions.MeasurementLogPath, measurementSinkFactory);
 
@@ -61,6 +61,10 @@ internal static class MainWindowBootstrapper
             errorLog);
 
         var acceptBandController = new AcceptBandController(viewModel, adapters.AcceptBandOperations);
+        // Seeds the Settings inputs from the persisted run-start parameters and saves each
+        // valid edit; the values are read at the next run start, not applied live.
+        var samplingSettingsController = new SamplingSettingsController(
+            viewModel, SamplingSettings.Current, SamplingSettingsStore.Save);
         var runControlController = new RunControlController(viewModel, runSessionController, runCommandService);
         var analysisFramePresenter = new AnalysisFramePresenter(viewModel, errorLog);
 
@@ -75,6 +79,7 @@ internal static class MainWindowBootstrapper
             runSessionController,
             runControlController,
             acceptBandController,
+            samplingSettingsController,
             analysisFramePresenter,
             analysisPerformanceLogger);
     }

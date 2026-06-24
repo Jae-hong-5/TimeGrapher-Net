@@ -13,7 +13,14 @@ public sealed record DetectorMetricsEngineConfig(
     bool AutoBph,
     int ManualBph,
     double HpfCutoffHz,
-    BeatEventGateConfig? EventGate = null);
+    BeatEventGateConfig? EventGate = null,
+    // Seconds added to the measured A->C interval before amplitude is computed, to
+    // offset the envelope front-end's A-onset detection latency (A is timestamped at
+    // a threshold crossing that lags the true onset more than the C peak does). The
+    // default ~45 us is the A-onset-minus-C-peak latency characterised against the
+    // reference synthesiser at the default 0.15 ms envelope smoothing; it is exposed
+    // here so a real measuring rig can recalibrate it. 0 disables compensation.
+    double AmplitudeOnsetLatencyS = 0.000045);
 
 public readonly record struct DetectedEventUpdate(
     TgEvent Event,
@@ -80,6 +87,7 @@ public sealed class DetectorMetricsEngine
             MaxRateDataPoints = 250,
             RateErrorYScale = 10.0,
             RlsWindowInit = 100,
+            AmplitudeOnsetLatencyS = config.AmplitudeOnsetLatencyS,
         });
 
         TgConfig detectorConfig = TgConfig.Default();

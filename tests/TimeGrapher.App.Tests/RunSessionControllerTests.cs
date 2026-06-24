@@ -70,6 +70,28 @@ public sealed class RunSessionControllerTests
         Assert.Equal("Test worker did not stop within 2000 ms.", entry.Detail);
     }
 
+    [Fact]
+    public void RunSessionToken_GoesStaleAfterInvalidate_RejectingOldSessionCallbacks()
+    {
+        // The run-session token is the stale-response gate: a late DataReady from a
+        // worker captured under an old token must be rejected once the session is
+        // invalidated for a new run. BeginRunSession is internal, so drive the token
+        // through the public InvalidateRunSession bump and observe IsCurrentRunSession.
+        var controller = NewController();
+        controller.InvalidateRunSession();              // token -> 1 (first session)
+        Assert.True(controller.IsCurrentRunSession(1));
+        Assert.False(controller.IsCurrentRunSession(0)); // no pre-session token is current
+
+        var worker = new FakeInputWorker(new List<string>()) { StopResult = true };
+        controller.AttachInputWorker(worker, runSessionToken: 1);
+        worker.RaiseDataReady();                         // current token: handler fires, must not throw
+
+        controller.InvalidateRunSession();               // token -> 2 (new session begins)
+        Assert.False(controller.IsCurrentRunSession(1));  // the old session is no longer current
+        Assert.True(controller.IsCurrentRunSession(2));
+        worker.RaiseDataReady();                         // stale token: gated, must not throw
+    }
+
     private sealed class FakeInputWorker : IAudioInputWorker
     {
         private readonly List<string> _order;

@@ -64,9 +64,10 @@ public sealed class AudioCaptureWorker : ILiveAudioWorker
 
     /// <summary>
     /// Starts recording from the given WaveIn device at the requested sample rate.
-    /// (StartAudioRecording). Volume is a software multiply in [0,1].
+    /// (StartAudioRecording). Volume is a software multiply in [0,1]; bufferMilliseconds
+    /// is the NAudio capture buffer length (latency vs. wake-up frequency).
     /// </summary>
-    public void Start(int deviceNumber, int sampleRate, float volume)
+    public void Start(int deviceNumber, int sampleRate, float volume, int bufferMilliseconds)
     {
         _volume = volume;
         _paused = false;
@@ -92,7 +93,7 @@ public sealed class AudioCaptureWorker : ILiveAudioWorker
         {
             DeviceNumber = deviceNumber,
             WaveFormat = format,
-            BufferMilliseconds = 20,
+            BufferMilliseconds = bufferMilliseconds,
         };
         _audioInput.DataAvailable += OnDataAvailable;
         _audioInput.RecordingStopped += OnRecordingStopped;

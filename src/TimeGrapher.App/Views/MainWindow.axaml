@@ -6,10 +6,10 @@
         Width="1280" Height="750"
         MinWidth="900" MinHeight="560">
   <Border BorderBrush="{DynamicResource ChromeAccentBrush}" BorderThickness="1">
-  <Grid RowDefinitions="36,*" Background="{DynamicResource SurfaceBgBrush}">
+  <Grid RowDefinitions="36,*" Background="{DynamicResource AmbientBackdropBrush}">
     <Border Grid.Row="0"
-            Background="{DynamicResource SurfaceBgBrush}"
-            BorderBrush="{DynamicResource ChromeBorderBrush}"
+            Background="{DynamicResource GlassPanelBrush}"
+            BorderBrush="{DynamicResource GlassRimBrush}"
             BorderThickness="0,0,0,1">
       <Grid ColumnDefinitions="*,Auto">
         <Grid Grid.Column="0"
@@ -116,7 +116,7 @@
     </Border>
 
     <DockPanel Grid.Row="1">
-    <Border DockPanel.Dock="Bottom" Height="24" Background="{DynamicResource SurfaceBgBrush}" BorderBrush="{DynamicResource ChromeBorderBrush}" BorderThickness="0,1,0,0">
+    <Border DockPanel.Dock="Bottom" Height="24" Background="{DynamicResource GlassPanelBrush}" BorderBrush="{DynamicResource GlassRimBrush}" BorderThickness="0,1,0,0">
       <Grid ColumnDefinitions="*,Auto,Auto">
         <TextBlock Name="StatusBarText" VerticalAlignment="Center" Margin="6,0,0,0" Text="{Binding StatusText}" TextTrimming="CharacterEllipsis" />
         <TextBlock Name="PositionBarText" Grid.Column="1" VerticalAlignment="Center" Margin="12,0,0,0"
@@ -133,9 +133,9 @@
       <ScrollViewer Grid.Column="0"
                     HorizontalScrollBarVisibility="Disabled"
                     VerticalScrollBarVisibility="Disabled"
-                    Background="{DynamicResource PanelBgBrush}">
-        <StackPanel Margin="8" Spacing="7">
-          <Border Background="{DynamicResource PanelBgBrush}" Padding="8,3">
+                    Background="Transparent">
+        <StackPanel Margin="8" Spacing="9">
+          <Border Classes="GlassCard" Padding="8,6">
             <StackPanel Spacing="7">
               <TextBlock Name="RunParamLabel"
                          Classes="SectionHeader"
@@ -182,19 +182,14 @@
                         IsEnabled="{Binding IsGainEnabled}"
                         Minimum="0" Maximum="1000" Value="{Binding Gain, Mode=TwoWay}" Orientation="Horizontal" />
 
-                <TextBlock Name="AveragingPeriodLabel" Grid.Row="2" Grid.Column="0"
-                           VerticalAlignment="Center" HorizontalAlignment="Center" FontWeight="Bold" Text="Avg. Period" />
-                <Grid Grid.Row="2" Grid.Column="1" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
-                  <ComboBox Name="AveragingPeriodComboBox" Grid.Column="0"
-                            HorizontalAlignment="Stretch"
-                            Height="32"
-                            IsEnabled="{Binding AreRunParametersEnabled}"
-                            ItemsSource="{Binding AveragingPeriodLabels}"
-                            SelectedIndex="{Binding SelectedAveragingPeriodIndex, Mode=TwoWay}"
-                            FontWeight="Bold" />
-
-                  <Button Name="ResetPushButton" Grid.Column="1"
+                <Grid Grid.Row="2" Grid.Column="1"
+                      ColumnDefinitions="Auto,Auto"
+                      ColumnSpacing="8"
+                      HorizontalAlignment="Right">
+                  <Button Name="ResetPushButton" Grid.Column="0"
                           Classes="RunIconButton InlineComboIconButton"
+                          Width="68"
+                          MinWidth="68"
                           Command="{Binding ResetCommand}"
                           IsEnabled="{Binding IsResetEnabled}"
                           ToolTip.Tip="Reset and refresh input devices">
@@ -204,8 +199,10 @@
                     </Viewbox>
                   </Button>
 
-                  <Button Name="PlayPausePushButton" Grid.Column="2"
+                  <Button Name="PlayPausePushButton" Grid.Column="1"
                           Classes="RunIconButton InlineComboIconButton PrimaryRunIconButton"
+                          Width="68"
+                          MinWidth="68"
                           Command="{Binding PlayPauseCommand}"
                           IsEnabled="{Binding IsPlayPauseEnabled}"
                           ToolTip.Tip="{Binding PlayPauseButtonText}">
@@ -227,9 +224,7 @@
             </StackPanel>
           </Border>
 
-          <Border Height="1" Background="{DynamicResource ChromeBorderBrush}" Margin="12,0" />
-
-          <Border Background="{DynamicResource PanelBgBrush}" Padding="8,3">
+          <Border Classes="GlassCard" Padding="8,6">
             <StackPanel Spacing="7">
               <TextBlock Name="WatchParamLabel"
                          Classes="SectionHeader"
@@ -255,9 +250,7 @@
             </StackPanel>
           </Border>
 
-          <Border Height="1" Background="{DynamicResource ChromeBorderBrush}" Margin="12,0" />
-
-          <Border Background="{DynamicResource PanelBgBrush}" Padding="8,3">
+          <Border Classes="GlassCard" Padding="8,6">
             <StackPanel Spacing="7">
               <TextBlock Name="SimParamLabel"
                          Classes="SectionHeader"
@@ -296,17 +289,20 @@
                                FontWeight="Bold" FormatString="0.0' ms'"
                                Minimum="-10" Maximum="10" Increment="0.1" />
 
-                <CheckBox Name="RealisticCheckBox" Grid.Row="4" Grid.ColumnSpan="2"
-                          HorizontalAlignment="Right"
-                          IsEnabled="{Binding AreSimulationParametersEnabled}"
-                          FontWeight="Bold" Content="Realistic" IsChecked="{Binding Realistic, Mode=TwoWay}" />
+                <TextBlock Name="RealisticLabel" Grid.Row="4" Grid.Column="0"
+                           VerticalAlignment="Center" HorizontalAlignment="Left" FontWeight="Bold" Text="Realistic" />
+                <ToggleSwitch Name="RealisticToggleSwitch" Grid.Row="4" Grid.Column="1"
+                              AutomationProperties.Name="Realistic"
+                              HorizontalAlignment="Right"
+                              OffContent=""
+                              OnContent=""
+                              IsEnabled="{Binding AreSimulationParametersEnabled}"
+                              FontWeight="Bold" IsChecked="{Binding Realistic, Mode=TwoWay}" />
               </Grid>
             </StackPanel>
           </Border>
 
-          <Border Height="1" Background="{DynamicResource ChromeBorderBrush}" Margin="12,0" />
-
-          <Border Background="{DynamicResource PanelBgBrush}" Padding="8,3">
+          <Border Classes="GlassCard" Padding="8,6">
             <StackPanel Spacing="7">
               <TextBlock Name="MiscLabel"
                          Classes="SectionHeader"
@@ -324,7 +320,7 @@
       </ScrollViewer>
 
       <Border Grid.Column="1" Width="1" Margin="0,12"
-              Background="{DynamicResource ChromeBorderBrush}" />
+              Background="{DynamicResource GlassRimBrush}" />
 
       <Grid Name="PositionButtonStrip"
             Grid.Column="2"

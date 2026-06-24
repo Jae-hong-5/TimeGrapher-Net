@@ -13,36 +13,29 @@ internal readonly record struct SimulationSelection(
 
 internal sealed class RunSelectionResolver
 {
-    public const int DefaultAveragingPeriodSeconds = 20;
+    public const int MinAveragingPeriodSeconds = SamplingSettings.AveragingPeriodFloorSeconds;
+    public const int MaxAveragingPeriodSeconds = SamplingSettings.AveragingPeriodCeilingSeconds;
     public const int DefaultSimulationBph = 28800;
 
     private readonly MainWindowViewModel _viewModel;
-    private readonly IReadOnlyList<int> _averagingPeriods;
     private readonly IReadOnlyList<int> _manualAutoBph;
     private readonly IReadOnlyList<int> _simulationBph;
 
     public RunSelectionResolver(
         MainWindowViewModel viewModel,
-        IReadOnlyList<int> averagingPeriods,
         IReadOnlyList<int> manualAutoBph,
         IReadOnlyList<int> simulationBph)
     {
         _viewModel = viewModel;
-        _averagingPeriods = averagingPeriods;
         _manualAutoBph = manualAutoBph;
         _simulationBph = simulationBph;
     }
-
-    public int DefaultAveragingPeriodIndex => FindValue(_averagingPeriods, DefaultAveragingPeriodSeconds);
 
     public int DefaultSimulationBphIndex => FindValue(_simulationBph, DefaultSimulationBph);
 
     public AnalysisSelection GetAnalysisSelection()
     {
-        int averagingPeriod = RequireSelectedValue(
-            _averagingPeriods,
-            _viewModel.SelectedAveragingPeriodIndex,
-            "averaging period");
+        int averagingPeriod = RequireAveragingPeriod(_viewModel.AveragingPeriod);
         int selectedBphIndex = _viewModel.SelectedBphIndex;
         if (selectedBphIndex == 0)
         {
@@ -134,5 +127,17 @@ internal sealed class RunSelectionResolver
 
         value = items[selectedIndex];
         return true;
+    }
+
+    private static int RequireAveragingPeriod(decimal value)
+    {
+        if (value < MinAveragingPeriodSeconds ||
+            value > MaxAveragingPeriodSeconds ||
+            decimal.Truncate(value) != value)
+        {
+            throw new InvalidOperationException("No valid averaging period is selected.");
+        }
+
+        return decimal.ToInt32(value);
     }
 }

@@ -75,4 +75,57 @@ public sealed class SyntheticDetectorTests
         Assert.Contains(expectedBph.ToString(System.Globalization.CultureInfo.InvariantCulture), resultsText);
         Assert.DoesNotContain("Amplitude ---", resultsText);
     }
+
+    [Theory]
+    [InlineData(18000, 48000)]
+    [InlineData(21600, 48000)]
+    [InlineData(28800, 96000)]
+    public void SyntheticCleanStream_AmplitudeRecoversConfiguredWithinOneDegree(int bph, int sampleRate)
+    {
+        // Realistic OFF (Clean), no added noise: the detected amplitude must recover the
+        // configured WatchAmplitudeDegrees within the 1 deg acceptance criterion. This is
+        // the end-to-end guard for the half-lift amplitude formula (WatchMetrics.Amplitude)
+        // together with the engine's default A-onset latency compensation; before both, a
+        // configured 270 deg read ~273 deg here.
+        WatchSynthStreamConfig synthConfig = WatchSynthStreamConfig.Clean();
+        synthConfig.SampleRateHz = (uint)sampleRate;
+        synthConfig.Bph = bph;
+        synthConfig.NoisePeakSignalLevel = 0.0;
+        double configuredAmplitude = synthConfig.WatchAmplitudeDegrees;
+
+        var synth = new WatchSynthStream(synthConfig);
+        var engine = new DetectorMetricsEngine(new DetectorMetricsEngineConfig(
+            SampleRate: sampleRate,
+            LiftAngle: synthConfig.LiftAngleDegrees,
+            AveragingPeriod: 2,
+            UseCOnset: false,
+            AutoBph: true,
+            ManualBph: 0,
+            HpfCutoffHz: 0.0));
+
+        float[] block = new float[4096];
+        double lastAmplitude = double.NaN;
+        int remaining = sampleRate * 10;
+        while (remaining > 0)
+        {
+            int slice = Math.Min(block.Length, remaining);
+            Span<float> span = block.AsSpan(0, slice);
+            synth.Generate(span);
+            DetectorMetricsBlockUpdate update = engine.Process(span);
+            foreach (DetectedEventUpdate eventUpdate in update.MetricsEvents)
+            {
+                if (eventUpdate.MetricsUpdate.AmplitudeSampleUpdated &&
+                    eventUpdate.MetricsUpdate.AmplitudeSample.PairAverageUpdated)
+                {
+                    lastAmplitude = eventUpdate.MetricsUpdate.AmplitudeSample.PairAverageDeg;
+                }
+            }
+            remaining -= slice;
+        }
+
+        Assert.False(double.IsNaN(lastAmplitude));
+        Assert.True(
+            Math.Abs(lastAmplitude - configuredAmplitude) <= 1.0,
+            $"amplitude {lastAmplitude:F2} deg deviates from configured {configuredAmplitude} deg by more than 1 deg");
+    }
 }

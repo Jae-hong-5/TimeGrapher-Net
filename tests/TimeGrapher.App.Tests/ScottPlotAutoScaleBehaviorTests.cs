@@ -95,7 +95,7 @@ public sealed class ScottPlotAutoScaleBehaviorTests
     }
 
     [Fact]
-    public void ReviewCursorLayer_UsesRedBoldDashedStyle()
+    public void ReviewCursorLayer_UsesRedBoldDottedStyle()
     {
         var plot = new Plot();
         var layer = new ReviewCursorLayer(plot);

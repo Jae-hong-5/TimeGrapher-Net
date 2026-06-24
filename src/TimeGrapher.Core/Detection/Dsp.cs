@@ -5,7 +5,7 @@
  * per-sample state, no buffering, no look-ahead):
  *
  *   TgHpf : single-pole high-pass / DC blocker. Default cutoff 200 Hz.
- *           y[n] = a * (y[n-1] + x[n] - x[n-1]), a = exp(-2*pi*fc/fs).
+ *           y[n] = x[n] - x[n-1] + a * y[n-1], a = exp(-2*pi*fc/fs).
  *
  *   TgEnvelope : full-wave rectifier + one-pole LPF. Default smoothing
  *                0.15 ms.

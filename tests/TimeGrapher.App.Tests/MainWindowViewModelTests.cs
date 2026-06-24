@@ -172,7 +172,7 @@ public sealed class MainWindowViewModelTests
         Assert.Equal(100.0, vm.Gain);
         Assert.Equal(-1, vm.SelectedInputDeviceIndex);
         Assert.Equal(-1, vm.SelectedSampleRateIndex);
-        Assert.Equal(-1, vm.SelectedAveragingPeriodIndex);
+        Assert.Equal(20m, vm.AveragingPeriod);
         Assert.Equal(0, vm.SelectedBphIndex);
         Assert.Equal(52m, vm.LiftAngle);
         Assert.Equal(-1, vm.SelectedSimBphIndex);
@@ -194,13 +194,11 @@ public sealed class MainWindowViewModelTests
 
         vm.SetInputDeviceNames(new[] { "Live: Mic A", "Playback", "Simulation" });
         vm.SetSampleRateLabels(new[] { "48000 Hz", "96000 Hz" });
-        vm.SetAveragingPeriodLabels(new[] { "2s", "4s", "12s" });
         vm.SetBphLabels(new[] { "Auto BPH", "18000" });
         vm.SetSimBphLabels(new[] { "18000", "28800" });
 
         Assert.Equal(new[] { "Live: Mic A", "Playback", "Simulation" }, vm.InputDeviceNames);
         Assert.Equal(new[] { "48000 Hz", "96000 Hz" }, vm.SampleRateLabels);
-        Assert.Equal(new[] { "2s", "4s", "12s" }, vm.AveragingPeriodLabels);
         Assert.Equal(new[] { "Auto BPH", "18000" }, vm.BphLabels);
         Assert.Equal(new[] { "18000", "28800" }, vm.SimBphLabels);
 
@@ -218,7 +216,7 @@ public sealed class MainWindowViewModelTests
 
         vm.SelectedInputDeviceIndex = 1;
         vm.SelectedSampleRateIndex = 0;
-        vm.SelectedAveragingPeriodIndex = 6;
+        vm.AveragingPeriod = 17m;
         vm.Gain = 250;
         vm.LiftAngle = 53m;
         vm.PauseOnPositionChange = true;
@@ -226,7 +224,7 @@ public sealed class MainWindowViewModelTests
 
         Assert.Contains(nameof(MainWindowViewModel.SelectedInputDeviceIndex), changed);
         Assert.Contains(nameof(MainWindowViewModel.SelectedSampleRateIndex), changed);
-        Assert.Contains(nameof(MainWindowViewModel.SelectedAveragingPeriodIndex), changed);
+        Assert.Contains(nameof(MainWindowViewModel.AveragingPeriod), changed);
         Assert.Contains(nameof(MainWindowViewModel.Gain), changed);
         Assert.Contains(nameof(MainWindowViewModel.LiftAngle), changed);
         Assert.Contains(nameof(MainWindowViewModel.PauseOnPositionChange), changed);

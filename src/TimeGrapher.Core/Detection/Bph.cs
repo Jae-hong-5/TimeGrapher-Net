@@ -201,11 +201,22 @@ internal sealed class TgSync
         }
         if (errC <= ToleranceS)
         {
-            // Matched companion phase. Don't advance next_a_time, but refine g.
+            // Matched companion phase. Refine g but don't re-anchor the A phase.
             if (g > 0)
             {
                 double nudge = (errCPos < errCNeg) ? (phase - g) : -(phase + g);
                 AcOffset += AcGain * nudge;
+            }
+            /* A companion match is still a live, in-phase beat. Advance
+             * next_a_time by whole beats so it keeps tracking the stream
+             * (the wrap above is mod-T, so a whole-beat shift leaves the A
+             * phase unchanged -- this is not a re-anchor). Without it,
+             * next_a_time freezes through a long companion-matched run and the
+             * caller's time-based sync-loss watchdog starves and drops an
+             * otherwise healthy lock. */
+            while (eventTime > NextATime + 1.5 * BeatPeriod)
+            {
+                NextATime += BeatPeriod;
             }
             ConsecutiveMisses = 0;
             return 1;

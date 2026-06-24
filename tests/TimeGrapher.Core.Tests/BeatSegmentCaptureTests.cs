@@ -279,6 +279,10 @@ public sealed class BeatSegmentCaptureTests
         // The published snapshot's buffer was skipped for the whole burst: no
         // segment of the new snapshot lives in that buffer instance.
         BeatSegmentsSnapshot after = capture.CurrentSnapshot()!;
+        // Guard against a vacuous pass: the burst must actually fill the ring, or
+        // Assert.All over an empty/short segment list would "pass" without ever
+        // exercising the buffer-protection contract this test claims to lock.
+        Assert.Equal(BeatSegmentCapture.SegmentRingCount, after.Segments.Count);
         Assert.All(after.Segments, segment => Assert.False(publishedBuffer.Equals(segment.Samples)));
     }
 
@@ -508,5 +512,20 @@ public sealed class BeatSegmentCaptureTests
         BeatSegmentsSnapshot? second = capture.CurrentSnapshot();
         Assert.NotSame(first, second);
         Assert.True(second!.Version > first!.Version);
+    }
+
+    [Theory]
+    // Default 4096 block stays at the historical 8-slot floor: byte-for-byte unchanged.
+    [InlineData(48000, 4096, 8)]
+    // A window completes WindowMs (400 ms) after it opens, but completion runs only
+    // once per delivery block, so the simultaneous-open bound is
+    // ceil((WindowMs + blockMs) / fastestBeatMs) + 2 slack (fastest = 43200 BPH = 83.3 ms).
+    // 16384 @ 48 kHz = 341.3 ms block -> ceil((400 + 341.3) / 83.3) + 2 = 9 + 2 = 11 (> 8),
+    // so the old fixed 8-slot ring would have evicted still-completing windows.
+    [InlineData(48000, 16384, 11)]
+    [InlineData(48000, 8192, 9)]
+    public void PendingSlotsFor_SizesForFastestBeatAndBlock(int sampleRate, int block, int expected)
+    {
+        Assert.Equal(expected, BeatSegmentCapture.PendingSlotsFor(sampleRate, block));
     }
 }

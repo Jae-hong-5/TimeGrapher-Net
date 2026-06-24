@@ -41,6 +41,10 @@ public sealed class AnalysisFrameContractTests
         Assert.True(threshold.Replace);
         Assert.NotEmpty(pcm.X);
         Assert.Equal(pcm.X.Count, pcm.Y.Count);
+        // The threshold series must actually carry the trigger line over the PCM
+        // window, not just be self-consistent (an empty payload would still pass).
+        Assert.NotEmpty(threshold.X);
+        Assert.Equal(pcm.X.Count, threshold.Y.Count);
         Assert.Equal(threshold.X.Count, threshold.Y.Count);
     }
 

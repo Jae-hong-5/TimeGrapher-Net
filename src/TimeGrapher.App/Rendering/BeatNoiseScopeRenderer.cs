@@ -28,9 +28,10 @@ namespace TimeGrapher.App.Rendering;
 ///
 /// All plottables refill in place; re-renders only when the snapshot version
 /// changes, so coalesced or repeated frames cost nothing. Segments reference
-/// pooled Core buffers that stay valid only until rotated out, so every render
-/// re-reads from the latest snapshot and nothing UI-side caches sample data
-/// beyond it.
+/// pooled Core buffers that stay valid only until rotated out, so each new
+/// snapshot version is deep-copied into a UI-owned cache (CopyForCache ->
+/// _lastSnapshot); later interaction handlers and paused-review re-renders read
+/// that cached copy, never a recycled Core pool buffer.
 /// </summary>
 internal sealed class BeatNoiseScopeRenderer
 {

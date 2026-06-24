@@ -1,4 +1,3 @@
-using Avalonia.Threading;
 using ScottPlot;
 using ScottPlot.Avalonia;
 using ScottPlot.Plottables;
@@ -16,10 +15,10 @@ namespace TimeGrapher.App.Rendering;
 /// four filters are easy to switch between and compare. Each plot windows its
 /// X axis to the last two seconds of its own series (x = absolute sample ticks
 /// on the projector's counter, so limits derive from the series' own max x).
-/// The four lanes share one X base, so a user zoom/pan on any lane is linked
-/// onto the other three — every lane always reads on the same timestamp window.
-/// Honors the review-cursor contract by mapping the scrubbed stream time to
-/// sample ticks on every lane.
+/// The lanes are read-only (no mouse pan/zoom): the view stays beat-locked and
+/// every lane always reads on the same timestamp window. Honors the
+/// review-cursor contract by mapping the scrubbed stream time to sample ticks
+/// on every lane.
 /// </summary>
 internal sealed class MultiFilterScopeRenderer
 {
@@ -48,33 +47,10 @@ internal sealed class MultiFilterScopeRenderer
     private readonly GraphSeriesFrame?[] _lastSeries;
 
     private PlotThemePalette _theme = PlotThemePalette.Current;
+
+    // The view always follows the live beat-locked window: there is no mouse
+    // pan/zoom to drop it, so it only re-arms (stays true) and never latches off.
     private bool _followLive = true;
-
-    // Re-entrancy guard for the X-axis link: propagating limits onto the other
-    // lanes must not re-trigger a sync from them.
-    private bool _syncing;
-
-    // Coalescing gate for the X-axis link: a drag fires PointerMoved many times
-    // per second, but only one deferred sync needs to be queued — it reads the
-    // latest limits when it runs. While one post is pending, later interactions
-    // just update _syncSource (latest wins) instead of queuing another full
-    // 3-lane SetLimitsX/AutoScaleY/Refresh pass.
-    private bool _syncPending;
-    private int _syncSource;
-
-    // Whether the pending sync should re-derive the shared Y pan offset from the
-    // source lane: a drag sets it (the vertical pan is shared across all lanes);
-    // a wheel leaves it false (a wheel changes only the zoom, not the offset).
-    private bool _syncDeriveYOffset;
-
-    // Bound on the shared vertical-pan offset, in multiples of each lane's data
-    // peak: a drag can shift the view at most this far from center.
-    private const double MaxYOffset = 1.5;
-
-    // Shared Y pan offset for all lanes, in units of each lane's data peak
-    // (0 = centered). A vertical drag updates it so every lane pans together;
-    // the one-sided lane (F3) additionally never shows below 0.
-    private double _yOffset;
 
     // Live extent of the drawn data on the shared X base (oldest..latest
     // retained tick), refreshed each frame. The X view is clamped to stay
@@ -146,32 +122,17 @@ internal sealed class MultiFilterScopeRenderer
             _yMirror[i] = new List<double>();
 
             int idx = i;
-            // A drag (pan / zoom-rectangle, while a button is held) or interaction
-            // end re-links the other lanes onto this one's X window. PointerPressed
-            // just drops live-follow; it changes no axis. Wheel zoom is disabled
-            // (the response is removed below), so the scope stays beat-locked.
-            _plots[idx].PointerPressed += (_, _) => _followLive = false;
-            // Drag (pan): sync X and re-derive the shared Y offset so a vertical
-            // drag pans every lane together.
-            _plots[idx].PointerReleased += (_, _) => OnUserAxisInteraction(idx, deriveYOffset: true);
-            _plots[idx].PointerMoved += (_, e) =>
-            {
-                Avalonia.Input.PointerPointProperties props = e.GetCurrentPoint(_plots[idx]).Properties;
-                if (props.IsLeftButtonPressed || props.IsRightButtonPressed || props.IsMiddleButtonPressed)
-                {
-                    OnUserAxisInteraction(idx, deriveYOffset: true);
-                }
-            };
-
-            // Drop two built-in ScottPlot wheel/click responses: the mouse-wheel
-            // zoom (the scope is beat-locked, so wheel zoom is unwanted) and the
-            // double-click benchmark toggle (two quick drags trip it, flashing the
-            // overlay). The benchmark is instead toggled on a genuine Avalonia
-            // double-tap below (which a drag, having moved, never raises).
+            // The scope is read-only and beat-locked, so drop every built-in
+            // mouse response that moves the axes: the wheel zoom, the click-drag
+            // pan and zoom-rectangle (any "Drag" response), and the double-click
+            // benchmark toggle (two quick drags would trip it). The right-click
+            // menu (no "Drag" in its name) is kept, and the benchmark is instead
+            // toggled on a genuine Avalonia double-tap below.
             _plots[idx].UserInputProcessor.UserActionResponses.RemoveAll(response =>
             {
                 string name = response.GetType().Name;
                 return name.Contains("Wheel", StringComparison.Ordinal)
+                    || name.Contains("Drag", StringComparison.Ordinal)
                     || name.Contains("Benchmark", StringComparison.Ordinal);
             });
             _plots[idx].DoubleTapped += (_, _) =>
@@ -206,7 +167,6 @@ internal sealed class MultiFilterScopeRenderer
     {
         _followLive = true;
         _hasDataExtent = false;
-        _yOffset = 0.0;
         Array.Clear(_lanePeakMax);
         for (int i = 0; i < _plots.Length; i++)
         {
@@ -257,13 +217,12 @@ internal sealed class MultiFilterScopeRenderer
     }
 
     /// <summary>
-    /// Re-arms live windowing on all four lanes after a pan/zoom (the one-way
-    /// follow-live latch otherwise sticks until the session restarts).
+    /// Re-fits all four lanes to the live beat-locked window (the Reset View /
+    /// right-click "Auto Scale" action).
     /// </summary>
     public void ResetView()
     {
         _followLive = true;
-        _yOffset = 0.0;
         for (int i = 0; i < _plots.Length; i++)
         {
             _plots[i].Plot.Axes.AutoScale();
@@ -283,114 +242,6 @@ internal sealed class MultiFilterScopeRenderer
     public void SetDisplayBudget(int budget)
     {
         _displayBudget = Math.Clamp(budget, MinDisplayBudget, MultiFilterFrameProjector.FilterPointBudget);
-    }
-
-    /// <summary>
-    /// Links a user zoom/pan on one lane onto the others: drops live-follow and
-    /// copies this lane's X window to the rest so all four stay on the same
-    /// timestamp range. Deferred so ScottPlot has applied the new limits to the
-    /// source plot before they are read, and coalesced so a continuous drag
-    /// queues a single sync (reading the latest limits) instead of one per
-    /// PointerMoved.
-    /// </summary>
-    private void OnUserAxisInteraction(int source, bool deriveYOffset)
-    {
-        _followLive = false;
-        _syncSource = source;            // latest interaction wins when the pending post runs
-        _syncDeriveYOffset |= deriveYOffset; // any coalesced drag re-derives the Y offset
-        if (_syncPending)
-        {
-            return;
-        }
-
-        _syncPending = true;
-        Dispatcher.UIThread.Post(
-            () =>
-            {
-                _syncPending = false;
-                bool derive = _syncDeriveYOffset;
-                _syncDeriveYOffset = false;
-                SyncXAxisFrom(_syncSource, derive);
-            },
-            DispatcherPriority.Background);
-    }
-
-    private void SyncXAxisFrom(int source, bool deriveYOffset)
-    {
-        if (_syncing)
-        {
-            return;
-        }
-
-        _syncing = true;
-        try
-        {
-            // The four lanes share one X base (absolute sample ticks), so the
-            // X window transfers directly. Keep it inside the drawn-data extent
-            // (no empty margins): a zoom-out to the full buffer snaps to the
-            // whole extent and re-arms live follow; otherwise the window is
-            // shifted back inside the data. Y is auto-fit on every lane (1.2x the
-            // running peak) by ApplyY.
-            AxisLimits limits = _plots[source].Plot.Axes.GetLimits();
-            double left = limits.Left;
-            double right = limits.Right;
-            if (_hasDataExtent)
-            {
-                double extent = _dataMaxX - _dataMinX;
-                double span = right - left;
-                if (extent > 0.0 && span >= extent)
-                {
-                    _followLive = true;
-                    _yOffset = 0.0; // full zoom-out re-centers Y as well
-                    left = _dataMinX;
-                    right = _dataMaxX;
-                }
-                else if (extent > 0.0)
-                {
-                    if (left < _dataMinX)
-                    {
-                        left = _dataMinX;
-                        right = _dataMinX + span;
-                    }
-
-                    if (right > _dataMaxX)
-                    {
-                        right = _dataMaxX;
-                        left = _dataMaxX - span;
-                    }
-
-                    if (left < _dataMinX)
-                    {
-                        left = _dataMinX;
-                    }
-                }
-            }
-
-            // A drag re-derives the shared Y offset from the source lane (a
-            // mirrored, centered lane only — F3 is pinned at 0 and never the
-            // source of a pan offset), so a vertical drag pans every lane.
-            if (deriveYOffset && MultiFilterScopeLanes.All[source].Mirrored)
-            {
-                double peak = LanePeak(source);
-                if (peak > 0.0)
-                {
-                    double center = (limits.Top + limits.Bottom) / 2.0;
-                    _yOffset = Math.Clamp(center / peak, -MaxYOffset, MaxYOffset);
-                }
-            }
-
-            for (int i = 0; i < _plots.Length; i++)
-            {
-                _plots[i].Plot.Axes.SetLimitsX(left, right);
-                ApplyY(i);
-                ApplyTimeTicks(i, left, right);
-                _plots[i].Refresh();
-            }
-        }
-        finally
-        {
-            _syncing = false;
-        }
     }
 
     /// <summary>
@@ -505,8 +356,8 @@ internal sealed class MultiFilterScopeRenderer
     /// Sets a lane's Y view to 1.2x its running peak amplitude. The peak only
     /// grows within a run (running max), so the axis never shrinks when a quieter
     /// beat passes — the waveform never clips and the amplitude scale stays steady
-    /// instead of fluctuating. Mirrored lanes are symmetric about 0 (with the
-    /// shared vertical pan offset); the one-sided lane (F3) is pinned to [0, top].
+    /// instead of fluctuating. Mirrored lanes are symmetric about 0; the
+    /// one-sided lane (F3) is pinned to [0, top].
     /// </summary>
     private void ApplyY(int lane)
     {
@@ -520,8 +371,7 @@ internal sealed class MultiFilterScopeRenderer
         double half = YHeadroom * peak;
         if (MultiFilterScopeLanes.All[lane].Mirrored)
         {
-            double center = _yOffset * peak;
-            _plots[lane].Plot.Axes.SetLimitsY(center - half, center + half);
+            _plots[lane].Plot.Axes.SetLimitsY(-half, half);
         }
         else
         {
@@ -531,11 +381,10 @@ internal sealed class MultiFilterScopeRenderer
 
     /// <summary>
     /// Clamps a lane's X view to the owner's live drawn-data extent
-    /// (<see cref="_dataMinX"/>..<see cref="_dataMaxX"/>): a pan stops at the
-    /// oldest/latest sample with no empty margin beyond the data, and a span at
-    /// or past the full extent snaps to it. The extent rolls with the window, so
-    /// it is read live on every render (a hard wall even mid-drag, unlike the
-    /// deferred sync). Mirrors the shift-in-bounds logic in SyncXAxisFrom.
+    /// (<see cref="_dataMinX"/>..<see cref="_dataMaxX"/>): the view never shows an
+    /// empty margin beyond the data, and a span at or past the full extent snaps
+    /// to it. The extent rolls with the window, so it is read live on every
+    /// render, keeping the beat-locked X view inside the retained data.
     /// </summary>
     private sealed class XViewBoundsRule : IAxisRule
     {

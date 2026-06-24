@@ -16,7 +16,8 @@ internal sealed record AnalysisRunSettings(
     int SoundImageWidth,
     int SoundImageHeight,
     int ScopeSnapshotPointBudget,
-    bool PllEventVeto)
+    bool PllEventVeto,
+    int AnalysisBlockSize)
 {
     public AnalysisWorker.Config ToWorkerConfig(ulong sessionId, ISampleWriter? sampleWriter)
     {
@@ -36,6 +37,7 @@ internal sealed record AnalysisRunSettings(
             SoundImageWidth = SoundImageWidth,
             SoundImageHeight = SoundImageHeight,
             ScopeSnapshotPointBudget = ScopeSnapshotPointBudget,
+            AnalysisBlockSize = AnalysisBlockSize,
             // Sound print background follows the scope background (single source: App.axaml ScopeBgColor).
             SoundImageBackgroundColor = PlotThemePalette.Current.ScopeBg,
             // Spectrogram colormap is one shared viridis LUT for both themes; only

@@ -9,8 +9,9 @@ namespace TimeGrapher.Core.Analysis;
 /// beat period, backlog grows; <see cref="Shared.AnalysisFrame.AnalysisLagSamples"/> is the
 /// integral symptom of that, so it is the breach signal — measured in beat periods
 /// derived from the nominal locked period (125 ms default until BPH lock).
-/// ProcessingElapsedMs stays telemetry-only: a single pass is bounded by the 4096-
-/// sample chunk and says nothing about the budget unless normalized; lag already is.
+/// ProcessingElapsedMs stays telemetry-only: a single pass is bounded by the analysis
+/// block (4096 samples by default, configurable) and says nothing about the budget
+/// unless normalized; lag already is.
 ///
 /// Hysteresis: escalate one level after EscalateAfterPasses consecutive passes with
 /// more than BreachBeats beat periods of backlog; step back down only after

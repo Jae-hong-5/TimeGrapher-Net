@@ -9,16 +9,10 @@ namespace TimeGrapher.App.Tests;
 
 public sealed class AppXamlLoadTests
 {
-    [Fact]
-    public void InitializeLoadsCompiledAppXaml()
-    {
-        var app = new App();
-
-        app.Initialize();
-
-        Assert.NotEmpty(app.Styles);
-    }
-
+    // Note: a standalone "Initialize loads compiled App.axaml" smoke test was removed
+    // as redundant - every test below calls app.Initialize() and then asserts a
+    // TimeGrapher-specific resource/style, which proves the compiled App.axaml (not
+    // just the Avalonia FluentTheme) actually loaded.
     [Fact]
     public void AppResourcesExposeVarioPalette()
     {
@@ -116,6 +110,36 @@ public sealed class AppXamlLoadTests
     }
 
     [Fact]
+    public void ToggleSwitchOnBrushesUseChromeAccent()
+    {
+        var app = new App();
+        app.Initialize();
+
+        string[] onBrushKeys =
+        {
+            "ToggleSwitchFillOn",
+            "ToggleSwitchFillOnPointerOver",
+            "ToggleSwitchFillOnPressed",
+            "ToggleSwitchStrokeOn",
+            "ToggleSwitchStrokeOnPointerOver",
+            "ToggleSwitchStrokeOnPressed",
+        };
+
+        foreach (ThemeVariant theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
+        {
+            Assert.True(app.TryGetResource("ChromeAccentColor", theme, out object? accentValue), theme.ToString());
+            Color accent = Assert.IsType<Color>(accentValue);
+
+            foreach (string key in onBrushKeys)
+            {
+                Assert.True(app.TryGetResource(key, theme, out object? brushValue), key);
+                ISolidColorBrush brush = Assert.IsAssignableFrom<ISolidColorBrush>(brushValue);
+                Assert.Equal(accent, brush.Color);
+            }
+        }
+    }
+
+    [Fact]
     public void AppAxamlEnforcesSquareCorners()
     {
         var app = new App();
@@ -160,6 +184,56 @@ public sealed class AppXamlLoadTests
         Assert.Equal(36.0, SetterDouble(SetterValue(style, Button.MaxWidthProperty)));
         Assert.Equal(36.0, SetterDouble(SetterValue(style, Button.MinHeightProperty)));
         Assert.Equal(36.0, SetterDouble(SetterValue(style, Button.MaxHeightProperty)));
+    }
+
+    [Fact]
+    public void ActivePositionButtonTextStyleDoesNotReachTooltips()
+    {
+        var app = new App();
+        app.Initialize();
+
+        Assert.DoesNotContain(app.Styles.OfType<Style>(),
+            style => style.Selector?.ToString() == "Button.PositionButton.active TextBlock");
+        Style style = Assert.Single(app.Styles.OfType<Style>(),
+            style => style.Selector?.ToString() == "Button.PositionButton.active > TextBlock");
+
+        Assert.Contains(style.Setters.OfType<Setter>(),
+            setter => setter.Property == TextBlock.ForegroundProperty);
+    }
+
+    [Fact]
+    public void AppResourcesExposeSapphireCrystalGlassLayer()
+    {
+        // The glass redesign floats chrome surfaces on an ambient backdrop using a
+        // translucent frost fill, a top-lit rim bevel, and an elevation shadow. All
+        // four tokens must resolve in both themes, and the reusable GlassCard style
+        // must wire them, or panels silently fall back to flat fills.
+        var app = new App();
+        app.Initialize();
+
+        foreach (ThemeVariant theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
+        {
+            foreach (string brushKey in new[] { "AmbientBackdropBrush", "GlassPanelBrush", "GlassRimBrush" })
+            {
+                Assert.True(app.TryGetResource(brushKey, theme, out object? brush), $"{brushKey} ({theme})");
+                Assert.IsAssignableFrom<IBrush>(brush);
+            }
+
+            Assert.True(app.TryGetResource("GlassShadow", theme, out object? shadow), $"GlassShadow ({theme})");
+            Assert.IsType<BoxShadows>(shadow);
+        }
+
+        Style glassCard = Assert.Single(app.Styles
+            .OfType<Style>(), style => style.Selector?.ToString() == "Border.GlassCard");
+        Assert.Contains(glassCard.Setters.OfType<Setter>(), setter =>
+            setter.Property == Border.BackgroundProperty &&
+            DynamicResourceKey(setter.Value) == "GlassPanelBrush");
+        Assert.Contains(glassCard.Setters.OfType<Setter>(), setter =>
+            setter.Property == Border.BorderBrushProperty &&
+            DynamicResourceKey(setter.Value) == "GlassRimBrush");
+        Assert.Contains(glassCard.Setters.OfType<Setter>(), setter =>
+            setter.Property == Border.BoxShadowProperty &&
+            DynamicResourceKey(setter.Value) == "GlassShadow");
     }
 
     private static object? SetterValue(Style style, AvaloniaProperty property)

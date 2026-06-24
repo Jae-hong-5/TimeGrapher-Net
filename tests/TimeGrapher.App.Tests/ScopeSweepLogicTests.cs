@@ -28,7 +28,7 @@ public sealed class ScopeSweepLogicTests
 
         Assert.Equal(
             "Instantaneous Rate -3.2 s/d   |   Instantaneous Amp 282°   |   Instantaneous Beat Err +0.46 ms" +
-            "   |   A to C —   |   Period —",
+            "   |   A to C —   |   Nominal BPH —",
             line);
     }
 
@@ -41,13 +41,13 @@ public sealed class ScopeSweepLogicTests
         foreach (string line in new[] { empty, invalid })
         {
             Assert.Equal(
-                "Instantaneous Rate —   |   Instantaneous Amp —   |   Instantaneous Beat Err —   |   A to C —   |   Period —",
+                "Instantaneous Rate —   |   Instantaneous Amp —   |   Instantaneous Beat Err —   |   A to C —   |   Nominal BPH —",
                 line);
         }
     }
 
     [Fact]
-    public void ReferenceLine_IncludesAtoCAndPeriodWhenAvailable()
+    public void ReferenceLine_IncludesAtoCAndNominalBphWhenAvailable()
     {
         var snapshot = new BeatMetricsHistorySnapshot
         {
@@ -67,9 +67,9 @@ public sealed class ScopeSweepLogicTests
 
         string line = ScopeSweepReadout.ReferenceLine(snapshot, segments);
 
-        // A→C = 60.0 ms, Period = 3600000/28800 = 125.0 ms
+        // A→C = 60.0 ms, Nominal BPH = 28800 (the rated beat rate from timing history)
         Assert.Contains("A to C +60.0 ms", line);
-        Assert.Contains("Period 125.0 ms", line);
+        Assert.Contains("Nominal BPH 28800", line);
     }
 
     [Fact]

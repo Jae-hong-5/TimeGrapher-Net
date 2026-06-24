@@ -32,7 +32,7 @@ flowchart TB
         ScottPlot["ScottPlot.Avalonia"]
         NAudio["NAudio (Wasapi · WinMM)"]
         LinuxAudioStack["PipeWire / ALSA 도구<br/>wpctl · pw-record · arecord"]
-        Xunit["xUnit"]
+        Xunit["테스트 스택<br/>xUnit · xunit.runner.visualstudio · Microsoft.NET.Test.Sdk<br/>(Directory.Packages.props 중앙 버전)"]
     end
 
     App --> Core
@@ -46,7 +46,7 @@ flowchart TB
     AppTests -. "전이 · Core 타입 직접 사용(Shared·Analysis·Detection·Detection.Scoring·Metrics·AudioIo·Sim)" .-> Core
     CoreTests --> Core
     VerifyTests --> Verify
-    VerifyTests -. "전이 · Core 게이트/DTO 사용" .-> Core
+    VerifyTests -. "전이 · Core Analysis/Detection/Sim 타입 사용" .-> Core
     WindowsAudioTests --> WindowsAudio
     WindowsAudioTests -. "전이 · Core DTO 사용" .-> Core
     LinuxAudioTests --> LinuxAudio
@@ -147,8 +147,10 @@ flowchart TB
     ViewModels --> CoreShared
 
     Services --> ViewModels
+    Services --> Program
     Services --> CoreAnalysis
     Services --> CoreAudioIo
+    Services --> CoreDetection
     Services --> CoreMetrics
     Services --> CoreShared
 
@@ -167,6 +169,7 @@ flowchart TB
     Rendering --> CoreAnalysis
     Rendering --> CoreMetrics
     Rendering --> CoreShared
+    Rendering --> Assets
 ```
 
 ### 폴더별 사용 요약
@@ -176,30 +179,31 @@ flowchart TB
 | Program / 앱 시작 | Views, Audio, Rendering | Analysis, AudioIo, Detection.Scoring, Shared |
 | Views | Program, ViewModels, Services, Audio, Tabs, Rendering, Assets | AudioIo, Detection, Shared, Sim |
 | ViewModels | — | Analysis, Shared |
-| Services | ViewModels | Analysis, AudioIo, Detection, Metrics, Shared |
+| Services | ViewModels, Program | Analysis, AudioIo, Detection, Metrics, Shared |
 | Audio | — | Analysis, AudioIo, Shared, Sim, 플랫폼 백엔드(RID 조건부) |
 | Tabs | ViewModels, Rendering | Analysis, Shared |
-| Rendering | Tabs | Analysis, Metrics, Shared |
+| Rendering | Tabs, Assets | Analysis, Metrics, Shared |
 
-- `Program`은 `AnalysisRunSettings`에서 `AnalysisWorker.Config`를 조립하며 `PllMatchGate`(`Core.Detection.Scoring`)와 `PlotThemePalette`(`Rendering`)를 직접 사용한다. 또한 시작 시 `AcceptBandSettingsStore.Load()`로 사용자 정상 밴드를 `AcceptBandSettings.Current`(`Rendering`)에 복원한다(그래프 생성 이전).
+- `Program`은 `AnalysisRunSettings`에서 `AnalysisWorker.Config`를 조립하며 `PllMatchGate`(`Core.Detection.Scoring`)와 `PlotThemePalette`(`Rendering`)를 직접 사용한다. 또한 시작 시 `AcceptBandSettingsStore.Load()`로 사용자 정상 밴드를 `AcceptBandSettings.Current`(`Rendering`)에 복원한다(그래프 생성 이전). 마찬가지로 `SamplingSettingsStore.Load()`로 실행 시작 파라미터(Avg. Period·분석 블록 크기·캡처 버퍼)를 `SamplingSettings.Current`에 복원해 설정 창 입력의 시드로 쓴다(창 생성 이전).
 - `ViewModels`는 스윕 배수 기본값을 `SweepFrameProjector.DefaultSweepMultiple`(`Core.Analysis`)로 초기화하므로 `Shared` 외에 `Analysis`에도 의존한다.
 - `Rendering`과 `Tabs`는 순환처럼 보이지만 분리되어 있다: `Rendering`의 프레임 컨슈머가 `Tabs`의 라우팅 계약(`IAnalysisFrameConsumer`/`IThemedFrameConsumer`/`IAcceptBandConsumer`)을 구현하고, `Tabs`의 레지스트리가 컨슈머를 등록한다. `IAcceptBandConsumer`는 사용자 정상 밴드 편집을 모든 밴드 그래프에 라이브로 팬아웃하는 두 번째 브로드캐스트 계약으로, 테마 팬아웃(`IThemedFrameConsumer`)과 같은 패턴이다.
+- Positions 탭의 활성 워치 자세는 `WatchModelView`(자체 CPU 소프트웨어 렌더)가 표시한다. 번들된 vertex-color GLB(`Assets/Model/watch_model_round_vertexcolor.glb`)를 `GlbMeshLoader`가 읽고 `WatchModelRasterizer`가 `System.Numerics`만으로 원근 투영·z-buffer·flat 음영 래스터화한다(GPU/외부 3D 라이브러리 무의존 — 이식성 driver, `SAP_TACTICS_ANALYSIS.md` 참고). 포지션 버튼이 `WatchPositionsRenderer`를 통해 `Position`을 바꾸면 `WatchModelOrientation`이 정한 목표 사원수로 `Quaternion.Slerp`(650 ms) 애니메이션한다. 즉 `Rendering`이 `Assets`(avares 모델 리소스)를 사용한다.
 
 ### MVVM 리팩토링 후 App 내부 구조 (순수 MVVM 정리)
 
 `MainWindow` code-behind가 쥐고 있던 애플리케이션/실행 로직은 `Services`로 이전됐다. 역할은 세 가지로 나뉜다.
 
-- **view-model `PropertyChanged` 구독 컨트롤러**(`MainWindowSelectionCoordinator`와 같은 패턴 — 구독 후 operations 인터페이스로 위임): `AcceptBandController`(정상밴드 시드+라이브 적용), `RunControlController`(스윕/위치/Σ 노브 + 위치변경 자동정지), `MeasurementLogController`(측정 CSV 로그 생명주기·CLI 경로 1회 소비, `IDisposable`).
+- **view-model `PropertyChanged` 구독 컨트롤러**(`MainWindowSelectionCoordinator`와 같은 패턴 — 구독 후 operations 인터페이스 또는 결과 sink로 위임): `AcceptBandController`(정상밴드 시드+라이브 적용, `IAcceptBandOperations`), `SamplingSettingsController`(Run Parameters 입력 시드+영속화; 라이브 재적용 없이 다음 실행에 반영되므로 주입된 persist 델리게이트로만 위임), `RunControlController`(스윕/위치/Σ 노브 + 위치변경 자동정지, `IRunSessionControls`), `MeasurementLogController`(operations 인터페이스가 아니라 주입된 sink 팩토리/`IMeasurementResultSink`로 위임; 측정 CSV 로그 생명주기·CLI 경로 1회 소비, `IDisposable`).
 - **명시적 호출로 구동되는 소유자**(`PropertyChanged` 구독자가 아님): `AudioDeviceController`(입력장치 열거·레이트 프로브; `LoadAudioDevices`/`PopulateSampleRates`를 ctor·콤보 드롭다운·디바이스 새로고침·선택-operations에서 명시적으로 호출, 캐시 식별성+UI 스레드 재진입 보존), `RunSessionController`(분석/입력 워커 생명주기), `AudioSelectionState`(입력장치/레이트 선택 상태 보관).
 - **composition root** `MainWindowBootstrapper`: 서비스 그래프 생성·배선(`Build`가 view-model을 시드하고 `RunCommandService`를 `IRunCommandRunner`로 view-model에 attach). 단 `AudioDeviceController`는 view 어댑터·델리게이트가 필요하므로 `MainWindow` 생성자가 직접 생성하고, bootstrapper가 만든 코디네이터를 `ISelectionEventGate`로 late-attach한다. 커맨드 본문은 view-model로 옮겨 주입된 `IRunCommandRunner`(`ViewModels`)를 호출한다.
 - **좁은 시밍 인터페이스**로 결합을 좁히고 테스트를 가능케 한다: `IRunCommandRunner`는 `ViewModels`, 나머지(`IAcceptBandOperations`/`IRunSessionControls`/`IRunCommandPause`/`IMeasurementResultSink`/`IAudioDeviceBackend`/`IUiDispatcher`/`ISelectionEventGate`)는 `Services`. `ISelectionEventGate`(코디네이터가 구현)+late-attach가 코디네이터↔디바이스 컨트롤러 생성 순환을 끊는다.
-- **View 쪽 어댑터**(`GraphAcceptBandOperations`/`LiveAudioDeviceBackend`/`UiThreadDispatcher`)는 `Views`에서 이 `Services` 계약을 구현한다(창이 아니라 렌더러/`LiveAudioBackend`/`Dispatcher`를 감싸므로 view back-edge가 아니다). 따라서 **폴더 수준 엣지는 변하지 않는다**(`Views→Services`/`Views→Audio`/`Services→ViewModels` 모두 기존 엣지). 추가된 폴더 간 엣지는 `MainWindowBootstrapper`가 `BphCatalog`(`Core.Detection`)를 직접 참조하는 `Services→Core.Detection` 하나뿐이며, 위 표의 `Services` 행에 반영했다.
+- **View 쪽 어댑터**(`GraphAcceptBandOperations`/`LiveAudioDeviceBackend`/`UiThreadDispatcher`)는 `Views`에서 이 `Services` 계약을 구현한다(창이 아니라 렌더러/`LiveAudioBackend`/`Dispatcher`를 감싸므로 view back-edge가 아니다). 따라서 **폴더 수준 엣지는 변하지 않는다**(`Views→Services`/`Views→Audio`/`Services→ViewModels` 모두 기존 엣지). 추가된 폴더 간 엣지는 둘이다 — `MainWindowBootstrapper`가 `BphCatalog`(`Core.Detection`)를 직접 참조하는 `Services→Core.Detection`, 그리고 `MainWindowBootstrapper`/`SamplingSettingsController`가 루트 네임스페이스 타입 `SamplingSettings`/`SamplingSettingsStore`를 사용하는 `Services→Program`. 둘 다 위 표의 `Services` 행에 반영했다.
 
 #### 순수성 상태와 받아들인 잔여물 (accepted residuals)
 
-이 리팩토링 후 **`ViewModels`는 Avalonia 무의존**이다(마지막으로 남아 있던 review-slider 마진의 `Avalonia.Thickness`가 View 계층 `ReviewSliderMarginConverter`로 옮겨졌고, `ViewModelPurityTests`가 이를 잠근다). 전면 "순수 MVVM"이라고 단정하지는 않는다 — 행위 보존과 아키텍처 변경 최소화를 위해 다음 두 잔여물을 의도적으로 View에 남겼다:
+이 리팩토링 후 **`ViewModels`는 Avalonia 무의존**이다(마지막으로 남아 있던 review-slider 마진의 `Avalonia.Thickness`가 View 계층 변환기 `ReviewSliderMarginConverter`(`Tabs/` 폴더의 `TimeGrapher.App.Tabs` Avalonia value converter)로 옮겨졌고, `ViewModelPurityTests`가 이를 잠근다). 전면 "순수 MVVM"이라고 단정하지는 않는다 — 행위 보존과 아키텍처 변경 최소화를 위해 다음 두 잔여물을 의도적으로 View에 남겼다:
 
-- **실행 수명주기 어댑터**: `RunCommandService`(`Services`)는 여전히 View-중첩 `RunCommandOperations`(`IRunCommandOperations` 구현)를 통해 `MainWindow`의 실행 본문(`LiveStart`/`PlaybackStart`/`SimStart`, 정지/복원)과 `BuildRunSettings`(실행 설정 조립)를 호출한다. 컴파일 시점 의존은 인터페이스로 역전됐지만(서비스→인터페이스, 창 아님), 본문은 아직 code-behind에 있다. 이를 서비스로 추출하는 것은 별도의 더 큰 변경이라 이번 패스의 범위 밖이다.
+- **실행 수명주기 어댑터**: `RunCommandService`(`Services`)는 여전히 View-중첩 `RunCommandOperations`(`IRunCommandOperations` 구현)를 통해 `MainWindow`의 실행 본문(`LiveStart`/`PlaybackStart`/`SimStart`, 정지/복원)을 호출한다. 실행 설정 조립(`BuildRunSettings`)은 `RunCommandOperations`가 아니라 `MainWindowRunSessionCallbacks.CreateAnalysisConfig` 콜백으로 `RunSessionController`에 따로 전달된다. 컴파일 시점 의존은 인터페이스/콜백으로 역전됐지만(서비스→인터페이스, 창 아님), 본문은 아직 code-behind에 있다. 이를 서비스로 추출하는 것은 별도의 더 큰 변경이라 이번 패스의 범위 밖이다.
 - **선택-operations 볼륨 통과**: `MainWindowSelectionOperations`는 `SetAudioInputVolume`(→ `RunSessionController.SetLiveInputVolume`) 한 호출을 위해서만 `_owner`(창)를 보유한다. 한 통과 호출에 새 시밍+late-attach를 도입할 가치가 없어 그대로 둔다.
 
 ## 3. TimeGrapher.Core 내부 사용 관계
@@ -251,4 +255,4 @@ flowchart TB
 | `TimeGrapher.Platform.LinuxAudio` | `TimeGrapher.Core.Shared`, `wpctl`·`pw-record`·`arecord` | Linux 입력 백엔드가 Core 라이브 오디오 계약과 Linux 오디오 CLI 도구에 결합 |
 | `TimeGrapher.App.Rendering` | `TimeGrapher.App.Tabs`, `Core.Analysis`, `Core.Metrics`, `Core.Shared` | 프레임 컨슈머가 탭 라우팅 계약을 구현하고 Core 프레임/메트릭 DTO를 렌더 |
 | `TimeGrapher.Core.Analysis` | `Detection`, `Detection.Scoring`, `Metrics`, `Imaging`, `AudioIo`, `Shared` | 핵심 알고리즘 모듈을 조율하는 가장 결합도 높은 Core 하위모듈 |
-| `*.Tests` | 검증 대상 프로젝트(직접), `Core` DTO(전이), App UI 라이브러리(컨트롤 테스트), xUnit | 검증 대상과 어서션에 쓰이는 계약 DTO, 테스트 프레임워크에 의존 |
+| `*.Tests` | 검증 대상 프로젝트(직접), `Core` 타입(전이 — App.Tests는 DTO 외 Analysis/Detection/Detection.Scoring/Metrics/AudioIo/Sim, Verify.Tests는 Analysis/Detection/Sim을 테스트 입력으로 직접 `using`), App UI 라이브러리(컨트롤 테스트), xUnit | 검증 대상과 어서션·테스트 입력에 쓰이는 Core 계약/타입, 테스트 프레임워크에 의존 |

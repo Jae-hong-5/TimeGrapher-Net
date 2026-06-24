@@ -36,10 +36,11 @@ namespace TimeGrapher.App.Rendering;
 /// beat.)
 ///
 /// The X axis is milliseconds relative to the tic's A (tic A at 0, matching the
-/// reference figure's zeroed axis) and is zoomed to frame both noise groups — a
-/// short pre-A roll on the left through the toc's last event plus a label tail —
-/// rather than the full 400 ms capture window. Y scales to the visible bursts
-/// only, so anything past the toc never inflates it.
+/// reference figure's zeroed axis) and is zoomed to frame both noise groups with
+/// a margin on each side (a fraction of the content width) so the tic and toc
+/// bursts sit inset from the frame edges rather than jammed against them — not
+/// the full 400 ms capture window. Y scales to the visible bursts only, so
+/// anything past the toc never inflates it.
 ///
 /// All plottables refill in place; re-renders only when the snapshot version
 /// changes, so coalesced or repeated frames cost nothing. Segments reference
@@ -55,8 +56,14 @@ internal sealed class EscapementAnalyzerRenderer
     /// <summary>Second label row (C onset, which sits close to C peak), kept below the top row.</summary>
     private const double SecondLabelFraction = 0.97;
 
-    /// <summary>Empty space (ms) kept to the right of the last marker so its label fits.</summary>
-    private const double ViewRightTailMs = 8.0;
+    /// <summary>
+    /// Each side's view margin as a fraction of the content width (the tic's
+    /// pre-A roll start through the last event), so the tic and toc bursts sit
+    /// inset from the frame edges instead of jammed against them.
+    /// </summary>
+    private const double ViewPadFraction = 0.12;
+    /// <summary>Smallest per-side margin (ms): floors the fractional pad so a tight single beat keeps room for its labels.</summary>
+    private const double ViewPadMs = 8.0;
     /// <summary>Smallest visible span (ms), so a very tight single-beat A→C still frames sensibly.</summary>
     private const double MinViewSpanMs = 18.0;
 
@@ -254,19 +261,25 @@ internal sealed class EscapementAnalyzerRenderer
         }
 
         (double startRel, double endRel, double visibleEndAbsMs) = ComputeView(tic, toc, TocBaseMs(tic, toc));
+        // The view now pads left of the capture's pre-A roll, so lower the
+        // pan/zoom-out floor to that padded edge — CreateGraphs floored it at
+        // -PreEventMs, which would otherwise clip the new left margin away.
+        PlotAxisRules.ClampLeftEdge(_plot.Plot, startRel);
         return tic.RawValid
             ? RenderRaw(tic, startRel, endRel, visibleEndAbsMs)
             : RenderEnvelope(tic, startRel, endRel, visibleEndAbsMs);
     }
 
     /// <summary>
-    /// Tic-A-relative, zoomed X view: tic A sits at 0, the window starts at the
-    /// anchor's pre-A roll (-AOffsetMs) and ends a label tail past the last event
-    /// — the toc's C (or A, when its C is missing) when a toc is shown, otherwise
-    /// the tic's own C — floored at <see cref="MinViewSpanMs"/>. Returns the view
-    /// edges in tic-A-relative ms and the absolute-ms cutoff (into the anchor
-    /// window) past which points are off-screen, so Y can scale to the visible
-    /// bursts only.
+    /// Tic-A-relative, zoomed X view: tic A sits at 0 and the content runs from
+    /// the anchor's pre-A roll (-AOffsetMs) through the last event — the toc's C
+    /// (or A, when its C is missing) when a toc is shown, otherwise the tic's own
+    /// C. Both ends are padded by <see cref="ViewPadFraction"/> of that content
+    /// width (floored at <see cref="ViewPadMs"/> so labels still fit on a tight
+    /// single beat) so the bursts sit inset from the frame edges, and the whole
+    /// span is floored at <see cref="MinViewSpanMs"/>. Returns the view edges in
+    /// tic-A-relative ms and the absolute-ms cutoff (into the anchor window) past
+    /// which points are off-screen, so Y can scale to the visible bursts only.
     /// </summary>
     private static (double StartRel, double EndRel, double VisibleEndAbsMs) ComputeView(
         BeatSegment tic, BeatSegment? toc, double tocBaseMs)
@@ -298,8 +311,17 @@ internal sealed class EscapementAnalyzerRenderer
             }
         }
 
-        double startRel = -aMs;
-        double endRel = Math.Max(lastEventRel + ViewRightTailMs, startRel + MinViewSpanMs);
+        double contentStart = -aMs;
+        double pad = Math.Max((lastEventRel - contentStart) * ViewPadFraction, ViewPadMs);
+        double startRel = contentStart - pad;
+        double endRel = lastEventRel + pad;
+        double shortfall = MinViewSpanMs - (endRel - startRel);
+        if (shortfall > 0.0)
+        {
+            startRel -= shortfall / 2.0;
+            endRel += shortfall / 2.0;
+        }
+
         return (startRel, endRel, endRel + aMs);
     }
 

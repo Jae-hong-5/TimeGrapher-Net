@@ -194,6 +194,22 @@ internal static class WaveformCompareLogic
         "mean C " + meanCPeakOffsetMs.ToString(SignedTenthsMsFormat, CultureInfo.InvariantCulture) + " ms";
 
     /// <summary>
+    /// Lane (pair) index for a data-space Y coordinate, or -1 when outside
+    /// all rendered lanes. Lane 0 is topmost/newest, lane
+    /// <paramref name="pairCount"/>-1 is oldest.
+    /// </summary>
+    public static int PairFromDataY(double dataY, int pairCount)
+    {
+        if (pairCount <= 0)
+        {
+            return -1;
+        }
+
+        int lane = PairLanes - 1 - (int)Math.Floor(dataY / LaneSpacing);
+        return lane >= 0 && lane < pairCount ? lane : -1;
+    }
+
+    /// <summary>
     /// Review-cursor contract on the lane plot: the x-domain is milliseconds
     /// relative to each lane's A onset, so the scrubbed stream time maps to its
     /// A-relative offset in the newest lane whose window contains it (windows

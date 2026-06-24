@@ -28,6 +28,7 @@
           <Color x:Key="TraceWaveColor">#6B6B6B</Color>
           <Color x:Key="TraceTickColor">#2C9118</Color>
           <Color x:Key="TraceTockColor">#D22222</Color>
+          <Color x:Key="TraceGhostColor">#A0A0A0</Color>
           <Color x:Key="VarioAcceptBandColor">#E9C46A</Color>
           <Color x:Key="VarioAcceptBandEdgeColor">#9A6A00</Color>
           <Color x:Key="VarioMinMaxColor">#2D7DD2</Color>
@@ -43,6 +44,12 @@
           <SolidColorBrush x:Key="TextSecondaryBrush" Color="{DynamicResource TextSecondaryColor}" />
           <SolidColorBrush x:Key="ChromeBorderBrush" Color="{DynamicResource ChromeBorderColor}" />
           <SolidColorBrush x:Key="ChromeAccentBrush" Color="{DynamicResource ChromeAccentColor}" />
+          <SolidColorBrush x:Key="ToggleSwitchFillOn" Color="{DynamicResource ChromeAccentColor}" />
+          <SolidColorBrush x:Key="ToggleSwitchFillOnPointerOver" Color="{DynamicResource ChromeAccentColor}" />
+          <SolidColorBrush x:Key="ToggleSwitchFillOnPressed" Color="{DynamicResource ChromeAccentColor}" />
+          <SolidColorBrush x:Key="ToggleSwitchStrokeOn" Color="{DynamicResource ChromeAccentColor}" />
+          <SolidColorBrush x:Key="ToggleSwitchStrokeOnPointerOver" Color="{DynamicResource ChromeAccentColor}" />
+          <SolidColorBrush x:Key="ToggleSwitchStrokeOnPressed" Color="{DynamicResource ChromeAccentColor}" />
           <SolidColorBrush x:Key="VarioAcceptBandBadgeBrush" Color="{DynamicResource VarioAcceptBandColor}" Opacity="0.22" />
           <SolidColorBrush x:Key="VarioAcceptBandEdgeBrush" Color="{DynamicResource VarioAcceptBandEdgeColor}" />
           <SolidColorBrush x:Key="VarioMinMaxBrush" Color="{DynamicResource VarioMinMaxColor}" />
@@ -50,6 +57,31 @@
           <SolidColorBrush x:Key="VarioGoodBrush" Color="{DynamicResource VarioGoodColor}" />
           <SolidColorBrush x:Key="VarioWarnBrush" Color="{DynamicResource VarioWarnColor}" />
           <SolidColorBrush x:Key="VarioBadBrush" Color="{DynamicResource VarioBadColor}" />
+
+          <!--
+            Sapphire-crystal glass layer (UI chrome only; the graphs are untouched).
+            AmbientBackdrop is the lit field the glass floats on; GlassPanel is a
+            translucent top-lit frost; GlassRim is the crystal bevel - a bright top
+            edge fading to the chrome hairline; GlassShadow lifts each pane off the
+            backdrop. Edges stay sharp (0px). The glass tones are theme-specific
+            literal values defined once per theme block here (not derived from the
+            palette Color keys above); the active ThemeDictionary still swaps the
+            whole brush on a theme toggle, so the recolor stays one-place per theme.
+          -->
+          <LinearGradientBrush x:Key="AmbientBackdropBrush" StartPoint="0%,0%" EndPoint="0%,100%">
+            <GradientStop Offset="0" Color="#E8E9EA" />
+            <GradientStop Offset="1" Color="#DCDDDE" />
+          </LinearGradientBrush>
+          <LinearGradientBrush x:Key="GlassPanelBrush" StartPoint="0%,0%" EndPoint="0%,100%">
+            <GradientStop Offset="0" Color="#B0FFFFFF" />
+            <GradientStop Offset="1" Color="#8CFFFFFF" />
+          </LinearGradientBrush>
+          <LinearGradientBrush x:Key="GlassRimBrush" StartPoint="0%,0%" EndPoint="0%,100%">
+            <GradientStop Offset="0" Color="#FFFFFF" />
+            <GradientStop Offset="0.5" Color="#DFE0E1" />
+            <GradientStop Offset="1" Color="#CFCFCF" />
+          </LinearGradientBrush>
+          <BoxShadows x:Key="GlassShadow">0 2 10 0 #22000000</BoxShadows>
 
           <!-- Selected tab text: pure black in light theme. -->
           <SolidColorBrush x:Key="TabItemHeaderForegroundSelected" Color="#000000" />
@@ -63,12 +95,13 @@
           <Color x:Key="TextPrimaryColor">#C2C8CE</Color>
           <Color x:Key="TextSecondaryColor">#9A9DA1</Color>
           <Color x:Key="ChromeBorderColor">#333333</Color>
-          <Color x:Key="ChromeAccentColor">#A50034</Color>
+          <Color x:Key="ChromeAccentColor">#C24A62</Color>
           <Color x:Key="ScopeBgColor">#000000</Color>
           <Color x:Key="ScopeGridColor">#1A1A1A</Color>
           <Color x:Key="TraceWaveColor">#A0A0A0</Color>
           <Color x:Key="TraceTickColor">#5FDD45</Color>
           <Color x:Key="TraceTockColor">#FF5C5C</Color>
+          <Color x:Key="TraceGhostColor">#686868</Color>
           <Color x:Key="VarioAcceptBandColor">#E9C46A</Color>
           <Color x:Key="VarioAcceptBandEdgeColor">#9A6A00</Color>
           <Color x:Key="VarioMinMaxColor">#2D7DD2</Color>
@@ -84,6 +117,12 @@
           <SolidColorBrush x:Key="TextSecondaryBrush" Color="{DynamicResource TextSecondaryColor}" />
           <SolidColorBrush x:Key="ChromeBorderBrush" Color="{DynamicResource ChromeBorderColor}" />
           <SolidColorBrush x:Key="ChromeAccentBrush" Color="{DynamicResource ChromeAccentColor}" />
+          <SolidColorBrush x:Key="ToggleSwitchFillOn" Color="{DynamicResource ChromeAccentColor}" />
+          <SolidColorBrush x:Key="ToggleSwitchFillOnPointerOver" Color="{DynamicResource ChromeAccentColor}" />
+          <SolidColorBrush x:Key="ToggleSwitchFillOnPressed" Color="{DynamicResource ChromeAccentColor}" />
+          <SolidColorBrush x:Key="ToggleSwitchStrokeOn" Color="{DynamicResource ChromeAccentColor}" />
+          <SolidColorBrush x:Key="ToggleSwitchStrokeOnPointerOver" Color="{DynamicResource ChromeAccentColor}" />
+          <SolidColorBrush x:Key="ToggleSwitchStrokeOnPressed" Color="{DynamicResource ChromeAccentColor}" />
           <SolidColorBrush x:Key="VarioAcceptBandBadgeBrush" Color="{DynamicResource VarioAcceptBandColor}" Opacity="0.22" />
           <SolidColorBrush x:Key="VarioAcceptBandEdgeBrush" Color="{DynamicResource VarioAcceptBandEdgeColor}" />
           <SolidColorBrush x:Key="VarioMinMaxBrush" Color="{DynamicResource VarioMinMaxColor}" />
@@ -91,6 +130,22 @@
           <SolidColorBrush x:Key="VarioGoodBrush" Color="{DynamicResource VarioGoodColor}" />
           <SolidColorBrush x:Key="VarioWarnBrush" Color="{DynamicResource VarioWarnColor}" />
           <SolidColorBrush x:Key="VarioBadBrush" Color="{DynamicResource VarioBadColor}" />
+
+          <!-- Sapphire-crystal glass layer - dark variant. See the Light block for the model. -->
+          <LinearGradientBrush x:Key="AmbientBackdropBrush" StartPoint="0%,0%" EndPoint="0%,100%">
+            <GradientStop Offset="0" Color="#262623" />
+            <GradientStop Offset="1" Color="#121210" />
+          </LinearGradientBrush>
+          <LinearGradientBrush x:Key="GlassPanelBrush" StartPoint="0%,0%" EndPoint="0%,100%">
+            <GradientStop Offset="0" Color="#26FFFFFF" />
+            <GradientStop Offset="1" Color="#14FFFFFF" />
+          </LinearGradientBrush>
+          <LinearGradientBrush x:Key="GlassRimBrush" StartPoint="0%,0%" EndPoint="0%,100%">
+            <GradientStop Offset="0" Color="#59FFFFFF" />
+            <GradientStop Offset="0.5" Color="#3A3A38" />
+            <GradientStop Offset="1" Color="#333333" />
+          </LinearGradientBrush>
+          <BoxShadows x:Key="GlassShadow">0 3 14 0 #66000000</BoxShadows>
 
           <!-- Selected tab text: pure white in dark theme. -->
           <SolidColorBrush x:Key="TabItemHeaderForegroundSelected" Color="#FFFFFF" />
@@ -105,7 +160,7 @@
     <FluentTheme>
       <FluentTheme.Palettes>
         <ColorPaletteResources x:Key="Light" Accent="#C41230" />
-        <ColorPaletteResources x:Key="Dark" Accent="#A50034" />
+        <ColorPaletteResources x:Key="Dark" Accent="#C24A62" />
       </FluentTheme.Palettes>
     </FluentTheme>
     <Style Selector="Window">
@@ -252,7 +307,7 @@
       <Setter Property="Background" Value="{DynamicResource ChromeAccentBrush}" />
       <Setter Property="Foreground" Value="White" />
     </Style>
-    <Style Selector="Button.PositionButton.active TextBlock">
+    <Style Selector="Button.PositionButton.active > TextBlock">
       <Setter Property="Foreground" Value="White" />
     </Style>
     <Style Selector="Border.SeqActiveRow">
@@ -261,26 +316,40 @@
     <Style Selector="TextBlock.SeqOnAccent">
       <Setter Property="Foreground" Value="White" />
     </Style>
-    <Style Selector="Border.PositionPanel">
-      <Setter Property="Background" Value="{DynamicResource PanelBgBrush}" />
-      <Setter Property="BorderBrush" Value="{DynamicResource ChromeBorderBrush}" />
+    <!--
+      The reusable crystal pane: translucent frost fill, top-lit rim bevel, and a
+      soft elevation shadow. Corners stay square via the global Border style. Apply
+      `Classes="GlassCard"` to any chrome surface that should float above the backdrop.
+    -->
+    <Style Selector="Border.GlassCard">
+      <Setter Property="Background" Value="{DynamicResource GlassPanelBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource GlassRimBrush}" />
       <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="BoxShadow" Value="{DynamicResource GlassShadow}" />
+    </Style>
+    <Style Selector="Border.PositionPanel">
+      <Setter Property="Background" Value="{DynamicResource GlassPanelBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource GlassRimBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="BoxShadow" Value="{DynamicResource GlassShadow}" />
       <Setter Property="CornerRadius" Value="0" />
     </Style>
     <Style Selector="Border.PositionResultPanel">
-      <Setter Property="Background" Value="{DynamicResource PanelBgBrush}" />
-      <Setter Property="BorderBrush" Value="{DynamicResource ChromeBorderBrush}" />
+      <Setter Property="Background" Value="{DynamicResource GlassPanelBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource GlassRimBrush}" />
       <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="BoxShadow" Value="{DynamicResource GlassShadow}" />
       <Setter Property="CornerRadius" Value="0" />
     </Style>
     <Style Selector="Border.PositionResultGroup">
-      <Setter Property="Background" Value="{DynamicResource PanelBgBrush}" />
-      <Setter Property="BorderBrush" Value="{DynamicResource ChromeBorderBrush}" />
+      <Setter Property="Background" Value="{DynamicResource GlassPanelBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource GlassRimBrush}" />
       <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="BoxShadow" Value="{DynamicResource GlassShadow}" />
       <Setter Property="CornerRadius" Value="0" />
     </Style>
     <Style Selector="Border.PositionResultGroup.primary">
-      <Setter Property="BorderBrush" Value="{DynamicResource ChromeBorderBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource GlassRimBrush}" />
       <Setter Property="BorderThickness" Value="1" />
     </Style>
     <Style Selector="Border.PositionResultBadge">

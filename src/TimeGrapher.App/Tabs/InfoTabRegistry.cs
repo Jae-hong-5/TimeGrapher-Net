@@ -1041,44 +1041,12 @@ internal sealed partial class InfoTabRegistry
         var renderer = new MultiFilterScopeRenderer(plots);
         context.ResetViews.Register(renderer.ResetView);
 
-        // Density slider across the top: peak-decimate the trace to fewer points
-        // for lighter rendering (e.g. on the Pi), or up to the producer's full
-        // budget for the smoothest trace. Right = current/full, left = lightest.
-        var densitySlider = new Slider
-        {
-            Minimum = MultiFilterScopeRenderer.MinDisplayBudget,
-            Maximum = MultiFilterFrameProjector.FilterPointBudget,
-            Value = MultiFilterFrameProjector.FilterPointBudget,
-            VerticalAlignment = VerticalAlignment.Center,
-            Width = 220,
-        };
-        ToolTip.SetTip(densitySlider, "Trace density (points per second). Lower = lighter rendering.");
-        densitySlider.ValueChanged += (_, e) => renderer.SetDisplayBudget((int)e.NewValue);
-        var densityLabel = new TextBlock
-        {
-            Text = "Density",
-            FontSize = 11,
-            Opacity = 0.65,
-            VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(8, 0, 6, 0),
-        };
-        var toolbar = new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            Spacing = 4,
-            Margin = new Thickness(4, 4),
-        };
-        toolbar.Children.Add(densityLabel);
-        toolbar.Children.Add(densitySlider);
-
         var root = new Grid { RowDefinitions = new RowDefinitions("Auto,*") };
-        Grid.SetRow(toolbar, 0);
         Grid.SetRow(grid, 1);
-        root.Children.Add(toolbar);
         root.Children.Add(grid);
 
-        // Reset View lives in the top toolbar strip (row 0), pinned right, so it
-        // sits above the plots instead of overlapping the top-right lane.
+        // Reset View lives in the top strip (row 0), pinned right, so it sits
+        // above the plots instead of overlapping the top-right lane.
         Button resetButton = CreatePinnedResetViewButton(
             ResetAllGraphViewsTooltip, row: 0, context.ResetViews.ResetAll);
         root.Children.Add(resetButton);
@@ -1283,15 +1251,12 @@ internal sealed partial class InfoTabRegistry
         }
 
         var initialPosition = (WatchPosition)(context.ViewModel?.SelectedPositionIndex ?? 0);
-        var diagram = new WatchPositionDiagram
+        var diagram = new WatchModelView
         {
             Position = initialPosition,
-            ShowLabels = false,
-            Width = 236,
-            Height = 126,
-            Margin = new Thickness(0, 4, 0, 0),
-            HorizontalAlignment = HorizontalAlignment.Center,
-            VerticalAlignment = VerticalAlignment.Top,
+            Margin = new Thickness(0, 2, 0, 2),
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            VerticalAlignment = VerticalAlignment.Stretch,
         };
         ToolTip.SetTip(diagram, "Active watch position orientation");
         var positionRenderer = new WatchPositionsRenderer(buttons, diagram, initialPosition);
@@ -1416,13 +1381,13 @@ internal sealed partial class InfoTabRegistry
     }
 
     private static Border CreateActivePositionPanel(
-        WatchPositionDiagram diagram,
+        WatchModelView diagram,
         out TextBlock activePositionText,
         out TextBlock activeOrientationText)
     {
         activePositionText = new TextBlock
         {
-            FontSize = 28,
+            FontSize = 20,
             HorizontalAlignment = HorizontalAlignment.Center,
             TextAlignment = TextAlignment.Center,
         };
@@ -1433,24 +1398,33 @@ internal sealed partial class InfoTabRegistry
             TextAlignment = TextAlignment.Center,
         };
 
-        var stack = new StackPanel
+        // The model fills the middle (* row) so it is as large as the panel
+        // allows; the position labels are pinned to the bottom Auto row.
+        var labels = new StackPanel
         {
             Spacing = 2,
-            Children =
-            {
-                CreatePositionSectionHeader("ACTIVE"),
-                diagram,
-                activePositionText,
-                activeOrientationText,
-            },
+            VerticalAlignment = VerticalAlignment.Bottom,
+            Children = { activePositionText, activeOrientationText },
         };
+
+        var layout = new Grid
+        {
+            RowDefinitions = new RowDefinitions("Auto,*,Auto"),
+        };
+        TextBlock header = CreatePositionSectionHeader("ACTIVE");
+        Grid.SetRow(header, 0);
+        Grid.SetRow(diagram, 1);
+        Grid.SetRow(labels, 2);
+        layout.Children.Add(header);
+        layout.Children.Add(diagram);
+        layout.Children.Add(labels);
 
         return new Border
         {
             Classes = { "PositionPanel" },
             Padding = new Thickness(10, 8),
             Margin = new Thickness(4, 0, 10, 0),
-            Child = stack,
+            Child = layout,
         };
     }
 
@@ -2137,6 +2111,15 @@ internal sealed partial class InfoTabRegistry
 
         var renderer = new WaveformCompareRenderer(lanePlot, headerText, context.TextFontFamily);
         var consumer = new WaveformCompareFrameConsumer(renderer);
+
+        lanePlot.PointerPressed += (_, e) =>
+        {
+            if (lanePlot.Bounds.Height > 0)
+            {
+                renderer.SelectPairAtPixelY(e.GetPosition(lanePlot).Y);
+            }
+        };
+
         return new InfoTabRegistration(definition, CreateTabItem(definition, grid), consumer);
     }
 

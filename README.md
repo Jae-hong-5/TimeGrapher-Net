@@ -130,46 +130,12 @@ Build on a dev PC (one prepared via the Windows steps above) and copy only the o
 - The **Positions** tab combines compact position-selection buttons on the left with per-position sequence measurements on the right.
 - Three inputs: **Live** (mic), **Playback** (WAV file), **Simulation** (synthetic signal).
 - Optionally records the input to WAV while analyzing (offered for Live and Simulation runs; Playback only replays an existing file).
-- A console mode to check detection accuracy and audio devices headlessly.
+- A **Settings** window tunes run options (C-onset timing, PLL impulse veto, pause-on-position-change), **sampling parameters** (analysis block size, capture-buffer length), CSV measurement logging, and the acceptable (normal-range) bands for Error Rate / Amplitude / Beat Error.
+- A console mode to check detection accuracy (`--generated` / `--byte-fixtures`, `--adverse`) and audio devices headlessly.
 
 ## Why Avalonia / .NET
 
-This project is a port of the original **Qt/C++** implementation to **Avalonia + C# (.NET 8)**.
-The goal was "maintain and ship for both Windows and the Raspberry Pi together, from one codebase,
-at low cost" — and in practice it paid off as follows.
-
-### 1. Cross-building & releasing is nearly free
-
-.NET uses a CPU-neutral **IL (intermediate language) + bundled runtime** model, so there is no
-per-architecture recompile. `dotnet publish -r <RID>` isn't a recompile — it just bundles the
-target's runtime pack with the same IL — so **two stock GitHub runners (Windows + Ubuntu) produce
-all four targets** (nothing is executed, so no emulation is needed).
-
-| Step | Avalonia / .NET (this project) | If it were Qt / C++ |
-|---|---|---|
-| Per-arch build | swap the `-r` value | a **cross-compile toolchain + sysroot** per target (aarch64-gcc, MSVC ARM64 …) |
-| UI framework | NuGet resolves it per RID automatically | build/obtain **Qt per architecture** (ARM Linux is often built from source) |
-| Native deps | automatic per-RID NuGet assets (e.g. SkiaSharp `.dll`/`.so`) | compile/obtain each library for the target ABI yourself (vcpkg·Conan) |
-| Bundling | one single-file `--self-contained` publish | gather libraries/plugins and fix rpath with `windeployqt`/`linuxdeployqt` |
-| CI | four targets on two stock GitHub runners | per-target environment setup + usually **ARM runners or QEMU emulation** to run/test |
-
-> This repo's multi-arch release (win-x64 · win-arm64 · linux-x64 · linux-arm64) took, in practice,
-> **5 lines of csproj + a workflow matrix** — and zero lines of C# change.
-
-### 2. Usability
-
-**For users (end users)**
-- **Single-file self-contained distribution** — download and run, no .NET install. On Windows
-  extract and run the `.exe`; on the Raspberry Pi, one `./install.sh`.
-- **Four official binaries** — Windows x64/ARM and Linux x64/ARM64, served straight from Releases.
-- **Consistent modern UI** — the Avalonia Fluent theme gives the same look across OSes, with
-  real-time graphs via ScottPlot.
-
-**For developers**
-- **One solution, one language** — the only per-OS divergence is at the audio-backend boundary; everything else is shared.
-- **Safety & productivity** — GC and nullable reference types cut out whole classes of manual-memory/pointer bugs and speed up iteration.
-- **Simple tests & CI** — `Core` has no UI/OS dependencies, so unit testing is easy (currently 700
-  tests) and runs on stock runners with no special setup.
+See [ADR 1: Switch the UI Framework from Qt + C++ to Avalonia UI + .NET + C#](docs/ADR/en/ADR-001.md).
 
 ## Architecture
 
@@ -204,7 +170,7 @@ flowchart LR
 ### Input worker contract
 
 All three inputs (Live · Playback · Simulation) implement the shared `IAudioInputWorker` (pause · stop ·
-data-ready). Only mic input adds device selection, volume, and capture-end via `ILiveAudioWorker`.
+data-ready). Only mic input adds device selection, volume, capture-buffer length, and capture-end via `ILiveAudioWorker`.
 Core only needs to know this small contract, so per-OS backends drop in freely.
 
 ```mermaid
@@ -219,7 +185,7 @@ classDiagram
     class ILiveAudioWorker {
         <<interface>>
         +event CaptureEnded
-        +Start(device, rate, volume)
+        +Start(device, rate, volume, bufferMs)
         +SetVolume(float)
     }
     IAudioInputWorker <|-- ILiveAudioWorker
@@ -231,45 +197,6 @@ classDiagram
 
 *Figure 3. The input-worker hierarchy. Mic backends are implemented in per-OS assemblies.*
 
-## UI Design Guide
-
-The interface is deliberately **minimal and functional** — square, flat chrome and
-charts that exist to convey data, not to decorate. New UI follows these rules, and the
-tokens/helpers listed below are where they are enforced; reuse them instead of adding
-new styles.
-
-### Principles
-
-- **Right angles only.** Every shape has square corners (`border-radius: 0`); rounded
-  corners are not used. The base `FluentTheme` rounds corners by default, so this is
-  enforced app-wide in `App.axaml`: the `ControlCornerRadius`/`OverlayCornerRadius`
-  tokens are `0`, and `CornerRadius="0"` is set on `TemplatedControl`, `Border`,
-  `Thumb`, the slider thumb, and `CheckBox`. A local `CornerRadius` beats a style
-  setter, so never assign a non-zero `CornerRadius` in markup or code.
-- **Straight lines, simple markers.** Plotted data traces are straight, solid strokes
-  (1–2 px); summary/emphasis lines may be heavier when needed for readability.
-  Dashed/dotted patterns are reserved for reference guides (average lines, A/C
-  escapement markers, the review cursor) — never the primary data. There are no
-  arrowheads or decorative connectors; discrete samples use a plain filled-circle marker.
-- **No decoration on charts.** Charts carry data, so the visual effects are dropped:
-  **no shadows, no 3D, no gradients.** Fills are flat solid colors (translucent only to
-  shade a data band or selection), the grid is intentionally low-contrast, and every
-  brush in the app is a solid color.
-- **Reuse the existing tokens.** Colors, brushes, fonts, and default sizes are defined
-  once and shared — do not introduce new ones.
-
-### Where it's enforced
-
-| Concern | Source of truth |
-|---|---|
-| Colors, brushes, fonts, sizes, square-corner styles | `src/TimeGrapher.App/App.axaml` (`ThemeDictionaries` + `Application.Styles`) |
-| Graph colors (read from `App.axaml`, never hardcoded) | `Rendering/PlotThemePalette.cs` (`FromResources`) |
-| Graph background / axis / grid theming | `Rendering/PlotThemeHelper.cs` (`Apply`) |
-| Tab IDs, names, refresh intervals, graph series | `Tabs/InfoTabCatalog.cs` |
-
-Color flows one way — `App.axaml` → `PlotThemePalette` → the plots — so recoloring the
-whole app (chrome *and* graphs) means editing only the `App.axaml` color block.
-
 ## Projects
 
 | Project | Role |
@@ -279,7 +206,7 @@ whole app (chrome *and* graphs) means editing only the `App.axaml` color block.
 | `TimeGrapher.Platform.WindowsAudio` | Windows mic input (NAudio) |
 | `TimeGrapher.Platform.LinuxAudio` | Raspberry Pi mic input (PipeWire → ALSA) |
 | `TimeGrapher.Verify` | Headless console that checks BPH detection accuracy on WAV files |
-| `*.Tests` | xUnit tests (Core / App / WindowsAudio / LinuxAudio) |
+| `*.Tests` | xUnit tests (Core / App / WindowsAudio / LinuxAudio / Verify) |
 
 For deeper design background and the Qt→.NET porting story, see the `docs/` folder.
 
@@ -298,15 +225,18 @@ Package versions are managed centrally in `Directory.Packages.props` and pinned 
 
 ## Tests / CI
 
-**All 700 tests pass** under `dotnet test` (App 391 / Core 285 / WindowsAudio 11 / LinuxAudio 13).
+Architecture decision: [ADR 4: Separate App, Test, and Verify Module Structure for AI Usage, TDD Support, and Team Collaboration](docs/ADR/en/ADR-004.md).
+
+**All 933 tests pass** under `dotnet test` (App 569 / Core 316 / WindowsAudio 11 / LinuxAudio 22 / Verify 15).
 
 ```mermaid
 pie showData
-    title Test distribution (700 total)
-    "App.Tests" : 391
-    "Core.Tests" : 285
+    title Test distribution (933 total)
+    "App.Tests" : 569
+    "Core.Tests" : 316
     "Platform.WindowsAudio.Tests" : 11
-    "Platform.LinuxAudio.Tests" : 13
+    "Platform.LinuxAudio.Tests" : 22
+    "Verify.Tests" : 15
 ```
 
 *Figure 4. Test distribution.*
@@ -329,7 +259,7 @@ git tag v0.1.0 && git push origin v0.1.0
 | Item | Command | Status |
 |---|---|---|
 | Build | `dotnet build TimeGrapherNet.sln -c Release` | ✅ |
-| Test | `dotnet test TimeGrapherNet.sln -c Release` (700/700) | ✅ |
+| Test | `dotnet test TimeGrapherNet.sln -c Release` (933/933) | ✅ |
 | Detection check | `... TimeGrapher.Verify -- --generated --byte-fixtures` (exit 0, generated and byte-built fixtures) | ✅ |
 | GUI run | `dotnet run --project src/TimeGrapher.App` | ✅ |
 | Deploy — Raspberry Pi (linux-arm64) | `dotnet publish ... -r linux-arm64 --self-contained true` | ✅ |

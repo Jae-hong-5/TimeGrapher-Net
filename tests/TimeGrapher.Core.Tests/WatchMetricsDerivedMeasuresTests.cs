@@ -58,6 +58,27 @@ public sealed class WatchMetricsDerivedMeasuresTests
     }
 
     [Fact]
+    public void RateRls_WarmsUpAtLowManualBph()
+    {
+        // At a low BPH (7200 = 2 beats/s) the per-phase RLS window used to be
+        // AveragingPeriod*beatsPerSecond = 4, below RateWarmupPoints (6), so the
+        // rate-valid gate (Count >= 6) could never be satisfied and error-rate
+        // s/day stayed permanently unproduced. The window is now floored at
+        // RateWarmupPoints, so a steady low-BPH stream eventually validates.
+        var metrics = new WatchMetrics(new WatchMetricsConfig { SampleRate = SampleRate, AveragingPeriod = 2 });
+        const double lowBph = 7200.0; // 2 beats/s -> 500 ms between A events
+        var intervals = new double[24];
+        for (int i = 0; i < intervals.Length; i++)
+        {
+            intervals[i] = 500.0;
+        }
+
+        List<WatchMetricsUpdate> updates = FeedAEventsAtBph(metrics, lowBph, intervals);
+
+        Assert.Contains(updates, u => u.BeatTimingSampleUpdated && u.BeatTimingSample.RateValid);
+    }
+
+    [Fact]
     public void SignedBeatErrorAndDiffTicTac_FollowEquationsWorkedExample()
     {
         // t1=125.8 ms (tick), t2=124.2 ms (tock) -> BE = (t1-t2)/2 = +0.8 ms,
@@ -212,7 +233,7 @@ public sealed class WatchMetricsDerivedMeasuresTests
         results = FeedAThenCAndGetResults(metrics, sample);
 
         Assert.Equal(
-            $"Error Rate ------ s/d | Amplitude {WatchMetrics.ValueSpanStart} 55{WatchMetrics.ValueSpanEnd}° | BEAT ERROR ---- ms | BPH {WatchMetrics.ValueSpanStart}28800{WatchMetrics.ValueSpanEnd}",
+            $"Error Rate ------ s/d | Amplitude {WatchMetrics.ValueSpanStart} 44{WatchMetrics.ValueSpanEnd}° | BEAT ERROR ---- ms | BPH {WatchMetrics.ValueSpanStart}28800{WatchMetrics.ValueSpanEnd}",
             results);
 
         sample += 125.0 / 1000.0 * SampleRate;
@@ -221,7 +242,7 @@ public sealed class WatchMetricsDerivedMeasuresTests
         results = FeedAThenCAndGetResults(metrics, sample);
 
         Assert.Equal(
-            $"Error Rate ------ s/d | Amplitude {WatchMetrics.ValueSpanStart} 55{WatchMetrics.ValueSpanEnd}° | BEAT ERROR {WatchMetrics.ValueSpanStart} 0.0{WatchMetrics.ValueSpanEnd} ms | BPH {WatchMetrics.ValueSpanStart}28800{WatchMetrics.ValueSpanEnd}",
+            $"Error Rate ------ s/d | Amplitude {WatchMetrics.ValueSpanStart} 44{WatchMetrics.ValueSpanEnd}° | BEAT ERROR {WatchMetrics.ValueSpanStart} 0.0{WatchMetrics.ValueSpanEnd} ms | BPH {WatchMetrics.ValueSpanStart}28800{WatchMetrics.ValueSpanEnd}",
             results);
     }
 
@@ -304,20 +325,44 @@ public sealed class WatchMetricsDerivedMeasuresTests
         // mixing pre- and post-gap points would report as a slope spike of
         // thousands of s/d - permanently recorded by the cumulative rate
         // statistics. The estimators restart at the gap instead: the gap
-        // sample reports rate-invalid, the reading returns within a few
-        // beats, and no emitted sample ever carries the spike.
+        // sample reports rate-invalid, the reading returns once the post-gap
+        // segment refills past the warmup floor, and no emitted sample ever
+        // carries the spike. Both runs are long enough to clear RateWarmupPoints
+        // on each side of the gap (6 points per tic/toc phase).
         WatchMetrics metrics = NewMetrics();
-        double[] intervals = Enumerable.Repeat(125.0, 7)
+        double[] intervals = Enumerable.Repeat(125.0, 13)
             .Append(190.0)
-            .Concat(Enumerable.Repeat(125.0, 8))
+            .Concat(Enumerable.Repeat(125.0, 16))
             .ToArray();
         List<WatchMetricsUpdate> updates = FeedAEvents(metrics, intervals);
 
-        Assert.False(updates[8].BeatTimingSample.RateValid);
-        Assert.Contains(updates.Skip(9), u => u.BeatTimingSample.RateValid);
+        // Valid before the gap (the 13-beat run clears the warmup floor)...
+        Assert.Contains(updates.Take(14), u => u.BeatTimingSample.RateValid);
+        // ...the gap event resets both estimators, so it reports invalid...
+        Assert.False(updates[14].BeatTimingSample.RateValid);
+        // ...and the reading returns once the post-gap segment refills.
+        Assert.Contains(updates.Skip(15), u => u.BeatTimingSample.RateValid);
         Assert.All(
             updates.Where(u => u.BeatTimingSampleUpdated && u.BeatTimingSample.RateValid),
             u => Assert.InRange(u.BeatTimingSample.RateSPerDay, -1.0, 1.0));
+    }
+
+    [Fact]
+    public void RlsRate_WaitsForWarmupPointsBeforeFirstValidReading()
+    {
+        // A 2-point regression has zero residual degrees of freedom, so its slope
+        // is pure per-event jitter amplification (the first plotted rate point can
+        // read the wrong sign by tens of s/d). The rate is therefore withheld until
+        // each tic/toc window holds RateWarmupPoints (default 6) samples. With clean
+        // nominal beats that floor is first cleared on the 6th toc (beat 12, index
+        // 11) - not the 2-point beat-4 (index 3) the bare GetRate floor would allow.
+        WatchMetrics metrics = NewMetrics();
+        List<WatchMetricsUpdate> updates = FeedAEvents(metrics, Enumerable.Repeat(125.0, 12).ToArray());
+
+        Assert.DoesNotContain(updates.Take(11), u => u.BeatTimingSample.RateValid);
+        Assert.False(updates[3].BeatTimingSample.RateValid);   // old 2-point first-valid beat
+        Assert.False(updates[9].BeatTimingSample.RateValid);   // 5 points/phase, still short
+        Assert.True(updates[11].BeatTimingSample.RateValid);   // 6 points/phase clears the floor
     }
 
     [Fact]
@@ -390,10 +435,11 @@ public sealed class WatchMetricsDerivedMeasuresTests
     [Fact]
     public void AmplitudeSample_EmittedPerCEvent_AndPairAverageOncePerTicTocPair()
     {
-        // BPH=3600: half-period 1 s. A->C interval of 1/6 s puts the sine argument at
-        // pi/6, so Amplitude = liftAngle / sin(pi/6) = 2 * 52 = 104 degrees.
+        // BPH=3600: T = 1 s, so 7200/BPH = 2T = 2 s. An A->C interval of 1/3 s puts the
+        // half-lift sine argument pi*t_AC/(2T) at pi/6, so Amplitude = liftAngle /
+        // (2*sin(pi/6)) = 52 degrees. (NewMetrics uses no onset-latency compensation.)
         const double bph = 3600.0;
-        const double aToCSamples = SampleRate / 6.0;
+        const double aToCSamples = SampleRate / 3.0;
         WatchMetrics metrics = NewMetrics();
 
         metrics.HandleAEvent(0.0, true, bph);                     // beat 1 (tic)
@@ -401,7 +447,7 @@ public sealed class WatchMetricsDerivedMeasuresTests
 
         Assert.True(ticC.AmplitudeSampleUpdated);
         Assert.True(ticC.AmplitudeSample.InstantValid);
-        Assert.Equal(104.0, ticC.AmplitudeSample.InstantDeg, 6);
+        Assert.Equal(52.0, ticC.AmplitudeSample.InstantDeg, 6);
         Assert.False(ticC.AmplitudeSample.PairAverageUpdated);
 
         double tocA = SampleRate * 1.0;                           // beat 2 (toc), 1 s later
@@ -409,19 +455,19 @@ public sealed class WatchMetricsDerivedMeasuresTests
         WatchMetricsUpdate tocC = metrics.HandleCEvent(tocA + aToCSamples, true, bph);
 
         Assert.True(tocC.AmplitudeSample.PairAverageUpdated);
-        Assert.Equal(104.0, tocC.AmplitudeSample.PairAverageDeg, 6);
+        Assert.Equal(52.0, tocC.AmplitudeSample.PairAverageDeg, 6);
     }
 
     [Fact]
     public void AmplitudeSample_NotEmittedWhenEstimateIsOutOfRange()
     {
-        // A->C of a quarter period at BPH=3600 gives sin(pi/2)=1 -> 52 deg; shrink the
-        // interval until the estimate exceeds 360 and the sample must be suppressed.
+        // A very short A->C makes the half-lift sine argument tiny, so amplitude blows
+        // up past 360 and the sample must be suppressed.
         const double bph = 3600.0;
         WatchMetrics metrics = NewMetrics();
         metrics.HandleAEvent(0.0, true, bph);
 
-        // sin arg ~ 0.04 rad -> amplitude ~ 1300 deg (> 360): invalid.
+        // t_AC = 0.0125 s: arg ~ 0.02 rad -> amplitude ~ 1300 deg (> 360): invalid.
         WatchMetricsUpdate update = metrics.HandleCEvent(600.0, true, bph);
 
         Assert.False(update.AmplitudeSampleUpdated);
@@ -430,16 +476,43 @@ public sealed class WatchMetricsDerivedMeasuresTests
     [Fact]
     public void AmplitudeSample_NotEmittedWhenEstimateIsNegative()
     {
-        // A C event past the half-cycle (t_AC > T/2) drives the escapement
+        // A C event past a full oscillation (t_AC > 2T) drives the half-lift
         // equation's Sin() negative, so the computed amplitude is negative. A
         // mispaired/delayed C must be rejected, not shown as a real measurement.
-        const double bph = 3600.0; // period 1 s, so t_AC > 0.5 s crosses the lobe
+        const double bph = 3600.0; // T = 1 s, so 2T = 2 s; t_AC > 2 s crosses the lobe
         WatchMetrics metrics = NewMetrics();
         metrics.HandleAEvent(0.0, true, bph);
 
-        // t_AC = 1.1 s: sin(1.1*pi) < 0 -> amplitude = 52 / sin(...) < 0.
-        WatchMetricsUpdate update = metrics.HandleCEvent(SampleRate * 1.1, true, bph);
+        // t_AC = 2.2 s: half-lift arg = 1.1*pi, sin(1.1*pi) < 0 -> amplitude < 0.
+        WatchMetricsUpdate update = metrics.HandleCEvent(SampleRate * 2.2, true, bph);
 
         Assert.False(update.AmplitudeSampleUpdated);
+    }
+
+    [Fact]
+    public void AmplitudeSample_DoesNotPairStaleTicAcrossDetectionGap()
+    {
+        // Regression: a staged tic amplitude must not pair with the toc that ends
+        // a detection gap. The gap re-anchors tic/toc parity, so without clearing
+        // the staged tic the post-gap toc would publish a bogus pair average mixing
+        // a pre-gap tic with a post-gap toc (and pollute the position aggregate).
+        const double bph = 3600.0;                 // T = 1 s; A->C of 1/3 s -> 52 deg
+        const double aToCSamples = SampleRate / 3.0;
+        WatchMetrics metrics = NewMetrics();
+
+        metrics.HandleAEvent(0.0, true, bph);                          // beat 1 (tic)
+        WatchMetricsUpdate ticC = metrics.HandleCEvent(aToCSamples, true, bph);
+        Assert.True(ticC.AmplitudeSample.InstantValid);                // tic amplitude staged
+        Assert.False(ticC.AmplitudeSample.PairAverageUpdated);
+
+        // The next A is 3 T after the last one: a two-beat detection gap that
+        // re-anchors parity so the gap-ending event lands on toc.
+        double gapEndingA = SampleRate * 3.0;
+        metrics.HandleAEvent(gapEndingA, true, bph);
+        WatchMetricsUpdate tocC = metrics.HandleCEvent(gapEndingA + aToCSamples, true, bph);
+
+        Assert.True(tocC.AmplitudeSample.InstantValid);                // instant still measured
+        Assert.Equal(52.0, tocC.AmplitudeSample.InstantDeg, 6);
+        Assert.False(tocC.AmplitudeSample.PairAverageUpdated);         // no stale-tic mispair
     }
 }

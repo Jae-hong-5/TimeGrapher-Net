@@ -17,8 +17,17 @@ internal sealed class RateScopeRenderer
     private readonly GraphSeriesDefinition[] _scopeSeries;
     private readonly GraphSeriesDefinition[] _rateSeries;
 
+    // Plottable-backing arrays: the view-limited reduction of the accumulated
+    // history over the *currently visible* X range (so the on-screen resolution is
+    // the producer's full 0.0625 ms/point, not diluted across the whole retention).
     private readonly List<double>[] _scopeX;
     private readonly List<double>[] _scopeY;
+    // Rolling per-series history accumulated from the producer's latest-window
+    // slices (the producer no longer re-copies the whole retention each frame). X is
+    // absolute sample ticks, ascending; merged on arrival and trimmed to
+    // ScopeHistorySeconds so a pan/pause can reach back through earlier audio.
+    private readonly List<double>[] _scopeHistX;
+    private readonly List<double>[] _scopeHistY;
     private readonly List<double>[] _rateX;
     private readonly List<double>[] _rateY;
 
@@ -49,11 +58,18 @@ internal sealed class RateScopeRenderer
     private int _sampleRate = 44100;
 
     // Default live scope window shown on screen (500 ms) and the maximum span the
-    // user may zoom out to (2 s). The Core retains 2 s of scope history
-    // (ScopeRateFrameProjector.ScopeSnapshotSeconds), so 2 s is also the hard
-    // zoom-out ceiling enforced by ScopeXViewBoundsRule.
+    // user may zoom out to (2 s), enforced by ScopeXViewBoundsRule. The Core retains
+    // more history than this (ScopeRateFrameProjector.ScopeRetentionSeconds, 10 s),
+    // so a pan can scroll back earlier than the 2 s view while no single view ever
+    // shows more than 2 s.
     private const double DefaultScopeWindowSeconds = 0.5;
     private const double MaxScopeWindowSeconds = 2.0;
+
+    // How much accumulated history the renderer retains for panning/pause. Mirrors
+    // ScopeRateFrameProjector.ScopeRetentionSeconds: the producer publishes only the
+    // newest ~2 s each frame, so this buffer (not the producer) is what a pan back
+    // through the last 10 s reads.
+    private const double ScopeHistorySeconds = 10.0;
 
     // Fixed scope axis panel sizes (px). Locking the bottom/left axis sizes keeps
     // the data area constant: otherwise ScottPlot resizes the plot when the tick
@@ -113,6 +129,8 @@ internal sealed class RateScopeRenderer
 
         _scopeX = CreateSeriesLists(_scopeSeries.Length);
         _scopeY = CreateSeriesLists(_scopeSeries.Length);
+        _scopeHistX = CreateSeriesLists(_scopeSeries.Length);
+        _scopeHistY = CreateSeriesLists(_scopeSeries.Length);
         _rateX = CreateSeriesLists(_rateSeries.Length);
         _rateY = CreateSeriesLists(_rateSeries.Length);
     }
@@ -152,6 +170,7 @@ internal sealed class RateScopeRenderer
         scope.Axes.Bottom.MinimumSize = ScopeBottomAxisSizePx;
         scope.Axes.Bottom.MaximumSize = ScopeBottomAxisSizePx;
         ClearSeriesData(_scopeX, _scopeY);
+        ClearSeriesData(_scopeHistX, _scopeHistY);
         DropScopeMarkerPool();
         AddScopePlottables();
         _scopeReviewCursor = AddReviewCursor(scope);
@@ -185,6 +204,7 @@ internal sealed class RateScopeRenderer
         scope.Clear();
         ApplyPlotTheme(scope);
         ClearSeriesData(_scopeX, _scopeY);
+        ClearSeriesData(_scopeHistX, _scopeHistY);
         DropScopeMarkerPool();
         AddScopePlottables();
         _scopeReviewCursor = AddReviewCursor(scope);
@@ -208,7 +228,7 @@ internal sealed class RateScopeRenderer
     {
         _sampleRate = context.SampleRate;
 
-        bool scopeUpdated = ReplaceScopeSeries(frame);
+        bool scopeUpdated = MergeScopeHistory(frame);
         bool rateUpdated = ReplaceRateSeries(frame);
         // Review cursor on the waveform pane only: its x base is absolute sample
         // ticks, so stream time maps onto it (the Filter Scope mapping).
@@ -229,6 +249,9 @@ internal sealed class RateScopeRenderer
             // Refresh the drawn-data extent every frame (even while panned) so the
             // bounds rule confines pan/zoom to the current [oldest .. now] range and
             // the X-axis start point stays pinned to the data.
+            // Extent spans the accumulated history (oldest retained .. newest), so the
+            // bounds rule lets a pan reach back through the whole retained window even
+            // though each frame only delivered the newest ~2 s slice.
             _dataMaxX = frame.GraphTickEnd;
             _dataMinX = ScopeOldestTick();
             _hasDataExtent = _dataMaxX > _dataMinX;
@@ -240,6 +263,16 @@ internal sealed class RateScopeRenderer
                 double width = DefaultScopeWindowSeconds * context.SampleRate;
                 double end = frame.GraphTickEnd;
                 _scopePlot.Plot.Axes.SetLimitsX(end - width, end);
+            }
+
+            // Reduce the now-visible X range out of the accumulated history into the
+            // plottable arrays: the on-screen trace then carries the producer's full
+            // resolution over the visible window instead of the budget being spread
+            // across the entire retention.
+            ReduceVisibleScope();
+
+            if (_scopeFollowLive)
+            {
                 _scopePlot.Plot.Axes.AutoScaleY();
             }
 
@@ -288,15 +321,15 @@ internal sealed class RateScopeRenderer
         _scopePlot.Refresh();
     }
 
-    /// <summary>Oldest sample tick currently held across the scope series (0 when empty).</summary>
+    /// <summary>Oldest sample tick currently held in the accumulated history (0 when empty).</summary>
     private double ScopeOldestTick()
     {
         double oldest = double.MaxValue;
-        for (int i = 0; i < _scopeX.Length; i++)
+        for (int i = 0; i < _scopeHistX.Length; i++)
         {
-            if (_scopeX[i].Count > 0 && _scopeX[i][0] < oldest)
+            if (_scopeHistX[i].Count > 0 && _scopeHistX[i][0] < oldest)
             {
-                oldest = _scopeX[i][0];
+                oldest = _scopeHistX[i][0];
             }
         }
 
@@ -337,8 +370,8 @@ internal sealed class RateScopeRenderer
                 return;
             }
 
-            // Largest visible span = the smaller of the retained data and the 2 s
-            // zoom-out ceiling, so the user can never show more than 2 s at once.
+            // Zoom-out ceiling: the user can never show more than 2 s at once (nor
+            // more than the retained data when that is shorter).
             double cap = Math.Min(extent, MaxScopeWindowSeconds * _owner._sampleRate);
 
             double left = _xAxis.Range.Min;
@@ -349,29 +382,35 @@ internal sealed class RateScopeRenderer
                 return;
             }
 
-            if (span >= cap)
+            // Clamp the span to the zoom-out ceiling, anchored on the view's right
+            // edge so an over-zoom shrinks in place instead of snapping to the newest
+            // data. (The old "span >= cap -> right = max" pinned the view to the
+            // newest 2 s, which blocked panning once the retained window grew past
+            // the 2 s ceiling — at full zoom every frame dragged the view back to now.)
+            if (span > cap)
+            {
+                left = right - cap;
+                span = cap;
+            }
+
+            // Confine the window to the retained data extent, preserving its span so
+            // a pan stops at the data edges with the start point pinned to the data.
+            if (right > max)
             {
                 right = max;
-                left = max - cap;
+                left = max - span;
             }
-            else
+
+            if (left < min)
             {
-                if (left < min)
-                {
-                    left = min;
-                    right = min + span;
-                }
+                left = min;
+                right = min + span;
+            }
 
-                if (right > max)
-                {
-                    right = max;
-                    left = max - span;
-                }
-
-                if (left < min)
-                {
-                    left = min;
-                }
+            // Span still wider than the data after capping: snap to the full extent.
+            if (right > max)
+            {
+                right = max;
             }
 
             _xAxis.Range.Min = left;
@@ -379,9 +418,15 @@ internal sealed class RateScopeRenderer
         }
     }
 
-    private bool ReplaceScopeSeries(AnalysisFrame frame)
+    /// <summary>
+    /// Merges each incoming scope slice (the producer's newest ~2 s, keyed on absolute
+    /// X ticks) into the rolling per-series history, trimmed to
+    /// <see cref="ScopeHistorySeconds"/>. Returns true if any scope series was present.
+    /// </summary>
+    private bool MergeScopeHistory(AnalysisFrame frame)
     {
-        bool updated = false;
+        bool merged = false;
+        double retentionSamples = ScopeHistorySeconds * _sampleRate;
         for (int i = 0; i < _scopeSeries.Length; i++)
         {
             GraphSeriesFrame? series = SeriesDataReducer.FindSeries(frame.ScopeSeries, _scopeSeries[i].Id);
@@ -390,10 +435,163 @@ internal sealed class RateScopeRenderer
                 continue;
             }
 
-            updated |= SeriesDataReducer.TryReplaceSeriesData(series, _scopeX[i], _scopeY[i], _scopeSeries[i].TargetPointBudget);
+            MergeScopeSlice(_scopeHistX[i], _scopeHistY[i], series.X, series.Y, retentionSamples);
+            merged = true;
         }
 
-        return updated;
+        return merged;
+    }
+
+    /// <summary>
+    /// Folds an ascending-X slice into an ascending-X history: drops the history tail
+    /// the slice supersedes (X ≥ slice start), appends the slice, then trims the front
+    /// to <paramref name="retentionSamples"/> behind the newest point. Re-merging an
+    /// identical slice (the throttled producer re-attaches the same one between
+    /// rebuilds) is idempotent.
+    /// </summary>
+    internal static void MergeScopeSlice(
+        List<double> historyX,
+        List<double> historyY,
+        IReadOnlyList<double> sliceX,
+        IReadOnlyList<double> sliceY,
+        double retentionSamples)
+    {
+        int sliceCount = Math.Min(sliceX.Count, sliceY.Count);
+        if (sliceCount == 0)
+        {
+            return;
+        }
+
+        double sliceStart = sliceX[0];
+        int keep = historyX.Count;
+        while (keep > 0 && historyX[keep - 1] >= sliceStart)
+        {
+            keep--;
+        }
+
+        if (keep < historyX.Count)
+        {
+            historyX.RemoveRange(keep, historyX.Count - keep);
+            historyY.RemoveRange(keep, historyY.Count - keep);
+        }
+
+        for (int i = 0; i < sliceCount; i++)
+        {
+            historyX.Add(sliceX[i]);
+            historyY.Add(sliceY[i]);
+        }
+
+        double minX = historyX[historyX.Count - 1] - retentionSamples;
+        int removeCount = 0;
+        while (removeCount < historyX.Count && historyX[removeCount] < minX)
+        {
+            removeCount++;
+        }
+
+        if (removeCount > 0)
+        {
+            historyX.RemoveRange(0, removeCount);
+            historyY.RemoveRange(0, removeCount);
+        }
+    }
+
+    /// <summary>
+    /// Reduces the currently visible X range out of each scope history series into the
+    /// plottable arrays (subsampled to the point budget). Reading the live axis limits
+    /// keeps the on-screen resolution at the producer's full stride within the visible
+    /// window regardless of how much history sits behind it.
+    /// </summary>
+    private void ReduceVisibleScope()
+    {
+        AxisLimits limits = _scopePlot.Plot.Axes.GetLimits();
+        double left = limits.Left;
+        double right = limits.Right;
+        bool validView = !double.IsNaN(left) && !double.IsNaN(right) && right > left;
+
+        for (int i = 0; i < _scopeSeries.Length; i++)
+        {
+            if (validView)
+            {
+                ReduceRangeTo(_scopeHistX[i], _scopeHistY[i], left, right, _scopeSeries[i].TargetPointBudget, _scopeX[i], _scopeY[i]);
+            }
+            else
+            {
+                SeriesDataReducer.ReplaceSeriesData(_scopeX[i], _scopeY[i], _scopeHistX[i], _scopeHistY[i], _scopeSeries[i].TargetPointBudget);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Copies the [<paramref name="left"/>, <paramref name="right"/>] slice of an
+    /// ascending-X source (plus one neighbouring point each side so the drawn line
+    /// reaches the view edges) into the target arrays, subsampled to the point budget.
+    /// </summary>
+    internal static void ReduceRangeTo(
+        List<double> sourceX,
+        List<double> sourceY,
+        double left,
+        double right,
+        int targetPointBudget,
+        List<double> targetX,
+        List<double> targetY)
+    {
+        targetX.Clear();
+        targetY.Clear();
+
+        int count = Math.Min(sourceX.Count, sourceY.Count);
+        if (count == 0)
+        {
+            return;
+        }
+
+        int start = LowerBound(sourceX, left, count);
+        if (start > 0)
+        {
+            start--; // include the point just left of the view edge
+        }
+
+        int end = LowerBound(sourceX, right, count);
+        if (end < count)
+        {
+            end++; // include the point just right of the view edge
+        }
+
+        int rangeCount = end - start;
+        if (rangeCount <= 0)
+        {
+            return;
+        }
+
+        int stride = targetPointBudget > 0 && rangeCount > targetPointBudget
+            ? (int)Math.Ceiling(rangeCount / (double)targetPointBudget)
+            : 1;
+
+        for (int i = start; i < end; i += stride)
+        {
+            targetX.Add(sourceX[i]);
+            targetY.Add(sourceY[i]);
+        }
+    }
+
+    /// <summary>First index i in [0, count) with sourceX[i] ≥ value (sourceX ascending).</summary>
+    private static int LowerBound(List<double> sourceX, double value, int count)
+    {
+        int lo = 0;
+        int hi = count;
+        while (lo < hi)
+        {
+            int mid = (lo + hi) >> 1;
+            if (sourceX[mid] < value)
+            {
+                lo = mid + 1;
+            }
+            else
+            {
+                hi = mid;
+            }
+        }
+
+        return lo;
     }
 
     private bool ReplaceRateSeries(AnalysisFrame frame)
@@ -545,6 +743,9 @@ internal sealed class RateScopeRenderer
             () =>
             {
                 _scopeAxisRefreshPending = false;
+                // The pan/zoom changed the visible X range: re-reduce the history so
+                // the newly revealed span is drawn at full resolution.
+                ReduceVisibleScope();
                 ApplyScopeTimeTicks();
                 _scopePlot.Refresh();
             },

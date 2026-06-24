@@ -15,6 +15,25 @@ public struct WatchMetricsConfig
     public double RateErrorYScale;  // 10.0
     public int RlsWindowInit;       // 100
 
+    // Minimum points each tic/toc regression window must hold before the s/d rate
+    // is published. A 2-point slope has zero residual degrees of freedom, so its
+    // value is pure per-event jitter amplification (the first plotted rate point
+    // could read the wrong sign by tens of s/d); requiring several points first
+    // suppresses that startup transient at the cost of a slightly later first
+    // reading. 6 is the smallest floor at which the first plotted value lands on
+    // the correct sign within a few s/d across jitter seeds (measured); steady-
+    // state convergence is unaffected (the full window keeps filling afterwards).
+    // Not in the C++ original (which used the 2-point GetRate floor).
+    public int RateWarmupPoints;    // 6
+
+    // Seconds added to the measured A->C interval before the amplitude formula, to
+    // offset the detector's onset-detection latency (the A onset is timestamped at a
+    // threshold crossing, which lags the true onset more than the C peak does, so the
+    // raw A->C is slightly short and amplitude reads high). 0 = no compensation, which
+    // keeps the bare formula behaviour for direct callers/unit tests; the live pipeline
+    // sets it from DetectorMetricsEngineConfig.AmplitudeOnsetLatencyS.
+    public double AmplitudeOnsetLatencyS;
+
     /// <summary>Mirror of the C++ struct's in-class default member initializers.</summary>
     public WatchMetricsConfig()
     {
@@ -24,6 +43,8 @@ public struct WatchMetricsConfig
         MaxRateDataPoints = 250;
         RateErrorYScale = 10.0;
         RlsWindowInit = 100;
+        RateWarmupPoints = 6;
+        AmplitudeOnsetLatencyS = 0.0;
     }
 }
 
@@ -225,9 +246,37 @@ public sealed class WatchMetrics
     /// </summary>
     public ulong MissedBeats => _missedBeats;
 
+    // Balance amplitude from the A->C interval, using the SYMMETRIC HALF-LIFT model:
+    //
+    //     Amp = liftAngle / (2 * sin(pi * t_AC / (2T))),   T = 3600 / BPH
+    //
+    // This formula is a DELIBERATE, physics-driven choice. For rigorous accuracy we
+    // intentionally use NEITHER of the two other forms that exist in this project:
+    //
+    //   * NOT the original Qt code's formula  liftAngle / sin(pi * t_AC / T)  (the
+    //     "full-lift" form this method shipped with). It implicitly assumes the
+    //     balance sweeps the whole lift angle from the dead-point; it is internally
+    //     consistent but is NOT the inverse of the physical swing, so it over-reads
+    //     (a true 270 deg reads ~271.3 deg, the error growing at low amplitude).
+    //
+    //   * NOT the requirement doc's formula either (TimeGrapher Equations_v1.md,
+    //     Part IV:  Amp = 3600 * lambda / (pi * BPH * t_AC)). That is only the
+    //     SMALL-ANGLE LINEAR approximation -- it drops the sine curvature.
+    //
+    // We use the half-lift sine form because it is the rigorous model. The balance
+    // swings theta(t) = A * sin(pi * t / T); the impulse/lift zone is centered on the
+    // dead-point, so the A and C landmarks sit at -lambda/2 and +lambda/2 and t_AC
+    // spans the full lift zone. Inverting that geometry gives sin(pi * t_AC / (2T)) =
+    // lambda / (2A), i.e. the expression below. Consequences:
+    //   - it is the EXACT inverse of the synthesiser's A->C model
+    //     (WatchSynthStream.ComputeAToCTimeS), so a configured amplitude is recovered
+    //     without formula bias; and
+    //   - it matches the canonical open-source timegrapher "tg" (vacaboja), whose
+    //     amplitude is 0.5 * liftAngle / sin(pi * pulse / period_full).
+    // Note 7200/BPH == 2T, so the argument below is pi * t_AC / (2T).
     public static double Amplitude(double liftAngle, double t1, double bph)
     {
-        return liftAngle / Math.Sin((2.0 * Math.PI * t1) / (7200.0 / bph));
+        return liftAngle / (2.0 * Math.Sin((Math.PI * t1) / (7200.0 / bph)));
     }
 
     private bool ComputeRateError(double eventSample, bool haveValidBph, double bph, WatchMetricsUpdate update)
@@ -258,8 +307,14 @@ public sealed class WatchMetrics
             _zeroOffsetValue = 0.0;
             _rlsRateValid = false;
             _beatsPerSecondWindow = BeatWindowSize(_bph, seconds: 1);
-            _rlsTicRate.Resize(_config.AveragingPeriod * _beatsPerSecondWindow);
-            _rlsTocRate.Resize(_config.AveragingPeriod * _beatsPerSecondWindow);
+            // The rate RLS window must hold at least RateWarmupPoints samples per
+            // phase, or the rate-valid gate (Count >= RateWarmupPoints) can never be
+            // satisfied. For low manual BPH (e.g. 3600-7800) AveragingPeriod*beats-
+            // per-second falls below that floor, which would otherwise leave error-
+            // rate s/day permanently unproduced for those supported rates.
+            int rateWindow = Math.Max(_config.RateWarmupPoints, _config.AveragingPeriod * _beatsPerSecondWindow);
+            _rlsTicRate.Resize(rateWindow);
+            _rlsTocRate.Resize(rateWindow);
             _rlsTicRate.Reset();
             _rlsTocRate.Reset();
 
@@ -270,6 +325,10 @@ public sealed class WatchMetrics
             _beatErrorIdx = 0;
             _rollBeatError.Reset();
             _rollAmplitude.Reset();
+            // A tic amplitude staged before the sync loss must not pair with the
+            // first toc after re-lock. Reset() clears this on a full reset, but the
+            // inline re-sync path here did not, so clear the staged tic on (re)sync.
+            _amplitudeTicValid = false;
 
             // Derived measures restart with the sync segment: a stale _lastAEvent
             // from before a sync loss must not contribute a bogus period delta.
@@ -327,6 +386,12 @@ public sealed class WatchMetrics
                 _rlsTicRate.Reset();
                 _rlsTocRate.Reset();
                 _rlsRateValid = false;
+                // A staged tic amplitude belongs to the pre-gap schedule; the
+                // gap re-anchors tic/toc parity, so the gap-ending event can be
+                // a toc that would otherwise pair the stale pre-gap tic with a
+                // post-gap toc into a bogus pair average. Drop it, mirroring the
+                // re-sync clear and the rate-estimator restart above.
+                _amplitudeTicValid = false;
             }
 
             double wrappedRateError = WrapIntoRange(
@@ -354,7 +419,12 @@ public sealed class WatchMetrics
                 double slopeToc;
                 double rlsToc;
 
-                if ((_rlsTicRate.GetRate(out slopeTic)) &&
+                // Hold the rate invalid until both windows clear the warmup floor:
+                // a 2-point regression amplifies per-event jitter into a wild
+                // first reading, so the early beats are skipped rather than plotted.
+                if ((_rlsTicRate.Count >= _config.RateWarmupPoints) &&
+                    (_rlsTocRate.Count >= _config.RateWarmupPoints) &&
+                    (_rlsTicRate.GetRate(out slopeTic)) &&
                     (_rlsTocRate.GetRate(out slopeToc)))
                 {
                     rlsTic = slopeTic * 86400.00;
@@ -488,7 +558,10 @@ public sealed class WatchMetrics
         if ((_haveAEvent) && (_bphValid))
         {
             int ticOrToc = CurrentBeatPhase();
-            double time = (eventSample - _lastAEvent) / (double)_config.SampleRate;
+            // Compensate the detector's A-onset latency so the A->C interval reflects
+            // the true onset-to-C span the amplitude model expects (see Amplitude()).
+            double time = (eventSample - _lastAEvent) / (double)_config.SampleRate
+                          + _config.AmplitudeOnsetLatencyS;
             if (!AcceptAcInterval(time * 1000.0))
             {
                 if (ticOrToc == Tic)
@@ -497,7 +570,6 @@ public sealed class WatchMetrics
                 }
                 return;
             }
-
             double tempAmp = Amplitude(_config.LiftAngle, time, bph);
             // Valid amplitude is a positive angle below 360 deg. A mispaired or
             // delayed C can push t_AC past the half-cycle so Sin() goes negative
@@ -589,7 +661,10 @@ public sealed class WatchMetrics
     {
         if ((haveValidBph) && (_bphValid) && (_haveAEvent))
         {
-            int amplitudeDeg = QRound(Amplitude(_config.LiftAngle, beatTimeSeconds, bph));
+            // Amplitude uses the latency-compensated A->C span (matching ComputeAmplitude);
+            // the displayed "ms" below stays the raw measured interval.
+            int amplitudeDeg = QRound(Amplitude(
+                _config.LiftAngle, beatTimeSeconds + _config.AmplitudeOnsetLatencyS, bph));
             if (amplitudeDeg > 0 && amplitudeDeg < 360)
             {
                 // " %1 ms\n%2%3" : ms (f,1), amplitude degrees (int), degree sign (U+00B0)

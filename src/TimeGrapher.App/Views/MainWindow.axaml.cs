@@ -62,8 +62,6 @@ public partial class MainWindow : Window
         "CUBILUX CA7",
     };
 
-    private static readonly int[] AveragingPeriodList = { 2, 4, 8, 10, 12, 20, 20, 30, 40, 50, 60, 120, 240 };
-
     // --- Members (mirror MainWindow.h) ---
     private IRecordingWriter? mWavWriter;
     private readonly ITimeGrapherDialogService mDialogs;
@@ -85,6 +83,7 @@ public partial class MainWindow : Window
     private readonly AudioSelectionState mAudioSelection = new();
     private readonly AudioDeviceController mAudioDeviceController;
     private readonly AcceptBandController mAcceptBandController;
+    private readonly SamplingSettingsController mSamplingSettingsController;
     private readonly RunControlController mRunControlController;
     private readonly RunSelectionResolver mRunSelectionResolver;
     private readonly RunCommandService mRunCommandService;
@@ -130,8 +129,7 @@ public partial class MainWindow : Window
             new RunCommandOperations(this),
             dialogs,
             new GraphAcceptBandOperations(mGraphFrameRenderer),
-            new MainWindowSelectionOptions(PLAYBACK_SOURCE, SIMULATION_SOURCE),
-            AveragingPeriodList);
+            new MainWindowSelectionOptions(PLAYBACK_SOURCE, SIMULATION_SOURCE));
         var runSessionCallbacks = new MainWindowRunSessionCallbacks(
             sessionId => BuildRunSettings().ToWorkerConfig(sessionId, mWavWriter),
             Reset,
@@ -154,6 +152,7 @@ public partial class MainWindow : Window
         mRunSessionController = composition.RunSessionController;
         mRunControlController = composition.RunControlController;
         mAcceptBandController = composition.AcceptBandController;
+        mSamplingSettingsController = composition.SamplingSettingsController;
         mFramePresenter = composition.AnalysisFramePresenter;
         mAnalysisPerformanceLogger = composition.AnalysisPerformanceLogger;
 
@@ -178,7 +177,6 @@ public partial class MainWindow : Window
         LoadSimBph();
         mAudioDeviceController.LoadAudioDevices();
         mGraphFrameRenderer.Initialize(BuildTabResetContext());
-        LoadAveragingPeriod();
         mGraphFrameRenderer.SetResults(GraphFrameRenderer.PlaceholderResults);
         SetGuiStopMode();
 
@@ -443,7 +441,10 @@ public partial class MainWindow : Window
             SoundImageWidth: EffectivePixelWidth(SoundImageControl(), DEFAULT_SOUND_IMAGE_WIDTH),
             SoundImageHeight: EffectivePixelHeight(SoundImageControl(), DEFAULT_SOUND_IMAGE_HEIGHT),
             ScopeSnapshotPointBudget: InfoTabCatalog.ScopeTargetPointBudget,
-            PllEventVeto: mViewModel.PllEventVeto);
+            PllEventVeto: mViewModel.PllEventVeto,
+            // Normalize at the boundary so an out-of-range/off-step view-model value can
+            // never size the detector input block (the controller already snaps on edit).
+            AnalysisBlockSize: SamplingSettings.NormalizeAnalysisBlockSize(mViewModel.AnalysisBlockSize));
     }
 
     private Control SoundImageControl()

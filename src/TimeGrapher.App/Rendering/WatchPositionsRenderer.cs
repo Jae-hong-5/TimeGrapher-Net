@@ -18,7 +18,7 @@ internal sealed class WatchPositionsRenderer
     private const string ActiveClass = "active";
 
     private readonly Button[] _buttons; // indexed by WatchPosition ordinal
-    private readonly WatchPositionDiagram? _diagram;
+    private readonly WatchModelView? _diagram;
     private int _activeIndex = -1;
     private ulong _lastVersion;
 
@@ -35,7 +35,7 @@ internal sealed class WatchPositionsRenderer
 
     public WatchPositionsRenderer(
         Button[] buttons,
-        WatchPositionDiagram? diagram,
+        WatchModelView? diagram,
         WatchPosition initialPosition)
     {
         _buttons = buttons;
@@ -53,7 +53,7 @@ internal sealed class WatchPositionsRenderer
     private void Highlight(WatchPosition position)
     {
         int index = (int)position;
-        _diagram?.SetCurrentValue(WatchPositionDiagram.PositionProperty, position);
+        _diagram?.SetCurrentValue(WatchModelView.PositionProperty, position);
         if (_activeIndex == index)
         {
             return;

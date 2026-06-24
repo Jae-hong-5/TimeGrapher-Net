@@ -142,7 +142,7 @@ public sealed class PllMatchGateTests
         // Precision: spurious impulse events are vetoed before metrics.
         Assert.True(pllArm.Score.Precision >= baseArm.Score.Precision + 0.03,
             $"pll precision {pllArm.Score.Precision:F3} vs base {baseArm.Score.Precision:F3}");
-        Assert.True(pllArm.Score.Precision >= 0.95, $"pll precision {pllArm.Score.Precision:F3}");
+        Assert.True(pllArm.Score.Precision >= 0.99, $"pll precision {pllArm.Score.Precision:F3}");
 
         // Recall cost stays marginal.
         Assert.True(pllArm.Score.Recall >= baseArm.Score.Recall - 0.05,
@@ -154,6 +154,27 @@ public sealed class PllMatchGateTests
         Assert.Equal(TgSyncStatus.Synced, pllArm.FinalSync);
         Assert.Equal(0UL, baseArm.Vetoed);
         Assert.True(pllArm.Vetoed > 0);
+    }
+
+    private static BeatCandidate Candidate(TgEventType type, bool pllMatched)
+        => new(new TgEvent { Type = type }, Synced: true, DetectedBph: 28800,
+               BeatPeriodS: 0.125, NoiseFloor: 0f, ReferencePeak: 1f, PllMatched: pllMatched);
+
+    [Fact]
+    public void PllGate_VetoesOnlyUnmatchedAEvents_AcceptsCEvents()
+    {
+        var gate = new PllMatchGate();
+        ReadOnlySpan<float> noWindow = ReadOnlySpan<float>.Empty;
+
+        // A events are the gated axis: a PLL match is required, a miss is vetoed.
+        Assert.True(gate.Accept(noWindow, 0, 48000.0, Candidate(TgEventType.A, pllMatched: true)));
+        Assert.False(gate.Accept(noWindow, 0, 48000.0, Candidate(TgEventType.A, pllMatched: false)));
+
+        // C events are never vetoed individually here: the C-phase tolerance can
+        // latch on a low-amplitude watch and wrongly fail valid Cs, and a noise C
+        // riding a rejected A is already removed by the host's pair veto.
+        Assert.True(gate.Accept(noWindow, 0, 48000.0, Candidate(TgEventType.C, pllMatched: true)));
+        Assert.True(gate.Accept(noWindow, 0, 48000.0, Candidate(TgEventType.C, pllMatched: false)));
     }
 
     [Fact]

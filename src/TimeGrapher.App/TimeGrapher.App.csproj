@@ -53,6 +53,7 @@
     <AvaloniaResource Include="Assets\App\*.png" />
     <AvaloniaResource Include="Assets\Fonts\**\*.ttf" />
     <AvaloniaResource Include="Assets\Splash\*.png" />
+    <AvaloniaResource Include="Assets\Model\*.glb" />
   </ItemGroup>
 
   <ItemGroup>

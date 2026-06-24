@@ -8,31 +8,33 @@ using TimeGrapher.Core.Shared;
 namespace TimeGrapher.App.Services;
 
 /// <summary>
-/// Owns the optional measurement-result CSV log: reacts to the IsMeasurementLogEnabled toggle by
-/// creating or disposing the sink, consumes the CLI --measurement-log path once, and forwards
-/// displayed frames. The flow the MainWindow code-behind used to own; mirrors the other
-/// view-model-subscriber controllers. The sink is created through an injected factory so the
-/// controller is testable without opening a file.
+/// Owns the optional measurement-result CSV log: opens a fresh log at each run start (so the
+/// log's lift-angle header records the angle that run actually uses), keeps writing across a
+/// pause/resume, and closes the sink when logging is disabled or on dispose. Consumes the CLI
+/// --measurement-log path for the first run, then timestamps later runs. The flow the MainWindow
+/// code-behind used to own; mirrors the other view-model-subscriber controllers. The sink is
+/// created through an injected factory so the controller is testable without opening a file.
 /// </summary>
 internal sealed class MeasurementLogController : IDisposable
 {
     private readonly MainWindowViewModel _viewModel;
-    private readonly Func<string, IMeasurementResultSink> _sinkFactory;
+    private readonly Func<string, decimal, IMeasurementResultSink> _sinkFactory;
     private string? _pendingLogPath;
     private IMeasurementResultSink? _sink;
+    private RunUiState _previousRunState;
 
     public MeasurementLogController(
         MainWindowViewModel viewModel,
         string? pendingLogPath,
-        Func<string, IMeasurementResultSink> sinkFactory)
+        Func<string, decimal, IMeasurementResultSink> sinkFactory)
     {
         _viewModel = viewModel;
         _pendingLogPath = pendingLogPath;
         _sinkFactory = sinkFactory;
+        _previousRunState = viewModel.RunState;
 
-        // Configure to match the enable state already seeded on the view-model, then subscribe
-        // (the code-behind's ctor ordering: an enabled CLI session opens the log up front).
-        Configure(_viewModel.IsMeasurementLogEnabled);
+        // No sink at construction: the log opens at run start so its lift-angle header matches
+        // the angle the run uses. A CLI --measurement-log path stays pending until the first run.
         _viewModel.PropertyChanged += OnViewModelPropertyChanged;
     }
 
@@ -50,17 +52,46 @@ internal sealed class MeasurementLogController : IDisposable
     {
         if (e.PropertyName == nameof(MainWindowViewModel.IsMeasurementLogEnabled))
         {
-            Configure(_viewModel.IsMeasurementLogEnabled);
+            // Logging can only be toggled while stopped; disabling closes any open log.
+            if (!_viewModel.IsMeasurementLogEnabled)
+            {
+                CloseSink();
+            }
+
+            return;
+        }
+
+        if (e.PropertyName == nameof(MainWindowViewModel.RunState))
+        {
+            RunUiState previous = _previousRunState;
+            RunUiState current = _viewModel.RunState;
+            _previousRunState = current;
+
+            // Open a fresh log only at a real run start (e.g. Stopped -> Running), not when
+            // resuming from Paused, so each run records its own lift angle while a pause/resume
+            // keeps appending to the same file.
+            if (current == RunUiState.Running &&
+                previous != RunUiState.Paused &&
+                _viewModel.IsMeasurementLogEnabled)
+            {
+                OpenSink();
+            }
         }
     }
 
-    private void Configure(bool enabled)
+    private void OpenSink()
     {
         _sink?.Dispose();
-        _sink = enabled ? _sinkFactory(NextLogPath()) : null;
+        _sink = _sinkFactory(NextLogPath(), _viewModel.LiftAngle);
     }
 
-    // The CLI --measurement-log path opens the first enabled session; later sessions get a
+    private void CloseSink()
+    {
+        _sink?.Dispose();
+        _sink = null;
+    }
+
+    // The CLI --measurement-log path opens the first run's log; later runs get a
     // timestamped file under the executable's log/ folder.
     private string NextLogPath()
     {

@@ -38,9 +38,16 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     private string _latencyText = "";
     private bool _isAwaitingBeatSync;
     private double _gain = 100.0;
+    // Sampling parameters read at run start; seeded from SamplingSettings on startup. The
+    // literal defaults mirror SamplingSettings.Default (kept here rather than referencing
+    // Core, like the band fields above), so an un-seeded view-model still builds sane runs.
+    // decimal (not int) to match Avalonia NumericUpDown.Value (decimal?), like the band
+    // inputs; the controller snaps these to an in-range step multiple on each edit.
+    private decimal _analysisBlockSize = 4096m;
+    private decimal _captureBufferMs = 20m;
     private int _selectedInputDeviceIndex = -1;
     private int _selectedSampleRateIndex = -1;
-    private int _selectedAveragingPeriodIndex = -1;
+    private decimal _averagingPeriod = 20m;
     private int _selectedBphIndex;
     private decimal _liftAngle = 52m;
     private int _selectedSimBphIndex = -1;
@@ -117,7 +124,6 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
 
     public ObservableCollection<string> InputDeviceNames { get; } = new();
     public ObservableCollection<string> SampleRateLabels { get; } = new();
-    public ObservableCollection<string> AveragingPeriodLabels { get; } = new();
     public ObservableCollection<string> BphLabels { get; } = new();
     public ObservableCollection<string> SimBphLabels { get; } = new();
 
@@ -198,10 +204,10 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
         set => SetProperty(ref _selectedSampleRateIndex, value);
     }
 
-    public int SelectedAveragingPeriodIndex
+    public decimal AveragingPeriod
     {
-        get => _selectedAveragingPeriodIndex;
-        set => SetProperty(ref _selectedAveragingPeriodIndex, value);
+        get => _averagingPeriod;
+        set => SetProperty(ref _averagingPeriod, value);
     }
 
     public int SelectedBphIndex
@@ -334,6 +340,20 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     {
         get => _beatErrorAcceptMag;
         set => SetProperty(ref _beatErrorAcceptMag, value);
+    }
+
+    /// <summary>Analysis block size in samples (the detector input window); read at run start, so a run restart applies a change.</summary>
+    public decimal AnalysisBlockSize
+    {
+        get => _analysisBlockSize;
+        set => SetProperty(ref _analysisBlockSize, value);
+    }
+
+    /// <summary>Audio capture buffer length in milliseconds; read at run start, so a run restart applies a change.</summary>
+    public decimal CaptureBufferMs
+    {
+        get => _captureBufferMs;
+        set => SetProperty(ref _captureBufferMs, value);
     }
 
     /// <summary>Active watch position as a <see cref="WatchPosition"/> ordinal (0 = CH, dial up).</summary>
@@ -555,8 +575,6 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     public void SetInputDeviceNames(IEnumerable<string> values) => ReplaceItems(InputDeviceNames, values);
 
     public void SetSampleRateLabels(IEnumerable<string> values) => ReplaceItems(SampleRateLabels, values);
-
-    public void SetAveragingPeriodLabels(IEnumerable<string> values) => ReplaceItems(AveragingPeriodLabels, values);
 
     public void SetBphLabels(IEnumerable<string> values) => ReplaceItems(BphLabels, values);
 

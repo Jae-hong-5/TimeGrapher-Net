@@ -73,4 +73,48 @@ public sealed class SeriesDataReducerTests
         Assert.Equal(new[] { 1.0, 2.0 }, targetX);
         Assert.Equal(new[] { 10.0, 20.0 }, targetY);
     }
+
+    [Fact]
+    public void TryReplaceSeriesDataPeak_PreservesPerBinMaximum()
+    {
+        // 10 source points, budget 5 -> bin size 2. A spike at index 3 (the second
+        // sample of bin [2,3]) must survive; plain bin-start subsampling would drop it.
+        var series = new GraphSeriesFrame
+        {
+            Id = "filter.f0",
+            X = new List<double> { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 },
+            Y = new List<double> { 0, 0, 0, 9, 0, 0, 0, 0, 0, 0 },
+            Replace = true,
+        };
+        var targetX = new List<double>();
+        var targetY = new List<double>();
+
+        bool ok = SeriesDataReducer.TryReplaceSeriesDataPeak(series, targetX, targetY, targetPointBudget: 5);
+
+        Assert.True(ok);
+        // Consistent bin-start X so every lane bins the same source positions.
+        Assert.Equal(new[] { 0.0, 2.0, 4.0, 6.0, 8.0 }, targetX);
+        // The spike survives peak decimation in its bin; the rest stay flat.
+        Assert.Equal(new[] { 0.0, 9.0, 0.0, 0.0, 0.0 }, targetY);
+    }
+
+    [Fact]
+    public void TryReplaceSeriesDataPeak_CopiesAllWhenUnderBudget()
+    {
+        var series = new GraphSeriesFrame
+        {
+            Id = "filter.f0",
+            X = new List<double> { 0, 1, 2 },
+            Y = new List<double> { 4, 5, 6 },
+            Replace = true,
+        };
+        var targetX = new List<double>();
+        var targetY = new List<double>();
+
+        bool ok = SeriesDataReducer.TryReplaceSeriesDataPeak(series, targetX, targetY, targetPointBudget: 8);
+
+        Assert.True(ok);
+        Assert.Equal(new[] { 0.0, 1.0, 2.0 }, targetX);
+        Assert.Equal(new[] { 4.0, 5.0, 6.0 }, targetY);
+    }
 }

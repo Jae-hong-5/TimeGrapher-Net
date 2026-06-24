@@ -103,7 +103,11 @@ public sealed class WatchSynthImpulseNoiseTests
             }
         }
 
-        Assert.InRange(count, 55, 135); // ~±40% around the Poisson mean of 90
+        // The stream is fixed-seed deterministic, so the count is reproducible (95
+        // for this seed/rate). A tight +/-5 band catches a real impulse-rate or
+        // scheduling regression while tolerating only trivial micro-changes - far
+        // tighter than the old +/-40% range that hid such bugs. (Poisson mean ~90.)
+        Assert.InRange(count, 90, 100);
     }
 
     [Fact]

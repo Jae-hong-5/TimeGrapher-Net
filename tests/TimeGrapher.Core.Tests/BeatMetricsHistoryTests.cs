@@ -35,6 +35,31 @@ public sealed class BeatMetricsHistoryTests
     }
 
     [Fact]
+    public void PositionChangeClearsCurrentValidityUntilNextSample()
+    {
+        // A position turn forces an immediate snapshot. It must not attribute the
+        // PREVIOUS position's rate/beat-error/amplitude to the freshly-turned
+        // position (this row feeds the graded measurement CSV); each re-validates
+        // from the next beat's sample in Record.
+        var history = new BeatMetricsHistory();
+        history.Record(BeatUpdate(1, 0.125, rateSPerDay: 5.0, beatErrorMs: 0.4));
+        history.Record(AmplitudeUpdate(0.130, pairDeg: 280.0));
+        BeatMetricsHistorySnapshot? before = history.CurrentSnapshot();
+        Assert.True(before!.RateValid);
+        Assert.True(before.BeatErrorValid);
+        Assert.True(before.AmplitudeValid);
+
+        history.SetActivePosition(WatchPosition.P6H);
+
+        BeatMetricsHistorySnapshot? after = history.CurrentSnapshot();
+        Assert.NotNull(after);
+        Assert.Equal(WatchPosition.P6H, after!.ActivePosition);
+        Assert.False(after.RateValid);
+        Assert.False(after.BeatErrorValid);
+        Assert.False(after.AmplitudeValid);
+    }
+
+    [Fact]
     public void SnapshotCarriesSeriesDerivedAndCurrentReadings()
     {
         var history = new BeatMetricsHistory();

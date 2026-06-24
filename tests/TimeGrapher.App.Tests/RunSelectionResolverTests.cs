@@ -7,31 +7,28 @@ namespace TimeGrapher.App.Tests;
 
 public sealed class RunSelectionResolverTests
 {
-    private static readonly int[] AveragingPeriods = { 2, 4, 8, 10, 12, 20, 20, 30 };
-
     [Fact]
-    public void DefaultIndicesResolveByMeaningfulValues()
+    public void DefaultSimulationIndexResolvesByMeaningfulValue()
     {
         MainWindowViewModel vm = CreateViewModel();
         RunSelectionResolver resolver = CreateResolver(vm);
 
-        Assert.Equal(RunSelectionResolver.DefaultAveragingPeriodSeconds, AveragingPeriods[resolver.DefaultAveragingPeriodIndex]);
         Assert.Equal(RunSelectionResolver.DefaultSimulationBph, BphCatalog.ManualBph[resolver.DefaultSimulationBphIndex]);
     }
 
     [Fact]
-    public void AnalysisSelectionValidatesSelectedIndices()
+    public void AnalysisSelectionUsesNumericAveragingPeriod()
     {
         MainWindowViewModel vm = CreateViewModel();
         RunSelectionResolver resolver = CreateResolver(vm);
 
-        vm.SelectedAveragingPeriodIndex = 5;
+        vm.AveragingPeriod = 17m;
         vm.SelectedBphIndex = 0;
 
         AnalysisSelection auto = resolver.GetAnalysisSelection();
 
         Assert.True(auto.AutoBph);
-        Assert.Equal(20, auto.AveragingPeriod);
+        Assert.Equal(17, auto.AveragingPeriod);
         Assert.Equal(0, auto.ManualBph);
 
         vm.SelectedBphIndex = 6;
@@ -40,8 +37,19 @@ public sealed class RunSelectionResolverTests
 
         Assert.False(manual.AutoBph);
         Assert.Equal(BphCatalog.ManualAutoBph[6], manual.ManualBph);
+    }
 
-        vm.SelectedAveragingPeriodIndex = -1;
+    [Theory]
+    [InlineData(0)]
+    [InlineData(241)]
+    [InlineData(17.5)]
+    public void AnalysisSelectionRejectsOutOfRangeOrFractionalAveragingPeriod(decimal averagingPeriod)
+    {
+        MainWindowViewModel vm = CreateViewModel();
+        RunSelectionResolver resolver = CreateResolver(vm);
+
+        vm.AveragingPeriod = averagingPeriod;
+        vm.SelectedBphIndex = 0;
 
         InvalidOperationException ex = Assert.Throws<InvalidOperationException>(() => resolver.GetAnalysisSelection());
         Assert.Equal("No valid averaging period is selected.", ex.Message);
@@ -98,7 +106,6 @@ public sealed class RunSelectionResolverTests
     {
         return new RunSelectionResolver(
             vm,
-            AveragingPeriods,
             BphCatalog.ManualAutoBph,
             BphCatalog.ManualBph);
     }

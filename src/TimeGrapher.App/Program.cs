@@ -16,6 +16,11 @@ internal static class Program
         // every display opens against the persisted normal ranges (defaults if none).
         AcceptBandSettings.Current = AcceptBandSettingsStore.Load();
 
+        // Restore the saved run-start parameters (analysis block size, capture buffer, averaging period)
+        // before the window is built so the Settings inputs open against the persisted
+        // values (defaults if none). Applied at run start, not live.
+        SamplingSettings.Current = SamplingSettingsStore.Load();
+
         if (args.Contains("--smoke", StringComparer.Ordinal))
         {
             _ = BuildAvaloniaApp();

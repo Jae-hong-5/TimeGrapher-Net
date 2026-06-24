@@ -152,4 +152,19 @@ public sealed class DetectionScorerTests
         Assert.Equal(2.0, score.MedianOffsetMs, 9);
         Assert.Equal(Math.Sqrt(4.0 / 3.0), score.RmsAfterOffsetMs, 9);
     }
+
+    [Fact]
+    public void OffsetStatistics_EvenMatchCount_AveragesTheTwoMiddleOffsets()
+    {
+        // Even match count exercises the (lo + hi) / 2 median branch (not the odd
+        // single-middle path). Offsets +1 ms, +3 ms -> median +2 ms, centered
+        // {-1, +1}, RMS = 1 ms. (Both within the default 5 ms tolerance.)
+        double[] truth = { 1.0, 2.0 };
+        double[] detected = { 1.001, 2.003 };
+
+        DetectionScorer.Score score = DetectionScorer.Match(truth, detected);
+
+        Assert.Equal(2.0, score.MedianOffsetMs, 9);
+        Assert.Equal(1.0, score.RmsAfterOffsetMs, 9);
+    }
 }

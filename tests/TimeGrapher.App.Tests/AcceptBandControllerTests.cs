@@ -96,6 +96,14 @@ public sealed class AcceptBandControllerTests
         vm.BeatErrorAcceptMag = 1.2m;
 
         Assert.Equal(5, ops.Applied.Count);
+        // Counting calls is not enough: the controller could forward stale or wrong
+        // values on any edit. The final candidate must carry every edited band value.
+        AcceptBandValues last = ops.Applied[^1];
+        Assert.Equal(-5.0, last.RateMinSPerDay);
+        Assert.Equal(9.0, last.RateMaxSPerDay);
+        Assert.Equal(240.0, last.AmplitudeMinDeg);
+        Assert.Equal(320.0, last.AmplitudeMaxDeg);
+        Assert.Equal(1.2, last.BeatErrorMagnitudeMs);
     }
 
     [Fact]

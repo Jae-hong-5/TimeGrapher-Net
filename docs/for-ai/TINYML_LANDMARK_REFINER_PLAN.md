@@ -1,0 +1,370 @@
+# TinyML A/C Landmark Refiner 구현 메모
+
+## 목적
+
+이 문서는 다음 세션에서 TinyML 기반 A/C landmark 보정 기능을 구현할 수 있도록 현재 논의 내용을 정리한 것이다.
+
+기존 TinyML 계획은 `IBeatEventGate`를 통해 후보 이벤트를 통과/거부하는 drop-only 필터였다. 그 방향은 잡음 후보를 줄이는 데는 유효하지만, 이번에 해결하려는 문제와는 다르다.
+
+이번 목표는 **A/B/C impact가 있는 beat packet에서 A 또는 C가 약할 때 B를 A 또는 C로 잘못 잡는 문제를 TinyML로 줄이는 것**이다.
+
+## 문제 정의
+
+시계 beat packet에는 보통 A/B/C 성분이 있다.
+
+현재 detector는 packet 전체를 의미론적으로 분해하지 않는다.
+
+- A: envelope가 onset threshold를 처음 넘는 burst start로 잡는다.
+- C: burst start 이후 `CSearchSkipSamples`가 지난 뒤 가장 큰 peak로 잡는다.
+- B: 별도 landmark로 모델링하지 않는다.
+
+따라서 다음 실패가 가능하다.
+
+- **B -> A 오인식**: A가 작아 threshold를 못 넘고 B가 먼저 threshold를 넘으면 B가 A로 기록된다.
+- **B -> C 오인식**: A는 잡혔지만 B가 `CSearchSkipSamples` 이후에 있고 C보다 크면 B가 C로 기록된다.
+
+이 문제는 단순 event veto로는 충분히 해결되지 않는다. 잘못 잡은 후보를 버릴 수는 있지만, 진짜 A/C 위치로 시간을 보정할 수 없기 때문이다.
+
+## 결론
+
+TinyML 적용 방향은 `IBeatEventGate` 기반 drop-only 필터가 아니라 **TinyML Beat Landmark Refiner**로 잡는다.
+
+```text
+raw audio/envelope
+-> existing detector raw A/C candidates
+-> post-lock beat window capture
+-> TinyML landmark refiner
+-> corrected A/C samples for metrics/display
+```
+
+기존 detector는 유지한다. TinyML은 detector를 대체하지 않고, post-lock 상태에서 metrics/display에 들어갈 A/C timestamp만 제한적으로 보정한다.
+
+## 기존 gate 한계
+
+현재 준비된 TinyML seam은 `src/TimeGrapher.Core/Detection/Scoring/IBeatEventGate.cs`이다.
+
+이 interface는 다음 특성을 가진다.
+
+- 후보 event를 drop할 수 있다.
+- 새 event를 만들 수 없다.
+- event 시간을 수정할 수 없다.
+- BPH detection과 sync PLL은 raw event stream을 그대로 본다.
+
+이 구조는 잡음 event veto에는 안전하지만, B를 A/C로 잡은 경우의 timing correction에는 맞지 않는다.
+
+따라서 새 seam이 필요하다.
+
+## 새 seam 제안
+
+Core에는 ML runtime을 넣지 않는다. Core에는 dependency-free contract만 둔다.
+
+예상 interface:
+
+```csharp
+public interface IBeatLandmarkRefiner
+{
+    string Name { get; }
+    double WindowPreMs { get; }
+    double WindowPostMs { get; }
+
+    BeatLandmarkRefinement Refine(
+        ReadOnlySpan<float> envelopeWindow,
+        int aOffsetInWindow,
+        int cOffsetInWindow,
+        double sampleRate,
+        in BeatLandmarkCandidate candidate);
+
+    void Reset();
+}
+```
+
+예상 result:
+
+```csharp
+public readonly record struct BeatLandmarkRefinement(
+    bool Accepted,
+    bool CorrectedA,
+    double CorrectedASample,
+    bool CorrectedC,
+    double CorrectedCSample,
+    float AConfidence,
+    float CConfidence,
+    float BAsARisk,
+    float BAsCRisk);
+```
+
+`Accepted=false`는 fallback을 의미하게 한다. 이 경우 기존 detector A/C를 그대로 사용한다.
+
+## 모델 출력
+
+최소 PoC 출력:
+
+```text
+a_offset_ms
+c_offset_ms
+a_confidence
+c_confidence
+```
+
+권장 출력:
+
+```text
+a_offset_ms
+c_offset_ms
+a_confidence
+c_confidence
+b_as_a_risk
+b_as_c_risk
+```
+
+`B` 자체를 화면에 표시할 필요는 없다. 하지만 모델이 B를 A/C와 구분해야 하므로 학습 label 또는 보조 output에 B risk를 포함하는 편이 설명력이 좋다.
+
+## 보정 제한
+
+TinyML이 틀렸을 때 detector 안정성을 망치지 않도록 보정은 강하게 제한한다.
+
+권장 기본값:
+
+- post-lock 상태에서만 적용한다.
+- confidence가 threshold보다 낮으면 fallback한다.
+- A 보정 범위는 후보 A 주변 작은 window로 clamp한다.
+- C 보정 범위도 후보 C 주변 작은 window로 clamp한다.
+- BPH acquisition과 PLL lock 입력은 우선 raw detector stream을 유지한다.
+- metrics/display stream만 corrected A/C를 사용한다.
+
+초기 clamp 예:
+
+```text
+A correction: candidate A 기준 [-8 ms, +2 ms]
+C correction: candidate C 기준 [-4 ms, +6 ms]
+```
+
+이 값은 임시 시작점이다. synthetic fixture와 real sample 검증 후 조정한다.
+
+## 기존 C-onset timing과의 경계
+
+앱에는 이미 `UseCOnset`("Use C-onset timing") 설정이 있다. 이 설정과 landmark refiner는 둘 다 "C 시각을 앞으로 당기는" 동작이므로, 경계를 명시하지 않으면 서로 충돌하거나 보정이 이중으로 겹친다.
+
+현재 동작(코드에서 확인됨):
+
+- detector는 C를 낼 때마다 onset을 **항상** 계산한다(`src/TimeGrapher.Core/Detection/Detector.cs`의 `FindCOnset` 무조건 호출). 따라서 C 이벤트는 peak 시각과 onset 시각을 모두 들고 다닌다.
+- onset은 C peak에서 50% threshold 지점까지 뒤로 걷는 backward-walk로 구한다.
+- `UseCOnset`는 계산을 켜고 끄는 스위치가 아니라, metrics/display가 peak 시각을 쓸지 onset 시각을 쓸지 고르는 **선택 스위치**다(`src/TimeGrapher.Core/Analysis/DetectorMetricsEngine.cs`의 C event sample 선택). 끄더라도 onset 계산 자체는 그대로 돈다.
+
+경계 결정(이 계획의 규칙으로 고정한다):
+
+1. **refiner는 peak 전용 보정기다.** `CorrectedCSample`은 "보정된 C peak"를 의미한다. ML은 "어느 충격음이 진짜 C peak냐"만 책임지고, onset은 계속 결정론적 DSP가 담당한다.
+2. **순서는 refiner -> onset 재유도다.** 보정된 peak를 기준으로 onset을 다시 계산하거나, 원래 peak->onset 거리를 그대로 유지해 평행 이동한다. onset을 더하지 않고 다시 그리므로 이중 보정이 생기지 않는다.
+3. **clamp와 학습 정답은 peak 프레임으로 고정한다.** clamp 창(candidate C 기준 window)과 학습 label("true C offset")은 모두 peak 기준이다. 토글이 런타임에 바뀌어도 모델 정의가 흔들리지 않는다.
+
+결과:
+
+- refiner는 `UseCOnset` 상태를 알 필요가 없다(독립).
+- onset backward-walk 로직은 바꾸지 않는다.
+- `UseCOnset`는 순수하게 표시/측정용 선택으로 남는다.
+- 삽입 위치는 `DetectorMetricsEngine`의 C event sample 선택 직전이다. C 이벤트의 peak/onset을 미리 보정해두면 기존 선택 코드는 바꾸지 않고 보정된 이벤트로 동작한다.
+
+## 노이즈 리스크
+
+TinyML landmark refiner는 시끄러운 환경에서 더 취약해질 수 있다.
+
+특히 clean sample 위주로 학습하면 다음 문제가 생긴다.
+
+- 약한 A 대신 B edge를 A로 과신한다.
+- C가 약한 구간에서 B를 C로 과신한다.
+- 노이즈 spike를 landmark로 착각한다.
+
+따라서 모델은 fail-open이어야 한다.
+
+```text
+confidence 낮음 -> 기존 detector 값 그대로 사용
+confidence 높음 -> 제한 범위 안에서만 보정
+```
+
+## 현재 sample 기준 worst cases
+
+샘플 비교에서 다음 파일들이 검증에 중요하다.
+
+- `sample/mine_adapter.wav`
+  - noise floor 대비 weakest case
+  - `refPeak/noise`가 가장 낮은 축
+  - Beat Error가 크다.
+  - TinyML robustness 테스트 1순위
+- `sample/21600BPH_8215_InCase .wav`
+  - 절대 신호 크기가 가장 작은 축
+  - weak-signal 일반화 테스트에 적합
+- `sample/mine_false.wav`
+  - 21600 계열이 아니라 43200으로 false lock되는 adversarial 성격
+  - landmark refiner가 lock 문제를 해결한다고 주장하면 안 된다.
+  - false-lock 방어 또는 fallback 설명용으로만 쓴다.
+- `sample/num.wav`
+  - SNR은 높지만 Beat Error가 크다.
+  - 노이즈 문제가 아니라 landmark bias 또는 실제 beat imbalance 확인용이다.
+- `sample/mine.wav`, `sample/mine_usb.wav`
+  - 같은 시계/비슷한 조건의 baseline 비교용이다.
+
+## 구현 위치
+
+### Core
+
+추가/수정 예상:
+
+- `src/TimeGrapher.Core/Detection/Scoring/IBeatLandmarkRefiner.cs`
+- `src/TimeGrapher.Core/Detection/Scoring/BeatLandmarkCandidate.cs`
+- `src/TimeGrapher.Core/Detection/Scoring/BeatLandmarkRefinement.cs`
+- `src/TimeGrapher.Core/Analysis/DetectorMetricsEngine.cs`
+- `src/TimeGrapher.Core/Analysis/BeatEventGateHost.cs` 또는 별도 `BeatLandmarkRefinerHost`
+
+Core는 ONNX Runtime을 참조하지 않는다.
+
+### Inference leaf project
+
+추가 예상:
+
+- `src/TimeGrapher.Inference/TimeGrapher.Inference.csproj`
+- ONNX Runtime package reference는 이 project에만 둔다.
+- `OnnxBeatLandmarkRefiner`가 `IBeatLandmarkRefiner`를 구현한다.
+
+### Verify
+
+추가/수정 예상:
+
+- `src/TimeGrapher.Verify/AdverseScenarios.cs`
+- `src/TimeGrapher.Verify/Program.cs`
+
+기존 `--gate=onnx:<path>` reserved 문구는 landmark refiner용 옵션으로 바꾼다.
+
+권장 CLI:
+
+```text
+--landmark=off
+--landmark=onnx:<path>
+--landmark=stub:<mode>
+```
+
+`stub`은 테스트와 demo를 위한 deterministic refiner이다. 실제 ONNX 모델이 없을 때 pipeline을 검증하는 데 쓴다.
+
+## 데이터와 학습
+
+PoC는 synthetic data로 먼저 가능하다.
+
+`WatchSynthStream`은 synthetic beat timing과 event side-channel을 만들 수 있다. 여기에 다음 변형을 추가하거나 활용한다.
+
+- A 약화
+- C 약화
+- B가 A보다 큼
+- B가 C보다 큼
+- background noise 증가
+- impulse noise
+- pickup gain 변화
+- beat error 주입
+
+### 선행조건: WatchSynthStream 개조 (중요)
+
+위 변형 중 핵심 4가지(A 약화 / C 약화 / B>A / B>C)는 **현재 `WatchSynthStream`으로는 만들 수 없다.** 데이터 생성에 들어가기 전에 생성기 개조가 선행되어야 한다. 코드에서 확인한 제약:
+
+- 생성기는 A/B/C 구조를 만들기는 한다. `EnableRealisticPacket`이 A 온셋 클러스터, 중간 충격(B), C 클러스터를 넣는다(`src/TimeGrapher.Core/Sim/WatchSynthStream.cs`의 `WsStartPacket`).
+- 그러나 각 클러스터 진폭이 **코드에 하드코딩**되어 있다. config의 진폭 노브는 전부 패킷 전체(`PcmPeakSignalLevel`, `PacketGainVariation`, `SignalLevelDrift`) 또는 C 전용(`CPeakAnchorGain`, `PostCLobeScale`)이다. **A만 약화하거나 B를 A/C 위로 올리는 노브가 없다.**
+- `EnableCPeakLock`(기본 ON)이 의도적으로 C 앵커가 후속 링잉을 압도하게 설계되어 있어 B>C를 막는 방향이다.
+- ground-truth 사이드채널(`WatchSynthStreamEvent`)은 **A 온셋 시각과 `AToCTimeS`만** 노출한다. true A/true C 라벨은 유도 가능(`true C = SampleIndex + AToCTimeS*fs`)하지만 **B landmark나 클러스터별 진폭 정답은 없다.**
+
+따라서 학습 데이터 단계 진입 전에 다음을 별도 작업으로 분리한다.
+
+1. A/B/C 클러스터별 진폭 config 노브 추가
+2. B>A·B>C를 만들 수 있도록 (필요 시 C-peak-lock 우회 경로 포함)
+3. 이벤트 구조에 B landmark(또는 클러스터별 진폭) 정답 노출
+
+### 그 밖의 학습 리스크
+
+- 이 repo에는 추론(ONNX Runtime) 계획만 있고 **모델 학습 스택(예: PyTorch + ONNX export)은 없다.** 데이터 생성은 C#로 가능해도 학습 루프/export 파이프라인은 별도 정의가 필요하다.
+- **B 오인식이 실제 worst-case의 주원인인지 아직 미확인이다.** 학습에 투자하기 전에 기존 샘플에서 이를 먼저 진단하는 편이 헛수고를 막는다.
+- `UseCOnset`가 켜진 경우 onset 타이밍이 이미 peak 지터에 강건하므로 C peak 보정의 *타이밍* 이득은 작아지고 *진폭* 이득만 남을 수 있다.
+
+학습 label:
+
+```text
+window -> true A offset, true C offset, confidence target, optional B risk
+```
+
+실제 sample은 완전 자동 정답이 없으므로 다음처럼 다룬다.
+
+- synthetic으로 모델을 먼저 만든다.
+- real sample은 평가/데모용으로 사용한다.
+- 필요한 경우 일부 구간만 사람이 A/C를 찍어 calibration set으로 만든다.
+
+## 구현 순서
+
+1. Core에 `IBeatLandmarkRefiner` contract와 no-op implementation을 추가한다.
+2. `DetectorMetricsEngine`에 optional refiner config를 추가한다.
+3. A/C event pair를 하나의 beat candidate로 묶고, delayed envelope window를 refiner에 넘기는 host를 추가한다.
+4. confidence/fallback/clamp 정책을 Core에서 적용한다.
+5. corrected A/C를 metrics/display stream에만 흘린다.
+6. raw detector stream은 diagnostics와 sync용으로 유지한다.
+7. `stub` refiner로 B->A, B->C 보정 path를 unit test한다.
+8. synthetic weak-A/weak-C fixtures를 추가한다.
+9. `TimeGrapher.Inference` project에 ONNX Runtime 기반 implementation을 추가한다.
+10. Verify CLI에 `--landmark=off|stub:*|onnx:<path>`를 추가한다.
+11. `sample/mine_adapter.wav`, `sample/21600BPH_8215_InCase .wav`, `sample/mine.wav`, `sample/mine_usb.wav`, `sample/num.wav`로 regression report를 만든다.
+12. Raspberry Pi 또는 linux-arm64 publish target에서 latency smoke를 확인한다.
+
+## 테스트 전략
+
+필수 unit tests:
+
+- no-op refiner는 기존 detector output을 bit-equivalent로 유지한다.
+- low confidence result는 fallback한다.
+- correction clamp 밖의 output은 clamp 또는 reject된다.
+- B->A synthetic fixture에서 corrected A가 truth에 가까워진다.
+- B->C synthetic fixture에서 corrected C가 truth에 가까워진다.
+- C correction이 amplitude 계산을 개선한다.
+- A correction이 rate/beat-error outlier를 줄인다.
+- sync acquisition은 raw stream 기준으로 유지된다.
+
+필수 integration/verify:
+
+```powershell
+dotnet test TimeGrapherNet.sln -c Release
+dotnet run --project src/TimeGrapher.Verify -c Release -- --generated --byte-fixtures
+dotnet run --project src/TimeGrapher.Verify -c Release -- --adverse
+dotnet run --project src/TimeGrapher.Verify -c Release -- sample
+```
+
+ONNX path가 붙은 뒤:
+
+```powershell
+dotnet run --project src/TimeGrapher.Verify -c Release -- --generated --landmark=onnx:<model.onnx>
+dotnet run --project src/TimeGrapher.Verify -c Release -- sample --landmark=onnx:<model.onnx>
+```
+
+## Acceptance criteria
+
+다음 조건을 만족해야 한다.
+
+- 기본값 `landmark=off`에서 기존 detector 결과가 바뀌지 않는다.
+- Core는 ONNX Runtime 또는 UI/platform dependency를 갖지 않는다.
+- TinyML implementation은 leaf project에만 있다.
+- weak-A synthetic case에서 A timing median/RMS error가 개선된다.
+- weak-C synthetic case에서 C timing 또는 amplitude error가 개선된다.
+- `mine_adapter.wav`에서 confidence/fallback이 과보정을 만들지 않는다.
+- `mine_false.wav`에 대해 landmark refiner가 false-lock 자체를 해결한다고 주장하지 않는다.
+- Verify output에 off vs tinyml 비교가 남는다.
+- Pi 배포 가능성을 위해 inference latency가 analysis block budget 안에 들어간다.
+
+## 데모 메시지
+
+채점/발표에서는 다음처럼 설명한다.
+
+```text
+TinyML은 detector를 대체하지 않는다.
+기존 detector가 만든 beat 후보 주변에서 A/C landmark 위치만 보정한다.
+이는 weak A 또는 weak C 때문에 B가 A/C로 잘못 선택되는 측정 품질 문제를 줄이기 위한 on-device inference이다.
+confidence가 낮으면 기존 detector 값을 그대로 쓰므로, noisy 환경에서 모델이 과신해 전체 동기화를 망치지 않는다.
+```
+
+## 주의할 점
+
+- TinyML이 BPH lock 문제를 해결한다고 말하지 않는다.
+- `mine_false.wav` 같은 false-lock은 별도 robustness 문제다.
+- 학습 데이터가 부족하면 실제 sample 개선은 제한적일 수 있다.
+- 첫 구현은 PoC로 하고, synthetic truth에서 개선을 먼저 증명한다.
+- real sample 개선 주장은 사람 라벨 또는 명확한 before/after metric이 있을 때만 한다.

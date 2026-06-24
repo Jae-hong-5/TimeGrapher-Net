@@ -79,8 +79,7 @@ public sealed class MainWindowBootstrapperTests
             runCommandOps,
             new FakeDialogs(),
             acceptBandOps,
-            new MainWindowSelectionOptions("Playback", "Simulation"),
-            new[] { 2, 4, 8 });
+            new MainWindowSelectionOptions("Playback", "Simulation"));
 
     private static MainWindowRunSessionCallbacks Callbacks() =>
         new(
@@ -90,14 +89,6 @@ public sealed class MainWindowBootstrapperTests
             () => { },
             () => { },
             _ => { });
-
-    [Fact]
-    public void CreateViewModel_ReturnsStoppedViewModel()
-    {
-        MainWindowViewModel vm = MainWindowBootstrapper.CreateViewModel();
-
-        Assert.Equal(RunUiState.Stopped, vm.RunState);
-    }
 
     [Fact]
     public void Build_ProducesCompleteComposition()
@@ -118,6 +109,7 @@ public sealed class MainWindowBootstrapperTests
         Assert.NotNull(composition.RunSessionController);
         Assert.NotNull(composition.RunControlController);
         Assert.NotNull(composition.AcceptBandController);
+        Assert.NotNull(composition.SamplingSettingsController);
         Assert.Null(composition.AnalysisPerformanceLogger); // no --analysis-log
     }
 
@@ -160,7 +152,7 @@ public sealed class MainWindowBootstrapperTests
         _ = MainWindowBootstrapper.Build(
             vm, Adapters(new FakeRunCommandOperations(), new FakeAcceptBandOperations()), Callbacks(),
             AppStartupOptions.Parse(new[] { "--measurement-log", "ignored.csv" }),
-            _ => new FakeMeasurementSink());
+            (_, _) => new FakeMeasurementSink());
 
         Assert.True(vm.IsMeasurementLogEnabled);
     }

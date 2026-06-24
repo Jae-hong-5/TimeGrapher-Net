@@ -1,0 +1,44 @@
+{
+  "coordinateConvention": {
+    "quaternionOrder": "x,y,z,w",
+    "baseModel": "dial normal +Z, 12 oclock +Y, crown +X",
+    "note": "Signs may need inversion depending on camera/world convention."
+  },
+  "eulerDegreesXYZ": {
+    "CH": [
+      0,
+      0,
+      0
+    ],
+    "CB": [
+      180,
+      0,
+      0
+    ],
+    "6H": [
+      90,
+      0,
+      0
+    ],
+    "12H": [
+      -90,
+      0,
+      0
+    ],
+    "3H": [
+      0,
+      -90,
+      0
+    ],
+    "9H": [
+      0,
+      90,
+      0
+    ]
+  },
+  "animation": {
+    "recommendedDurationMs": 650,
+    "interpolation": "Quaternion.Slerp",
+    "easing": "CubicEaseInOut"
+  }
+}

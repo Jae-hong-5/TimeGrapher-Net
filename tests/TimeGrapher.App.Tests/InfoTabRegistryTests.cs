@@ -18,7 +18,6 @@ namespace TimeGrapher.App.Tests;
 public sealed class InfoTabRegistryTests
 {
     private const double VarioCapturedMinimumFontSize = 16.0;
-    private static bool s_avaloniaPlatformStarted;
 
     [Fact]
     public void RegistryCreatesCatalogTabsAndConsumers()
@@ -95,11 +94,10 @@ public sealed class InfoTabRegistryTests
         Assert.Single(positionStrip.ColumnDefinitions);
         Assert.Equal(WatchPositions.Count, positionStrip.RowDefinitions.Count);
         Assert.Equal(WatchPositions.Count, buttons.Length);
-        WatchPositionDiagram[] diagrams = Descendants(content).OfType<WatchPositionDiagram>().ToArray();
-        WatchPositionDiagram activeDiagram = Assert.Single(diagrams);
+        WatchModelView[] diagrams = Descendants(content).OfType<WatchModelView>().ToArray();
+        WatchModelView activeDiagram = Assert.Single(diagrams);
 
         Assert.Equal(WatchPosition.CH, activeDiagram.Position);
-        Assert.False(activeDiagram.ShowLabels);
         Assert.DoesNotContain(Descendants(content).OfType<TextBlock>(), text => text.Text == "POSITION MAP");
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "Amplitude");
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "POSITION CONSISTENCY");
@@ -222,16 +220,7 @@ public sealed class InfoTabRegistryTests
             $"X Average bottom {averageGroup.Bounds.Bottom} exceeds result panel bottom {resultPanel.Bounds.Bottom}.");
     }
 
-    private static void EnsureAvaloniaPlatform()
-    {
-        if (s_avaloniaPlatformStarted)
-        {
-            return;
-        }
-
-        Program.BuildAvaloniaApp().SetupWithoutStarting();
-        s_avaloniaPlatformStarted = true;
-    }
+    private static void EnsureAvaloniaPlatform() => HeadlessPlatform.EnsureStarted();
 
     private static string? MetricDescriptionFor(string? title) => title switch
     {
@@ -268,11 +257,47 @@ public sealed class InfoTabRegistryTests
         TextBlock activeButtonText = Assert.IsType<TextBlock>(activeButton.Content);
         Assert.Equal("6H", activeButtonText.Text);
         Assert.Equal(6, Grid.GetRow(activeButton));
-        WatchPositionDiagram diagram = Assert.Single(Descendants(
+        WatchModelView diagram = Assert.Single(Descendants(
             Assert.IsType<Grid>(registry.Registrations.Single(
                 registration => registration.Definition.Id == InfoTabCatalog.WatchPositionsTabId).TabItem.Content))
-            .OfType<WatchPositionDiagram>());
+            .OfType<WatchModelView>());
         Assert.Equal(WatchPosition.P6H, diagram.Position);
+    }
+
+    [Fact]
+    public void ActivePositionButtonStillColorsOnlyItsOwnLabelWhite()
+    {
+        EnsureAvaloniaPlatform();
+        var tabControl = new TabControl();
+        var positionStrip = new Grid();
+        InfoTabRegistry registry = InfoTabRegistry.FromCatalog(tabControl, positionStrip, "Arial");
+        var window = new Window { Content = positionStrip };
+        window.Show();
+
+        try
+        {
+            registry.CreateRouter().Route(
+                new AnalysisFrame
+                {
+                    MetricsHistory = new BeatMetricsHistorySnapshot
+                    {
+                        Version = 1,
+                        ActivePosition = WatchPosition.P6H,
+                    },
+                },
+                InfoTabCatalog.WatchPositionsTabId,
+                new AnalysisTabRenderContext(48000));
+
+            Button activeButton = Assert.Single(positionStrip.Children.OfType<Button>(),
+                button => button.Classes.Contains("active"));
+            TextBlock activeButtonText = Assert.IsType<TextBlock>(activeButton.Content);
+
+            Assert.Equal(Brushes.White, activeButtonText.Foreground);
+        }
+        finally
+        {
+            window.Close();
+        }
     }
 
     [Fact]
@@ -289,7 +314,7 @@ public sealed class InfoTabRegistryTests
 
         target.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
 
-        WatchPositionDiagram diagram = Assert.Single(Descendants(content).OfType<WatchPositionDiagram>());
+        WatchModelView diagram = Assert.Single(Descendants(content).OfType<WatchModelView>());
         Assert.Equal(WatchPosition.P9H45, diagram.Position);
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "7:30H");
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "7:30 up");
@@ -321,7 +346,7 @@ public sealed class InfoTabRegistryTests
             RateDataPoints: 500,
             ActivePosition: WatchPosition.P3H45));
 
-        WatchPositionDiagram diagram = Assert.Single(Descendants(content).OfType<WatchPositionDiagram>());
+        WatchModelView diagram = Assert.Single(Descendants(content).OfType<WatchModelView>());
         Assert.Equal(WatchPosition.P3H45, diagram.Position);
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "1:30H");
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "1:30 up");

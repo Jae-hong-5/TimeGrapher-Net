@@ -67,19 +67,6 @@ public partial class MainWindow
         return -1;
     }
 
-    private void LoadAveragingPeriod()
-    {
-        List<string> labels = BuildAveragingPeriodLabels();
-        using (mSelectionCoordinator.SuppressEvents())
-        {
-            mViewModel.SetAveragingPeriodLabels(labels);
-            mViewModel.SelectedAveragingPeriodIndex = -1;
-        }
-
-        int defaultIndex = mRunSelectionResolver.DefaultAveragingPeriodIndex;
-        mViewModel.SelectedAveragingPeriodIndex = defaultIndex == -1 ? 0 : defaultIndex;
-    }
-
     private void LoadBph()
     {
         List<string> labels = BuildBphLabels(BphCatalog.ManualAutoBph, useAutoLabel: true);
@@ -103,18 +90,6 @@ public partial class MainWindow
 
         int defaultIndex = mRunSelectionResolver.DefaultSimulationBphIndex;
         mViewModel.SelectedSimBphIndex = defaultIndex == -1 ? 0 : defaultIndex;
-    }
-
-    private static List<string> BuildAveragingPeriodLabels()
-    {
-        int length = AveragingPeriodList.Length;
-        var labels = new List<string>(length);
-        for (int i = 0; i < length; i++)
-        {
-            labels.Add(AveragingPeriodList[i].ToString(CultureInfo.InvariantCulture) + "s");
-        }
-
-        return labels;
     }
 
     private static List<string> BuildBphLabels(IReadOnlyList<int> bphValues, bool useAutoLabel)

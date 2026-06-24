@@ -53,7 +53,7 @@ public sealed class WatchPositionsRendererTests
     public void ClickHighlightsImmediatelyWithoutWaitingForAFrame()
     {
         Button[] buttons = Buttons();
-        var diagram = new WatchPositionDiagram();
+        var diagram = new WatchModelView();
         var renderer = new WatchPositionsRenderer(buttons, diagram, WatchPosition.CH);
 
         renderer.RequestPosition(WatchPosition.P6H);
@@ -97,7 +97,7 @@ public sealed class WatchPositionsRendererTests
     public void SnapshotDrivesTheHighlightWhenNoClickIsPending()
     {
         Button[] buttons = Buttons();
-        var diagram = new WatchPositionDiagram();
+        var diagram = new WatchModelView();
         var renderer = new WatchPositionsRenderer(buttons, diagram, WatchPosition.CH);
 
         renderer.RenderFrame(Frame(version: 1, WatchPosition.P9H));

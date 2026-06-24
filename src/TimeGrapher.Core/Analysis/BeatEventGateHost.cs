@@ -13,7 +13,7 @@ public sealed record BeatEventGateConfig(IBeatEventGate Gate);
 /// from the requested delayed-envelope window (ProcessedPcm) with FIFO delayed release: an
 /// event is decided once the ring covers its post-window, structurally
 /// guaranteeing window availability (the detector's internal 50 ms EnvRing
-/// cannot make that guarantee against 4096-sample blocks). Event timestamps
+/// cannot make that guarantee against the analysis block, 4096 samples by default). Event timestamps
 /// are never altered; release latency defers metric/display delivery by the
 /// requested post-window plus at most one analysis block.
 ///

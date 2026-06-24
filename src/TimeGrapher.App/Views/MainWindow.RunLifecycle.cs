@@ -22,6 +22,7 @@ public partial class MainWindow
         mViewModel.PropertyChanged -= mSelectionCoordinator.OnViewModelPropertyChanged;
         mRunControlController.Detach();
         mAcceptBandController.Detach();
+        mSamplingSettingsController.Detach();
         mViewModel.PropertyChanged -= OnReviewCursorPropertyChanged;
         mRunSessionController.InvalidateRunSession();
         mRunSessionController.StopInputWorker("Input");
@@ -79,7 +80,13 @@ public partial class MainWindow
         Action captureEndedHandler = () => OnLiveCaptureEnded(runSessionToken);
         audioWorker.CaptureEnded += captureEndedHandler;
         mRunSessionController.AttachInputWorker(audioWorker, runSessionToken, () => audioWorker.CaptureEnded -= captureEndedHandler);
-        audioWorker.Start(deviceNumber, sampleRate, (float)(mViewModel.Gain / 1000.0));
+        // Normalize at the boundary so an out-of-range/off-step value can never reach the
+        // capture buffer (the controller already snaps on edit).
+        audioWorker.Start(
+            deviceNumber,
+            sampleRate,
+            (float)(mViewModel.Gain / 1000.0),
+            SamplingSettings.NormalizeCaptureBufferMs(mViewModel.CaptureBufferMs));
     }
 
     private void OnLiveCaptureEnded(ulong runSessionToken)
@@ -407,8 +414,6 @@ public partial class MainWindow
 
     private async Task<bool> SimStart()
     {
-        // RealisticCheckBox -> realistic config; otherwise clean config
-        // (MainWindow.cpp: watch_synth_stream_realistic_config / watch_synth_stream_clean_config).
         WatchSynthStreamConfig cfg = mViewModel.Realistic
             ? WatchSynthStreamConfig.Realistic()
             : WatchSynthStreamConfig.Clean();

@@ -181,7 +181,7 @@ internal sealed class MainWindowSelectionCoordinator : ISelectionEventGate
             string itemText = ItemText(items, i);
             if (matchContains)
             {
-                if (itemText.Contains(text, StringComparison.Ordinal))
+                if (itemText.Contains(text, StringComparison.OrdinalIgnoreCase))
                 {
                     return i;
                 }
