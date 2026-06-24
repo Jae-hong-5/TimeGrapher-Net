@@ -184,6 +184,46 @@ dotnet run --project src/TimeGrapher.App -c Release -- --analysis-benchmark --wa
 
 기대 결과: `detected_bph=28800`, `max_deadline_level=0`. 이미 포함된 43200 fixture는 아래 수동 fixture 섹션의 benchmark 명령으로 확인한다.
 
+### SNR Robustness Fixture
+
+white-noise 내성을 보기 위해 같은 28800 BPH clean base waveform에 deterministic Gaussian white noise를 RMS 기준으로 합성한 fixture를 포함한다. SNR은 전체 clean waveform RMS 대비 noise RMS로 계산한다.
+
+| Fixture | measured SNR | 목적 | 기대 headless 결과 |
+|---|---:|---|---|
+| `manual-fixtures/28800BPH_snr25dB_white_noise_192000Hz.wav` | 25.000 dB | 가장 낮은 SNR smoke; noisy하지만 nominal beat lock 유지 확인 | `detected_bph=28800`, `sync_status=Synced`, amplitude 약 `271°` |
+| `manual-fixtures/28800BPH_snr30dB_white_noise_192000Hz.wav` | 30.000 dB | 중간 SNR; readout/graph가 clean 기준과 크게 어긋나지 않는지 확인 | `detected_bph=28800`, `sync_status=Synced`, amplitude 약 `270°` |
+| `manual-fixtures/28800BPH_snr35dB_white_noise_192000Hz.wav` | 35.000 dB | 높은 SNR; clean reference에 가까운 baseline noise tolerance 확인 | `detected_bph=28800`, `sync_status=Synced`, amplitude 약 `270°` |
+
+SNR verifier:
+
+```powershell
+dotnet run --project src/TimeGrapher.Verify -c Release -- manual-fixtures/28800BPH_snr25dB_white_noise_192000Hz.wav manual-fixtures/28800BPH_snr30dB_white_noise_192000Hz.wav manual-fixtures/28800BPH_snr35dB_white_noise_192000Hz.wav
+```
+
+실행 결과 기준:
+
+```text
+28800BPH_snr25dB_white_noise_192000Hz.wav: detected_bph=28800 sync_status=Synced results=[Error Rate   -0.2 s/d | Amplitude 271° | BEAT ERROR  0.0 ms | BPH 28800]
+28800BPH_snr30dB_white_noise_192000Hz.wav: detected_bph=28800 sync_status=Synced results=[Error Rate   -0.1 s/d | Amplitude 270° | BEAT ERROR  0.0 ms | BPH 28800]
+28800BPH_snr35dB_white_noise_192000Hz.wav: detected_bph=28800 sync_status=Synced results=[Error Rate   -0.1 s/d | Amplitude 270° | BEAT ERROR  0.0 ms | BPH 28800]
+```
+
+SNR benchmark:
+
+```powershell
+dotnet run --project src/TimeGrapher.App -c Release --no-build -- --analysis-benchmark --wav manual-fixtures/28800BPH_snr25dB_white_noise_192000Hz.wav
+dotnet run --project src/TimeGrapher.App -c Release --no-build -- --analysis-benchmark --wav manual-fixtures/28800BPH_snr30dB_white_noise_192000Hz.wav
+dotnet run --project src/TimeGrapher.App -c Release --no-build -- --analysis-benchmark --wav manual-fixtures/28800BPH_snr35dB_white_noise_192000Hz.wav
+```
+
+기대 결과: 세 fixture 모두 `detected_bph=28800`, `max_deadline_level=0`이어야 한다. 실제 측정에서는 25 dB도 sync와 amplitude를 유지했고, 35 dB로 갈수록 clean reference와 더 가까운 표시가 나와야 한다.
+
+수동 GUI 확인:
+
+1. clean reference를 먼저 재생해 Rate/Scope, Sound Print, Beat Noise, Waveform Compare의 baseline 모양을 확인한다.
+2. 35 dB, 30 dB, 25 dB 순서로 재생하면서 noise floor 상승, spectrogram background energy, waveform lane의 잔물결 증가를 비교한다.
+3. 세 SNR 모두 nominal BPH와 amplitude가 유지되어야 하며, warning이 뜨더라도 측정 lock이 깨진 것으로 해석하지 않는다.
+4. 25 dB에서 marker나 lane shape가 흔들리면 `noisy but still locked` 사례로 설명하고, false-C/weak-C fixture처럼 직접 bad-marker warning을 유도하는 목적과 구분한다.
 ### 체크리스트별 수동 QA 절차
 
 | 그래프 / 표시 영역 | 사용할 입력 | 확인 방법 |
