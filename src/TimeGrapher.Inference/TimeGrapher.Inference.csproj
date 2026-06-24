@@ -13,6 +13,11 @@
     <PackageReference Include="Microsoft.ML.OnnxRuntime" />
   </ItemGroup>
 
+  <!-- Trained by tools/TimeGrapher.GateTrainer; shipped inside the assembly so the gate is self-contained. -->
+  <ItemGroup>
+    <EmbeddedResource Include="Models\tick-quality.onnx" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\TimeGrapher.Core\TimeGrapher.Core.csproj" />
   </ItemGroup>

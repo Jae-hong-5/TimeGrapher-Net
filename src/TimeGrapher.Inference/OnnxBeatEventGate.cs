@@ -1,3 +1,4 @@
+using System.Reflection;
 using Microsoft.ML.OnnxRuntime;
 using Microsoft.ML.OnnxRuntime.Tensors;
 using TimeGrapher.Core.Detection.Scoring;
@@ -60,6 +61,20 @@ public sealed class OnnxBeatEventGate : IBeatEventGate, IDisposable
     {
         _session = new InferenceSession(onnxModel);
         _acceptThreshold = acceptThreshold;
+    }
+
+    /// <summary>
+    /// Constructs the gate from the model shipped inside this assembly
+    /// (Models/tick-quality.onnx, trained by tools/TimeGrapher.GateTrainer).
+    /// </summary>
+    public static OnnxBeatEventGate LoadDefault(float acceptThreshold = 0.5f)
+    {
+        Assembly asm = typeof(OnnxBeatEventGate).Assembly;
+        string name = asm.GetManifestResourceNames().Single(n => n.EndsWith("tick-quality.onnx", StringComparison.Ordinal));
+        using Stream stream = asm.GetManifestResourceStream(name)!;
+        using var ms = new MemoryStream();
+        stream.CopyTo(ms);
+        return new OnnxBeatEventGate(ms.ToArray(), acceptThreshold);
     }
 
     public string Name => "onnx";
