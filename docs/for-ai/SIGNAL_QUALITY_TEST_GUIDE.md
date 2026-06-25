@@ -226,26 +226,136 @@ dotnet run --project src/TimeGrapher.App -c Release --no-build -- --analysis-ben
 2. 35 dB, 30 dB, 25 dB 순서로 재생하면서 noise floor 상승, spectrogram background energy, waveform lane의 잔물결 증가를 비교한다.
 3. 세 SNR 모두 nominal BPH와 amplitude가 유지되어야 하며, warning이 뜨더라도 측정 lock이 깨진 것으로 해석하지 않는다.
 4. 25 dB에서 marker나 lane shape가 흔들리면 `noisy but still locked` 사례로 설명하고, false-C/weak-C fixture처럼 직접 bad-marker warning을 유도하는 목적과 구분한다.
-### 그래프별 Cross-Check 수동 QA 절차
+### 그래프별 실험 가이드
 
-각 항목은 한 그래프를 띄워둔 상태에서 Playback WAV만 바꿔가며 확인한다. 프로젝트 플랜 근거는 `docs/requirement/Time-Grapher-Project-Plan-(Draft).md`의 관련 문단 기준이다.
+아래 절차는 “그래프 하나를 띄워놓고 WAV만 바꿔가며” 같은 조건을 반복 비교하기 위한 실험 가이드다. 각 그래프마다 프로젝트 플랜 근거, 필요한 테스트 신호, 실험 순서, 예상 결과를 분리해서 기록한다. Playback sample rate는 모든 fixture에 맞춰 192 kHz로 둔다.
 
-| 그래프 / 표시 영역 | 프로젝트 플랜 근거 | 사용할 입력 | 예상 결과 | Fail 조건 |
-|---|---|---|---|---|
-| 공통 상단 readout / status guidance | 측정 summary bar는 rate, amplitude, beat error, BPH를 실시간 표시해야 하며(line 113-117), noisy/weak/clipped/incomplete 상태는 명확한 status/error feedback과 recovery guidance를 제공해야 한다(line 94-102, 246-248). | clean, false-C, weak, noisy, clipping, transient | clean에서는 `Signal ...` suffix가 없다. bad 입력에서는 상단 readout에 `Signal Weak signal`, `Signal Possible false C`, `Signal C timing unstable`, `Signal Noisy signal`, `Signal Clipping` 중 해당 문구가 붙고 status bar는 reposition, gain 조정, handling/ambient noise 감소처럼 사용자가 할 행동을 말한다. transient fixture는 앞부분 경고 후 clean 구간에서 status/readout이 정상으로 돌아온다. | clean에서도 signal warning이 남거나, bad 입력에서 guidance가 없거나, acoustic warning과 `Display quality was reduced...` 같은 runtime deadline warning을 같은 문제처럼 표시한다. |
-| Rate/Scope | Rate/Scope는 timing 관계와 signal level waveform을 함께 보여 A/C marker, A-to-C interval, consecutive-A interval을 검토하게 해야 한다(line 119-125, 238-240). | clean, false-C, noisy, weak | clean에서는 tic/toc rate traces와 signal level marker가 안정적이다. false-C/weak/noisy에서는 marker 흔들림이나 C 부재가 상단/status warning과 모순되지 않아야 하며, Sound Print와 같은 입력 구간으로 설명할 수 있어야 한다. | marker가 의심스러운데 readout/status가 clean 판정처럼 보이거나, Rate/Scope와 Sound Print가 서로 다른 신호 상황처럼 설명된다. |
-| Trace | Trace display는 rate deviation과 amplitude over time을 계속 기록하고, late rate와 270-300도 범위 밖 amplitude를 alert해야 한다(line 269-281). | clean, noisy, weak | clean으로 정상 trace를 먼저 확인한다. noisy/weak에서는 rate/amplitude trace를 확정 진단으로 말하지 않고 low-confidence 문맥과 함께 본다. weak fixture에서 amplitude가 `---°` 또는 불안정하면 weak/missing-C 사례로 설명한다. | noisy/weak 구간의 trace를 clean long-term health 판정처럼 표시하거나, out-of-range/low-confidence 설명 없이 수치만 강조한다. |
-| Beat Error | Beat Error Display는 rate/amplitude/beat error/BPH 숫자와 timing trace가 일관되어야 하며, line separation 초과와 45도 이상 slope 같은 fault를 알려야 한다(line 325-336). | clean, noisy, weak, false-C | clean에서는 numeric panel과 tic/toc trace가 일관된다. noisy/weak/false-C에서는 spacing/slope 이상을 watch fault로 단정하지 않고 signal-quality warning과 함께 해석한다. 하단 설명 문구 없이도 numeric panel이 핵심 측정값을 읽게 해야 한다. | 숫자와 trace 방향이 맞지 않거나, signal warning 중에도 beat-error fault를 확정 판정처럼 보이게 한다. |
-| Vario / Rate-Amplitude Stability | Vario는 min/max/average/sigma, elapsed time, current reading을 표시하고 acceptable range와 measured values를 구분해야 한다(line 286-295). | clean, noisy, weak | clean 장기 통계와 noisy/weak 통계를 비교한다. noisy/weak에서는 min/max spread와 sigma 증가가 보일 수 있으며, warning 구간 통계는 clean stability와 직접 비교하지 않는다고 설명한다. | warning 구간의 통계가 clean quality summary와 구분되지 않거나 acceptable range와 measured values를 읽을 수 없다. |
-| Long-Term | Long-Term Performance Graph는 rate, amplitude, beat error의 extended-period 변화, average, typical variation range를 보여야 한다(line 338-346). | clean, noisy, transient | clean 반복 재생 또는 longer manual run에서 average/variation range를 확인한다. noisy fixture는 variation이 장기 추세 해석을 오염시킬 수 있음을 설명한다. transient fixture는 bad 앞부분과 clean 뒷부분이 같은 장기 summary에 섞일 때 주의가 필요함을 보여준다. | bad 구간이 장기 average에 섞였는데도 warning context 없이 clean trend처럼 해석된다. |
-| Sweep | Scope Mode는 fixed sweep window에서 beat pattern 안정성을 보여주고 fast/slow일 때 drift를 보여야 한다(line 392-400). | clean, noisy, weak, SNR 25/30/35 | clean과 SNR 35/30/25 dB 순서로 pattern stability와 noise floor를 비교한다. noisy/weak drift처럼 보이는 현상은 sync 불안정 또는 signal-quality 문제와 구분해 설명한다. | signal-quality warning 중 drift를 watch fault로 단정하거나, SNR 차이가 sweep/noise floor에서 전혀 구분되지 않는다. |
-| Escapement | Escapement Analyzer는 waveform, A/C timing markers, ms labels를 통해 fine-grained beat timing과 onset/peak alternative를 비교하게 해야 한다(line 348-358). | false-C, weak, transient | false-C/weak에서 우측 상단 overlay가 Beat Noise와 같은 warning text를 보여야 한다. C marker가 waveform feature와 어긋나면 repeatability sample로 확정하지 않고 confidence 낮음/status guidance와 연결한다. transient는 clean 전환 뒤 overlay fade-out을 확인한다. | warning이 Beat Noise와 다르거나, 의심 C marker를 정상 repeatability sample처럼 처리한다. |
-| Positions | Position testing은 standard positions를 식별하고, 포지션별 rate/amplitude/beat error 및 sequence summary를 보여야 한다(line 252-260, 296-304). | clean + 동일 fixture를 position별로 수동 전환, noisy/weak | 같은 fixture를 재생하며 active position을 바꿔 결과가 현재 position에 연결되는지 확인한다. noisy/weak로 기록한 position은 실제 자세별 성능 차이가 아니라 signal-quality 문제일 수 있음을 표시/설명한다. | active position과 결과가 연결되지 않거나, weak/noisy position 결과를 clean position과 같은 신뢰도로 비교한다. |
-| Beat Noise | Beat-Noise Scope는 Scope 1/2로 beat noise shape, timing, repeatability를 검사하고 A/C marker, selectable strips, Σ averaging을 제공해야 한다(line 306-319). | false-C, weak, noisy, transient | false-C fixture에서 `POSSIBLE FALSE C` 또는 `C TIMING UNSTABLE`, weak fixture에서 `WEAK SIGNAL` 또는 C marker 부재/불안정을 확인한다. Scope 1 A/C marker가 의심 C를 clean C처럼 보이게 하지 않고, Scope 2 Σ averaging은 random noise 감소 목적으로 설명된다. transient는 warning이 나타난 뒤 clean update 10회 유지, 100회에서 소거되는지 확인한다. | 빈/초기 상태에 `WEAK SIGNAL`이 뜨거나, strip 선택/확대 후 warning context가 사라지거나, transient clean 구간에서도 warning이 영구적으로 남는다. |
-| Waveforms | Waveform Comparison은 aligned lanes에서 shape, spacing, consistency와 timing landmarks를 비교하고 rate/beat error/BPH 같은 context를 함께 보여야 한다(line 377-387). | false-C, weak, noisy, transient | false-C/weak에서 우측 상단 overlay와 lane label의 signal-quality warning을 확인한다. `PossibleFalseC` beat는 mean-C guide에서 제외되어야 한다. lane 간 shape/spacing inconsistency는 noise 또는 weak signal 가능성과 연결한다. transient clean 구간에서는 overlay가 fade-out한다. | possible-false-C beat가 mean-C guide에 포함되거나, lane warning과 top/status warning이 서로 다르다. |
-| Filter Scope / F0-F3 | Filter Scope는 같은 신호를 F0-F3로 비교해 raw waveform, smoothing, rising-slope emphasis, feature detection을 돕고 저신호 성분이 덜 보일 수 있음을 설명해야 한다(line 402-419). | clean, noisy, weak, SNR 25/30/35 | 네 filter view가 같은 input/time axis를 공유한다. F0는 closest raw representation, F1은 noise smoothing, F2/F3는 T1/T2/T3 feature emphasis로 설명한다. SNR 25/30/35에서는 noise floor 차이가 filter별로 어떻게 줄거나 강조되는지 비교한다. | filter view 간 time axis가 맞지 않거나, smoothing/emphasis를 원신호 자체로 오해하게 만든다. |
-| Sound Print | Sound Print/Sound Graph는 raw 또는 processed watch signal과 A/C event markers를 sample-level로 보여 signal tracking consistency와 sample-rate resolution을 이해하게 해야 한다(line 127-139, 229-236). | clean, noisy, weak, clipping, SNR 25/30/35 | clean baseline 뒤 noisy/SNR/clipping을 바꿔가며 raw/processed signal, A/C marker consistency, noise floor, clipped flat tops를 비교한다. pause/review 후에도 마지막 warning 문맥을 설명할 수 있어야 한다. | clipping fixture가 flat-top처럼 보이지 않거나, noisy/weak인데 marker tracking을 clean처럼 보이게 한다. |
-| Spectrogram | Spectrogram은 time-frequency energy, repeated beat patterns, important acoustic components, color intensity legend를 보여야 한다(line 363-375). | clean, noisy, clipping, SNR 25/30/35 | clean의 반복 beat energy와 noisy/SNR 25 dB의 background energy, clipping의 high-energy/saturation risk를 비교한다. spectrogram은 rate/amplitude 확정 판정이 아니라 signal-quality cross-check로 사용한다. | color intensity 차이가 해석되지 않거나, spectrogram만으로 rate/amplitude를 확정한다. |
+#### 공통 상단 Readout / Status Bar
+
+- 실험 목적: 어떤 그래프를 보고 있든 현재 측정값이 신뢰 가능한지 상단 readout과 status bar만으로 즉시 알 수 있는지 확인한다.
+- 프로젝트 플랜 근거: summary bar는 rate, amplitude, beat error, BPH를 실시간 표시해야 한다(line 113-117). noisy, weak, clipped, incomplete 상태는 status/error feedback과 recovery guidance를 제공해야 한다(line 94-102, 246-248).
+- 사용할 WAV: clean, false-C, noisy, weak, clipping, transient.
+- 실험 절차: clean을 먼저 재생해 `Signal ...` suffix가 없는 baseline을 기록한다. 같은 화면에서 false-C, noisy, weak, clipping을 차례로 재생한다. 마지막으로 transient를 재생해 앞부분 warning 후 clean 구간에서 회복되는지 본다.
+- 예상 결과: bad 입력에서는 readout에 `Signal Weak signal`, `Signal Possible false C`, `Signal C timing unstable`, `Signal Noisy signal`, `Signal Clipping` 중 해당 문구가 붙는다. status bar는 빨간색 warning 상태로 바뀌고 reposition, gain 조정, handling/ambient noise 감소처럼 사용자가 할 행동을 말한다.
+- 실패 기준: clean에서도 warning이 남는다. bad 입력에서 guidance가 없다. acoustic warning과 `Display quality was reduced...` 같은 runtime deadline warning을 같은 문제처럼 표시한다.
+
+#### Rate/Scope
+
+- 실험 목적: Rate trace와 Signal Level waveform이 같은 입력 상태를 일관되게 설명하는지 확인한다.
+- 프로젝트 플랜 근거: Rate/Scope는 timing 관계, signal level waveform, A/C marker, A-to-C interval, consecutive-A interval을 함께 보여야 한다(line 119-125, 238-240).
+- 사용할 WAV: clean, false-C, noisy, weak.
+- 실험 절차: Rate/Scope tab을 열고 clean으로 tic/toc trace와 A/C marker baseline을 본다. false-C를 재생해 C marker가 불안정한 구간을 찾는다. noisy와 weak를 재생해 marker 흔들림, C 부재, amplitude 불안정을 비교한다.
+- 예상 결과: clean에서는 trace와 marker가 안정적이다. false-C/weak/noisy에서는 상단/status warning과 marker 상태가 같은 이야기를 해야 한다. Sound Print와 비교했을 때 같은 입력 구간을 설명해야 한다.
+- 실패 기준: marker가 의심스러운데 readout/status가 clean처럼 보인다. Rate/Scope와 Sound Print가 서로 다른 신호 상황처럼 보인다.
+
+#### Trace
+
+- 실험 목적: rate와 amplitude의 시간 변화가 signal-quality warning 중에도 확정 진단처럼 오해되지 않는지 확인한다.
+- 프로젝트 플랜 근거: Trace display는 rate deviation과 amplitude over time을 기록하고, late rate와 270-300도 범위 밖 amplitude를 alert해야 한다(line 269-281).
+- 사용할 WAV: clean, noisy, weak.
+- 실험 절차: clean을 10초 이상 재생해 정상 trace baseline을 만든다. noisy를 재생해 rate/amplitude 흔들림을 기록한다. weak를 재생해 amplitude가 `---°` 또는 불안정한 구간을 확인한다.
+- 예상 결과: clean trace는 안정적으로 보인다. noisy/weak에서는 trace 값이 표시되더라도 low-confidence warning과 함께 해석해야 한다.
+- 실패 기준: weak/noisy 구간의 trace가 clean long-term health 판정처럼 보인다. out-of-range나 low-confidence 설명 없이 수치만 강조된다.
+
+#### Beat Error
+
+- 실험 목적: Beat Error numeric panel과 tic/toc diagnostic trace가 같은 beat-error 상태를 보여주는지 확인한다.
+- 프로젝트 플랜 근거: Beat Error Display는 rate, amplitude, beat error, BPH 숫자와 trace를 함께 보여야 하며, line separation 초과와 45도 이상 slope 같은 fault를 알려야 한다(line 325-336).
+- 사용할 WAV: clean, noisy, weak, false-C.
+- 실험 절차: clean으로 numeric panel의 `Error Rate`, `Amplitude`, `BEAT ERROR`, `BPH`, `DIFF TIC-TAC`, `DIFF PERIOD`, `AVG PERIOD`를 기록한다. noisy/weak/false-C를 재생해 trace spacing/slope와 숫자가 함께 흔들리는지 확인한다.
+- 예상 결과: clean에서는 숫자와 trace 방향이 일관된다. noisy/weak/false-C에서는 beat-error 이상을 watch fault로 단정하지 않고 signal-quality warning과 함께 해석한다.
+- 실패 기준: 숫자와 trace 방향이 맞지 않는다. signal warning 중에도 beat-error fault를 확정 판정처럼 표시한다.
+
+#### Vario / Rate-Amplitude Stability
+
+- 실험 목적: long-running stability 통계가 signal-quality 문제와 실제 watch stability 문제를 구분해서 읽히는지 확인한다.
+- 프로젝트 플랜 근거: Vario는 min, max, average, sigma, elapsed time, current reading을 표시하고 acceptable range와 measured values를 구분해야 한다(line 286-295).
+- 사용할 WAV: clean, noisy, weak.
+- 실험 절차: clean을 반복 재생해 min/max/average/sigma baseline을 만든다. noisy와 weak를 각각 같은 시간 동안 재생해 spread와 sigma 변화를 비교한다.
+- 예상 결과: noisy/weak에서는 min/max spread와 sigma가 커질 수 있고, 해당 통계는 clean stability와 직접 비교하지 않는다고 설명할 수 있어야 한다.
+- 실패 기준: warning 구간 통계가 clean quality summary와 구분되지 않는다. acceptable range와 measured values가 읽히지 않는다.
+
+#### Long-Term
+
+- 실험 목적: 장기 average/variation graph가 bad 구간이 섞인 데이터를 clean 장기 추세처럼 오해하지 않게 하는지 확인한다.
+- 프로젝트 플랜 근거: Long-Term Performance Graph는 rate, amplitude, beat error의 extended-period 변화와 average, typical variation range를 보여야 한다(line 338-346).
+- 사용할 WAV: clean, noisy, transient.
+- 실험 절차: clean을 반복 재생해 장기 average와 variation range를 본다. noisy를 반복해 variation 증가를 확인한다. transient를 재생해 bad 앞부분과 clean 뒷부분이 같은 summary에 섞이는 상황을 확인한다.
+- 예상 결과: clean은 안정적인 trend를 만든다. noisy/transient는 장기 summary 해석에 warning context가 필요하다는 점이 드러난다.
+- 실패 기준: bad 구간이 long-term average에 섞였는데도 warning context 없이 clean trend처럼 해석된다.
+
+#### Sweep
+
+- 실험 목적: fixed sweep window에서 beat pattern drift와 signal-quality 문제를 구분해서 볼 수 있는지 확인한다.
+- 프로젝트 플랜 근거: Scope Mode는 fixed sweep window에서 beat pattern 안정성을 보여주고 fast/slow일 때 drift를 보여야 한다(line 392-400).
+- 사용할 WAV: clean, noisy, weak, SNR 35, SNR 30, SNR 25.
+- 실험 절차: clean으로 pattern이 sweep window에 안정적으로 머무는지 본다. SNR 35, 30, 25 순서로 noise floor가 올라가는지 비교한다. noisy/weak를 재생해 drift처럼 보이는 현상이 signal-quality 문제인지 확인한다.
+- 예상 결과: clean과 SNR 35는 가장 안정적이다. SNR 25는 noise floor가 더 보이지만 nominal lock은 유지한다. noisy/weak의 drift-like motion은 watch fault로 단정하지 않는다.
+- 실패 기준: signal-quality warning 중 drift를 watch fault로 단정한다. SNR 25/30/35 차이가 sweep/noise floor에서 전혀 구분되지 않는다.
+
+#### Escapement
+
+- 실험 목적: A/C marker와 ms label이 waveform feature와 맞는지, 의심 C를 정상 repeatability sample로 취급하지 않는지 확인한다.
+- 프로젝트 플랜 근거: Escapement Analyzer는 waveform, A/C timing markers, ms labels를 통해 fine-grained beat timing과 onset/peak alternative를 비교하게 해야 한다(line 348-358).
+- 사용할 WAV: false-C, weak, transient.
+- 실험 절차: false-C를 재생해 C marker가 이르거나 불안정한 beat를 찾는다. weak를 재생해 C marker 부재 또는 불안정을 확인한다. transient를 재생해 warning overlay가 clean 구간에서 fade-out하는지 본다.
+- 예상 결과: 우측 상단 overlay가 Beat Noise와 같은 warning text를 보여야 한다. C marker가 waveform feature와 어긋나면 confidence 낮음/status guidance와 연결된다.
+- 실패 기준: warning text가 Beat Noise와 다르다. 의심 C marker를 정상 repeatability sample처럼 처리한다.
+
+#### Positions
+
+- 실험 목적: position별 결과가 active position과 연결되고, signal-quality가 나쁜 position 결과를 clean position 결과와 같은 신뢰도로 비교하지 않는지 확인한다.
+- 프로젝트 플랜 근거: Position testing은 standard positions를 식별하고, position별 rate/amplitude/beat error 및 sequence summary를 보여야 한다(line 252-260, 296-304).
+- 사용할 WAV: clean, noisy, weak.
+- 실험 절차: clean을 재생하면서 CH, CB, 6H, 9H, 3H, 12H를 수동 전환해 position 결과가 현재 position에 기록되는지 확인한다. noisy/weak를 한두 position에만 기록해 summary에 signal-quality 문제가 섞이는 상황을 만든다.
+- 예상 결과: active position과 결과가 연결된다. noisy/weak position은 실제 자세별 성능 차이가 아니라 signal-quality 문제일 수 있음을 설명할 수 있어야 한다.
+- 실패 기준: active position과 결과가 연결되지 않는다. weak/noisy position 결과를 clean position과 같은 신뢰도로 비교한다.
+
+#### Beat Noise
+
+- 실험 목적: beat noise shape, A/C marker, recent strip, Scope 2 averaging이 warning context와 함께 해석되는지 확인한다.
+- 프로젝트 플랜 근거: Beat-Noise Scope는 Scope 1/2로 beat noise shape, timing, repeatability를 검사하고 A/C marker, selectable strips, Sigma averaging을 제공해야 한다(line 306-319).
+- 사용할 WAV: false-C, weak, noisy, transient.
+- 실험 절차: false-C로 `POSSIBLE FALSE C` 또는 `C TIMING UNSTABLE` overlay를 확인한다. weak로 `WEAK SIGNAL` 또는 C marker 부재를 확인한다. noisy로 Scope 2 averaging 전후를 비교한다. transient로 warning이 나타난 뒤 clean update 10회 유지, 100회에서 소거되는지 본다.
+- 예상 결과: Scope 1 marker는 의심 C를 clean C처럼 보이게 하지 않는다. Scope 2 averaging은 random noise 감소 목적으로 설명된다. strip 선택/확대 후에도 warning context가 유지된다.
+- 실패 기준: 빈/초기 상태에 `WEAK SIGNAL`이 뜬다. strip 선택/확대 후 warning context가 사라진다. transient clean 구간에서도 warning이 영구적으로 남는다.
+
+#### Waveforms
+
+- 실험 목적: aligned waveform lanes에서 shape/spacing inconsistency와 lane-level warning을 확인한다.
+- 프로젝트 플랜 근거: Waveform Comparison은 aligned lanes에서 shape, spacing, consistency와 timing landmarks를 비교하고 rate/beat error/BPH context를 함께 보여야 한다(line 377-387).
+- 사용할 WAV: false-C, weak, noisy, transient.
+- 실험 절차: false-C를 재생해 lane label과 우측 상단 overlay를 확인한다. weak/noisy로 lane shape와 spacing inconsistency를 비교한다. transient로 clean 전환 뒤 overlay fade-out을 확인한다.
+- 예상 결과: false-C/weak에서 lane label에 signal-quality warning이 붙는다. `PossibleFalseC` beat는 mean-C guide에서 제외된다. lane inconsistency는 noise 또는 weak signal 가능성과 연결된다.
+- 실패 기준: possible-false-C beat가 mean-C guide에 포함된다. lane warning과 top/status warning이 서로 다르다.
+
+#### Filter Scope / F0-F3
+
+- 실험 목적: 같은 입력이 F0-F3 filter view에서 어떻게 다르게 보이는지 확인하고, smoothing/emphasis를 원신호 자체로 오해하지 않게 한다.
+- 프로젝트 플랜 근거: Filter Scope는 같은 신호를 F0-F3로 비교해 raw waveform, smoothing, rising-slope emphasis, feature detection을 돕고 low-signal-level component가 덜 보일 수 있음을 설명해야 한다(line 402-419).
+- 사용할 WAV: clean, noisy, weak, SNR 35, SNR 30, SNR 25.
+- 실험 절차: clean으로 F0-F3 baseline을 본다. SNR 35, 30, 25 순서로 noise floor가 filter별로 줄거나 강조되는지 비교한다. noisy/weak로 F1 smoothing과 F2/F3 emphasis가 landmark를 어떻게 바꾸는지 확인한다.
+- 예상 결과: 네 filter view는 같은 input/time axis를 공유한다. F0는 closest raw representation, F1은 smoothing, F2/F3는 T1/T2/T3 feature emphasis로 설명된다.
+- 실패 기준: filter view 간 time axis가 맞지 않는다. smoothing/emphasis를 원신호 자체로 오해하게 만든다.
+
+#### Sound Print
+
+- 실험 목적: sample-level signal image와 A/C markers가 clean, noisy, weak, clipped 입력을 구분해서 보여주는지 확인한다.
+- 프로젝트 플랜 근거: Sound Print/Sound Graph는 raw 또는 processed watch signal과 A/C event markers를 sample-level로 보여 signal tracking consistency와 sample-rate resolution을 이해하게 해야 한다(line 127-139, 229-236).
+- 사용할 WAV: clean, noisy, weak, clipping, SNR 35, SNR 30, SNR 25.
+- 실험 절차: clean으로 A/C marker baseline을 기록한다. SNR 35, 30, 25 순서로 noise floor 상승을 확인한다. clipping으로 flat-top waveform을 확인한다. noisy/weak로 marker tracking consistency가 떨어지는지 본다.
+- 예상 결과: clean은 marker가 안정적이다. SNR 25는 noise floor가 보이지만 nominal lock은 유지한다. clipping은 flat-top이 보여야 한다. weak/noisy는 warning context와 함께 설명된다.
+- 실패 기준: clipping fixture가 flat-top처럼 보이지 않는다. noisy/weak인데 marker tracking을 clean처럼 보이게 한다.
+
+#### Spectrogram
+
+- 실험 목적: time-frequency energy view가 clean/noisy/SNR/clipping 차이를 cross-check로 보여주는지 확인한다.
+- 프로젝트 플랜 근거: Spectrogram은 time-frequency energy, repeated beat patterns, important acoustic components, color intensity legend를 보여야 한다(line 363-375).
+- 사용할 WAV: clean, noisy, clipping, SNR 35, SNR 30, SNR 25.
+- 실험 절차: clean으로 반복 beat energy baseline을 본다. SNR 35, 30, 25 순서로 background energy 증가를 비교한다. noisy로 외부/handling noise band를 확인한다. clipping으로 high-energy/saturation risk가 보이는지 확인한다.
+- 예상 결과: clean은 반복 구조가 가장 선명하다. SNR 25와 noisy는 background energy가 증가한다. clipping은 high-energy/saturation risk를 보조적으로 보여준다.
+- 실패 기준: color intensity 차이가 해석되지 않는다. spectrogram만으로 rate/amplitude를 확정한다.
+
 ## Overlay Fade 규칙
 
 그래프가 clean하지 않은 `SignalQualityFlags` 값을 받으면 overlay는 가장 최근 warning을
