@@ -102,40 +102,6 @@ public sealed class InfoTabRegistryTests
         Assert.Equal(WatchPosition.CH, activeDiagram.Position);
         Assert.DoesNotContain(Descendants(content).OfType<TextBlock>(), text => text.Text == "POSITION MAP");
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "Amplitude");
-        Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "POSITION CONSISTENCY");
-        Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "METRIC");
-        Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "STATUS");
-        Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "NEED POSITION");
-        Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "READY POSITION");
-        Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "READING");
-        Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "BALANCE-WHEEL");
-        Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "VERT SPREAD");
-        Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "COLLECTING");
-        Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "REFERENCE");
-        Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
-            text.Text == "Measuring CH: 0/30 beats.");
-        Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
-            text.Text == "3 positions, 30+ beats each");
-        Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
-            text.Text == "2 full vertical positions, 30+ beats each");
-        Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
-            text.Text == "1 full vertical + 1 horizontal");
-        Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
-            text.Text == "any measured position");
-        Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "None (0/3)");
-        Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "None (0/2)");
-        Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
-            text.Text == "V None / H None (0V + 0H)");
-        Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "None");
-        Assert.Contains(Descendants(content).OfType<Button>(), button => Equals(button.Content, "View criteria ▾"));
-        Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
-            text.Text == "Best-to-worst position gap");
-        Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
-            text.Text == "Vertical vs. horizontal bias");
-        Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
-            text.Text == "Average of measured positions");
-        Assert.DoesNotContain(Descendants(content).OfType<TextBlock>(), text =>
-            text.Text == "Verdict starts at 3 positions with 30+ beats. Later qualified positions update the result.");
         Assert.All(
             Descendants(content).OfType<TextBlock>().Where(PositionTextHasLocalFontSize),
             text => Assert.True(text.FontSize >= 14.0, $"{text.Text} uses {text.FontSize}px"));
@@ -150,39 +116,6 @@ public sealed class InfoTabRegistryTests
             grid.RowDefinitions.Count == 1 &&
             Math.Abs(grid.MaxHeight - 366.0) < 0.01);
         Assert.Equal(366.0, topSummaryGrid.MaxHeight);
-        Border resultPanel = Assert.Single(Descendants(content).OfType<Border>(), border =>
-            border.Classes.Contains("PositionResultPanel"));
-        Assert.Equal(new Thickness(12, 6), resultPanel.Padding);
-        Assert.Equal(new Thickness(4, 18, 8, 2), resultPanel.Margin);
-        Assert.Contains(Descendants(content).OfType<Border>(), border =>
-            border.Classes.Contains("PositionResultBadge") &&
-            border.Classes.Contains("pending"));
-        Border[] summaryGroups = Descendants(content)
-            .OfType<Border>()
-            .Where(border => border.Classes.Contains("PositionResultGroup"))
-            .ToArray();
-        Assert.Equal(4, summaryGroups.Length);
-        Assert.Equal(3, summaryGroups.Count(group => group.Classes.Contains("primary")));
-        Assert.All(summaryGroups, group =>
-        {
-            Assert.False(group.ClipToBounds);
-            Assert.True(double.IsNaN(group.Height));
-            Assert.True(group.Margin.Bottom <= 2.0);
-            TextBlock[] groupText = Descendants(group).OfType<TextBlock>().ToArray();
-            TextBlock titleBlock = Assert.Single(groupText, text => MetricDescriptionFor(text.Text) is not null);
-            Assert.Contains(groupText, text => text.Text == MetricDescriptionFor(titleBlock.Text));
-            Assert.All(groupText, text =>
-                Assert.True(text.FontSize <= 16.0, $"{text.Text} uses {text.FontSize}px"));
-            Assert.Contains(groupText, text => text.TextWrapping == TextWrapping.Wrap);
-            Assert.All(groupText.Where(text => text.Text is { Length: > 24 }), text =>
-                Assert.Equal(TextWrapping.Wrap, text.TextWrapping));
-        });
-        TextBlock[] readingValues = Descendants(content)
-            .OfType<TextBlock>()
-            .Where(text => text.TextAlignment == TextAlignment.Right && text.MinWidth >= 78.0)
-            .ToArray();
-        Assert.True(readingValues.Length >= 8);
-        Assert.All(readingValues, text => Assert.Equal(HorizontalAlignment.Right, text.HorizontalAlignment));
         for (int i = 0; i < buttons.Length; i++)
         {
             Assert.Equal(i, Grid.GetRow(buttons[i]));
@@ -191,47 +124,8 @@ public sealed class InfoTabRegistryTests
         Assert.Single(registry.Consumers, consumer => consumer.TabId == InfoTabCatalog.WatchPositionsTabId);
     }
 
-    [Fact]
-    public void PositionConsistencyLayoutKeepsAverageRowInsideDesktopContentHeight()
-    {
-        EnsureAvaloniaPlatform();
-        var tabControl = new TabControl();
-        var positionStrip = new Grid();
-
-        InfoTabRegistry registry = InfoTabRegistry.FromCatalog(tabControl, positionStrip, "Arial");
-        InfoTabRegistration registration = Assert.Single(
-            registry.Registrations,
-            registration => registration.Definition.Id == InfoTabCatalog.WatchPositionsTabId);
-        var content = Assert.IsType<Grid>(registration.TabItem.Content);
-
-        var contentSize = new Size(1460, 1010);
-        content.Measure(contentSize);
-        content.Arrange(new Rect(contentSize));
-
-        Border resultPanel = Assert.Single(Descendants(content).OfType<Border>(), border =>
-            border.Classes.Contains("PositionResultPanel"));
-        Border averageGroup = Assert.Single(Descendants(content).OfType<Border>(), border =>
-            border.Classes.Contains("PositionResultGroup") &&
-            Descendants(border).OfType<TextBlock>().Any(text => text.Text == "X AVERAGE"));
-
-        Assert.True(
-            resultPanel.Bounds.Bottom <= contentSize.Height,
-            $"Position result panel bottom {resultPanel.Bounds.Bottom} exceeds {contentSize.Height}.");
-        Assert.True(
-            averageGroup.Bounds.Bottom <= resultPanel.Bounds.Bottom,
-            $"X Average bottom {averageGroup.Bounds.Bottom} exceeds result panel bottom {resultPanel.Bounds.Bottom}.");
-    }
-
     private static void EnsureAvaloniaPlatform() => HeadlessPlatform.EnsureStarted();
 
-    private static string? MetricDescriptionFor(string? title) => title switch
-    {
-        "D SPREAD" => "Best-to-worst position gap",
-        "BALANCE-WHEEL" => "Spread among vertical positions",
-        "V/H BALANCE" => "Vertical vs. horizontal bias",
-        "X AVERAGE" => "Average of measured positions",
-        _ => null,
-    };
 
     [Fact]
     public void PositionStripObservesFramesEvenWhenPositionsTabIsInactive()
@@ -320,8 +214,6 @@ public sealed class InfoTabRegistryTests
         Assert.Equal(WatchPosition.P9H45, diagram.Position);
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "7:30H");
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "7:30 up");
-        Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
-            text.Text == "Measuring 7:30H: 0/30 beats.");
         Border activeRow = Assert.Single(Descendants(content).OfType<Border>(),
             border => border.Classes.Contains("SeqActiveRow"));
         Assert.Equal(8, Grid.GetRow(activeRow));
@@ -352,200 +244,10 @@ public sealed class InfoTabRegistryTests
         Assert.Equal(WatchPosition.P3H45, diagram.Position);
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "1:30H");
         Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "1:30 up");
-        Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
-            text.Text == "Measuring 1:30H: 0/30 beats.");
         Button activeButton = Assert.Single(positionStrip.Children.OfType<Button>(),
             button => button.Classes.Contains("active"));
         Assert.IsType<TextBlock>(activeButton.Content);
         Assert.Equal("1:30H", ((TextBlock)activeButton.Content).Text);
-    }
-
-    [Fact]
-    public void PositionCriteriaFlyoutExplainsDiagnosticBasisAndMeaning()
-    {
-        var tabControl = new TabControl();
-        var positionStrip = new Grid();
-        InfoTabRegistry registry = InfoTabRegistry.FromCatalog(tabControl, positionStrip, "Arial");
-        var content = Assert.IsType<Grid>(registry.Registrations.Single(
-            registration => registration.Definition.Id == InfoTabCatalog.WatchPositionsTabId).TabItem.Content);
-        Button criteriaButton = Descendants(content)
-            .OfType<Button>()
-            .Single(button => Equals(button.Content, "View criteria ▾"));
-
-        Assert.True(criteriaButton.FontSize >= 14.0);
-        Assert.True(criteriaButton.MinWidth >= 148);
-        Assert.True(criteriaButton.MinHeight >= 32);
-        var flyout = Assert.IsType<Flyout>(criteriaButton.Flyout);
-        Assert.Equal(PlacementMode.BottomEdgeAlignedRight, flyout.Placement);
-        var panel = Assert.IsType<StackPanel>(flyout.Content);
-        Assert.True(panel.Width <= 380);
-        TextBlock[] textBlocks = panel.Children.OfType<TextBlock>().ToArray();
-
-        Assert.Contains(textBlocks, text => text.Text == "Position criteria");
-        Assert.Contains(textBlocks, text => text.Text == "D Spread");
-        Assert.Contains(textBlocks, text => text.Text == "Balance-wheel");
-        Assert.Contains(textBlocks, text => text.Text == "V/H Balance");
-        Assert.Contains(textBlocks, text =>
-            text.Text == "Meaning: high positional variation. It does not identify the mechanical cause by itself.");
-        Assert.Contains(textBlocks, text =>
-            text.Text == "Meaning: possible balance-wheel centering or balancing issue.");
-        Assert.Contains(textBlocks, text =>
-            text.Text == "Meaning: vertical-vs-horizontal bias. Treat it separately from balance-wheel unbalance.");
-        Assert.All(textBlocks.Where(text => text.TextWrapping == TextWrapping.Wrap), text =>
-        {
-            Assert.True(text.MaxWidth <= 340);
-            Assert.Equal(TextWrapping.Wrap, text.TextWrapping);
-        });
-    }
-
-    [Fact]
-    public void PositionResultPanelUpdatesConsistencyVerdictFromSequenceSpread()
-    {
-        var tabControl = new TabControl();
-        var positionStrip = new Grid();
-        InfoTabRegistry registry = InfoTabRegistry.FromCatalog(tabControl, positionStrip, "Arial");
-        var content = Assert.IsType<Grid>(registry.Registrations.Single(
-            registration => registration.Definition.Id == InfoTabCatalog.WatchPositionsTabId).TabItem.Content);
-        AnalysisFrameRouter router = registry.CreateRouter();
-
-        router.Route(
-            Frame(
-                version: 1,
-                activePosition: WatchPosition.CH,
-                Position(WatchPosition.CH, rate: 0.0, amplitude: 300.0, count: 117)),
-            InfoTabCatalog.WatchPositionsTabId,
-            new AnalysisTabRenderContext(48000));
-
-        Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
-            text.Text == "Measure another position to 30 beats.");
-        Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "CH (1/3)");
-        Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "None (0/2)");
-        Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
-            text.Text == "V None / H CH (0V + 1H)");
-        Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "CH");
-        Assert.Contains(ResultBadges(content), badge => badge.Classes.Contains("pending"));
-
-        router.Route(
-            Frame(
-                version: 2,
-                activePosition: WatchPosition.P6H,
-                Position(WatchPosition.CH, rate: 0.0, amplitude: 300.0, count: 30),
-                Position(WatchPosition.P6H, rate: 2.0, amplitude: 301.0, count: 30)),
-            InfoTabCatalog.WatchPositionsTabId,
-            new AnalysisTabRenderContext(48000));
-
-        Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
-            text.Text == "Measure another position to 30 beats.");
-        Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "CH, 6H (2/3)");
-        Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "6H (1/2)");
-        Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
-            text.Text == "V 6H / H CH (1V + 1H)");
-        Assert.Contains(ResultBadges(content), badge => badge.Classes.Contains("pending"));
-
-        router.Route(
-            Frame(
-                version: 3,
-                activePosition: WatchPosition.P12H,
-                Position(WatchPosition.CH, rate: 0.0, amplitude: 300.0, count: 30),
-                Position(WatchPosition.P6H, rate: 2.0, amplitude: 301.0, count: 30),
-                Position(WatchPosition.P3H, rate: 1.0, amplitude: 301.0, count: 30)),
-            InfoTabCatalog.WatchPositionsTabId,
-            new AnalysisTabRenderContext(48000));
-
-        Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "COLLECTING");
-        Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
-            text.Text == "Measuring 12H: 0/30 beats.");
-        Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "READY");
-        Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "CH, 6H, 3H (3/3)");
-        Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "6H, 3H (2/2)");
-        Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
-            text.Text == "V 6H, 3H / H CH (2V + 1H)");
-        Assert.Contains(ResultBadges(content), badge => badge.Classes.Contains("pending"));
-
-        router.Route(
-            Frame(
-                version: 4,
-                activePosition: WatchPosition.P12H,
-                Position(WatchPosition.CH, rate: 0.0, amplitude: 300.0, count: 30),
-                Position(WatchPosition.P6H, rate: 2.0, amplitude: 301.0, count: 30),
-                Position(WatchPosition.P3H, rate: 1.0, amplitude: 301.0, count: 30),
-                Position(WatchPosition.P12H, rate: 3.0, amplitude: 301.0, count: 5)),
-            InfoTabCatalog.WatchPositionsTabId,
-            new AnalysisTabRenderContext(48000));
-
-        Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
-            text.Text == "Measuring 12H: 5/30 beats.");
-        Assert.Contains(ResultBadges(content), badge => badge.Classes.Contains("pending"));
-
-        router.Route(
-            Frame(
-                version: 5,
-                activePosition: WatchPosition.P12H,
-                Position(WatchPosition.CH, rate: 0.0, amplitude: 300.0, count: 30),
-                Position(WatchPosition.P6H, rate: 2.0, amplitude: 301.0, count: 30),
-                Position(WatchPosition.P3H, rate: 1.0, amplitude: 301.0, count: 30),
-                Position(WatchPosition.P12H, rate: 3.0, amplitude: 301.0, count: 30)),
-            InfoTabCatalog.WatchPositionsTabId,
-            new AnalysisTabRenderContext(48000));
-
-        Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "OK");
-        Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "REFERENCE");
-        Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
-            text.Text == "Rate spread within 15 s/d.");
-        Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
-            text.Text == "CH, 6H, 3H, 12H (4/3)");
-        Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "6H, 3H, 12H (3/2)");
-        Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
-            text.Text == "V 6H, 3H, 12H / H CH (3V + 1H)");
-        Assert.Contains(ResultBadges(content), badge => badge.Classes.Contains("ok"));
-
-        router.Route(
-            Frame(
-                version: 6,
-                activePosition: WatchPosition.P12H,
-                Position(WatchPosition.CH, rate: 0.0, amplitude: 300.0, count: 30),
-                Position(WatchPosition.P6H, rate: 2.0, amplitude: 301.0, count: 30),
-                Position(WatchPosition.P3H, rate: 1.0, amplitude: 301.0, count: 30),
-                Position(WatchPosition.P12H, rate: 30.0, amplitude: 301.0, count: 30)),
-            InfoTabCatalog.WatchPositionsTabId,
-            new AnalysisTabRenderContext(48000));
-
-        Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "CHECK");
-        Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
-            text.Text == "Rate spread exceeds 15 s/d.");
-        Assert.Contains(ResultBadges(content), badge => badge.Classes.Contains("warn"));
-    }
-
-    [Fact]
-    public void PositionResultPanelRequiresVerticalAndHorizontalPositionsBeforeOk()
-    {
-        var tabControl = new TabControl();
-        var positionStrip = new Grid();
-        InfoTabRegistry registry = InfoTabRegistry.FromCatalog(tabControl, positionStrip, "Arial");
-        var content = Assert.IsType<Grid>(registry.Registrations.Single(
-            registration => registration.Definition.Id == InfoTabCatalog.WatchPositionsTabId).TabItem.Content);
-        AnalysisFrameRouter router = registry.CreateRouter();
-
-        // Three qualified positions with the active one settled, but only one is
-        // vertical: the balance-wheel requirement the guide advertises (>=2
-        // vertical, 1 horizontal) is unmet, so the verdict stays COLLECTING
-        // instead of reporting OK on an all-but-one-horizontal set.
-        router.Route(
-            Frame(
-                version: 1,
-                activePosition: WatchPosition.P6H,
-                Position(WatchPosition.CH, rate: 0.0, amplitude: 300.0, count: 30),
-                Position(WatchPosition.CB, rate: 0.0, amplitude: 300.0, count: 30),
-                Position(WatchPosition.P6H, rate: 2.0, amplitude: 301.0, count: 30)),
-            InfoTabCatalog.WatchPositionsTabId,
-            new AnalysisTabRenderContext(48000));
-
-        Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "COLLECTING");
-        Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
-            text.Text == "Measure full vertical and horizontal positions.");
-        Assert.Contains(Descendants(content).OfType<TextBlock>(), text =>
-            text.Text == "V 6H / H CH, CB (1V + 2H)");
-        Assert.Contains(ResultBadges(content), badge => badge.Classes.Contains("pending"));
     }
 
     [Fact]
@@ -1343,13 +1045,6 @@ public sealed class InfoTabRegistryTests
             .Single(border => border.Child is TextBlock { Text: var value } && value == text);
     }
 
-    private static IEnumerable<Border> ResultBadges(Control content)
-    {
-        return Descendants(content)
-            .OfType<Border>()
-            .Where(border => border.Classes.Contains("PositionResultBadge"));
-    }
-
     private static Button[] ResetViewButtons(InfoTabRegistry registry)
     {
         return registry.Registrations
@@ -1372,22 +1067,6 @@ public sealed class InfoTabRegistryTests
             text.TextTrimming == TextTrimming.CharacterEllipsis;
     }
 
-    private static AnalysisFrame Frame(
-        ulong version,
-        WatchPosition activePosition,
-        params PositionSummary[] positions) => new()
-    {
-        MetricsHistory = new BeatMetricsHistorySnapshot
-        {
-            Version = version,
-            ActivePosition = activePosition,
-            Positions = positions,
-        },
-    };
-
-    private static StatsSummary Stats(double mean, long count = 10) =>
-        new(Valid: true, Min: mean, Max: mean, Mean: mean, Sigma: 0.0, Count: count);
-
     private static MetricsHistorySeries Series(double[] x, double[] y) => new()
     {
         X = x,
@@ -1395,17 +1074,6 @@ public sealed class InfoTabRegistryTests
         YMin = y,
         YMax = y,
     };
-
-    private static PositionSummary Position(
-        WatchPosition position,
-        double? rate = null,
-        double? amplitude = null,
-        double? beatError = null,
-        long count = 10) => new(
-        position,
-        rate is double r ? Stats(r, count) : default,
-        amplitude is double a ? Stats(a, count / 2) : default,
-        beatError is double b ? Stats(b, count) : default);
 
     private static string[] ReadoutValues(Grid content, int row)
     {
