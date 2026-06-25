@@ -23,6 +23,8 @@ public sealed class BeatErrorDiagRendererTests
             BeatErrorReadout.Labels.Select(_ => new TextBlock()).ToArray(),
             "Arial");
         renderer.CreateGraphs(rateErrorYScale: 10.0, rateDataPoints: 600);
+        Assert.Equal(PlotThemeHelper.CompactLeftAxisSizePx, tracePlot.Plot.Axes.Left.MinimumSize);
+        Assert.Equal(PlotThemeHelper.CompactBottomAxisSizePx, tracePlot.Plot.Axes.Bottom.MinimumSize);
         AssertAllowsMousePanOnly(tracePlot);
 
         var first = new AnalysisFrame();

@@ -26,6 +26,9 @@ public sealed class ScopeSweepRendererThemeTests
         var renderer = new ScopeSweepRenderer(sweepPlot, new TextBlock(), "Arial");
         renderer.CreateGraphs();
 
+        Assert.Equal(PlotThemeHelper.CompactLeftAxisSizePx, sweepPlot.Plot.Axes.Left.MinimumSize);
+        Assert.Equal(PlotThemeHelper.CompactBottomAxisSizePx, sweepPlot.Plot.Axes.Bottom.MinimumSize);
+
         const uint traceWave = 0xFF404040;
         const uint green = 0xFF2C9118;
         const uint red = 0xFFD22222;

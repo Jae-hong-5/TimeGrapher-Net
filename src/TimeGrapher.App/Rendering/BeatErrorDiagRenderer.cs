@@ -343,6 +343,7 @@ internal sealed class BeatErrorDiagRenderer
     private void ApplyPlotTheme(Plot plot)
     {
         PlotThemeHelper.Apply(plot, _theme);
+        PlotThemeHelper.ApplyCompactAxisPanels(plot);
 
         plot.Legend.BackgroundColor = Color.FromARGB(_theme.ScopeBg);
         plot.Legend.FontColor = Color.FromARGB(_theme.TextPrimary);

@@ -16,6 +16,8 @@ internal static class PlotThemeHelper
     /// had drifted (10-16) before standardization.
     /// </summary>
     public const float GraphLabelFontSize = 14f;
+    public const float CompactLeftAxisSizePx = 44f;
+    public const float CompactBottomAxisSizePx = 34f;
 
     public static void Apply(Plot plot, PlotThemePalette theme)
     {
@@ -25,5 +27,13 @@ internal static class PlotThemeHelper
         plot.Axes.FrameColor(Color.FromARGB(theme.ScopeGrid));
         plot.Grid.MajorLineColor = Color.FromARGB(theme.ScopeGrid);
         plot.Grid.MinorLineColor = Color.FromARGB(theme.ScopeGrid);
+    }
+
+    public static void ApplyCompactAxisPanels(Plot plot)
+    {
+        plot.Axes.Left.MinimumSize = CompactLeftAxisSizePx;
+        plot.Axes.Left.MaximumSize = CompactLeftAxisSizePx;
+        plot.Axes.Bottom.MinimumSize = CompactBottomAxisSizePx;
+        plot.Axes.Bottom.MaximumSize = CompactBottomAxisSizePx;
     }
 }

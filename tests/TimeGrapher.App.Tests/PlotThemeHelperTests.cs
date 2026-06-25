@@ -32,4 +32,17 @@ public sealed class PlotThemeHelperTests
         Assert.Equal(0, bitmap.GetPixel(1, 1).Alpha);
         Assert.Equal(byte.MaxValue, bitmap.GetPixel(imageInfo.Width / 2, imageInfo.Height / 2).Alpha);
     }
+
+    [Fact]
+    public void ApplyCompactAxisPanelsPinsLeftAndBottomSizes()
+    {
+        var plot = new Plot();
+
+        PlotThemeHelper.ApplyCompactAxisPanels(plot);
+
+        Assert.Equal(PlotThemeHelper.CompactLeftAxisSizePx, plot.Axes.Left.MinimumSize);
+        Assert.Equal(PlotThemeHelper.CompactLeftAxisSizePx, plot.Axes.Left.MaximumSize);
+        Assert.Equal(PlotThemeHelper.CompactBottomAxisSizePx, plot.Axes.Bottom.MinimumSize);
+        Assert.Equal(PlotThemeHelper.CompactBottomAxisSizePx, plot.Axes.Bottom.MaximumSize);
+    }
 }

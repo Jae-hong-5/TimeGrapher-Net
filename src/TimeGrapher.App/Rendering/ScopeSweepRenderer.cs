@@ -509,6 +509,7 @@ internal sealed class ScopeSweepRenderer
     private void ApplyPlotTheme(Plot plot)
     {
         PlotThemeHelper.Apply(plot, _theme);
+        PlotThemeHelper.ApplyCompactAxisPanels(plot);
     }
 
     /// <summary>

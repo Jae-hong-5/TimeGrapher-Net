@@ -570,5 +570,6 @@ internal sealed class EscapementAnalyzerRenderer
     private void ApplyPlotTheme(Plot plot)
     {
         PlotThemeHelper.Apply(plot, _theme);
+        PlotThemeHelper.ApplyCompactAxisPanels(plot);
     }
 }

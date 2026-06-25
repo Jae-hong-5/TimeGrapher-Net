@@ -592,6 +592,7 @@ internal sealed class MultiFilterScopeRenderer
     private void ApplyPlotTheme(Plot plot)
     {
         PlotThemeHelper.Apply(plot, _theme);
+        PlotThemeHelper.ApplyCompactAxisPanels(plot);
     }
 
     private void RefreshAll()

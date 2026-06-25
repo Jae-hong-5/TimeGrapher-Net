@@ -25,6 +25,16 @@ public sealed class EscapementAnalyzerRendererTests
         renderer.CreateGraphs();
         return renderer;
     }
+
+    [Fact]
+    public void CreateGraphsUsesCompactAxisPanels()
+    {
+        _ = NewRenderer(out AvaPlot plot);
+
+        Assert.Equal(PlotThemeHelper.CompactLeftAxisSizePx, plot.Plot.Axes.Left.MinimumSize);
+        Assert.Equal(PlotThemeHelper.CompactBottomAxisSizePx, plot.Plot.Axes.Bottom.MinimumSize);
+    }
+
     [Fact]
     public void RenderFrameScalesScopeFromRawMinMaxInsteadOfEnvelope()
     {

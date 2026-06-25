@@ -12,6 +12,21 @@ public sealed class MultiFilterScopeRendererTests
     private const int SampleRate = 48000;
 
     [Fact]
+    public void CreateGraphsUsesCompactAxisPanelsOnAllLanes()
+    {
+        AvaPlot[] plots = CreatePlots();
+        var renderer = new MultiFilterScopeRenderer(plots);
+
+        renderer.CreateGraphs();
+
+        Assert.All(plots, plot =>
+        {
+            Assert.Equal(PlotThemeHelper.CompactLeftAxisSizePx, plot.Plot.Axes.Left.MinimumSize);
+            Assert.Equal(PlotThemeHelper.CompactBottomAxisSizePx, plot.Plot.Axes.Bottom.MinimumSize);
+        });
+    }
+
+    [Fact]
     public void RenderFrame_DoesNotDrawFilterSeriesBeforeBeatSync()
     {
         var renderer = new MultiFilterScopeRenderer(CreatePlots());
