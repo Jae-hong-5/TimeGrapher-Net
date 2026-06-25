@@ -14,12 +14,11 @@
 
   <ItemGroup>
     <ProjectReference Include="..\TimeGrapher.Core\TimeGrapher.Core.csproj" />
-    <ProjectReference Include="..\TimeGrapher.Inference\TimeGrapher.Inference.csproj" />
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Expose the internal adverse-gate evaluator + gate-spec resolver to the
-         test project so the release/CI grading contract is unit-testable. -->
+    <!-- Expose the internal adverse-condition verdict evaluator to the test
+         project so the release/CI grading contract is unit-testable. -->
     <InternalsVisibleTo Include="TimeGrapher.Verify.Tests" />
   </ItemGroup>
 

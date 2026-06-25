@@ -8,10 +8,9 @@ using Xunit;
 namespace TimeGrapher.Verify.Tests;
 
 /// <summary>
-/// The adverse-condition gate verdict logic (<see cref="AdverseScenarios.Evaluate"/>)
-/// and the <c>--gate=</c> spec resolver are the release/CI grading contract; the
-/// executable itself has no other unit coverage. These pin the verdict rules and
-/// gate-spec exit-code behavior against hand-built inputs.
+/// The adverse-condition verdict logic (<see cref="AdverseScenarios.Evaluate"/>) is
+/// the release/CI grading contract; the executable itself has no other unit
+/// coverage. These pin the verdict rules against hand-built inputs.
 /// </summary>
 public sealed class AdverseGateTests
 {
@@ -157,40 +156,5 @@ public sealed class AdverseGateTests
         string verdict = AdverseScenarios.Evaluate(
             gates, Snapshot(TgSyncStatus.Synced, 21600), Score(), resets, expectedBph: 21600);
         Assert.Equal(expected, verdict);
-    }
-
-    [Fact]
-    public void TryResolveArm_OffSelectsDefaultArm()
-    {
-        Assert.True(AdverseScenarios.TryResolveArm("off", out ArmSpec arm, out string? error));
-        Assert.Null(error);
-        Assert.Null(arm.GateFactory);
-    }
-
-    [Fact]
-    public void TryResolveArm_PllSelectsPllGateArm()
-    {
-        Assert.True(AdverseScenarios.TryResolveArm("pll", out ArmSpec arm, out string? error));
-        Assert.Null(error);
-        Assert.NotNull(arm.GateFactory);
-        Assert.Equal(ArmSpec.PllGate.Name, arm.Name);
-    }
-
-    [Fact]
-    public void TryResolveArm_OnnxSelectsOnnxGateArm()
-    {
-        Assert.True(AdverseScenarios.TryResolveArm("onnx", out ArmSpec arm, out string? error));
-        Assert.Null(error);
-        Assert.NotNull(arm.GateFactory);
-        Assert.Equal(ArmSpec.OnnxGate.Name, arm.Name);
-    }
-
-    [Theory]
-    [InlineData("onnx:model.onnx")] // unknown value (colon form)
-    [InlineData("bogus")]            // unknown value
-    public void TryResolveArm_RejectsUnknownSpecs(string spec)
-    {
-        Assert.False(AdverseScenarios.TryResolveArm(spec, out _, out string? error));
-        Assert.False(string.IsNullOrEmpty(error));
     }
 }
