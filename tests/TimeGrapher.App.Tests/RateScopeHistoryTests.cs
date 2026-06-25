@@ -30,7 +30,7 @@ public sealed class RateScopeHistoryTests
     }
 
     [Fact]
-    public void RenderFrame_ShowsAveragePeriodRateIntervalOverlay()
+    public void RenderFrame_ShowsAveragePeriodRateIntervalAnnotations()
     {
         var scopePlot = new AvaPlot();
         var ratePlot = new AvaPlot();
@@ -44,8 +44,8 @@ public sealed class RateScopeHistoryTests
             TraceWave: 0xFF404040,
             TraceTick: 0xFF112233,
             TraceTock: 0xFF445566,
-            AveragePeriodOverlayFill: 0xFF9A9A9A,
-            AveragePeriodOverlayAlternateFill: 0xFFC4C4C4));
+            AveragePeriodAnnotation: 0xFF9A9A9A,
+            AveragePeriodAnnotationAlternate: 0xFFC4C4C4));
 
         var frame = new AnalysisFrame
         {
@@ -74,14 +74,14 @@ public sealed class RateScopeHistoryTests
 
         renderer.RenderFrame(frame, new AnalysisTabRenderContext(48000));
 
-        HorizontalSpan[] spans = ratePlot.Plot.GetPlottables<HorizontalSpan>().Where(s => s.IsVisible).ToArray();
-        Assert.Equal(2, spans.Length);
-        Assert.Equal(0.0, spans[0].X1);
-        Assert.Equal(4.0, spans[0].X2);
-        Assert.Equal(4.0, spans[1].X1);
-        Assert.Equal(8.0, spans[1].X2);
-        Assert.Equal(Color.FromARGB(0xFF9A9A9A).WithAlpha(72), spans[0].FillStyle.Color);
-        Assert.Equal(Color.FromARGB(0xFFC4C4C4).WithAlpha(72), spans[1].FillStyle.Color);
+        Assert.DoesNotContain(ratePlot.Plot.GetPlottables<HorizontalSpan>(), s => s.IsVisible);
+        VerticalLine[] boundaries = ratePlot.Plot.GetPlottables<VerticalLine>().Where(line => line.IsVisible).ToArray();
+        Assert.Equal(new[] { 0.0, 4.0, 8.0 }, boundaries.Select(line => line.X).ToArray());
+        Assert.All(boundaries, line =>
+        {
+            Assert.Equal(LinePattern.Dashed, line.LinePattern);
+            Assert.False(line.EnableAutoscale);
+        });
         Text[] labels = ratePlot.Plot.GetPlottables<Text>().Where(t => t.IsVisible).ToArray();
         Assert.Equal(
             new[]

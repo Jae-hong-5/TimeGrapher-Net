@@ -52,7 +52,7 @@ internal sealed class RateScopeRenderer
     private int _scopeTextsUsed;
     private readonly List<Scatter> _scopePlots = new();
     private readonly List<Scatter> _ratePlots = new();
-    private readonly AveragePeriodRateOverlay _rateAverageOverlay;
+    private readonly AveragePeriodRateAnnotations _rateAverageAnnotations;
     private ReviewCursorLayer? _scopeReviewCursor;
     private BeatMetricsHistorySnapshot? _lastMetricsHistory;
     private PlotThemePalette _theme = PlotThemePalette.Current;
@@ -134,7 +134,7 @@ internal sealed class RateScopeRenderer
         _lastScopeSeries = new GraphSeriesFrame?[_scopeSeries.Length];
         _rateX = CreateSeriesLists(_rateSeries.Length);
         _rateY = CreateSeriesLists(_rateSeries.Length);
-        _rateAverageOverlay = new AveragePeriodRateOverlay(_textFontFamily);
+        _rateAverageAnnotations = new AveragePeriodRateAnnotations(_textFontFamily);
     }
 
     /// <summary>
@@ -167,7 +167,7 @@ internal sealed class RateScopeRenderer
         ApplyPlotTheme(_scopePlot.Plot);
         ApplyPlotTheme(_ratePlot.Plot);
         ApplySeriesTheme();
-        _rateAverageOverlay.ApplyTheme(theme);
+        _rateAverageAnnotations.ApplyTheme(theme);
         _scopePlot.Refresh();
         _ratePlot.Refresh();
     }
@@ -216,7 +216,7 @@ internal sealed class RateScopeRenderer
         rate.Axes.SetLimitsY(-rateErrorYScale, rateErrorYScale);
         rate.Axes.SetLimitsX(0, RatePageWindowBeats);
         ClearSeriesData(_rateX, _rateY);
-        _rateAverageOverlay.Reset();
+        _rateAverageAnnotations.Reset();
         AddRatePlottables();
         rate.ShowLegend();
         _hasRateDataExtent = false;
@@ -253,7 +253,7 @@ internal sealed class RateScopeRenderer
         rate.Axes.SetLimitsY(-rateErrorYScale, rateErrorYScale);
         rate.Axes.SetLimitsX(0, RatePageWindowBeats);
         ClearSeriesData(_rateX, _rateY);
-        _rateAverageOverlay.Reset();
+        _rateAverageAnnotations.Reset();
         AddRatePlottables();
         _hasRateDataExtent = false;
         rate.Axes.Rules.Clear();
@@ -297,7 +297,7 @@ internal sealed class RateScopeRenderer
             {
                 (double left, double right) = RatePageWindowFor(_rateDataMaxX);
                 _ratePlot.Plot.Axes.SetLimitsX(left, right);
-                UpdateAveragePeriodOverlay(frame.MetricsHistory, left, right);
+                UpdateAveragePeriodAnnotations(frame.MetricsHistory);
             }
 
             _ratePlot.Refresh();
@@ -372,22 +372,16 @@ internal sealed class RateScopeRenderer
             _hasRateDataExtent ? RatePageWindowFor(_rateDataMaxX).Right : RatePageWindowBeats);
         if (_hasRateDataExtent)
         {
-            (double left, double right) = RatePageWindowFor(_rateDataMaxX);
-            UpdateAveragePeriodOverlay(_lastMetricsHistory, left, right);
+            UpdateAveragePeriodAnnotations(_lastMetricsHistory);
         }
         _ratePlot.Refresh();
     }
 
-    private void UpdateAveragePeriodOverlay(
-        BeatMetricsHistorySnapshot? history,
-        double pageLeft,
-        double pageRight)
+    private void UpdateAveragePeriodAnnotations(BeatMetricsHistorySnapshot? history)
     {
-        _rateAverageOverlay.Update(
+        _rateAverageAnnotations.Update(
             _ratePlot.Plot,
-            history?.AveragePeriodRateIntervals ?? Array.Empty<AveragePeriodRateInterval>(),
-            pageLeft,
-            pageRight);
+            history?.AveragePeriodRateIntervals ?? Array.Empty<AveragePeriodRateInterval>());
     }
 
     /// <summary>
@@ -455,6 +449,7 @@ internal sealed class RateScopeRenderer
             () =>
             {
                 _rateAxisRefreshPending = false;
+                UpdateAveragePeriodAnnotations(_lastMetricsHistory);
                 _ratePlot.Refresh();
             },
             DispatcherPriority.Background);

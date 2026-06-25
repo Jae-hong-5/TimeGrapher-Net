@@ -110,17 +110,17 @@ public sealed class AppXamlLoadTests
     }
 
     [Fact]
-    public void AppResourcesExposeAveragePeriodOverlayColors()
+    public void AppResourcesExposeAveragePeriodAnnotationColors()
     {
         var app = new App();
         app.Initialize();
 
         foreach (ThemeVariant theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
         {
-            Assert.True(app.TryGetResource("AveragePeriodOverlayFillColor", theme, out object? fill), theme.ToString());
+            Assert.True(app.TryGetResource("AveragePeriodAnnotationColor", theme, out object? fill), theme.ToString());
             Assert.Equal(Color.FromRgb(0x9A, 0x9A, 0x9A), Assert.IsType<Color>(fill));
 
-            Assert.True(app.TryGetResource("AveragePeriodOverlayAlternateFillColor", theme, out object? alternate), theme.ToString());
+            Assert.True(app.TryGetResource("AveragePeriodAnnotationAlternateColor", theme, out object? alternate), theme.ToString());
             Assert.Equal(Color.FromRgb(0xC4, 0xC4, 0xC4), Assert.IsType<Color>(alternate));
         }
     }
