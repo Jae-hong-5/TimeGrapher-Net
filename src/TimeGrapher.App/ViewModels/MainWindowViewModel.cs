@@ -295,9 +295,9 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     }
 
     /// <summary>
-    /// Opt-in post-lock weak-A onset rescue (a run parameter): lowers the onset
+    /// Post-lock weak-A onset rescue (a run parameter): lowers the onset
     /// trigger inside the phase-guide window so a weak A just below the trigger
-    /// is caught instead of latching B. Off by default.
+    /// is caught instead of latching B. On by default.
     /// </summary>
     public bool WeakAOnsetRescue
     {
