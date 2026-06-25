@@ -23,6 +23,7 @@ internal sealed partial class InfoTabRegistry
 {
     private const double VarioMinimumFontSize = 16.0;
     private const double PositionMinimumFontSize = 14.0;
+    private const double SweepReferenceRowHeight = 22.0;
     private const string PositionResultColumns = "1.45*,0.9*,1.7*,1.95*,2.0*";
     private const string ResetAllGraphViewsTooltip = "Reset all graph views";
 
@@ -501,18 +502,20 @@ internal sealed partial class InfoTabRegistry
     {
         var sweepPlot = new AvaPlot();
 
-        // Compact reference line of the most recent measurements under the plot
-        // (the plan's "compare the live waveform against the most recent
-        // timing test" readings).
         var referenceText = new TextBlock
         {
             FontSize = 12,
-            Margin = new Thickness(8, 2),
+            Margin = new Thickness(8, 0, 8, 4),
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            VerticalAlignment = VerticalAlignment.Center,
+            TextWrapping = TextWrapping.NoWrap,
+            TextTrimming = TextTrimming.CharacterEllipsis,
+            ClipToBounds = true,
         };
 
         var grid = new Grid
         {
-            RowDefinitions = new RowDefinitions("Auto,*,Auto"),
+            RowDefinitions = new RowDefinitions($"Auto,*,{SweepReferenceRowHeight}"),
         };
         Grid.SetRow(sweepPlot, 1);
         Grid.SetRow(referenceText, 2);

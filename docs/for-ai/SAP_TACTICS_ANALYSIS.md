@@ -101,7 +101,7 @@ This baseline is the source of most tactics below.
 |---|---|---|---|
 | Defer binding | Platform audio adapters are selected by runtime identifier at build/publish time. This is later than source design but earlier than runtime plugin loading. | `TimeGrapher.App.csproj`, `LiveAudioBackend.cs` | △ |
 | Degradation | Linux live audio can fall back from PipeWire-oriented discovery/capture to ALSA paths when needed. | `LinuxLiveAudioWorker.cs` | ✓ |
-| Maintain UI consistency | Theme colors and graph palettes are centralized. Graph axis panels, reset controls, alert strips, and acceptable bands use shared rendering conventions. | `App.axaml`, `PlotThemePalette.cs`, `PlotThemeHelper.cs`, `InfoTabRegistry.cs` | ✓ |
+| Maintain UI consistency | Theme colors and graph palettes are centralized. Graph axis panels, reset controls, alert strips, acceptable bands, and the Scope Sweep fixed readout slot use shared rendering conventions so transient labels do not resize or overlap graph rows. | `App.axaml`, `PlotThemePalette.cs`, `PlotThemeHelper.cs`, `InfoTabRegistry.cs` | ✓ |
 | Pause/resume | Worker pause gates allow run control without destroying the whole session state, while stop remains separately requestable. | `WorkerPauseGate.cs` | ✓ |
 
 ## 4. Design Patterns Actually Used

@@ -843,7 +843,8 @@ public sealed class InfoTabRegistryTests
         Assert.Equal(3, content.RowDefinitions.Count);
         Assert.Equal(GridUnitType.Auto, content.RowDefinitions[0].Height.GridUnitType);
         Assert.True(content.RowDefinitions[1].Height.IsStar);
-        Assert.Equal(GridUnitType.Auto, content.RowDefinitions[2].Height.GridUnitType);
+        Assert.Equal(GridUnitType.Pixel, content.RowDefinitions[2].Height.GridUnitType);
+        Assert.Equal(22.0, content.RowDefinitions[2].Height.Value, 3);
         Assert.Equal(2, headerStrip.ColumnDefinitions.Count);
         Assert.True(headerStrip.ColumnDefinitions[0].Width.IsStar);
         Assert.Equal(GridUnitType.Auto, headerStrip.ColumnDefinitions[1].Width.GridUnitType);
@@ -866,6 +867,35 @@ public sealed class InfoTabRegistryTests
         });
 
         Assert.DoesNotContain(content.Children.OfType<Button>(), button => Grid.GetRow(button) == 1);
+        TextBlock referenceText = content.Children.OfType<TextBlock>().Single(IsScopeSweepReferenceText);
+        Assert.Equal(VerticalAlignment.Center, referenceText.VerticalAlignment);
+        Assert.Equal(TextWrapping.NoWrap, referenceText.TextWrapping);
+        Assert.Equal(TextTrimming.CharacterEllipsis, referenceText.TextTrimming);
+        Assert.True(referenceText.ClipToBounds);
+    }
+
+    [Fact]
+    public void ScopeSweepReferenceTextDoesNotResizePlotRow()
+    {
+        EnsureAvaloniaPlatform();
+        Grid content = CreateScopeSweepContent(new MainWindowViewModel());
+        var contentSize = new Size(1280, 680);
+        var sweepPlot = Assert.IsType<AvaPlot>(content.Children.Single(child =>
+            child is AvaPlot && Grid.GetRow(child) == 1));
+        TextBlock referenceText = content.Children.OfType<TextBlock>().Single(IsScopeSweepReferenceText);
+
+        referenceText.Text = "short";
+        content.Measure(contentSize);
+        content.Arrange(new Rect(contentSize));
+        Rect shortBounds = sweepPlot.Bounds;
+
+        referenceText.Text = string.Join(
+            "   |   ",
+            Enumerable.Repeat("Instantaneous Rate +1234.5 s/d", 20));
+        content.Measure(contentSize);
+        content.Arrange(new Rect(contentSize));
+
+        Assert.Equal(shortBounds, sweepPlot.Bounds);
     }
 
     [Fact]
@@ -1185,6 +1215,13 @@ public sealed class InfoTabRegistryTests
     {
         return !string.IsNullOrWhiteSpace(text.Text) &&
             text.FontSize > 0.0;
+    }
+
+    private static bool IsScopeSweepReferenceText(TextBlock text)
+    {
+        return Grid.GetRow(text) == 2 &&
+            text.VerticalAlignment == VerticalAlignment.Center &&
+            text.TextTrimming == TextTrimming.CharacterEllipsis;
     }
 
     private static AnalysisFrame Frame(
