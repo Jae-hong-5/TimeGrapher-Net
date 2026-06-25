@@ -5,10 +5,11 @@ using TimeGrapher.Core.Shared;
 
 namespace TimeGrapher.App.Rendering;
 
-/// <summary>Spectrogram time-window selector mode (the Qt original's Last Beat / Seconds).</summary>
+/// <summary>Spectrogram time-window selector mode (the Qt original's Last Beat / Seconds, plus the multi-beat compare view).</summary>
 internal enum SpectrogramViewMode
 {
     LastBeat,
+    Beats,
     Seconds,
 }
 
@@ -43,6 +44,11 @@ internal sealed class SpectrogramRenderer
     private bool _light = PlotThemePalette.Current.IsLight;
     private SpectrogramViewMode _viewMode = SpectrogramViewMode.Seconds;
     private double _viewSeconds = 1.0;
+
+    // Beats mode: how many consecutive beats are laid out side by side. 2 satisfies
+    // "compare one beat with the next"; larger counts make the recurring per-beat
+    // energy structure visible as the same bands repeating lane to lane.
+    private int _viewBeats = 2;
 
     // Latest published image and its windowing metadata, kept so a selector change
     // re-seeds the sweep without waiting for the next frame.
@@ -155,6 +161,17 @@ internal sealed class SpectrogramRenderer
         RenderCurrent();
     }
 
+    /// <summary>
+    /// Sets the Beats-mode count (number of consecutive beats shown side by side).
+    /// Like the Seconds window this is just a re-crop of the retained history, so
+    /// changing it never restarts the sweep. UI thread only.
+    /// </summary>
+    public void SetViewBeats(int beats)
+    {
+        _viewBeats = Math.Max(2, beats);
+        RenderCurrent();
+    }
+
     public void Reset()
     {
         _lastImage = null;
@@ -251,10 +268,11 @@ internal sealed class SpectrogramRenderer
     // image has been laid out.
     private void UpdateCurrentLine()
     {
-        // Last Beat shows one beat repeatedly, not a flow of time, so the live-edge
-        // marker is meaningless there and is hidden.
+        // Only Seconds mode is a live time sweep; Last Beat and Beats show
+        // phase-locked beats rather than a flow of time, so the live-edge marker
+        // is meaningless there and is hidden.
         double width = _spectrogramImage.Bounds.Width;
-        if (_viewMode == SpectrogramViewMode.LastBeat || _lastImage == null || _sweepCols <= 0 || width <= 0.0)
+        if (_viewMode != SpectrogramViewMode.Seconds || _lastImage == null || _sweepCols <= 0 || width <= 0.0)
         {
             _currentLine.IsVisible = false;
             return;
@@ -277,16 +295,31 @@ internal sealed class SpectrogramRenderer
     {
         uint emptyColor = PlotThemePalette.Current.ScopeBg;
 
+        long total = _totalColumns;
+
+        // Right edge of the crop window. Seconds / Last Beat sweep up to the live
+        // edge (total). Beats ends at the latest completed-beat boundary (the most
+        // recent A onset) so it shows whole beats laid out in lanes rather than the
+        // partial in-progress beat at the live edge.
+        long anchor = total;
+
         // Last Beat phase-locks to the real A onset (re-read each beat) so the beat
         // stays put: shifting the sweep phase by (onset column − cols/2) centers
-        // the onset in the window. Seconds mode has no shift (phase = column % cols).
+        // the onset in the window. Beats lays the last N beats out left→right with
+        // each onset on a lane boundary (shift = anchor − cols, no wrap). Seconds
+        // mode has no shift (phase = column % cols).
         long shift = 0;
         if (_viewMode == SpectrogramViewMode.LastBeat && _lastBeatOnsetS > 0.0 && _lastColumnSeconds > 0.0)
         {
             shift = (long)Math.Round(_lastBeatOnsetS / _lastColumnSeconds) - cols / 2;
         }
+        else if (_viewMode == SpectrogramViewMode.Beats && _lastBeatOnsetS > 0.0 && _lastColumnSeconds > 0.0)
+        {
+            long onsetColumn = (long)Math.Round(_lastBeatOnsetS / _lastColumnSeconds);
+            anchor = Math.Min(total, onsetColumn);
+            shift = anchor - cols;
+        }
 
-        long total = _totalColumns;
         uint[] source = _lastImage!.Pixels;
 
         bool sizeChanged = _sweepBuffer == null || _sweepBuffer.Width != cols || _sweepBuffer.Height != height;
@@ -298,8 +331,12 @@ internal sealed class SpectrogramRenderer
         // the projector's moving live-edge cursor column (DrawLiveEdgeCursor paints
         // the next write column), which mutates a retained column between renders —
         // so re-crop fully there. For cols < sourceWidth the cursor is off-window.
+        // Beats re-crops fully every render: its anchor is the latest A onset, which
+        // advances independently of the live-edge total, so the append fast-path
+        // (keyed on total) does not apply.
         bool canAppend = !sizeChanged
             && !_forceFullRebuild
+            && _viewMode != SpectrogramViewMode.Beats
             && cols < sourceWidth
             && _renderedTotal >= 0
             && total >= _renderedTotal
@@ -315,8 +352,8 @@ internal sealed class SpectrogramRenderer
         if (!canAppend)
         {
             _sweepBuffer.Fill(emptyColor);
-            long firstColumn = Math.Max(0, total - cols); // only the most recent cols exist
-            for (long c = firstColumn; c < total; c++)
+            long firstColumn = Math.Max(0, anchor - cols); // only the most recent cols exist
+            for (long c = firstColumn; c < anchor; c++)
             {
                 WriteSweepColumn(source, target, c, shift, cols, sourceWidth, height);
             }
@@ -332,9 +369,17 @@ internal sealed class SpectrogramRenderer
             }
         }
 
+        // Beats: mark each beat boundary with a thin grid-colored divider so the
+        // lanes read as separate beats to compare. Painted after the crop so it
+        // sits on top; the color comes from the theme (never hardcoded).
+        if (_viewMode == SpectrogramViewMode.Beats)
+        {
+            DrawBeatDividers(target, cols, height);
+        }
+
         _emptyColor = emptyColor;
         _sweepCols = cols;
-        _sweepHead = (int)(((total - shift) % cols + cols) % cols); // live edge: next column to write
+        _sweepHead = (int)(((anchor - shift) % cols + cols) % cols); // live edge: next column to write
         _renderedTotal = total;
         _renderedShift = shift;
         _renderedEmptyColor = emptyColor;
@@ -351,31 +396,64 @@ internal sealed class SpectrogramRenderer
         }
     }
 
-    private double CurrentWindowSeconds()
+    // Paints a one-column grid-colored line at each beat boundary of the Beats
+    // window (every beatCols columns). Boundaries fall on the lane edges because
+    // the crop phase-locks each onset there, so the dividers separate one beat
+    // from the next. No-op until a frame supplies the column duration.
+    private void DrawBeatDividers(uint[] target, int cols, int height)
     {
-        if (_viewMode == SpectrogramViewMode.LastBeat)
+        if (_lastColumnSeconds <= 0.0)
         {
-            return _lastBeatPeriodS > 0.0 ? _lastBeatPeriodS : FallbackBeatPeriodS;
+            return;
         }
 
-        return _viewSeconds;
+        double beatPeriod = _lastBeatPeriodS > 0.0 ? _lastBeatPeriodS : FallbackBeatPeriodS;
+        int beatCols = (int)Math.Round(beatPeriod / _lastColumnSeconds);
+        if (beatCols <= 0)
+        {
+            return;
+        }
+
+        uint divider = PlotThemePalette.Current.ScopeGrid;
+        for (int x = beatCols; x < cols; x += beatCols)
+        {
+            for (int y = 0; y < height; y++)
+            {
+                target[y * cols + x] = divider;
+            }
+        }
+    }
+
+    private double CurrentWindowSeconds()
+    {
+        double beatPeriod = _lastBeatPeriodS > 0.0 ? _lastBeatPeriodS : FallbackBeatPeriodS;
+        return _viewMode switch
+        {
+            SpectrogramViewMode.LastBeat => beatPeriod,
+            SpectrogramViewMode.Beats => beatPeriod * _viewBeats,
+            _ => _viewSeconds,
+        };
     }
 
     private void UpdateTimeAxis(double windowSeconds)
     {
-        // Seconds (one decimal: 0.1, 0.2, …) in Seconds mode; milliseconds in Last
-        // Beat mode, whose window is far too short to read in seconds.
-        bool lastBeat = _viewMode == SpectrogramViewMode.LastBeat;
-        double span = lastBeat ? windowSeconds * 1000.0 : windowSeconds;
+        // Seconds (one decimal: 0.1, 0.2, …) in Seconds mode; milliseconds in the
+        // beat-locked modes (Last Beat / Beats), whose windows are far too short to
+        // read in seconds.
+        bool beatBased = _viewMode != SpectrogramViewMode.Seconds;
+        double span = beatBased ? windowSeconds * 1000.0 : windowSeconds;
         int last = _timeLabels.Length - 1;
         for (int i = 0; i < _timeLabels.Length; i++)
         {
             double value = span * i / last;
-            _timeLabels[i].Text = lastBeat ? $"{value:0}" : $"{value:0.#}";
+            _timeLabels[i].Text = beatBased ? $"{value:0}" : $"{value:0.#}";
         }
 
-        _timeCaption.Text = lastBeat
-            ? "Time (ms) · last beat"
-            : $"Time (s) · {windowSeconds:0.#} s window";
+        _timeCaption.Text = _viewMode switch
+        {
+            SpectrogramViewMode.LastBeat => "Time (ms) · last beat",
+            SpectrogramViewMode.Beats => $"Time (ms) · last {_viewBeats} beats",
+            _ => $"Time (s) · {windowSeconds:0.#} s window",
+        };
     }
 }

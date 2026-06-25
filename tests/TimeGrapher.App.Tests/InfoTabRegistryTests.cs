@@ -642,7 +642,7 @@ public sealed class InfoTabRegistryTests
             .OfType<Button>()
             .Select(button => button.Content?.ToString() ?? string.Empty)
             .ToArray();
-        Assert.Equal(new[] { "Last Beat", "Seconds", "−", "+" }, buttons);
+        Assert.Equal(new[] { "Last Beat", "Beats", "Seconds", "−", "+" }, buttons);
 
         Assert.All(buttonStrip.Children.OfType<Button>(), button =>
         {

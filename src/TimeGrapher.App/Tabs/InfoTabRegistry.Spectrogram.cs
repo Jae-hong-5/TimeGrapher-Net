@@ -190,12 +190,18 @@ internal sealed partial class InfoTabRegistry
 
         var renderer = new SpectrogramRenderer(image, legendImage, freqLabels, timeLabels, timeAxisCaption, currentLine);
 
-        // Time-window toolbar (the Qt original's Last Beat / Seconds selector). The
-        // mode buttons follow the Scope Sweep "active option disabled" pattern; the
-        // −/+ buttons step a seconds ladder. Display-only: the renderer re-crops the
-        // kept image on the UI thread, so no analysis-worker round trip is needed.
+        // Time-window toolbar (the Qt original's Last Beat / Seconds selector, plus
+        // a Beats compare view). The mode buttons follow the Scope Sweep "active
+        // option disabled" pattern; the −/+ buttons step the active mode's ladder
+        // (a seconds ladder in Seconds mode, a beat-count ladder in Beats mode).
+        // Display-only: the renderer re-crops the kept image on the UI thread, so no
+        // analysis-worker round trip is needed.
         double[] secondsLadder = { 0.5, 1.0, 2.0, 5.0, 10.0 };
         int secondsIndex = 1; // 1.0 s, matching the SpectrogramRenderer default
+        // Beat-count ladder for Beats mode: 2 (compare one beat with the next) up to
+        // 8 (recurring per-beat energy structure across several beats).
+        int[] beatsLadder = { 2, 4, 8 };
+        int beatsIndex = 0; // 2 beats, matching the SpectrogramRenderer default
         var viewMode = SpectrogramViewMode.Seconds;
 
         Button ToolbarButton(string content, string tooltip)
@@ -214,9 +220,10 @@ internal sealed partial class InfoTabRegistry
             return button;
         }
         Button lastBeatButton = ToolbarButton("Last Beat", "Show the most recent single beat period");
+        Button beatsButton = ToolbarButton("Beats", "Show the last few beats side by side to compare one with the next");
         Button secondsButton = ToolbarButton("Seconds", "Show a fixed number of seconds");
-        Button minusButton = ToolbarButton("−", "Shorter window");
-        Button plusButton = ToolbarButton("+", "Longer window");
+        Button minusButton = ToolbarButton("−", "Shorter window / fewer beats");
+        Button plusButton = ToolbarButton("+", "Longer window / more beats");
         var secondsText = new TextBlock
         {
             FontSize = TraceHeaderButtonFontSize,
@@ -236,36 +243,58 @@ internal sealed partial class InfoTabRegistry
         void UpdateToolbar()
         {
             lastBeatButton.IsEnabled = viewMode != SpectrogramViewMode.LastBeat;
+            beatsButton.IsEnabled = viewMode != SpectrogramViewMode.Beats;
             secondsButton.IsEnabled = viewMode != SpectrogramViewMode.Seconds;
+
             bool seconds = viewMode == SpectrogramViewMode.Seconds;
-            minusButton.IsEnabled = seconds && secondsIndex > 0;
-            plusButton.IsEnabled = seconds && secondsIndex < secondsLadder.Length - 1;
-            secondsText.Opacity = seconds ? 1.0 : 0.4;
-            secondsText.Text = $"{secondsLadder[secondsIndex]:0.#} s";
+            bool beats = viewMode == SpectrogramViewMode.Beats;
+            // The −/+ stepper and the readout drive whichever ladder the active mode
+            // owns (seconds in Seconds mode, beat count in Beats mode); both are
+            // inert in Last Beat, which has a single fixed window.
+            minusButton.IsEnabled = (seconds && secondsIndex > 0) || (beats && beatsIndex > 0);
+            plusButton.IsEnabled = (seconds && secondsIndex < secondsLadder.Length - 1)
+                || (beats && beatsIndex < beatsLadder.Length - 1);
+            secondsText.Opacity = seconds || beats ? 1.0 : 0.4;
+            secondsText.Text = beats ? $"{beatsLadder[beatsIndex]} beats" : $"{secondsLadder[secondsIndex]:0.#} s";
         }
 
-        // Steps the Seconds-mode window along the ladder (shared by the −/+
-        // buttons and the wheel-over-graph gesture). No-op outside Seconds mode
-        // or at the ladder ends.
+        // Steps the active mode's ladder (shared by the −/+ buttons and the
+        // wheel-over-graph gesture): the seconds window in Seconds mode, the beat
+        // count in Beats mode. No-op in Last Beat or at the ladder ends.
         void StepWindow(int delta)
         {
-            if (viewMode != SpectrogramViewMode.Seconds)
+            if (viewMode == SpectrogramViewMode.Seconds)
             {
-                return;
+                int next = Math.Clamp(secondsIndex + delta, 0, secondsLadder.Length - 1);
+                if (next != secondsIndex)
+                {
+                    secondsIndex = next;
+                    renderer.SetViewSeconds(secondsLadder[secondsIndex]);
+                    UpdateToolbar();
+                }
             }
-
-            int next = Math.Clamp(secondsIndex + delta, 0, secondsLadder.Length - 1);
-            if (next != secondsIndex)
+            else if (viewMode == SpectrogramViewMode.Beats)
             {
-                secondsIndex = next;
-                renderer.SetViewSeconds(secondsLadder[secondsIndex]);
-                UpdateToolbar();
+                int next = Math.Clamp(beatsIndex + delta, 0, beatsLadder.Length - 1);
+                if (next != beatsIndex)
+                {
+                    beatsIndex = next;
+                    renderer.SetViewBeats(beatsLadder[beatsIndex]);
+                    UpdateToolbar();
+                }
             }
         }
 
         lastBeatButton.Click += (_, _) =>
         {
             viewMode = SpectrogramViewMode.LastBeat;
+            renderer.SetViewMode(viewMode);
+            UpdateToolbar();
+        };
+        beatsButton.Click += (_, _) =>
+        {
+            viewMode = SpectrogramViewMode.Beats;
+            renderer.SetViewBeats(beatsLadder[beatsIndex]);
             renderer.SetViewMode(viewMode);
             UpdateToolbar();
         };
@@ -303,6 +332,7 @@ internal sealed partial class InfoTabRegistry
             VerticalAlignment = VerticalAlignment.Center,
         };
         toolbar.Children.Add(lastBeatButton);
+        toolbar.Children.Add(beatsButton);
         toolbar.Children.Add(secondsButton);
         toolbar.Children.Add(minusButton);
         toolbar.Children.Add(secondsReadout);
