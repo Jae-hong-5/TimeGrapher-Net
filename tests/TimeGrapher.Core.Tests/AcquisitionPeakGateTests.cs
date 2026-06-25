@@ -92,6 +92,71 @@ public sealed class AcquisitionPeakGateTests
         return engine.Flush().Result.DetectedBph;
     }
 
+    // Clean 21600 stream whose Tock beats (odd beat index) are attenuated to weakFactor
+    // of the Tick beats -- a strong-tic / weak-toc amplitude-asymmetric watch. The weak
+    // tocs are genuine beats, weaker than the strong tics but well above noise.
+    private static float[] AsymmetricTicTocStream(double weakFactor)
+    {
+        WatchSynthStreamConfig cfg = WatchSynthStreamConfig.Clean();
+        cfg.SampleRateHz = Fs;
+        cfg.Bph = 21600;
+        cfg.PcmPeakSignalLevel = RealBeatPcmPeak;
+        cfg.NoisePeakSignalLevel = 0.002;
+
+        var synth = new WatchSynthStream(cfg);
+        int n = Fs * 10;
+        var pcm = new float[n];
+        var onsets = new List<(int Sample, WatchSynthEventKind Kind)>();
+        var block = new float[4096];
+        var ev = new WatchSynthStreamEvent[64];
+        int w = 0;
+        while (w < n)
+        {
+            int sl = Math.Min(block.Length, n - w);
+            WatchSynthStreamFillResult r = synth.FillF32(block.AsSpan(0, sl), ev);
+            Array.Copy(block, 0, pcm, w, sl);
+            for (int i = 0; i < r.EventsWritten; i++)
+            {
+                onsets.Add(((int)(ev[i].TimeS * Fs), ev[i].Kind));
+            }
+
+            w += sl;
+        }
+
+        // Attenuate a window covering each Tock packet (the A->C span plus tail); beats
+        // are ~166 ms apart at 21600 BPH, so a 50 ms window never reaches the next beat.
+        int win = (int)(0.050 * Fs);
+        int pre = (int)(0.002 * Fs);
+        foreach ((int sample, WatchSynthEventKind kind) in onsets)
+        {
+            if (kind != WatchSynthEventKind.Tock)
+            {
+                continue;
+            }
+
+            for (int k = Math.Max(0, sample - pre); k < sample + win && k < pcm.Length; k++)
+            {
+                pcm[k] = (float)(pcm[k] * weakFactor);
+            }
+        }
+
+        return pcm;
+    }
+
+    [Fact]
+    public void AsymmetricTicToc_GateOn_AcquiresTrueRateNotHalf()
+    {
+        // A genuine watch with strong-tic / weak-toc amplitude asymmetry: the toc beats
+        // sit at ~0.30x the tic envelope -- below 0.35x a MAX-based early reference, but
+        // above 0.35x the median. With the gate engaging at only two accepted peaks
+        // (max-based), the genuine weak tocs were rejected and acquisition stalled
+        // (detected_bph = 0); engaging at the median bootstrap keeps them, so the gate-on
+        // detector locks the true 21600 rate. This pins TG_ACQ_GATE_MIN_HISTORY: at 2 the
+        // same stream fails to lock.
+        float[] pcm = AsymmetricTicTocStream(weakFactor: 0.30);
+        Assert.Equal(21600, DetectedBph(pcm, gateFraction: 0.35));
+    }
+
     [Fact]
     public void HalfBeatArtifact_AliasesToDoubleRate_WithoutGate()
     {
