@@ -126,4 +126,48 @@ public sealed class AcquisitionPeakGateTests
 
         Assert.Equal(43200, DetectedBph(pcm, gateFraction: 0.35));
     }
+
+    [Fact]
+    public void Reacquisition_AfterLoudLockThenQuietDrop_StillLocks()
+    {
+        // F1 guard: a loud watch locks, then the signal stops (sync loss) and
+        // returns much quieter (1/4 level). The gate keys on the decayed
+        // ReferencePeak, so the stale loud level relaxes during the gap and the
+        // quieter beats are not rejected -- re-lock to the true rate still succeeds
+        // with the gate on. A raw undecayed accepted-peak median would stay loud
+        // (history is not cleared on sync loss and gate rejects never call PushPeak)
+        // and block reacquisition forever.
+        float[] loud = CleanStream(bph: 21600, pcmPeak: 0.40, seconds: 4);
+        var silence = new float[Fs * 5];
+        float[] quiet = CleanStream(bph: 21600, pcmPeak: 0.10, seconds: 7);
+
+        var pcm = new float[loud.Length + silence.Length + quiet.Length];
+        Array.Copy(loud, 0, pcm, 0, loud.Length);
+        Array.Copy(quiet, 0, pcm, loud.Length + silence.Length, quiet.Length);
+
+        Assert.Equal(21600, DetectedBph(pcm, gateFraction: 0.35));
+    }
+
+    private static float[] CleanStream(int bph, double pcmPeak, int seconds)
+    {
+        WatchSynthStreamConfig cfg = WatchSynthStreamConfig.Clean();
+        cfg.SampleRateHz = Fs;
+        cfg.Bph = bph;
+        cfg.PcmPeakSignalLevel = pcmPeak;
+        cfg.NoisePeakSignalLevel = 0.002;
+
+        var synth = new WatchSynthStream(cfg);
+        int n = Fs * seconds;
+        var pcm = new float[n];
+        var block = new float[4096];
+        int w = 0;
+        while (w < n)
+        {
+            int sl = Math.Min(block.Length, n - w);
+            synth.Generate(block.AsSpan(0, sl));
+            Array.Copy(block, 0, pcm, w, sl);
+            w += sl;
+        }
+        return pcm;
+    }
 }

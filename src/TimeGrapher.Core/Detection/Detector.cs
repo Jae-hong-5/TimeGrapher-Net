@@ -42,9 +42,12 @@ internal sealed class TgDetectorCore
     public const int TG_PEAK_HISTORY_N = 16;    // ~2 s at 28800 BPH
 
     /* Acquisition spurious-beat gate: minimum accepted-peak history before the
-     * gate engages. Matches the reference-peak median bootstrap (>=4), so the
-     * median it compares against is already robust to a single early outlier. */
-    public const int TG_ACQ_GATE_MIN_HISTORY = 4;
+     * gate engages. The gate compares against ReferencePeak, which is the MAX of
+     * the accepted peaks until the median bootstrap (>=4) takes over -- weak
+     * between-beat artifacts cannot drag a max-based reference down, so the gate
+     * can engage after only a couple of beats while staying robust to an early
+     * outlier. This bounds how many artifacts can leak before the gate is active. */
+    public const int TG_ACQ_GATE_MIN_HISTORY = 2;
 
     /* V5.6 regime-change detector constants. */
     public const int TG_REGIME_RING_N = 8;       // short-term burst peak ring
@@ -966,9 +969,10 @@ internal sealed class TgDetectorCore
 
                 if (samplesSincePeak >= BurstEndSamples)
                 {
-                    /* Minimum tick height: fraction of the dynamic range. */
+                    /* Minimum tick height: fraction of the dynamic range. refPeak
+                     * (decayed, floor-adapted) is reused by the acquisition gate. */
                     ComputeThresholds(absIdx, BurstPhaseGuided != 0,
-                                      out _, out _, out _, out _, out double minPeak);
+                                      out _, out double refPeak, out _, out _, out double minPeak);
                     bool isRealTick = (BurstMax >= minPeak);
 
                     /* Acquisition spurious-beat gate (pre-lock only). A weak
@@ -978,15 +982,29 @@ internal sealed class TgDetectorCore
                      * pulls the median A-to-A interval down so the plausibility
                      * floor stops rejecting the half-period candidate. Rejecting a
                      * burst far weaker than the recent accepted beats restores the
-                     * true cadence. Post-lock (PhaseGuideEnabled) the phase guide
-                     * already discards off-phase artifacts and the weak-A rescue
-                     * owns the weak-onset decision, so the gate must not run there. */
+                     * true cadence.
+                     *
+                     * The reference is the SAME decayed/floor-adapted ReferencePeak
+                     * the min-peak path uses, not the raw accepted-peak median. On a
+                     * loud->quiet transition or after sync loss neither path clears
+                     * the peak history, and a gate-rejected burst takes the else
+                     * branch below (it never calls PushPeak), so a raw stale-loud
+                     * median would block lower-amplitude reacquisition indefinitely;
+                     * the reference decay relieves that exactly as it does for the
+                     * min-peak threshold. A gate reject still feeds the rejected-peak
+                     * ring (W-2 adaptive floor) below, but that ring is deliberately
+                     * separate from this accepted-peak reference, so the floor
+                     * adaptation cannot lower the gate's own reference.
+                     *
+                     * Post-lock (PhaseGuideEnabled) the phase guide already discards
+                     * off-phase artifacts and the weak-A rescue owns the weak-onset
+                     * decision, so the gate must not run there. */
                     if (isRealTick
                         && AcquisitionPeakGateFraction > 0.0
                         && PhaseGuideEnabled == 0
                         && PeakHistoryCount >= TG_ACQ_GATE_MIN_HISTORY
-                        && MedianPeakCache > 0.0
-                        && BurstMax < AcquisitionPeakGateFraction * MedianPeakCache)
+                        && refPeak > 0.0
+                        && BurstMax < AcquisitionPeakGateFraction * refPeak)
                     {
                         isRealTick = false;
                     }
