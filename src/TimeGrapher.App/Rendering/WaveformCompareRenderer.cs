@@ -259,7 +259,12 @@ internal sealed class WaveformCompareRenderer
         if (snapshot != null && snapshot.Version != _lastVersion)
         {
             _lastVersion = snapshot.Version;
-            RenderLanes(snapshot, frame.MetricsHistory);
+            // Render from the UI-owned deep copy, not the pooled Core snapshot:
+            // _lastSnapshot was just refreshed to a copy of this version above, and
+            // FillLane/UpdateGhostOverlay read segment sample buffers that the
+            // BeatSegmentCapture pool can recycle under a UI stall. This honors the
+            // class contract (lanes read the cached copy, never a recycled pool buffer).
+            RenderLanes(_lastSnapshot!, frame.MetricsHistory);
             changed = true;
         }
 
@@ -322,6 +327,7 @@ internal sealed class WaveformCompareRenderer
                 CPeakOffsetMs = s.CPeakOffsetMs,
                 COnsetValid = s.COnsetValid,
                 COnsetOffsetMs = s.COnsetOffsetMs,
+                Quality = s.Quality,
             };
         }
 
@@ -332,6 +338,7 @@ internal sealed class WaveformCompareRenderer
             Markers = snapshot.Markers,
             LiftAngleDeg = snapshot.LiftAngleDeg,
             Average = snapshot.Average,
+            Quality = snapshot.Quality,
         };
     }
 
@@ -535,8 +542,15 @@ internal sealed class WaveformCompareRenderer
 
     }
 
+    // Lanes are top-anchored: lane 0 (newest) always sits at baseline
+    // (PairLanes-1)*LaneSpacing regardless of how many pairs exist (see RenderLanes).
+    // The Y axis top must therefore reach that fixed top lane once any pair is shown,
+    // not grow from the bottom with pairCount (which left early pairs drawn above the
+    // visible axis until all four lanes filled).
     private static double YTop(int pairCount) =>
-        (Math.Max(1, pairCount) - 1) * WaveformCompareLogic.LaneSpacing + YHeadroom;
+        pairCount <= 0
+            ? YHeadroom
+            : (WaveformCompareLogic.PairLanes - 1) * WaveformCompareLogic.LaneSpacing + YHeadroom;
 
     /// <summary>Review-cursor contract: a dotted marker at the scrub time's A-relative offset.</summary>
     private bool UpdateReviewCursor(double? reviewCursorTimeS)
