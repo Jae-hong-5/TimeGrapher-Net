@@ -347,10 +347,11 @@
       <Setter Property="Foreground" Value="White" />
     </Style>
     <Style Selector="Border.SeqActiveRow">
-      <Setter Property="Background" Value="{DynamicResource ChromeAccentBrush}" />
-    </Style>
-    <Style Selector="TextBlock.SeqOnAccent">
-      <Setter Property="Foreground" Value="White" />
+      <!-- Neutral fill + a red left bar marks the active row WITHOUT reading as
+           out-of-band (red is reserved for out-of-accept-band values). -->
+      <Setter Property="Background" Value="{DynamicResource PanelBgBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource ChromeAccentBrush}" />
+      <Setter Property="BorderThickness" Value="3,0,0,0" />
     </Style>
     <!--
       The reusable crystal pane: translucent frost fill, top-lit rim bevel, and a

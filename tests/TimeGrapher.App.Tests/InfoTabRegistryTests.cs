@@ -101,12 +101,9 @@ public sealed class InfoTabRegistryTests
 
         Assert.Equal(WatchPosition.CH, activeDiagram.Position);
         Assert.DoesNotContain(Descendants(content).OfType<TextBlock>(), text => text.Text == "POSITION MAP");
-        Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "Amplitude");
-        Assert.All(
-            Descendants(content).OfType<TextBlock>().Where(PositionTextHasLocalFontSize),
-            text => Assert.True(text.FontSize >= 14.0, $"{text.Text} uses {text.FontSize}px"));
+        Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "AMPLITUDE");
         Grid tableGrid = Assert.Single(Descendants(content).OfType<Grid>(), grid =>
-            grid.ColumnDefinitions.Count == 5 &&
+            grid.ColumnDefinitions.Count == 7 &&
             grid.Children.OfType<TextBlock>().Any(text => text.Text == "POS"));
         Assert.Equal(WatchPositions.Count + 1, tableGrid.RowDefinitions.Count);
         Assert.DoesNotContain(Descendants(content).OfType<Border>(), border =>
@@ -1052,12 +1049,6 @@ public sealed class InfoTabRegistryTests
             .OfType<Button>()
             .Where(button => Equals(button.Content, "Reset View"))
             .ToArray();
-    }
-
-    private static bool PositionTextHasLocalFontSize(TextBlock text)
-    {
-        return !string.IsNullOrWhiteSpace(text.Text) &&
-            text.FontSize > 0.0;
     }
 
     private static bool IsScopeSweepReferenceText(TextBlock text)

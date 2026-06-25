@@ -1,30 +1,36 @@
+using System;
+using System.Collections.Generic;
 using System.Globalization;
+using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Layout;
 using Avalonia.Media;
 using TimeGrapher.Core.Shared;
 
 namespace TimeGrapher.App.Rendering;
 
 /// <summary>
-/// Renders the Positions tab's per-position measurement table (the means each
-/// position recorded) and tracks the active position. Cross-position consistency
-/// is judged on the Health tab now, so this renderer is a pure data view: it
-/// rebuilds the table from the cumulative <see cref="SequenceSummary"/> the frame
-/// snapshot carries.
+/// Renders the Positions tab's merged per-position table: the measured means
+/// (rate / amplitude / beat error / beats), a rate-range acquisition lane
+/// (<see cref="RateRangeLaneControl"/>, min–mean–max vs the accept band) and a
+/// collection-progress cell, one row per position. Cross-position consistency is
+/// judged on the Health tab now, so this is a pure data view built from the
+/// per-position <see cref="PositionSummary"/> stats the frame snapshot carries —
+/// no new analysis data. Red is reserved for out-of-accept-band values.
 /// </summary>
 internal sealed class MultiPositionSeqRenderer
 {
     private const string ActiveRowClass = "SeqActiveRow";
-    private const string OnAccentClass = "SeqOnAccent";
 
-    private static readonly string[] Headers = { "POS", "Error Rate", "Amplitude", "BEAT ERROR", "BEATS" };
+    private static readonly string[] Headers =
+        { "POS", "RATE", "AMPLITUDE", "BEAT ERR", "BEATS", "RATE RANGE vs BAND  (−20 · 0 · +20 s/d)", "COLLECTION → 30" };
 
     private readonly Grid _tableGrid;
     private readonly PositionSequenceDashboardControls _dashboard;
     private readonly WatchPosition _initialPosition;
 
     private ulong _lastVersion;
-    private SequenceSummary _lastSummary = SequenceSummary.Compute(Array.Empty<PositionSummary>());
+    private IReadOnlyList<PositionSummary> _lastPositions = Array.Empty<PositionSummary>();
 
     public MultiPositionSeqRenderer(
         Grid tableGrid,
@@ -37,22 +43,19 @@ internal sealed class MultiPositionSeqRenderer
         Reset();
     }
 
-    public void Reset()
-    {
-        Reset(_initialPosition);
-    }
+    public void Reset() => Reset(_initialPosition);
 
     public void Reset(WatchPosition activePosition)
     {
         _lastVersion = 0;
-        _lastSummary = SequenceSummary.Compute(Array.Empty<PositionSummary>());
-        RebuildTable(_lastSummary.Rows, activePosition);
+        _lastPositions = Array.Empty<PositionSummary>();
+        RebuildTable(_lastPositions, activePosition);
         SetActivePosition(activePosition);
     }
 
     public void RequestPosition(WatchPosition position)
     {
-        RebuildTable(_lastSummary.Rows, position);
+        RebuildTable(_lastPositions, position);
         SetActivePosition(position);
     }
 
@@ -65,9 +68,8 @@ internal sealed class MultiPositionSeqRenderer
         }
 
         _lastVersion = history.Version;
-        SequenceSummary summary = SequenceSummary.Compute(history.Positions);
-        _lastSummary = summary;
-        RebuildTable(summary.Rows, history.ActivePosition);
+        _lastPositions = history.Positions ?? Array.Empty<PositionSummary>();
+        RebuildTable(_lastPositions, history.ActivePosition);
         SetActivePosition(history.ActivePosition);
     }
 
@@ -77,7 +79,7 @@ internal sealed class MultiPositionSeqRenderer
         _dashboard.ActiveOrientationText.Text = position.LongName();
     }
 
-    private void RebuildTable(IReadOnlyList<SequencePositionRow> rows, WatchPosition? activePosition)
+    private void RebuildTable(IReadOnlyList<PositionSummary> positions, WatchPosition? activePosition)
     {
         _tableGrid.Children.Clear();
         _tableGrid.RowDefinitions.Clear();
@@ -85,21 +87,23 @@ internal sealed class MultiPositionSeqRenderer
         _tableGrid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
         for (int column = 0; column < Headers.Length; column++)
         {
-            AddCell(Headers[column], 0, column, isHeader: true, onAccent: false);
+            AddHeader(Headers[column], column);
         }
 
-        Dictionary<WatchPosition, SequencePositionRow> rowsByPosition =
-            rows.ToDictionary(row => row.Position);
-        IReadOnlyList<WatchPosition> positions = WatchPositions.All;
-        for (int index = 0; index < positions.Count; index++)
+        var byPosition = new Dictionary<WatchPosition, PositionSummary>();
+        foreach (PositionSummary position in positions)
         {
-            WatchPosition position = positions[index];
-            rowsByPosition.TryGetValue(position, out SequencePositionRow? row);
+            byPosition[position.Position] = position;
+        }
+
+        IReadOnlyList<WatchPosition> all = WatchPositions.All;
+        for (int index = 0; index < all.Count; index++)
+        {
+            WatchPosition position = all[index];
             int gridRow = index + 1;
             _tableGrid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
 
-            bool active = position == activePosition;
-            if (active)
+            if (position == activePosition)
             {
                 var highlight = new Border { Classes = { ActiveRowClass } };
                 Grid.SetRow(highlight, gridRow);
@@ -107,32 +111,111 @@ internal sealed class MultiPositionSeqRenderer
                 _tableGrid.Children.Add(highlight);
             }
 
-            AddCell(position.ShortName(), gridRow, 0, isHeader: false, active);
-            AddCell(VarioReadout.Format(row?.RateSPerDay, "+0.0;-0.0;0.0", " s/d"), gridRow, 1, isHeader: false, active);
-            AddCell(VarioReadout.Format(row?.AmplitudeDeg, "0", "°"), gridRow, 2, isHeader: false, active);
-            AddCell(VarioReadout.Format(row?.BeatErrorMs, "+0.00;-0.00; 0.00", " ms"), gridRow, 3, isHeader: false, active);
-            AddCell(row?.Beats.ToString(CultureInfo.InvariantCulture) ?? VarioReadout.Missing, gridRow, 4, isHeader: false, active);
+            byPosition.TryGetValue(position, out PositionSummary? summary);
+            StatsSummary rate = summary?.Rate ?? default;
+            StatsSummary amp = summary?.Amplitude ?? default;
+            StatsSummary beat = summary?.BeatError ?? default;
+            long beats = summary is null ? 0 : Math.Max(rate.Count, Math.Max(amp.Count, beat.Count));
+
+            bool rateOut = rate.Valid &&
+                (rate.Mean < VarioGaugePolicy.RateAcceptMinSPerDay || rate.Mean > VarioGaugePolicy.RateAcceptMaxSPerDay);
+            bool ampOut = amp.Valid &&
+                (amp.Mean < VarioGaugePolicy.AmplitudeAcceptMinDeg || amp.Mean > VarioGaugePolicy.AmplitudeAcceptMaxDeg);
+
+            AddText(position.ShortName(), gridRow, 0, bold: true, outOfBand: false);
+            AddText(VarioReadout.Format(rate.Valid ? rate.Mean : (double?)null, "+0.0;-0.0;0.0", " s/d"), gridRow, 1, false, rateOut);
+            AddText(VarioReadout.Format(amp.Valid ? amp.Mean : (double?)null, "0", "°"), gridRow, 2, false, ampOut);
+            AddText(VarioReadout.Format(beat.Valid ? beat.Mean : (double?)null, "+0.00;-0.00; 0.00", " ms"), gridRow, 3, false, false);
+            AddText(beats > 0 ? beats.ToString(CultureInfo.InvariantCulture) : VarioReadout.Missing, gridRow, 4, false, false);
+
+            var lane = new RateRangeLaneControl(
+                rate.Valid, rate.Valid ? rate.Min : 0.0, rate.Mean, rate.Valid ? rate.Max : 0.0);
+            Grid.SetRow(lane, gridRow);
+            Grid.SetColumn(lane, 5);
+            _tableGrid.Children.Add(lane);
+
+            Control collection = BuildCollectionCell(beats);
+            Grid.SetRow(collection, gridRow);
+            Grid.SetColumn(collection, 6);
+            _tableGrid.Children.Add(collection);
         }
     }
 
-    private void AddCell(string text, int row, int column, bool isHeader, bool onAccent)
+    private void AddHeader(string text, int column)
+    {
+        var cell = new TextBlock
+        {
+            Text = text,
+            FontSize = 11,
+            FontWeight = FontWeight.Bold,
+            Opacity = 0.55,
+            Margin = new Thickness(8, 0, 8, 4),
+        };
+        Grid.SetRow(cell, 0);
+        Grid.SetColumn(cell, column);
+        _tableGrid.Children.Add(cell);
+    }
+
+    private void AddText(string text, int row, int column, bool bold, bool outOfBand)
     {
         var cell = new TextBlock
         {
             Text = text,
             FontSize = 14,
-            Opacity = isHeader ? 0.65 : 1.0,
-            Margin = new Avalonia.Thickness(8, 3),
-            HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Stretch,
+            FontWeight = bold ? FontWeight.Bold : FontWeight.Normal,
+            Margin = new Thickness(8, 4, 8, 4),
+            VerticalAlignment = VerticalAlignment.Center,
             TextAlignment = TextAlignment.Left,
         };
-        if (onAccent)
+        if (outOfBand)
         {
-            cell.Classes.Add(OnAccentClass);
+            cell.Bind(TextBlock.ForegroundProperty, cell.GetResourceObservable("VarioBadBrush"));
         }
 
         Grid.SetRow(cell, row);
         Grid.SetColumn(cell, column);
         _tableGrid.Children.Add(cell);
+    }
+
+    private static Control BuildCollectionCell(long beats)
+    {
+        long threshold = VarioVerdict.MinSamples;
+        bool measured = beats > 0;
+        bool qualified = beats >= threshold;
+        double fraction = threshold <= 0 ? 0.0 : Math.Clamp(beats / (double)threshold, 0.0, 1.0);
+
+        var fill = new Border { CornerRadius = new CornerRadius(4) };
+        if (measured)
+        {
+            fill.Bind(Border.BackgroundProperty,
+                fill.GetResourceObservable(qualified ? "VarioGoodBrush" : "VarioWarnBrush"));
+        }
+
+        var bar = new Grid
+        {
+            Height = 8,
+            ColumnDefinitions = new ColumnDefinitions(string.Format(
+                CultureInfo.InvariantCulture, "{0:0.###}*,{1:0.###}*", fraction, 1.0 - fraction)),
+        };
+        Grid.SetColumn(fill, 0);
+        bar.Children.Add(fill);
+
+        var track = new Border { Height = 8, CornerRadius = new CornerRadius(4), Child = bar };
+        track.Bind(Border.BackgroundProperty, track.GetResourceObservable("ChromeBorderBrush"));
+
+        var label = new TextBlock
+        {
+            Text = !measured ? "not measured" : qualified ? $"{threshold}+ beats" : $"{beats} / {threshold} beats",
+            FontSize = 10.5,
+            Opacity = 0.7,
+            Margin = new Thickness(0, 3, 0, 0),
+        };
+
+        return new StackPanel
+        {
+            Margin = new Thickness(8, 4, 12, 4),
+            VerticalAlignment = VerticalAlignment.Center,
+            Children = { track, label },
+        };
     }
 }

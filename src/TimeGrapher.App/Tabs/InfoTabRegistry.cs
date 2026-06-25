@@ -1402,7 +1402,7 @@ internal sealed partial class InfoTabRegistry
 
         var tableGrid = new Grid
         {
-            ColumnDefinitions = new ColumnDefinitions("*,*,*,*,*"),
+            ColumnDefinitions = new ColumnDefinitions("64,96,90,96,56,*,164"),
             Margin = new Thickness(10, 4, 0, 0),
             VerticalAlignment = VerticalAlignment.Top,
         };
@@ -1427,16 +1427,21 @@ internal sealed partial class InfoTabRegistry
         topGrid.Children.Add(activePanel);
         topGrid.Children.Add(tableGrid);
 
+        Border legend = BuildPositionAcquisitionLegend();
+
         var sequenceGrid = new Grid
         {
-            RowDefinitions = new RowDefinitions("*"),
+            RowDefinitions = new RowDefinitions("Auto,*"),
             Margin = new Thickness(4, 4, 8, 4),
         };
-        Grid.SetRow(topGrid, 0);
+        Grid.SetRow(legend, 0);
+        Grid.SetRow(topGrid, 1);
+        sequenceGrid.Children.Add(legend);
         sequenceGrid.Children.Add(topGrid);
 
         if (CreateWaitingOverlay(context.ViewModel) is { } overlay)
         {
+            Grid.SetRow(overlay, 1);
             sequenceGrid.Children.Add(overlay);
         }
 
@@ -1519,6 +1524,79 @@ internal sealed partial class InfoTabRegistry
         HorizontalAlignment = HorizontalAlignment.Center,
         TextAlignment = TextAlignment.Center,
     };
+
+    // Legend for the acquisition (RATE RANGE) column: explains the mean dot, the
+    // min–max range bar, the accept band, and the collection-bar colours. Swatches
+    // bind to the shared theme brushes so they match the lane and the App.axaml theme.
+    private static Border BuildPositionAcquisitionLegend()
+    {
+        StackPanel Chip(Control swatch, string text)
+        {
+            var label = new TextBlock
+            {
+                Text = text,
+                FontSize = 11,
+                Opacity = 0.72,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(5, 0, 0, 0),
+            };
+            return new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                VerticalAlignment = VerticalAlignment.Center,
+                Children = { swatch, label },
+            };
+        }
+
+        Border Dot(string brushKey)
+        {
+            var dot = new Border
+            {
+                Width = 11,
+                Height = 11,
+                CornerRadius = new CornerRadius(6),
+                BorderThickness = new Thickness(2),
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+            dot.Bind(Border.BackgroundProperty, dot.GetResourceObservable(brushKey));
+            dot.Bind(Border.BorderBrushProperty, dot.GetResourceObservable("PanelBgBrush"));
+            return dot;
+        }
+
+        Border Bar(string brushKey, double width, double height)
+        {
+            var bar = new Border
+            {
+                Width = width,
+                Height = height,
+                CornerRadius = new CornerRadius(4),
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+            bar.Bind(Border.BackgroundProperty, bar.GetResourceObservable(brushKey));
+            return bar;
+        }
+
+        var row = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 16,
+            Margin = new Thickness(10, 2, 0, 2),
+        };
+        row.Children.Add(Chip(Dot("TextPrimaryBrush"), "mean"));
+        row.Children.Add(Chip(Bar("VarioMinMaxBrush", 22, 9), "min–max range"));
+        row.Children.Add(Chip(Bar("VarioAcceptBandBadgeBrush", 22, 14), "accept band"));
+        row.Children.Add(Chip(Dot("VarioBadBrush"), "mean out of band"));
+        row.Children.Add(Chip(Bar("VarioGoodBrush", 18, 8), "30+ beats"));
+        row.Children.Add(Chip(Bar("VarioWarnBrush", 18, 8), "collecting"));
+
+        return new Border
+        {
+            Classes = { "PositionPanel" },
+            Padding = new Thickness(8, 4),
+            Margin = new Thickness(4, 0, 8, 4),
+            Child = row,
+        };
+    }
 
     private static InfoTabRegistration CreateBeatNoiseScopeRegistration(
         InfoTabDefinition definition,
