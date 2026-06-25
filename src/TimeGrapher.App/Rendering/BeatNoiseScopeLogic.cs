@@ -113,9 +113,6 @@ internal static class BeatNoiseScopeLogic
         return snapshot.Segments[^1];
     }
 
-    public static string LiftText(double liftAngleDeg) =>
-        "LIFT " + liftAngleDeg.ToString("0.#", CultureInfo.InvariantCulture) + "°";
-
     /// <summary>
     /// Scope 2 readout: per-lane average signal level (mean of per-interval
     /// envelope peaks) plus the Σ cycle progress. The lanes are presented as

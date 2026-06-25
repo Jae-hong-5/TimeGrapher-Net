@@ -1660,7 +1660,7 @@ internal sealed partial class InfoTabRegistry
         InfoTabDefinition definition,
         InfoTabFactoryContext context)
     {
-        // Scope 1: toolbar (mode / range / absolute-value toggle / Σ / lift angle), the enlarged
+        // Scope 1: toolbar (mode / range / absolute-value toggle / Σ), the enlarged
         // selected-or-latest beat, and the aligned strip lane of the 8 most
         // recent beats. Scope 2: the two averaged lanes above their readout.
         var mainPlot = new AvaPlot();
@@ -1670,13 +1670,6 @@ internal sealed partial class InfoTabRegistry
         };
         var averagePlot = new AvaPlot();
 
-        var liftText = new TextBlock
-        {
-            Text = "LIFT —",
-            FontSize = 12,
-            VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(12, 0, 0, 0),
-        };
         var averageText = new TextBlock
         {
             FontSize = 12,
@@ -1687,7 +1680,6 @@ internal sealed partial class InfoTabRegistry
             mainPlot,
             stripPlot,
             averagePlot,
-            liftText,
             averageText,
             context.ViewModel?.UseCOnset == true);
         if (context.ViewModel is { } beatNoiseViewModel)
@@ -1715,8 +1707,11 @@ internal sealed partial class InfoTabRegistry
             {
                 Content = content,
                 MinHeight = TraceHeaderButtonMinHeight,
+                Height = TraceHeaderButtonMinHeight,
                 Padding = TraceHeaderButtonPadding,
                 FontSize = TraceHeaderButtonFontSize,
+                HorizontalContentAlignment = HorizontalAlignment.Center,
+                VerticalContentAlignment = VerticalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center,
             };
             ToolTip.SetTip(button, tooltip);
@@ -1730,8 +1725,11 @@ internal sealed partial class InfoTabRegistry
             {
                 Content = content,
                 MinHeight = TraceHeaderButtonMinHeight,
+                Height = TraceHeaderButtonMinHeight,
                 Padding = TraceHeaderButtonPadding,
                 FontSize = TraceHeaderButtonFontSize,
+                HorizontalContentAlignment = HorizontalAlignment.Center,
+                VerticalContentAlignment = VerticalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center,
             };
             toggle.Classes.Add("PositionButton");
@@ -1807,7 +1805,6 @@ internal sealed partial class InfoTabRegistry
         };
         buttonRow.Children.Add(sigmaToggle);
 
-        buttonRow.Children.Add(liftText);
         Grid.SetColumn(buttonRow, 1);
         headerStrip.Children.Add(buttonRow);
 

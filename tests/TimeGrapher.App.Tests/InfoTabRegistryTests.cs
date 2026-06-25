@@ -712,10 +712,13 @@ public sealed class InfoTabRegistryTests
             Assert.Contains("PositionButton", button.Classes);
             Assert.Equal(TraceHeaderButtonFontSizeForTest, button.FontSize);
             Assert.Equal(TraceHeaderButtonMinHeightForTest, button.MinHeight);
+            Assert.Equal(TraceHeaderButtonMinHeightForTest, button.Height);
             Assert.Equal(new Thickness(10, 2, 10, 2), button.Padding);
+            Assert.Equal(HorizontalAlignment.Center, button.HorizontalContentAlignment);
+            Assert.Equal(VerticalAlignment.Center, button.VerticalContentAlignment);
             Assert.Equal(VerticalAlignment.Center, button.VerticalAlignment);
         });
-        Assert.Contains(buttonStrip.Children.OfType<TextBlock>(), text => text.Text == "LIFT —");
+        Assert.DoesNotContain(buttonStrip.Children.OfType<TextBlock>(), text => text.Text?.Contains("LIFT") == true);
     }
 
     [Fact]

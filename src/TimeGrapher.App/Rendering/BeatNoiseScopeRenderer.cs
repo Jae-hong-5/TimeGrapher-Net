@@ -48,7 +48,6 @@ internal sealed class BeatNoiseScopeRenderer
     private readonly AvaPlot _mainPlot;
     private readonly AvaPlot _stripPlot;
     private readonly AvaPlot _averagePlot;
-    private readonly TextBlock _liftText;
     private readonly TextBlock _averageText;
 
     private readonly List<double> _mainX = new();
@@ -105,14 +104,12 @@ internal sealed class BeatNoiseScopeRenderer
         AvaPlot mainPlot,
         AvaPlot stripPlot,
         AvaPlot averagePlot,
-        TextBlock liftText,
         TextBlock averageText,
         bool useCOnset = false)
     {
         _mainPlot = mainPlot;
         _stripPlot = stripPlot;
         _averagePlot = averagePlot;
-        _liftText = liftText;
         _averageText = averageText;
         _useCOnset = useCOnset;
 
@@ -220,7 +217,6 @@ internal sealed class BeatNoiseScopeRenderer
         _mainYLower = null;
         _mainYUpper = null;
         ClearMilestoneLines();
-        _liftText.Text = "LIFT —";
         _averageText.Text = BeatNoiseScopeLogic.AverageLine(BeatNoiseAverageSnapshot.Empty);
 
         Plot main = _mainPlot.Plot;
@@ -476,7 +472,6 @@ internal sealed class BeatNoiseScopeRenderer
         RenderMain(cached);
         RenderStrips(cached);
         RenderAverageView(cached);
-        _liftText.Text = BeatNoiseScopeLogic.LiftText(cached.LiftAngleDeg);
         RefreshAll();
     }
 

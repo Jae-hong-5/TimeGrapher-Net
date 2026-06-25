@@ -149,13 +149,6 @@ public sealed class BeatNoiseScopeLogicTests
     }
 
     [Fact]
-    public void LiftText_PresentsTheConfiguredAngle()
-    {
-        Assert.Equal("LIFT 52°", BeatNoiseScopeLogic.LiftText(52.0));
-        Assert.Equal("LIFT 51.5°", BeatNoiseScopeLogic.LiftText(51.5));
-    }
-
-    [Fact]
     public void AverageLine_LabelsLanesAsTracesNeverTicToc()
     {
         var average = new BeatNoiseAverageSnapshot

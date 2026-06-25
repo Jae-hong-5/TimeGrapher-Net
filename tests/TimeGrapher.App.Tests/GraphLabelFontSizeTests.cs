@@ -51,7 +51,6 @@ public sealed class GraphLabelFontSizeTests
             mainPlot,
             stripPlot,
             averagePlot,
-            new TextBlock(),
             new TextBlock());
 
         renderer.CreateGraphs();

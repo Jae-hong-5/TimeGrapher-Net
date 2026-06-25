@@ -17,7 +17,7 @@ public sealed class BeatNoiseScopeRendererTests
     {
         var mainPlot = new AvaPlot();
         var renderer = new BeatNoiseScopeRenderer(
-            mainPlot, new AvaPlot(), new AvaPlot(), new TextBlock(), new TextBlock());
+            mainPlot, new AvaPlot(), new AvaPlot(), new TextBlock());
         renderer.CreateGraphs();
 
         var segment = new BeatSegment
@@ -50,7 +50,7 @@ public sealed class BeatNoiseScopeRendererTests
     {
         var mainPlot = new AvaPlot();
         var renderer = new BeatNoiseScopeRenderer(
-            mainPlot, new AvaPlot(), new AvaPlot(), new TextBlock(), new TextBlock());
+            mainPlot, new AvaPlot(), new AvaPlot(), new TextBlock());
 
         renderer.CreateGraphs();
 
@@ -62,7 +62,7 @@ public sealed class BeatNoiseScopeRendererTests
     {
         var mainPlot = new AvaPlot();
         var renderer = new BeatNoiseScopeRenderer(
-            mainPlot, new AvaPlot(), new AvaPlot(), new TextBlock(), new TextBlock());
+            mainPlot, new AvaPlot(), new AvaPlot(), new TextBlock());
         renderer.CreateGraphs();
 
         var large = new BeatSegment
@@ -112,7 +112,7 @@ public sealed class BeatNoiseScopeRendererTests
     {
         var mainPlot = new AvaPlot();
         var renderer = new BeatNoiseScopeRenderer(
-            mainPlot, new AvaPlot(), new AvaPlot(), new TextBlock(), new TextBlock());
+            mainPlot, new AvaPlot(), new AvaPlot(), new TextBlock());
         renderer.CreateGraphs();
 
         var small = new BeatSegment
@@ -162,7 +162,7 @@ public sealed class BeatNoiseScopeRendererTests
     {
         var mainPlot = new AvaPlot();
         var renderer = new BeatNoiseScopeRenderer(
-            mainPlot, new AvaPlot(), new AvaPlot(), new TextBlock(), new TextBlock());
+            mainPlot, new AvaPlot(), new AvaPlot(), new TextBlock());
         renderer.CreateGraphs();
         renderer.SetAbsoluteValue(true);
 
@@ -196,7 +196,7 @@ public sealed class BeatNoiseScopeRendererTests
     {
         var stripPlot = new AvaPlot();
         var renderer = new BeatNoiseScopeRenderer(
-            new AvaPlot(), stripPlot, new AvaPlot(), new TextBlock(), new TextBlock());
+            new AvaPlot(), stripPlot, new AvaPlot(), new TextBlock());
 
         renderer.CreateGraphs();
 
@@ -216,7 +216,7 @@ public sealed class BeatNoiseScopeRendererTests
     {
         var stripPlot = new AvaPlot();
         var renderer = new BeatNoiseScopeRenderer(
-            new AvaPlot(), stripPlot, new AvaPlot(), new TextBlock(), new TextBlock());
+            new AvaPlot(), stripPlot, new AvaPlot(), new TextBlock());
         renderer.CreateGraphs();
 
         var segment = new BeatSegment
@@ -246,7 +246,7 @@ public sealed class BeatNoiseScopeRendererTests
         var mainPlot = new AvaPlot();
         var stripPlot = new AvaPlot();
         var renderer = new BeatNoiseScopeRenderer(
-            mainPlot, stripPlot, new AvaPlot(), new TextBlock(), new TextBlock());
+            mainPlot, stripPlot, new AvaPlot(), new TextBlock());
         renderer.CreateGraphs();
 
         var segment = new BeatSegment
@@ -285,7 +285,7 @@ public sealed class BeatNoiseScopeRendererTests
     {
         var mainPlot = new AvaPlot();
         var renderer = new BeatNoiseScopeRenderer(
-            mainPlot, new AvaPlot(), new AvaPlot(), new TextBlock(), new TextBlock(), useCOnset: false);
+            mainPlot, new AvaPlot(), new AvaPlot(), new TextBlock(), useCOnset: false);
         renderer.CreateGraphs();
 
         var segment = new BeatSegment
@@ -324,7 +324,7 @@ public sealed class BeatNoiseScopeRendererTests
     {
         var mainPlot = new AvaPlot();
         var renderer = new BeatNoiseScopeRenderer(
-            mainPlot, new AvaPlot(), new AvaPlot(), new TextBlock(), new TextBlock(), useCOnset: false);
+            mainPlot, new AvaPlot(), new AvaPlot(), new TextBlock(), useCOnset: false);
         renderer.CreateGraphs();
 
         var segment = new BeatSegment
@@ -361,7 +361,7 @@ public sealed class BeatNoiseScopeRendererTests
     {
         var mainPlot = new AvaPlot();
         var renderer = new BeatNoiseScopeRenderer(
-            mainPlot, new AvaPlot(), new AvaPlot(), new TextBlock(), new TextBlock(), useCOnset: false);
+            mainPlot, new AvaPlot(), new AvaPlot(), new TextBlock(), useCOnset: false);
         renderer.CreateGraphs();
 
         var segment = new BeatSegment
@@ -396,7 +396,7 @@ public sealed class BeatNoiseScopeRendererTests
     {
         var mainPlot = new AvaPlot();
         var renderer = new BeatNoiseScopeRenderer(
-            mainPlot, new AvaPlot(), new AvaPlot(), new TextBlock(), new TextBlock(), useCOnset: false);
+            mainPlot, new AvaPlot(), new AvaPlot(), new TextBlock(), useCOnset: false);
         renderer.CreateGraphs();
 
         var first = new BeatSegment
@@ -444,7 +444,7 @@ public sealed class BeatNoiseScopeRendererTests
     {
         var mainPlot = new AvaPlot();
         var renderer = new BeatNoiseScopeRenderer(
-            mainPlot, new AvaPlot(), new AvaPlot(), new TextBlock(), new TextBlock(), useCOnset: false);
+            mainPlot, new AvaPlot(), new AvaPlot(), new TextBlock(), useCOnset: false);
         renderer.CreateGraphs();
 
         var segment = new BeatSegment
@@ -485,7 +485,7 @@ public sealed class BeatNoiseScopeRendererTests
     {
         var mainPlot = new AvaPlot();
         var renderer = new BeatNoiseScopeRenderer(
-            mainPlot, new AvaPlot(), new AvaPlot(), new TextBlock(), new TextBlock(), useCOnset: true);
+            mainPlot, new AvaPlot(), new AvaPlot(), new TextBlock(), useCOnset: true);
         renderer.CreateGraphs();
         renderer.SetRangeMs(BeatNoiseScopeRenderer.DefaultRangeMs);
 
@@ -532,7 +532,7 @@ public sealed class BeatNoiseScopeRendererTests
         var mainPlot = new AvaPlot();
         var stripPlot = new AvaPlot();
         var renderer = new BeatNoiseScopeRenderer(
-            mainPlot, stripPlot, new AvaPlot(), new TextBlock(), new TextBlock(), useCOnset: true);
+            mainPlot, stripPlot, new AvaPlot(), new TextBlock(), useCOnset: true);
         renderer.CreateGraphs();
 
         var segment = new BeatSegment
@@ -574,7 +574,7 @@ public sealed class BeatNoiseScopeRendererTests
     {
         var mainPlot = new AvaPlot();
         var renderer = new BeatNoiseScopeRenderer(
-            mainPlot, new AvaPlot(), new AvaPlot(), new TextBlock(), new TextBlock(), useCOnset: false);
+            mainPlot, new AvaPlot(), new AvaPlot(), new TextBlock(), useCOnset: false);
         renderer.CreateGraphs();
 
         var segment = new BeatSegment
@@ -610,7 +610,7 @@ public sealed class BeatNoiseScopeRendererTests
     {
         var mainPlot = new AvaPlot();
         var renderer = new BeatNoiseScopeRenderer(
-            mainPlot, new AvaPlot(), new AvaPlot(), new TextBlock(), new TextBlock());
+            mainPlot, new AvaPlot(), new AvaPlot(), new TextBlock());
 
         renderer.CreateGraphs();
 
@@ -626,7 +626,7 @@ public sealed class BeatNoiseScopeRendererTests
     {
         var averagePlot = new AvaPlot();
         var renderer = new BeatNoiseScopeRenderer(
-            new AvaPlot(), new AvaPlot(), averagePlot, new TextBlock(), new TextBlock());
+            new AvaPlot(), new AvaPlot(), averagePlot, new TextBlock());
         renderer.CreateGraphs();
 
         var first = new BeatSegment
@@ -675,7 +675,7 @@ public sealed class BeatNoiseScopeRendererTests
     {
         var averagePlot = new AvaPlot();
         var renderer = new BeatNoiseScopeRenderer(
-            new AvaPlot(), new AvaPlot(), averagePlot, new TextBlock(), new TextBlock());
+            new AvaPlot(), new AvaPlot(), averagePlot, new TextBlock());
         renderer.CreateGraphs();
 
         var frame = new AnalysisFrame
@@ -707,7 +707,7 @@ public sealed class BeatNoiseScopeRendererTests
     {
         var stripPlot = new AvaPlot();
         var renderer = new BeatNoiseScopeRenderer(
-            new AvaPlot(), stripPlot, new AvaPlot(), new TextBlock(), new TextBlock());
+            new AvaPlot(), stripPlot, new AvaPlot(), new TextBlock());
         renderer.CreateGraphs();
 
         var frame = new AnalysisFrame
@@ -740,7 +740,7 @@ public sealed class BeatNoiseScopeRendererTests
     {
         var stripPlot = new AvaPlot();
         var renderer = new BeatNoiseScopeRenderer(
-            new AvaPlot(), stripPlot, new AvaPlot(), new TextBlock(), new TextBlock());
+            new AvaPlot(), stripPlot, new AvaPlot(), new TextBlock());
         renderer.CreateGraphs();
 
         renderer.RenderFrame(new AnalysisFrame
@@ -782,7 +782,7 @@ public sealed class BeatNoiseScopeRendererTests
         // always-false constant against different (unobserved) fixtures.
         var mainPlot = new AvaPlot();
         var renderer = new BeatNoiseScopeRenderer(
-            mainPlot, new AvaPlot(), new AvaPlot(), new TextBlock(), new TextBlock());
+            mainPlot, new AvaPlot(), new AvaPlot(), new TextBlock());
         renderer.CreateGraphs();
 
         var frame = new AnalysisFrame
@@ -818,7 +818,7 @@ public sealed class BeatNoiseScopeRendererTests
     {
         var averagePlot = new AvaPlot();
         var renderer = new BeatNoiseScopeRenderer(
-            new AvaPlot(), new AvaPlot(), averagePlot, new TextBlock(), new TextBlock());
+            new AvaPlot(), new AvaPlot(), averagePlot, new TextBlock());
         renderer.CreateGraphs();
         renderer.SetViewMode(BeatNoiseScopeViewMode.AverageAndStrip);
 
