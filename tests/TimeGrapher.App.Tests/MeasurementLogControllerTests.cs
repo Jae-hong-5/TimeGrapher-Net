@@ -53,11 +53,11 @@ public sealed class MeasurementLogControllerTests
     public void BuildLogPath_UsesLogFolderAndTimestamp()
     {
         string baseDirectory = Path.Combine(Path.GetTempPath(), "TimeGrapher.App");
-        var timestamp = new DateTime(2026, 6, 18, 14, 5, 7);
+        var timestamp = new DateTime(2026, 6, 18, 14, 5, 7).AddTicks(1234567);
 
         string path = MeasurementLogController.BuildLogPath(baseDirectory, timestamp);
 
-        Assert.Equal(Path.Combine(baseDirectory, "log", "20260618_140507.csv"), path);
+        Assert.Equal(Path.Combine(baseDirectory, "log", "20260618_140507_1234567.csv"), path);
     }
 
     [Fact]

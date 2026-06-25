@@ -107,5 +107,8 @@ internal sealed class MeasurementLogController : IDisposable
     }
 
     internal static string BuildLogPath(string baseDirectory, DateTime timestamp) =>
-        Path.Combine(baseDirectory, "log", timestamp.ToString("yyyyMMdd_HHmmss", CultureInfo.InvariantCulture) + ".csv");
+        // Sub-second precision so two default-path runs started within the same wall-clock
+        // second cannot resolve to the same file (the sink opens with append:false, so a
+        // collision would truncate the earlier run's log).
+        Path.Combine(baseDirectory, "log", timestamp.ToString("yyyyMMdd_HHmmss_fffffff", CultureInfo.InvariantCulture) + ".csv");
 }
