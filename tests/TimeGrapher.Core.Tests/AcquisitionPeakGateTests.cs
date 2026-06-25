@@ -97,4 +97,33 @@ public sealed class AcquisitionPeakGateTests
         float[] pcm = HalfBeatArtifactStream();
         Assert.Equal(21600, DetectedBph(pcm, gateFraction: 0.35));
     }
+
+    [Fact]
+    public void GenuineHighBeat_SurvivesGate()
+    {
+        // A real 43200 watch has uniform-amplitude beats at the half period. The
+        // gate keys on a burst far weaker than its neighbors, so no beat is rejected
+        // and the true high rate survives even with the gate on -- this guards the
+        // app's on-by-default setting against downgrading a genuine high-beat watch.
+        WatchSynthStreamConfig cfg = WatchSynthStreamConfig.Clean();
+        cfg.SampleRateHz = Fs;
+        cfg.Bph = 43200;
+        cfg.PcmPeakSignalLevel = 0.40;
+        cfg.NoisePeakSignalLevel = 0.002;
+
+        var synth = new WatchSynthStream(cfg);
+        int n = Fs * 8;
+        var pcm = new float[n];
+        var block = new float[4096];
+        int w = 0;
+        while (w < n)
+        {
+            int sl = Math.Min(block.Length, n - w);
+            synth.Generate(block.AsSpan(0, sl));
+            Array.Copy(block, 0, pcm, w, sl);
+            w += sl;
+        }
+
+        Assert.Equal(43200, DetectedBph(pcm, gateFraction: 0.35));
+    }
 }
