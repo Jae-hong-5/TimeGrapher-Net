@@ -94,7 +94,7 @@ public sealed class AppSettingsControllerTests : IDisposable
         Assert.Equal(2m, viewModel.SimBeatError);
         Assert.False(viewModel.Realistic);
         Assert.False(viewModel.UseCOnset);
-        Assert.False(viewModel.WeakAOnsetRescue);
+        Assert.True(viewModel.WeakAOnsetRescue);
         Assert.False(viewModel.PauseOnPositionChange);
         Assert.Equal(SamplingSettings.Default.AveragingPeriod, (int)viewModel.AveragingPeriod);
         Assert.Equal(SamplingSettings.Default.AnalysisBlockSize, (int)viewModel.AnalysisBlockSize);

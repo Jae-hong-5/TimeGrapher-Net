@@ -1,6 +1,5 @@
 using System;
 using System.IO;
-using System.Text.Json;
 using TimeGrapher.App;
 using TimeGrapher.App.Rendering;
 using Xunit;
@@ -78,28 +77,4 @@ public sealed class AppSettingsStoreTests : IDisposable
 
         Assert.Equal(AppSettings.Default, AppSettingsStore.LoadFrom(path));
     }
-
-    [Fact]
-    public void LoadFrom_MissingUnifiedFile_MigratesLegacySamplingAndAcceptBands()
-    {
-        string unifiedPath = Path.Combine(_directory, "settings.json");
-        string samplingPath = Path.Combine(_directory, "sampling.json");
-        string acceptBandsPath = Path.Combine(_directory, "accept-bands.json");
-        Directory.CreateDirectory(_directory);
-        File.WriteAllText(
-            samplingPath,
-            JsonSerializer.Serialize(new SamplingSettings(8192, 50, 45)));
-        File.WriteAllText(
-            acceptBandsPath,
-            JsonSerializer.Serialize(new AcceptBandSettings(-8.0, 6.0, 255.0, 305.0, 0.9)));
-
-        AppSettings loaded = AppSettingsStore.LoadFrom(unifiedPath, samplingPath, acceptBandsPath);
-
-        Assert.Equal(new SamplingSettings(8192, 50, 45), loaded.Sampling);
-        Assert.Equal(new AcceptBandSettings(-8.0, 6.0, 255.0, 305.0, 0.9), loaded.AcceptBands);
-        Assert.Equal(LeftPanelSettings.Default, loaded.LeftPanel);
-        Assert.Equal(SettingsWindowSettings.Default, loaded.SettingsWindow);
-        Assert.False(File.Exists(unifiedPath));
-    }
-
 }

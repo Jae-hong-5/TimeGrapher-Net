@@ -12,17 +12,7 @@ internal static class AppSettingsStore
         "TimeGrapher",
         "settings.json");
 
-    private static string LegacySamplingPath { get; } = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-        "TimeGrapher",
-        "sampling.json");
-
-    private static string LegacyAcceptBandsPath { get; } = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-        "TimeGrapher",
-        "accept-bands.json");
-
-    public static AppSettings Load() => LoadFrom(FilePath, LegacySamplingPath, LegacyAcceptBandsPath);
+    public static AppSettings Load() => LoadFrom(FilePath);
 
     public static void Save(AppSettings settings) => SaveTo(FilePath, settings);
 
@@ -38,23 +28,17 @@ internal static class AppSettingsStore
         Save(AppSettings.Current);
     }
 
-    internal static AppSettings LoadFrom(string path, string? legacySamplingPath = null, string? legacyAcceptBandsPath = null)
+    internal static AppSettings LoadFrom(string path)
     {
         try
         {
-            if (File.Exists(path))
+            if (!File.Exists(path))
             {
-                AppSettings? loaded = JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(path));
-                return loaded is { IsValid: true } ? loaded : AppSettings.Default;
+                return AppSettings.Default;
             }
 
-            SamplingSettings sampling = LoadLegacySampling(legacySamplingPath);
-            AcceptBandSettings acceptBands = LoadLegacyAcceptBands(legacyAcceptBandsPath);
-            return AppSettings.Default with
-            {
-                Sampling = sampling,
-                AcceptBands = acceptBands,
-            };
+            AppSettings? loaded = JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(path));
+            return loaded is { IsValid: true } ? loaded : AppSettings.Default;
         }
         catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException)
         {
@@ -71,41 +55,5 @@ internal static class AppSettingsStore
         }
 
         File.WriteAllText(path, JsonSerializer.Serialize(settings, Json));
-    }
-
-    private static SamplingSettings LoadLegacySampling(string? path)
-    {
-        try
-        {
-            if (path == null || !File.Exists(path))
-            {
-                return SamplingSettings.Default;
-            }
-
-            SamplingSettings? loaded = JsonSerializer.Deserialize<SamplingSettings>(File.ReadAllText(path));
-            return loaded is { IsValid: true } ? loaded : SamplingSettings.Default;
-        }
-        catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException)
-        {
-            return SamplingSettings.Default;
-        }
-    }
-
-    private static AcceptBandSettings LoadLegacyAcceptBands(string? path)
-    {
-        try
-        {
-            if (path == null || !File.Exists(path))
-            {
-                return AcceptBandSettings.Default;
-            }
-
-            AcceptBandSettings? loaded = JsonSerializer.Deserialize<AcceptBandSettings>(File.ReadAllText(path));
-            return loaded is { IsValid: true } ? loaded : AcceptBandSettings.Default;
-        }
-        catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException)
-        {
-            return AcceptBandSettings.Default;
-        }
     }
 }

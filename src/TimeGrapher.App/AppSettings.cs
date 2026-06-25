@@ -89,7 +89,7 @@ internal sealed record SettingsWindowSettings(
 {
     public static SettingsWindowSettings Default { get; } = new(
         UseCOnset: false,
-        WeakAOnsetRescue: false,
+        WeakAOnsetRescue: true,
         PauseOnPositionChange: false,
         HighPassCutoffText: "200",
         MeasurementLogEnabled: false);

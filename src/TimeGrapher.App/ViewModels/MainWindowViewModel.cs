@@ -61,7 +61,7 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     private bool _realistic = true;
     private string _highPassCutoffText = "200";
     private bool _useCOnset;
-    private bool _weakAOnsetRescue;
+    private bool _weakAOnsetRescue = true;
     private bool _pauseOnPositionChange;
     private int _sweepMultiple = SweepFrameProjector.DefaultSweepMultiple;
     private int _selectedPositionIndex; // 0 = WatchPosition.CH (dial up)
