@@ -175,7 +175,7 @@ internal sealed class BeatErrorDiagRenderer
         _tracePlot.Refresh();
     }
 
-    /// <summary>Restores the trace plot: signed-rate Y and the current 120-beat page.</summary>
+    /// <summary>Restores the trace plot: signed-rate Y and the current rate page.</summary>
     public void ResetView()
     {
         _rateFollowLive = true;

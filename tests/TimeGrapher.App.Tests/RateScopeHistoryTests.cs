@@ -17,11 +17,11 @@ namespace TimeGrapher.App.Tests;
 public sealed class RateScopeHistoryTests
 {
     [Theory]
-    [InlineData(0.0, 0.0, 120.0)]
-    [InlineData(119.999, 0.0, 120.0)]
-    [InlineData(120.0, 120.0, 240.0)]
-    [InlineData(239.999, 120.0, 240.0)]
-    [InlineData(240.0, 240.0, 360.0)]
+    [InlineData(0.0, 0.0, 150.0)]
+    [InlineData(149.999, 0.0, 150.0)]
+    [InlineData(150.0, 150.0, 300.0)]
+    [InlineData(299.999, 150.0, 300.0)]
+    [InlineData(300.0, 300.0, 450.0)]
     public void RatePageWindowFor_AdvancesInFixedPages(double maxBeat, double expectedLeft, double expectedRight)
     {
         (double left, double right) = RateScopeRenderer.RatePageWindowFor(maxBeat);
@@ -152,7 +152,7 @@ public sealed class RateScopeHistoryTests
                 AveragePeriodRateIntervals = new[]
                 {
                     new AveragePeriodRateInterval(
-                        120.0, 121.0, 120.0, 121.0, -432.0,
+                        150.0, 151.0, 150.0, 151.0, -432.0,
                         AmplitudeValid: true, AmplitudeDeg: 250.0,
                         BeatErrorValid: true, BeatErrorMs: 0.4),
                 },
@@ -161,13 +161,13 @@ public sealed class RateScopeHistoryTests
         AddRateSeries(second, new GraphSeriesFrame
         {
             Id = AnalysisGraphSeries.RateTic,
-            X = new[] { 120.0, 121.0 },
+            X = new[] { 150.0, 151.0 },
             Y = new[] { 1.2, 1.21 },
             Replace = true,
         });
         renderer.RenderFrame(second, new AnalysisTabRenderContext(48000));
 
-        Assert.Equal(new[] { 120.0, 121.0 }, RateX(renderer, AnalysisGraphSeries.RateTic));
+        Assert.Equal(new[] { 150.0, 151.0 }, RateX(renderer, AnalysisGraphSeries.RateTic));
         Assert.Equal(
             new[] { "-432.0 s/d\n250°  0.4 ms" },
             ratePlot.Plot.GetPlottables<Text>().Where(t => t.IsVisible).Select(t => t.LabelText).ToArray());

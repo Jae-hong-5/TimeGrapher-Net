@@ -65,7 +65,7 @@ internal sealed class RateScopeRenderer
     private int _sampleRate = 44100;
 
     // The rate pane mirrors the scope's live-follow contract, but its X view advances
-    // in fixed 120-beat pages instead of sliding every update. User pan/zoom still
+    // in fixed 150-beat pages instead of sliding every update. User pan/zoom still
     // drops follow; ResetRateView() re-arms it.
     private bool _rateFollowLive = true;
     private double _rateDataMinX;
@@ -73,7 +73,7 @@ internal sealed class RateScopeRenderer
     private bool _hasRateDataExtent;
     private bool _rateAxisRefreshPending;
 
-    internal const double RatePageWindowBeats = 120.0;
+    internal const double RatePageWindowBeats = 150.0;
 
     // Default live scope window shown on screen (500 ms) and the maximum span the
     // user may zoom out to (2 s), enforced by ScopeXViewBoundsRule. The Core retains
@@ -304,7 +304,7 @@ internal sealed class RateScopeRenderer
         if (rateUpdated)
         {
             // Keep collecting rate points after the user pans/zooms; only live-following
-            // moves the X view to the newest 120-beat page.
+            // moves the X view to the newest 150-beat page.
             _hasRateDataExtent = RateDataExtent(out _rateDataMinX, out _rateDataMaxX);
 
             if (_hasRateDataExtent)
@@ -474,7 +474,7 @@ internal sealed class RateScopeRenderer
     }
 
     /// <summary>
-    /// Confines the rate plot's X view to fixed 120-beat pages. Live-follow stays on
+    /// Confines the rate plot's X view to fixed 150-beat pages. Live-follow stays on
     /// the newest data extent; after a user pan/zoom, the older pages remain reachable
     /// while incoming points continue to refresh.
     /// </summary>

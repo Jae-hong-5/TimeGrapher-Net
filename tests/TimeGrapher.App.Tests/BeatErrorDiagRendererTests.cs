@@ -46,7 +46,7 @@ public sealed class BeatErrorDiagRendererTests
         renderer.SetRateZoomFactor(8.0);
         AxisLimits zoomedLimits = tracePlot.Plot.Axes.GetLimits();
         Assert.Equal(0.0, zoomedLimits.Left);
-        Assert.Equal(15.0, zoomedLimits.Right);
+        Assert.Equal(RateScopeRenderer.RatePageWindowBeats / 8.0, zoomedLimits.Right);
         Assert.Equal("8x", renderer.RateZoomLabel);
 
         renderer.ResetView();
@@ -65,7 +65,7 @@ public sealed class BeatErrorDiagRendererTests
                 AveragePeriodRateIntervals = new[]
                 {
                     new AveragePeriodRateInterval(
-                        120.0, 121.0, 120.0, 121.0, -432.0,
+                        150.0, 151.0, 150.0, 151.0, -432.0,
                         AmplitudeValid: true, AmplitudeDeg: 250.0,
                         BeatErrorValid: true, BeatErrorMs: 0.4),
                 },
@@ -74,13 +74,13 @@ public sealed class BeatErrorDiagRendererTests
         AddRateSeries(second, new GraphSeriesFrame
         {
             Id = AnalysisGraphSeries.RateTic,
-            X = new[] { 120.0, 121.0 },
+            X = new[] { 150.0, 151.0 },
             Y = new[] { 1.2, 1.21 },
             Replace = true,
         });
         renderer.RenderFrame(second, new AnalysisTabRenderContext(48000));
 
-        Assert.Equal(new[] { 120.0, 121.0 }, RateX(renderer, AnalysisGraphSeries.RateTic));
+        Assert.Equal(new[] { 150.0, 151.0 }, RateX(renderer, AnalysisGraphSeries.RateTic));
         Assert.Equal(
             new[] { "-432.0 s/d\n250°  0.4 ms" },
             tracePlot.Plot.GetPlottables<Text>().Where(t => t.IsVisible).Select(t => t.LabelText).ToArray());
