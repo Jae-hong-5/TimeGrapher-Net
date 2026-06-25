@@ -1,5 +1,6 @@
 using System.Reflection;
 using Avalonia.Controls;
+using ScottPlot;
 using ScottPlot.Avalonia;
 using ScottPlot.Interactivity.UserActionResponses;
 using ScottPlot.Plottables;
@@ -37,9 +38,9 @@ public sealed class LongTermPerfRendererTests
         Assert.Empty(AcceptLineLabels(ratePlot));
         Assert.Empty(AcceptLineLabels(amplitudePlot));
         Assert.Empty(AcceptLineLabels(beatErrorPlot));
-        AssertLocksMousePanY(ratePlot);
-        AssertLocksMousePanY(amplitudePlot);
-        AssertLocksMousePanY(beatErrorPlot);
+        AssertUsesXOnlyGraphInput(ratePlot);
+        AssertUsesXOnlyGraphInput(amplitudePlot);
+        AssertUsesXOnlyGraphInput(beatErrorPlot);
         AssertUpperPaneHidesXAxis(ratePlot);
         AssertUpperPaneHidesXAxis(amplitudePlot);
     }
@@ -325,6 +326,34 @@ public sealed class LongTermPerfRendererTests
     }
 
     [Fact]
+    public void WheelZoom_ZoomsSharedXWindowWithoutMutatingY()
+    {
+        var ratePlot = new AvaPlot();
+        var amplitudePlot = new AvaPlot();
+        var beatErrorPlot = new AvaPlot();
+        var renderer = new LongTermPerfRenderer(ratePlot, amplitudePlot, beatErrorPlot);
+
+        renderer.CreateGraphs();
+        renderer.RenderFrame(FrameWithRange(1, 7200.0), new AnalysisTabRenderContext(48000));
+        AxisLimits beforeRate = ratePlot.Plot.Axes.GetLimits();
+        AxisLimits beforeAmplitude = amplitudePlot.Plot.Axes.GetLimits();
+        AxisLimits beforeBeatError = beatErrorPlot.Plot.Axes.GetLimits();
+
+        WheelZoom(renderer, source: 0, deltaY: 1.0);
+
+        AxisLimits afterRate = ratePlot.Plot.Axes.GetLimits();
+        Assert.True(afterRate.Right - afterRate.Left < beforeRate.Right - beforeRate.Left);
+        AssertXWindow(amplitudePlot, afterRate.Left, afterRate.Right);
+        AssertXWindow(beatErrorPlot, afterRate.Left, afterRate.Right);
+        Assert.Equal(beforeRate.Bottom, afterRate.Bottom, 10);
+        Assert.Equal(beforeRate.Top, afterRate.Top, 10);
+        Assert.Equal(beforeAmplitude.Bottom, amplitudePlot.Plot.Axes.GetLimits().Bottom, 10);
+        Assert.Equal(beforeAmplitude.Top, amplitudePlot.Plot.Axes.GetLimits().Top, 10);
+        Assert.Equal(beforeBeatError.Bottom, beatErrorPlot.Plot.Axes.GetLimits().Bottom, 10);
+        Assert.Equal(beforeBeatError.Top, beatErrorPlot.Plot.Axes.GetLimits().Top, 10);
+    }
+
+    [Fact]
     public void RenderFrame_LeavesPositionMarkerBackgroundTransparent()
     {
         var ratePlot = new AvaPlot();
@@ -480,7 +509,7 @@ public sealed class LongTermPerfRendererTests
         Assert.All(labels, text => Assert.Equal(color, text.LabelFontColor));
     }
 
-    private static void AssertLocksMousePanY(AvaPlot plot)
+    private static void AssertUsesXOnlyGraphInput(AvaPlot plot)
     {
         MouseDragPan pan = plot.UserInputProcessor.UserActionResponses
             .OfType<MouseDragPan>()
@@ -488,6 +517,8 @@ public sealed class LongTermPerfRendererTests
 
         Assert.True(pan.LockY);
         Assert.False(pan.LockX);
+        Assert.DoesNotContain(plot.UserInputProcessor.UserActionResponses, response =>
+            response is MouseWheelZoom or MouseDragZoom or MouseDragZoomRectangle);
     }
 
     private static void AssertAcceptBandColor(AvaPlot plot, uint expected)
@@ -658,5 +689,15 @@ public sealed class LongTermPerfRendererTests
 
         Assert.NotNull(method);
         method.Invoke(renderer, new object[] { 0 });
+    }
+
+    private static void WheelZoom(LongTermPerfRenderer renderer, int source, double deltaY)
+    {
+        var method = typeof(LongTermPerfRenderer).GetMethod(
+            "OnWheelZoom",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+
+        Assert.NotNull(method);
+        method.Invoke(renderer, new object[] { source, deltaY });
     }
 }

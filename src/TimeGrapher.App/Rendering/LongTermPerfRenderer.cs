@@ -130,12 +130,14 @@ internal sealed class LongTermPerfRenderer
         {
             int idx = i;
             AvaPlot plot = _panes[idx].Plot;
-            plot.UserInputProcessor.LeftClickDragPan(true, true, false);
-            // Any zoom (wheel), drag (pan / zoom-rectangle, while a button is
-            // held), or interaction end re-links the other panes onto this one's
-            // X window. PointerPressed just drops live-follow; it changes no axis.
+            RateScopeRenderer.LockRatePlotInputToX(plot);
+            // ScottPlot's default wheel zoom mutates Y before our deferred X sync, producing visible flicker.
+            plot.PointerWheelChanged += (_, e) =>
+            {
+                OnWheelZoom(idx, e.Delta.Y);
+                e.Handled = true;
+            };
             plot.PointerPressed += (_, _) => _followLive = false;
-            plot.PointerWheelChanged += (_, _) => OnUserAxisInteraction(idx);
             plot.PointerReleased += (_, _) => OnUserAxisInteraction(idx);
             plot.PointerMoved += (_, e) =>
             {
@@ -398,6 +400,28 @@ internal sealed class LongTermPerfRenderer
     public void PanLeft() => PanX(-PanFraction);
 
     public void PanRight() => PanX(PanFraction);
+
+    private void OnWheelZoom(int source, double deltaY)
+    {
+        if (deltaY == 0 ||
+            !TryGetDataXRange(out double dataMin, out double dataMax) ||
+            dataMax <= dataMin)
+        {
+            return;
+        }
+
+        AxisLimits current = _panes[source].Plot.Plot.Axes.GetLimits();
+        double span = current.Right > current.Left
+            ? current.Right - current.Left
+            : dataMax - dataMin;
+        double center = current.Right > current.Left
+            ? (current.Left + current.Right) / 2.0
+            : dataMax;
+        double factor = deltaY > 0 ? ZoomInFactor : ZoomOutFactor;
+        double nextSpan = span * factor;
+
+        SetManualXWindow(center - nextSpan / 2.0, center + nextSpan / 2.0, dataMin, dataMax);
+    }
 
     /// <summary>
     /// Links a user zoom/pan on one pane onto the others: drops live-follow and
