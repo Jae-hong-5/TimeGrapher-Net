@@ -121,6 +121,7 @@ internal sealed class RateScopeRenderer
         // its fixed 0.2 s time ruler over the new range (ScottPlot's NumericManual is a
         // fixed tick set that must be regenerated when the range changes).
         WireLiveFollowPan(_scopePlot, () => _scopeFollowLive = false, ScheduleScopeAxisRefresh);
+        LockRatePlotInputToX(_ratePlot);
         WireLiveFollowPan(_ratePlot, () => _rateFollowLive = false, ScheduleRateAxisRefresh);
 
         GraphSeriesDefinition[] graphSeries = InfoTabCatalog.RateScope.GraphSeries.ToArray();
@@ -143,7 +144,7 @@ internal sealed class RateScopeRenderer
     /// and queues a coalesced redraw via <paramref name="scheduleRefresh"/>; the pane's
     /// bounds rule re-clamps the new range on the render that follows.
     /// </summary>
-    private static void WireLiveFollowPan(AvaPlot plot, Action dropFollow, Action scheduleRefresh)
+    internal static void WireLiveFollowPan(AvaPlot plot, Action dropFollow, Action scheduleRefresh)
     {
         plot.PointerWheelChanged += (_, _) =>
         {
@@ -159,6 +160,12 @@ internal sealed class RateScopeRenderer
                 scheduleRefresh();
             }
         };
+    }
+
+    internal static void LockRatePlotInputToX(AvaPlot plot)
+    {
+        plot.UserInputProcessor.LeftClickDragPan(true, true, false);
+        plot.UserInputProcessor.RightClickDragZoom(true, true, false);
     }
 
     public void ApplyTheme(PlotThemePalette theme)
@@ -222,6 +229,7 @@ internal sealed class RateScopeRenderer
         _hasRateDataExtent = false;
         rate.Axes.Rules.Clear();
         rate.Axes.Rules.Add(new RateXViewBoundsRule(this, rate.Axes.Bottom));
+        PlotAxisRules.LockYRange(rate, -rateErrorYScale, rateErrorYScale);
 
         _scopePlot.Refresh();
         _ratePlot.Refresh();
@@ -258,6 +266,7 @@ internal sealed class RateScopeRenderer
         _hasRateDataExtent = false;
         rate.Axes.Rules.Clear();
         rate.Axes.Rules.Add(new RateXViewBoundsRule(this, rate.Axes.Bottom));
+        PlotAxisRules.LockYRange(rate, -rateErrorYScale, rateErrorYScale);
         _ratePlot.Refresh();
     }
 
@@ -485,7 +494,7 @@ internal sealed class RateScopeRenderer
         }
     }
 
-    private static void ClampViewToPagedExtent(
+    internal static void ClampViewToPagedExtent(
         IXAxis xAxis,
         double min,
         double maxRight,

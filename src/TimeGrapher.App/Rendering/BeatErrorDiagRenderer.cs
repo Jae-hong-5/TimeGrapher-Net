@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using Avalonia.Threading;
 using ScottPlot;
 using ScottPlot.Avalonia;
 using ScottPlot.Plottables;
@@ -20,8 +21,6 @@ namespace TimeGrapher.App.Rendering;
 internal sealed class BeatErrorDiagRenderer
 {
     private const float TraceMarkerSize = 6.0f;
-    /// <summary>Y zoom-out cap on the signed Error Rate (ms) axis: +/-100 s (100 x 1000 ms).</summary>
-    private const double YZoomOutLimitMs = 100_000.0;
 
     private readonly AvaPlot _tracePlot;
     private readonly Border _alertBanner;
@@ -38,6 +37,11 @@ internal sealed class BeatErrorDiagRenderer
     private ulong _lastVersion;
     private BeatMetricsHistorySnapshot? _lastHistory;
     private double _rateErrorYScale;
+    private bool _rateFollowLive = true;
+    private double _rateDataMinX;
+    private double _rateDataMaxX;
+    private bool _hasRateDataExtent;
+    private bool _rateAxisRefreshPending;
 
     public BeatErrorDiagRenderer(
         AvaPlot tracePlot,
@@ -50,6 +54,12 @@ internal sealed class BeatErrorDiagRenderer
         _alertBanner = alertBanner;
         _alertText = alertText;
         _valueTexts = valueTexts;
+
+        RateScopeRenderer.LockRatePlotInputToX(_tracePlot);
+        RateScopeRenderer.WireLiveFollowPan(
+            _tracePlot,
+            () => _rateFollowLive = false,
+            ScheduleRateAxisRefresh);
 
         _rateSeries = InfoTabCatalog.Get(InfoTabCatalog.BeatErrorDiagTabId).GraphSeries.ToArray();
         _rateX = new List<double>[_rateSeries.Length];
@@ -87,6 +97,7 @@ internal sealed class BeatErrorDiagRenderer
     public void CreateGraphs(double rateErrorYScale, int rateDataPoints)
     {
         _rateErrorYScale = rateErrorYScale;
+        _rateFollowLive = true;
         _lastVersion = 0;
         _lastHistory = null;
         _alertBanner.IsVisible = false;
@@ -112,19 +123,26 @@ internal sealed class BeatErrorDiagRenderer
 
         AddTracePlottables();
         trace.ShowLegend();
-        // X: floor the left edge at 0 (beat index). Y: cap zoom-out to +/-100 s
-        // so the signed Error Rate axis can no longer be zoomed out indefinitely.
-        PlotAxisRules.ClampLeftEdgeToZero(trace);
-        trace.Axes.Rules.Add(new YZoomOutCapRule(trace.Axes.Left, YZoomOutLimitMs));
+        _hasRateDataExtent = false;
+        trace.Axes.Rules.Clear();
+        trace.Axes.Rules.Add(new RateXViewBoundsRule(this, trace.Axes.Bottom));
+        PlotAxisRules.LockYRange(trace, -rateErrorYScale, rateErrorYScale);
         _tracePlot.Refresh();
     }
 
     /// <summary>Restores the trace plot: signed-rate Y and the current 120-beat page.</summary>
     public void ResetView()
     {
+        _rateFollowLive = true;
         _tracePlot.Plot.Axes.SetLimitsY(-_rateErrorYScale, _rateErrorYScale);
-        _tracePlot.Plot.Axes.SetLimitsX(0, RateScopeRenderer.RatePageWindowBeats);
-        UpdateAdaptiveXLimits(_lastHistory);
+        _hasRateDataExtent = RateDataExtent(out _rateDataMinX, out _rateDataMaxX);
+        _tracePlot.Plot.Axes.SetLimitsX(
+            _hasRateDataExtent ? RateScopeRenderer.RatePageWindowFor(_rateDataMaxX).Left : 0,
+            _hasRateDataExtent ? RateScopeRenderer.RatePageWindowFor(_rateDataMaxX).Right : RateScopeRenderer.RatePageWindowBeats);
+        if (_hasRateDataExtent)
+        {
+            UpdateAveragePeriodAnnotations(_lastHistory);
+        }
         _tracePlot.Refresh();
     }
 
@@ -151,7 +169,18 @@ internal sealed class BeatErrorDiagRenderer
 
         if (rateUpdated)
         {
-            UpdateAdaptiveXLimits(history);
+            _hasRateDataExtent = RateDataExtent(out _rateDataMinX, out _rateDataMaxX);
+            if (_hasRateDataExtent)
+            {
+                if (_rateFollowLive)
+                {
+                    (double left, double right) = RateScopeRenderer.RatePageWindowFor(_rateDataMaxX);
+                    _tracePlot.Plot.Axes.SetLimitsX(left, right);
+                }
+
+                UpdateAveragePeriodAnnotations(history);
+            }
+
             _tracePlot.Refresh();
         }
     }
@@ -211,23 +240,95 @@ internal sealed class BeatErrorDiagRenderer
         }
     }
 
-    private void UpdateAdaptiveXLimits(BeatMetricsHistorySnapshot? history = null)
+    private void UpdateAveragePeriodAnnotations(BeatMetricsHistorySnapshot? history)
     {
-        double maxBeat = 0.0;
-        foreach (List<double> seriesX in _rateX)
-        {
-            // X is ascending (absolute beat index), so the last point is the newest.
-            if (seriesX.Count > 0 && seriesX[^1] > maxBeat)
-            {
-                maxBeat = seriesX[^1];
-            }
-        }
-
-        (double left, double right) = RateScopeRenderer.RatePageWindowFor(maxBeat);
-        _tracePlot.Plot.Axes.SetLimitsX(left, right);
         _rateAverageAnnotations.Update(
             _tracePlot.Plot,
             history?.AveragePeriodRateIntervals ?? Array.Empty<AveragePeriodRateInterval>());
+    }
+
+    private bool RateDataExtent(out double min, out double max)
+    {
+        min = double.MaxValue;
+        max = double.MinValue;
+        bool any = false;
+        for (int i = 0; i < _rateX.Length; i++)
+        {
+            int n = _rateX[i].Count;
+            if (n == 0)
+            {
+                continue;
+            }
+
+            if (_rateX[i][0] < min)
+            {
+                min = _rateX[i][0];
+            }
+
+            if (_rateX[i][n - 1] > max)
+            {
+                max = _rateX[i][n - 1];
+            }
+
+            any = true;
+        }
+
+        if (!any)
+        {
+            min = 0;
+            max = 0;
+            return false;
+        }
+
+        return max > min;
+    }
+
+    private void ScheduleRateAxisRefresh()
+    {
+        if (_rateAxisRefreshPending)
+        {
+            return;
+        }
+
+        _rateAxisRefreshPending = true;
+        Dispatcher.UIThread.Post(
+            () =>
+            {
+                _rateAxisRefreshPending = false;
+                UpdateAveragePeriodAnnotations(_lastHistory);
+                _tracePlot.Refresh();
+            },
+            DispatcherPriority.Background);
+    }
+
+    private sealed class RateXViewBoundsRule : IAxisRule
+    {
+        private readonly BeatErrorDiagRenderer _owner;
+        private readonly IXAxis _xAxis;
+
+        public RateXViewBoundsRule(BeatErrorDiagRenderer owner, IXAxis xAxis)
+        {
+            _owner = owner;
+            _xAxis = xAxis;
+        }
+
+        public void Apply(RenderPack rp, bool beforeLayout)
+        {
+            if (!_owner._hasRateDataExtent)
+            {
+                return;
+            }
+
+            (double pageLeft, double pageRight) = RateScopeRenderer.RatePageWindowFor(_owner._rateDataMaxX);
+            double minLeft = _owner._rateFollowLive ? _owner._rateDataMinX : 0.0;
+            double firstPageLeft = _owner._rateFollowLive ? pageLeft : 0.0;
+            RateScopeRenderer.ClampViewToPagedExtent(
+                _xAxis,
+                minLeft,
+                pageRight,
+                firstPageLeft,
+                RateScopeRenderer.RatePageWindowBeats);
+        }
     }
 
     private void ApplySeriesTheme()
@@ -254,60 +355,5 @@ internal sealed class BeatErrorDiagRenderer
         AnalysisGraphSeries.RateToc => _theme.TraceTock,
         _ => _theme.TraceWave,
     };
-
-    /// <summary>
-    /// Caps Y zoom-out (and pan) to [-limit, +limit] ms: the view can still zoom
-    /// in freely, but zoom-out never extends Y past the bound. A span at or past
-    /// the full 2*limit extent snaps to it; otherwise the window is shifted back
-    /// inside the bound. Mirrors the X-bounds rules used by the other scopes.
-    /// </summary>
-    private sealed class YZoomOutCapRule : IAxisRule
-    {
-        private readonly IYAxis _yAxis;
-        private readonly double _limit;
-
-        public YZoomOutCapRule(IYAxis yAxis, double limit)
-        {
-            _yAxis = yAxis;
-            _limit = limit;
-        }
-
-        public void Apply(RenderPack rp, bool beforeLayout)
-        {
-            double min = -_limit;
-            double max = _limit;
-            double extent = max - min;
-            double lo = _yAxis.Range.Min;
-            double hi = _yAxis.Range.Max;
-            double span = hi - lo;
-            if (span >= extent)
-            {
-                lo = min;
-                hi = max;
-            }
-            else
-            {
-                if (lo < min)
-                {
-                    lo = min;
-                    hi = min + span;
-                }
-
-                if (hi > max)
-                {
-                    hi = max;
-                    lo = max - span;
-                }
-
-                if (lo < min)
-                {
-                    lo = min;
-                }
-            }
-
-            _yAxis.Range.Min = lo;
-            _yAxis.Range.Max = hi;
-        }
-    }
 
 }

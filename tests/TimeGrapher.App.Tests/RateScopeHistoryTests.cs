@@ -1,5 +1,6 @@
 using ScottPlot;
 using ScottPlot.Avalonia;
+using ScottPlot.Interactivity.UserActionResponses;
 using ScottPlot.Plottables;
 using TimeGrapher.App.Rendering;
 using TimeGrapher.App.Tabs;
@@ -36,6 +37,7 @@ public sealed class RateScopeHistoryTests
         var ratePlot = new AvaPlot();
         var renderer = new RateScopeRenderer(scopePlot, ratePlot, "Arial");
         renderer.CreateGraphs(rateErrorYScale: 10.0, rateDataPoints: 600);
+        AssertLocksMousePanAndDragZoomY(ratePlot);
         renderer.ApplyTheme(new PlotThemePalette(
             SurfaceBg: 0xFF101010,
             ScopeBg: 0xFF202020,
@@ -140,10 +142,13 @@ public sealed class RateScopeHistoryTests
             new[] { "-432.0 s/d\n250°  0.4 ms" },
             ratePlot.Plot.GetPlottables<Text>().Where(t => t.IsVisible).Select(t => t.LabelText).ToArray());
 
+        ratePlot.Plot.Axes.SetLimitsY(100.0, 110.0);
         ratePlot.Plot.RenderInMemory(900, 240);
         AxisLimits limits = ratePlot.Plot.Axes.GetLimits();
         Assert.Equal(0.0, limits.Left);
         Assert.Equal(RateScopeRenderer.RatePageWindowBeats, limits.Right);
+        Assert.Equal(-10.0, limits.Bottom);
+        Assert.Equal(10.0, limits.Top);
     }
 
     private static void AddRateSeries(AnalysisFrame frame, GraphSeriesFrame series)
@@ -172,6 +177,21 @@ public sealed class RateScopeHistoryTests
         int index = Array.FindIndex(series, spec => spec.Id == seriesId);
         Assert.True(index >= 0, "Expected rate series to be registered.");
         return xs[index].ToArray();
+    }
+
+    private static void AssertLocksMousePanAndDragZoomY(AvaPlot plot)
+    {
+        MouseDragPan pan = plot.UserInputProcessor.UserActionResponses
+            .OfType<MouseDragPan>()
+            .Single();
+        MouseDragZoom zoom = plot.UserInputProcessor.UserActionResponses
+            .OfType<MouseDragZoom>()
+            .Single();
+
+        Assert.True(pan.LockY);
+        Assert.False(pan.LockX);
+        Assert.True(zoom.LockY);
+        Assert.False(zoom.LockX);
     }
 
     [Fact]
