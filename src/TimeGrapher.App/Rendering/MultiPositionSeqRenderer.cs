@@ -163,75 +163,42 @@ internal sealed class MultiPositionSeqRenderer
 
     private void UpdateConsistencyVerdict(SequenceSummary summary, WatchPosition activePosition)
     {
+        ConsistencyDiagnosis diagnosis = ConsistencyDiagnosis.Compute(summary, activePosition);
+
         _dashboard.ConsistencyBadge.Classes.Remove(ResultOkClass);
         _dashboard.ConsistencyBadge.Classes.Remove(ResultWarnClass);
         _dashboard.ConsistencyBadge.Classes.Remove(ResultPendingClass);
 
-        SequencePositionRow[] qualifiedRows = summary.Rows
-            .Where(row => row.RateSPerDay != null && row.Beats >= MinPositionBeatsForVerdict)
-            .ToArray();
-        UpdateRequirementGuides(summary.Rows, qualifiedRows);
+        _dashboard.ConsistencyVerdictText.Text = diagnosis.VerdictText;
+        _dashboard.ConsistencyDetailText.Text = diagnosis.DetailText;
+        _dashboard.ConsistencyBadge.Classes.Add(BadgeClass(diagnosis.Level));
 
-        SequencePositionRow? activeRow = summary.Rows.FirstOrDefault(row => row.Position == activePosition);
-        long activeBeats = activeRow?.Beats ?? 0;
-        if (activeRow?.RateSPerDay == null || activeBeats < MinPositionBeatsForVerdict)
-        {
-            _dashboard.ConsistencyVerdictText.Text = "COLLECTING";
-            _dashboard.ConsistencyDetailText.Text =
-                $"Measuring {activePosition.ShortName()}: {activeBeats}/{MinPositionBeatsForVerdict} beats.";
-            _dashboard.ConsistencyBadge.Classes.Add(ResultPendingClass);
-            return;
-        }
-
-        if (qualifiedRows.Length < MinQualifiedPositionsForVerdict)
-        {
-            _dashboard.ConsistencyVerdictText.Text = "COLLECTING";
-            _dashboard.ConsistencyDetailText.Text =
-                $"Measure another position to {MinPositionBeatsForVerdict} beats.";
-            _dashboard.ConsistencyBadge.Classes.Add(ResultPendingClass);
-            return;
-        }
-
-        // The guide advertises the balance-wheel requirement (vertical positions
-        // and a 1V+1H spread), so the verdict must actually enforce it before
-        // reporting OK/CHECK — otherwise an all-horizontal qualified set reads "OK"
-        // while the guide still shows the vertical requirement unmet.
-        int qualifiedVertical = qualifiedRows.Count(row =>
-            !row.Position.IsHorizontal() && !row.Position.IsIntermediate());
-        int qualifiedHorizontal = qualifiedRows.Count(row => row.Position.IsHorizontal());
-        if (qualifiedVertical < MinVerticalPositionsForBalanceWheelVerdict || qualifiedHorizontal < 1)
-        {
-            _dashboard.ConsistencyVerdictText.Text = "COLLECTING";
-            _dashboard.ConsistencyDetailText.Text =
-                "Measure full vertical and horizontal positions.";
-            _dashboard.ConsistencyBadge.Classes.Add(ResultPendingClass);
-            return;
-        }
-
-        double? qualifiedRateSpread = Spread(qualifiedRows.Select(row => row.RateSPerDay!.Value));
-        double? qualifiedVerticalSpread = Spread(qualifiedRows
-            .Where(row => !row.Position.IsHorizontal() && !row.Position.IsIntermediate())
-            .Select(row => row.RateSPerDay!.Value));
-        if (qualifiedRateSpread > SequenceSummary.UnbalanceVerticalRateSpreadSPerDay ||
-            qualifiedVerticalSpread > SequenceSummary.UnbalanceVerticalRateSpreadSPerDay)
-        {
-            _dashboard.ConsistencyVerdictText.Text = "CHECK";
-            _dashboard.ConsistencyDetailText.Text =
-                $"Rate spread exceeds {SequenceSummary.UnbalanceVerticalRateSpreadSPerDay:0} s/d.";
-            _dashboard.ConsistencyBadge.Classes.Add(ResultWarnClass);
-            return;
-        }
-
-        _dashboard.ConsistencyVerdictText.Text = "OK";
-        _dashboard.ConsistencyDetailText.Text =
-            $"Rate spread within {SequenceSummary.UnbalanceVerticalRateSpreadSPerDay:0} s/d.";
-        _dashboard.ConsistencyBadge.Classes.Add(ResultOkClass);
+        UpdateRequirementGuides(summary.Rows, diagnosis);
     }
+
+    private static string BadgeClass(VarioVerdictLevel level) => level switch
+    {
+        VarioVerdictLevel.Good => ResultOkClass,
+        VarioVerdictLevel.Warn => ResultWarnClass,
+        _ => ResultPendingClass,
+    };
+
+    private static string StatusText(ConsistencyStatus status) => status switch
+    {
+        ConsistencyStatus.Ok => "OK",
+        ConsistencyStatus.Check => "CHECK",
+        ConsistencyStatus.Ready => "READY",
+        ConsistencyStatus.Reference => "REFERENCE",
+        _ => "COLLECTING",
+    };
 
     private void UpdateRequirementGuides(
         IReadOnlyList<SequencePositionRow> rows,
-        SequencePositionRow[] qualifiedRows)
+        ConsistencyDiagnosis diagnosis)
     {
+        SequencePositionRow[] qualifiedRows = rows
+            .Where(row => row.RateSPerDay != null && row.Beats >= MinPositionBeatsForVerdict)
+            .ToArray();
         SequencePositionRow[] fullVerticalRows = qualifiedRows
             .Where(row => !row.Position.IsHorizontal() && !row.Position.IsIntermediate())
             .ToArray();
@@ -243,23 +210,10 @@ internal sealed class MultiPositionSeqRenderer
                 row.BeatErrorMs != null || row.Beats > 0)
             .ToArray();
         int verticalPositions = fullVerticalRows.Length;
-        int horizontalPositions = horizontalRows.Length;
-        double? qualifiedRateSpread = Spread(qualifiedRows.Select(row => row.RateSPerDay!.Value));
-        double? qualifiedVerticalSpread = Spread(fullVerticalRows.Select(row => row.RateSPerDay!.Value));
 
-        _dashboard.SpreadStatusText.Text = qualifiedRows.Length < MinQualifiedPositionsForVerdict
-            ? "COLLECTING"
-            : qualifiedRateSpread > SequenceSummary.UnbalanceVerticalRateSpreadSPerDay
-                ? "CHECK"
-                : "OK";
-        _dashboard.BalanceStatusText.Text = verticalPositions < MinVerticalPositionsForBalanceWheelVerdict
-            ? "COLLECTING"
-            : qualifiedVerticalSpread > SequenceSummary.UnbalanceVerticalRateSpreadSPerDay
-                ? "CHECK"
-                : "OK";
-        _dashboard.VerticalHorizontalStatusText.Text = verticalPositions < 1 || horizontalPositions < 1
-            ? "COLLECTING"
-            : "READY";
+        _dashboard.SpreadStatusText.Text = StatusText(diagnosis.SpreadStatus);
+        _dashboard.BalanceStatusText.Text = StatusText(diagnosis.BalanceStatus);
+        _dashboard.VerticalHorizontalStatusText.Text = StatusText(diagnosis.VerticalHorizontalStatus);
         _dashboard.AverageStatusText.Text = "REFERENCE";
 
         _dashboard.SpreadRequirementText.Text =
@@ -293,17 +247,6 @@ internal sealed class MultiPositionSeqRenderer
         return
             $"V {FormatReadyPositions(fullVerticalRows)} / H {FormatReadyPositions(horizontalRows)} " +
             $"({verticalPositions}V + {horizontalPositions}H)";
-    }
-
-    private static double? Spread(IEnumerable<double> values)
-    {
-        double[] snapshot = values.ToArray();
-        if (snapshot.Length < 2)
-        {
-            return null;
-        }
-
-        return snapshot.Max() - snapshot.Min();
     }
 
     private void UpdateBanner(SequenceSummary summary)

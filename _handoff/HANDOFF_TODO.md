@@ -66,7 +66,7 @@ dotnet test  TimeGrapherNet.sln -c Release
 
 ## Commit-unit checklist  (tick as you go)
 - [x] **C1** docs: add `_handoff/` plan + spec (this commit)
-- [ ] **C2** refactor(positions): extract the consistency verdict (OK/CHECK/COLLECTING + D-spread/balance/V·H) out of `MultiPositionSeqRenderer` into a **pure, shared helper** (e.g. on `SequenceSummary` or a new `ConsistencyVerdict` type) so Health can consume it. No UI change. + tests.
+- [x] **C2** refactor(positions): extracted the consistency verdict (OK/CHECK/COLLECTING + D-spread/balance/V·H statuses + spread readings) out of `MultiPositionSeqRenderer` into the pure `ConsistencyDiagnosis` (new) so Health can consume it. No UI/behavior change (670 tests green). + `ConsistencyDiagnosisTests`.
 - [ ] **C3** feat(health): extend `WatchHealthRadarModel` with Levels list + Consistency axis + Overall (consume C2 helper + `SequenceSummary`). + `WatchHealthRadarModelTests`.
 - [ ] **C4** feat(health): rebuild `InfoTabRegistry.Radar.cs` into radar + unified Diagnosis rail; `WatchHealthRadarRenderer` populates the rail controls.
 - [ ] **C5** feat(positions): remove `POSITION CONSISTENCY` block + criteria flyout + unbalance banner from the Positions tab (`InfoTabRegistry.cs`, `MultiPositionSeqRenderer`, `PositionSequenceDashboardControls`). Keep table + active card building blocks.
