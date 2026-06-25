@@ -40,6 +40,7 @@ public sealed class AppSettingsStoreTests : IDisposable
             new SettingsWindowSettings(
                 true,
                 true,
+                false,
                 true,
                 "180",
                 true));

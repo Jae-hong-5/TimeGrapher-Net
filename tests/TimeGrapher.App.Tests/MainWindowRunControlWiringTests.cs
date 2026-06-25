@@ -237,6 +237,7 @@ public sealed class MainWindowRunControlWiringTests
             {
                 "UseConsetToggleSwitch",
                 "WeakAOnsetRescueToggleSwitch",
+                "SpuriousBeatRejectionToggleSwitch",
                 "PauseOnPositionChangeToggleSwitch",
                 "MeasurementLogEnabledToggleSwitch",
             },
@@ -245,6 +246,7 @@ public sealed class MainWindowRunControlWiringTests
         {
             "Use C-onset timing",
             "Weak-A onset rescue",
+            "Spurious beat rejection",
             "Pause on position change",
             "Save measurement CSV log",
         };
@@ -268,6 +270,7 @@ public sealed class MainWindowRunControlWiringTests
             {
                 "{Binding UseCOnset, Mode=TwoWay}",
                 "{Binding WeakAOnsetRescue, Mode=TwoWay}",
+                "{Binding SpuriousBeatRejection, Mode=TwoWay}",
                 "{Binding PauseOnPositionChange, Mode=TwoWay}",
                 "{Binding IsMeasurementLogEnabled, Mode=TwoWay}",
             },

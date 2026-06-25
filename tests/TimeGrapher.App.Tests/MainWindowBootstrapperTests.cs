@@ -187,6 +187,7 @@ public sealed class MainWindowBootstrapperTests : IDisposable
             {
                 UseCOnset = true,
                 WeakAOnsetRescue = true,
+                SpuriousBeatRejection = false,
                 PauseOnPositionChange = true,
                 HighPassCutoffText = "180",
                 MeasurementLogEnabled = true,
@@ -206,6 +207,7 @@ public sealed class MainWindowBootstrapperTests : IDisposable
         Assert.False(vm.Realistic);
         Assert.True(vm.UseCOnset);
         Assert.True(vm.WeakAOnsetRescue);
+        Assert.False(vm.SpuriousBeatRejection);
         Assert.True(vm.PauseOnPositionChange);
         Assert.Equal("180", vm.HighPassCutoffText);
         Assert.True(vm.IsMeasurementLogEnabled);

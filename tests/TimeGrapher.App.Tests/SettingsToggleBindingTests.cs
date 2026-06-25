@@ -34,6 +34,7 @@ public sealed class SettingsToggleBindingTests
 
         AssertTwoWay(window, "UseConsetToggleSwitch", v => vm.UseCOnset = v, () => vm.UseCOnset);
         AssertTwoWay(window, "WeakAOnsetRescueToggleSwitch", v => vm.WeakAOnsetRescue = v, () => vm.WeakAOnsetRescue);
+        AssertTwoWay(window, "SpuriousBeatRejectionToggleSwitch", v => vm.SpuriousBeatRejection = v, () => vm.SpuriousBeatRejection);
         AssertTwoWay(window, "PauseOnPositionChangeToggleSwitch", v => vm.PauseOnPositionChange = v, () => vm.PauseOnPositionChange);
         AssertTwoWay(window, "MeasurementLogEnabledToggleSwitch", v => vm.IsMeasurementLogEnabled = v, () => vm.IsMeasurementLogEnabled);
     }

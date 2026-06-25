@@ -451,6 +451,7 @@ public partial class MainWindow : Window
             SoundImageHeight: EffectivePixelHeight(SoundImageControl(), DEFAULT_SOUND_IMAGE_HEIGHT),
             ScopeSnapshotPointBudget: InfoTabCatalog.ScopeTargetPointBudget,
             WeakAOnsetRescue: mViewModel.WeakAOnsetRescue,
+            SpuriousBeatRejection: mViewModel.SpuriousBeatRejection,
             // Normalize at the boundary so an out-of-range/off-step view-model value can
             // never size the detector input block (the controller already snaps on edit).
             AnalysisBlockSize: SamplingSettings.NormalizeAnalysisBlockSize(mViewModel.AnalysisBlockSize));

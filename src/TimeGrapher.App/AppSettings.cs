@@ -83,6 +83,7 @@ internal sealed record LeftPanelSettings(
 internal sealed record SettingsWindowSettings(
     bool UseCOnset,
     bool WeakAOnsetRescue,
+    bool SpuriousBeatRejection,
     bool PauseOnPositionChange,
     string HighPassCutoffText,
     bool MeasurementLogEnabled)
@@ -90,6 +91,7 @@ internal sealed record SettingsWindowSettings(
     public static SettingsWindowSettings Default { get; } = new(
         UseCOnset: false,
         WeakAOnsetRescue: true,
+        SpuriousBeatRejection: true,
         PauseOnPositionChange: false,
         HighPassCutoffText: "200",
         MeasurementLogEnabled: false);

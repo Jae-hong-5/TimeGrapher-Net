@@ -5,13 +5,14 @@ using Xunit;
 namespace TimeGrapher.App.Tests;
 
 /// <summary>
-/// Pins the run-settings -> worker-config policy: the weak-A onset rescue stays
-/// behind its toggle and defaults off.
+/// Pins the run-settings -> worker-config policy: the weak-A onset rescue and the
+/// acquisition spurious-beat gate each stay behind their toggle and default off.
 /// </summary>
 public sealed class AnalysisRunSettingsTests
 {
     private static AnalysisRunSettings NewSettings(
-        int analysisBlockSize = 4096, bool weakAOnsetRescue = false) => new(
+        int analysisBlockSize = 4096, bool weakAOnsetRescue = false,
+        bool spuriousBeatRejection = false) => new(
         SampleRate: 48000,
         LiftAngle: 52.0,
         AveragingPeriod: 2,
@@ -23,7 +24,8 @@ public sealed class AnalysisRunSettingsTests
         SoundImageHeight: 100,
         ScopeSnapshotPointBudget: 8000,
         AnalysisBlockSize: analysisBlockSize,
-        WeakAOnsetRescue: weakAOnsetRescue);
+        WeakAOnsetRescue: weakAOnsetRescue,
+        SpuriousBeatRejection: spuriousBeatRejection);
 
     [Fact]
     public void Default_DoesNotWireTheRescue()
@@ -41,6 +43,24 @@ public sealed class AnalysisRunSettingsTests
             .ToWorkerConfig(sessionId: 1, sampleWriter: null);
 
         Assert.Equal(1.0, config.PhaseGuideOnsetRescueScale);
+    }
+
+    [Fact]
+    public void Default_DoesNotWireTheAcquisitionGate()
+    {
+        AnalysisWorker.Config config = NewSettings()
+            .ToWorkerConfig(sessionId: 1, sampleWriter: null);
+
+        Assert.Equal(0.0, config.AcquisitionPeakGateFraction);
+    }
+
+    [Fact]
+    public void SpuriousBeatRejectionOn_SetsTheAcquisitionGateFraction()
+    {
+        AnalysisWorker.Config config = NewSettings(spuriousBeatRejection: true)
+            .ToWorkerConfig(sessionId: 1, sampleWriter: null);
+
+        Assert.Equal(0.35, config.AcquisitionPeakGateFraction);
     }
 
     [Fact]

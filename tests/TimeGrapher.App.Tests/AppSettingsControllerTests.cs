@@ -67,6 +67,7 @@ public sealed class AppSettingsControllerTests : IDisposable
             Realistic = false,
             UseCOnset = true,
             WeakAOnsetRescue = true,
+            SpuriousBeatRejection = false,
             PauseOnPositionChange = true,
             AveragingPeriod = 45m,
             AnalysisBlockSize = 8192m,
@@ -95,6 +96,7 @@ public sealed class AppSettingsControllerTests : IDisposable
         Assert.False(viewModel.Realistic);
         Assert.False(viewModel.UseCOnset);
         Assert.True(viewModel.WeakAOnsetRescue);
+        Assert.True(viewModel.SpuriousBeatRejection);
         Assert.False(viewModel.PauseOnPositionChange);
         Assert.Equal(SamplingSettings.Default.AveragingPeriod, (int)viewModel.AveragingPeriod);
         Assert.Equal(SamplingSettings.Default.AnalysisBlockSize, (int)viewModel.AnalysisBlockSize);

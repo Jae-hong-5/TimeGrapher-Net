@@ -16,7 +16,8 @@ internal sealed record AnalysisRunSettings(
     int SoundImageHeight,
     int ScopeSnapshotPointBudget,
     int AnalysisBlockSize,
-    bool WeakAOnsetRescue = false)
+    bool WeakAOnsetRescue = false,
+    bool SpuriousBeatRejection = false)
 {
     public AnalysisWorker.Config ToWorkerConfig(ulong sessionId, ISampleWriter? sampleWriter)
     {
@@ -32,6 +33,8 @@ internal sealed record AnalysisRunSettings(
             HpfCutoffHz = HpfCutoffHz,
             // ~1.0 removes the post-lock in-window onset hardening to catch a weak A.
             PhaseGuideOnsetRescueScale = WeakAOnsetRescue ? 1.0 : 0.0,
+            // ~0.35 rejects weak between-beat noise during acquisition so it cannot alias the BPH to 2x.
+            AcquisitionPeakGateFraction = SpuriousBeatRejection ? 0.35 : 0.0,
             SoundImageWidth = SoundImageWidth,
             SoundImageHeight = SoundImageHeight,
             ScopeSnapshotPointBudget = ScopeSnapshotPointBudget,

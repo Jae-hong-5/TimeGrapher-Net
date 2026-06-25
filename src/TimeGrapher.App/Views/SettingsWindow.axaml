@@ -96,6 +96,24 @@
         <Grid ColumnDefinitions="*,Auto"
               HorizontalAlignment="Stretch"
               IsEnabled="{Binding AreRunParametersEnabled}">
+          <TextBlock Text="Spurious beat rejection"
+                     FontWeight="Bold"
+                     HorizontalAlignment="Left"
+                     VerticalAlignment="Center" />
+          <ToggleSwitch Name="SpuriousBeatRejectionToggleSwitch"
+                        Grid.Column="1"
+                        AutomationProperties.Name="Spurious beat rejection"
+                        OffContent=""
+                        OnContent=""
+                        FontWeight="Bold"
+                        HorizontalAlignment="Right"
+                        IsEnabled="{Binding AreRunParametersEnabled}"
+                        IsChecked="{Binding SpuriousBeatRejection, Mode=TwoWay}"
+                        ToolTip.Tip="Reject weak between-beat noise during BPH acquisition so the rate cannot lock to 2x" />
+        </Grid>
+        <Grid ColumnDefinitions="*,Auto"
+              HorizontalAlignment="Stretch"
+              IsEnabled="{Binding AreRunParametersEnabled}">
           <TextBlock Text="Pause on position change"
                      FontWeight="Bold"
                      HorizontalAlignment="Left"

@@ -39,6 +39,7 @@ internal sealed class AppSettingsController : ISettingsWindowResetRunner
         viewModel.Realistic = left.SimulationRealistic;
         viewModel.UseCOnset = window.UseCOnset;
         viewModel.WeakAOnsetRescue = window.WeakAOnsetRescue;
+        viewModel.SpuriousBeatRejection = window.SpuriousBeatRejection;
         viewModel.PauseOnPositionChange = window.PauseOnPositionChange;
         viewModel.HighPassCutoffText = window.HighPassCutoffText;
         viewModel.IsMeasurementLogEnabled = measurementLogEnabled;
@@ -53,6 +54,7 @@ internal sealed class AppSettingsController : ISettingsWindowResetRunner
         AcceptBandSettings bands = AcceptBandSettings.Default;
         viewModel.UseCOnset = window.UseCOnset;
         viewModel.WeakAOnsetRescue = window.WeakAOnsetRescue;
+        viewModel.SpuriousBeatRejection = window.SpuriousBeatRejection;
         viewModel.PauseOnPositionChange = window.PauseOnPositionChange;
         viewModel.AveragingPeriod = sampling.AveragingPeriod;
         viewModel.AnalysisBlockSize = sampling.AnalysisBlockSize;
@@ -79,6 +81,7 @@ internal sealed class AppSettingsController : ISettingsWindowResetRunner
             nameof(MainWindowViewModel.Realistic) or
             nameof(MainWindowViewModel.UseCOnset) or
             nameof(MainWindowViewModel.WeakAOnsetRescue) or
+            nameof(MainWindowViewModel.SpuriousBeatRejection) or
             nameof(MainWindowViewModel.PauseOnPositionChange) or
             nameof(MainWindowViewModel.HighPassCutoffText) or
             nameof(MainWindowViewModel.IsMeasurementLogEnabled)))
@@ -105,6 +108,7 @@ internal sealed class AppSettingsController : ISettingsWindowResetRunner
             SettingsWindow = new SettingsWindowSettings(
                 _viewModel.UseCOnset,
                 _viewModel.WeakAOnsetRescue,
+                _viewModel.SpuriousBeatRejection,
                 _viewModel.PauseOnPositionChange,
                 _viewModel.HighPassCutoffText,
                 _viewModel.IsMeasurementLogEnabled),

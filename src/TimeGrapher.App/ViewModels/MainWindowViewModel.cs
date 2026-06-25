@@ -62,6 +62,7 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     private string _highPassCutoffText = "200";
     private bool _useCOnset;
     private bool _weakAOnsetRescue = true;
+    private bool _spuriousBeatRejection = true;
     private bool _pauseOnPositionChange;
     private int _sweepMultiple = SweepFrameProjector.DefaultSweepMultiple;
     private int _selectedPositionIndex; // 0 = WatchPosition.CH (dial up)
@@ -302,6 +303,17 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     {
         get => _weakAOnsetRescue;
         set => SetProperty(ref _weakAOnsetRescue, value);
+    }
+
+    /// <summary>
+    /// Acquisition spurious-beat rejection (a run parameter): while unsynced, drop
+    /// a burst far weaker than the recent accepted beats so weak between-beat noise
+    /// cannot alias the detected BPH to 2x. On by default.
+    /// </summary>
+    public bool SpuriousBeatRejection
+    {
+        get => _spuriousBeatRejection;
+        set => SetProperty(ref _spuriousBeatRejection, value);
     }
 
     public bool PauseOnPositionChange
