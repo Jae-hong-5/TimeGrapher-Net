@@ -1,4 +1,8 @@
+using ScottPlot.Avalonia;
+using ScottPlot.Plottables;
 using TimeGrapher.App.Rendering;
+using TimeGrapher.App.Tabs;
+using TimeGrapher.Core.Shared;
 using Xunit;
 
 namespace TimeGrapher.App.Tests;
@@ -22,6 +26,48 @@ public sealed class RateScopeHistoryTests
 
         Assert.Equal(expectedLeft, left);
         Assert.Equal(expectedRight, right);
+    }
+
+    [Fact]
+    public void RenderFrame_ShowsAveragePeriodRateIntervalOverlay()
+    {
+        var scopePlot = new AvaPlot();
+        var ratePlot = new AvaPlot();
+        var renderer = new RateScopeRenderer(scopePlot, ratePlot, "Arial");
+        renderer.CreateGraphs(rateErrorYScale: 10.0, rateDataPoints: 600);
+
+        var frame = new AnalysisFrame
+        {
+            MetricsHistory = new BeatMetricsHistorySnapshot
+            {
+                AveragePeriodRateIntervals = new[]
+                {
+                    new AveragePeriodRateInterval(0.0, 4.0, 0.0, 3.0, 1728.0),
+                },
+            },
+        };
+        AddRateSeries(frame, new GraphSeriesFrame
+        {
+            Id = AnalysisGraphSeries.RateTic,
+            X = new[] { 0.0, 4.0 },
+            Y = new[] { 0.0, 1.0 },
+            Replace = true,
+        });
+
+        renderer.RenderFrame(frame, new AnalysisTabRenderContext(48000));
+
+        HorizontalSpan span = Assert.Single(ratePlot.Plot.GetPlottables<HorizontalSpan>(), s => s.IsVisible);
+        Assert.Equal(0.0, span.X1);
+        Assert.Equal(4.0, span.X2);
+        Text label = Assert.Single(ratePlot.Plot.GetPlottables<Text>(), t => t.IsVisible);
+        Assert.Equal("+1728.0 s/d", label.LabelText);
+    }
+
+    private static void AddRateSeries(AnalysisFrame frame, GraphSeriesFrame series)
+    {
+        typeof(AnalysisFrame)
+            .GetMethod("AddRateSeries", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+            .Invoke(frame, new object[] { series });
     }
 
     [Fact]

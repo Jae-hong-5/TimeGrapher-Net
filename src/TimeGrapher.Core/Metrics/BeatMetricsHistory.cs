@@ -30,6 +30,8 @@ public sealed class BeatMetricsHistory
     private readonly DecimatingSeries _rate;
     private readonly DecimatingSeries _amplitude;
     private readonly DecimatingSeries _beatError;
+    private readonly List<AveragePeriodRateInterval> _averagePeriodRateIntervals = new();
+    private const int MaxAveragePeriodRateIntervals = 2048;
 
     // Vario stability statistics: fed per beat (before decimation), so min/max/
     // mean/sigma stay exact however coarse the plotted series become. They cover a
@@ -182,6 +184,19 @@ public sealed class BeatMetricsHistory
             _derived = update.DerivedMeasures;
             _dirty = true;
         }
+
+        if (update.AveragePeriodRateIntervalUpdated)
+        {
+            _averagePeriodRateIntervals.Add(update.AveragePeriodRateInterval);
+            if (_averagePeriodRateIntervals.Count > MaxAveragePeriodRateIntervals)
+            {
+                _averagePeriodRateIntervals.RemoveRange(
+                    0,
+                    _averagePeriodRateIntervals.Count - MaxAveragePeriodRateIntervals);
+            }
+
+            _dirty = true;
+        }
     }
 
     public void Reset()
@@ -189,6 +204,7 @@ public sealed class BeatMetricsHistory
         _rate.Reset();
         _amplitude.Reset();
         _beatError.Reset();
+        _averagePeriodRateIntervals.Clear();
         _rateStats.Reset();
         _amplitudeStats.Reset();
         // The active position is the watch's physical orientation, not run
@@ -259,6 +275,7 @@ public sealed class BeatMetricsHistory
             Amplitude = BuildSeries(_amplitude),
             BeatError = BuildSeries(_beatError),
             Derived = _derived,
+            AveragePeriodRateIntervals = _averagePeriodRateIntervals.ToArray(),
             RateValid = _rateValid,
             RateSPerDay = _rateSPerDay,
             Bph = _bph,

@@ -131,6 +131,33 @@ public sealed class WatchMetricsDerivedMeasuresTests
     }
 
     [Fact]
+    public void DisplayRateAverage_EmitsCompletedIntervalForGraphs()
+    {
+        var metrics = new WatchMetrics(new WatchMetricsConfig
+        {
+            SampleRate = SampleRate,
+            AveragingPeriod = 3,
+        });
+        const double bph = 7200.0;
+        double sample = 0.0;
+        WatchMetricsUpdate latestA = metrics.HandleAEvent(sample, true, bph);
+
+        for (int i = 0; i < 7; i++)
+        {
+            sample += 490.0 / 1000.0 * SampleRate;
+            latestA = metrics.HandleAEvent(sample, true, bph);
+        }
+
+        Assert.True(latestA.AveragePeriodRateIntervalUpdated);
+        AveragePeriodRateInterval interval = latestA.AveragePeriodRateInterval;
+        Assert.Equal(0.0, interval.StartBeatIndex);
+        Assert.Equal(4.0, interval.EndBeatIndex);
+        Assert.Equal(0.0, interval.StartTimeS);
+        Assert.Equal(3.0, interval.EndTimeS);
+        Assert.Equal(1728.0, interval.RateSPerDay, 6);
+    }
+
+    [Fact]
     public void GraphRate_RemainsRollingWhileDisplayRateWaitsForAvgPeriod()
     {
         var metrics = new WatchMetrics(new WatchMetricsConfig

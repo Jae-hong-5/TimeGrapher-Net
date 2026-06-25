@@ -542,6 +542,21 @@ public sealed class BeatMetricsHistoryTests
     }
 
     [Fact]
+    public void AveragePeriodRateIntervalsAreCumulativeInSnapshots()
+    {
+        var history = new BeatMetricsHistory();
+        var update = new WatchMetricsUpdate();
+        update.SetAveragePeriodRateInterval(new AveragePeriodRateInterval(0.0, 4.0, 0.0, 3.0, 1728.0));
+
+        history.Record(update);
+
+        AveragePeriodRateInterval interval = Assert.Single(history.CurrentSnapshot()!.AveragePeriodRateIntervals);
+        Assert.Equal(0.0, interval.StartBeatIndex);
+        Assert.Equal(4.0, interval.EndBeatIndex);
+        Assert.Equal(1728.0, interval.RateSPerDay);
+    }
+
+    [Fact]
     public void ProjectorAppliesTheVolatilePositionKnobOnProject()
     {
         var projector = new BeatMetricsFrameProjector();

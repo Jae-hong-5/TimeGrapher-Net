@@ -52,7 +52,9 @@ internal sealed class RateScopeRenderer
     private int _scopeTextsUsed;
     private readonly List<Scatter> _scopePlots = new();
     private readonly List<Scatter> _ratePlots = new();
+    private readonly AveragePeriodRateOverlay _rateAverageOverlay;
     private ReviewCursorLayer? _scopeReviewCursor;
+    private BeatMetricsHistorySnapshot? _lastMetricsHistory;
     private PlotThemePalette _theme = PlotThemePalette.Current;
 
     // The scope auto-follows incoming audio (scrolls its X window each frame). Once the
@@ -132,6 +134,7 @@ internal sealed class RateScopeRenderer
         _lastScopeSeries = new GraphSeriesFrame?[_scopeSeries.Length];
         _rateX = CreateSeriesLists(_rateSeries.Length);
         _rateY = CreateSeriesLists(_rateSeries.Length);
+        _rateAverageOverlay = new AveragePeriodRateOverlay(_textFontFamily);
     }
 
     /// <summary>
@@ -164,6 +167,7 @@ internal sealed class RateScopeRenderer
         ApplyPlotTheme(_scopePlot.Plot);
         ApplyPlotTheme(_ratePlot.Plot);
         ApplySeriesTheme();
+        _rateAverageOverlay.ApplyTheme(theme);
         _scopePlot.Refresh();
         _ratePlot.Refresh();
     }
@@ -173,6 +177,7 @@ internal sealed class RateScopeRenderer
         _rateErrorYScale = rateErrorYScale;
         _scopeFollowLive = true;
         _rateFollowLive = true;
+        _lastMetricsHistory = null;
         Plot scope = _scopePlot.Plot;
         scope.Clear();
         ApplyPlotTheme(scope);
@@ -211,6 +216,7 @@ internal sealed class RateScopeRenderer
         rate.Axes.SetLimitsY(-rateErrorYScale, rateErrorYScale);
         rate.Axes.SetLimitsX(0, RatePageWindowBeats);
         ClearSeriesData(_rateX, _rateY);
+        _rateAverageOverlay.Reset();
         AddRatePlottables();
         rate.ShowLegend();
         _hasRateDataExtent = false;
@@ -226,6 +232,7 @@ internal sealed class RateScopeRenderer
         _rateErrorYScale = rateErrorYScale;
         _scopeFollowLive = true;
         _rateFollowLive = true;
+        _lastMetricsHistory = null;
         Plot scope = _scopePlot.Plot;
         scope.Clear();
         ApplyPlotTheme(scope);
@@ -246,6 +253,7 @@ internal sealed class RateScopeRenderer
         rate.Axes.SetLimitsY(-rateErrorYScale, rateErrorYScale);
         rate.Axes.SetLimitsX(0, RatePageWindowBeats);
         ClearSeriesData(_rateX, _rateY);
+        _rateAverageOverlay.Reset();
         AddRatePlottables();
         _hasRateDataExtent = false;
         rate.Axes.Rules.Clear();
@@ -256,6 +264,7 @@ internal sealed class RateScopeRenderer
     public void RenderFrame(AnalysisFrame frame, AnalysisTabRenderContext context)
     {
         _sampleRate = context.SampleRate;
+        _lastMetricsHistory = frame.MetricsHistory ?? _lastMetricsHistory;
 
         // While paused (follow off) each pane holds the snapshot captured when the user
         // panned: skip merging new data and advancing the extent so the trace stays
@@ -288,6 +297,7 @@ internal sealed class RateScopeRenderer
             {
                 (double left, double right) = RatePageWindowFor(_rateDataMaxX);
                 _ratePlot.Plot.Axes.SetLimitsX(left, right);
+                UpdateAveragePeriodOverlay(frame.MetricsHistory, left, right);
             }
 
             _ratePlot.Refresh();
@@ -360,7 +370,24 @@ internal sealed class RateScopeRenderer
         _ratePlot.Plot.Axes.SetLimitsX(
             _hasRateDataExtent ? RatePageWindowFor(_rateDataMaxX).Left : 0,
             _hasRateDataExtent ? RatePageWindowFor(_rateDataMaxX).Right : RatePageWindowBeats);
+        if (_hasRateDataExtent)
+        {
+            (double left, double right) = RatePageWindowFor(_rateDataMaxX);
+            UpdateAveragePeriodOverlay(_lastMetricsHistory, left, right);
+        }
         _ratePlot.Refresh();
+    }
+
+    private void UpdateAveragePeriodOverlay(
+        BeatMetricsHistorySnapshot? history,
+        double pageLeft,
+        double pageRight)
+    {
+        _rateAverageOverlay.Update(
+            _ratePlot.Plot,
+            history?.AveragePeriodRateIntervals ?? Array.Empty<AveragePeriodRateInterval>(),
+            pageLeft,
+            pageRight);
     }
 
     /// <summary>

@@ -66,6 +66,7 @@ public sealed class WatchMetrics
     private double _displayRateSPerDay = 0.0;
     private bool _displayRateValid = false;
     private double _rateWindowStartS = 0.0;
+    private double _rateWindowStartGraphX = 0.0;
     private double _rateWindowDeltaSumS = 0.0;
     private int _rateWindowDeltaCount = 0;
     private readonly double[] _lastRatePhaseEventS = { 0.0, 0.0 };
@@ -169,6 +170,7 @@ public sealed class WatchMetrics
         _displayRateSPerDay = 0.0;
         _displayRateValid = false;
         _rateWindowStartS = startTimeS;
+        _rateWindowStartGraphX = CurrentRateGraphX();
         ResetRateWindow();
         _haveRatePhaseEvent[Tic] = false;
         _haveRatePhaseEvent[Toc] = false;
@@ -439,7 +441,7 @@ public sealed class WatchMetrics
             }
 
             UpdateGraphRate(ticOrToc);
-            AccumulateRateAverage(ticOrToc, timeMeasured, expectedTimeTarget, gapDetected);
+            AccumulateRateAverage(ticOrToc, timeMeasured, expectedTimeTarget, gapDetected, update);
         }
 
         return true;
@@ -527,7 +529,12 @@ public sealed class WatchMetrics
         }
     }
 
-    private void AccumulateRateAverage(int ticOrToc, double timeMeasured, double expectedTimeTarget, bool gapDetected)
+    private void AccumulateRateAverage(
+        int ticOrToc,
+        double timeMeasured,
+        double expectedTimeTarget,
+        bool gapDetected,
+        WatchMetricsUpdate update)
     {
         if (gapDetected)
         {
@@ -548,10 +555,13 @@ public sealed class WatchMetrics
 
         _lastRatePhaseEventS[ticOrToc] = timeMeasured;
         _haveRatePhaseEvent[ticOrToc] = true;
-        CompleteRateAverageWindows(timeMeasured, nominalSamePhasePeriodS);
+        CompleteRateAverageWindows(timeMeasured, nominalSamePhasePeriodS, update);
     }
 
-    private void CompleteRateAverageWindows(double timeMeasured, double nominalSamePhasePeriodS)
+    private void CompleteRateAverageWindows(
+        double timeMeasured,
+        double nominalSamePhasePeriodS,
+        WatchMetricsUpdate update)
     {
         int periodS = AveragingPeriodS();
         if (timeMeasured - _rateWindowStartS < periodS)
@@ -559,11 +569,21 @@ public sealed class WatchMetrics
             return;
         }
 
+        double intervalStartS = _rateWindowStartS;
+        double intervalStartGraphX = _rateWindowStartGraphX;
+        double intervalEndGraphX = CurrentRateGraphX();
+
         if (_rateWindowDeltaCount > 0)
         {
             double averageDeltaS = _rateWindowDeltaSumS / _rateWindowDeltaCount;
             _displayRateSPerDay = -(averageDeltaS / nominalSamePhasePeriodS) * 86400.0;
             _displayRateValid = true;
+            update.SetAveragePeriodRateInterval(new AveragePeriodRateInterval(
+                intervalStartGraphX,
+                intervalEndGraphX,
+                intervalStartS,
+                intervalStartS + periodS,
+                _displayRateSPerDay));
         }
         else
         {
@@ -577,8 +597,11 @@ public sealed class WatchMetrics
         }
         while (timeMeasured - _rateWindowStartS >= periodS);
 
+        _rateWindowStartGraphX = intervalEndGraphX;
         ResetRateWindow();
     }
+
+    private double CurrentRateGraphX() => Math.Max(_xTicIndex, _xTocIndex);
 
     /// <summary>
     /// True when the A-to-A interval is within half a nominal beat of the locked

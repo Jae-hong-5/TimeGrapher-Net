@@ -32,13 +32,19 @@ internal sealed class BeatErrorDiagRenderer
     private readonly List<double>[] _rateX;
     private readonly List<double>[] _rateY;
     private readonly List<Scatter> _ratePlots = new();
+    private readonly AveragePeriodRateOverlay _rateAverageOverlay;
 
     private PlotThemePalette _theme = PlotThemePalette.Current;
     private ulong _lastVersion;
     private BeatMetricsHistorySnapshot? _lastHistory;
     private double _rateErrorYScale;
 
-    public BeatErrorDiagRenderer(AvaPlot tracePlot, Border alertBanner, TextBlock alertText, TextBlock[] valueTexts)
+    public BeatErrorDiagRenderer(
+        AvaPlot tracePlot,
+        Border alertBanner,
+        TextBlock alertText,
+        TextBlock[] valueTexts,
+        string textFontFamily)
     {
         _tracePlot = tracePlot;
         _alertBanner = alertBanner;
@@ -53,6 +59,7 @@ internal sealed class BeatErrorDiagRenderer
             _rateX[i] = new List<double>();
             _rateY[i] = new List<double>();
         }
+        _rateAverageOverlay = new AveragePeriodRateOverlay(textFontFamily);
     }
 
     public void ApplyTheme(PlotThemePalette theme)
@@ -60,6 +67,7 @@ internal sealed class BeatErrorDiagRenderer
         _theme = theme;
         ApplyPlotTheme(_tracePlot.Plot);
         ApplySeriesTheme();
+        _rateAverageOverlay.ApplyTheme(theme);
         _tracePlot.Refresh();
     }
 
@@ -100,6 +108,7 @@ internal sealed class BeatErrorDiagRenderer
             _rateX[i].Clear();
             _rateY[i].Clear();
         }
+        _rateAverageOverlay.Reset();
 
         AddTracePlottables();
         trace.ShowLegend();
@@ -115,7 +124,7 @@ internal sealed class BeatErrorDiagRenderer
     {
         _tracePlot.Plot.Axes.SetLimitsY(-_rateErrorYScale, _rateErrorYScale);
         _tracePlot.Plot.Axes.SetLimitsX(0, RateScopeRenderer.RatePageWindowBeats);
-        UpdateAdaptiveXLimits();
+        UpdateAdaptiveXLimits(_lastHistory);
         _tracePlot.Refresh();
     }
 
@@ -142,7 +151,7 @@ internal sealed class BeatErrorDiagRenderer
 
         if (rateUpdated)
         {
-            UpdateAdaptiveXLimits();
+            UpdateAdaptiveXLimits(history);
             _tracePlot.Refresh();
         }
     }
@@ -202,7 +211,7 @@ internal sealed class BeatErrorDiagRenderer
         }
     }
 
-    private void UpdateAdaptiveXLimits()
+    private void UpdateAdaptiveXLimits(BeatMetricsHistorySnapshot? history = null)
     {
         double maxBeat = 0.0;
         foreach (List<double> seriesX in _rateX)
@@ -216,6 +225,11 @@ internal sealed class BeatErrorDiagRenderer
 
         (double left, double right) = RateScopeRenderer.RatePageWindowFor(maxBeat);
         _tracePlot.Plot.Axes.SetLimitsX(left, right);
+        _rateAverageOverlay.Update(
+            _tracePlot.Plot,
+            history?.AveragePeriodRateIntervals ?? Array.Empty<AveragePeriodRateInterval>(),
+            left,
+            right);
     }
 
     private void ApplySeriesTheme()
