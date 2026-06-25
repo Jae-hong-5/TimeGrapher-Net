@@ -1,3 +1,5 @@
+using System.Runtime.InteropServices;
+using TimeGrapher.Core.Analysis.Quality;
 using TimeGrapher.Core.Detection;
 using TimeGrapher.Core.Metrics;
 using TimeGrapher.Core.Shared;
@@ -55,7 +57,8 @@ public sealed record DetectorResultSnapshot(
     float NoiseFloor,
     float ReferencePeak,
     ulong MissedBeats = 0,
-    uint SyncLossCount = 0);
+    uint SyncLossCount = 0,
+    SignalQualityAssessment? QualityAssessment = null);
 
 /// <summary>
 /// Shared detector + metrics pipeline used by the live worker and the headless
@@ -68,8 +71,12 @@ public sealed class DetectorMetricsEngine
     private readonly TgDetector _detector;
     private readonly TgResult _result = new();
     private uint _syncLossCount;
+    private readonly ISignalQualityClassifier? _qualityClassifier;
+    private readonly SignalQualityFeatureExtractor? _qualityExtractor;
 
-    public DetectorMetricsEngine(DetectorMetricsEngineConfig config)
+    public DetectorMetricsEngine(
+        DetectorMetricsEngineConfig config,
+        ISignalQualityClassifier? qualityClassifier = null)
     {
         _config = config;
         _metrics = new WatchMetrics(new WatchMetricsConfig
@@ -92,6 +99,12 @@ public sealed class DetectorMetricsEngine
 
         _detector = new TgDetector(detectorConfig);
         _metrics.Reset();
+
+        // The classifier is injected only when the signal-quality feature is on.
+        // When null the engine skips the extractor/classifier entirely, so the
+        // feature off is byte-identical (and zero-overhead) to before.
+        _qualityClassifier = qualityClassifier;
+        _qualityExtractor = qualityClassifier is null ? null : new SignalQualityFeatureExtractor();
     }
 
     public DetectorMetricsBlockUpdate Process(ReadOnlySpan<float> block)
@@ -131,6 +144,33 @@ public sealed class DetectorMetricsEngine
             metricsUpdates.Add(update);
         }
 
+        SignalQualityAssessment? qualityAssessment = null;
+        if (_qualityClassifier is not null && _qualityExtractor is not null)
+        {
+            // Read-only signal-quality annotation: observe the detector's
+            // instantaneous levels and this block's A events, then classify. This
+            // never alters events or metrics (non-destructive condition monitoring),
+            // in deliberate contrast to the removed event veto.
+            if (_result.DetectorResetEvent)
+            {
+                _qualityExtractor.Reset();
+            }
+
+            _qualityExtractor.Observe(
+                synced,
+                _result.ReferencePeak,
+                _result.NoiseFloor,
+                _result.MinPeakThreshold,
+                _metrics.MissedBeats,
+                _syncLossCount,
+                CollectionsMarshal.AsSpan(_result.Events));
+
+            if (_qualityExtractor.TryGetFeatures(out SignalQualityFeatures features))
+            {
+                qualityAssessment = _qualityClassifier.Classify(features);
+            }
+        }
+
         TgEvent[] eventsSnapshot = _result.Events.ToArray();
         var processedPcmSnapshot = new float[_result.ProcessedPcmLen];
         if (_result.ProcessedPcmLen > 0)
@@ -154,7 +194,8 @@ public sealed class DetectorMetricsEngine
             _result.NoiseFloor,
             _result.ReferencePeak,
             _metrics.MissedBeats,
-            _syncLossCount);
+            _syncLossCount,
+            qualityAssessment);
 
         return new DetectorMetricsBlockUpdate(resultSnapshot, displayUpdates, metricsUpdates);
     }
