@@ -158,10 +158,9 @@ public sealed class LongTermPerfRendererTests
         AssertAcceptBandColor(amplitudePlot, palette.VarioMinMax);
         AssertAcceptLabelColor(beatErrorPlot, palette.TraceTick);
         AssertAcceptBandColor(beatErrorPlot, palette.TraceTick);
-        // FigureBackground now inherits SurfaceBg (the ScopeBg override was removed).
         foreach (AvaPlot plot in new[] { ratePlot, amplitudePlot, beatErrorPlot })
         {
-            Assert.Equal(PlotColor.FromARGB(palette.SurfaceBg), plot.Plot.FigureBackground.Color);
+            Assert.Equal(Colors.Transparent, plot.Plot.FigureBackground.Color);
         }
     }
 

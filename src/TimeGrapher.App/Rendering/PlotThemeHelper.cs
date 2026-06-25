@@ -19,7 +19,7 @@ internal static class PlotThemeHelper
 
     public static void Apply(Plot plot, PlotThemePalette theme)
     {
-        plot.FigureBackground.Color = Color.FromARGB(theme.SurfaceBg);
+        plot.FigureBackground.Color = Colors.Transparent;
         plot.DataBackground.Color = Color.FromARGB(theme.ScopeBg);
         plot.Axes.Color(Color.FromARGB(theme.TextPrimary));
         plot.Axes.FrameColor(Color.FromARGB(theme.ScopeGrid));
