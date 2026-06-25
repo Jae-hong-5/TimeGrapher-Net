@@ -12,6 +12,8 @@
 // PllMatchGate, onnx = TinyML OnnxBeatEventGate).
 //   TimeGrapher.Verify <wav-or-dir> --diagnose [--rescue=<scale>]
 // Prints the per-file B->A signature (A phase residual + A->C dips); add --rescue to compare arms.
+//   TimeGrapher.Verify <wav> --ab
+// Real-WAV A/B: same file with no gate vs the TinyML onnx gate (BPH, vetoed, metric scatter).
 //
 // Exit codes: 0 = all gates passed, 1 = a verification gate failed,
 // 2 = usage error (unknown option, malformed spec, flags without a runner).
@@ -38,6 +40,7 @@ var expectationsByFile = new Dictionary<string, GeneratedFixtureExpectation>(Str
 bool runAdverse = false;
 string gateSpec = "off";
 bool diagnose = false;
+bool abDemo = false;
 double rescueScale = 0.0;
 foreach (string arg in args)
 {
@@ -56,6 +59,12 @@ foreach (string arg in args)
     if (arg == "--diagnose")
     {
         diagnose = true;
+        continue;
+    }
+
+    if (arg == "--ab")
+    {
+        abDemo = true;
         continue;
     }
 
@@ -122,6 +131,16 @@ try
         foreach (string file in files)
         {
             BeatDiagnostics.Run(Console.Out, file, rescueScale);
+        }
+        return 0;
+    }
+
+    if (abDemo)
+    {
+        // Real-WAV A/B: same file through no gate vs the TinyML onnx gate.
+        foreach (string file in files)
+        {
+            GateAbDemo.Run(Console.Out, file);
         }
         return 0;
     }
