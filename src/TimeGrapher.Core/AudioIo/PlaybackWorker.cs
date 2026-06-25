@@ -228,7 +228,13 @@ public sealed class PlaybackWorker : IAudioInputWorker
                     {
                         int bits = _dataIn[i * 4] | (_dataIn[i * 4 + 1] << 8) |
                                    (_dataIn[i * 4 + 2] << 16) | (_dataIn[i * 4 + 3] << 24);
-                        block[i] = BitConverter.Int32BitsToSingle(bits);
+                        float s = BitConverter.Int32BitsToSingle(bits);
+                        // A legal IEEE-float WAV can carry NaN/Inf samples. Folding
+                        // them to 0 here keeps a non-finite value from latching into
+                        // the recursive HPF/envelope state (which would silently and
+                        // permanently kill detection), mirroring the fold-to-safe
+                        // guard the HPF already applies to a non-finite cutoff.
+                        block[i] = float.IsFinite(s) ? s : 0f;
                     }
                     _rawAudio.WriteSamples(block);
 
