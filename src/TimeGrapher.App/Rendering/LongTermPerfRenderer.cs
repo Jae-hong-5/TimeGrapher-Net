@@ -145,6 +145,13 @@ internal sealed class LongTermPerfRenderer
                     OnUserAxisInteraction(idx);
                 }
             };
+
+            // The default right-click "Auto Scale" fits only the clicked pane,
+            // which breaks the shared X window (zoom/pan already link all three).
+            // Replace the menu with an all-panes auto scale so it matches the
+            // linked zoom behavior.
+            plot.Menu?.Clear();
+            plot.Menu?.Add("Auto Scale (all panes)", _ => AutoScaleAllPanes());
         }
     }
 
@@ -330,6 +337,31 @@ internal sealed class LongTermPerfRenderer
         }
 
         UpdateSummary();
+        RefreshAll();
+    }
+
+    /// <summary>
+    /// Auto-scales all three panes together (the right-click menu action): fits
+    /// the shared X window to the full data extent and autoscales each pane's Y,
+    /// so a right-click Auto Scale on any pane re-fits all three the same way the
+    /// linked zoom/pan does — not just the clicked pane.
+    /// </summary>
+    private void AutoScaleAllPanes()
+    {
+        if (TryGetDataXRange(out double dataMin, out double dataMax) && dataMax > dataMin)
+        {
+            _followLive = false;
+            ApplySharedXWindowAndAutoscaleY(dataMin, dataMax, refresh: true);
+            return;
+        }
+
+        // No data extent yet: fall back to a per-pane fit on every pane.
+        foreach (Pane pane in _panes)
+        {
+            pane.Plot.Plot.Axes.AutoScale();
+            AutoScaleYIncludingNearbyLimits(pane);
+        }
+
         RefreshAll();
     }
 
