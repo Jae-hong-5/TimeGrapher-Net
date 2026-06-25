@@ -110,6 +110,22 @@ public sealed class AppXamlLoadTests
     }
 
     [Fact]
+    public void AppResourcesExposeAveragePeriodOverlayColors()
+    {
+        var app = new App();
+        app.Initialize();
+
+        foreach (ThemeVariant theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
+        {
+            Assert.True(app.TryGetResource("AveragePeriodOverlayFillColor", theme, out object? fill), theme.ToString());
+            Assert.Equal(Color.FromRgb(0xC8, 0xC8, 0xC8), Assert.IsType<Color>(fill));
+
+            Assert.True(app.TryGetResource("AveragePeriodOverlayAlternateFillColor", theme, out object? alternate), theme.ToString());
+            Assert.Equal(Color.FromRgb(0xE0, 0xE0, 0xE0), Assert.IsType<Color>(alternate));
+        }
+    }
+
+    [Fact]
     public void ToggleSwitchOnBrushesUseChromeAccent()
     {
         var app = new App();

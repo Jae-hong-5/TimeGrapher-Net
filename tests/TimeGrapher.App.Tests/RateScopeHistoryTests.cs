@@ -43,7 +43,9 @@ public sealed class RateScopeHistoryTests
             TextPrimary: 0xFFFAFAFA,
             TraceWave: 0xFF404040,
             TraceTick: 0xFF112233,
-            TraceTock: 0xFF445566));
+            TraceTock: 0xFF445566,
+            AveragePeriodOverlayFill: 0xFFB8B8B8,
+            AveragePeriodOverlayAlternateFill: 0xFFE8E8E8));
 
         var frame = new AnalysisFrame
         {
@@ -72,8 +74,8 @@ public sealed class RateScopeHistoryTests
         Assert.Equal(4.0, spans[0].X2);
         Assert.Equal(4.0, spans[1].X1);
         Assert.Equal(8.0, spans[1].X2);
-        Assert.Equal(Color.FromARGB(0xFF112233).WithAlpha(34), spans[0].FillStyle.Color);
-        Assert.Equal(Color.FromARGB(0xFF445566).WithAlpha(34), spans[1].FillStyle.Color);
+        Assert.Equal(Color.FromARGB(0xFFB8B8B8).WithAlpha(34), spans[0].FillStyle.Color);
+        Assert.Equal(Color.FromARGB(0xFFE8E8E8).WithAlpha(34), spans[1].FillStyle.Color);
         Text[] labels = ratePlot.Plot.GetPlottables<Text>().Where(t => t.IsVisible).ToArray();
         Assert.Equal(new[] { "+1728.0 s/d", "-864.0 s/d" }, labels.Select(t => t.LabelText).ToArray());
     }

@@ -99,7 +99,9 @@ internal sealed class AveragePeriodRateOverlay
 
     private void ApplyTheme(HorizontalSpan span, Text label, int intervalIndex)
     {
-        uint fillColor = intervalIndex % 2 == 0 ? _theme.TraceTick : _theme.TraceTock;
+        uint fillColor = intervalIndex % 2 == 0
+            ? _theme.AveragePeriodOverlayFill
+            : _theme.AveragePeriodOverlayAlternateFill;
         span.FillStyle.Color = Color.FromARGB(fillColor).WithAlpha(FillAlpha);
         label.LabelFontColor = Color.FromARGB(_theme.TextPrimary);
     }

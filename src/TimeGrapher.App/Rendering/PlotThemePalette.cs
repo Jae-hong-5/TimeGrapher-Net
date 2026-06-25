@@ -25,7 +25,9 @@ internal readonly record struct PlotThemePalette(
     uint VarioAverage = 0xFFC0392B,
     uint VarioGood = 0xFF0072B2,
     uint VarioWarn = 0xFFB06A00,
-    uint VarioBad = 0xFFC03030)
+    uint VarioBad = 0xFFC03030,
+    uint AveragePeriodOverlayFill = 0xFFC8C8C8,
+    uint AveragePeriodOverlayAlternateFill = 0xFFE0E0E0)
 {
     /// <summary>
     /// True when the scope background is light, so image-based tabs (the
@@ -65,7 +67,9 @@ internal readonly record struct PlotThemePalette(
         VarioAverage: Lookup("VarioAverageColor", theme),
         VarioGood: Lookup("VarioGoodColor", theme),
         VarioWarn: Lookup("VarioWarnColor", theme),
-        VarioBad: Lookup("VarioBadColor", theme));
+        VarioBad: Lookup("VarioBadColor", theme),
+        AveragePeriodOverlayFill: Lookup("AveragePeriodOverlayFillColor", theme),
+        AveragePeriodOverlayAlternateFill: Lookup("AveragePeriodOverlayAlternateFillColor", theme));
 
     private static uint Lookup(string key, ThemeVariant theme)
     {
