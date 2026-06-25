@@ -49,14 +49,25 @@ internal sealed class MultiFilterScopeRenderer
     private double _dataMaxX;
     private bool _hasDataExtent;
 
+    // Sticky rightmost ms tick (hysteresis): the beat window width jitters by a
+    // fraction of a ms each beat, which would otherwise toggle the last tick
+    // label on and off at a tick boundary. The window's right edge is held to
+    // this value (with a half-step deadband) so a shown label stays until the
+    // span genuinely moves to the next/previous tick. Reset per run.
+    private double _stickyMaxTickMs;
+
     // Sample rate of the current run (X is in absolute sample ticks), used to
-    // label the bottom axis in seconds with one tick per second.
+    // label the bottom axis in milliseconds from the window's left edge.
     private int _sampleRate;
 
     // Beat-locked window as a fraction of one beat period: less than a full period
     // so the beat impulse spreads across the width instead of being a thin spike.
     // Smaller = more zoom.
     private const double BeatWindowFraction = 0.2;
+
+    // Hard cap on the beat-locked window width (ms): the X axis never spans more
+    // than this, so a slow watch (long period) still tops out at a 100 ms view.
+    private const double MaxWindowMs = 100.0;
 
     // Where the beat onset sits in that window, as a fraction from the left edge:
     // a small pre-roll, so the impulse is left-aligned and its decay fills out to
@@ -149,6 +160,7 @@ internal sealed class MultiFilterScopeRenderer
     {
         _followLive = true;
         _hasDataExtent = false;
+        _stickyMaxTickMs = 0.0;
         Array.Clear(_lanePeakMax);
         for (int i = 0; i < _plots.Length; i++)
         {
@@ -161,13 +173,28 @@ internal sealed class MultiFilterScopeRenderer
             _lastSeries[i] = null;
             ApplyPlotTheme(plot);
             // Axis units (matching the Scope tab): time on X, signal level on Y.
-            plot.XLabel("Time (s)");
+            plot.XLabel("Time (ms)");
             plot.YLabel("Signal Level");
-            // Time ruler: a minor tick every 0.1 s, a longer major tick every
-            // 0.5 s, and a number label only on whole seconds. Same on every lane.
+            // Time ruler: ms ticks measured from the window's left edge (see
+            // ApplyTimeTicks). Same on every lane.
             plot.Axes.Bottom.TickLabelStyle.IsVisible = true;
-            plot.Axes.Bottom.MinorTickStyle.Length = 3;
             plot.Axes.Bottom.MajorTickStyle.Length = 6;
+            // Reserve bottom-axis height so the "Time (ms)" title sits on its own
+            // row below the tick numbers instead of overlapping them in the short
+            // 2x2 lanes (the data area draws ~20 px shorter to make the room).
+            plot.Axes.Bottom.MinimumSize = 60f;
+            // Start (and reset) each lane on a non-negative 0..MaxWindowMs ms axis
+            // with 10 ms ticks, instead of ScottPlot's default +/- range, so the
+            // stopped/initial view and a post-run reset read in ms from 0 rather
+            // than showing negative placeholder ticks. Live data re-labels these
+            // via ApplyTimeTicks once the sample rate and beat window are known.
+            plot.Axes.SetLimitsX(0, MaxWindowMs);
+            var initialTicks = new ScottPlot.TickGenerators.NumericManual();
+            for (double posMs = 0.0; posMs <= MaxWindowMs + 1e-6; posMs += 10.0)
+            {
+                initialTicks.AddMajor(posMs, ((int)posMs).ToString());
+            }
+            plot.Axes.Bottom.TickGenerator = initialTicks;
             _scatters[i] = plot.Add.Scatter(_x[i], _y[i]);
             _scatters[i]!.LineWidth = 1;
             _scatters[i]!.MarkerStyle.IsVisible = false;
@@ -230,10 +257,13 @@ internal sealed class MultiFilterScopeRenderer
     }
 
     /// <summary>
-    /// Puts a time ruler on the lane's bottom axis: a minor tick every 0.1 s, a
-    /// longer major tick every 0.5 s, and a seconds label on whole seconds only
-    /// (X is absolute sample ticks, so 0.1 s = 0.1 * sampleRate). All lanes share
-    /// the same positions for aligned gridlines. No-op before the rate is known.
+    /// Puts a time ruler on the lane's bottom axis in milliseconds measured from
+    /// the window's left edge, so the leftmost tick reads 0 ms (X is absolute
+    /// sample ticks, so 1 ms = sampleRate / 1000 ticks). The tick step is chosen
+    /// from a 1 / 5 / 10 / 20 ms ladder by the visible span, so as the view
+    /// auto-scales the ruler stays readable (and near the 100 ms max window it
+    /// settles on the 10/20 ms steps). All lanes share the same positions for
+    /// aligned gridlines. No-op before the rate is known.
     /// </summary>
     private void ApplyTimeTicks(int lane, double left, double right)
     {
@@ -242,28 +272,61 @@ internal sealed class MultiFilterScopeRenderer
             return;
         }
 
-        double minorStep = 0.1 * _sampleRate;
+        double samplesPerMs = _sampleRate / 1000.0;
+        double spanMs = (right - left) / samplesPerMs;
+        double stepMs = TickStepMs(spanMs);
         var ticks = new ScottPlot.TickGenerators.NumericManual();
-        long firstTenth = (long)Math.Ceiling(left / minorStep - 1e-6);
-        long lastTenth = (long)Math.Floor(right / minorStep + 1e-6);
-        for (long tenth = firstTenth; tenth <= lastTenth; tenth++)
+        for (double posMs = 0.0; posMs <= spanMs + 1e-6; posMs += stepMs)
         {
-            double position = tenth * minorStep;
-            if (tenth % 10 == 0)
-            {
-                ticks.AddMajor(position, $"{tenth / 10}s"); // whole second — labeled
-            }
-            else if (tenth % 5 == 0)
-            {
-                ticks.AddMajor(position, string.Empty); // 0.5 s — longer mark, no label
-            }
-            else
-            {
-                ticks.AddMinor(position); // 0.1 s — short mark
-            }
+            double position = left + posMs * samplesPerMs; // left edge = 0 ms
+            ticks.AddMajor(position, ((int)Math.Round(posMs)).ToString());
         }
 
         _plots[lane].Plot.Axes.Bottom.TickGenerator = ticks;
+    }
+
+    /// <summary>
+    /// The 1 / 5 / 10 / 20 ms tick step for a visible span (ms): finer when
+    /// zoomed in, coarser toward the 100 ms max window. Shared by the tick ruler
+    /// and the window-edge stabilizer so both agree on the step.
+    /// </summary>
+    private static double TickStepMs(double spanMs) =>
+        spanMs <= 10.0 ? 1.0
+        : spanMs <= 50.0 ? 5.0
+        : spanMs <= 100.0 ? 10.0
+        : 20.0;
+
+    /// <summary>
+    /// Holds the window's right edge to a stable ms-tick boundary so the
+    /// rightmost tick label does not flicker as the beat period jitters by a
+    /// fraction of a ms. The largest tick that fits the raw span is sticky (with
+    /// a half-step deadband on the way down), and the edge is extended a hair
+    /// past it so it never clips. Returns the right edge in absolute sample
+    /// ticks; falls back to the raw edge before the rate is known.
+    /// </summary>
+    private double StableWindowRight(double left, double rawRight)
+    {
+        if (_sampleRate <= 0)
+        {
+            return rawRight;
+        }
+
+        double samplesPerMs = _sampleRate / 1000.0;
+        double rawSpanMs = (rawRight - left) / samplesPerMs;
+        double step = TickStepMs(rawSpanMs);
+        double candidate = Math.Floor(rawSpanMs / step + 1e-9) * step; // largest tick that fits
+        // Grow at once when the span clears a new tick; shrink only after it
+        // falls a half-step below the held tick, so jitter at the boundary does
+        // not toggle the label.
+        if (candidate > _stickyMaxTickMs || rawSpanMs < _stickyMaxTickMs - 0.5 * step)
+        {
+            _stickyMaxTickMs = candidate;
+        }
+
+        // Extend a hair past the sticky tick so it sits just inside the axis
+        // (never on the clipped edge); never shrink below the actual data.
+        double rightMs = Math.Max(rawSpanMs, _stickyMaxTickMs + 0.05 * step);
+        return left + rightMs * samplesPerMs;
     }
 
     /// <summary>
@@ -296,8 +359,8 @@ internal sealed class MultiFilterScopeRenderer
 
         // Show a fraction of the period so the beat impulse spreads horizontally,
         // with the onset left-aligned (a small pre-roll) so its decay fills out to
-        // the right.
-        double width = period * BeatWindowFraction;
+        // the right. Capped at MaxWindowMs so a slow watch still tops out at 100 ms.
+        double width = Math.Min(period * BeatWindowFraction, MaxWindowMs / 1000.0 * _sampleRate);
         double preroll = width * BeatPrerollFraction;
         double minOnset = oldest + preroll;          // left edge stays within the data
         double maxOnset = newest - (width - preroll); // right edge stays within the data
@@ -386,6 +449,11 @@ internal sealed class MultiFilterScopeRenderer
         {
             if (!_owner._hasDataExtent)
             {
+                // No data yet (initial / stopped / acquiring): hold the 0..100 ms
+                // axis so the leftmost reads 0, overriding any empty-plot
+                // autoscale that would otherwise show a negative range.
+                _xAxis.Range.Min = 0.0;
+                _xAxis.Range.Max = MaxWindowMs;
                 return;
             }
 
@@ -469,7 +537,7 @@ internal sealed class MultiFilterScopeRenderer
                 if (hasBeatWindow)
                 {
                     _dataMinX = beatMin;
-                    _dataMaxX = beatMax;
+                    _dataMaxX = StableWindowRight(beatMin, beatMax);
                 }
             }
 
@@ -520,6 +588,7 @@ internal sealed class MultiFilterScopeRenderer
         _hasDataExtent = false;
         _dataMinX = 0.0;
         _dataMaxX = 0.0;
+        _stickyMaxTickMs = 0.0;
         Array.Clear(_lanePeakMax);
         for (int i = 0; i < _plots.Length; i++)
         {
