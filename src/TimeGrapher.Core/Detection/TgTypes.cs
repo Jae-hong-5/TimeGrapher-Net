@@ -80,10 +80,6 @@ public sealed class TgConfig
      * with V5.3 and earlier). */
     public TgCPlacement CPlacement;
 
-    /* Diagnostics for event gates. When true, TgDetector records per-event PLL
-     * phase-match verdicts; detector output itself is unchanged. */
-    public bool TrackEventPllMatch;
-
     /// <summary>tg_config_default: populate with the library defaults.</summary>
     public static TgConfig Default()
     {
@@ -104,7 +100,6 @@ public sealed class TgConfig
             PhaseGuideOnsetRescueScale = 0.0,
             SuppressPreSyncEvents = false,
             CPlacement = TgCPlacement.Peak, // V5.4 default
-            TrackEventPllMatch = false,
         };
     }
 }
