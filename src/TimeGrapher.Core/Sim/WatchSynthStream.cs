@@ -120,20 +120,6 @@ public sealed class WatchSynthStreamConfig
     public double ImpulseNoiseFreqHz;        // damped-sine ringing frequency, Hz.
     public double ImpulseNoiseDecayMs;       // exponential decay time constant, ms.
 
-    /*
-        Phase-locked per-beat impulse ("tock then noise"): one damped-sine burst
-        every beat at a fixed delay after that beat's C peak. Unlike the Poisson
-        model above this is deterministic and beat-synchronous, reproducing a
-        watch whose escapement is followed by a recurring spurious sound (the
-        mine_false case). It is NOT reported on the ground-truth event channel,
-        so a detector that latches it shows up as a false positive. Level 0 =
-        off: no scheduling, no RNG draws, output bit-identical.
-    */
-    public double PostCImpulseLevel;     // normalized float PCM peak, 0..1. 0 = off.
-    public double PostCImpulseDelayS;    // seconds after the C peak to place the impulse.
-    public double PostCImpulseFreqHz;    // damped-sine ringing frequency, Hz.
-    public double PostCImpulseDecayMs;   // exponential decay time constant, ms.
-
     /// <summary>
     /// Fill cfg with a low-variation test configuration (watch_synth_stream_clean_config).
     /// Best for verifying timing equations: jitter, wander, drift, resonance, and
@@ -198,11 +184,7 @@ public sealed class WatchSynthStreamConfig
             ImpulseNoiseRatePerSecond = 0.0,
             ImpulseNoisePeakSignalLevel = 0.0,
             ImpulseNoiseFreqHz = 4500.0,
-            ImpulseNoiseDecayMs = 2.0,
-            PostCImpulseLevel = 0.0,
-            PostCImpulseDelayS = 0.0,
-            PostCImpulseFreqHz = 4500.0,
-            PostCImpulseDecayMs = 2.0
+            ImpulseNoiseDecayMs = 2.0
         };
         return cfg;
     }
@@ -363,11 +345,6 @@ public sealed class WatchSynthStream
     private ulong _impulseStartSampleIndex;
     private double _impulsePolarity;
 
-    // ---- phase-locked per-beat impulse state (scheduled at each packet start) ----
-    private ulong _nextPostCImpulseSampleIndex;
-    private int _postCImpulseActive;
-    private ulong _postCImpulseStartSampleIndex;
-
     // ---- static helpers ----
 
     /// <summary>Clamp helper used for all defensive range limits (ws_clamp).</summary>
@@ -461,13 +438,6 @@ public sealed class WatchSynthStream
             if (cfg.ImpulseNoiseFreqHz < 100.0 || cfg.ImpulseNoiseFreqHz > 0.45 * cfg.SampleRateHz) { err = "impulse_noise_freq_hz must be 100..0.45*sample_rate"; return false; }
             if (cfg.ImpulseNoiseDecayMs <= 0.0 || cfg.ImpulseNoiseDecayMs > 50.0) { err = "impulse_noise_decay_ms must be >0 and <=50 ms"; return false; }
         }
-        if (cfg.PostCImpulseLevel < 0.0 || cfg.PostCImpulseLevel > 1.0) { err = "post_c_impulse_level must be 0..1 normalized PCM"; return false; }
-        if (cfg.PostCImpulseLevel > 0.0)
-        {
-            if (cfg.PostCImpulseDelayS < 0.0 || cfg.PostCImpulseDelayS > 0.5) { err = "post_c_impulse_delay_s must be 0..0.5 s"; return false; }
-            if (cfg.PostCImpulseFreqHz < 100.0 || cfg.PostCImpulseFreqHz > 0.45 * cfg.SampleRateHz) { err = "post_c_impulse_freq_hz must be 100..0.45*sample_rate"; return false; }
-            if (cfg.PostCImpulseDecayMs <= 0.0 || cfg.PostCImpulseDecayMs > 50.0) { err = "post_c_impulse_decay_ms must be >0 and <=50 ms"; return false; }
-        }
         double adjusted = (3600.0 / cfg.Bph) / (1.0 + cfg.RateErrorSPerDay / 86400.0);
         double beatErrorOffsetS = Math.Abs(cfg.BeatErrorMs) * 1.0e-3;
         if (adjusted <= beatErrorOffsetS + cfg.TimingJitterUs * 1.0e-6 + cfg.BphWanderDepthUs * 1.0e-6)
@@ -530,11 +500,6 @@ public sealed class WatchSynthStream
         _nextImpulseSampleIndex = ulong.MaxValue;
         if (_cfg.ImpulseNoiseRatePerSecond > 0.0)
             _nextImpulseSampleIndex = WsNextImpulseDelaySamples();
-
-        /* Phase-locked per-beat impulse: scheduled lazily at each packet start. */
-        _nextPostCImpulseSampleIndex = ulong.MaxValue;
-        _postCImpulseActive = 0;
-        _postCImpulseStartSampleIndex = 0;
     }
 
     // llround(): round half away from zero, then truncate to integer (C long long).
@@ -712,15 +677,6 @@ public sealed class WatchSynthStream
             }
         }
 
-        /* Schedule this beat's phase-locked impulse a fixed delay after the C
-         * peak. Fires (and decays) well before the next packet at any sane
-         * delay, so a single oscillator slot is sufficient. */
-        if (cfg.PostCImpulseLevel > 0.0)
-        {
-            double impulseDelayS = aToCS + cfg.PostCImpulseDelayS;
-            _nextPostCImpulseSampleIndex = p.StartSampleIndex + (ulong)Llround(impulseDelayS * (double)cfg.SampleRateHz);
-        }
-
         e = default; // memset(&e, 0, sizeof(e))
         e.BeatIndex = _beatIndex;
         e.Kind = kind;
@@ -854,33 +810,6 @@ public sealed class WatchSynthStream
     }
 
     /*
-        Phase-locked per-beat impulse. The next fire time is set at each packet
-        start (a fixed delay after the C peak); when reached, a damped-sine burst
-        plays. Fixed polarity and no RNG draws keep an off stream bit-identical and
-        an on stream's tick timing/jitter/noise sequences unchanged.
-    */
-    private double WsPostCImpulse(ulong absSample)
-    {
-        WatchSynthStreamConfig cfg = _cfg;
-        if (_nextPostCImpulseSampleIndex != ulong.MaxValue && absSample >= _nextPostCImpulseSampleIndex)
-        {
-            _postCImpulseActive = 1;
-            _postCImpulseStartSampleIndex = _nextPostCImpulseSampleIndex;
-            _nextPostCImpulseSampleIndex = ulong.MaxValue;
-        }
-        if (_postCImpulseActive == 0) return 0.0;
-        double tauS = cfg.PostCImpulseDecayMs * 1.0e-3;
-        double relS = (double)(absSample - _postCImpulseStartSampleIndex) / (double)cfg.SampleRateHz;
-        if (relS > 8.0 * tauS)
-        {
-            _postCImpulseActive = 0;
-            return 0.0;
-        }
-        double env = Math.Exp(-relS / tauS);
-        return cfg.PostCImpulseLevel * env * Math.Sin(2.0 * MPi * cfg.PostCImpulseFreqHz * relS);
-    }
-
-    /*
         Fill the caller-provided mono float PCM buffer (watch_synth_stream_fill_f32).
 
         outPcm:
@@ -921,8 +850,6 @@ public sealed class WatchSynthStream
             y += WsNoise();
             if (_cfg.ImpulseNoiseRatePerSecond > 0.0)
                 y += WsImpulseNoise(absSample);
-            if (_cfg.PostCImpulseLevel > 0.0)
-                y += WsPostCImpulse(absSample);
             outPcm[i] = (float)WsClamp(y, -1.0, 1.0);
             ++_absoluteSampleIndex;
         }
