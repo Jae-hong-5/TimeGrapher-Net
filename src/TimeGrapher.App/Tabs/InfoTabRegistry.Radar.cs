@@ -9,11 +9,12 @@ namespace TimeGrapher.App.Tabs;
 
 internal sealed partial class InfoTabRegistry
 {
-    // Watch Health radar: a six-position hexagon of the per-position aggregates the
-    // frame snapshot already carries, plus a rule-based diagnosis panel. It reuses
-    // the same snapshot the Positions tab consumes (Strategy: another consumer over
-    // one snapshot), so the analysis engine is untouched — the catalog entry and
-    // this factory are the whole addition.
+    // Watch Health: a six-position hexagon plus a unified Diagnosis rail that judges
+    // BOTH axes over the same snapshot the Positions tab consumes (Strategy: another
+    // consumer over one snapshot) — band conformance per position (Levels) and
+    // cross-position Consistency (the shared ConsistencyDiagnosis). The analysis
+    // engine is untouched; the catalog entry, this factory and the rail are the
+    // whole addition.
     private static InfoTabRegistration CreateWatchHealthRadarRegistration(
         InfoTabDefinition definition,
         InfoTabFactoryContext context)
@@ -25,6 +26,7 @@ internal sealed partial class InfoTabRegistry
             Margin = new Thickness(4),
         };
 
+        // --- radar header (metric title + better-is hint) ---
         var hint = new TextBlock
         {
             FontSize = 12,
@@ -32,14 +34,43 @@ internal sealed partial class InfoTabRegistry
             VerticalAlignment = VerticalAlignment.Center,
             Margin = new Thickness(12, 0, 0, 0),
         };
-        var verdict = new TextBlock { FontSize = 18, FontWeight = FontWeight.Bold, TextWrapping = TextWrapping.Wrap };
-        var summary = new TextBlock { FontSize = 13, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 8, 0, 0) };
-        var weakest = new TextBlock { FontSize = 13, Margin = new Thickness(0, 6, 0, 0) };
 
-        var renderer = new WatchHealthRadarRenderer(radar, hint, verdict, summary, weakest);
+        // --- Diagnosis rail controls ---
+        var overall = new TextBlock { FontSize = 22, FontWeight = FontWeight.Bold, TextWrapping = TextWrapping.Wrap };
+        var overallSub = new TextBlock { FontSize = 11, Opacity = 0.6, Margin = new Thickness(0, 2, 0, 0) };
 
-        // Amplitude / Rate / Beat error toggle, styled like the other tab selectors
-        // (PositionButton + the shared "active" accent).
+        var levelsGrid = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions("64,*,*,*,18"),
+            Margin = new Thickness(0, 6, 0, 0),
+        };
+        levelsGrid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
+        AddLevelHeader(levelsGrid, 0, "POS");
+        AddLevelHeader(levelsGrid, 1, "AMP");
+        AddLevelHeader(levelsGrid, 2, "RATE");
+        AddLevelHeader(levelsGrid, 3, "BEAT");
+
+        var levelRows = new List<HealthLevelRowControls>(WatchHealthRadarModel.AxisOrder.Count);
+        for (int i = 0; i < WatchHealthRadarModel.AxisOrder.Count; i++)
+        {
+            levelRows.Add(AddLevelRow(levelsGrid, i + 1));
+        }
+
+        var weakest = new TextBlock { FontSize = 12, FontWeight = FontWeight.Bold, Margin = new Thickness(0, 8, 0, 0), TextWrapping = TextWrapping.Wrap };
+
+        (Border spreadCard, HealthConsistencyRowControls spread) =
+            MakeConsistencyCard("D-SPREAD", "best−worst rate gap · limit 15 s/d");
+        (Border balanceCard, HealthConsistencyRowControls balance) =
+            MakeConsistencyCard("BALANCE-WHEEL", "vertical-position rate spread · limit 15 s/d");
+        (Border vhCard, HealthConsistencyRowControls verticalHorizontal) =
+            MakeConsistencyCard("V / H BIAS", "vertical − horizontal mean rate");
+
+        var rail = new HealthDiagnosisControls(
+            hint, overall, overallSub, levelRows, weakest, spread, balance, verticalHorizontal);
+
+        var renderer = new WatchHealthRadarRenderer(radar, rail);
+
+        // --- Amplitude / Rate / Beat metric toggle (in the rail header) ---
         var metricButtons = new List<(Button Button, RadarMetric Metric)>();
 
         void UpdateMetricButtons()
@@ -63,9 +94,9 @@ internal sealed partial class InfoTabRegistry
             var button = new Button
             {
                 Content = text,
-                FontSize = 12,
-                MinHeight = 28,
-                Padding = new Thickness(10, 2),
+                FontSize = 11,
+                MinHeight = 26,
+                Padding = new Thickness(8, 2),
                 Margin = new Thickness(0, 0, 4, 0),
             };
             button.Classes.Add("PositionButton");
@@ -79,24 +110,14 @@ internal sealed partial class InfoTabRegistry
             return button;
         }
 
-        var toggleRow = new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            VerticalAlignment = VerticalAlignment.Center,
-        };
-        toggleRow.Children.Add(MetricButton("Amplitude", RadarMetric.Amplitude));
+        var toggleRow = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+        toggleRow.Children.Add(MetricButton("Amp", RadarMetric.Amplitude));
         toggleRow.Children.Add(MetricButton("Rate", RadarMetric.Rate));
-        toggleRow.Children.Add(MetricButton("Beat error", RadarMetric.BeatError));
+        toggleRow.Children.Add(MetricButton("Beat", RadarMetric.BeatError));
         UpdateMetricButtons();
 
-        var headerStrip = new Grid
-        {
-            ColumnDefinitions = new ColumnDefinitions("Auto,*"),
-            Margin = new Thickness(8, 4, 8, 2),
-        };
-        Grid.SetColumn(toggleRow, 0);
-        Grid.SetColumn(hint, 1);
-        headerStrip.Children.Add(toggleRow);
+        // --- radar area (col 0) ---
+        var headerStrip = new Grid { ColumnDefinitions = new ColumnDefinitions("*"), Margin = new Thickness(8, 4, 8, 2) };
         headerStrip.Children.Add(hint);
 
         var radarArea = new Grid { RowDefinitions = new RowDefinitions("Auto,*") };
@@ -110,20 +131,32 @@ internal sealed partial class InfoTabRegistry
             radarArea.Children.Add(overlay);
         }
 
-        var panelStack = new StackPanel { Margin = new Thickness(12) };
-        panelStack.Children.Add(new TextBlock
+        // --- Diagnosis rail (col 1) ---
+        var railStack = new StackPanel { Margin = new Thickness(12) };
+
+        var railHeader = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto") };
+        var railTitle = new TextBlock { Text = "DIAGNOSIS · unified", FontSize = 11, Opacity = 0.6, VerticalAlignment = VerticalAlignment.Center };
+        Grid.SetColumn(railTitle, 0);
+        Grid.SetColumn(toggleRow, 1);
+        railHeader.Children.Add(railTitle);
+        railHeader.Children.Add(toggleRow);
+        railStack.Children.Add(railHeader);
+
+        railStack.Children.Add(overall);
+        railStack.Children.Add(overallSub);
+
+        railStack.Children.Add(SectionLabel("LEVELS · per position vs accept band"));
+        railStack.Children.Add(levelsGrid);
+        railStack.Children.Add(weakest);
+
+        railStack.Children.Add(SectionLabel("CONSISTENCY · across positions"));
+        railStack.Children.Add(spreadCard);
+        railStack.Children.Add(balanceCard);
+        railStack.Children.Add(vhCard);
+
+        railStack.Children.Add(new TextBlock
         {
-            Text = "DIAGNOSIS",
-            FontSize = 11,
-            Opacity = 0.6,
-            Margin = new Thickness(0, 0, 0, 8),
-        });
-        panelStack.Children.Add(verdict);
-        panelStack.Children.Add(summary);
-        panelStack.Children.Add(weakest);
-        panelStack.Children.Add(new TextBlock
-        {
-            Text = "Rule-based, from the live per-position measurements. Reuses the Positions sequence — no new sensor.",
+            Text = "Criteria (inline): CHECK when rate spread > 15 s/d across qualified positions. Reuses the Positions sequence — no new sensor.",
             FontSize = 11,
             Opacity = 0.6,
             TextWrapping = TextWrapping.Wrap,
@@ -135,10 +168,14 @@ internal sealed partial class InfoTabRegistry
             Classes = { "PositionPanel" },
             Padding = new Thickness(4),
             Margin = new Thickness(0, 0, 4, 0),
-            Child = panelStack,
+            Child = new ScrollViewer
+            {
+                HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled,
+                Content = railStack,
+            },
         };
 
-        var root = new Grid { ColumnDefinitions = new ColumnDefinitions("*,300") };
+        var root = new Grid { ColumnDefinitions = new ColumnDefinitions("*,470") };
         Grid.SetColumn(radarArea, 0);
         Grid.SetColumn(panel, 1);
         root.Children.Add(radarArea);
@@ -146,5 +183,82 @@ internal sealed partial class InfoTabRegistry
 
         var consumer = new WatchHealthRadarFrameConsumer(renderer);
         return new InfoTabRegistration(definition, CreateTabItem(definition, root), consumer);
+    }
+
+    private static TextBlock SectionLabel(string text) => new()
+    {
+        Text = text,
+        FontSize = 11,
+        Opacity = 0.5,
+        Margin = new Thickness(0, 14, 0, 4),
+    };
+
+    private static void AddLevelHeader(Grid grid, int column, string text)
+    {
+        var label = new TextBlock { Text = text, FontSize = 9.5, Opacity = 0.5, Margin = new Thickness(0, 0, 0, 2) };
+        Grid.SetRow(label, 0);
+        Grid.SetColumn(label, column);
+        grid.Children.Add(label);
+    }
+
+    private static HealthLevelRowControls AddLevelRow(Grid grid, int rowIndex)
+    {
+        grid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
+
+        var pos = new TextBlock { FontSize = 13, FontWeight = FontWeight.Bold, Margin = new Thickness(0, 2, 0, 2) };
+        var amp = new TextBlock { FontSize = 13, Margin = new Thickness(0, 2, 0, 2) };
+        var rate = new TextBlock { FontSize = 13, Margin = new Thickness(0, 2, 0, 2) };
+        var beat = new TextBlock { FontSize = 13, Margin = new Thickness(0, 2, 0, 2) };
+        var dot = new Border
+        {
+            Width = 10,
+            Height = 10,
+            CornerRadius = new CornerRadius(5),
+            VerticalAlignment = VerticalAlignment.Center,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            IsVisible = false,
+        };
+
+        Place(grid, pos, rowIndex, 0);
+        Place(grid, amp, rowIndex, 1);
+        Place(grid, rate, rowIndex, 2);
+        Place(grid, beat, rowIndex, 3);
+        Place(grid, dot, rowIndex, 4);
+
+        return new HealthLevelRowControls(pos, amp, rate, beat, dot);
+    }
+
+    private static (Border Card, HealthConsistencyRowControls Controls) MakeConsistencyCard(string name, string sub)
+    {
+        var nameLabel = new TextBlock { Text = name, FontSize = 12, FontWeight = FontWeight.Bold };
+        var subLabel = new TextBlock { Text = sub, FontSize = 9.5, Opacity = 0.55, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 1, 0, 0) };
+        var left = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+        left.Children.Add(nameLabel);
+        left.Children.Add(subLabel);
+
+        var reading = new TextBlock { FontSize = 12.5, FontWeight = FontWeight.Bold, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 10, 0) };
+        var chip = new TextBlock { FontSize = 11, FontWeight = FontWeight.Bold, VerticalAlignment = VerticalAlignment.Center };
+
+        var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto,Auto") };
+        Place(grid, left, 0, 0);
+        Place(grid, reading, 0, 1);
+        Place(grid, chip, 0, 2);
+
+        var card = new Border
+        {
+            Classes = { "PositionPanel" },
+            Padding = new Thickness(10, 7),
+            Margin = new Thickness(0, 0, 0, 6),
+            Child = grid,
+        };
+
+        return (card, new HealthConsistencyRowControls(reading, chip));
+    }
+
+    private static void Place(Grid grid, Control child, int row, int column)
+    {
+        Grid.SetRow(child, row);
+        Grid.SetColumn(child, column);
+        grid.Children.Add(child);
     }
 }
