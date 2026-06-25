@@ -86,10 +86,47 @@ public sealed class RateScopeHistoryTests
         Assert.Equal(
             new[]
             {
-                "ER +1728.0 s/d\nAMP 280°  BE 0.2 ms",
-                "ER -864.0 s/d\nAMP ---°  BE ---- ms",
+                "+1728.0 s/d\n280°  0.2 ms",
+                "-864.0 s/d\n---°  ---- ms",
             },
             labels.Select(t => t.LabelText).ToArray());
+    }
+
+    [Fact]
+    public void RenderFrame_UpdatesRatePointsAfterUserDropsRateFollow()
+    {
+        var scopePlot = new AvaPlot();
+        var ratePlot = new AvaPlot();
+        var renderer = new RateScopeRenderer(scopePlot, ratePlot, "Arial");
+        renderer.CreateGraphs(rateErrorYScale: 10.0, rateDataPoints: 600);
+
+        var first = new AnalysisFrame();
+        AddRateSeries(first, new GraphSeriesFrame
+        {
+            Id = AnalysisGraphSeries.RateTic,
+            X = new[] { 0.0, 1.0 },
+            Y = new[] { 0.0, 0.1 },
+            Replace = true,
+        });
+        renderer.RenderFrame(first, new AnalysisTabRenderContext(48000));
+
+        SetPrivateField(renderer, "_rateFollowLive", false);
+        ratePlot.Plot.Axes.SetLimitsX(0.0, RateScopeRenderer.RatePageWindowBeats);
+
+        var second = new AnalysisFrame();
+        AddRateSeries(second, new GraphSeriesFrame
+        {
+            Id = AnalysisGraphSeries.RateTic,
+            X = new[] { 120.0, 121.0 },
+            Y = new[] { 1.2, 1.21 },
+            Replace = true,
+        });
+        renderer.RenderFrame(second, new AnalysisTabRenderContext(48000));
+
+        Assert.Equal(new[] { 120.0, 121.0 }, RateX(renderer, AnalysisGraphSeries.RateTic));
+        AxisLimits limits = ratePlot.Plot.Axes.GetLimits();
+        Assert.Equal(0.0, limits.Left);
+        Assert.Equal(RateScopeRenderer.RatePageWindowBeats, limits.Right);
     }
 
     private static void AddRateSeries(AnalysisFrame frame, GraphSeriesFrame series)
@@ -97,6 +134,27 @@ public sealed class RateScopeHistoryTests
         typeof(AnalysisFrame)
             .GetMethod("AddRateSeries", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
             .Invoke(frame, new object[] { series });
+    }
+
+    private static void SetPrivateField(object target, string name, object value)
+    {
+        target.GetType()
+            .GetField(name, System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+            .SetValue(target, value);
+    }
+
+    private static double[] RateX(RateScopeRenderer renderer, string seriesId)
+    {
+        var series = (GraphSeriesDefinition[])typeof(RateScopeRenderer)
+            .GetField("_rateSeries", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+            .GetValue(renderer)!;
+        var xs = (List<double>[])typeof(RateScopeRenderer)
+            .GetField("_rateX", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+            .GetValue(renderer)!;
+
+        int index = Array.FindIndex(series, spec => spec.Id == seriesId);
+        Assert.True(index >= 0, "Expected rate series to be registered.");
+        return xs[index].ToArray();
     }
 
     [Fact]

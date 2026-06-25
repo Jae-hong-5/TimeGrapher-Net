@@ -154,8 +154,8 @@ internal sealed class AveragePeriodRateAnnotations
 
     private static string FormatLabel(AveragePeriodRateInterval interval)
     {
-        return "ER " + FormatRate(interval.RateSPerDay) + "\n" +
-               "AMP " + FormatAmplitude(interval) + "  BE " + FormatBeatError(interval);
+        return FormatRate(interval.RateSPerDay) + "\n" +
+               FormatAmplitude(interval) + "  " + FormatBeatError(interval);
     }
 
     private static string FormatAmplitude(AveragePeriodRateInterval interval)

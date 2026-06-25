@@ -266,13 +266,9 @@ internal sealed class RateScopeRenderer
         _sampleRate = context.SampleRate;
         _lastMetricsHistory = frame.MetricsHistory ?? _lastMetricsHistory;
 
-        // While paused (follow off) each pane holds the snapshot captured when the user
-        // panned: skip merging new data and advancing the extent so the trace stays
-        // static and its bounds rule confines pan/zoom to the frozen window — the live
-        // buffer can no longer slide past it and drag the view forward. Upstream
-        // production continues; ResetScopeView / ResetRateView re-arm follow and resume
-        // the live display. (Panning still re-reduces the frozen history at full
-        // resolution via ScheduleScopeAxisRefresh.)
+        // While scope follow is off, the scope pane holds the snapshot captured when
+        // the user panned. Rate still accepts incoming point snapshots after a pan;
+        // only its automatic page-following stops.
         bool scopeUpdated = false;
         bool scopeDataChanged = false;
         if (_scopeFollowLive)
@@ -280,7 +276,7 @@ internal sealed class RateScopeRenderer
             scopeUpdated = MergeScopeHistory(frame, out scopeDataChanged);
         }
 
-        bool rateUpdated = _rateFollowLive && ReplaceRateSeries(frame);
+        bool rateUpdated = ReplaceRateSeries(frame);
         // Review cursor on the waveform pane only: its x base is absolute sample
         // ticks, so stream time maps onto it (the Filter Scope mapping).
         // The rate pane plots a beat-index page, not stream time, so the review-cursor
@@ -289,14 +285,18 @@ internal sealed class RateScopeRenderer
 
         if (rateUpdated)
         {
-            // Live only (paused freezes this block): advance the retained beat extent,
-            // then show the fixed page containing the newest beat.
+            // Keep collecting rate points after the user pans/zooms; only live-following
+            // moves the X view to the newest 120-beat page.
             _hasRateDataExtent = RateDataExtent(out _rateDataMinX, out _rateDataMaxX);
 
             if (_hasRateDataExtent)
             {
-                (double left, double right) = RatePageWindowFor(_rateDataMaxX);
-                _ratePlot.Plot.Axes.SetLimitsX(left, right);
+                if (_rateFollowLive)
+                {
+                    (double left, double right) = RatePageWindowFor(_rateDataMaxX);
+                    _ratePlot.Plot.Axes.SetLimitsX(left, right);
+                }
+
                 UpdateAveragePeriodAnnotations(frame.MetricsHistory);
             }
 
