@@ -1076,11 +1076,22 @@ internal sealed partial class InfoTabRegistry
         Grid.SetRow(grid, 1);
         root.Children.Add(grid);
 
-        // Reset View lives in the top strip (row 0), pinned right, so it sits
-        // above the plots instead of overlapping the top-right lane.
-        Button resetButton = CreatePinnedResetViewButton(
-            ResetAllGraphViewsTooltip, row: 0, context.ResetViews.ResetAll);
-        root.Children.Add(resetButton);
+        Button resetButton = CreateOverlayButton(
+            "Reset View", ResetAllGraphViewsTooltip, context.ResetViews.ResetAll);
+        resetButton.MinHeight = TraceHeaderButtonMinHeight;
+        resetButton.FontSize = TraceHeaderButtonFontSize;
+        resetButton.Padding = TraceHeaderButtonPadding;
+        resetButton.VerticalAlignment = VerticalAlignment.Center;
+        resetButton.Classes.Add("PositionButton");
+        var headerStrip = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions("*,Auto"),
+            Margin = new Thickness(8, 1, 8, 2),
+        };
+        Grid.SetColumn(resetButton, 1);
+        headerStrip.Children.Add(resetButton);
+        Grid.SetRow(headerStrip, 0);
+        root.Children.Add(headerStrip);
 
         var consumer = new MultiFilterScopeFrameConsumer(renderer);
         return new InfoTabRegistration(definition, CreateTabItem(definition, root), consumer);
@@ -1915,31 +1926,59 @@ internal sealed partial class InfoTabRegistry
             };
         }
 
-        var toolbar = new StackPanel
+        var buttonRow = new StackPanel
         {
             Orientation = Orientation.Horizontal,
-            Spacing = 4,
-            Margin = new Thickness(8, 4),
+            Spacing = 6,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Center,
         };
 
-        var envelopeModeButton = new Button
+        Button BeatNoiseHeaderButton(string content, string tooltip)
         {
-            Content = "Beat Scope",
-            Padding = new Thickness(8, 2, 8, 2),
-            FontSize = 11,
-        };
-        ToolTip.SetTip(envelopeModeButton, "Show beat-noise waveform + Strip mode (absolute-value display controlled separately)");
-        toolbar.Children.Add(envelopeModeButton);
+            var button = new Button
+            {
+                Content = content,
+                MinHeight = TraceHeaderButtonMinHeight,
+                Padding = TraceHeaderButtonPadding,
+                FontSize = TraceHeaderButtonFontSize,
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+            ToolTip.SetTip(button, tooltip);
+            button.Classes.Add("PositionButton");
+            return button;
+        }
 
-        var averageModeButton = new Button
+        ToggleButton BeatNoiseHeaderToggle(string content, string tooltip)
         {
-            Content = "Avg Envelope",
-            Padding = new Thickness(8, 2, 8, 2),
-            FontSize = 11,
-            Margin = new Thickness(0, 0, 8, 0),
+            var toggle = new ToggleButton
+            {
+                Content = content,
+                MinHeight = TraceHeaderButtonMinHeight,
+                Padding = TraceHeaderButtonPadding,
+                FontSize = TraceHeaderButtonFontSize,
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+            toggle.Classes.Add("PositionButton");
+            ToolTip.SetTip(toggle, tooltip);
+            return toggle;
+        }
+
+        Button envelopeModeButton = BeatNoiseHeaderButton(
+            "Beat Scope",
+            "Show beat-noise waveform + Strip mode (absolute-value display controlled separately)");
+        buttonRow.Children.Add(envelopeModeButton);
+
+        Button averageModeButton = BeatNoiseHeaderButton(
+            "Avg Envelope",
+            "Show Average Envelope + Strip mode");
+        buttonRow.Children.Add(averageModeButton);
+
+        var headerStrip = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions("*,Auto"),
+            Margin = new Thickness(8, 1, 8, 2),
         };
-        ToolTip.SetTip(averageModeButton, "Show Average Envelope + Strip mode");
-        toolbar.Children.Add(averageModeButton);
 
         // 20 / 200 / 400 ms range selector; the active range renders disabled
         // (the Scope Sweep 1x/2x/3x button pattern).
@@ -1957,47 +1996,33 @@ internal sealed partial class InfoTabRegistry
         for (int i = 0; i < ranges.Length; i++)
         {
             int rangeMs = ranges[i];
-            var button = new Button
-            {
-                Content = rangeMs + " ms",
-                Padding = new Thickness(8, 2, 8, 2),
-                FontSize = 11,
-            };
-            ToolTip.SetTip(button, $"Show the first {rangeMs} ms of the beat window");
+            Button button = BeatNoiseHeaderButton(
+                rangeMs + " ms",
+                $"Show the first {rangeMs} ms of the beat window");
             button.Click += (_, _) =>
             {
                 renderer.SetRangeMs(rangeMs);
                 UpdateRangeButtonStates();
             };
             rangeButtons[i] = button;
-            toolbar.Children.Add(button);
+            buttonRow.Children.Add(button);
         }
 
         UpdateRangeButtonStates();
 
-        var absoluteToggle = new ToggleButton
-        {
-            Content = "ABS",
-            Padding = new Thickness(8, 2, 8, 2),
-            FontSize = 11,
-            Margin = new Thickness(8, 0, 0, 0),
-        };
-        ToolTip.SetTip(absoluteToggle, "On: show rectified absolute-value envelope. Off: show real bipolar waveform (min/max).");
+        ToggleButton absoluteToggle = BeatNoiseHeaderToggle(
+            "ABS",
+            "On: show rectified absolute-value envelope. Off: show real bipolar waveform (min/max).");
         absoluteToggle.IsCheckedChanged += (_, _) => renderer.SetAbsoluteValue(absoluteToggle.IsChecked == true);
-        toolbar.Children.Add(absoluteToggle);
+        buttonRow.Children.Add(absoluteToggle);
 
         // Σ writes the shared SigmaAveraging view-model property; MainWindow
         // forwards the change to the running analysis worker (the
         // SetSweepMultiple flow). Display state comes back via the snapshot.
-        var sigmaToggle = new ToggleButton
-        {
-            Content = "Σ",
-            Padding = new Thickness(10, 2, 10, 2),
-            FontSize = 11,
-            Margin = new Thickness(8, 0, 0, 0),
-            IsChecked = context.ViewModel?.SigmaAveraging == true,
-        };
-        ToolTip.SetTip(sigmaToggle, "Average 50 + 50 beat noises into the two Scope 2 traces");
+        ToggleButton sigmaToggle = BeatNoiseHeaderToggle(
+            "Σ",
+            "Average 50 + 50 beat noises into the two Scope 2 traces");
+        sigmaToggle.IsChecked = context.ViewModel?.SigmaAveraging == true;
         sigmaToggle.IsCheckedChanged += (_, _) =>
         {
             if (context.ViewModel is { } viewModel)
@@ -2005,9 +2030,11 @@ internal sealed partial class InfoTabRegistry
                 viewModel.SigmaAveraging = sigmaToggle.IsChecked == true;
             }
         };
-        toolbar.Children.Add(sigmaToggle);
+        buttonRow.Children.Add(sigmaToggle);
 
-        toolbar.Children.Add(liftText);
+        buttonRow.Children.Add(liftText);
+        Grid.SetColumn(buttonRow, 1);
+        headerStrip.Children.Add(buttonRow);
 
         // Strip-lane hit test maps the pointer through the aligned data area,
         // excluding the reserved left axis width used to match the top plot.
@@ -2023,7 +2050,7 @@ internal sealed partial class InfoTabRegistry
         {
             RowDefinitions = new RowDefinitions("Auto,*,Auto,Auto"),
         };
-        Control[] rows = { toolbar, mainPlot, stripPlot, averageText };
+        Control[] rows = { headerStrip, mainPlot, stripPlot, averageText };
         for (int i = 0; i < rows.Length; i++)
         {
             Grid.SetRow(rows[i], i);

@@ -875,6 +875,69 @@ public sealed class InfoTabRegistryTests
     }
 
     [Fact]
+    public void BeatNoiseTabUsesScopeSweepHeaderButtonGroup()
+    {
+        Grid content = CreateBeatNoiseContent(new MainWindowViewModel());
+        var headerStrip = Assert.IsType<Grid>(
+            content.Children.Single(child => Grid.GetRow(child) == 0));
+
+        Assert.Equal(4, content.RowDefinitions.Count);
+        Assert.Equal(GridUnitType.Auto, content.RowDefinitions[0].Height.GridUnitType);
+        Assert.True(content.RowDefinitions[1].Height.IsStar);
+        Assert.Equal(2, headerStrip.ColumnDefinitions.Count);
+        Assert.True(headerStrip.ColumnDefinitions[0].Width.IsStar);
+        Assert.Equal(GridUnitType.Auto, headerStrip.ColumnDefinitions[1].Width.GridUnitType);
+        Assert.Equal(new Thickness(8, 1, 8, 2), headerStrip.Margin);
+
+        var buttonStrip = headerStrip.Children.OfType<StackPanel>().Single();
+        Assert.Equal(1, Grid.GetColumn(buttonStrip));
+        Assert.Equal(Orientation.Horizontal, buttonStrip.Orientation);
+        Assert.Equal(6, buttonStrip.Spacing);
+        Assert.Equal(HorizontalAlignment.Right, buttonStrip.HorizontalAlignment);
+        Assert.Equal(VerticalAlignment.Center, buttonStrip.VerticalAlignment);
+        string[] buttons = buttonStrip.Children
+            .OfType<Button>()
+            .Select(button => button.Content?.ToString() ?? string.Empty)
+            .ToArray();
+        Assert.Equal(new[] { "Beat Scope", "Avg Envelope", "20 ms", "200 ms", "400 ms", "ABS", "Σ" }, buttons);
+
+        Assert.All(buttonStrip.Children.OfType<Button>(), button =>
+        {
+            Assert.Contains("PositionButton", button.Classes);
+            Assert.Equal(TraceHeaderButtonFontSizeForTest, button.FontSize);
+            Assert.Equal(TraceHeaderButtonMinHeightForTest, button.MinHeight);
+            Assert.Equal(new Thickness(10, 2, 10, 2), button.Padding);
+            Assert.Equal(VerticalAlignment.Center, button.VerticalAlignment);
+        });
+        Assert.Contains(buttonStrip.Children.OfType<TextBlock>(), text => text.Text == "LIFT —");
+    }
+
+    [Fact]
+    public void FilterScopeTabUsesScopeSweepHeaderResetButton()
+    {
+        Grid content = CreateMultiFilterScopeContent();
+        var headerStrip = Assert.IsType<Grid>(
+            content.Children.Single(child => Grid.GetRow(child) == 0));
+
+        Assert.Equal(2, content.RowDefinitions.Count);
+        Assert.Equal(GridUnitType.Auto, content.RowDefinitions[0].Height.GridUnitType);
+        Assert.True(content.RowDefinitions[1].Height.IsStar);
+        Assert.Equal(2, headerStrip.ColumnDefinitions.Count);
+        Assert.True(headerStrip.ColumnDefinitions[0].Width.IsStar);
+        Assert.Equal(GridUnitType.Auto, headerStrip.ColumnDefinitions[1].Width.GridUnitType);
+        Assert.Equal(new Thickness(8, 1, 8, 2), headerStrip.Margin);
+
+        Button resetView = headerStrip.Children.OfType<Button>().Single();
+        Assert.Equal(1, Grid.GetColumn(resetView));
+        Assert.Equal("Reset View", resetView.Content);
+        Assert.Contains("PositionButton", resetView.Classes);
+        Assert.Equal(TraceHeaderButtonFontSizeForTest, resetView.FontSize);
+        Assert.Equal(TraceHeaderButtonMinHeightForTest, resetView.MinHeight);
+        Assert.Equal(new Thickness(10, 2, 10, 2), resetView.Padding);
+        Assert.Equal(VerticalAlignment.Center, resetView.VerticalAlignment);
+    }
+
+    [Fact]
     public void ScopeSweepReferenceTextDoesNotResizePlotRow()
     {
         EnsureAvaloniaPlatform();
@@ -1169,6 +1232,22 @@ public sealed class InfoTabRegistryTests
         InfoTabRegistry registry = InfoTabRegistry.FromCatalog(tabControl, new Grid(), "Arial", viewModel);
         return Assert.IsType<Grid>(registry.Registrations.Single(
             registration => registration.Definition.Id == InfoTabCatalog.ScopeSweepTabId).TabItem.Content);
+    }
+
+    private static Grid CreateBeatNoiseContent(MainWindowViewModel? viewModel = null)
+    {
+        var tabControl = new TabControl();
+        InfoTabRegistry registry = InfoTabRegistry.FromCatalog(tabControl, new Grid(), "Arial", viewModel);
+        return Assert.IsType<Grid>(registry.Registrations.Single(
+            registration => registration.Definition.Id == InfoTabCatalog.BeatNoiseScopeTabId).TabItem.Content);
+    }
+
+    private static Grid CreateMultiFilterScopeContent()
+    {
+        var tabControl = new TabControl();
+        InfoTabRegistry registry = InfoTabRegistry.FromCatalog(tabControl, new Grid(), "Arial");
+        return Assert.IsType<Grid>(registry.Registrations.Single(
+            registration => registration.Definition.Id == InfoTabCatalog.MultiFilterScopeTabId).TabItem.Content);
     }
 
     private static Grid CreateBeatErrorDiagContent()
