@@ -95,6 +95,9 @@ public sealed class AcquisitionPeakGateTests
     [Fact]
     public void HalfBeatArtifact_AliasesToDoubleRate_WithoutGate()
     {
+        // The alias rides a thin clean-signal margin: the 2x candidate already scores
+        // ~0.98 on an artifact-free 21600 stream (just under the true cadence), so the
+        // weak half-beat artifact is enough to flip the pick to 43200 without the gate.
         float[] pcm = HalfBeatArtifactStream();
         Assert.Equal(43200, DetectedBph(pcm, gateFraction: 0.0));
     }
