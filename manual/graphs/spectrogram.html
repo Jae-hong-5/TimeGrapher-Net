@@ -42,6 +42,7 @@
       <h2><span class="ko">옵션</span><span class="sep"> · </span><span class="en">Options</span></h2>
       <ul>
         <li><span class="ko"><b>Last Beat</b> — 창을 한 비트 길이로 고정(BPH 기준, 모르면 0.125초). A 온셋에 위상 고정되어 비트가 가운데 머뭅니다.</span><span class="en"><b>Last Beat</b> — fixes the window to one beat period (from BPH, else 0.125 s), phase-locked to the latest A onset so the beat stays centred.</span></li>
+        <li><span class="ko"><b>Beats</b> — 최근 여러 비트(2·4·8개)를 위상 정렬해 나란히 놓고, 비트 경계마다 구분선을 그립니다. 2개면 한 비트를 다음 비트와 직접 비교하고, 더 늘리면 같은 주파수 대역에서 반복되는 에너지 구조가 레인마다 되풀이되는 것을 봅니다. −/+ 또는 휠로 개수를 바꿉니다.</span><span class="en"><b>Beats</b> — lays the last few beats (2 · 4 · 8) side by side, phase-aligned, with a divider at each beat boundary. Two beats compare one beat directly with the next; more beats reveal the recurring energy structure repeating lane to lane at the same frequency bands. Step the count with −/+ or the wheel.</span></li>
         <li><span class="ko"><b>Seconds</b> — 창을 고정 초(0.1–10초)로. 위상 고정 없이 라이브 스윕이 흐릅니다.</span><span class="en"><b>Seconds</b> — a fixed number of seconds (0.1–10 s); no phase lock, live sweep flows.</span></li>
         <li><span class="ko">아래 시간축 라벨과 캡션(<code>Time (s) · 1.0 s window</code> 또는 <code>Time (ms) · last beat</code>)이 현재 창을 알려 줍니다.</span><span class="en">The time-axis labels and caption (<code>Time (s) · 1.0 s window</code> or <code>Time (ms) · last beat</code>) report the current window.</span></li>
       </ul>
@@ -50,7 +51,7 @@
       <ul>
         <li><span class="ko"><b>밝은 세로 띠</b> = 그 시점의 주된 주파수(박자 기본음 + 배음).</span><span class="en"><b>Bright vertical bands</b> = dominant frequencies at that instant (beat fundamental + harmonics).</span></li>
         <li><span class="ko"><b>흐릿한 저-dB 영역</b> = 잡음 바닥. 넓게 밝으면 잡음이 많은 환경.</span><span class="en"><b>Diffuse low-dB area</b> = noise floor; broadly bright = a noisy environment.</span></li>
-        <li><span class="ko">Last Beat로 비트를 고정해 충격 구조를 보고, Seconds로 흐름·반복을 봅니다.</span><span class="en">Use Last Beat to freeze the impulse structure; use Seconds to watch flow and repetition.</span></li>
+        <li><span class="ko">Last Beat로 한 비트의 충격 구조를 보고, Beats로 비트끼리 나란히 비교하며, Seconds로 흐름을 봅니다.</span><span class="en">Use Last Beat to freeze one impulse, Beats to compare beats side by side, and Seconds to watch the flow.</span></li>
       </ul>
 
       <div class="pager">
