@@ -58,15 +58,10 @@ public sealed class WatchMetricsDerivedMeasuresTests
     }
 
     [Fact]
-    public void RateRls_WarmsUpAtLowManualBph()
+    public void RateAverage_PublishesAfterConfiguredPeriodAtLowManualBph()
     {
-        // At a low BPH (7200 = 2 beats/s) the per-phase RLS window used to be
-        // AveragingPeriod*beatsPerSecond = 4, below RateWarmupPoints (6), so the
-        // rate-valid gate (Count >= 6) could never be satisfied and error-rate
-        // s/day stayed permanently unproduced. The window is now floored at
-        // RateWarmupPoints, so a steady low-BPH stream eventually validates.
         var metrics = new WatchMetrics(new WatchMetricsConfig { SampleRate = SampleRate, AveragingPeriod = 2 });
-        const double lowBph = 7200.0; // 2 beats/s -> 500 ms between A events
+        const double lowBph = 7200.0;
         var intervals = new double[24];
         for (int i = 0; i < intervals.Length; i++)
         {
@@ -76,6 +71,53 @@ public sealed class WatchMetricsDerivedMeasuresTests
         List<WatchMetricsUpdate> updates = FeedAEventsAtBph(metrics, lowBph, intervals);
 
         Assert.Contains(updates, u => u.BeatTimingSampleUpdated && u.BeatTimingSample.RateValid);
+    }
+
+    [Fact]
+    public void RateAverage_UsesCompletedAveragingPeriodsRatherThanRollingEveryBeat()
+    {
+        var metrics = new WatchMetrics(new WatchMetricsConfig
+        {
+            SampleRate = 1000,
+            AveragingPeriod = 3,
+        });
+        const double bph = 7200.0;
+        double sample = 0.0;
+
+        var updates = new List<WatchMetricsUpdate>
+        {
+            metrics.HandleAEvent(sample, true, bph),
+        };
+
+        for (int i = 0; i < 6; i++)
+        {
+            sample += 490.0;
+            updates.Add(metrics.HandleAEvent(sample, true, bph));
+        }
+
+        Assert.DoesNotContain(updates, update => update.BeatTimingSample.RateValid);
+
+        sample += 490.0;
+        WatchMetricsUpdate firstComplete = metrics.HandleAEvent(sample, true, bph);
+        Assert.True(firstComplete.BeatTimingSample.RateValid);
+        Assert.True(firstComplete.BeatTimingSample.RateSPerDay > 1000.0);
+        double firstPeriodRate = firstComplete.BeatTimingSample.RateSPerDay;
+
+        for (int i = 0; i < 4; i++)
+        {
+            sample += 510.0;
+            WatchMetricsUpdate midPeriod = metrics.HandleAEvent(sample, true, bph);
+            Assert.True(midPeriod.BeatTimingSample.RateValid);
+            Assert.Equal(firstPeriodRate, midPeriod.BeatTimingSample.RateSPerDay, 6);
+        }
+
+        sample += 510.0;
+        _ = metrics.HandleAEvent(sample, true, bph);
+        sample += 510.0;
+        WatchMetricsUpdate secondComplete = metrics.HandleAEvent(sample, true, bph);
+
+        Assert.True(secondComplete.BeatTimingSample.RateValid);
+        Assert.True(secondComplete.BeatTimingSample.RateSPerDay < -1000.0);
     }
 
     [Fact]
@@ -318,51 +360,33 @@ public sealed class WatchMetricsDerivedMeasuresTests
     }
 
     [Fact]
-    public void RlsRate_RestartsCleanAcrossADetectionGap()
+    public void RateAverage_RestartsCleanAcrossADetectionGap()
     {
-        // A 190 ms interval is a detection gap with a sub-beat residual: the
-        // re-anchored schedule steps by 60 ms, which a regression window
-        // mixing pre- and post-gap points would report as a slope spike of
-        // thousands of s/d - permanently recorded by the cumulative rate
-        // statistics. The estimators restart at the gap instead: the gap
-        // sample reports rate-invalid, the reading returns once the post-gap
-        // segment refills past the warmup floor, and no emitted sample ever
-        // carries the spike. Both runs are long enough to clear RateWarmupPoints
-        // on each side of the gap (6 points per tic/toc phase).
         WatchMetrics metrics = NewMetrics();
-        double[] intervals = Enumerable.Repeat(125.0, 13)
+        double[] intervals = Enumerable.Repeat(125.0, 18)
             .Append(190.0)
-            .Concat(Enumerable.Repeat(125.0, 16))
+            .Concat(Enumerable.Repeat(125.0, 18))
             .ToArray();
         List<WatchMetricsUpdate> updates = FeedAEvents(metrics, intervals);
 
-        // Valid before the gap (the 13-beat run clears the warmup floor)...
-        Assert.Contains(updates.Take(14), u => u.BeatTimingSample.RateValid);
-        // ...the gap event resets both estimators, so it reports invalid...
-        Assert.False(updates[14].BeatTimingSample.RateValid);
-        // ...and the reading returns once the post-gap segment refills.
-        Assert.Contains(updates.Skip(15), u => u.BeatTimingSample.RateValid);
+        Assert.Contains(updates.Take(19), u => u.BeatTimingSample.RateValid);
+        Assert.False(updates[19].BeatTimingSample.RateValid);
+        Assert.Contains(updates.Skip(20), u => u.BeatTimingSample.RateValid);
         Assert.All(
             updates.Where(u => u.BeatTimingSampleUpdated && u.BeatTimingSample.RateValid),
             u => Assert.InRange(u.BeatTimingSample.RateSPerDay, -1.0, 1.0));
     }
 
     [Fact]
-    public void RlsRate_WaitsForWarmupPointsBeforeFirstValidReading()
+    public void RateAverage_WaitsForConfiguredPeriodBeforeFirstValidReading()
     {
-        // A 2-point regression has zero residual degrees of freedom, so its slope
-        // is pure per-event jitter amplification (the first plotted rate point can
-        // read the wrong sign by tens of s/d). The rate is therefore withheld until
-        // each tic/toc window holds RateWarmupPoints (default 6) samples. With clean
-        // nominal beats that floor is first cleared on the 6th toc (beat 12, index
-        // 11) - not the 2-point beat-4 (index 3) the bare GetRate floor would allow.
         WatchMetrics metrics = NewMetrics();
-        List<WatchMetricsUpdate> updates = FeedAEvents(metrics, Enumerable.Repeat(125.0, 12).ToArray());
+        List<WatchMetricsUpdate> updates = FeedAEvents(metrics, Enumerable.Repeat(125.0, 16).ToArray());
 
-        Assert.DoesNotContain(updates.Take(11), u => u.BeatTimingSample.RateValid);
+        Assert.DoesNotContain(updates.Take(16), u => u.BeatTimingSample.RateValid);
         Assert.False(updates[3].BeatTimingSample.RateValid);   // old 2-point first-valid beat
-        Assert.False(updates[9].BeatTimingSample.RateValid);   // 5 points/phase, still short
-        Assert.True(updates[11].BeatTimingSample.RateValid);   // 6 points/phase clears the floor
+        Assert.False(updates[11].BeatTimingSample.RateValid);
+        Assert.True(updates[16].BeatTimingSample.RateValid);
     }
 
     [Fact]

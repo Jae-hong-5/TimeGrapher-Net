@@ -87,7 +87,6 @@ public sealed class DetectorMetricsEngine
             AveragingPeriod = config.AveragingPeriod,
             MaxRateDataPoints = 250,
             RateErrorYScale = 10.0,
-            RlsWindowInit = 100,
             AmplitudeOnsetLatencyS = config.AmplitudeOnsetLatencyS,
         });
 

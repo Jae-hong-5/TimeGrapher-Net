@@ -13,18 +13,6 @@ public struct WatchMetricsConfig
     public int AveragingPeriod;     // 2
     public int MaxRateDataPoints;   // 250
     public double RateErrorYScale;  // 10.0
-    public int RlsWindowInit;       // 100
-
-    // Minimum points each tic/toc regression window must hold before the s/d rate
-    // is published. A 2-point slope has zero residual degrees of freedom, so its
-    // value is pure per-event jitter amplification (the first plotted rate point
-    // could read the wrong sign by tens of s/d); requiring several points first
-    // suppresses that startup transient at the cost of a slightly later first
-    // reading. 6 is the smallest floor at which the first plotted value lands on
-    // the correct sign within a few s/d across jitter seeds (measured); steady-
-    // state convergence is unaffected (the full window keeps filling afterwards).
-    // Not in the C++ original (which used the 2-point GetRate floor).
-    public int RateWarmupPoints;    // 6
 
     // Seconds added to the measured A->C interval before the amplitude formula, to
     // offset the detector's onset-detection latency (the A onset is timestamped at a
@@ -42,8 +30,6 @@ public struct WatchMetricsConfig
         AveragingPeriod = 2;
         MaxRateDataPoints = 250;
         RateErrorYScale = 10.0;
-        RlsWindowInit = 100;
-        RateWarmupPoints = 6;
         AmplitudeOnsetLatencyS = 0.0;
     }
 }
@@ -71,13 +57,15 @@ public sealed class WatchMetrics
     private bool _haveZeroOffset = false;
     private double _startTime = 0.0;
     private double _zeroOffsetValue = 0.0;
-    private readonly RollingLeastSquares _rlsTicRate;
-    private readonly RollingLeastSquares _rlsTocRate;
-    private double _rlsRate = 0.0;
-    private bool _rlsRateValid = false;
+    private double _rateSPerDay = 0.0;
+    private bool _rateValid = false;
+    private double _rateWindowStartS = 0.0;
+    private double _rateWindowDeltaSumS = 0.0;
+    private int _rateWindowDeltaCount = 0;
+    private readonly double[] _lastRatePhaseEventS = { 0.0, 0.0 };
+    private readonly bool[] _haveRatePhaseEvent = { false, false };
     private int _bph = 0;
     private bool _bphValid = false;
-    private int _beatsPerSecondWindow = 0;
 
     private readonly double[] _beatErrorTimes = { 0.0, 0.0, 0.0 };
     private int _beatErrorIdx = 0;
@@ -118,8 +106,6 @@ public sealed class WatchMetrics
     public WatchMetrics(WatchMetricsConfig config)
     {
         _config = config;
-        _rlsTicRate = new RollingLeastSquares(config.RlsWindowInit);
-        _rlsTocRate = new RollingLeastSquares(config.RlsWindowInit);
         _rollBeatError = new RollingAverage(10);
         _rollAmplitude = new RollingAverage(10);
         // mX*/mY*.reserve(max_rate_data_points) in the original is a capacity hint only.
@@ -145,9 +131,7 @@ public sealed class WatchMetrics
         _xToc.Clear();
         _yTic.Clear();
         _yToc.Clear();
-        _rlsTicRate.Reset();
-        _rlsTocRate.Reset();
-        _rlsRateValid = false;
+        ResetRateAveraging(0.0);
 
         ResetDerivedMeasures();
         _missedBeats = 0;
@@ -163,6 +147,22 @@ public sealed class WatchMetrics
         _skipNextPeriodDelta = true;
         _diffTicTacValid = false;
         _signedBeatErrorValid = false;
+    }
+
+    private void ResetRateAveraging(double startTimeS)
+    {
+        _rateSPerDay = 0.0;
+        _rateValid = false;
+        _rateWindowStartS = startTimeS;
+        ResetRateWindow();
+        _haveRatePhaseEvent[Tic] = false;
+        _haveRatePhaseEvent[Toc] = false;
+    }
+
+    private void ResetRateWindow()
+    {
+        _rateWindowDeltaSumS = 0.0;
+        _rateWindowDeltaCount = 0;
     }
 
     public WatchMetricsUpdate HandleAEvent(double eventSample, bool haveValidBph, double bph)
@@ -181,8 +181,8 @@ public sealed class WatchMetrics
                 eventSample / (double)_config.SampleRate,
                 CurrentBeatPhase() == Tic,
                 _lastRateErrorMs,
-                _rlsRateValid,
-                _rlsRate,
+                _rateValid,
+                _rateSPerDay,
                 _signedBeatErrorValid,
                 _signedBeatErrorMs,
                 _bph));
@@ -287,6 +287,7 @@ public sealed class WatchMetrics
         {
             _haveStartTime = false;
             _bphValid = false;
+            ResetRateAveraging(0.0);
         }
         else if ((haveValidBph) && (!_haveStartTime))
         {
@@ -297,18 +298,7 @@ public sealed class WatchMetrics
             _startTime = eventSample / (double)_config.SampleRate;
             _haveZeroOffset = false;
             _zeroOffsetValue = 0.0;
-            _rlsRateValid = false;
-            _beatsPerSecondWindow = BeatWindowSize(_bph, seconds: 1);
-            // The rate RLS window must hold at least RateWarmupPoints samples per
-            // phase, or the rate-valid gate (Count >= RateWarmupPoints) can never be
-            // satisfied. For low manual BPH (e.g. 3600-7800) AveragingPeriod*beats-
-            // per-second falls below that floor, which would otherwise leave error-
-            // rate s/day permanently unproduced for those supported rates.
-            int rateWindow = Math.Max(_config.RateWarmupPoints, _config.AveragingPeriod * _beatsPerSecondWindow);
-            _rlsTicRate.Resize(rateWindow);
-            _rlsTocRate.Resize(rateWindow);
-            _rlsTicRate.Reset();
-            _rlsTocRate.Reset();
+            ResetRateAveraging(_startTime);
 
             // Restart the beat-error window with the new sync segment too: a stale
             // _beatErrorTimes[0] from before the re-lock would otherwise let a
@@ -366,18 +356,6 @@ public sealed class WatchMetrics
 
             if (gapDetected)
             {
-                // A regression window mixing pre- and post-gap points sees the
-                // re-anchored schedule's sub-beat residual as a step and emits
-                // a transient slope spike (thousands of s/d for one missed
-                // beat) that the cumulative rate statistics would record
-                // permanently. Restart both estimators from the post-gap
-                // segment instead - the same recovery a fresh sync lock
-                // performs; the reading returns after two beats per phase. The
-                // gap-ending event seeds the new window below: its own instant
-                // is measured on the post-gap schedule.
-                _rlsTicRate.Reset();
-                _rlsTocRate.Reset();
-                _rlsRateValid = false;
                 // A staged tic amplitude belongs to the pre-gap schedule; the
                 // gap re-anchors tic/toc parity, so the gap-ending event can be
                 // a toc that would otherwise pair the stale pre-gap tic with a
@@ -393,42 +371,16 @@ public sealed class WatchMetrics
 
             if (ticOrToc == Tic)
             {
-                _rlsTicRate.AddPoint(timeMeasured, instTimingError);
                 AddRatePoint(_xTic, _yTic, wrappedRateError, _config.MaxRateDataPoints, ref _xTicIndex);
                 update.SetTicRate(_xTic, _yTic);
             }
             else
             {
-                _rlsTocRate.AddPoint(timeMeasured, instTimingError);
                 AddRatePoint(_xToc, _yToc, wrappedRateError, _config.MaxRateDataPoints, ref _xTocIndex);
                 update.SetTocRate(_xToc, _yToc);
             }
 
-            if (ticOrToc == Toc)
-            {
-                double slopeTic;
-                double rlsTic;
-                double slopeToc;
-                double rlsToc;
-
-                // Hold the rate invalid until both windows clear the warmup floor:
-                // a 2-point regression amplifies per-event jitter into a wild
-                // first reading, so the early beats are skipped rather than plotted.
-                if ((_rlsTicRate.Count >= _config.RateWarmupPoints) &&
-                    (_rlsTocRate.Count >= _config.RateWarmupPoints) &&
-                    (_rlsTicRate.GetRate(out slopeTic)) &&
-                    (_rlsTocRate.GetRate(out slopeToc)))
-                {
-                    rlsTic = slopeTic * 86400.00;
-                    rlsToc = slopeToc * 86400.00;
-                    _rlsRate = (rlsTic + rlsToc) / 2.0;
-                    _rlsRateValid = true;
-                }
-                else
-                {
-                    _rlsRateValid = false;
-                }
-            }
+            AccumulateRateAverage(ticOrToc, timeMeasured, expectedTimeTarget, gapDetected);
         }
 
         return true;
@@ -488,6 +440,59 @@ public sealed class WatchMetrics
     private static int BeatWindowSize(int bph, int seconds)
     {
         return Math.Max(1, (int)Math.Round(bph * seconds / 3600.0, MidpointRounding.AwayFromZero));
+    }
+
+    private void AccumulateRateAverage(int ticOrToc, double timeMeasured, double expectedTimeTarget, bool gapDetected)
+    {
+        if (gapDetected)
+        {
+            ResetRateAveraging(timeMeasured);
+        }
+
+        double nominalSamePhasePeriodS = expectedTimeTarget * 2.0;
+        if (_haveRatePhaseEvent[ticOrToc])
+        {
+            double measuredSamePhasePeriodS = timeMeasured - _lastRatePhaseEventS[ticOrToc];
+            double deltaS = measuredSamePhasePeriodS - nominalSamePhasePeriodS;
+            if (Math.Abs(deltaS) < nominalSamePhasePeriodS * 0.5)
+            {
+                _rateWindowDeltaSumS += deltaS;
+                _rateWindowDeltaCount++;
+            }
+        }
+
+        _lastRatePhaseEventS[ticOrToc] = timeMeasured;
+        _haveRatePhaseEvent[ticOrToc] = true;
+        CompleteRateAverageWindows(timeMeasured, nominalSamePhasePeriodS);
+    }
+
+    private void CompleteRateAverageWindows(double timeMeasured, double nominalSamePhasePeriodS)
+    {
+        int periodS = Math.Max(1, _config.AveragingPeriod);
+        if (timeMeasured - _rateWindowStartS < periodS)
+        {
+            return;
+        }
+
+        if (_rateWindowDeltaCount > 0)
+        {
+            double averageDeltaS = _rateWindowDeltaSumS / _rateWindowDeltaCount;
+            _rateSPerDay = -(averageDeltaS / nominalSamePhasePeriodS) * 86400.0;
+            _rateValid = true;
+        }
+        else
+        {
+            _rateSPerDay = 0.0;
+            _rateValid = false;
+        }
+
+        do
+        {
+            _rateWindowStartS += periodS;
+        }
+        while (timeMeasured - _rateWindowStartS >= periodS);
+
+        ResetRateWindow();
     }
 
     /// <summary>
@@ -619,7 +624,7 @@ public sealed class WatchMetrics
 
     private string FormatResults() => BuildResults(
         _bphValid, _bph,
-        _rlsRateValid, _rlsRate,
+        _rateValid, _rateSPerDay,
         _rollBeatError.CurrentSize() > 0, _rollBeatError.GetAverage(),
         _rollAmplitude.CurrentSize() > 0, _rollAmplitude.GetAverage());
 
@@ -636,7 +641,6 @@ public sealed class WatchMetrics
         bool amplitudeValid, double amplitude)
     {
         string beatsPerHour = bphValid ? Mark(ArgInt(bph, 5)) : "-----";
-        // Original: QString::asprintf("%+6.1f", RlsRate) — width 6.
         string rateError = rateValid ? Mark(PrintfPlusFloat(rate, 6, 1)) : "------";
         string beatErrorText = beatErrorValid ? Mark(ArgFixed(beatError, 4, 1)) : "----";
         string amplitudeText = amplitudeValid ? Mark(ArgLong(QRound64(amplitude), 3)) : "---";
