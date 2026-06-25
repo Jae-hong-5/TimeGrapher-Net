@@ -107,4 +107,40 @@ public sealed class HeuristicSignalQualityClassifierTests
         Assert.Equal(SignalQualityClass.Unknown, SignalQualityAssessment.Unknown.Class);
         Assert.Equal(0f, SignalQualityAssessment.Unknown.Confidence);
     }
+
+    // Threshold boundaries — pin the constants so a change is a deliberate, tested edit.
+
+    [Fact]
+    public void MissedRateJustBelowThresholdStaysGood()
+    {
+        // 0.04 < UnstableMissedRate (0.05) -> not Unstable; otherwise clean -> Good.
+        Assert.Equal(SignalQualityClass.Good, Classify(Features(missedRate: 0.04f)));
+    }
+
+    [Fact]
+    public void MissedRateJustAboveThresholdIsUnstable()
+    {
+        Assert.Equal(SignalQualityClass.Unstable, Classify(Features(missedRate: 0.06f)));
+    }
+
+    [Fact]
+    public void IntervalJitterJustBelowThresholdStaysGood()
+    {
+        // 0.04 < UnstableIntervalCv (0.05) -> not Unstable.
+        Assert.Equal(SignalQualityClass.Good, Classify(Features(jitterCv: 0.04f)));
+    }
+
+    [Fact]
+    public void SnrJustBelowNoisyThresholdIsNoisy()
+    {
+        // 23 dB < NoisySnrDb (24) but >= WeakSnrDb (12) -> Noisy, not Weak.
+        Assert.Equal(SignalQualityClass.Noisy, Classify(Features(snrDb: 23f)));
+    }
+
+    [Fact]
+    public void SnrJustAboveNoisyThresholdStaysGood()
+    {
+        // 25 dB >= NoisySnrDb (24) with a healthy margin and consistent peaks -> Good.
+        Assert.Equal(SignalQualityClass.Good, Classify(Features(snrDb: 25f)));
+    }
 }

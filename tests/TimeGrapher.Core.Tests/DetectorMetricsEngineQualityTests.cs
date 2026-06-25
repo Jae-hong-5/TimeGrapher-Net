@@ -96,4 +96,95 @@ public sealed class DetectorMetricsEngineQualityTests
         Assert.Null(bareLast.Result.QualityAssessment);
         Assert.NotNull(annLast.Result.QualityAssessment);
     }
+
+    // --- End-to-end: the extractor + heuristic actually distinguish degraded
+    // streams (not just clean / hand-built features). Drives a degraded synth
+    // through the real engine and asserts the resulting verdict.
+
+    private static WatchSynthStreamConfig DegradedBase()
+    {
+        WatchSynthStreamConfig cfg = WatchSynthStreamConfig.Clean();
+        cfg.SampleRateHz = SampleRate;
+        cfg.Bph = Bph;
+        return cfg;
+    }
+
+    private static SignalQualityClass FinalClassFor(WatchSynthStreamConfig cfg, int seconds = 12)
+    {
+        var config = new DetectorMetricsEngineConfig(
+            SampleRate: (int)cfg.SampleRateHz,
+            LiftAngle: cfg.LiftAngleDegrees,
+            AveragingPeriod: 2,
+            UseCOnset: false,
+            AutoBph: true,
+            ManualBph: 0,
+            HpfCutoffHz: 0.0);
+        var engine = new DetectorMetricsEngine(config, new HeuristicSignalQualityClassifier());
+        var synth = new WatchSynthStream(cfg);
+
+        float[] block = new float[4096];
+        int remaining = (int)cfg.SampleRateHz * seconds;
+        DetectorMetricsBlockUpdate last = engine.Flush();
+        while (remaining > 0)
+        {
+            int slice = Math.Min(block.Length, remaining);
+            Span<float> span = block.AsSpan(0, slice);
+            synth.Generate(span);
+            last = engine.Process(span);
+            remaining -= slice;
+        }
+
+        last = engine.Flush();
+        return last.Result.QualityAssessment?.Class ?? SignalQualityClass.Unknown;
+    }
+
+    [Fact]
+    public void NoisyStreamIsClassifiedNoisy()
+    {
+        WatchSynthStreamConfig cfg = DegradedBase();
+        cfg.PcmPeakSignalLevel = 0.5;
+        cfg.NoisePeakSignalLevel = 0.08;
+
+        Assert.Equal(SignalQualityClass.Noisy, FinalClassFor(cfg));
+    }
+
+    [Fact]
+    public void QuietButCleanStreamStaysGood()
+    {
+        // A low-amplitude but low-noise stream is NOT weak: the tick still sits far
+        // above the (equally low) noise floor, so SNR/margin stay high. Guards against
+        // falsely flagging quiet-but-clean watches.
+        WatchSynthStreamConfig cfg = DegradedBase();
+        cfg.PcmPeakSignalLevel = 0.03;
+
+        Assert.Equal(SignalQualityClass.Good, FinalClassFor(cfg));
+    }
+
+    [Fact]
+    public void NoiseDominatedStreamIsFlaggedDegraded()
+    {
+        // A noise-dominated stream must surface SOME degraded verdict end-to-end
+        // (not Good, not Unknown). We assert membership rather than a single class
+        // because under white noise the SNR<12 "WeakSignal" band is squeezed: by the
+        // time SNR drops that far, timing also destabilises, so the engine reports
+        // Unstable before WeakSignal. The WeakSignal threshold itself is pinned by
+        // the hand-built HeuristicSignalQualityClassifierTests (LowSnr / ThinMargin).
+        WatchSynthStreamConfig cfg = DegradedBase();
+        cfg.PcmPeakSignalLevel = 0.30;
+        cfg.NoisePeakSignalLevel = 0.135;
+
+        SignalQualityClass cls = FinalClassFor(cfg);
+
+        Assert.NotEqual(SignalQualityClass.Good, cls);
+        Assert.NotEqual(SignalQualityClass.Unknown, cls);
+    }
+
+    [Fact]
+    public void UnstableStreamIsClassifiedUnstable()
+    {
+        WatchSynthStreamConfig cfg = DegradedBase();
+        cfg.TimingJitterUs = 10000.0;
+
+        Assert.Equal(SignalQualityClass.Unstable, FinalClassFor(cfg));
+    }
 }
