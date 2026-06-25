@@ -239,6 +239,65 @@ public sealed class InfoTabRegistryTests
     }
 
     [Fact]
+    public void PositionsTabHeroAndTableReflectMeasuredPositions()
+    {
+        var tabControl = new TabControl();
+        var positionStrip = new Grid();
+        InfoTabRegistry registry = InfoTabRegistry.FromCatalog(tabControl, positionStrip, "Arial");
+        var content = Assert.IsType<Grid>(registry.Registrations.Single(
+            registration => registration.Definition.Id == InfoTabCatalog.WatchPositionsTabId).TabItem.Content);
+        AnalysisFrameRouter router = registry.CreateRouter();
+
+        router.Route(
+            Frame(
+                version: 1,
+                activePosition: WatchPosition.CH,
+                Position(WatchPosition.CH, rate: 0.0, amplitude: 300.0, count: 45),
+                Position(WatchPosition.P3H, rate: 0.0, amplitude: 260.0, count: 30)),
+            InfoTabCatalog.WatchPositionsTabId,
+            new AnalysisTabRenderContext(48000));
+
+        List<TextBlock> texts = Descendants(content).OfType<TextBlock>().ToList();
+        // ACTIVE hero live readout (CH) — also appears in the CH table row.
+        Assert.Contains(texts, text => text.Text == "300°");
+        Assert.Contains(texts, text => text.Text == "45");
+        Assert.Contains(texts, text => text.Text == "45 / 30 beats");
+        // Sequence reference KPIs: mean amplitude 280°, 2 measured positions, 75 beats.
+        Assert.Contains(texts, text => text.Text == "280°");
+        Assert.Contains(texts, text => text.Text == "2 / 10");
+        Assert.Contains(texts, text => text.Text == "75");
+        // One acquisition (rate-range) lane per position row.
+        Assert.Equal(WatchPositions.Count, Descendants(content).OfType<RateRangeLaneControl>().Count());
+    }
+
+    private static StatsSummary Stats(double mean, long count) =>
+        new(Valid: true, Min: mean, Max: mean, Mean: mean, Sigma: 0.0, Count: count);
+
+    private static PositionSummary Position(
+        WatchPosition position,
+        double? rate = null,
+        double? amplitude = null,
+        double? beatError = null,
+        long count = 30) => new(
+        position,
+        rate is double r ? Stats(r, count) : default,
+        amplitude is double a ? Stats(a, count / 2) : default,
+        beatError is double b ? Stats(b, count) : default);
+
+    private static AnalysisFrame Frame(
+        ulong version,
+        WatchPosition activePosition,
+        params PositionSummary[] positions) => new()
+    {
+        MetricsHistory = new BeatMetricsHistorySnapshot
+        {
+            Version = version,
+            ActivePosition = activePosition,
+            Positions = positions,
+        },
+    };
+
+    [Fact]
     public void VarioSummaryShowsVerdictsWithoutNumericSublines()
     {
         Grid content = CreateVarioContent();
