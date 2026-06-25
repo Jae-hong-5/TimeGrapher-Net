@@ -37,6 +37,11 @@ internal sealed class AcceptBandController
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
+        if (_viewModel.IsSettingsWindowResetInProgress)
+        {
+            return;
+        }
+
         if (e.PropertyName is not (
             nameof(MainWindowViewModel.RateAcceptMin) or
             nameof(MainWindowViewModel.RateAcceptMax) or

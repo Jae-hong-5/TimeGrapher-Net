@@ -128,11 +128,12 @@ public partial class MainWindow : Window
             new AudioSelectionPreference(
                 AppSettings.Current.LeftPanel.InputDeviceName,
                 AppSettings.Current.LeftPanel.SampleRate));
+        var acceptBandOperations = new GraphAcceptBandOperations(mGraphFrameRenderer);
         var adapters = new MainWindowViewAdapters(
             new MainWindowSelectionOperations(this, mAudioSelection, mAudioDeviceController),
             new RunCommandOperations(this),
             dialogs,
-            new GraphAcceptBandOperations(mGraphFrameRenderer),
+            acceptBandOperations,
             new MainWindowSelectionOptions(PLAYBACK_SOURCE, SIMULATION_SOURCE));
         var runSessionCallbacks = new MainWindowRunSessionCallbacks(
             sessionId => BuildRunSettings().ToWorkerConfig(sessionId, mWavWriter),
@@ -186,7 +187,9 @@ public partial class MainWindow : Window
         mAppSettingsController = new AppSettingsController(
             mViewModel,
             CaptureAppSettingsSelection,
-            AppSettingsStore.Save);
+            AppSettingsStore.Save,
+            acceptBandOperations,
+            mSamplingSettingsController.SyncAppliedSnapshot);
         mViewModel.AttachSettingsWindowResetRunner(mAppSettingsController);
 
         Closed += OnWindowClosed;
@@ -297,6 +300,7 @@ public partial class MainWindow : Window
         // Static run options moved out of the tab strip into this popup; it shares
         // the MainWindow view-model so toggles reach the same run-settings flow.
         var settingsWindow = new SettingsWindow { DataContext = mViewModel };
+        settingsWindow.Closed += (_, _) => AppSettingsStore.Flush();
         _ = settingsWindow.ShowDialog(this);
     }
 

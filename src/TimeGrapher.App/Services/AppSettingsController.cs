@@ -15,15 +15,21 @@ internal sealed class AppSettingsController : ISettingsWindowResetRunner
     private readonly MainWindowViewModel _viewModel;
     private readonly Func<AppSettingsSelection> _selection;
     private readonly Action<AppSettings> _persist;
+    private readonly IAcceptBandOperations? _acceptBandOperations;
+    private readonly Action<SamplingSettings>? _syncSamplingSettings;
 
     public AppSettingsController(
         MainWindowViewModel viewModel,
         Func<AppSettingsSelection> selection,
-        Action<AppSettings> persist)
+        Action<AppSettings> persist,
+        IAcceptBandOperations? acceptBandOperations = null,
+        Action<SamplingSettings>? syncSamplingSettings = null)
     {
         _viewModel = viewModel;
         _selection = selection;
         _persist = persist;
+        _acceptBandOperations = acceptBandOperations;
+        _syncSamplingSettings = syncSamplingSettings;
         _viewModel.PropertyChanged += OnViewModelPropertyChanged;
     }
 
@@ -45,29 +51,45 @@ internal sealed class AppSettingsController : ISettingsWindowResetRunner
         viewModel.IsMeasurementLogEnabled = measurementLogEnabled;
     }
 
-    public void ResetSettingsWindow() => ResetSettingsWindow(_viewModel);
-
-    private static void ResetSettingsWindow(MainWindowViewModel viewModel)
+    public void ResetSettingsWindow()
     {
         SamplingSettings sampling = SamplingSettings.Default;
         SettingsWindowSettings window = SettingsWindowSettings.Default;
         AcceptBandSettings bands = AcceptBandSettings.Default;
-        viewModel.UseCOnset = window.UseCOnset;
-        viewModel.WeakAOnsetRescue = window.WeakAOnsetRescue;
-        viewModel.SpuriousBeatRejection = window.SpuriousBeatRejection;
-        viewModel.PauseOnPositionChange = window.PauseOnPositionChange;
-        viewModel.AveragingPeriod = sampling.AveragingPeriod;
-        viewModel.AnalysisBlockSize = sampling.AnalysisBlockSize;
-        viewModel.CaptureBufferMs = sampling.CaptureBufferMs;
-        viewModel.HighPassCutoffText = window.HighPassCutoffText;
-        ResetAcceptBands(viewModel, bands);
-        viewModel.IsMeasurementLogEnabled = window.MeasurementLogEnabled;
+
+        _viewModel.RunSettingsWindowReset(() =>
+        {
+            _viewModel.UseCOnset = window.UseCOnset;
+            _viewModel.WeakAOnsetRescue = window.WeakAOnsetRescue;
+            _viewModel.SpuriousBeatRejection = window.SpuriousBeatRejection;
+            _viewModel.PauseOnPositionChange = window.PauseOnPositionChange;
+            _viewModel.AveragingPeriod = sampling.AveragingPeriod;
+            _viewModel.AnalysisBlockSize = sampling.AnalysisBlockSize;
+            _viewModel.CaptureBufferMs = sampling.CaptureBufferMs;
+            _viewModel.HighPassCutoffText = window.HighPassCutoffText;
+            ResetAcceptBands(_viewModel, bands);
+            _viewModel.IsMeasurementLogEnabled = window.MeasurementLogEnabled;
+        });
+
+        SamplingSettings.Current = sampling;
+        _syncSamplingSettings?.Invoke(sampling);
+        AcceptBandSettings.Current = bands;
+        Persist(BuildSnapshot(sampling, bands, window));
+        _acceptBandOperations?.ApplyCurrentBands();
     }
 
-    public void Detach() => _viewModel.PropertyChanged -= OnViewModelPropertyChanged;
+    public void Detach()
+    {
+        _viewModel.PropertyChanged -= OnViewModelPropertyChanged;
+    }
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
+        if (_viewModel.IsSettingsWindowResetInProgress)
+        {
+            return;
+        }
+
         if (e.PropertyName is not (
             nameof(MainWindowViewModel.SelectedInputDeviceIndex) or
             nameof(MainWindowViewModel.SelectedSampleRateIndex) or
@@ -89,11 +111,47 @@ internal sealed class AppSettingsController : ISettingsWindowResetRunner
             return;
         }
 
-        AppSettingsSelection selection = _selection();
-        var next = AppSettings.Current with
+        AppSettings next = BuildSnapshot(
+            SamplingSettings.Current,
+            AcceptBandSettings.Current,
+            new SettingsWindowSettings(
+                _viewModel.UseCOnset,
+                _viewModel.WeakAOnsetRescue,
+                _viewModel.SpuriousBeatRejection,
+                _viewModel.PauseOnPositionChange,
+                _viewModel.HighPassCutoffText,
+                _viewModel.IsMeasurementLogEnabled));
+
+        if (!next.IsValid || next == AppSettings.Current)
         {
-            Sampling = SamplingSettings.Current,
-            AcceptBands = AcceptBandSettings.Current,
+            return;
+        }
+
+        AppSettings.Current = next;
+        _persist(next);
+    }
+
+    private void Persist(AppSettings settings)
+    {
+        if (!settings.IsValid)
+        {
+            return;
+        }
+
+        AppSettings.Current = settings;
+        _persist(settings);
+    }
+
+    private AppSettings BuildSnapshot(
+        SamplingSettings sampling,
+        AcceptBandSettings acceptBands,
+        SettingsWindowSettings settingsWindow)
+    {
+        AppSettingsSelection selection = _selection();
+        return AppSettings.Current with
+        {
+            Sampling = sampling,
+            AcceptBands = acceptBands,
             LeftPanel = new LeftPanelSettings(
                 selection.InputDeviceName,
                 selection.SampleRate,
@@ -105,30 +163,12 @@ internal sealed class AppSettingsController : ISettingsWindowResetRunner
                 (double)_viewModel.SimAmplitude,
                 (double)_viewModel.SimBeatError,
                 _viewModel.Realistic),
-            SettingsWindow = new SettingsWindowSettings(
-                _viewModel.UseCOnset,
-                _viewModel.WeakAOnsetRescue,
-                _viewModel.SpuriousBeatRejection,
-                _viewModel.PauseOnPositionChange,
-                _viewModel.HighPassCutoffText,
-                _viewModel.IsMeasurementLogEnabled),
+            SettingsWindow = settingsWindow,
         };
-
-        if (!next.IsValid || next == AppSettings.Current)
-        {
-            return;
-        }
-
-        AppSettings.Current = next;
-        _persist(next);
     }
 
     private static void ResetAcceptBands(MainWindowViewModel viewModel, AcceptBandSettings defaults)
     {
-        viewModel.RateAcceptMin = (decimal)-AcceptBandSettings.RateLimitSPerDay;
-        viewModel.RateAcceptMax = (decimal)AcceptBandSettings.RateLimitSPerDay;
-        viewModel.AmplitudeAcceptMin = (decimal)AcceptBandSettings.AmplitudeFloorDeg;
-        viewModel.AmplitudeAcceptMax = (decimal)AcceptBandSettings.AmplitudeCeilingDeg;
         viewModel.RateAcceptMin = (decimal)defaults.RateMinSPerDay;
         viewModel.RateAcceptMax = (decimal)defaults.RateMaxSPerDay;
         viewModel.AmplitudeAcceptMin = (decimal)defaults.AmplitudeMinDeg;

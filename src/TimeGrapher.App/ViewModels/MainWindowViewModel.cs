@@ -84,6 +84,7 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     private double _reviewSliderRightPad;
     private string _reviewMetricsText = "";
     private bool _isLongTermTabActive;
+    private int _settingsWindowResetDepth;
 
     public MainWindowViewModel()
     {
@@ -134,6 +135,21 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     public ICommand ReviewStepForwardCommand => _reviewStepForwardCommand;
     public ICommand ReviewLiveCommand => _reviewLiveCommand;
     public ICommand ResetSettingsWindowCommand => _resetSettingsWindowCommand;
+
+    public bool IsSettingsWindowResetInProgress => _settingsWindowResetDepth > 0;
+
+    public void RunSettingsWindowReset(Action reset)
+    {
+        _settingsWindowResetDepth++;
+        try
+        {
+            reset();
+        }
+        finally
+        {
+            _settingsWindowResetDepth--;
+        }
+    }
 
     public ObservableCollection<string> InputDeviceNames { get; } = new();
     public ObservableCollection<string> SampleRateLabels { get; } = new();

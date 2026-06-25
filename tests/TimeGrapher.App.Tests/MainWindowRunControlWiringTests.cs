@@ -3,8 +3,10 @@ using System.Xml.Linq;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media.Imaging;
+using TimeGrapher.App.Services;
 using TimeGrapher.App.ViewModels;
 using TimeGrapher.App.Views;
+using TimeGrapher.Core.Detection;
 using Xunit;
 
 namespace TimeGrapher.App.Tests;
@@ -151,6 +153,28 @@ public sealed class MainWindowRunControlWiringTests
         string[] names = { "Live: Chinese Generic USB", "Playback", "Simulation" };
 
         Assert.Equal(0, MainWindow.SelectInputDeviceIndexAfterReload(names, "Missing device"));
+    }
+
+    [Fact]
+    public void SavedBphSelectionRestoresPersistedCatalogIndex()
+    {
+        int index = MainWindow.SavedCatalogIndexOrFallback(
+            BphCatalog.ManualAutoBph,
+            savedValue: 21600,
+            fallbackIndex: 0);
+
+        Assert.Equal(RunSelectionResolver.FindValue(BphCatalog.ManualAutoBph, 21600), index);
+    }
+
+    [Fact]
+    public void SavedSimulationBphSelectionFallsBackToDefaultIndex()
+    {
+        int index = MainWindow.SavedCatalogIndexOrFallback(
+            BphCatalog.ManualBph,
+            savedValue: -1,
+            fallbackIndex: 3);
+
+        Assert.Equal(3, index);
     }
 
     [Fact]

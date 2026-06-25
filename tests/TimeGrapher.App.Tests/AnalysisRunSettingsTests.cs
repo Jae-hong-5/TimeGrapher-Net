@@ -6,13 +6,13 @@ namespace TimeGrapher.App.Tests;
 
 /// <summary>
 /// Pins the run-settings -> worker-config policy: the weak-A onset rescue and the
-/// acquisition spurious-beat gate each stay behind their toggle and default off.
+/// acquisition spurious-beat gate each stay behind their toggle and default on.
 /// </summary>
 public sealed class AnalysisRunSettingsTests
 {
     private static AnalysisRunSettings NewSettings(
-        int analysisBlockSize = 4096, bool weakAOnsetRescue = false,
-        bool spuriousBeatRejection = false) => new(
+        int analysisBlockSize = 4096, bool weakAOnsetRescue = true,
+        bool spuriousBeatRejection = true) => new(
         SampleRate: 48000,
         LiftAngle: 52.0,
         AveragingPeriod: 2,
@@ -28,39 +28,39 @@ public sealed class AnalysisRunSettingsTests
         SpuriousBeatRejection: spuriousBeatRejection);
 
     [Fact]
-    public void Default_DoesNotWireTheRescue()
+    public void Default_WiresTheRescue()
     {
         AnalysisWorker.Config config = NewSettings()
-            .ToWorkerConfig(sessionId: 1, sampleWriter: null);
-
-        Assert.Equal(0.0, config.PhaseGuideOnsetRescueScale);
-    }
-
-    [Fact]
-    public void WeakAOnsetRescueOn_SetsTheRescueScale()
-    {
-        AnalysisWorker.Config config = NewSettings(weakAOnsetRescue: true)
             .ToWorkerConfig(sessionId: 1, sampleWriter: null);
 
         Assert.Equal(1.0, config.PhaseGuideOnsetRescueScale);
     }
 
     [Fact]
-    public void Default_DoesNotWireTheAcquisitionGate()
+    public void WeakAOnsetRescueOff_ClearsTheRescueScale()
+    {
+        AnalysisWorker.Config config = NewSettings(weakAOnsetRescue: false)
+            .ToWorkerConfig(sessionId: 1, sampleWriter: null);
+
+        Assert.Equal(0.0, config.PhaseGuideOnsetRescueScale);
+    }
+
+    [Fact]
+    public void Default_WiresTheAcquisitionGate()
     {
         AnalysisWorker.Config config = NewSettings()
             .ToWorkerConfig(sessionId: 1, sampleWriter: null);
 
-        Assert.Equal(0.0, config.AcquisitionPeakGateFraction);
+        Assert.Equal(0.35, config.AcquisitionPeakGateFraction);
     }
 
     [Fact]
-    public void SpuriousBeatRejectionOn_SetsTheAcquisitionGateFraction()
+    public void SpuriousBeatRejectionOff_ClearsTheAcquisitionGateFraction()
     {
-        AnalysisWorker.Config config = NewSettings(spuriousBeatRejection: true)
+        AnalysisWorker.Config config = NewSettings(spuriousBeatRejection: false)
             .ToWorkerConfig(sessionId: 1, sampleWriter: null);
 
-        Assert.Equal(0.35, config.AcquisitionPeakGateFraction);
+        Assert.Equal(0.0, config.AcquisitionPeakGateFraction);
     }
 
     [Fact]

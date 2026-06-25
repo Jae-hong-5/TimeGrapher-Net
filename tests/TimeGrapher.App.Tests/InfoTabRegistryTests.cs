@@ -820,8 +820,9 @@ public sealed class InfoTabRegistryTests
         Assert.True(headerStrip.ColumnDefinitions[0].Width.IsStar);
         Assert.Equal(GridUnitType.Auto, headerStrip.ColumnDefinitions[1].Width.GridUnitType);
 
-        Button resetView = headerStrip.Children.OfType<Button>().Single();
-        Assert.Equal(1, Grid.GetColumn(resetView));
+        StackPanel controls = headerStrip.Children.OfType<StackPanel>().Single();
+        Assert.Equal(1, Grid.GetColumn(controls));
+        Button resetView = controls.Children.OfType<Button>().Single(button => Equals(button.Content, "Reset View"));
         Assert.Equal("Reset View", resetView.Content);
         Assert.Contains("PositionButton", resetView.Classes);
         Assert.Equal(TraceHeaderButtonFontSizeForTest, resetView.FontSize);
@@ -973,8 +974,9 @@ public sealed class InfoTabRegistryTests
         Assert.Equal(GridUnitType.Auto, headerStrip.ColumnDefinitions[1].Width.GridUnitType);
         Assert.Equal(new Thickness(8, 1, 8, 2), headerStrip.Margin);
 
-        Button resetView = headerStrip.Children.OfType<Button>().Single();
-        Assert.Equal(1, Grid.GetColumn(resetView));
+        StackPanel controls = headerStrip.Children.OfType<StackPanel>().Single();
+        Assert.Equal(1, Grid.GetColumn(controls));
+        Button resetView = controls.Children.OfType<Button>().Single(button => Equals(button.Content, "Reset View"));
         Assert.Equal("Reset View", resetView.Content);
         Assert.Contains("PositionButton", resetView.Classes);
         Assert.Equal(TraceHeaderButtonFontSizeForTest, resetView.FontSize);
@@ -1035,8 +1037,9 @@ public sealed class InfoTabRegistryTests
         Assert.False(banner.IsVisible);
         Assert.True(banner.Margin.Right > 0);
 
-        Button resetView = headerStrip.Children.OfType<Button>().Single();
-        Assert.Equal(1, Grid.GetColumn(resetView));
+        StackPanel controls = headerStrip.Children.OfType<StackPanel>().Single();
+        Assert.Equal(1, Grid.GetColumn(controls));
+        Button resetView = controls.Children.OfType<Button>().Single(button => Equals(button.Content, "Reset View"));
         Assert.Equal("Reset View", resetView.Content);
         Assert.Contains("PositionButton", resetView.Classes);
         Assert.Equal(TraceHeaderButtonFontSizeForTest, resetView.FontSize);

@@ -58,4 +58,6 @@ internal sealed class GraphAcceptBandOperations : IAcceptBandOperations
         _renderer.ApplyAcceptBands();
         return true;
     }
+
+    public void ApplyCurrentBands() => _renderer.ApplyAcceptBands();
 }

@@ -25,6 +25,8 @@ public sealed class AcceptBandControllerTests
             Applied.Add(candidate);
             return Result;
         }
+
+        public void ApplyCurrentBands() { }
     }
 
     private static MainWindowViewModel CreateViewModel() => new();

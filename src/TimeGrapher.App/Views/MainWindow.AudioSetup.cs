@@ -76,8 +76,10 @@ public partial class MainWindow
             mViewModel.SelectedBphIndex = -1;
         }
 
-        int savedIndex = RunSelectionResolver.FindValue(BphCatalog.ManualAutoBph, AppSettings.Current.LeftPanel.Bph);
-        mViewModel.SelectedBphIndex = savedIndex == -1 ? 0 : savedIndex;
+        mViewModel.SelectedBphIndex = SavedCatalogIndexOrFallback(
+            BphCatalog.ManualAutoBph,
+            AppSettings.Current.LeftPanel.Bph,
+            fallbackIndex: 0);
     }
 
     private void LoadSimBph()
@@ -89,13 +91,21 @@ public partial class MainWindow
             mViewModel.SelectedSimBphIndex = -1;
         }
 
-        int savedIndex = RunSelectionResolver.FindValue(BphCatalog.ManualBph, AppSettings.Current.LeftPanel.SimulationBph);
-        if (savedIndex == -1)
+        mViewModel.SelectedSimBphIndex = SavedCatalogIndexOrFallback(
+            BphCatalog.ManualBph,
+            AppSettings.Current.LeftPanel.SimulationBph,
+            mRunSelectionResolver.DefaultSimulationBphIndex);
+    }
+
+    internal static int SavedCatalogIndexOrFallback(IReadOnlyList<int> values, int savedValue, int fallbackIndex)
+    {
+        int savedIndex = RunSelectionResolver.FindValue(values, savedValue);
+        if (savedIndex != -1)
         {
-            savedIndex = mRunSelectionResolver.DefaultSimulationBphIndex;
+            return savedIndex;
         }
 
-        mViewModel.SelectedSimBphIndex = savedIndex == -1 ? 0 : savedIndex;
+        return fallbackIndex >= 0 && fallbackIndex < values.Count ? fallbackIndex : 0;
     }
 
     private static List<string> BuildBphLabels(IReadOnlyList<int> bphValues, bool useAutoLabel)

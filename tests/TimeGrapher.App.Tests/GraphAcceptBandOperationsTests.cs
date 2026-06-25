@@ -117,4 +117,18 @@ public sealed class GraphAcceptBandOperationsTests
             AcceptBandSettings.Current = original;
         }
     }
+
+    [Fact]
+    public void ApplyCurrentBands_FansOutWithoutPersisting()
+    {
+        var band = new BandConsumer();
+        var renderer = new GraphFrameRenderer(new IAnalysisFrameConsumer[] { band }, new TextBlock());
+        AcceptBandSettings? persisted = null;
+        var ops = new GraphAcceptBandOperations(renderer, b => persisted = b);
+
+        ops.ApplyCurrentBands();
+
+        Assert.Null(persisted);
+        Assert.Equal(1, band.ApplyCalls);
+    }
 }

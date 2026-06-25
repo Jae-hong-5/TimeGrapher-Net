@@ -320,13 +320,21 @@ internal sealed partial class InfoTabRegistry
         resetViewButton.Padding = TraceHeaderButtonPadding;
         resetViewButton.VerticalAlignment = VerticalAlignment.Center;
         resetViewButton.Classes.Add("PositionButton");
+        var controls = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 6,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        controls.Children.Add(resetViewButton);
         var headerStrip = new Grid
         {
             ColumnDefinitions = new ColumnDefinitions("*,Auto"),
             Margin = new Thickness(8, 1, 8, 2),
         };
-        Grid.SetColumn(resetViewButton, 1);
-        headerStrip.Children.Add(resetViewButton);
+        Grid.SetColumn(controls, 1);
+        headerStrip.Children.Add(controls);
 
         var grid = new Grid
         {
@@ -1148,13 +1156,21 @@ internal sealed partial class InfoTabRegistry
         resetButton.Padding = TraceHeaderButtonPadding;
         resetButton.VerticalAlignment = VerticalAlignment.Center;
         resetButton.Classes.Add("PositionButton");
+        var controls = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 6,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        controls.Children.Add(resetButton);
         var headerStrip = new Grid
         {
             ColumnDefinitions = new ColumnDefinitions("*,Auto"),
             Margin = new Thickness(8, 1, 8, 2),
         };
-        Grid.SetColumn(resetButton, 1);
-        headerStrip.Children.Add(resetButton);
+        Grid.SetColumn(controls, 1);
+        headerStrip.Children.Add(controls);
         Grid.SetRow(headerStrip, 0);
         root.Children.Add(headerStrip);
 

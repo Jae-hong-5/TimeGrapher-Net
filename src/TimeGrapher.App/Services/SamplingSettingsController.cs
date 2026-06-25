@@ -40,9 +40,11 @@ internal sealed class SamplingSettingsController
     /// other view-model-subscriber controllers).</summary>
     public void Detach() => _viewModel.PropertyChanged -= OnViewModelPropertyChanged;
 
+    public void SyncAppliedSnapshot(SamplingSettings settings) => _applied = settings;
+
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (_suppress)
+        if (_suppress || _viewModel.IsSettingsWindowResetInProgress)
         {
             return;
         }

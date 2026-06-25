@@ -77,6 +77,7 @@ public sealed class MainWindowBootstrapperTests : IDisposable
         public AcceptBandValues CurrentBands { get; set; } =
             new(RateMinSPerDay: -3.0, RateMaxSPerDay: 7.0, AmplitudeMinDeg: 250.0, AmplitudeMaxDeg: 310.0, BeatErrorMagnitudeMs: 0.9);
         public bool TryApplyEditedBands(AcceptBandValues candidate) => false;
+        public void ApplyCurrentBands() { }
     }
 
     private sealed class FakeMeasurementSink : IMeasurementResultSink

@@ -24,4 +24,7 @@ internal interface IAcceptBandOperations
     /// it is a valid band that differs from the current one (an inverted/no-op edit is ignored).
     /// Returns whether the edit was applied.</summary>
     bool TryApplyEditedBands(AcceptBandValues candidate);
+
+    /// <summary>Re-applies the already-published current bands to every banded graph.</summary>
+    void ApplyCurrentBands();
 }

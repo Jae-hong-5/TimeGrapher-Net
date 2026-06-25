@@ -24,6 +24,7 @@ public partial class MainWindow
         mAcceptBandController.Detach();
         mSamplingSettingsController.Detach();
         mAppSettingsController.Detach();
+        AppSettingsStore.Flush();
         mViewModel.PropertyChanged -= OnReviewCursorPropertyChanged;
         mRunSessionController.InvalidateRunSession();
         mRunSessionController.StopInputWorker("Input");

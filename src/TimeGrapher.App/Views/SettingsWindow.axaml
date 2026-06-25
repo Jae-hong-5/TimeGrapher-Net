@@ -137,7 +137,7 @@
                    HorizontalAlignment="Left" />
         <!-- These construction-time inputs are read at run start and gated on the
              run state: edits apply on the next run, and persisted values restore
-             only for the sampling parameters. -->
+             for both sampling parameters and the high-pass cutoff. -->
         <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto"
               HorizontalAlignment="Stretch">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Avg. Period"

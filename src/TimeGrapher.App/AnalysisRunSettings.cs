@@ -16,8 +16,8 @@ internal sealed record AnalysisRunSettings(
     int SoundImageHeight,
     int ScopeSnapshotPointBudget,
     int AnalysisBlockSize,
-    bool WeakAOnsetRescue = false,
-    bool SpuriousBeatRejection = false)
+    bool WeakAOnsetRescue = true,
+    bool SpuriousBeatRejection = true)
 {
     public AnalysisWorker.Config ToWorkerConfig(ulong sessionId, ISampleWriter? sampleWriter)
     {

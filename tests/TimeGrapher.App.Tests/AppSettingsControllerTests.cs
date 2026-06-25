@@ -11,8 +11,30 @@ namespace TimeGrapher.App.Tests;
 public sealed class AppSettingsControllerTests : IDisposable
 {
     private readonly AppSettings _savedAppSettings = AppSettings.Current;
+    private readonly SamplingSettings _savedSamplingSettings = SamplingSettings.Current;
+    private readonly AcceptBandSettings _savedAcceptBandSettings = AcceptBandSettings.Current;
 
-    public void Dispose() => AppSettings.Current = _savedAppSettings;
+    public void Dispose()
+    {
+        AppSettings.Current = _savedAppSettings;
+        SamplingSettings.Current = _savedSamplingSettings;
+        AcceptBandSettings.Current = _savedAcceptBandSettings;
+    }
+
+    private sealed class FakeAcceptBandOperations : IAcceptBandOperations
+    {
+        public AcceptBandValues CurrentBands { get; set; }
+        public List<AcceptBandValues> Applied { get; } = new();
+        public int ApplyCurrentBandsCalls { get; private set; }
+
+        public bool TryApplyEditedBands(AcceptBandValues candidate)
+        {
+            Applied.Add(candidate);
+            return true;
+        }
+
+        public void ApplyCurrentBands() => ApplyCurrentBandsCalls++;
+    }
 
     [Fact]
     public void LeftPanelEdit_PersistsSnapshotWithResolvedSelectionValues()
@@ -111,6 +133,61 @@ public sealed class AppSettingsControllerTests : IDisposable
     }
 
     [Fact]
+    public void ResetSettingsWindow_SuppressesIntermediateSideEffectsAndPersistsFinalSnapshotOnce()
+    {
+        var customSampling = new SamplingSettings(
+            8192,
+            SamplingSettings.Default.CaptureBufferMs,
+            SamplingSettings.Default.AveragingPeriod);
+        var customBands = new AcceptBandSettings(-8.0, 8.0, 250.0, 310.0, 1.2);
+        AppSettings.Current = AppSettings.Default with
+        {
+            Sampling = customSampling,
+            AcceptBands = customBands,
+            SettingsWindow = new SettingsWindowSettings(true, false, false, true, "180", true),
+        };
+        SamplingSettings.Current = customSampling;
+        AcceptBandSettings.Current = customBands;
+        var viewModel = new MainWindowViewModel();
+        AppSettingsController.SeedViewModel(viewModel, AppSettings.Current, measurementLogEnabled: true);
+        var acceptOps = new FakeAcceptBandOperations
+        {
+            CurrentBands = new AcceptBandValues(-8.0, 8.0, 250.0, 310.0, 1.2),
+        };
+        _ = new AcceptBandController(viewModel, acceptOps);
+        var samplingPersisted = new List<SamplingSettings>();
+        var samplingController = new SamplingSettingsController(viewModel, customSampling, samplingPersisted.Add);
+        var appPersisted = new List<AppSettings>();
+        var controller = new AppSettingsController(
+            viewModel,
+            () => new AppSettingsSelection("Live: Mic", 96000, 21600, 18000),
+            appPersisted.Add,
+            acceptOps,
+            samplingController.SyncAppliedSnapshot);
+
+        controller.ResetSettingsWindow();
+
+        Assert.Empty(acceptOps.Applied);
+        Assert.Empty(samplingPersisted);
+        Assert.Equal(1, acceptOps.ApplyCurrentBandsCalls);
+        Assert.Equal(SamplingSettings.Default, SamplingSettings.Current);
+        Assert.Equal(AcceptBandSettings.Default, AcceptBandSettings.Current);
+        AppSettings saved = Assert.Single(appPersisted);
+        Assert.Equal(SamplingSettings.Default, saved.Sampling);
+        Assert.Equal(AcceptBandSettings.Default, saved.AcceptBands);
+        Assert.Equal(SettingsWindowSettings.Default, saved.SettingsWindow);
+        Assert.Equal("Live: Mic", saved.LeftPanel.InputDeviceName);
+        Assert.Equal(96000, saved.LeftPanel.SampleRate);
+        Assert.Equal(21600, saved.LeftPanel.Bph);
+        Assert.Equal(18000, saved.LeftPanel.SimulationBph);
+
+        viewModel.AnalysisBlockSize = customSampling.AnalysisBlockSize;
+
+        Assert.Equal(customSampling, Assert.Single(samplingPersisted));
+        Assert.Equal(customSampling, SamplingSettings.Current);
+    }
+
+    [Fact]
     public void AfterDetach_EditsAreNotPersisted()
     {
         var viewModel = new MainWindowViewModel();
@@ -125,4 +202,5 @@ public sealed class AppSettingsControllerTests : IDisposable
 
         Assert.Empty(persisted);
     }
+
 }

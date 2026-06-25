@@ -13,6 +13,7 @@ public sealed class AppSettingsStoreTests : IDisposable
 
     public void Dispose()
     {
+        AppSettingsStore.Flush();
         if (Directory.Exists(_directory))
         {
             Directory.Delete(_directory, recursive: true);
@@ -77,5 +78,85 @@ public sealed class AppSettingsStoreTests : IDisposable
         });
 
         Assert.Equal(AppSettings.Default, AppSettingsStore.LoadFrom(path));
+    }
+
+    [Fact]
+    public void LoadFrom_MissingNestedSetting_ReturnsDefault()
+    {
+        string path = Path.Combine(_directory, "settings.json");
+        Directory.CreateDirectory(_directory);
+        File.WriteAllText(path, """
+        {
+          "Sampling": {
+            "AnalysisBlockSize": 4096,
+            "CaptureBufferMs": 20,
+            "AveragingPeriod": 10
+          },
+          "AcceptBands": {
+            "RateMinSPerDay": -4,
+            "RateMaxSPerDay": 6,
+            "AmplitudeMinDeg": 270,
+            "AmplitudeMaxDeg": 300,
+            "BeatErrorMagnitudeMs": 0.8
+          },
+          "LeftPanel": {
+            "InputDeviceName": null,
+            "SampleRate": 48000,
+            "Gain": 100,
+            "Bph": 0,
+            "LiftAngle": 52,
+            "SimulationBph": 28800,
+            "SimulationErrorRate": 0,
+            "SimulationAmplitude": 300,
+            "SimulationBeatError": 0,
+            "SimulationRealistic": true
+          },
+          "SettingsWindow": {
+            "UseCOnset": false,
+            "WeakAOnsetRescue": true,
+            "PauseOnPositionChange": false,
+            "HighPassCutoffText": "200",
+            "MeasurementLogEnabled": false
+          }
+        }
+        """);
+
+        Assert.Equal(AppSettings.Default, AppSettingsStore.LoadFrom(path));
+    }
+
+    [Fact]
+    public void BuildFilePath_RejectsEmptyApplicationDataRoot()
+    {
+        Assert.Throws<InvalidOperationException>(() => AppSettingsStore.BuildFilePath(""));
+    }
+
+    [Fact]
+    public void BuildFilePath_UsesOnlyTheApplicationDataRoot()
+    {
+        string root = Path.Combine(_directory, "config");
+
+        string path = AppSettingsStore.BuildFilePath(root);
+
+        Assert.Equal(Path.Combine(root, "TimeGrapher", "settings.json"), path);
+    }
+
+    [Fact]
+    public void SaveQueuedTo_FlushWritesLatestSnapshot()
+    {
+        string path = Path.Combine(_directory, "settings.json");
+        AppSettings first = AppSettings.Default with
+        {
+            LeftPanel = AppSettings.Default.LeftPanel with { Gain = 123.0 },
+        };
+        AppSettings latest = AppSettings.Default with
+        {
+            LeftPanel = AppSettings.Default.LeftPanel with { Gain = 456.0 },
+        };
+
+        AppSettingsStore.SaveQueuedTo(path, first);
+        AppSettingsStore.SaveQueuedTo(path, latest);
+        AppSettingsStore.Flush();
+
+        Assert.Equal(latest, AppSettingsStore.LoadFrom(path));
     }
 }
