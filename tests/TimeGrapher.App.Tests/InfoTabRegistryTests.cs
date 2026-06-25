@@ -834,6 +834,41 @@ public sealed class InfoTabRegistryTests
     }
 
     [Fact]
+    public void ScopeSweepTabUsesReservedHeaderButtonGroup()
+    {
+        Grid content = CreateScopeSweepContent(new MainWindowViewModel());
+        var headerStrip = Assert.IsType<Grid>(
+            content.Children.Single(child => Grid.GetRow(child) == 0));
+
+        Assert.Equal(3, content.RowDefinitions.Count);
+        Assert.Equal(GridUnitType.Auto, content.RowDefinitions[0].Height.GridUnitType);
+        Assert.True(content.RowDefinitions[1].Height.IsStar);
+        Assert.Equal(GridUnitType.Auto, content.RowDefinitions[2].Height.GridUnitType);
+        Assert.Equal(2, headerStrip.ColumnDefinitions.Count);
+        Assert.True(headerStrip.ColumnDefinitions[0].Width.IsStar);
+        Assert.Equal(GridUnitType.Auto, headerStrip.ColumnDefinitions[1].Width.GridUnitType);
+
+        var buttonStrip = headerStrip.Children.OfType<StackPanel>().Single();
+        Assert.Equal(1, Grid.GetColumn(buttonStrip));
+        string[] buttons = buttonStrip.Children
+            .OfType<Button>()
+            .Select(button => button.Content?.ToString() ?? string.Empty)
+            .ToArray();
+        Assert.Equal(new[] { "1x", "2x", "3x", "Reset View" }, buttons);
+
+        Button resetView = buttonStrip.Children.OfType<Button>().Single(button => Equals(button.Content, "Reset View"));
+        Assert.All(buttonStrip.Children.OfType<Button>(), button =>
+        {
+            Assert.Contains("PositionButton", button.Classes);
+            Assert.Equal(resetView.FontSize, button.FontSize);
+            Assert.Equal(resetView.MinHeight, button.MinHeight);
+            Assert.Equal(resetView.Padding, button.Padding);
+        });
+
+        Assert.DoesNotContain(content.Children.OfType<Button>(), button => Grid.GetRow(button) == 1);
+    }
+
+    [Fact]
     public void BeatErrorDiagTabReservesAlertBannerSpaceBesideResetView()
     {
         Grid content = CreateBeatErrorDiagContent();
@@ -1096,6 +1131,14 @@ public sealed class InfoTabRegistryTests
         InfoTabRegistry registry = InfoTabRegistry.FromCatalog(tabControl, new Grid(), "Arial");
         return Assert.IsType<Grid>(registry.Registrations.Single(
             registration => registration.Definition.Id == InfoTabCatalog.RateScopeTabId).TabItem.Content);
+    }
+
+    private static Grid CreateScopeSweepContent(MainWindowViewModel? viewModel = null)
+    {
+        var tabControl = new TabControl();
+        InfoTabRegistry registry = InfoTabRegistry.FromCatalog(tabControl, new Grid(), "Arial", viewModel);
+        return Assert.IsType<Grid>(registry.Registrations.Single(
+            registration => registration.Definition.Id == InfoTabCatalog.ScopeSweepTabId).TabItem.Content);
     }
 
     private static Grid CreateBeatErrorDiagContent()

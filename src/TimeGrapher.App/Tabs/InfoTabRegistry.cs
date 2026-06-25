@@ -511,23 +511,38 @@ internal sealed partial class InfoTabRegistry
 
         var grid = new Grid
         {
-            RowDefinitions = new RowDefinitions("*,Auto"),
+            RowDefinitions = new RowDefinitions("Auto,*,Auto"),
         };
-        Grid.SetRow(sweepPlot, 0);
-        Grid.SetRow(referenceText, 1);
+        Grid.SetRow(sweepPlot, 1);
+        Grid.SetRow(referenceText, 2);
         grid.Children.Add(sweepPlot);
         grid.Children.Add(referenceText);
 
         if (CreateWaitingOverlay(context.ViewModel) is { } overlay)
         {
-            Grid.SetRow(overlay, 0);
+            Grid.SetRow(overlay, 1);
             grid.Children.Add(overlay);
         }
 
-        // 1x/2x/3x sweep-time selector pinned to the top-right of the plot. The
-        // buttons write the shared SweepMultiple view-model property; MainWindow
-        // forwards the change to the running analysis worker (the
-        // SetSoundBackgroundColor flow). The active multiple renders disabled.
+        var buttonRow = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 6,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+
+        Button SweepHeaderButton(string content, string tooltip, Action onClick)
+        {
+            Button button = CreateOverlayButton(content, tooltip, onClick);
+            button.MinHeight = TraceHeaderButtonMinHeight;
+            button.FontSize = TraceHeaderButtonFontSize;
+            button.Padding = TraceHeaderButtonPadding;
+            button.VerticalAlignment = VerticalAlignment.Center;
+            button.Classes.Add("PositionButton");
+            return button;
+        }
+
         if (context.ViewModel is { } viewModel)
         {
             int[] multiples = { 1, 2, 3 };
@@ -541,49 +556,39 @@ internal sealed partial class InfoTabRegistry
                 }
             }
 
-            var buttonRow = new StackPanel
-            {
-                Orientation = Orientation.Horizontal,
-                Spacing = 4,
-                HorizontalAlignment = HorizontalAlignment.Right,
-                VerticalAlignment = VerticalAlignment.Top,
-                Margin = new Thickness(0, 6, 10, 0),
-            };
             for (int i = 0; i < multiples.Length; i++)
             {
                 int multiple = multiples[i];
-                var button = new Button
-                {
-                    Content = multiple + "x",
-                    Padding = new Thickness(8, 2, 8, 2),
-                    FontSize = 11,
-                };
-                ToolTip.SetTip(button, $"Sweep window = {multiple}x the tick-tick interval");
-                button.Click += (_, _) =>
+                Button button = SweepHeaderButton(
+                    multiple + "x",
+                    $"Sweep window = {multiple}x the tick-tick interval",
+                    () =>
                 {
                     viewModel.SweepMultiple = multiple;
                     UpdateButtonStates();
-                };
+                });
                 buttons[i] = button;
                 buttonRow.Children.Add(button);
             }
 
             UpdateButtonStates();
-            Grid.SetRow(buttonRow, 0);
-            grid.Children.Add(buttonRow);
         }
 
         var renderer = new ScopeSweepRenderer(sweepPlot, referenceText, context.TextFontFamily);
         context.ResetViews.Register(renderer.ResetView);
-        // Reset View sits top-left so it never collides with the 1x/2x/3x
-        // selector pinned top-right.
-        Button resetView = CreateOverlayButton(
-            "Reset View", ResetAllGraphViewsTooltip, context.ResetViews.ResetAll);
-        resetView.HorizontalAlignment = HorizontalAlignment.Left;
-        resetView.VerticalAlignment = VerticalAlignment.Top;
-        resetView.Margin = new Thickness(10, 6, 0, 0);
-        Grid.SetRow(resetView, 0);
-        grid.Children.Add(resetView);
+        buttonRow.Children.Add(SweepHeaderButton(
+            "Reset View", ResetAllGraphViewsTooltip, context.ResetViews.ResetAll));
+
+        var headerStrip = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions("*,Auto"),
+            Margin = new Thickness(8, 1, 8, 2),
+        };
+        Grid.SetColumn(buttonRow, 1);
+        headerStrip.Children.Add(buttonRow);
+        Grid.SetRow(headerStrip, 0);
+        grid.Children.Add(headerStrip);
+
         var consumer = new ScopeSweepFrameConsumer(renderer);
         return new InfoTabRegistration(definition, CreateTabItem(definition, grid), consumer);
     }
