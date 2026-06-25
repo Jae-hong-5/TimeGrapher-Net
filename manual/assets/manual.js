@@ -30,7 +30,7 @@
   ];
 
   /* App version + manual build date — bump these when regenerating the manual/screenshots. */
-  var APP_VERSION = "0.8.0";
+  var APP_VERSION = "0.9.1";
   var BUILD_DATE = "2026-06-21";
 
   var inGraphs = /\/graphs\//.test(location.pathname);
