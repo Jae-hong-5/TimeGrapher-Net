@@ -74,17 +74,6 @@ public sealed class WaveformCompareLogicTests
     }
 
     [Fact]
-    public void LaneLabel_AppendsSignalQualityWhenPresent()
-    {
-        var label = WaveformCompareLogic.LaneLabel(
-            Segment(isTic: true, aMs: 5.0, cPeakMs: 17.0, quality: SignalQualityFlags.PossibleFalseC | SignalQualityFlags.CTimingUnstable),
-            bph: 28800,
-            liftAngleDeg: 52.0);
-
-        Assert.Contains("Signal: Possible false C", label);
-    }
-
-    [Fact]
     public void LaneLabel_AmplitudeUsesTheConfiguredLiftAngleNotTheSampleMagnitude()
     {
         // Amplitude uses the canonical escapement formula WatchMetrics.Amplitude

@@ -715,18 +715,12 @@ internal sealed class WaveformCompareRenderer
 
     private void SetSignalQuality(SignalQualityFlags quality, double xRight, double yTop)
     {
-        if (_signalQualityLabel == null)
+        _ = quality;
+        _ = xRight;
+        _ = yTop;
+        if (_signalQualityLabel != null)
         {
-            return;
-        }
-
-        bool visible = _signalQualityOverlay.Update(quality, out string text, out byte alpha);
-        _signalQualityLabel.IsVisible = visible;
-        if (visible)
-        {
-            _signalQualityLabel.LabelText = text;
-            _signalQualityLabel.LabelFontColor = Color.FromARGB(SignalQualityOverlayState.WithAlpha(_theme.VarioBad, alpha));
-            _signalQualityLabel.Location = new Coordinates(xRight, yTop);
+            _signalQualityLabel.IsVisible = false;
         }
     }
     private void ApplySeriesTheme()

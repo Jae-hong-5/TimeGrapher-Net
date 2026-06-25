@@ -10,6 +10,7 @@
      (graph pages live in graphs/). */
   var START = [
     { f: "index.html",    t: "개요 · Overview" },
+    { f: "index.html#signal-quality", t: "신호 품질 · Signal quality" },
     { f: "controls.html", t: "왼쪽 메뉴 · Controls" }
   ];
   var GRAPHS = [

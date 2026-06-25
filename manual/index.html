@@ -67,6 +67,21 @@
         <p class="en"><b>New here?</b> Pick the <span class="pill">Simulation</span> input, tick <b>Realistic</b>, and press ▶ — every graph comes alive without a physical watch. Ideal for learning alongside this manual.</p>
       </div>
 
+      <h2 id="signal-quality"><span class="ko">신호 품질 경고</span><span class="sep"> · </span><span class="en">Signal Quality Warnings</span></h2>
+      <p class="ko">측정 중 입력 신호가 불안정하면 그래프 영역 위에 빨간 경고가 깜빡이고, 하단 상태바가 처리 방법을 안내합니다. 이 경고가 보이면 표시된 rate, amplitude, beat error를 확정값처럼 해석하지 말고 먼저 입력 상태를 정리하세요.</p>
+      <p class="en">When the input signal is unreliable, a red flashing warning appears over the graph area and the bottom status bar suggests what to do. Treat rate, amplitude, and beat error as provisional until the input is corrected.</p>
+      <table>
+        <thead><tr><th><span class="ko">경고</span><span class="sep"> · </span><span class="en">Warning</span></th><th><span class="ko">뜻</span><span class="sep"> · </span><span class="en">Meaning</span></th><th><span class="ko">처리 방법</span><span class="sep"> · </span><span class="en">What to do</span></th></tr></thead>
+        <tbody>
+          <tr><td><b>Possible false C</b></td><td><span class="ko">잡음이나 B 피크를 C 이벤트로 잘못 잡았을 가능성이 있습니다.</span><span class="en">Noise or a B peak may have been selected as the C event.</span></td><td><span class="ko">시계를 움직이지 말고 Beat Noise 파형을 확인한 뒤, 손/주변 잡음을 줄입니다.</span><span class="en">Keep the watch still, inspect Beat Noise, and reduce handling or ambient noise.</span></td></tr>
+          <tr><td><b>C timing unstable</b></td><td><span class="ko">A-to-C 타이밍이 최근 패턴과 맞지 않아 진폭 계산 신뢰도가 낮습니다.</span><span class="en">A-to-C timing does not match the recent pattern, reducing amplitude confidence.</span></td><td><span class="ko">몇 초 더 측정해 안정되는지 보고, 계속 뜨면 마이크 위치와 시계 접촉을 조정합니다.</span><span class="en">Measure a little longer; if it persists, adjust microphone placement and watch contact.</span></td></tr>
+          <tr><td><b>Noisy signal</b></td><td><span class="ko">주변 소음이나 취급 잡음이 신호 해석에 영향을 줍니다.</span><span class="en">Ambient or handling noise is affecting interpretation.</span></td><td><span class="ko">책상 진동, 손 접촉, 팬/스피커 소음을 줄이고 조용한 위치에서 다시 측정합니다.</span><span class="en">Reduce desk vibration, hand contact, fan/speaker noise, and retry in a quieter place.</span></td></tr>
+          <tr><td><b>Weak signal</b></td><td><span class="ko">시계 소리가 너무 약하거나 C 구간이 일부 빠져 있습니다.</span><span class="en">The watch sound is too weak or part of the C event is missing.</span></td><td><span class="ko">시계와 마이크를 다시 놓고, 필요하면 입력 gain을 조금 올립니다.</span><span class="en">Reposition the watch/microphone and raise input gain slightly if needed.</span></td></tr>
+          <tr><td><b>Clipping</b></td><td><span class="ko">입력이 너무 커서 파형이 잘렸습니다. 이 상태의 측정값은 신뢰하기 어렵습니다.</span><span class="en">The input is too loud and the waveform is clipped, making readings unreliable.</span></td><td><span class="ko">gain을 낮춘 뒤 flat-top 파형이 사라지는지 확인하고 다시 측정합니다.</span><span class="en">Lower gain, confirm the flat-top waveform disappears, then measure again.</span></td></tr>
+          <tr><td><b>No signal</b></td><td><span class="ko">분석 가능한 시계 신호가 감지되지 않습니다.</span><span class="en">No usable watch signal is detected.</span></td><td><span class="ko">입력 장치, 파일, 마이크 연결, 시계 위치를 확인합니다.</span><span class="en">Check the input device, file, microphone connection, and watch position.</span></td></tr>
+        </tbody>
+      </table>
+
       <h2 id="graphs"><span class="ko">그래프 목록</span><span class="sep"> · </span><span class="en">The 13 graphs</span></h2>
       <p class="ko">각 카드를 눌러 그래프별 <b>용도 · 보는 방법 · 옵션</b> 설명으로 이동합니다.</p>
       <p class="en">Click a card for each graph's <b>purpose · how to read · options</b>.</p>

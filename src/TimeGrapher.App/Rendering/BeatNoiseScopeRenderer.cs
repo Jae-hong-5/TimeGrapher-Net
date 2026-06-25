@@ -460,6 +460,7 @@ internal sealed class BeatNoiseScopeRenderer
         bool cursorMoved = UpdateReviewCursor(context.ReviewCursorTimeS);
         if (snapshot == null || snapshot.Version == _lastVersion)
         {
+            SetSignalQuality(_lastSnapshot?.Quality ?? SignalQualityFlags.None);
             if (cursorMoved)
             {
                 _mainPlot.Refresh();
@@ -557,7 +558,7 @@ internal sealed class BeatNoiseScopeRenderer
         if (segment == null)
         {
             SetMarker(_cOnsetMarker, null);
-            SetSignalQuality(SignalQualityFlags.None);
+            SetSignalQuality(snapshot.Quality);
             return;
         }
 
@@ -616,7 +617,7 @@ internal sealed class BeatNoiseScopeRenderer
         }
 
         SetMarker(_cOnsetMarker, null);
-        SignalQualityFlags quality = segment.Quality;
+        SignalQualityFlags quality = snapshot.Quality | segment.Quality;
         if (cMarkerXs.Count == 0)
         {
             quality |= SignalQualityFlags.WeakSignal;
@@ -1186,18 +1187,10 @@ internal sealed class BeatNoiseScopeRenderer
 
     private void SetSignalQuality(SignalQualityFlags quality)
     {
-        if (_weakSignalLabel == null)
+        _ = quality;
+        if (_weakSignalLabel != null)
         {
-            return;
-        }
-
-        bool visible = _signalQualityOverlay.Update(quality, out string text, out byte alpha);
-        _weakSignalLabel.IsVisible = visible;
-        if (visible)
-        {
-            _weakSignalLabel.LabelText = text;
-            _weakSignalLabel.LabelFontColor = Color.FromARGB(SignalQualityOverlayState.WithAlpha(_theme.VarioBad, alpha));
-            _weakSignalLabel.Location = new Coordinates(_rangeMs, _mainYUpper ?? 1.0);
+            _weakSignalLabel.IsVisible = false;
         }
     }
 

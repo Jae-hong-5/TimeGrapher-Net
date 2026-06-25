@@ -168,18 +168,7 @@ internal sealed class GraphFrameRenderer
     {
         if (frame.MetricsUpdate.ResultsUpdated)
         {
-            SetResults(AppendSignalQuality(frame.MetricsUpdate.ResultsText, frame.BeatSegments?.Quality ?? SignalQualityFlags.None));
+            SetResults(frame.MetricsUpdate.ResultsText);
         }
-    }
-
-    private static string AppendSignalQuality(string text, SignalQualityFlags quality)
-    {
-        if (quality == SignalQualityFlags.None)
-        {
-            return text;
-        }
-
-        string label = SignalQualityText.Summary(quality);
-        return text + " | Signal " + label;
     }
 }

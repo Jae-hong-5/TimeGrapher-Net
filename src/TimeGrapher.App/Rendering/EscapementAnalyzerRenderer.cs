@@ -536,18 +536,10 @@ internal sealed class EscapementAnalyzerRenderer
 
     private void SetSignalQuality(SignalQualityFlags quality)
     {
-        if (_signalQualityLabel == null)
+        _ = quality;
+        if (_signalQualityLabel != null)
         {
-            return;
-        }
-
-        bool visible = _signalQualityOverlay.Update(quality, out string text, out byte alpha);
-        _signalQualityLabel.IsVisible = visible;
-        if (visible)
-        {
-            _signalQualityLabel.LabelText = text;
-            _signalQualityLabel.LabelFontColor = Color.FromARGB(SignalQualityOverlayState.WithAlpha(_theme.VarioBad, alpha));
-            _signalQualityLabel.Location = new Coordinates(_lastViewRight, _lastViewTop);
+            _signalQualityLabel.IsVisible = false;
         }
     }
     private void ApplySeriesTheme()

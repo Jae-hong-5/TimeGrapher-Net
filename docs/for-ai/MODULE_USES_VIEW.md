@@ -87,7 +87,7 @@ flowchart TB
 
 `*.Tests`는 각자 검증 대상 프로젝트 **하나만** `ProjectReference`로 직접 참조한다(`App.Tests→App`, `Core.Tests→Core`, `Verify.Tests→Verify`, `WindowsAudio.Tests→WindowsAudio`, `LinuxAudio.Tests→LinuxAudio`). `Verify.Tests`는 `Verify`가 `InternalsVisibleTo`로 노출한 악조건 게이트 평가기(`AdverseScenarios.Evaluate`)를 직접 단언하고, `Core`의 `DetectorResultSnapshot`/`TgEvent`/`DetectionScorer.Score`를 전이로 구성한다. `Core`는 전이 참조이지만, 어서션·테스트 지원에서 `Core` 타입을 직접 `using`하므로 점선으로 표시했다 — `App.Tests`는 `Shared`(DTO)에 더해 `Analysis`·`Detection`·`Metrics`(예: `AnalysisRunSettingsTests`, `GraphFrameRendererTests`, `RunSelectionResolverTests`)와 `Core.AudioIo`·`Core.Sim`(`AnalysisBenchmarkRunnerTests`의 `WavStreamWriter`·`WatchSynthStream`)까지 직접 `using`한다(그래도 `ProjectReference`는 App 하나뿐이라 여전히 전이 참조다). `Core.Tests`만 `Core`를 직접 참조한다. `App.Tests`는 컨트롤(`AvaPlot`, `SplashWindow`)을 구성하므로 `Avalonia`·`ScottPlot`도 직접 사용한다.
 
-그 전 단계의 신호 품질 표시는 `Core.Shared.SignalQualityFlags`와 `BeatSegmentsSnapshot.Quality`에 담긴 DTO 계약으로 처리한다. `BeatSegmentCapture`는 A→C 반복성에서 벗어난 C 후보를 `CTimingUnstable`/`PossibleFalseC`로 표시하고, `WatchMetrics`는 같은 이상 C를 amplitude 갱신에서 제외한다. App 계층은 `SignalQualityText`로 상단 readout, 상태바 recovery guidance, Beat Noise, Waveform Compare, Escapement Analyzer의 문구를 통일한다. 이 경로는 `Core → Shared DTO → App Rendering/Services` 단방향 소비라 신규 외부 패키지나 프로젝트 엣지를 만들지 않는다.
+그 전 단계의 신호 품질 표시는 `Core.Shared.SignalQualityFlags`와 `BeatSegmentsSnapshot.Quality`에 담긴 DTO 계약으로 처리한다. `BeatSegmentCapture`는 A→C 반복성에서 벗어난 C 후보를 `CTimingUnstable`/`PossibleFalseC`로 표시하고, `WatchMetrics`는 같은 이상 C를 amplitude 갱신에서 제외한다. App 계층은 `SignalQualityText`로 전역 graph warning overlay와 상태바 recovery guidance의 문구를 통일한다. 이 경로는 `Core → Shared DTO → App Rendering/Services` 단방향 소비라 신규 외부 패키지나 프로젝트 엣지를 만들지 않는다.
 
 ## 2. TimeGrapher.App 내부 사용 관계
 

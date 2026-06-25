@@ -123,6 +123,11 @@ public sealed class BeatSegmentCapture
     private const int AcHistoryCount = 8;
     private const double AcDeviationFloorMs = 1.5;
     private const double AcDeviationMadScale = 4.0;
+    private const double PossibleFalseCMaxAcMs = 5.0;
+    private const float WeakPeakThreshold = 0.03f;
+    private const float RawClipThreshold = 0.65f;
+    private const float RawClipPlateauTolerance = 0.000001f;
+    private const int MinRawClipPlateauSamples = 4;
 
     private readonly int _sampleRate;
     private readonly double _liftAngleDeg;
@@ -568,6 +573,7 @@ public sealed class BeatSegmentCapture
 
     private void CompleteSegment(in PendingSegment pending, bool rawCovered)
     {
+        ulong windowSamples = (ulong)Math.Ceiling(WindowMs / 1000.0 * _sampleRate);
         float[] buffer = AcquireSegmentBuffer(out int poolIndex);
         DecimateWindow(pending.StartSample, WindowMs, buffer);
 
@@ -587,6 +593,10 @@ public sealed class BeatSegmentCapture
             : 0.0;
         bool cPeakValid = pending.HasC && cPeakOffsetMs < WindowMs;
         SignalQualityFlags quality = ClassifyQuality(pending, cPeakValid, cPeakOffsetMs);
+        if (rawCovered && IsRawWindowClipped(pending.StartSample, windowSamples))
+        {
+            quality |= SignalQualityFlags.ClippedSignal;
+        }
 
         int slot;
         if (_completedCount == SegmentRingCount)
@@ -628,6 +638,16 @@ public sealed class BeatSegmentCapture
         double samplesToMs = 1000.0 / _sampleRate;
         double acMs = cPeakOffsetMs - (pending.ASample - pending.StartSample) * samplesToMs;
         SignalQualityFlags quality = SignalQualityFlags.None;
+        if (pending.PeakValue < WeakPeakThreshold)
+        {
+            quality |= SignalQualityFlags.WeakSignal;
+        }
+
+        if (acMs < PossibleFalseCMaxAcMs)
+        {
+            return quality | SignalQualityFlags.CTimingUnstable | SignalQualityFlags.NoisySignal | SignalQualityFlags.PossibleFalseC;
+        }
+
         if (_recentAcCount >= 4)
         {
             double median = Median(_recentAcMs, _recentAcCount);
@@ -660,6 +680,34 @@ public sealed class BeatSegmentCapture
         {
             _recentAcCount++;
         }
+    }
+
+    private bool IsRawWindowClipped(ulong startSample, ulong windowSamples)
+    {
+        int plateauSamples = 0;
+        float previous = 0.0f;
+        int ringLength = _rawRing.Length;
+        for (ulong sample = startSample; sample < startSample + windowSamples; sample++)
+        {
+            float current = _rawRing[(int)(sample % (ulong)ringLength)];
+            if (Math.Abs(current) >= RawClipThreshold &&
+                Math.Abs(current - previous) <= RawClipPlateauTolerance)
+            {
+                plateauSamples++;
+                if (plateauSamples >= MinRawClipPlateauSamples)
+                {
+                    return true;
+                }
+            }
+            else
+            {
+                plateauSamples = 1;
+            }
+
+            previous = current;
+        }
+
+        return false;
     }
 
     private static double Median(double[] ring, int count)
