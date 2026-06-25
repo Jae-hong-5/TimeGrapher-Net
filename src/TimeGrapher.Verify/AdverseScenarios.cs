@@ -57,6 +57,8 @@ internal sealed record AdverseScenario(
     double GainStepAtS = 0.0,
     double GainStepFactor = 1.0,
     double EvalStartS = 2.0,
+    double PostCImpulseLevel = 0.0,
+    double PostCImpulseDelayS = 0.0,
     AdverseGates? Default = null,
     AdverseGates? PllGate = null);
 
@@ -128,6 +130,17 @@ internal static class AdverseScenarios
             PcmPeak: 0.0, NoisePeak: 0.05, Realistic: false,
             Default: new AdverseGates(MustSync: false),
             PllGate: new AdverseGates(MustSync: false)),
+        // Phase-locked per-beat impulse: a real 21600 watch whose beat is
+        // followed by a recurring spurious sound mid-beat (the synthetic,
+        // ground-truth-labeled mine_false). The impulse is NOT a real beat, so
+        // any detected A landing on it is a false positive. INFO-only: with no
+        // detector octave fix yet the default detector can be dragged to the
+        // doubled rate, so this row measures the contamination and the gates'
+        // bad-data rejection rather than gating pass/fail.
+        new("postc-noise", Bph: 21600, SampleRate: 48000, Seconds: 14,
+            PcmPeak: 0.30, NoisePeak: 0.004, Realistic: false,
+            PostCImpulseLevel: 0.16, PostCImpulseDelayS: 0.073,
+            Default: new AdverseGates(InfoOnly: true)),
     };
 
     internal sealed record RowResult(
@@ -168,6 +181,13 @@ internal static class AdverseScenarios
         {
             synthConfig.ImpulseNoiseRatePerSecond = row.ImpulseRate;
             synthConfig.ImpulseNoisePeakSignalLevel = row.ImpulseSignalLevel;
+        }
+        if (row.PostCImpulseLevel > 0.0)
+        {
+            synthConfig.PostCImpulseLevel = row.PostCImpulseLevel;
+            synthConfig.PostCImpulseDelayS = row.PostCImpulseDelayS;
+            synthConfig.PostCImpulseFreqHz = 4500.0;
+            synthConfig.PostCImpulseDecayMs = 2.0;
         }
 
         var synth = new WatchSynthStream(synthConfig);
