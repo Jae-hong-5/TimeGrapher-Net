@@ -42,7 +42,9 @@ public sealed class SignalQualityFeatureExtractor
 
     /// <param name="window">
     /// Number of recent A events (and observations) the window spans. Clamped to
-    /// a minimum of 4. The default 32 is roughly four seconds at 28800 BPH.
+    /// a minimum of 4. The default is 32 A events; the wall-clock span that covers
+    /// therefore scales with the detected BPH (e.g. ~4 s at 28800 BPH, ~5.3 s at
+    /// 21600 BPH).
     /// </param>
     public SignalQualityFeatureExtractor(int window = 32)
     {

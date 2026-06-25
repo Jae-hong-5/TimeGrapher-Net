@@ -101,8 +101,9 @@ public sealed class DetectorMetricsEngine
         _metrics.Reset();
 
         // The classifier is injected only when the signal-quality feature is on.
-        // When null the engine skips the extractor/classifier entirely, so the
-        // feature off is byte-identical (and zero-overhead) to before.
+        // When null the engine skips the extractor/classifier entirely, so with the
+        // feature off detection is bit-identical and classification is zero-overhead
+        // (the snapshot's new QualityAssessment field simply stays null).
         _qualityClassifier = qualityClassifier;
         _qualityExtractor = qualityClassifier is null ? null : new SignalQualityFeatureExtractor();
     }
