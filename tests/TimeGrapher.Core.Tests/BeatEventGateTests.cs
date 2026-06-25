@@ -114,6 +114,54 @@ public sealed class BeatEventGateTests
     }
 
     [Fact]
+    public void VetoedA_DoesNotStarveTicTocOrFreezeTheAveragePeriodWindow()
+    {
+        // A gate that vetoes a synced A used to read to WatchMetrics as a missed
+        // beat: tic/toc parity re-anchored (one rate series starving) and the
+        // Avg. Period window restarted (the title-bar reading freezing). Vetoing
+        // every third synced A drops alternating parities and opens a gap more
+        // often than the 2 s window. The engine now notes the vetoed beat so the
+        // clock advances without a phantom gap; both parities stay populated and
+        // the window keeps completing.
+        int a = 0;
+        var gate = new ScriptedGate
+        {
+            AcceptFunc = c => !(c.Synced && c.Event.Type == TgEventType.A && (++a % 3 == 0)),
+        };
+
+        var engine = NewEngine(gate);
+        var synth = new WatchSynthStream(CleanStream());
+        var block = new float[4096];
+        int tic = 0, toc = 0, windows = 0;
+        void Cap(DetectorMetricsBlockUpdate u)
+        {
+            foreach (DetectedEventUpdate ev in u.MetricsEvents)
+            {
+                if (ev.MetricsUpdate.TicRateUpdated) tic++;
+                if (ev.MetricsUpdate.TocRateUpdated) toc++;
+                if (ev.MetricsUpdate.AveragePeriodRateIntervalUpdated) windows++;
+            }
+        }
+
+        int remaining = 48000 * 12;
+        while (remaining > 0)
+        {
+            int slice = Math.Min(block.Length, remaining);
+            synth.Generate(block.AsSpan(0, slice));
+            Cap(engine.Process(block.AsSpan(0, slice)));
+            remaining -= slice;
+        }
+        Cap(engine.Flush());
+
+        Assert.True(a > 0, "sanity: the gate saw synced A events");
+        Assert.True(tic > 0 && toc > 0, $"both parities populated (tic={tic} toc={toc})");
+        Assert.True(Math.Min(tic, toc) * 2 >= Math.Max(tic, toc), $"neither parity starved (tic={tic} toc={toc})");
+        // 2 s window over a 12 s run; without the fix the recurring veto-gaps reset
+        // it before it ever completes.
+        Assert.True(windows >= 4, $"Avg. Period window kept completing (windows={windows})");
+    }
+
+    [Fact]
     public void PassThroughGate_RoutesExactlyWhatTheUngatedEngineRoutes()
     {
         RunResult ungated = Run(NewEngine(null), 8);

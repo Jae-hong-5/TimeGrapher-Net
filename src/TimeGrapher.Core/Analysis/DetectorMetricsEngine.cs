@@ -173,6 +173,16 @@ public sealed class DetectorMetricsEngine
             {
                 if (!released.Accepted)
                 {
+                    // A vetoed A still marks a beat that physically occurred: tell
+                    // metrics so the beat clock advances and the next accepted A is
+                    // not misread as a missed beat (which would starve a tic/toc
+                    // series and freeze the Avg. Period reading). Its measurement is
+                    // dropped; a vetoed C just carries no amplitude, so it is skipped.
+                    if (released.Event.Type == TgEventType.A)
+                    {
+                        _metrics.NoteVetoedAEvent(
+                            released.EventSample, released.Candidate.Synced, released.Candidate.DetectedBph);
+                    }
                     continue;
                 }
                 WatchMetricsUpdate metricsUpdate = released.Event.Type switch
