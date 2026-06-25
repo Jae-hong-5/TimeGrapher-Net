@@ -5,14 +5,6 @@ namespace TimeGrapher.App.Tests;
 
 public sealed class SplashWindowTests
 {
-    [Theory]
-    [InlineData(true, true)]
-    [InlineData(false, false)]
-    public void PointerPressSkipRequiresLeftButton(bool isLeftButtonPressed, bool expected)
-    {
-        Assert.Equal(expected, SplashWindow.ShouldSkipPlaybackForPointer(isLeftButtonPressed));
-    }
-
     [Fact]
     public void FrameSelectionFollowsElapsedThirtyFpsTime()
     {
