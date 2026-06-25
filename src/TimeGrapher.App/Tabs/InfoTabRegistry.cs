@@ -1189,6 +1189,23 @@ internal sealed partial class InfoTabRegistry
         renderer.SetVisibleWindowCallback(UpdateWindowButtons);
         UpdateWindowButtons(24 * 60 * 60);
 
+        Button resetViewButton = CreateOverlayButton(
+            "Reset View", ResetAllGraphViewsTooltip, context.ResetViews.ResetAll);
+        resetViewButton.MinHeight = TraceHeaderButtonMinHeight;
+        resetViewButton.FontSize = TraceHeaderButtonFontSize;
+        resetViewButton.Padding = TraceHeaderButtonPadding;
+        resetViewButton.VerticalAlignment = VerticalAlignment.Center;
+        resetViewButton.Classes.Add("PositionButton");
+        var headerButtons = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 6,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        headerButtons.Children.Add(navigation);
+        headerButtons.Children.Add(resetViewButton);
+
         var headerGrid = new Grid
         {
             ColumnDefinitions = new ColumnDefinitions("*,Auto"),
@@ -1196,9 +1213,9 @@ internal sealed partial class InfoTabRegistry
             ClipToBounds = true,
         };
         Grid.SetColumn(summaryRow, 0);
-        Grid.SetColumn(navigation, 1);
+        Grid.SetColumn(headerButtons, 1);
         headerGrid.Children.Add(summaryRow);
-        headerGrid.Children.Add(navigation);
+        headerGrid.Children.Add(headerButtons);
 
         // The beat-error pane shows the shared time axis (~41 px taller axis panel
         // than the two upper panes, whose X axis is hidden), so its row is enlarged

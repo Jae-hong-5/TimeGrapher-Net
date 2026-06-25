@@ -40,6 +40,7 @@ internal sealed class LongTermPerfRenderer
     private const double PanFraction = 0.25;
     private const double ZoomInFactor = 0.5;
     private const double ZoomOutFactor = 2.0;
+    private const double MinimumZoomWindowS = 10.0;
     private const double AcceptLabelXInsetFraction = 0.006;
     private const double DataYPadFraction = 0.14;
 
@@ -1012,6 +1013,15 @@ internal sealed class LongTermPerfRenderer
     {
         double dataSpan = dataMax - dataMin;
         double span = Math.Max(1.0, right - left);
+        double minimumSpan = Math.Min(MinimumZoomWindowS, dataSpan);
+        if (span < minimumSpan)
+        {
+            double center = (left + right) / 2.0;
+            left = center - minimumSpan / 2.0;
+            right = center + minimumSpan / 2.0;
+            span = minimumSpan;
+        }
+
         if (span >= dataSpan)
         {
             return (dataMin, dataMax);

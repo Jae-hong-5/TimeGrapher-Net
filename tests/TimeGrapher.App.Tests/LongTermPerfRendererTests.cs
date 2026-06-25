@@ -354,6 +354,66 @@ public sealed class LongTermPerfRendererTests
     }
 
     [Fact]
+    public void ZoomIn_StopsAtTenSecondXWindow()
+    {
+        var ratePlot = new AvaPlot();
+        var amplitudePlot = new AvaPlot();
+        var beatErrorPlot = new AvaPlot();
+        var renderer = new LongTermPerfRenderer(ratePlot, amplitudePlot, beatErrorPlot);
+
+        renderer.CreateGraphs();
+        renderer.RenderFrame(FrameWithRange(1, 120.0), new AnalysisTabRenderContext(48000));
+
+        for (int i = 0; i < 8; i++)
+        {
+            renderer.ZoomIn();
+        }
+
+        AssertXWindow(ratePlot, 55.0, 65.0);
+        AssertXWindow(amplitudePlot, 55.0, 65.0);
+        AssertXWindow(beatErrorPlot, 55.0, 65.0);
+    }
+
+    [Fact]
+    public void WheelZoom_StopsAtTenSecondXWindow()
+    {
+        var ratePlot = new AvaPlot();
+        var amplitudePlot = new AvaPlot();
+        var beatErrorPlot = new AvaPlot();
+        var renderer = new LongTermPerfRenderer(ratePlot, amplitudePlot, beatErrorPlot);
+
+        renderer.CreateGraphs();
+        renderer.RenderFrame(FrameWithRange(1, 120.0), new AnalysisTabRenderContext(48000));
+
+        for (int i = 0; i < 8; i++)
+        {
+            WheelZoom(renderer, source: 0, deltaY: 1.0);
+        }
+
+        AssertXWindow(ratePlot, 55.0, 65.0);
+        AssertXWindow(amplitudePlot, 55.0, 65.0);
+        AssertXWindow(beatErrorPlot, 55.0, 65.0);
+    }
+
+    [Fact]
+    public void ZoomIn_UsesFullDataRangeWhenHistoryIsShorterThanTenSeconds()
+    {
+        var ratePlot = new AvaPlot();
+        var amplitudePlot = new AvaPlot();
+        var beatErrorPlot = new AvaPlot();
+        var renderer = new LongTermPerfRenderer(ratePlot, amplitudePlot, beatErrorPlot);
+
+        renderer.CreateGraphs();
+        renderer.RenderFrame(FrameWithRange(1, 6.0), new AnalysisTabRenderContext(48000));
+
+        renderer.ZoomIn();
+
+        AssertXWindow(ratePlot, 0.0, 6.0);
+        AssertXWindow(amplitudePlot, 0.0, 6.0);
+        AssertXWindow(beatErrorPlot, 0.0, 6.0);
+    }
+
+    [Fact]
     public void RenderFrame_LeavesPositionMarkerBackgroundTransparent()
     {
         var ratePlot = new AvaPlot();

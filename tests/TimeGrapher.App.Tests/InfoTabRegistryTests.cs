@@ -53,7 +53,7 @@ public sealed class InfoTabRegistryTests
         InfoTabRegistry registry = InfoTabRegistry.FromCatalog(tabControl, positionStrip, "Arial");
         Button[] buttons = ResetViewButtons(registry);
 
-        Assert.Equal(5, buttons.Length);
+        Assert.Equal(6, buttons.Length);
         Assert.All(buttons, button => Assert.Equal("Reset all graph views", ToolTip.GetTip(button)));
     }
 
@@ -721,11 +721,16 @@ public sealed class InfoTabRegistryTests
             .Select(button => button.Content?.ToString() ?? string.Empty)
             .ToArray();
 
-        Assert.Equal(new[] { "1h", "3h", "6h", "‹", "›" }, buttons);
+        Assert.Equal(new[] { "1h", "3h", "6h", "‹", "›", "Reset View" }, buttons);
         Assert.DoesNotContain(Descendants(header).OfType<TextBlock>(), text => text.Text == "24H LONG-TERM");
         Assert.Contains(Descendants(header).OfType<TextBlock>(), text => text.Text == "COLLECTING");
         Assert.Contains(Descendants(header).OfType<TextBlock>(), text => text.Text == "Error Rate —");
-        Assert.DoesNotContain(Descendants(header).OfType<Button>(), button => button.Classes.Contains("active"));
+        Button resetView = Descendants(header).OfType<Button>().Single(button => Equals(button.Content, "Reset View"));
+        Assert.Contains("PositionButton", resetView.Classes);
+        Assert.Equal(TraceHeaderButtonFontSizeForTest, resetView.FontSize);
+        Assert.Equal(TraceHeaderButtonMinHeightForTest, resetView.MinHeight);
+        Assert.DoesNotContain(Descendants(header).OfType<Button>(), button =>
+            !Equals(button.Content, "Reset View") && button.Classes.Contains("active"));
         Assert.DoesNotContain(Descendants(header).OfType<TextBlock>(), text => text.Text?.Contains("Elapsed", StringComparison.Ordinal) == true);
         Assert.Empty(header.RowDefinitions);
         Assert.Equal(5, content.RowDefinitions.Count);
