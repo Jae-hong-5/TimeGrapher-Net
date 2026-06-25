@@ -90,50 +90,69 @@ public sealed class WatchMetricsDerivedMeasuresTests
     }
 
     [Fact]
-    public void RateAverage_UsesCompletedAveragingPeriodsRatherThanRollingEveryBeat()
+    public void DisplayRateAverage_UsesCompletedAveragingPeriodsRatherThanRollingEveryBeat()
     {
         var metrics = new WatchMetrics(new WatchMetricsConfig
         {
-            SampleRate = 1000,
+            SampleRate = SampleRate,
             AveragingPeriod = 3,
         });
         const double bph = 7200.0;
+        const double cOffsetMs = 200.0;
         double sample = 0.0;
-
-        var updates = new List<WatchMetricsUpdate>
-        {
-            metrics.HandleAEvent(sample, true, bph),
-        };
+        string results = FeedAThenCAndGetResultsAtBph(metrics, bph, sample, cOffsetMs);
 
         for (int i = 0; i < 6; i++)
         {
-            sample += 490.0;
-            updates.Add(metrics.HandleAEvent(sample, true, bph));
+            sample += 490.0 / 1000.0 * SampleRate;
+            results = FeedAThenCAndGetResultsAtBph(metrics, bph, sample, cOffsetMs);
         }
 
-        Assert.DoesNotContain(updates, update => update.BeatTimingSample.RateValid);
+        Assert.Contains("Error Rate ------ s/d", results);
 
-        sample += 490.0;
-        WatchMetricsUpdate firstComplete = metrics.HandleAEvent(sample, true, bph);
-        Assert.True(firstComplete.BeatTimingSample.RateValid);
-        Assert.True(firstComplete.BeatTimingSample.RateSPerDay > 1000.0);
-        double firstPeriodRate = firstComplete.BeatTimingSample.RateSPerDay;
+        sample += 490.0 / 1000.0 * SampleRate;
+        results = FeedAThenCAndGetResultsAtBph(metrics, bph, sample, cOffsetMs);
+        Assert.Contains($"Error Rate {WatchMetrics.ValueSpanStart}+1728.0{WatchMetrics.ValueSpanEnd} s/d", results);
 
         for (int i = 0; i < 4; i++)
         {
-            sample += 510.0;
-            WatchMetricsUpdate midPeriod = metrics.HandleAEvent(sample, true, bph);
-            Assert.True(midPeriod.BeatTimingSample.RateValid);
-            Assert.Equal(firstPeriodRate, midPeriod.BeatTimingSample.RateSPerDay, 6);
+            sample += 510.0 / 1000.0 * SampleRate;
+            results = FeedAThenCAndGetResultsAtBph(metrics, bph, sample, cOffsetMs);
         }
 
-        sample += 510.0;
-        _ = metrics.HandleAEvent(sample, true, bph);
-        sample += 510.0;
-        WatchMetricsUpdate secondComplete = metrics.HandleAEvent(sample, true, bph);
+        Assert.Contains($"Error Rate {WatchMetrics.ValueSpanStart}+1728.0{WatchMetrics.ValueSpanEnd} s/d", results);
 
-        Assert.True(secondComplete.BeatTimingSample.RateValid);
-        Assert.True(secondComplete.BeatTimingSample.RateSPerDay < -1000.0);
+        sample += 510.0 / 1000.0 * SampleRate;
+        _ = FeedAThenCAndGetResultsAtBph(metrics, bph, sample, cOffsetMs);
+        sample += 510.0 / 1000.0 * SampleRate;
+        results = FeedAThenCAndGetResultsAtBph(metrics, bph, sample, cOffsetMs);
+
+        Assert.Contains($"Error Rate {WatchMetrics.ValueSpanStart}-1440.0{WatchMetrics.ValueSpanEnd} s/d", results);
+    }
+
+    [Fact]
+    public void GraphRate_RemainsRollingWhileDisplayRateWaitsForAvgPeriod()
+    {
+        var metrics = new WatchMetrics(new WatchMetricsConfig
+        {
+            SampleRate = SampleRate,
+            AveragingPeriod = 12,
+        });
+        double sample = 0.0;
+
+        WatchMetricsUpdate latestA = metrics.HandleAEvent(sample, true, Bph);
+        WatchMetricsUpdate latestC = metrics.HandleCEvent(sample + 50.0 / 1000.0 * SampleRate, true, Bph);
+
+        for (int i = 0; i < 11; i++)
+        {
+            sample += 125.0 / 1000.0 * SampleRate;
+            latestA = metrics.HandleAEvent(sample, true, Bph);
+            latestC = metrics.HandleCEvent(sample + 50.0 / 1000.0 * SampleRate, true, Bph);
+        }
+
+        Assert.True(latestA.BeatTimingSample.RateValid);
+        Assert.Equal(0.0, latestA.BeatTimingSample.RateSPerDay, 6);
+        Assert.Contains("Error Rate ------ s/d", latestC.ResultsText);
     }
 
     [Fact]
@@ -443,15 +462,15 @@ public sealed class WatchMetricsDerivedMeasuresTests
     }
 
     [Fact]
-    public void RateAverage_WaitsForConfiguredPeriodBeforeFirstValidReading()
+    public void GraphRate_WaitsForWarmupPointsBeforeFirstValidReading()
     {
         WatchMetrics metrics = NewMetrics();
         List<WatchMetricsUpdate> updates = FeedAEvents(metrics, Enumerable.Repeat(125.0, 16).ToArray());
 
-        Assert.DoesNotContain(updates.Take(16), u => u.BeatTimingSample.RateValid);
+        Assert.DoesNotContain(updates.Take(11), u => u.BeatTimingSample.RateValid);
         Assert.False(updates[3].BeatTimingSample.RateValid);   // old 2-point first-valid beat
-        Assert.False(updates[11].BeatTimingSample.RateValid);
-        Assert.True(updates[16].BeatTimingSample.RateValid);
+        Assert.False(updates[9].BeatTimingSample.RateValid);
+        Assert.True(updates[11].BeatTimingSample.RateValid);
     }
 
     [Fact]

@@ -43,6 +43,8 @@ public sealed class WatchMetrics
     // Local constants from the anonymous namespace in WatchMetrics.cpp.
     private const int Tic = 0;
     private const int Toc = 1;
+    private const int GraphRateWindowInitialCapacity = 100;
+    private const int GraphRateWarmupPoints = 6;
 
     private readonly WatchMetricsConfig _config;
 
@@ -57,8 +59,12 @@ public sealed class WatchMetrics
     private bool _haveZeroOffset = false;
     private double _startTime = 0.0;
     private double _zeroOffsetValue = 0.0;
-    private double _rateSPerDay = 0.0;
-    private bool _rateValid = false;
+    private readonly RollingLeastSquares _graphRlsTicRate;
+    private readonly RollingLeastSquares _graphRlsTocRate;
+    private double _graphRateSPerDay = 0.0;
+    private bool _graphRateValid = false;
+    private double _displayRateSPerDay = 0.0;
+    private bool _displayRateValid = false;
     private double _rateWindowStartS = 0.0;
     private double _rateWindowDeltaSumS = 0.0;
     private int _rateWindowDeltaCount = 0;
@@ -66,6 +72,7 @@ public sealed class WatchMetrics
     private readonly bool[] _haveRatePhaseEvent = { false, false };
     private int _bph = 0;
     private bool _bphValid = false;
+    private int _beatsPerSecondWindow = 0;
 
     private readonly double[] _beatErrorTimes = { 0.0, 0.0, 0.0 };
     private int _beatErrorIdx = 0;
@@ -114,6 +121,8 @@ public sealed class WatchMetrics
     public WatchMetrics(WatchMetricsConfig config)
     {
         _config = config;
+        _graphRlsTicRate = new RollingLeastSquares(GraphRateWindowInitialCapacity);
+        _graphRlsTocRate = new RollingLeastSquares(GraphRateWindowInitialCapacity);
         // mX*/mY*.reserve(max_rate_data_points) in the original is a capacity hint only.
     }
 
@@ -135,6 +144,7 @@ public sealed class WatchMetrics
         _xToc.Clear();
         _yTic.Clear();
         _yToc.Clear();
+        ResetGraphRate();
         ResetRateAveraging(0.0);
         ResetDisplayAveraging(0.0);
 
@@ -156,12 +166,20 @@ public sealed class WatchMetrics
 
     private void ResetRateAveraging(double startTimeS)
     {
-        _rateSPerDay = 0.0;
-        _rateValid = false;
+        _displayRateSPerDay = 0.0;
+        _displayRateValid = false;
         _rateWindowStartS = startTimeS;
         ResetRateWindow();
         _haveRatePhaseEvent[Tic] = false;
         _haveRatePhaseEvent[Toc] = false;
+    }
+
+    private void ResetGraphRate()
+    {
+        _graphRateSPerDay = 0.0;
+        _graphRateValid = false;
+        _graphRlsTicRate.Reset();
+        _graphRlsTocRate.Reset();
     }
 
     private void ResetRateWindow()
@@ -211,8 +229,8 @@ public sealed class WatchMetrics
                 eventSample / (double)_config.SampleRate,
                 CurrentBeatPhase() == Tic,
                 _lastRateErrorMs,
-                _rateValid,
-                _rateSPerDay,
+                _graphRateValid,
+                _graphRateSPerDay,
                 _signedBeatErrorValid,
                 _signedBeatErrorMs,
                 _bph));
@@ -317,6 +335,7 @@ public sealed class WatchMetrics
         {
             _haveStartTime = false;
             _bphValid = false;
+            ResetGraphRate();
             ResetRateAveraging(0.0);
             ResetDisplayAveraging(0.0);
         }
@@ -329,6 +348,11 @@ public sealed class WatchMetrics
             _startTime = eventSample / (double)_config.SampleRate;
             _haveZeroOffset = false;
             _zeroOffsetValue = 0.0;
+            _beatsPerSecondWindow = BeatWindowSize(_bph, seconds: 1);
+            int rateWindow = Math.Max(GraphRateWarmupPoints, AveragingPeriodS() * _beatsPerSecondWindow);
+            _graphRlsTicRate.Resize(rateWindow);
+            _graphRlsTocRate.Resize(rateWindow);
+            ResetGraphRate();
             ResetRateAveraging(_startTime);
             ResetDisplayAveraging(_startTime);
 
@@ -392,6 +416,7 @@ public sealed class WatchMetrics
                 // post-gap toc into a bogus pair average. Drop it, mirroring the
                 // re-sync clear and the rate-estimator restart above.
                 _amplitudeTicValid = false;
+                ResetGraphRate();
                 ResetDisplayAveraging(timeMeasured);
             }
 
@@ -402,15 +427,18 @@ public sealed class WatchMetrics
 
             if (ticOrToc == Tic)
             {
+                _graphRlsTicRate.AddPoint(timeMeasured, instTimingError);
                 AddRatePoint(_xTic, _yTic, wrappedRateError, _config.MaxRateDataPoints, ref _xTicIndex);
                 update.SetTicRate(_xTic, _yTic);
             }
             else
             {
+                _graphRlsTocRate.AddPoint(timeMeasured, instTimingError);
                 AddRatePoint(_xToc, _yToc, wrappedRateError, _config.MaxRateDataPoints, ref _xTocIndex);
                 update.SetTocRate(_xToc, _yToc);
             }
 
+            UpdateGraphRate(ticOrToc);
             AccumulateRateAverage(ticOrToc, timeMeasured, expectedTimeTarget, gapDetected);
         }
 
@@ -478,6 +506,27 @@ public sealed class WatchMetrics
         return Math.Max(1, (int)Math.Round(bph * seconds / 3600.0, MidpointRounding.AwayFromZero));
     }
 
+    private void UpdateGraphRate(int ticOrToc)
+    {
+        if (ticOrToc != Toc)
+        {
+            return;
+        }
+
+        if ((_graphRlsTicRate.Count >= GraphRateWarmupPoints) &&
+            (_graphRlsTocRate.Count >= GraphRateWarmupPoints) &&
+            (_graphRlsTicRate.GetRate(out double slopeTic)) &&
+            (_graphRlsTocRate.GetRate(out double slopeToc)))
+        {
+            _graphRateSPerDay = ((slopeTic * 86400.0) + (slopeToc * 86400.0)) / 2.0;
+            _graphRateValid = true;
+        }
+        else
+        {
+            _graphRateValid = false;
+        }
+    }
+
     private void AccumulateRateAverage(int ticOrToc, double timeMeasured, double expectedTimeTarget, bool gapDetected)
     {
         if (gapDetected)
@@ -513,13 +562,13 @@ public sealed class WatchMetrics
         if (_rateWindowDeltaCount > 0)
         {
             double averageDeltaS = _rateWindowDeltaSumS / _rateWindowDeltaCount;
-            _rateSPerDay = -(averageDeltaS / nominalSamePhasePeriodS) * 86400.0;
-            _rateValid = true;
+            _displayRateSPerDay = -(averageDeltaS / nominalSamePhasePeriodS) * 86400.0;
+            _displayRateValid = true;
         }
         else
         {
-            _rateSPerDay = 0.0;
-            _rateValid = false;
+            _displayRateSPerDay = 0.0;
+            _displayRateValid = false;
         }
 
         do
@@ -739,7 +788,7 @@ public sealed class WatchMetrics
 
     private string FormatResults() => BuildResults(
         _bphValid, _bph,
-        _rateValid, _rateSPerDay,
+        _displayRateValid, _displayRateSPerDay,
         _displayBeatErrorValid, _displayBeatErrorMs,
         _displayAmplitudeValid, _displayAmplitudeDeg);
 
