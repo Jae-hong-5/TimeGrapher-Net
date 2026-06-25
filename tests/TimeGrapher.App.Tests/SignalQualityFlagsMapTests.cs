@@ -52,4 +52,13 @@ public sealed class SignalQualityFlagsMapTests
         SignalQualityAssessment tentative = Assess(SignalQualityClass.Noisy, SignalQualityFlagsMap.ConfidenceFloor - 0.01f);
         Assert.Equal(SignalQualityFlags.None, SignalQualityFlagsMap.From(tentative));
     }
+
+    [Fact]
+    public void ExactlyAtConfidenceFloorIsSurfaced()
+    {
+        // The gate is `Confidence < floor`, so confidence == floor is NOT suppressed
+        // (BelowConfidenceFloorMapsToNone already covers the just-below side).
+        SignalQualityAssessment atFloor = Assess(SignalQualityClass.Noisy, SignalQualityFlagsMap.ConfidenceFloor);
+        Assert.Equal(SignalQualityFlags.NoisySignal, SignalQualityFlagsMap.From(atFloor));
+    }
 }

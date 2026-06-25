@@ -159,6 +159,25 @@ public sealed class AnalysisRunStatusReporterTests
     }
 
     [Fact]
+    public void PerBeatAndClassifierFlagsAreOredWithPriorityWinning()
+    {
+        // Per-beat raises WeakSignal, the classifier raises Noisy: the OR'd value is
+        // WeakSignal|NoisySignal, and the SignalQualityText priority ladder surfaces
+        // the higher-priority Noisy guidance.
+        var reporter = new AnalysisRunStatusReporter();
+        var frame = new AnalysisFrame
+        {
+            BeatSegments = new BeatSegmentsSnapshot { Quality = SignalQualityFlags.WeakSignal },
+            SignalQuality = new SignalQualityAssessment(SignalQualityClass.Noisy, 0.9f, default),
+        };
+
+        AnalysisRunStatusReporter.Report report = reporter.Describe(frame, 0, SampleRate);
+
+        Assert.Equal("Signal looks noisy. Reduce ambient or handling noise.", report.StatusText);
+        Assert.Equal("Signal quality warning: Noisy signal.", report.LogDetail);
+    }
+
+    [Fact]
     public void ResetClearsRememberedThroughput()
     {
         var reporter = new AnalysisRunStatusReporter();
