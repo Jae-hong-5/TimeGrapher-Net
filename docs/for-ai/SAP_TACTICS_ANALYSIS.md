@@ -72,14 +72,15 @@ This baseline is the source of most tactics below.
 | Bound queue sizes | Audio history, render handoff, and recording queues are bounded. Overflow is explicit rather than silently growing memory or blocking analysis indefinitely. | `MasterAudioBuffer.cs`, `QueuedWavStreamWriter.cs`, `AnalysisFrameRenderScheduler.cs` | ✓ |
 | Reduce overhead | Rate, period, and statistics use incremental rolling calculations. Graphs use point budgets and decimated history rather than redrawing unbounded raw samples. | `RollingAverage.cs`, `RollingLeastSquares.cs`, `SeriesDataReducer.cs`, `DecimatingSeries.cs`, `InfoTabCatalog.cs` | ✓ |
 | Bound resource usage | Long-running metric history is stored as bounded decimating series. Sound/beat image buffers use fixed pools or snapshots so runtime cost does not grow linearly with session length. | `BeatMetricsHistory.cs`, `SoundPrintFrameProjector.cs`, `SpectrogramFrameProjector.cs`, `BeatSegmentCapture.cs` | ✓ |
-| Monitor and degrade | Analysis lag and processing/display latency are measured. Sustained deadline pressure reduces visual work before the analysis path falls behind. | `AnalysisDeadlineMonitor.cs`, `LatencyStatsTracker.cs`, `AnalysisPerformanceLogger.cs` | ✓ |
+| Maintain multiple copies of data | Sound/spectrogram publish pools and the beat-segment ring rotate protected snapshots: a published buffer is overwritten again only after enough newer publishes, and latest-wins delivery keeps the UI within one publish of the newest image, so on-screen reads never touch a buffer being recycled by analysis. | `SoundPrintFrameProjector.cs`, `SpectrogramFrameProjector.cs`, `BeatSegmentCapture.cs` | ✓ |
+| Monitor and degrade | Analysis lag and processing/display latency are measured. Sustained backlog above the breach threshold is detected, then visual work is reduced to keep the backlog from growing further — reactive throttling, not preemptive. | `AnalysisDeadlineMonitor.cs`, `AnalysisWorker.cs`, `LatencyStatsTracker.cs`, `AnalysisPerformanceLogger.cs` | ✓ |
 
 ### 3.3 Availability and Reliability
 
 | SAP tactic | How the project applies it | Evidence | Mark |
 |---|---|---|---|
-| Timestamp | Each run has a monotonically increasing session token. Late callbacks from an old run are ignored before they can mutate the new run. Rendering also uses generation checks. | `RunSessionController.cs`, `AnalysisFrameRenderScheduler.cs` | ✓ |
-| Fault detection | Workers report completion/failure, live capture distinguishes requested stop from unexpected end, and detector/metric outputs carry sync and quality flags. | `PlaybackWorker.cs`, `AudioCaptureWorker.cs`, `LinuxLiveAudioWorker.cs`, `SignalQualityText.cs` | ✓ |
+| Timestamp | Three coordinated monotonic counters guard run identity: a run-session token (input-worker callbacks), an analysis-session id (analysis frames), and a render generation. Late callbacks from an old run are ignored before they can mutate the new run. | `RunSessionController.cs`, `AnalysisFrameRenderScheduler.cs` | ✓ |
+| Fault detection | Workers report completion/failure, live capture distinguishes requested stop from unexpected end, and detector/metric outputs carry sync and quality payloads (the App maps those Core payloads to user-facing text). | `PlaybackWorker.cs`, `AudioCaptureWorker.cs`, `LinuxLiveAudioWorker.cs`, `DetectorMetricsEngine.cs`, `BeatSegmentsSnapshot.cs`, `BeatSegmentCapture.cs` | ✓ |
 | Fault recovery | Run control is modeled as explicit states: stopped, starting, running, paused, stopping, and stop-failed. A failed stop keeps retry/reset paths available instead of leaving the UI in an unknown state. | `RunCommandService.cs`, `RunCommandService.States.cs`, `RunCommandServiceTests.cs` | ✓ |
 | Sanity checking | Live device/sample-rate choices are probed before use. Settings loaded from JSON are validated before replacing current defaults. | `AudioCaptureWorker.cs`, `LinuxLiveAudioWorker.cs`, `AcceptBandSettingsStore.cs`, `SamplingSettingsStore.cs` | ✓ |
 | Ignore faulty input and resynchronize | Detection gaps reset affected metric accumulation, prevent stale beat-error/rate values from leaking across lock changes, and count missed beats without interpolating false data. | `WatchMetrics.cs`, `BeatMetricsHistory.cs` | ✓ |
@@ -99,8 +100,8 @@ This baseline is the source of most tactics below.
 
 | SAP tactic | How the project applies it | Evidence | Mark |
 |---|---|---|---|
-| Defer binding | Platform audio adapters are selected by runtime identifier at build/publish time. This is later than source design but earlier than runtime plugin loading. | `TimeGrapher.App.csproj`, `LiveAudioBackend.cs` | △ |
-| Degradation | Linux live audio can fall back from PipeWire-oriented discovery/capture to ALSA paths when needed. | `LinuxLiveAudioWorker.cs` | ✓ |
+| Defer binding | RID-conditioned project references decide which platform adapter assembly is compiled into a RID-specific build/publish; `LiveAudioBackend` then selects the concrete worker at runtime with OS checks. Later than source design but earlier than runtime plugin loading. | `TimeGrapher.App.csproj`, `LiveAudioBackend.cs` | △ |
+| Degradation | Linux device discovery falls back from PipeWire (`wpctl`) to ALSA (`arecord -l`) enumeration when PipeWire returns no devices; capture then runs whichever backend the chosen device maps to. | `LinuxLiveAudioWorker.cs` | ✓ |
 | Maintain UI consistency | Theme colors and graph palettes are centralized. Graph axis panels, reset controls, alert strips, acceptable bands, and the Scope Sweep fixed readout slot use shared rendering conventions so transient labels do not resize or overlap graph rows. | `App.axaml`, `PlotThemePalette.cs`, `PlotThemeHelper.cs`, `InfoTabRegistry.cs` | ✓ |
 | Pause/resume | Worker pause gates allow run control without destroying the whole session state, while stop remains separately requestable. | `WorkerPauseGate.cs` | ✓ |
 
@@ -111,7 +112,7 @@ This baseline is the source of most tactics below.
 | Layers | App, Platform, Core, Verify form a directed layered structure. | ✓ |
 | Adapter | Platform audio workers translate Windows/Linux APIs into Core/App audio contracts. | ✓ |
 | Factory | Audio backends, tab registrations, and recording writers are created through narrow factory boundaries. | ✓ |
-| Strategy | Input modes and tab frame consumers share stable interfaces but differ in implementation. | ✓ |
+| Strategy | Input modes, tab frame consumers, and the swappable signal-quality classifier (`ISignalQualityClassifier` / `HeuristicSignalQualityClassifier`) share stable interfaces but differ in implementation. | ✓ |
 | State | Run lifecycle behavior is delegated to explicit state classes. | ✓ |
 | Command | View-model commands expose UI actions and CanExecute state. | ✓ |
 | Observer | Workers raise frame/data/completion events; lifecycle code subscribes and detaches. | ✓ |
