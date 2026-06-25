@@ -22,7 +22,7 @@ internal sealed class GraphAcceptBandOperations : IAcceptBandOperations
         _renderer = renderer;
         // Persistence is injectable so the accepted path is testable without writing the real
         // user-config file; production uses the static store.
-        _persist = persist ?? AcceptBandSettingsStore.Save;
+        _persist = persist ?? AppSettingsStore.SaveAcceptBands;
     }
 
     public AcceptBandValues CurrentBands

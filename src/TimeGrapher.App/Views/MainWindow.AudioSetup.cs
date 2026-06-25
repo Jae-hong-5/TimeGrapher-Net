@@ -76,7 +76,8 @@ public partial class MainWindow
             mViewModel.SelectedBphIndex = -1;
         }
 
-        mViewModel.SelectedBphIndex = 0; // Auto
+        int savedIndex = RunSelectionResolver.FindValue(BphCatalog.ManualAutoBph, AppSettings.Current.LeftPanel.Bph);
+        mViewModel.SelectedBphIndex = savedIndex == -1 ? 0 : savedIndex;
     }
 
     private void LoadSimBph()
@@ -88,8 +89,13 @@ public partial class MainWindow
             mViewModel.SelectedSimBphIndex = -1;
         }
 
-        int defaultIndex = mRunSelectionResolver.DefaultSimulationBphIndex;
-        mViewModel.SelectedSimBphIndex = defaultIndex == -1 ? 0 : defaultIndex;
+        int savedIndex = RunSelectionResolver.FindValue(BphCatalog.ManualBph, AppSettings.Current.LeftPanel.SimulationBph);
+        if (savedIndex == -1)
+        {
+            savedIndex = mRunSelectionResolver.DefaultSimulationBphIndex;
+        }
+
+        mViewModel.SelectedSimBphIndex = savedIndex == -1 ? 0 : savedIndex;
     }
 
     private static List<string> BuildBphLabels(IReadOnlyList<int> bphValues, bool useAutoLabel)

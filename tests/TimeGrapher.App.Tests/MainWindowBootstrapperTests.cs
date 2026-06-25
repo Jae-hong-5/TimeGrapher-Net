@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using TimeGrapher.App;
+using TimeGrapher.App.Rendering;
 using TimeGrapher.App.Services;
 using TimeGrapher.App.ViewModels;
 using TimeGrapher.Core.Analysis;
@@ -16,8 +17,19 @@ namespace TimeGrapher.App.Tests;
 /// attaches the run-command runner, seeds the measurement-log enable flag from startup options, and
 /// seeds the accept-band inputs — using fake view adapters so no window/renderer is needed.
 /// </summary>
-public sealed class MainWindowBootstrapperTests
+public sealed class MainWindowBootstrapperTests : IDisposable
 {
+    private readonly AppSettings _savedAppSettings = AppSettings.Current;
+    private readonly SamplingSettings _savedSamplingSettings = SamplingSettings.Current;
+    private readonly AcceptBandSettings _savedAcceptBandSettings = AcceptBandSettings.Current;
+
+    public void Dispose()
+    {
+        AppSettings.Current = _savedAppSettings;
+        SamplingSettings.Current = _savedSamplingSettings;
+        AcceptBandSettings.Current = _savedAcceptBandSettings;
+    }
+
     private sealed class FakeSelectionOperations : IMainWindowSelectionOperations
     {
         public IReadOnlyList<int> InputDeviceNumbers => Array.Empty<int>();
@@ -154,6 +166,48 @@ public sealed class MainWindowBootstrapperTests
             AppStartupOptions.Parse(new[] { "--measurement-log", "ignored.csv" }),
             (_, _) => new FakeMeasurementSink());
 
+        Assert.True(vm.IsMeasurementLogEnabled);
+    }
+
+    [Fact]
+    public void Build_SeedsPersistedLeftPanelAndSettingsWindowValues()
+    {
+        AppSettings.Current = AppSettings.Default with
+        {
+            LeftPanel = LeftPanelSettings.Default with
+            {
+                Gain = 420.0,
+                LiftAngle = 54.0,
+                SimulationErrorRate = -12.0,
+                SimulationAmplitude = 280.0,
+                SimulationBeatError = 0.5,
+                SimulationRealistic = false,
+            },
+            SettingsWindow = SettingsWindowSettings.Default with
+            {
+                UseCOnset = true,
+                WeakAOnsetRescue = true,
+                PauseOnPositionChange = true,
+                HighPassCutoffText = "180",
+                MeasurementLogEnabled = true,
+            },
+        };
+        MainWindowViewModel vm = MainWindowBootstrapper.CreateViewModel();
+
+        _ = MainWindowBootstrapper.Build(
+            vm, Adapters(new FakeRunCommandOperations(), new FakeAcceptBandOperations()), Callbacks(),
+            AppStartupOptions.Parse(Array.Empty<string>()));
+
+        Assert.Equal(420.0, vm.Gain);
+        Assert.Equal(54m, vm.LiftAngle);
+        Assert.Equal(-12m, vm.SimErrorRate);
+        Assert.Equal(280m, vm.SimAmplitude);
+        Assert.Equal(0.5m, vm.SimBeatError);
+        Assert.False(vm.Realistic);
+        Assert.True(vm.UseCOnset);
+        Assert.True(vm.WeakAOnsetRescue);
+        Assert.True(vm.PauseOnPositionChange);
+        Assert.Equal("180", vm.HighPassCutoffText);
         Assert.True(vm.IsMeasurementLogEnabled);
     }
 

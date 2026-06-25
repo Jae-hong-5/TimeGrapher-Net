@@ -38,6 +38,38 @@ public sealed class SettingsToggleBindingTests
         AssertTwoWay(window, "MeasurementLogEnabledToggleSwitch", v => vm.IsMeasurementLogEnabled = v, () => vm.IsMeasurementLogEnabled);
     }
 
+    [Fact]
+    public void ResetSettingsButton_IsLeftOfCloseButtonAndUsesViewModelCommand()
+    {
+        HeadlessPlatform.EnsureStarted();
+
+        var runner = new RecordingSettingsWindowResetRunner();
+        var vm = new MainWindowViewModel();
+        vm.AttachSettingsWindowResetRunner(runner);
+        var window = new SettingsWindow
+        {
+            DataContext = vm,
+            Width = 760,
+            Height = 520,
+        };
+
+        Control content = Assert.IsAssignableFrom<Control>(window.Content);
+        content.Measure(new Size(760, 520));
+        content.Arrange(new Rect(0, 0, 760, 520));
+
+        var reset = Assert.IsType<Button>(window.FindControl<Control>("ResetSettingsButton"));
+        var close = Assert.IsType<Button>(window.FindControl<Control>("CloseSettingsButton"));
+        var parent = Assert.IsType<StackPanel>(reset.Parent);
+
+        Assert.Same(parent, close.Parent);
+        Assert.True(parent.Children.IndexOf(reset) < parent.Children.IndexOf(close));
+        Assert.Same(vm.ResetSettingsWindowCommand, reset.Command);
+        vm.ResetSettingsWindowCommand.Execute(null);
+        Assert.Equal(1, runner.ResetCount);
+        vm.SetRunning();
+        Assert.False(vm.ResetSettingsWindowCommand.CanExecute(null));
+    }
+
     private static void AssertTwoWay(SettingsWindow window, string toggleName, Action<bool> setSource, Func<bool> readSource)
     {
         var toggle = Assert.IsType<ToggleSwitch>(window.FindControl<Control>(toggleName));
@@ -53,5 +85,12 @@ public sealed class SettingsToggleBindingTests
         Assert.True(readSource());
         toggle.IsChecked = false;
         Assert.False(readSource());
+    }
+
+    private sealed class RecordingSettingsWindowResetRunner : ISettingsWindowResetRunner
+    {
+        public int ResetCount { get; private set; }
+
+        public void ResetSettingsWindow() => ResetCount++;
     }
 }

@@ -44,9 +44,10 @@ internal static class MainWindowBootstrapper
                 ? new AnalysisPerformanceLogger(LogFilePaths.EnsureParentDirectory(analysisLogPath))
                 : null;
 
-        // Seed the enable state from the CLI before the controller (and the View's DataContext)
-        // read it. The sink factory defaults to the real CSV logger; tests inject a fake.
-        viewModel.IsMeasurementLogEnabled = startupOptions.MeasurementLogPath != null;
+        AppSettingsController.SeedViewModel(
+            viewModel,
+            AppSettings.Current,
+            AppSettings.Current.SettingsWindow.MeasurementLogEnabled || startupOptions.MeasurementLogPath != null);
         measurementSinkFactory ??= static (path, liftAngleDeg) => new MeasurementResultLogger(path, liftAngleDeg);
         var measurementLogController = new MeasurementLogController(
             viewModel, startupOptions.MeasurementLogPath, measurementSinkFactory);
@@ -64,7 +65,7 @@ internal static class MainWindowBootstrapper
         // Seeds the Settings inputs from the persisted run-start parameters and saves each
         // valid edit; the values are read at the next run start, not applied live.
         var samplingSettingsController = new SamplingSettingsController(
-            viewModel, SamplingSettings.Current, SamplingSettingsStore.Save);
+            viewModel, SamplingSettings.Current, AppSettingsStore.SaveSampling);
         var runControlController = new RunControlController(viewModel, runSessionController, runCommandService);
         var analysisFramePresenter = new AnalysisFramePresenter(viewModel, errorLog);
 

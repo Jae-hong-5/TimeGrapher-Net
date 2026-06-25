@@ -90,7 +90,8 @@ public sealed class AudioDeviceControllerTests
 
         public Harness(
             Func<string, string>? rename = null,
-            Func<IReadOnlyList<string>, string?, int>? selector = null)
+            Func<IReadOnlyList<string>, string?, int>? selector = null,
+            AudioSelectionPreference preference = default)
         {
             Controller = new AudioDeviceController(
                 ViewModel,
@@ -101,6 +102,7 @@ public sealed class AudioDeviceControllerTests
                 selectInputDeviceIndexAfterReload: selector ?? ((_, _) => 0),
                 playbackSourceName: "Playback",
                 simulationSourceName: "Simulation",
+                preference: preference,
                 runOffThread: Runner.Run);
             Controller.AttachSelectionEventGate(Gate);
         }
@@ -219,6 +221,19 @@ public sealed class AudioDeviceControllerTests
         Assert.Equal(new[] { (0, false) }, h.Gate.SelectedInputDeviceCalls);
     }
 
+    [Fact]
+    public void LoadAudioDevices_InitialLoadUsesPersistedDevicePreference()
+    {
+        var h = new Harness(
+            selector: MainWindow.SelectInputDeviceIndexAfterReload,
+            preference: new AudioSelectionPreference("Playback", 48000));
+        h.Backend.Devices.Add(new LiveAudioDevice(1, "Mic"));
+
+        h.Controller.LoadAudioDevices();
+
+        Assert.Equal(new[] { (1, true) }, h.Gate.SelectedInputDeviceCalls);
+    }
+
     [Theory]
     [InlineData("Playback", 2, (int)RunCommandMode.Playback)]
     [InlineData("Simulation", 3, (int)RunCommandMode.Simulation)]
@@ -253,6 +268,17 @@ public sealed class AudioDeviceControllerTests
         Assert.Equal(new[] { "48000 Hz", "96000 Hz", "192000 Hz" }, h.ViewModel.SampleRateLabels);
         Assert.Equal(3, h.State.AvailableSampleRateCount);
         Assert.Equal(new[] { 0 }, h.Gate.SelectedSampleRateIndices);
+    }
+
+    [Fact]
+    public void PopulateSampleRates_SelectsPersistedSampleRateWhenAvailable()
+    {
+        var h = new Harness(preference: new AudioSelectionPreference("Playback", 96000));
+
+        h.Controller.PopulateSampleRates(-1);
+
+        Assert.Equal(new[] { 1 }, h.Gate.SelectedSampleRateIndices);
+        Assert.Equal(96000, h.State.CurrentSampleRate);
     }
 
     [Fact]

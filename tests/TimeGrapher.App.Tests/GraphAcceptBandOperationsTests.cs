@@ -14,7 +14,7 @@ namespace TimeGrapher.App.Tests;
 /// AcceptBandSettings.Current: the seed read, and the two gate-rejection paths
 /// (an inverted edit is invalid; re-applying the current band is a no-op). The accepted
 /// path's constituents — ShouldReplace, the store round-trip, and the fan-out — are each
-/// covered by AcceptBandSettingsTests, AcceptBandSettingsStoreTests, and
+/// covered by AcceptBandSettingsTests, AppSettingsStoreTests, and
 /// GraphFrameRendererAcceptBandTests.
 /// </summary>
 public sealed class GraphAcceptBandOperationsTests

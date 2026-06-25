@@ -28,7 +28,9 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     private readonly RelayCommand _reviewStepBackCommand;
     private readonly RelayCommand _reviewStepForwardCommand;
     private readonly RelayCommand _reviewLiveCommand;
+    private readonly RelayCommand _resetSettingsWindowCommand;
     private IRunCommandRunner? _runner;
+    private ISettingsWindowResetRunner? _settingsWindowResetRunner;
     private RunUiState _runState = RunUiState.Stopped;
     private bool _modeAllowsSampleRate = true;
     private bool _modeAllowsGain = true;
@@ -90,6 +92,7 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
         _reviewStepBackCommand = new RelayCommand(() => StepReviewCursor(-ReviewStepS), () => IsReviewBarEnabled);
         _reviewStepForwardCommand = new RelayCommand(() => StepReviewCursor(ReviewStepS), () => IsReviewBarEnabled);
         _reviewLiveCommand = new RelayCommand(() => ReviewCursorTimeS = null, () => IsReviewBarEnabled);
+        _resetSettingsWindowCommand = new RelayCommand(ExecuteResetSettingsWindow, () => AreRunParametersEnabled);
     }
 
     /// <summary>
@@ -98,6 +101,8 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     /// command bodies live here instead of being passed in from the View as delegates.
     /// </summary>
     public void AttachRunCommandRunner(IRunCommandRunner runner) => _runner = runner;
+
+    public void AttachSettingsWindowResetRunner(ISettingsWindowResetRunner runner) => _settingsWindowResetRunner = runner;
 
     // The play/pause button is one control: a stopped run starts, an active run toggles
     // pause/resume. The runner's state machine decides what each call actually does.
@@ -117,6 +122,8 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
         _runner.TogglePause();
     }
 
+    private void ExecuteResetSettingsWindow() => _settingsWindowResetRunner?.ResetSettingsWindow();
+
     public event PropertyChangedEventHandler? PropertyChanged;
 
     public ICommand PlayPauseCommand => _playPauseCommand;
@@ -125,6 +132,7 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     public ICommand ReviewStepBackCommand => _reviewStepBackCommand;
     public ICommand ReviewStepForwardCommand => _reviewStepForwardCommand;
     public ICommand ReviewLiveCommand => _reviewLiveCommand;
+    public ICommand ResetSettingsWindowCommand => _resetSettingsWindowCommand;
 
     public ObservableCollection<string> InputDeviceNames { get; } = new();
     public ObservableCollection<string> SampleRateLabels { get; } = new();
@@ -647,6 +655,7 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
         _reviewStepBackCommand.NotifyCanExecuteChanged();
         _reviewStepForwardCommand.NotifyCanExecuteChanged();
         _reviewLiveCommand.NotifyCanExecuteChanged();
+        _resetSettingsWindowCommand.NotifyCanExecuteChanged();
     }
 
     private bool SetProperty<T>(ref T storage, T value, [CallerMemberName] string? propertyName = null)

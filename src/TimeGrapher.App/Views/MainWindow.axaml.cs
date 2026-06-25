@@ -84,6 +84,7 @@ public partial class MainWindow : Window
     private readonly AudioDeviceController mAudioDeviceController;
     private readonly AcceptBandController mAcceptBandController;
     private readonly SamplingSettingsController mSamplingSettingsController;
+    private readonly AppSettingsController mAppSettingsController;
     private readonly RunControlController mRunControlController;
     private readonly RunSelectionResolver mRunSelectionResolver;
     private readonly RunCommandService mRunCommandService;
@@ -123,7 +124,10 @@ public partial class MainWindow : Window
             RenameDeviceName,
             SelectInputDeviceIndexAfterReload,
             PLAYBACK_SOURCE,
-            SIMULATION_SOURCE);
+            SIMULATION_SOURCE,
+            new AudioSelectionPreference(
+                AppSettings.Current.LeftPanel.InputDeviceName,
+                AppSettings.Current.LeftPanel.SampleRate));
         var adapters = new MainWindowViewAdapters(
             new MainWindowSelectionOperations(this, mAudioSelection, mAudioDeviceController),
             new RunCommandOperations(this),
@@ -179,6 +183,11 @@ public partial class MainWindow : Window
         mGraphFrameRenderer.Initialize(BuildTabResetContext());
         mGraphFrameRenderer.SetResults(GraphFrameRenderer.PlaceholderResults);
         SetGuiStopMode();
+        mAppSettingsController = new AppSettingsController(
+            mViewModel,
+            CaptureAppSettingsSelection,
+            AppSettingsStore.Save);
+        mViewModel.AttachSettingsWindowResetRunner(mAppSettingsController);
 
         Closed += OnWindowClosed;
     }
@@ -446,6 +455,22 @@ public partial class MainWindow : Window
             // never size the detector input block (the controller already snaps on edit).
             AnalysisBlockSize: SamplingSettings.NormalizeAnalysisBlockSize(mViewModel.AnalysisBlockSize));
     }
+
+    private AppSettingsSelection CaptureAppSettingsSelection()
+    {
+        return new AppSettingsSelection(
+            EmptyToNull(CurrentInputDeviceText()),
+            mAudioSelection.CurrentSampleRate,
+            SelectedCatalogValue(BphCatalog.ManualAutoBph, mViewModel.SelectedBphIndex, AppSettings.Current.LeftPanel.Bph),
+            SelectedCatalogValue(BphCatalog.ManualBph, mViewModel.SelectedSimBphIndex, AppSettings.Current.LeftPanel.SimulationBph));
+    }
+
+    private static int SelectedCatalogValue(IReadOnlyList<int> values, int index, int fallback)
+    {
+        return index >= 0 && index < values.Count ? values[index] : fallback;
+    }
+
+    private static string? EmptyToNull(string value) => string.IsNullOrEmpty(value) ? null : value;
 
     private Control SoundImageControl()
     {

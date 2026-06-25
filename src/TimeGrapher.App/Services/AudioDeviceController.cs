@@ -9,6 +9,8 @@ using TimeGrapher.Core.Shared;
 
 namespace TimeGrapher.App.Services;
 
+internal readonly record struct AudioSelectionPreference(string? InputDeviceName, int SampleRate);
+
 /// <summary>
 /// Owns audio input-device enumeration and per-device sample-rate probing — the async,
 /// UI-marshalling flow the MainWindow code-behind used to hold. Enumerates devices (renamed for
@@ -26,6 +28,7 @@ internal sealed class AudioDeviceController
     private readonly Func<Action, Task> _runOffThread;
     private readonly Func<string, string> _renameDeviceName;
     private readonly Func<IReadOnlyList<string>, string?, int> _selectInputDeviceIndexAfterReload;
+    private readonly AudioSelectionPreference _preference;
     private readonly string _playbackSourceName;
     private readonly string _simulationSourceName;
 
@@ -45,6 +48,7 @@ internal sealed class AudioDeviceController
         Func<IReadOnlyList<string>, string?, int> selectInputDeviceIndexAfterReload,
         string playbackSourceName,
         string simulationSourceName,
+        AudioSelectionPreference preference = default,
         Func<Action, Task>? runOffThread = null)
     {
         _viewModel = viewModel;
@@ -53,9 +57,14 @@ internal sealed class AudioDeviceController
         _dispatcher = dispatcher;
         _renameDeviceName = renameDeviceName;
         _selectInputDeviceIndexAfterReload = selectInputDeviceIndexAfterReload;
+        _preference = preference;
         _playbackSourceName = playbackSourceName;
         _simulationSourceName = simulationSourceName;
         _runOffThread = runOffThread ?? (action => Task.Run(action));
+        if (AudioSampleRates.StandardSet.Contains(preference.SampleRate))
+        {
+            _state.CurrentSampleRate = preference.SampleRate;
+        }
     }
 
     /// <summary>Attaches the selection-event gate (the coordinator) once it has been constructed.</summary>
@@ -121,7 +130,8 @@ internal sealed class AudioDeviceController
             _viewModel.SetInputDeviceNames(deviceNames);
         }
 
-        int selected = _selectInputDeviceIndexAfterReload(_viewModel.InputDeviceNames, currentDeviceName);
+        string? requestedDeviceName = currentDeviceName ?? _preference.InputDeviceName;
+        int selected = _selectInputDeviceIndexAfterReload(_viewModel.InputDeviceNames, requestedDeviceName);
 
         // Avalonia ComboBox does not auto-select on add (unlike Qt); explicitly select so
         // PopulateSampleRates runs for the chosen device, reaching the same final state.
@@ -196,8 +206,22 @@ internal sealed class AudioDeviceController
 
         if (_viewModel.SampleRateLabels.Count > 0)
         {
-            _gate.SetSelectedSampleRateIndex(0);
+            int selectedIndex = FindCurrentSampleRateIndex();
+            _gate.SetSelectedSampleRateIndex(selectedIndex == -1 ? 0 : selectedIndex);
         }
+    }
+
+    private int FindCurrentSampleRateIndex()
+    {
+        for (int i = 0; i < _state.AvailableSampleRateCount; i++)
+        {
+            if (_state.GetAvailableSampleRate(i) == _state.CurrentSampleRate)
+            {
+                return i;
+            }
+        }
+
+        return -1;
     }
 
     // Probe a device's supported rates off the UI thread, then re-narrow the list on the UI thread
