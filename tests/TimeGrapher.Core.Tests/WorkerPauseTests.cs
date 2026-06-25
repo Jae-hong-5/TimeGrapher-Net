@@ -94,6 +94,58 @@ public sealed class WorkerPauseTests
         Assert.True(worker.TryStop(TimeSpan.FromSeconds(2)));
     }
 
+    [Fact]
+    public void PlaybackWorkerCoercesNonFiniteWavSamplesToZero()
+    {
+        // A legal IEEE float32 WAV can carry NaN/Inf bit patterns; PlaybackWorker
+        // must fold them to a finite value so they never latch into the recursive
+        // HPF/envelope state (regression guard for the decode-boundary IsFinite fold).
+        const int sampleRate = 48000;
+        const int sampleCount = 4096;
+        float[] samples = new float[sampleCount];
+        for (int i = 0; i < samples.Length; i++)
+        {
+            samples[i] = (float)Math.Sin(i * 0.01);
+        }
+
+        samples[100] = float.NaN;
+        samples[200] = float.PositiveInfinity;
+        samples[300] = float.NegativeInfinity;
+
+        string path = Path.Combine(Path.GetTempPath(), "timegrapher-nonfinite-" + Guid.NewGuid().ToString("N") + ".wav");
+        using (var writer = new WavStreamWriter())
+        {
+            Assert.True(writer.Open(path, sampleRate, channels: 1));
+            Assert.True(writer.Write(samples));
+            Assert.True(writer.Close());
+        }
+
+        try
+        {
+            var buffer = new MasterAudioBuffer(sampleRate);
+            using var worker = new PlaybackWorker(buffer, sampleRate);
+            using var done = new ManualResetEventSlim();
+            worker.DoneReadingFile += _ => done.Set();
+
+            Assert.True(worker.Start(path));
+            Assert.True(done.Wait(TimeSpan.FromSeconds(5)));
+
+            float[] destination = new float[sampleCount];
+            MasterAudioBufferReadResult read = buffer.CopyAnalysisSamples(destination, (ulong)sampleCount);
+
+            Assert.Equal(sampleCount, read.SamplesCopied);
+            Assert.All(destination, s => Assert.True(float.IsFinite(s)));
+            // The three non-finite source samples are folded to 0.
+            Assert.Equal(0f, destination[100]);
+            Assert.Equal(0f, destination[200]);
+            Assert.Equal(0f, destination[300]);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
     private static string CreatePlaybackWav(int sampleRate, int seconds)
     {
         string path = Path.Combine(Path.GetTempPath(), "timegrapher-playback-pause-" + Guid.NewGuid().ToString("N") + ".wav");

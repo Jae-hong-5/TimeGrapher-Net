@@ -657,4 +657,38 @@ public sealed class WatchMetricsDerivedMeasuresTests
         Assert.Equal(52.0, tocC.AmplitudeSample.InstantDeg, 6);
         Assert.False(tocC.AmplitudeSample.PairAverageUpdated);         // no stale-tic mispair
     }
+
+    [Fact]
+    public void AmplitudeAcceptedImmediatelyAfterBphReLock()
+    {
+        // The A-C interval acceptance ring holds timings tied to the previous watch's
+        // BPH/amplitude. A BPH re-lock must clear it (matching Reset()), or the first
+        // post-re-lock A-C interval is rejected as an outlier against the stale median
+        // and the amplitude readout is wrongly blanked. Regression guard for that clear.
+        var metrics = new WatchMetrics(new WatchMetricsConfig { SampleRate = SampleRate });
+        const double amplitudeDeg = 104.0;
+
+        // Fill the acceptance ring (count >= 4) with consistent intervals at one BPH.
+        const double bph1 = 18000.0;
+        double cOffset1Ms = AToCOffsetMsForAmplitude(bph1, amplitudeDeg);
+        double beat1Samples = 3600.0 / bph1 * SampleRate; // samples between A events
+        double sample = 0.0;
+        for (int i = 0; i < 6; i++)
+        {
+            metrics.HandleAEvent(sample, true, bph1);
+            metrics.HandleCEvent(sample + cOffset1Ms / 1000.0 * SampleRate, true, bph1);
+            sample += beat1Samples;
+        }
+
+        // Re-lock at a markedly different BPH whose A-C interval (~half) is far from the
+        // stale median. With the ring cleared, the first new amplitude is accepted.
+        const double bph2 = 36000.0;
+        double cOffset2Ms = AToCOffsetMsForAmplitude(bph2, amplitudeDeg);
+        metrics.HandleAEvent(sample, true, bph2);
+        WatchMetricsUpdate c = metrics.HandleCEvent(sample + cOffset2Ms / 1000.0 * SampleRate, true, bph2);
+
+        Assert.True(c.AmplitudeSampleUpdated);
+        Assert.True(c.AmplitudeSample.InstantValid);
+        Assert.Equal(amplitudeDeg, c.AmplitudeSample.InstantDeg, 0);
+    }
 }
