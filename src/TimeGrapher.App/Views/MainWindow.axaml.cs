@@ -353,7 +353,7 @@ public partial class MainWindow : Window
 
     private void ReportUserErrorStatus(string message, string detail)
     {
-        mViewModel.StatusText = message;
+        mViewModel.SetWarningStatus(message);
         mErrorLog.Write(message, detail);
     }
 

@@ -50,7 +50,15 @@ internal sealed class AnalysisFramePresenter
         AnalysisRunStatusReporter.Report report = _statusReporter.Describe(frame, droppedFrames, sampleRate);
         if (report.StatusText != null)
         {
-            _viewModel.StatusText = report.StatusText;
+            if (report.LogDetail != null)
+            {
+                _viewModel.SetWarningStatus(report.StatusText);
+            }
+            else
+            {
+                _viewModel.StatusText = report.StatusText;
+            }
+
             if (report.LogDetail != null)
             {
                 _errorLog.Write(report.StatusText, report.LogDetail);

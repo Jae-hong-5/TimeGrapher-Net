@@ -35,6 +35,7 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     // simulation knobs start disabled until the Simulation source is selected.
     private bool _modeAllowsSimulationParams;
     private string _statusText = "";
+    private bool _isStatusWarning;
     private string _latencyText = "";
     private bool _isAwaitingBeatSync;
     private double _gain = 100.0;
@@ -164,12 +165,27 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
         {
             if (_statusText == value)
             {
+                IsStatusWarning = false;
                 return;
             }
 
             _statusText = value;
+            IsStatusWarning = false;
             OnPropertyChanged();
         }
+    }
+
+    public bool IsStatusWarning
+    {
+        get => _isStatusWarning;
+        private set => SetProperty(ref _isStatusWarning, value);
+    }
+
+    public void SetWarningStatus(string text)
+    {
+        _statusText = text;
+        OnPropertyChanged(nameof(StatusText));
+        IsStatusWarning = true;
     }
 
     /// <summary>True while a run is active but the detector has not yet locked the beat.</summary>

@@ -960,28 +960,16 @@ internal sealed partial class InfoTabRegistry
             readoutGrid.Children.Add(cell);
         }
 
-        var explanationText = new TextBlock
-        {
-            FontSize = 11,
-            Opacity = 0.65,
-            Margin = new Thickness(8, 0, 8, 3),
-            TextWrapping = Avalonia.Media.TextWrapping.Wrap,
-            Text = "Tic/toc traces: horizontal = on time; a positive reading slopes the trace upward. " +
-                   "Separation between the two traces = beat error; a slope past 45° flags a major fault.",
-        };
-
         var grid = new Grid
         {
-            RowDefinitions = new RowDefinitions("Auto,Auto,*,Auto"),
+            RowDefinitions = new RowDefinitions("Auto,Auto,*"),
         };
         Grid.SetRow(alertBanner, 0);
         Grid.SetRow(readoutGrid, 1);
         Grid.SetRow(tracePlot, 2);
-        Grid.SetRow(explanationText, 3);
         grid.Children.Add(alertBanner);
         grid.Children.Add(readoutGrid);
         grid.Children.Add(tracePlot);
-        grid.Children.Add(explanationText);
 
         if (CreateWaitingOverlay(context.ViewModel) is { } overlay)
         {

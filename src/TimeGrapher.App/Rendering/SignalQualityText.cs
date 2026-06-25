@@ -13,7 +13,7 @@ internal static class SignalQualityText
 
         if ((quality & SignalQualityFlags.ClippedSignal) != 0)
         {
-            return "Signal clipping";
+            return "Clipping";
         }
 
         if ((quality & SignalQualityFlags.PossibleFalseC) != 0)

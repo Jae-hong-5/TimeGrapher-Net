@@ -118,7 +118,19 @@
     <DockPanel Grid.Row="1">
     <Border DockPanel.Dock="Bottom" Height="24" Background="{DynamicResource GlassPanelBrush}" BorderBrush="{DynamicResource GlassRimBrush}" BorderThickness="0,1,0,0">
       <Grid ColumnDefinitions="*,Auto,Auto">
-        <TextBlock Name="StatusBarText" VerticalAlignment="Center" Margin="6,0,0,0" Text="{Binding StatusText}" TextTrimming="CharacterEllipsis" />
+        <TextBlock Name="StatusBarText"
+                   Classes.status-warning="{Binding IsStatusWarning}"
+                   VerticalAlignment="Center"
+                   Margin="6,0,0,0"
+                   Text="{Binding StatusText}"
+                   TextTrimming="CharacterEllipsis"
+                   Foreground="{DynamicResource TextPrimaryBrush}">
+          <TextBlock.Styles>
+            <Style Selector="TextBlock.status-warning">
+              <Setter Property="Foreground" Value="{DynamicResource VarioBadBrush}" />
+            </Style>
+          </TextBlock.Styles>
+        </TextBlock>
         <TextBlock Name="PositionBarText" Grid.Column="1" VerticalAlignment="Center" Margin="12,0,0,0"
                    Text="{Binding PositionLabel}"
                    Foreground="{DynamicResource ChromeAccentBrush}"

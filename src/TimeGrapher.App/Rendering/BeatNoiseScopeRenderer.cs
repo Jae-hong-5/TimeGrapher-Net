@@ -493,6 +493,7 @@ internal sealed class BeatNoiseScopeRenderer
                 CPeakOffsetMs = s.CPeakOffsetMs,
                 COnsetValid = s.COnsetValid,
                 COnsetOffsetMs = s.COnsetOffsetMs,
+                Quality = s.Quality,
             };
         }
 
@@ -503,6 +504,7 @@ internal sealed class BeatNoiseScopeRenderer
             Markers = snapshot.Markers,
             LiftAngleDeg = snapshot.LiftAngleDeg,
             Average = snapshot.Average,
+            Quality = snapshot.Quality,
         };
     }
 
@@ -538,7 +540,7 @@ internal sealed class BeatNoiseScopeRenderer
         if (segment == null)
         {
             SetMarker(_cOnsetMarker, null);
-            SetSignalQuality(SignalQualityFlags.WeakSignal);
+            SetSignalQuality(SignalQualityFlags.None);
             return;
         }
 
