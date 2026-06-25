@@ -20,6 +20,7 @@ internal sealed class MeasurementLogController : IDisposable
     private readonly MainWindowViewModel _viewModel;
     private readonly Func<string, decimal, IMeasurementResultSink> _sinkFactory;
     private string? _pendingLogPath;
+    private bool _cliLogging;
     private IMeasurementResultSink? _sink;
     private RunUiState _previousRunState;
 
@@ -30,6 +31,10 @@ internal sealed class MeasurementLogController : IDisposable
     {
         _viewModel = viewModel;
         _pendingLogPath = pendingLogPath;
+        // A CLI --measurement-log launch logs for the whole session independently of
+        // the persisted toggle (which is no longer forced true for the CLI path), so a
+        // one-shot run cannot leak into the saved MeasurementLogEnabled setting.
+        _cliLogging = pendingLogPath != null;
         _sinkFactory = sinkFactory;
         _previousRunState = viewModel.RunState;
 
@@ -53,8 +58,11 @@ internal sealed class MeasurementLogController : IDisposable
         if (e.PropertyName == nameof(MainWindowViewModel.IsMeasurementLogEnabled))
         {
             // Logging can only be toggled while stopped; disabling closes any open log.
+            // An explicit user disable also ends CLI-session logging, so a --measurement-log
+            // run the user turned off does not silently resume on the next run start.
             if (!_viewModel.IsMeasurementLogEnabled)
             {
+                _cliLogging = false;
                 CloseSink();
             }
 
@@ -72,7 +80,7 @@ internal sealed class MeasurementLogController : IDisposable
             // keeps appending to the same file.
             if (current == RunUiState.Running &&
                 previous != RunUiState.Paused &&
-                _viewModel.IsMeasurementLogEnabled)
+                (_viewModel.IsMeasurementLogEnabled || _cliLogging))
             {
                 OpenSink();
             }

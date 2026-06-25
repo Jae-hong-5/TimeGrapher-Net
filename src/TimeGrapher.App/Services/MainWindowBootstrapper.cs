@@ -44,10 +44,15 @@ internal static class MainWindowBootstrapper
                 ? new AnalysisPerformanceLogger(LogFilePaths.EnsureParentDirectory(analysisLogPath))
                 : null;
 
+        // Seed the persisted toggle from the saved value ONLY. A one-shot
+        // --measurement-log launch must not flip the persisted toggle true (it would
+        // then be saved on the next unrelated settings edit and silently keep logging
+        // on for future launches); the CLI run still logs because MeasurementLogController
+        // drives it from the supplied path independently of this toggle.
         AppSettingsController.SeedViewModel(
             viewModel,
             AppSettings.Current,
-            AppSettings.Current.SettingsWindow.MeasurementLogEnabled || startupOptions.MeasurementLogPath != null);
+            AppSettings.Current.SettingsWindow.MeasurementLogEnabled);
         measurementSinkFactory ??= static (path, liftAngleDeg) => new MeasurementResultLogger(path, liftAngleDeg);
         var measurementLogController = new MeasurementLogController(
             viewModel, startupOptions.MeasurementLogPath, measurementSinkFactory);

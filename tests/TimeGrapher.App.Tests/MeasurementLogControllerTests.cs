@@ -157,11 +157,45 @@ public sealed class MeasurementLogControllerTests
         var factory = new RecordingFactory();
         var vm = EnabledViewModel(false);
 
-        using var controller = new MeasurementLogController(vm, "seed.csv", factory.Create);
+        // No CLI path and the persisted toggle off => logging is fully disabled.
+        using var controller = new MeasurementLogController(vm, pendingLogPath: null, factory.Create);
         vm.SetRunning();
         controller.ObserveDisplayed(new AnalysisFrame());
 
         Assert.Empty(factory.Paths);
+    }
+
+    [Fact]
+    public void CliPath_LogsForTheSessionEvenWhenPersistedToggleOff()
+    {
+        // A --measurement-log launch logs even though the persisted toggle stays off, so a
+        // one-shot CLI run never leaks into the saved MeasurementLogEnabled setting. The
+        // controller drives this from the supplied path independently of the toggle.
+        var factory = new RecordingFactory();
+        var vm = EnabledViewModel(false);
+
+        using var controller = new MeasurementLogController(vm, "seed.csv", factory.Create);
+        vm.SetRunning();
+
+        Assert.Single(factory.Paths);
+    }
+
+    [Fact]
+    public void CliPath_UserDisableEndsSessionLogging()
+    {
+        // Explicitly turning logging off mid-session stops the CLI-session logging too,
+        // so a later run start does not silently resume it.
+        var factory = new RecordingFactory();
+        var vm = EnabledViewModel(false);
+        using var controller = new MeasurementLogController(vm, "seed.csv", factory.Create);
+
+        vm.SetRunning();   // first run logs from the CLI path
+        vm.SetStopped();
+        vm.IsMeasurementLogEnabled = true;   // user toggles on then off
+        vm.IsMeasurementLogEnabled = false;
+        vm.SetRunning();   // second run must not open a new log
+
+        Assert.Single(factory.Paths);
     }
 
     [Fact]

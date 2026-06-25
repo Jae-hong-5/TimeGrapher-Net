@@ -157,17 +157,21 @@ public sealed class MainWindowBootstrapperTests : IDisposable
     }
 
     [Fact]
-    public void Build_SeedsMeasurementLogEnabledWhenCliPathGiven()
+    public void Build_DoesNotSeedMeasurementLogToggleFromCliPath()
     {
         MainWindowViewModel vm = MainWindowBootstrapper.CreateViewModel();
 
-        // A fake sink factory means the enabled path opens no CSV file.
+        // A one-shot --measurement-log launch must NOT flip the persisted toggle: that
+        // value is saved on the next settings edit and would silently keep logging on for
+        // future launches. The CLI run still logs (driven by MeasurementLogController from
+        // its path), but the persisted toggle stays at its saved value. A fake sink factory
+        // means the logging path opens no CSV file.
         _ = MainWindowBootstrapper.Build(
             vm, Adapters(new FakeRunCommandOperations(), new FakeAcceptBandOperations()), Callbacks(),
             AppStartupOptions.Parse(new[] { "--measurement-log", "ignored.csv" }),
             (_, _) => new FakeMeasurementSink());
 
-        Assert.True(vm.IsMeasurementLogEnabled);
+        Assert.False(vm.IsMeasurementLogEnabled);
     }
 
     [Fact]
