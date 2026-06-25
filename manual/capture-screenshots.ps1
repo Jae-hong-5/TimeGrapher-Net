@@ -194,6 +194,7 @@ $tabMap = @{
   "Filter Scope" = "tab-filter-scope.png"
   "Long-Term"    = "tab-long-term.png"
   "Positions"    = "tab-positions.png"
+  "Health"       = "tab-health.png"
   "Beat Noise"   = "tab-beat-noise.png"
   "Escapement"   = "tab-escapement.png"
   "Waveforms"    = "tab-waveforms.png"
