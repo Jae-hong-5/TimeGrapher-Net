@@ -28,6 +28,20 @@ internal sealed record RadarAxis(
     long Beats);
 
 /// <summary>
+/// One row of the Health "Levels" list: a position's amplitude/rate/beat-error
+/// readings and the worst severity among the three (the status dot). Formatted
+/// text is carried so the view stays free of culture/formatting concerns.
+/// </summary>
+internal sealed record HealthLevelRow(
+    WatchPosition Position,
+    string Label,
+    bool HasValue,
+    string AmplitudeText,
+    string RateText,
+    string BeatErrorText,
+    VarioVerdictLevel Level);
+
+/// <summary>
 /// Pure model behind the Watch Health radar. It maps the per-position aggregates
 /// the frame snapshot already carries (<see cref="PositionSummary"/>) onto the six
 /// fixed cardinal NIHS positions, normalising the selected measure onto a 0..1
@@ -48,7 +62,11 @@ internal sealed record WatchHealthRadarModel(
     WatchPosition? WeakestPosition,
     string SummaryLine,
     string VerdictText,
-    VarioVerdictLevel VerdictLevel)
+    VarioVerdictLevel VerdictLevel,
+    IReadOnlyList<HealthLevelRow> Levels,
+    ConsistencyDiagnosis Consistency,
+    string OverallText,
+    VarioVerdictLevel OverallLevel)
 {
     /// <summary>
     /// The six cardinal NIHS positions, clockwise from the top (CH). The four 45°
@@ -65,7 +83,8 @@ internal sealed record WatchHealthRadarModel(
         WatchPosition.P9H,
     };
 
-    public static WatchHealthRadarModel Build(IReadOnlyList<PositionSummary> positions, RadarMetric metric)
+    public static WatchHealthRadarModel Build(
+        IReadOnlyList<PositionSummary> positions, RadarMetric metric, WatchPosition activePosition = default)
     {
         var byPosition = new Dictionary<WatchPosition, PositionSummary>();
         foreach (PositionSummary position in positions)
@@ -74,6 +93,9 @@ internal sealed record WatchHealthRadarModel(
         }
 
         MetricSpec spec = MetricSpec.For(metric);
+        MetricSpec ampSpec = MetricSpec.For(RadarMetric.Amplitude);
+        MetricSpec rateSpec = MetricSpec.For(RadarMetric.Rate);
+        MetricSpec beatSpec = MetricSpec.For(RadarMetric.BeatError);
 
         // Pass 1: size the radial scale to cover the measured values.
         double dataMin = double.PositiveInfinity;
@@ -185,6 +207,48 @@ internal sealed record WatchHealthRadarModel(
             }
         }
 
+        // Levels axis: each position's three readings plus the worst severity
+        // among them (the status dot), read from all three measures (not just the
+        // selected radar metric).
+        var levels = new List<HealthLevelRow>(AxisOrder.Count);
+        foreach (WatchPosition position in AxisOrder)
+        {
+            if (byPosition.TryGetValue(position, out PositionSummary? summary) &&
+                (summary.Amplitude.Valid || summary.Rate.Valid || summary.BeatError.Valid))
+            {
+                levels.Add(new HealthLevelRow(
+                    position,
+                    position.ShortName(),
+                    HasValue: true,
+                    summary.Amplitude.Valid ? ampSpec.Format(summary.Amplitude.Mean) : "—",
+                    summary.Rate.Valid ? rateSpec.Format(summary.Rate.Mean) : "—",
+                    summary.BeatError.Valid ? beatSpec.Format(summary.BeatError.Mean) : "—",
+                    WorstLevel(
+                        ampSpec.Verdict(summary.Amplitude),
+                        rateSpec.Verdict(summary.Rate),
+                        beatSpec.Verdict(summary.BeatError))));
+            }
+            else
+            {
+                levels.Add(new HealthLevelRow(
+                    position, position.ShortName(), HasValue: false, "—", "—", "—", VarioVerdictLevel.Pending));
+            }
+        }
+
+        // Consistency axis: reuse the Positions sequence judgment over the same snapshot.
+        ConsistencyDiagnosis consistency =
+            ConsistencyDiagnosis.Compute(SequenceSummary.Compute(positions), activePosition);
+
+        // Overall = the worse severity of the two axes (band conformance, consistency).
+        VarioVerdictLevel overallLevel = (VarioVerdictLevel)Math.Max((int)level, (int)consistency.Level);
+        string overallText = overallLevel switch
+        {
+            VarioVerdictLevel.Bad => "ALERT — service required",
+            VarioVerdictLevel.Warn => "WATCH — keep measuring",
+            VarioVerdictLevel.Good => "OK — healthy",
+            _ => "Measuring…",
+        };
+
         return new WatchHealthRadarModel(
             metric,
             spec.Title,
@@ -198,7 +262,26 @@ internal sealed record WatchHealthRadarModel(
             measured > 0 ? weakest : null,
             summaryLine,
             verdictText,
-            level);
+            level,
+            levels,
+            consistency,
+            overallText,
+            overallLevel);
+    }
+
+    /// <summary>Worst non-pending severity across a position's three measure verdicts.</summary>
+    private static VarioVerdictLevel WorstLevel(params VarioVerdict[] verdicts)
+    {
+        var worst = VarioVerdictLevel.Pending;
+        foreach (VarioVerdict verdict in verdicts)
+        {
+            if (verdict.Level != VarioVerdictLevel.Pending && (int)verdict.Level > (int)worst)
+            {
+                worst = verdict.Level;
+            }
+        }
+
+        return worst;
     }
 
     /// <summary>

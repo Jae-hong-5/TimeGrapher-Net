@@ -194,4 +194,71 @@ public class WatchHealthRadarModelTests
         Assert.Contains("Rate", model.MetricTitle);
         Assert.Contains("s/d", AxisFor(model, WatchPosition.CH).ValueText);
     }
+
+    private static PositionSummary AmpRate(WatchPosition position, double amplitude, double rate, long count = 50) =>
+        new(position, Stat(rate, count), Stat(amplitude, count), None);
+
+    private static HealthLevelRow LevelFor(WatchHealthRadarModel model, WatchPosition position) =>
+        model.Levels.Single(l => l.Position == position);
+
+    [Fact]
+    public void Build_PopulatesLevelsForEveryAxisPosition()
+    {
+        var positions = new[] { Amp(WatchPosition.CH, 290), Amp(WatchPosition.CB, 285) };
+
+        WatchHealthRadarModel model = WatchHealthRadarModel.Build(positions, RadarMetric.Amplitude);
+
+        Assert.Equal(WatchHealthRadarModel.AxisOrder.Count, model.Levels.Count);
+        Assert.True(LevelFor(model, WatchPosition.CH).HasValue);
+        Assert.Contains("290", LevelFor(model, WatchPosition.CH).AmplitudeText);
+        Assert.False(LevelFor(model, WatchPosition.P9H).HasValue);
+    }
+
+    [Fact]
+    public void Build_LevelSeverityIsWorstOfTheThreeMeasures()
+    {
+        // Service-low amplitude alone makes the row's status dot ALERT (Bad).
+        double serviceLow = VarioVerdict.AmplitudeServiceDeg - 20.0;
+        var positions = new[] { Amp(WatchPosition.CH, serviceLow) };
+
+        WatchHealthRadarModel model = WatchHealthRadarModel.Build(positions, RadarMetric.Amplitude);
+
+        Assert.Equal(VarioVerdictLevel.Bad, LevelFor(model, WatchPosition.CH).Level);
+    }
+
+    [Fact]
+    public void Build_OverallEscalatesWhenConsistencyChecks()
+    {
+        // Amplitude in band on every measured position (band axis Good), but the
+        // qualified rate spread is 20 s/d (> 15) so consistency CHECKs — the
+        // overall verdict must take the worse axis (WATCH).
+        double inBand = (VarioGaugePolicy.AmplitudeAcceptMinDeg + VarioGaugePolicy.AmplitudeAcceptMaxDeg) / 2.0;
+        var positions = new[]
+        {
+            AmpRate(WatchPosition.CH, inBand, rate: 0.0),
+            AmpRate(WatchPosition.P3H, inBand, rate: 0.0),
+            AmpRate(WatchPosition.P9H, inBand, rate: 20.0),
+        };
+
+        WatchHealthRadarModel model = WatchHealthRadarModel.Build(positions, RadarMetric.Amplitude, WatchPosition.CH);
+
+        Assert.Equal(VarioVerdictLevel.Good, model.VerdictLevel);   // band axis unchanged
+        Assert.Equal(VarioVerdictLevel.Warn, model.Consistency.Level);
+        Assert.Equal(VarioVerdictLevel.Warn, model.OverallLevel);
+        Assert.Contains("WATCH", model.OverallText);
+    }
+
+    [Fact]
+    public void Build_OverallFollowsBandWhileConsistencyIsPending()
+    {
+        // One in-band amplitude position: band axis Good, consistency still
+        // collecting (no rate / too few positions) — overall stays Good.
+        double inBand = (VarioGaugePolicy.AmplitudeAcceptMinDeg + VarioGaugePolicy.AmplitudeAcceptMaxDeg) / 2.0;
+        var positions = new[] { Amp(WatchPosition.CH, inBand) };
+
+        WatchHealthRadarModel model = WatchHealthRadarModel.Build(positions, RadarMetric.Amplitude, WatchPosition.CH);
+
+        Assert.Equal(VarioVerdictLevel.Pending, model.Consistency.Level);
+        Assert.Equal(VarioVerdictLevel.Good, model.OverallLevel);
+    }
 }

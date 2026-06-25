@@ -67,7 +67,7 @@ dotnet test  TimeGrapherNet.sln -c Release
 ## Commit-unit checklist  (tick as you go)
 - [x] **C1** docs: add `_handoff/` plan + spec (this commit)
 - [x] **C2** refactor(positions): extracted the consistency verdict (OK/CHECK/COLLECTING + D-spread/balance/V·H statuses + spread readings) out of `MultiPositionSeqRenderer` into the pure `ConsistencyDiagnosis` (new) so Health can consume it. No UI/behavior change (670 tests green). + `ConsistencyDiagnosisTests`.
-- [ ] **C3** feat(health): extend `WatchHealthRadarModel` with Levels list + Consistency axis + Overall (consume C2 helper + `SequenceSummary`). + `WatchHealthRadarModelTests`.
+- [x] **C3** feat(health): `WatchHealthRadarModel.Build` now also returns `Levels` (per-position amp/rate/beat + worst-of-three status), `Consistency` (the C2 `ConsistencyDiagnosis` over `SequenceSummary.Compute(positions)`), and `Overall` (worse of band-level and consistency). `Build` gained an optional `activePosition` param (existing callers/tests unaffected). 674 tests green. Renderer still shows only the old fields — wiring is C4.
 - [ ] **C4** feat(health): rebuild `InfoTabRegistry.Radar.cs` into radar + unified Diagnosis rail; `WatchHealthRadarRenderer` populates the rail controls.
 - [ ] **C5** feat(positions): remove `POSITION CONSISTENCY` block + criteria flyout + unbalance banner from the Positions tab (`InfoTabRegistry.cs`, `MultiPositionSeqRenderer`, `PositionSequenceDashboardControls`). Keep table + active card building blocks.
 - [ ] **C6** feat(positions): add merged acquisition columns (RATE RANGE lane + COLLECTION) to the per-position table from `PositionSummary` stats + `VarioGaugePolicy`; POS black; out-of-band values red; mean dot dark/red. New small lane renderer/control. + tests.
