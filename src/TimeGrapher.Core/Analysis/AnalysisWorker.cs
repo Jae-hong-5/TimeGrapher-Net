@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using TimeGrapher.Core.Analysis.Quality;
 using TimeGrapher.Core.AudioIo;
 using TimeGrapher.Core.Detection;
 using TimeGrapher.Core.Shared;
@@ -39,6 +40,11 @@ public sealed class AnalysisWorker : IDisposable
         /// <summary>True under the light UI theme. The spectrogram colormap is one shared viridis LUT for both themes; only the empty (no-input) background follows this.</summary>
         public bool SpectrogramLightColormap = false;
         public ISampleWriter? SampleWriter = null;
+
+        /// <summary>Optional trained signal-quality classifier. Null = feature off,
+        /// and the engine then skips classification entirely (byte-identical). The
+        /// App injects the ML.NET implementation; Core only sees the interface.</summary>
+        public ISignalQualityClassifier? QualityClassifier = null;
     }
 
     /// <summary>Default detector input block size in samples (~85 ms at 48 kHz). The
@@ -101,7 +107,8 @@ public sealed class AnalysisWorker : IDisposable
             config.AutoBph,
             config.ManualBph,
             config.HpfCutoffHz,
-            PhaseGuideOnsetRescueScale: config.PhaseGuideOnsetRescueScale));
+            PhaseGuideOnsetRescueScale: config.PhaseGuideOnsetRescueScale),
+            config.QualityClassifier);
 
         _inputBlock = new float[config.AnalysisBlockSize];
         _scopeRateProjector = new ScopeRateFrameProjector(
@@ -437,6 +444,7 @@ public sealed class AnalysisWorker : IDisposable
         {
             frame.MissedBeats = lastPipelineUpdate.Result.MissedBeats;
             frame.SyncLossCount = lastPipelineUpdate.Result.SyncLossCount;
+            frame.SignalQuality = lastPipelineUpdate.Result.QualityAssessment;
         }
 
         if (_rawAudio.TryGetCaptureTimestamp(sourceSampleEnd, out long captureTicks, out bool isLowerBound))

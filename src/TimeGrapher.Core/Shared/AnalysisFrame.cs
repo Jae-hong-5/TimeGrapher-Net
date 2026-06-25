@@ -226,6 +226,14 @@ public sealed class AnalysisFrame
     /// </summary>
     public BeatSegmentsSnapshot? BeatSegments;
 
+    /// <summary>
+    /// Window-level signal-quality verdict from the optional trained classifier,
+    /// or null when the feature is off. Advisory annotation only — it never affects
+    /// detected beats or metrics. The App maps this onto the same SignalQualityFlags
+    /// it already surfaces, so no new UI is needed.
+    /// </summary>
+    public SignalQualityAssessment? SignalQuality;
+
     public PixelBuffer? SoundImage;
     public bool SoundImageUpdated;
 
