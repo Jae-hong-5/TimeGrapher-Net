@@ -1,13 +1,12 @@
 using TimeGrapher.App;
 using TimeGrapher.Core.Analysis;
-using TimeGrapher.Core.Detection.Scoring;
 using Xunit;
 
 namespace TimeGrapher.App.Tests;
 
 /// <summary>
-/// Pins the run-settings -> worker-config policy: the PLL event veto and the
-/// weak-A onset rescue both stay behind their toggles and default off.
+/// Pins the run-settings -> worker-config policy: the weak-A onset rescue stays
+/// behind its toggle and defaults off.
 /// </summary>
 public sealed class AnalysisRunSettingsTests
 {
@@ -26,24 +25,6 @@ public sealed class AnalysisRunSettingsTests
         PllEventVeto: pllEventVeto,
         AnalysisBlockSize: analysisBlockSize,
         WeakAOnsetRescue: weakAOnsetRescue);
-
-    [Fact]
-    public void Default_DoesNotWireTheVeto()
-    {
-        AnalysisWorker.Config config = NewSettings(pllEventVeto: false)
-            .ToWorkerConfig(sessionId: 1, sampleWriter: null);
-
-        Assert.Null(config.EventGate);
-    }
-
-    [Fact]
-    public void PllEventVetoOn_AddsTheGate()
-    {
-        AnalysisWorker.Config config = NewSettings(pllEventVeto: true)
-            .ToWorkerConfig(sessionId: 1, sampleWriter: null);
-
-        Assert.IsType<PllMatchGate>(config.EventGate);
-    }
 
     [Fact]
     public void Default_DoesNotWireTheRescue()

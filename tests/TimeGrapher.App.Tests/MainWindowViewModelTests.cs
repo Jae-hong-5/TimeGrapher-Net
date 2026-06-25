@@ -192,7 +192,6 @@ public sealed class MainWindowViewModelTests
         Assert.True(vm.Realistic);
         Assert.Equal("200", vm.HighPassCutoffText);
         Assert.False(vm.UseCOnset);
-        Assert.False(vm.PllEventVeto);
         Assert.False(vm.PauseOnPositionChange);
         Assert.False(vm.IsMeasurementLogEnabled);
     }

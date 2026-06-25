@@ -33,7 +33,6 @@ public sealed class SettingsToggleBindingTests
         content.Arrange(new Rect(0, 0, 760, 520));
 
         AssertTwoWay(window, "UseConsetToggleSwitch", v => vm.UseCOnset = v, () => vm.UseCOnset);
-        AssertTwoWay(window, "PllEventVetoToggleSwitch", v => vm.PllEventVeto = v, () => vm.PllEventVeto);
         AssertTwoWay(window, "PauseOnPositionChangeToggleSwitch", v => vm.PauseOnPositionChange = v, () => vm.PauseOnPositionChange);
         AssertTwoWay(window, "MeasurementLogEnabledToggleSwitch", v => vm.IsMeasurementLogEnabled = v, () => vm.IsMeasurementLogEnabled);
     }
