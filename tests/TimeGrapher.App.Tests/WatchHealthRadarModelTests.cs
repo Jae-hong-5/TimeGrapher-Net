@@ -154,24 +154,35 @@ public class WatchHealthRadarModelTests
     }
 
     [Fact]
-    public void BeatError_VerdictTracksTheSharedAcceptBand()
+    public void BeatError_VerdictTracksTheEditedAcceptBand()
     {
-        // The beat-error verdict grades against the shared AcceptBandSettings magnitude
-        // (Good within the band, Marginal up to 2x, High beyond) rather than a hardcoded
-        // ±1/±2 ms convention, so the radar agrees with the other beat-error displays.
-        double band = AcceptBandSettings.Current.BeatErrorMagnitudeMs;
+        // Prove the verdict reads the live AcceptBandSettings, not a hardcoded threshold.
+        // With a non-default 0.5 ms band, 0.75 ms (1.5x band) is Marginal and 1.5 ms (3x)
+        // is High -- but under the old hardcoded 1/2 ms convention (or the default 0.8 ms
+        // band) those same inputs would read Good and Marginal, so this only passes if the
+        // radar grades against the edited band. Save/restore Current per the renderer-test
+        // pattern (VarioRendererThemeTests).
+        AcceptBandSettings original = AcceptBandSettings.Current;
+        try
+        {
+            AcceptBandSettings.Current = AcceptBandSettings.Default with { BeatErrorMagnitudeMs = 0.5 };
 
-        WatchHealthRadarModel good = WatchHealthRadarModel.Build(
-            WatchHealthRadarModel.AxisOrder.Select(p => Beat(p, band * 0.5)).ToArray(), RadarMetric.BeatError);
-        Assert.Equal(VarioVerdictLevel.Good, good.VerdictLevel);
+            WatchHealthRadarModel good = WatchHealthRadarModel.Build(
+                WatchHealthRadarModel.AxisOrder.Select(p => Beat(p, 0.25)).ToArray(), RadarMetric.BeatError);
+            Assert.Equal(VarioVerdictLevel.Good, good.VerdictLevel);
 
-        WatchHealthRadarModel marginal = WatchHealthRadarModel.Build(
-            WatchHealthRadarModel.AxisOrder.Select(p => Beat(p, band * 1.5)).ToArray(), RadarMetric.BeatError);
-        Assert.Equal(VarioVerdictLevel.Warn, marginal.VerdictLevel);
+            WatchHealthRadarModel marginal = WatchHealthRadarModel.Build(
+                WatchHealthRadarModel.AxisOrder.Select(p => Beat(p, 0.75)).ToArray(), RadarMetric.BeatError);
+            Assert.Equal(VarioVerdictLevel.Warn, marginal.VerdictLevel);
 
-        WatchHealthRadarModel bad = WatchHealthRadarModel.Build(
-            WatchHealthRadarModel.AxisOrder.Select(p => Beat(p, band * 3.0)).ToArray(), RadarMetric.BeatError);
-        Assert.Equal(VarioVerdictLevel.Bad, bad.VerdictLevel);
+            WatchHealthRadarModel bad = WatchHealthRadarModel.Build(
+                WatchHealthRadarModel.AxisOrder.Select(p => Beat(p, 1.5)).ToArray(), RadarMetric.BeatError);
+            Assert.Equal(VarioVerdictLevel.Bad, bad.VerdictLevel);
+        }
+        finally
+        {
+            AcceptBandSettings.Current = original;
+        }
     }
 
     [Fact]
