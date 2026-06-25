@@ -113,7 +113,19 @@ public sealed class RateScopeHistoryTests
         SetPrivateField(renderer, "_rateFollowLive", false);
         ratePlot.Plot.Axes.SetLimitsX(0.0, RateScopeRenderer.RatePageWindowBeats);
 
-        var second = new AnalysisFrame();
+        var second = new AnalysisFrame
+        {
+            MetricsHistory = new BeatMetricsHistorySnapshot
+            {
+                AveragePeriodRateIntervals = new[]
+                {
+                    new AveragePeriodRateInterval(
+                        120.0, 121.0, 120.0, 121.0, -432.0,
+                        AmplitudeValid: true, AmplitudeDeg: 250.0,
+                        BeatErrorValid: true, BeatErrorMs: 0.4),
+                },
+            },
+        };
         AddRateSeries(second, new GraphSeriesFrame
         {
             Id = AnalysisGraphSeries.RateTic,
@@ -124,6 +136,11 @@ public sealed class RateScopeHistoryTests
         renderer.RenderFrame(second, new AnalysisTabRenderContext(48000));
 
         Assert.Equal(new[] { 120.0, 121.0 }, RateX(renderer, AnalysisGraphSeries.RateTic));
+        Assert.Equal(
+            new[] { "-432.0 s/d\n250°  0.4 ms" },
+            ratePlot.Plot.GetPlottables<Text>().Where(t => t.IsVisible).Select(t => t.LabelText).ToArray());
+
+        ratePlot.Plot.RenderInMemory(900, 240);
         AxisLimits limits = ratePlot.Plot.Axes.GetLimits();
         Assert.Equal(0.0, limits.Left);
         Assert.Equal(RateScopeRenderer.RatePageWindowBeats, limits.Right);

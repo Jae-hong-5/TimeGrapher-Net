@@ -456,9 +456,9 @@ internal sealed class RateScopeRenderer
     }
 
     /// <summary>
-    /// Confines the rate plot's X view to the retained beat extent while preserving the
-    /// fixed 120-beat page as the live-follow maximum span. A pan/zoom-out past either
-    /// end is shifted back inside with span preserved.
+    /// Confines the rate plot's X view to fixed 120-beat pages. Live-follow stays on
+    /// the newest data extent; after a user pan/zoom, the older pages remain reachable
+    /// while incoming points continue to refresh.
     /// </summary>
     private sealed class RateXViewBoundsRule : IAxisRule
     {
@@ -479,12 +479,9 @@ internal sealed class RateScopeRenderer
             }
 
             (double pageLeft, double pageRight) = RatePageWindowFor(_owner._rateDataMaxX);
-            ClampViewToPagedExtent(
-                _xAxis,
-                _owner._rateDataMinX,
-                pageRight,
-                pageLeft,
-                RatePageWindowBeats);
+            double minLeft = _owner._rateFollowLive ? _owner._rateDataMinX : 0.0;
+            double firstPageLeft = _owner._rateFollowLive ? pageLeft : 0.0;
+            ClampViewToPagedExtent(_xAxis, minLeft, pageRight, firstPageLeft, RatePageWindowBeats);
         }
     }
 
