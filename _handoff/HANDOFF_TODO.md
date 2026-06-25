@@ -23,8 +23,8 @@ Two tabs share the same per-position snapshot (`PositionSummary`). We split resp
 - Diagnosis rail (single panel), top→bottom:
   1. Header `DIAGNOSIS · unified` + metric toggle.
   2. **OVERALL** verdict: big word (OK / WATCH / ALERT) colored `VarioGood/VarioWarn/VarioBad` + chip; subline `worse of the two axes · N/10 positions · elapsed`.
-  3. **LEVELS · per position vs accept band**: list of the 6 cardinal positions — `pos | amplitude | rate | beat err | status-dot`; then `Weakest: <pos> (reason)`.
-  4. **CONSISTENCY · across positions**: 3 rows `D-SPREAD / BALANCE-WHEEL / V·H BIAS`, each `name | reading (s/d) | chip(OK/CHECK/COLLECTING)`.
+  3. **LEVELS · per position vs accept band**: column headers `POS | AMP | RATE | BEAT`, then the 6 cardinal positions — `pos | amplitude | rate | beat err | status-dot`; then `Weakest: <pos> (reason)`. **Emphasize the selected-metric column** (full color/bold) and **dim the other two metric columns** (secondary text) so the Amp/Rate/Beat toggle reads clearly as selected=primary, others=context. (Review fix.)
+  4. **CONSISTENCY · across positions**: 3 rows `D-SPREAD / BALANCE-WHEEL / V·H BIAS`, each `name + sublabel | reading (s/d) | chip(OK/CHECK/COLLECTING)`. The sublabel states the measure + limit (e.g. "best−worst rate gap · limit 15 s/d", "vertical-position rate spread · limit 15 s/d", "vertical − horizontal mean rate") to clarify each item's unit/meaning. (Review fix.)
   5. Criteria inline footnote: "CHECK when rate spread > 15 s/d across qualified positions. Reuses the Positions sequence — no new sensor."
 - Data: radar + levels from `frame.MetricsHistory.Positions`. **Consistency from `SequenceSummary.Compute(positions)` — REUSE the existing pure computation** (currently consumed by the Positions tab). OVERALL = worse severity of {levels worst-of-band, consistency verdict}.
 
@@ -37,10 +37,11 @@ Two tabs share the same per-position snapshot (`PositionSummary`). We split resp
 - **Merged table** — one row per position (`WatchPositions.All`, 10 rows). Columns:
   `POS | RATE | AMPLITUDE | BEAT ERR | BEATS | RATE RANGE vs BAND | COLLECTION`
   - **POS: always BLACK** (not red for active, not gray for unmeasured).
-  - **Active row** = pale-red band background = LongTerm Rate-pane band color (`VarioBad` `0xFFC03030`) at ~15% alpha, with an inset 3px red left marker. (LongTerm uses `ThemePane(_rate, VarioBad, VarioBad)` + `BandFillAlpha=44`.)
+  - **RED IS RESERVED STRICTLY FOR "out of accept band / danger"** (reviewer's #1 fix). Only two things are red: (a) out-of-band cell values (red text), (b) the range mean-dot when its mean is outside the band. Nothing else uses red as a fill/state.
+  - **Active row = neutral light-gray fill (`#eef0f1`) + a thin brand-red (`#c41230`) inset left bar** as the selection accent. **Do NOT use a red fill** for the active row — a red fill reads as out-of-band.
   - RATE/AMP/BEAT/BEATS monospace. **Values out of accept band → red** (`VarioBad`): rate vs `VarioGaugePolicy.RateAccept*`, amplitude vs `VarioGaugePolicy.AmplitudeAccept*`. Unmeasured = faint `—`.
   - **RATE RANGE vs BAND**: per-row horizontal lane — amber accept band (`VarioGaugePolicy` rate min/max), zero line, blue **min–max** bar (`PositionSummary.Rate.Min/Max`), **mean dot** (`PositionSummary.Rate.Mean`): dark navy normally, **red when mean is outside the accept band**. Scale hint `−20···0···+20 s/d` in the header.
-  - **COLLECTION**: progress toward 30 beats — green `qualified` when ≥30, amber `n/30 collecting` otherwise, `not measured` at 0.
+  - **COLLECTION**: progress toward 30 beats — `30+ beats` when ≥30 (green bar), `n / 30 beats` while collecting (amber bar), `not measured` at 0. **Avoid the word "qualified"** (reads as health/normal) — use beat-count wording. Hero collection label: `52 / 30 beats` (current position beats / threshold). (Review fix.)
   - Legend above the table: `● mean / ▬ min–max range / ▮ accept band / ● mean out of band / ▬ qualified / ▬ collecting`.
 - Data: **all from `PositionSummary` stats (min/max/mean/count)** — NO new Core data (TREND sparkline was dropped → lightweight). Accept bands from `VarioGaugePolicy` (shared single source).
 
