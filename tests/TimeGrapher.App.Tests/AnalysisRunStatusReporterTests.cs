@@ -129,6 +129,36 @@ public sealed class AnalysisRunStatusReporterTests
     }
 
     [Fact]
+    public void TrainedClassifierVerdictSurfacesThroughTheSameStatusPath()
+    {
+        var reporter = new AnalysisRunStatusReporter();
+        var frame = new AnalysisFrame
+        {
+            SignalQuality = new SignalQualityAssessment(SignalQualityClass.Noisy, 0.9f, default),
+        };
+
+        AnalysisRunStatusReporter.Report report = reporter.Describe(frame, 0, SampleRate);
+
+        Assert.Equal("Signal looks noisy. Reduce ambient or handling noise.", report.StatusText);
+        Assert.Equal("Signal quality warning: Noisy signal.", report.LogDetail);
+    }
+
+    [Fact]
+    public void LowConfidenceClassifierVerdictRaisesNoWarning()
+    {
+        var reporter = new AnalysisRunStatusReporter();
+        var frame = new AnalysisFrame
+        {
+            SignalQuality = new SignalQualityAssessment(SignalQualityClass.Noisy, 0.2f, default),
+        };
+
+        AnalysisRunStatusReporter.Report report = reporter.Describe(frame, 0, SampleRate);
+
+        Assert.Null(report.StatusText);
+        Assert.Null(report.LogDetail);
+    }
+
+    [Fact]
     public void ResetClearsRememberedThroughput()
     {
         var reporter = new AnalysisRunStatusReporter();

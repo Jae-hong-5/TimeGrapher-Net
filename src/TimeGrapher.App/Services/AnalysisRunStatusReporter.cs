@@ -91,7 +91,7 @@ internal sealed class AnalysisRunStatusReporter
                 frame.DeadlineDegradationLevel,
                 AnalysisDeadlineMonitor.MaxLevel);
         }
-        else if (frame.BeatSegments?.Quality is SignalQualityFlags quality && quality != SignalQualityFlags.None)
+        else if (CombinedSignalQuality(frame) is SignalQualityFlags quality && quality != SignalQualityFlags.None)
         {
             statusText = SignalQualityText.Guidance(quality);
             logDetail = "Signal quality warning: " + SignalQualityText.Summary(quality) + ".";
@@ -105,6 +105,14 @@ internal sealed class AnalysisRunStatusReporter
 
         return new Report(statusText, consoleWarning, logDetail);
     }
+
+    // The per-beat rule flags (BeatSegments.Quality) and the optional trained
+    // classifier's window-level verdict (SignalQuality) both express themselves as
+    // the same SignalQualityFlags; OR them so one status path covers both producers.
+    // When the ML feature is off, SignalQuality is null and the map contributes None.
+    private static SignalQualityFlags CombinedSignalQuality(AnalysisFrame frame)
+        => (frame.BeatSegments?.Quality ?? SignalQualityFlags.None)
+           | SignalQualityFlagsMap.From(frame.SignalQuality);
 
     private string FormatThroughput() => string.Format(
         CultureInfo.InvariantCulture,
