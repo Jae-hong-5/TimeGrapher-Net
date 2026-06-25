@@ -1,5 +1,4 @@
 using TimeGrapher.Core.Detection;
-using TimeGrapher.Core.Detection.Scoring;
 using TimeGrapher.Core.Metrics;
 using TimeGrapher.Core.Shared;
 
@@ -13,14 +12,14 @@ public sealed record DetectorMetricsEngineConfig(
     bool AutoBph,
     int ManualBph,
     double HpfCutoffHz,
-    BeatEventGateConfig? EventGate = null,
     // Seconds added to the measured A->C interval before amplitude is computed, to
     // offset the envelope front-end's A-onset detection latency (A is timestamped at
     // a threshold crossing that lags the true onset more than the C peak does). The
     // default ~45 us is the A-onset-minus-C-peak latency characterised against the
     // reference synthesiser at the default 0.15 ms envelope smoothing; it is exposed
     // here so a real measuring rig can recalibrate it. 0 disables compensation.
-    double AmplitudeOnsetLatencyS = 0.000045);
+    double AmplitudeOnsetLatencyS = 0.000045,
+    double PhaseGuideOnsetRescueScale = 0.0);
 
 public readonly record struct DetectedEventUpdate(
     TgEvent Event,
@@ -56,23 +55,17 @@ public sealed record DetectorResultSnapshot(
     float NoiseFloor,
     float ReferencePeak,
     ulong MissedBeats = 0,
-    uint SyncLossCount = 0,
-    ulong VetoedEvents = 0);
+    uint SyncLossCount = 0);
 
 /// <summary>
 /// Shared detector + metrics pipeline used by the live worker and the headless
 /// verifier so their event/metric contracts cannot drift apart.
-///
-/// Gate semantics: when an event gate is configured, DisplayEvents and
-/// MetricsEvents carry the same POST-gate stream. The raw detector stream
-/// remains observable through Result.Events and Result.VetoedEvents.
 /// </summary>
 public sealed class DetectorMetricsEngine
 {
     private readonly DetectorMetricsEngineConfig _config;
     private readonly WatchMetrics _metrics;
     private readonly TgDetector _detector;
-    private readonly BeatEventGateHost? _gate;
     private readonly TgResult _result = new();
     private uint _syncLossCount;
 
@@ -86,7 +79,6 @@ public sealed class DetectorMetricsEngine
             AveragingPeriod = config.AveragingPeriod,
             MaxRateDataPoints = 250,
             RateErrorYScale = 10.0,
-            RlsWindowInit = 100,
             AmplitudeOnsetLatencyS = config.AmplitudeOnsetLatencyS,
         });
 
@@ -96,14 +88,7 @@ public sealed class DetectorMetricsEngine
         detectorConfig.ManualBph = config.ManualBph;
         detectorConfig.SuppressPreSyncEvents = true;
         detectorConfig.HpfCutoffHz = config.HpfCutoffHz;
-
-        /* The gate consumes the per-event PLL match verdicts, so configuring
-         * a gate implies TrackEventPllMatch on the detector. */
-        if (config.EventGate != null)
-        {
-            detectorConfig.TrackEventPllMatch = true;
-            _gate = new BeatEventGateHost(config.EventGate.Gate, config.SampleRate);
-        }
+        detectorConfig.PhaseGuideOnsetRescueScale = config.PhaseGuideOnsetRescueScale;
 
         _detector = new TgDetector(detectorConfig);
         _metrics.Reset();
@@ -131,65 +116,19 @@ public sealed class DetectorMetricsEngine
         var displayUpdates = new List<DetectedEventUpdate>(_result.Events.Count);
         var metricsUpdates = new List<DetectedEventUpdate>(_result.Events.Count);
 
-        if (_gate == null)
+        foreach (TgEvent ev in _result.Events)
         {
-            foreach (TgEvent ev in _result.Events)
+            double eventSample = EventSample(ev);
+            WatchMetricsUpdate metricsUpdate = ev.Type switch
             {
-                double eventSample = EventSample(ev);
-                WatchMetricsUpdate metricsUpdate = ev.Type switch
-                {
-                    TgEventType.A => _metrics.HandleAEvent(eventSample, synced, _result.DetectedBph),
-                    TgEventType.C => _metrics.HandleCEvent(eventSample, synced, _result.DetectedBph),
-                    _ => new WatchMetricsUpdate(),
-                };
+                TgEventType.A => _metrics.HandleAEvent(eventSample, synced, _result.DetectedBph),
+                TgEventType.C => _metrics.HandleCEvent(eventSample, synced, _result.DetectedBph),
+                _ => new WatchMetricsUpdate(),
+            };
 
-                var update = new DetectedEventUpdate(ev, eventSample, metricsUpdate);
-                displayUpdates.Add(update);
-                metricsUpdates.Add(update);
-            }
-        }
-        else
-        {
-            _gate.AppendEnvelope(_result.ProcessedPcm, _result.ProcessedPcmLen, _result.ProcessedPcmStartSample);
-
-            ReadOnlySpan<byte> pllMatch = _detector.LastEventPllMatch;
-            for (int i = 0; i < _result.Events.Count; i++)
-            {
-                TgEvent ev = _result.Events[i];
-                double eventSample = EventSample(ev);
-
-                bool matched = i >= pllMatch.Length || pllMatch[i] != 0;
-                var candidate = new BeatCandidate(
-                    ev, synced, _result.DetectedBph, _result.MeasuredPeriodS,
-                    _result.NoiseFloor, _result.ReferencePeak, matched);
-                _gate.Submit(ev, eventSample, candidate);
-            }
-
-            /* Force-release pending events at stream and sync boundaries so
-             * the gate never swallows events across a state flush. */
-            bool force = endOfStream || _result.SyncLostEvent || _result.DetectorResetEvent;
-            foreach (BeatEventGateHost.ReleasedEvent released in _gate.Release(force))
-            {
-                if (!released.Accepted)
-                {
-                    continue;
-                }
-                WatchMetricsUpdate metricsUpdate = released.Event.Type switch
-                {
-                    TgEventType.A => _metrics.HandleAEvent(
-                        released.EventSample, released.Candidate.Synced, released.Candidate.DetectedBph),
-                    TgEventType.C => _metrics.HandleCEvent(
-                        released.EventSample, released.Candidate.Synced, released.Candidate.DetectedBph),
-                    _ => new WatchMetricsUpdate(),
-                };
-                var update = new DetectedEventUpdate(released.Event, released.EventSample, metricsUpdate);
-                displayUpdates.Add(update);
-                metricsUpdates.Add(update);
-            }
-            if (_result.SyncLostEvent || _result.DetectorResetEvent)
-            {
-                _gate.ResetGate();
-            }
+            var update = new DetectedEventUpdate(ev, eventSample, metricsUpdate);
+            displayUpdates.Add(update);
+            metricsUpdates.Add(update);
         }
 
         TgEvent[] eventsSnapshot = _result.Events.ToArray();
@@ -215,8 +154,7 @@ public sealed class DetectorMetricsEngine
             _result.NoiseFloor,
             _result.ReferencePeak,
             _metrics.MissedBeats,
-            _syncLossCount,
-            _gate?.VetoedEvents ?? 0);
+            _syncLossCount);
 
         return new DetectorMetricsBlockUpdate(resultSnapshot, displayUpdates, metricsUpdates);
     }

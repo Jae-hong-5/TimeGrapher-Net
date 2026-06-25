@@ -16,14 +16,21 @@ public sealed class MainWindowRunControlWiringTests
     {
         XDocument document = XDocument.Load(FindSourceFile("src/TimeGrapher.App/Views/MainWindow.axaml"));
 
-        XElement resetButton = FindNamedElement(document, "ResetPushButton");
+        XElement stopButton = FindNamedElement(document, "StopPushButton");
         XElement playPauseButton = FindNamedElement(document, "PlayPausePushButton");
 
-        Assert.Equal("{Binding ResetCommand}", resetButton.Attribute("Command")?.Value);
-        Assert.Equal("{Binding IsResetEnabled}", resetButton.Attribute("IsEnabled")?.Value);
-        Assert.Equal("Reset and refresh input devices", resetButton.Attribute("ToolTip.Tip")?.Value);
-        Assert.Equal("68", resetButton.Attribute("Width")?.Value);
-        Assert.Equal("68", resetButton.Attribute("MinWidth")?.Value);
+        Assert.Equal("{Binding StopCommand}", stopButton.Attribute("Command")?.Value);
+        Assert.Equal("{Binding IsStopEnabled}", stopButton.Attribute("IsEnabled")?.Value);
+        Assert.Equal("Stop", stopButton.Attribute("AutomationProperties.Name")?.Value);
+        Assert.Equal("Stop current run", stopButton.Attribute("ToolTip.Tip")?.Value);
+        Assert.Equal("68", stopButton.Attribute("Width")?.Value);
+        Assert.Equal("68", stopButton.Attribute("MinWidth")?.Value);
+        Assert.Equal(
+            "M6 6H18V18H6V6Z",
+            stopButton
+                .Descendants()
+                .Single(element => element.Name.LocalName == "Path")
+                .Attribute("Data")?.Value);
 
         Assert.Equal("{Binding PlayPauseCommand}", playPauseButton.Attribute("Command")?.Value);
         Assert.Equal("{Binding IsPlayPauseEnabled}", playPauseButton.Attribute("IsEnabled")?.Value);
@@ -33,17 +40,17 @@ public sealed class MainWindowRunControlWiringTests
     }
 
     [Fact]
-    public void RunControlSurfaceDoesNotExposeLegacyStopOrSequenceResetControls()
+    public void RunControlSurfaceDoesNotExposeLegacyResetControls()
     {
         XDocument document = XDocument.Load(FindSourceFile("src/TimeGrapher.App/Views/MainWindow.axaml"));
 
         Assert.DoesNotContain(
             document.Descendants().Attributes("Command").Select(attribute => attribute.Value),
-            value => value.Contains("StopCommand", StringComparison.Ordinal) ||
+            value => value.Contains("ResetCommand", StringComparison.Ordinal) ||
                 value.Contains("ResetSequenceCommand", StringComparison.Ordinal));
         Assert.DoesNotContain(
             document.Descendants().Attributes("Name").Select(attribute => attribute.Value),
-            value => value.Contains("StopPushButton", StringComparison.Ordinal) ||
+            value => value.Contains("ResetPushButton", StringComparison.Ordinal) ||
                 value.Contains("ResetSequence", StringComparison.Ordinal));
     }
 
@@ -75,12 +82,13 @@ public sealed class MainWindowRunControlWiringTests
     }
 
     [Fact]
-    public void AveragingPeriodMovedToSettingsRunParameters()
+    public void RunStartInputsLiveInSettingsRunParameters()
     {
         XDocument mainWindow = XDocument.Load(FindSourceFile("src/TimeGrapher.App/Views/MainWindow.axaml"));
         XDocument settingsWindow = XDocument.Load(FindSourceFile("src/TimeGrapher.App/Views/SettingsWindow.axaml"));
 
         XElement averagingPeriodInput = FindNamedElement(settingsWindow, "AveragingPeriodSpinBox");
+        XElement highPassInput = FindNamedElement(settingsWindow, "HighLineEdit");
 
         Assert.Equal("NumericUpDown", averagingPeriodInput.Name.LocalName);
         Assert.Equal("{Binding AreRunParametersEnabled}", averagingPeriodInput.Attribute("IsEnabled")?.Value);
@@ -88,9 +96,14 @@ public sealed class MainWindowRunControlWiringTests
         Assert.Equal("1", averagingPeriodInput.Attribute("Minimum")?.Value);
         Assert.Equal("240", averagingPeriodInput.Attribute("Maximum")?.Value);
         Assert.Equal("1", averagingPeriodInput.Attribute("Increment")?.Value);
+
+        Assert.Equal("TextBox", highPassInput.Name.LocalName);
+        Assert.Equal("{Binding AreRunParametersEnabled}", highPassInput.Attribute("IsEnabled")?.Value);
+        Assert.Equal("{Binding HighPassCutoffText, Mode=TwoWay}", highPassInput.Attribute("Text")?.Value);
         Assert.DoesNotContain(
             mainWindow.Descendants().Attributes("Name").Select(attribute => attribute.Value),
-            value => value is "AveragingPeriodComboBox" or "AveragingPeriodSpinBox" or "AveragingPeriodLabel");
+            value => value is "AveragingPeriodComboBox" or "AveragingPeriodSpinBox" or "AveragingPeriodLabel" or
+                "MiscLabel" or "HighPassLabel" or "HighLineEdit");
     }
 
     [Fact]
@@ -101,12 +114,12 @@ public sealed class MainWindowRunControlWiringTests
         var window = new SettingsWindow
         {
             DataContext = new MainWindowViewModel(),
-            Width = 420,
-            Height = 720,
+            Width = 760,
+            Height = 520,
         };
         Control content = Assert.IsAssignableFrom<Control>(window.Content);
-        content.Measure(new Size(420, 720));
-        content.Arrange(new Rect(0, 0, 420, 720));
+        content.Measure(new Size(760, 520));
+        content.Arrange(new Rect(0, 0, 760, 520));
 
         NumericUpDown averagingPeriod = Assert.IsType<NumericUpDown>(
             window.FindControl<Control>("AveragingPeriodSpinBox"));
@@ -114,16 +127,19 @@ public sealed class MainWindowRunControlWiringTests
             window.FindControl<Control>("AnalysisBlockSizeSpinBox"));
         NumericUpDown captureBuffer = Assert.IsType<NumericUpDown>(
             window.FindControl<Control>("CaptureBufferMsSpinBox"));
+        TextBox highPass = Assert.IsType<TextBox>(
+            window.FindControl<Control>("HighLineEdit"));
 
         Assert.True(averagingPeriod.Bounds.Width > 0);
         Assert.True(blockSize.Bounds.Width > 0);
         Assert.True(captureBuffer.Bounds.Width > 0);
-        Assert.True(captureBuffer.Bounds.Bottom <= 720);
+        Assert.True(highPass.Bounds.Width > 0);
+        Assert.True(highPass.Bounds.Bottom <= 520);
 
-        var target = new RenderTargetBitmap(new PixelSize(420, 720), new Vector(96, 96));
+        var target = new RenderTargetBitmap(new PixelSize(760, 520), new Vector(96, 96));
         target.Render(content);
 
-        Assert.True(CountOpaquePixels(target, 420, 720) > 10000);
+        Assert.True(CountOpaquePixels(target, 760, 520) > 10000);
     }
 
     [Fact]
@@ -202,7 +218,8 @@ public sealed class MainWindowRunControlWiringTests
     {
         XDocument document = XDocument.Load(FindSourceFile("src/TimeGrapher.App/Views/SettingsWindow.axaml"));
 
-        Assert.Equal("720", document.Root?.Attribute("Height")?.Value);
+        Assert.Equal("760", document.Root?.Attribute("Width")?.Value);
+        Assert.Equal("520", document.Root?.Attribute("Height")?.Value);
         Assert.Equal(
             new[]
             {
@@ -225,7 +242,7 @@ public sealed class MainWindowRunControlWiringTests
             new[]
             {
                 "UseConsetToggleSwitch",
-                "PllEventVetoToggleSwitch",
+                "WeakAOnsetRescueToggleSwitch",
                 "PauseOnPositionChangeToggleSwitch",
                 "MeasurementLogEnabledToggleSwitch",
             },
@@ -233,7 +250,7 @@ public sealed class MainWindowRunControlWiringTests
         string[] labels =
         {
             "Use C-onset timing",
-            "PLL Event Veto (impulse rejection)",
+            "Weak-A onset rescue",
             "Pause on position change",
             "Save measurement CSV log",
         };
@@ -256,7 +273,7 @@ public sealed class MainWindowRunControlWiringTests
             new[]
             {
                 "{Binding UseCOnset, Mode=TwoWay}",
-                "{Binding PllEventVeto, Mode=TwoWay}",
+                "{Binding WeakAOnsetRescue, Mode=TwoWay}",
                 "{Binding PauseOnPositionChange, Mode=TwoWay}",
                 "{Binding IsMeasurementLogEnabled, Mode=TwoWay}",
             },
@@ -352,6 +369,9 @@ public sealed class MainWindowRunControlWiringTests
                 window.Descendants(),
                 element => element.Attribute("Classes")?.Value == "GlassCard");
         }
+
+        Assert.True(
+            settingsWindow.Descendants().Count(element => element.Attribute("Classes")?.Value == "GlassCard") >= 2);
     }
 
     private static XElement FindNamedElement(XDocument document, string name)

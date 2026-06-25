@@ -7,13 +7,14 @@ namespace TimeGrapher.App.Tests;
 public sealed class MainWindowViewModelTests
 {
     [Fact]
-    public void InitialStateEnablesStartResetAndSettings()
+    public void InitialStateEnablesStartResetAndSettingsButDisablesStop()
     {
         var vm = CreateViewModel();
 
         Assert.Equal(RunUiState.Stopped, vm.RunState);
         Assert.True(vm.IsPlayPauseEnabled);
         Assert.True(vm.IsResetEnabled);
+        Assert.False(vm.IsStopEnabled);
         Assert.True(vm.AreRunParametersEnabled);
         Assert.True(vm.IsSampleRateEnabled);
         Assert.True(vm.IsGainEnabled);
@@ -23,6 +24,7 @@ public sealed class MainWindowViewModelTests
         Assert.False(vm.IsPlayPauseButtonShowingPause);
         Assert.True(vm.PlayPauseCommand.CanExecute(null));
         Assert.True(vm.ResetCommand.CanExecute(null));
+        Assert.False(vm.StopCommand.CanExecute(null));
     }
 
     [Fact]
@@ -34,6 +36,7 @@ public sealed class MainWindowViewModelTests
 
         Assert.True(vm.IsPlayPauseEnabled);
         Assert.False(vm.IsResetEnabled);
+        Assert.True(vm.IsStopEnabled);
         Assert.False(vm.AreRunParametersEnabled);
         Assert.False(vm.IsSampleRateEnabled);
         Assert.True(vm.IsGainEnabled); // live knob: stays adjustable mid-run
@@ -42,28 +45,35 @@ public sealed class MainWindowViewModelTests
         Assert.True(vm.IsPlayPauseButtonShowingPause);
         Assert.True(vm.PlayPauseCommand.CanExecute(null));
         Assert.False(vm.ResetCommand.CanExecute(null));
+        Assert.True(vm.StopCommand.CanExecute(null));
 
         vm.SetPaused();
 
         Assert.True(vm.IsPlayPauseEnabled);
         Assert.True(vm.IsResetEnabled);
+        Assert.True(vm.IsStopEnabled);
         Assert.Equal("Resume", vm.PlayPauseButtonText);
         Assert.True(vm.IsPlayPauseButtonShowingPlay);
         Assert.False(vm.IsPlayPauseButtonShowingPause);
         Assert.True(vm.ResetCommand.CanExecute(null));
+        Assert.True(vm.StopCommand.CanExecute(null));
 
         vm.SetStopping();
 
         Assert.False(vm.IsPlayPauseEnabled);
         Assert.True(vm.IsResetEnabled);
+        Assert.True(vm.IsStopEnabled);
         Assert.True(vm.ResetCommand.CanExecute(null));
+        Assert.True(vm.StopCommand.CanExecute(null));
         Assert.False(vm.AreRunParametersEnabled);
 
         vm.SetStopFailed();
 
         Assert.False(vm.IsPlayPauseEnabled);
         Assert.True(vm.IsResetEnabled);
+        Assert.True(vm.IsStopEnabled);
         Assert.True(vm.ResetCommand.CanExecute(null));
+        Assert.True(vm.StopCommand.CanExecute(null));
         Assert.False(vm.AreRunParametersEnabled);
     }
 
@@ -182,7 +192,6 @@ public sealed class MainWindowViewModelTests
         Assert.True(vm.Realistic);
         Assert.Equal("200", vm.HighPassCutoffText);
         Assert.False(vm.UseCOnset);
-        Assert.False(vm.PllEventVeto);
         Assert.False(vm.PauseOnPositionChange);
         Assert.False(vm.IsMeasurementLogEnabled);
     }
@@ -273,6 +282,31 @@ public sealed class MainWindowViewModelTests
         vm.ResetCommand.Execute(null);
 
         Assert.Equal(4, runner.Resets);
+    }
+
+    [Fact]
+    public void StopCommandRunsInActiveAndRecoveryStatesWithoutResetting()
+    {
+        var vm = new MainWindowViewModel();
+        var runner = new RecordingRunCommandRunner();
+        vm.AttachRunCommandRunner(runner);
+
+        vm.StopCommand.Execute(null);
+        vm.SetRunning();
+        vm.StopCommand.Execute(null);
+
+        Assert.Equal(1, runner.Stops);
+        Assert.Equal(0, runner.Resets);
+
+        vm.SetPaused();
+        vm.StopCommand.Execute(null);
+        vm.SetStopping();
+        vm.StopCommand.Execute(null);
+        vm.SetStopFailed();
+        vm.StopCommand.Execute(null);
+
+        Assert.Equal(4, runner.Stops);
+        Assert.Equal(0, runner.Resets);
     }
 
     [Fact]
@@ -518,6 +552,7 @@ public sealed class MainWindowViewModelTests
         // mutate run state (the play/pause and reset bodies guard on the unset runner).
         vm.PlayPauseCommand.Execute(null);
         vm.ResetCommand.Execute(null);
+        vm.StopCommand.Execute(null);
 
         Assert.Equal(stateBefore, vm.RunState);
         Assert.Equal(statusBefore, vm.StatusText);
@@ -533,6 +568,7 @@ public sealed class MainWindowViewModelTests
     {
         public int Starts { get; private set; }
         public int Toggles { get; private set; }
+        public int Stops { get; private set; }
         public int Resets { get; private set; }
 
         public Task StartAsync()
@@ -542,6 +578,8 @@ public sealed class MainWindowViewModelTests
         }
 
         public void TogglePause() => Toggles++;
+
+        public void StopRunWithoutReset() => Stops++;
 
         public void Reset() => Resets++;
     }

@@ -115,7 +115,7 @@ internal sealed partial class RunCommandService
 
         public override void StopRunWithoutReset(RunCommandService service)
         {
-            service.RetryPendingStop();
+            service.RetryStopWithoutReset();
         }
 
         public override void Reset(RunCommandService service)
@@ -130,7 +130,7 @@ internal sealed partial class RunCommandService
 
         public override void StopRunWithoutReset(RunCommandService service)
         {
-            service.RetryPendingStop();
+            service.RetryStopWithoutReset();
         }
 
         public override void Reset(RunCommandService service)

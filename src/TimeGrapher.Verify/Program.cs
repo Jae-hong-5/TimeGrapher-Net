@@ -7,11 +7,13 @@
 // A directory argument is expanded to its *.wav files.
 //   TimeGrapher.Verify --generated --byte-fixtures
 // Adds deterministic generated and byte-built WAV fixtures for CI.
-//   TimeGrapher.Verify --adverse [--gate=off|pll]
-// Adverse-condition rows with optional PLL event-gate measurement.
+//   TimeGrapher.Verify --adverse
+// Adverse-condition rows (in-memory, ground-truth scored).
+//   TimeGrapher.Verify <wav-or-dir> --diagnose [--rescue=<scale>]
+// Prints the per-file B->A signature (A phase residual + A->C dips); add --rescue to compare.
 //
 // Exit codes: 0 = all gates passed, 1 = a verification gate failed,
-// 2 = usage error (unknown option, malformed spec, flags without a runner).
+// 2 = usage error (unknown option, flags without a runner).
 
 using System.Globalization;
 using System.Text.RegularExpressions;
@@ -32,7 +34,8 @@ var generatedFiles = new List<string>();
 // captured from the synth's FillF32 event side channel at write time.
 var expectationsByFile = new Dictionary<string, GeneratedFixtureExpectation>(StringComparer.OrdinalIgnoreCase);
 bool runAdverse = false;
-string gateSpec = "off";
+bool diagnose = false;
+double rescueScale = 0.0;
 foreach (string arg in args)
 {
     if (arg == "--adverse")
@@ -41,9 +44,15 @@ foreach (string arg in args)
         continue;
     }
 
-    if (arg.StartsWith("--gate=", StringComparison.Ordinal))
+    if (arg == "--diagnose")
     {
-        gateSpec = arg["--gate=".Length..];
+        diagnose = true;
+        continue;
+    }
+
+    if (arg.StartsWith("--rescue=", StringComparison.Ordinal))
+    {
+        rescueScale = double.Parse(arg["--rescue=".Length..], CultureInfo.InvariantCulture);
         continue;
     }
 
@@ -78,12 +87,6 @@ foreach (string arg in args)
     }
 }
 
-// Gate-selection flags configure only the adverse runner.
-if (!runAdverse && gateSpec != "off")
-{
-    Console.Error.WriteLine("TimeGrapher.Verify: --gate requires --adverse");
-    return 2;
-}
 files.AddRange(generatedFiles);
 
 if (files.Count == 0 && !runAdverse)
@@ -97,6 +100,17 @@ bool allMatch = true;
 
 try
 {
+    if (diagnose)
+    {
+        // B->A diagnostic over the metrics stream; run with and without
+        // --rescue to compare the phase-guided rescue by the same measure.
+        foreach (string file in files)
+        {
+            BeatDiagnostics.Run(Console.Out, file, rescueScale);
+        }
+        return 0;
+    }
+
     foreach (string file in files)
     {
         WavData wav = WavFileReader.ReadMonoFloat(file, WavAcceptanceProfile.PlaybackFloatMonoStandardRates);
@@ -326,15 +340,7 @@ finally
 // Adverse-condition scenario rows (in-memory, ground-truth scored).
 if (runAdverse)
 {
-    // Resolve the arm. --gate=onnx:<path> is reserved for the future inference
-    // project; using it today (or any unknown value) is a usage error (exit 2).
-    if (!AdverseScenarios.TryResolveArm(gateSpec, out ArmSpec arm, out string? gateError))
-    {
-        Console.Error.WriteLine("TimeGrapher.Verify: " + gateError);
-        return 2;
-    }
-
-    if (!AdverseScenarios.Run(Console.Out, arm))
+    if (!AdverseScenarios.Run(Console.Out))
     {
         allMatch = false;
     }

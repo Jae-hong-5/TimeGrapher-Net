@@ -3,28 +3,17 @@
 // impulse storms, gain steps) straight into the shared detector/metrics engine
 // (no WAV round-trip; the RIFF parsing path stays covered by the legacy
 // fixtures) and scores the detected A events against the FillF32 ground-truth
-// side channel. Gated rows assert current detector quality; optional arms that
-// are still under investigation report INFO-only quality numbers.
+// side channel. Gated rows assert current detector quality.
 
 using System.Globalization;
 using TimeGrapher.Core.Analysis;
 using TimeGrapher.Core.Detection;
-using TimeGrapher.Core.Detection.Scoring;
 using TimeGrapher.Core.Sim;
 
 namespace TimeGrapher.Verify;
 
 /// <summary>
-/// One verification arm: default detector plus optional PLL veto gate.
-/// </summary>
-internal sealed record ArmSpec(string Name, bool UsePllGate)
-{
-    internal static ArmSpec Default { get; } = new("default", false);
-    internal static ArmSpec PllGate { get; } = new("pll-gate", true);
-}
-
-/// <summary>
-/// Gate set for one scenario arm. Unset members are not gated.
+/// Verdict-threshold set for one scenario. Unset members are not gated.
 /// </summary>
 internal sealed record AdverseGates(
     bool? MustSync = null,
@@ -52,8 +41,7 @@ internal sealed record AdverseScenario(
     double GainStepAtS = 0.0,
     double GainStepFactor = 1.0,
     double EvalStartS = 2.0,
-    AdverseGates? Default = null,
-    AdverseGates? PllGate = null);
+    AdverseGates? Default = null);
 
 internal static class AdverseScenarios
 {
@@ -75,8 +63,7 @@ internal static class AdverseScenarios
             Default: new AdverseGates(MustSync: true, MinRecall: 0.90, MinPrecision: 0.90,
                 MaxAbsMedianOffsetMs: 1.0, MaxRmsAfterOffsetMs: 2.0, MaxMissedBeats: 0)),
         // Sustained broadband noise (W-7). The default detector must keep
-        // usable event-level timing; the optional PLL veto arm is measured
-        // separately because PLL phase can itself be dragged by noise.
+        // usable event-level timing under heavy noise.
         new("noisy-1", Bph: 21600, SampleRate: 48000, Seconds: 14,
             PcmPeak: 0.25, NoisePeak: 0.08, Realistic: true,
             Default: new AdverseGates(MustSync: true, MinRecall: 0.70, MinPrecision: 0.70,
@@ -94,8 +81,7 @@ internal static class AdverseScenarios
             ImpulseRate: 1.0, ImpulseSignalLevel: 0.95,
             Default: new AdverseGates(MustSync: true, MaxResets: 1, MinRecall: 0.90, MinPrecision: 0.90,
                 MaxMissedBeats: 0)),
-        // The optional PLL gate can raise precision here; the default detector
-        // should still retain the watch.
+        // The default detector should still retain the watch through the storm.
         new("impulse-storm", Bph: 28800, SampleRate: 48000, Seconds: 16,
             PcmPeak: 0.25, NoisePeak: 0.02, Realistic: false,
             ImpulseRate: 3.0, ImpulseSignalLevel: 0.6,
@@ -121,8 +107,7 @@ internal static class AdverseScenarios
         // guard).
         new("noise-only", Bph: 21600, SampleRate: 48000, Seconds: 12,
             PcmPeak: 0.0, NoisePeak: 0.05, Realistic: false,
-            Default: new AdverseGates(MustSync: false),
-            PllGate: new AdverseGates(MustSync: false)),
+            Default: new AdverseGates(MustSync: false)),
     };
 
     internal sealed record RowResult(
@@ -134,23 +119,22 @@ internal static class AdverseScenarios
         ulong MissedBeats,
         uint SyncLossCount,
         int Resets,
-        ulong Vetoed,
         string Verdict);
 
-    /// <summary>Runs every row under one arm; false when any gated row fails.</summary>
-    internal static bool Run(TextWriter output, ArmSpec arm)
+    /// <summary>Runs every row; false when any gated row fails.</summary>
+    internal static bool Run(TextWriter output)
     {
         bool allOk = true;
         foreach (AdverseScenario row in Rows)
         {
-            RowResult result = RunRow(row, arm);
+            RowResult result = RunRow(row);
             allOk &= result.Verdict != "FAIL";
             output.WriteLine(Format(result));
         }
         return allOk;
     }
 
-    internal static RowResult RunRow(AdverseScenario row, ArmSpec arm)
+    internal static RowResult RunRow(AdverseScenario row)
     {
         WatchSynthStreamConfig synthConfig = row.Realistic
             ? WatchSynthStreamConfig.Realistic()
@@ -164,7 +148,6 @@ internal static class AdverseScenarios
             synthConfig.ImpulseNoiseRatePerSecond = row.ImpulseRate;
             synthConfig.ImpulseNoisePeakSignalLevel = row.ImpulseSignalLevel;
         }
-
         var synth = new WatchSynthStream(synthConfig);
         var engine = new DetectorMetricsEngine(new DetectorMetricsEngineConfig(
             SampleRate: row.SampleRate,
@@ -173,8 +156,7 @@ internal static class AdverseScenarios
             UseCOnset: false,
             AutoBph: true,
             ManualBph: 0,
-            HpfCutoffHz: 0.0,
-            EventGate: arm.UsePllGate ? new BeatEventGateConfig(new PllMatchGate()) : null));
+            HpfCutoffHz: 0.0));
 
         double leadInS = (double)row.SilenceLeadInSamples / row.SampleRate;
         var truthTimes = new List<double>();
@@ -229,15 +211,12 @@ internal static class AdverseScenarios
             toleranceS: 0.005, evalStartS: leadInS + row.EvalStartS);
 
         DetectorResultSnapshot snapshot = update.Result;
-        AdverseGates gates = arm.UsePllGate
-            ? row.PllGate ?? new AdverseGates(InfoOnly: true)
-            : row.Default ?? new AdverseGates(InfoOnly: true);
+        AdverseGates gates = row.Default ?? new AdverseGates(InfoOnly: true);
         string verdict = Evaluate(gates, snapshot, score, resets, row.Bph);
 
         return new RowResult(
-            row.Name, arm.Name, snapshot.SyncStatus, snapshot.DetectedBph, score,
-            snapshot.MissedBeats, snapshot.SyncLossCount, resets,
-            snapshot.VetoedEvents, verdict);
+            row.Name, "default", snapshot.SyncStatus, snapshot.DetectedBph, score,
+            snapshot.MissedBeats, snapshot.SyncLossCount, resets, verdict);
     }
 
     private static void Collect(
@@ -255,30 +234,6 @@ internal static class AdverseScenarios
                 detectedATimes.Add(ev.EventSample / sampleRate);
             }
         }
-    }
-
-    /// <summary>
-    /// Resolves the <c>--gate=</c> spec to an arm. Returns false (with a message,
-    /// caller maps to usage exit code 2) for the reserved <c>onnx:</c> form and any
-    /// unknown value; "off"/"pll" select the default/PLL arm. Extracted so the
-    /// gate-spec validation contract is unit-testable without process invocation.
-    /// </summary>
-    internal static bool TryResolveArm(string gateSpec, out ArmSpec arm, out string? error)
-    {
-        arm = ArmSpec.Default;
-        error = null;
-        if (gateSpec.StartsWith("onnx:", StringComparison.Ordinal))
-        {
-            error = "--gate=onnx:<path> is reserved for the TimeGrapher.Inference gate (not yet implemented)";
-            return false;
-        }
-        if (gateSpec != "off" && gateSpec != "pll")
-        {
-            error = $"unknown --gate value '{gateSpec}' (off|pll)";
-            return false;
-        }
-        arm = gateSpec == "pll" ? ArmSpec.PllGate : ArmSpec.Default;
-        return true;
     }
 
     internal static string Evaluate(
@@ -343,9 +298,9 @@ internal static class AdverseScenarios
     {
         return string.Format(CultureInfo.InvariantCulture,
             "ADV {0}: profile={1} sync={2} BPH={3} recall={4:F3} precision={5:F3} " +
-            "a_bias_ms={6:F3} a_rms_ms={7:F3} missed={8} sync_losses={9} resets={10} vetoed={11} verdict={12}",
+            "a_bias_ms={6:F3} a_rms_ms={7:F3} missed={8} sync_losses={9} resets={10} verdict={11}",
             r.Name, r.Profile, r.SyncStatus, r.DetectedBph, r.Score.Recall, r.Score.Precision,
             r.Score.MedianOffsetMs, r.Score.RmsAfterOffsetMs,
-            r.MissedBeats, r.SyncLossCount, r.Resets, r.Vetoed, r.Verdict);
+            r.MissedBeats, r.SyncLossCount, r.Resets, r.Verdict);
     }
 }

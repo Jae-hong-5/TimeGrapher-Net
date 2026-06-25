@@ -4,6 +4,7 @@ using TimeGrapher.Core.Analysis;
 using TimeGrapher.Core.AudioIo;
 using TimeGrapher.Core.Shared;
 using TimeGrapher.Core.Sim;
+using TimeGrapher.App.Tabs;
 
 namespace TimeGrapher.App.Audio;
 
@@ -91,7 +92,7 @@ internal static class AnalysisBenchmarkRunner
             HpfCutoffHz = 0.0,
             SoundImageWidth = 1019,
             SoundImageHeight = 654,
-            ScopeSnapshotPointBudget = 8000,
+            ScopeSnapshotPointBudget = InfoTabCatalog.ScopeTargetPointBudget,
             SessionId = 1,
         });
 

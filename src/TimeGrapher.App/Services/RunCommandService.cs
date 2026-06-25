@@ -155,6 +155,14 @@ internal sealed partial class RunCommandService : IRunCommandRunner, IRunCommand
         BeginStop(intent);
     }
 
+    private void RetryStopWithoutReset()
+    {
+        PendingStopIntent intent = _pendingStopIntent == PendingStopIntent.ResetAfterStop
+            ? PendingStopIntent.StopOnly
+            : _pendingStopIntent;
+        BeginStop(intent == PendingStopIntent.None ? PendingStopIntent.StopOnly : intent);
+    }
+
     private void BeginStop(PendingStopIntent intent)
     {
         if (_startInProgress || _operations.IsClosing)
@@ -213,9 +221,10 @@ internal sealed partial class RunCommandService : IRunCommandRunner, IRunCommand
         };
     }
 
-    private static bool ShouldRestoreAudioState(RunCommandMode mode)
+    private static bool ShouldRestoreAudioState(RunCommandMode mode, PendingStopIntent intent)
     {
-        return mode is RunCommandMode.Playback or RunCommandMode.Simulation;
+        return intent == PendingStopIntent.ResetAfterStop &&
+            (mode is RunCommandMode.Playback or RunCommandMode.Simulation);
     }
 
     private void SetStarting()
@@ -257,7 +266,7 @@ internal sealed partial class RunCommandService : IRunCommandRunner, IRunCommand
     private void CompleteStop(RunCommandMode mode, PendingStopIntent intent)
     {
         _operations.InvalidateRunSession();
-        if (ShouldRestoreAudioState(mode))
+        if (ShouldRestoreAudioState(mode, intent))
         {
             _operations.RestorePlaybackOrSimulationAudioState();
         }
@@ -270,6 +279,11 @@ internal sealed partial class RunCommandService : IRunCommandRunner, IRunCommand
         {
             CompleteReset();
             return;
+        }
+
+        if (intent == PendingStopIntent.StopOnly)
+        {
+            _operations.ResetRunState();
         }
 
         if (intent == PendingStopIntent.RefreshDevicesAfterStop)

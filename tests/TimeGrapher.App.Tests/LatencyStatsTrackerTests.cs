@@ -78,7 +78,7 @@ public sealed class LatencyStatsTrackerTests
 
         tracker.Observe(Frame(1_000, 11_000), 0, 16_000);
         string? first = tracker.TryFormatStatus(20_000);
-        Assert.Equal("E2E 15/15 ms (cap→proc 10/10 + disp 5/5) | drop 0 smp / 0 frm | miss 0 | sync−loss 0", first);
+        Assert.Equal("E2E 15 ms | drop 0 smp | miss 0 | sync−loss 0 | 0 frm", first);
 
         // 100 ms later: throttled.
         Assert.Null(tracker.TryFormatStatus(120_000));
@@ -93,7 +93,7 @@ public sealed class LatencyStatsTrackerTests
         tracker.Observe(Frame(1_000, 11_000, dropped: 64, missedBeats: 2, syncLosses: 1), 3, 16_000);
 
         string text = tracker.FormatStatus();
-        Assert.Equal("E2E 15/15 ms (cap→proc 10/10 + disp 5/5) | drop 64 smp / 3 frm | miss 2 | sync−loss 1", text);
+        Assert.Equal("E2E 15 ms | drop 64 smp | miss 2 | sync−loss 1 | 3 frm", text);
     }
 
     [Fact]
@@ -109,10 +109,8 @@ public sealed class LatencyStatsTrackerTests
         tracker.Observe(clamped, 0, 16_000);
 
         Assert.True(tracker.WorstCaseIsLowerBound);
-        // Clamped samples feed the averages too, so every capture-derived
-        // figure (avg and worst case) reads as a lower bound.
         string text = tracker.FormatStatus();
-        Assert.Equal("E2E ≥15/≥15 ms (cap→proc ≥10/≥10 + disp 5/5) | drop 0 smp / 0 frm | miss 0 | sync−loss 0", text);
+        Assert.Equal("E2E ≥15 ms | drop 0 smp | miss 0 | sync−loss 0 | 0 frm", text);
     }
 
     [Fact]

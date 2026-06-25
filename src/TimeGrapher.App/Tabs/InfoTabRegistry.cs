@@ -977,7 +977,12 @@ internal sealed partial class InfoTabRegistry
             grid.Children.Add(overlay);
         }
 
-        var renderer = new BeatErrorDiagRenderer(tracePlot, alertBanner, alertText, valueTexts);
+        var renderer = new BeatErrorDiagRenderer(
+            tracePlot,
+            alertBanner,
+            alertText,
+            valueTexts,
+            context.TextFontFamily);
         context.ResetViews.Register(renderer.ResetView);
 
         grid.Children.Add(CreatePinnedResetViewButton(ResetAllGraphViewsTooltip, row: 2, context.ResetViews.ResetAll));

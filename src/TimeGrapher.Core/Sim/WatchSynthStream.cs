@@ -77,7 +77,10 @@ public sealed class WatchSynthStreamConfig
     // Each multiplies the relative signal level of its cluster's lobes before packet_gain;
     // CClusterLevelScale also scales the exact C-peak anchor. Default 1.0 leaves the packet
     // bit-identical and draws no extra RNG. These synthesize weak-A / weak-C / B-dominant
-    // beats for the TinyML landmark-refiner training set. No effect on the simple packet.
+    // beats for the weak-A onset-rescue and adverse-condition tests (PhaseGuideRescueTests,
+    // WatchSynthStreamTests). Per-lobe level saturates at the 2.0 WsAddVariedLobe clamp, so a
+    // scale large enough to exceed that ceiling no longer increases amplitude (ValidateConfig
+    // only rejects negative scales). No effect on the simple packet.
     // Not part of the original C generator.
     public double AClusterLevelScale = 1.0; // scales the A onset cluster lobes.
     public double BClusterLevelScale = 1.0; // scales the middle (B) impact lobes.

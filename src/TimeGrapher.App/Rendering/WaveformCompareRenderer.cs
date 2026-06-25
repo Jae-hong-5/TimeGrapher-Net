@@ -133,6 +133,11 @@ internal sealed class WaveformCompareRenderer
             _ghostTocX[i] = new List<double>();
             _ghostTocY[i] = new List<double>();
         }
+
+        // Read-only comparison display: disable all built-in mouse interaction so
+        // the lanes cannot be drag/wheel zoomed. Pair selection stays available —
+        // it is wired through the control's pointer events, not this processor.
+        _plot.UserInputProcessor.Disable();
     }
 
     public void ApplyTheme(PlotThemePalette theme)
@@ -656,7 +661,7 @@ internal sealed class WaveformCompareRenderer
     {
         Text label = plot.Add.Text("", 0.0, 0.0);
         label.LabelFontName = _textFontFamily;
-        label.LabelFontSize = 11;
+        label.LabelFontSize = PlotThemeHelper.GraphLabelFontSize;
         label.Alignment = Alignment.UpperLeft;
         label.IsVisible = false;
         return label;

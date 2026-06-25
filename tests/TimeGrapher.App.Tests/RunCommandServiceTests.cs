@@ -160,7 +160,7 @@ public sealed class RunCommandServiceTests
     }
 
     [Fact]
-    public void StopPlaybackStopsClosesInvalidatesAndRestoresAudioState()
+    public void StopPlaybackStopsClosesInvalidatesAndKeepsPlaybackSelection()
     {
         MainWindowViewModel vm = CreateViewModel();
         vm.SetRunning();
@@ -178,7 +178,8 @@ public sealed class RunCommandServiceTests
         Assert.Equal(1, operations.StopPlaybackCalls);
         Assert.Equal(1, operations.CloseAudioCalls);
         Assert.Equal(1, operations.InvalidateRunSessionCalls);
-        Assert.Equal(1, operations.RestorePlaybackOrSimulationAudioStateCalls);
+        Assert.Equal(0, operations.RestorePlaybackOrSimulationAudioStateCalls);
+        Assert.Equal(1, operations.ResetRunStateCalls);
         Assert.Equal(RunUiState.Stopped, vm.RunState);
         Assert.Equal("Stopped", vm.StatusText);
         Assert.False(vm.IsSampleRateEnabled);
@@ -223,7 +224,7 @@ public sealed class RunCommandServiceTests
     }
 
     [Fact]
-    public void StopSimulationRestoresSampleRateButKeepsGainDisabled()
+    public void StopSimulationKeepsSimulationSelectionAndGainDisabled()
     {
         MainWindowViewModel vm = CreateViewModel();
         vm.SetRunning();
@@ -238,10 +239,39 @@ public sealed class RunCommandServiceTests
         service.StopRunWithoutReset();
 
         Assert.Equal(1, operations.StopSimulationCalls);
-        Assert.Equal(1, operations.RestorePlaybackOrSimulationAudioStateCalls);
+        Assert.Equal(0, operations.RestorePlaybackOrSimulationAudioStateCalls);
         Assert.Equal(RunUiState.Stopped, vm.RunState);
         Assert.True(vm.IsSampleRateEnabled);
         Assert.False(vm.IsGainEnabled);
+    }
+
+    [Theory]
+    [InlineData((int)RunCommandMode.Playback, 2, "Playback")]
+    [InlineData((int)RunCommandMode.Simulation, 3, "Simulation")]
+    [InlineData((int)RunCommandMode.Live, 1, "Live: Mic B")]
+    public void StopClearsRunStateWithoutRefreshingDevicesAndKeepsSelectedInputDevice(
+        int mode,
+        int selectedIndex,
+        string expectedSelection)
+    {
+        MainWindowViewModel vm = CreateViewModel();
+        vm.SetInputDeviceNames(new[] { "Live: Mic A", "Live: Mic B", "Playback", "Simulation" });
+        vm.SelectedInputDeviceIndex = selectedIndex;
+        vm.SetRunning();
+        var operations = new FakeRunCommandOperations
+        {
+            CurrentMode = (RunCommandMode)mode,
+            RestorePlaybackOrSimulationAudioStateAction = () => vm.SelectedInputDeviceIndex = 0,
+        };
+        var service = new RunCommandService(vm, operations);
+
+        service.StopRunWithoutReset();
+
+        Assert.Equal(
+            expectedSelection,
+            MainWindowSelectionCoordinator.ItemText(vm.InputDeviceNames, vm.SelectedInputDeviceIndex));
+        Assert.Equal(1, operations.ResetRunStateCalls);
+        Assert.Equal(0, operations.RefreshDevicesCalls);
     }
 
     [Fact]
@@ -267,11 +297,18 @@ public sealed class RunCommandServiceTests
     }
 
     [Fact]
+    public void StopFailureMessagePointsAtTheVisibleStopRetry()
+    {
+        Assert.Contains("Stop", UserErrorMessages.StopDidNotFinish, StringComparison.Ordinal);
+        Assert.DoesNotContain("Reset", UserErrorMessages.StopDidNotFinish, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void StopOverwritesThroughputStatusWithStopping()
     {
         MainWindowViewModel vm = CreateViewModel();
         vm.SetRunning();
-        vm.StatusText = "Backgroud Audio Thread Average - FPS: 12.3";
+        vm.StatusText = "BG - FPS: 12.3";
         var operations = new FakeRunCommandOperations
         {
             CurrentMode = RunCommandMode.Live,
@@ -499,6 +536,31 @@ public sealed class RunCommandServiceTests
         Assert.Equal("Reset", vm.StatusText);
     }
 
+    [Fact]
+    public void StopRetryAfterFailedPausedResetClearsRunStateWithoutCompletingReset()
+    {
+        MainWindowViewModel vm = CreateViewModel();
+        vm.SetPaused();
+        var operations = new FakeRunCommandOperations
+        {
+            CurrentMode = RunCommandMode.Live,
+            StopLiveOutcome = RunCommandStopOutcome.Stopping,
+        };
+        var service = new RunCommandService(vm, operations);
+
+        service.Reset();
+        operations.StopLiveOutcome = RunCommandStopOutcome.Stopped;
+        service.StopRunWithoutReset();
+
+        Assert.Equal(2, operations.StopLiveCalls);
+        Assert.Equal(1, operations.CloseAudioCalls);
+        Assert.Equal(1, operations.InvalidateRunSessionCalls);
+        Assert.Equal(1, operations.ResetRunStateCalls);
+        Assert.Equal(0, operations.RefreshDevicesCalls);
+        Assert.Equal(RunUiState.Stopped, vm.RunState);
+        Assert.Equal("Stopped", vm.StatusText);
+    }
+
     private static MainWindowViewModel CreateViewModel()
     {
         return new MainWindowViewModel();
@@ -523,6 +585,8 @@ public sealed class RunCommandServiceTests
         public Func<Task<bool>> StartPlaybackAsyncImpl { get; set; } = () => Task.FromResult(true);
 
         public Func<Task<bool>> StartSimulationAsyncImpl { get; set; } = () => Task.FromResult(true);
+
+        public Action? RestorePlaybackOrSimulationAudioStateAction { get; set; }
 
         public RunCommandStopOutcome StopLiveOutcome { get; set; } = RunCommandStopOutcome.Stopped;
 
@@ -627,6 +691,7 @@ public sealed class RunCommandServiceTests
         {
             Calls.Add("RestorePlaybackOrSimulationAudioState");
             RestorePlaybackOrSimulationAudioStateCalls++;
+            RestorePlaybackOrSimulationAudioStateAction?.Invoke();
         }
 
         public void ResetRunState()

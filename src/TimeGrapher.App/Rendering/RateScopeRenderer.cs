@@ -28,6 +28,11 @@ internal sealed class RateScopeRenderer
     // ScopeHistorySeconds so a pan/pause can reach back through earlier audio.
     private readonly List<double>[] _scopeHistX;
     private readonly List<double>[] _scopeHistY;
+    // Last scope GraphSeriesFrame merged per series. The throttled producer
+    // re-attaches the same immutable frame between rebuilds, so an unchanged
+    // reference means the merge (and the view-limited reduction) would reproduce
+    // the same arrays — skip them. Reset whenever the history is cleared.
+    private readonly GraphSeriesFrame?[] _lastScopeSeries;
     private readonly List<double>[] _rateX;
     private readonly List<double>[] _rateY;
 
@@ -47,15 +52,27 @@ internal sealed class RateScopeRenderer
     private int _scopeTextsUsed;
     private readonly List<Scatter> _scopePlots = new();
     private readonly List<Scatter> _ratePlots = new();
+    private readonly AveragePeriodRateAnnotations _rateAverageAnnotations;
     private ReviewCursorLayer? _scopeReviewCursor;
+    private BeatMetricsHistorySnapshot? _lastMetricsHistory;
     private PlotThemePalette _theme = PlotThemePalette.Current;
 
     // The scope auto-follows incoming audio (scrolls its X window each frame). Once the
     // user pans/zooms it, we stop following so the view stays put; ResetView() re-enables it.
     private bool _scopeFollowLive = true;
     private double _rateErrorYScale;
-    private int _rateDataPoints;
     private int _sampleRate = 44100;
+
+    // The rate pane mirrors the scope's live-follow contract, but its X view advances
+    // in fixed 120-beat pages instead of sliding every update. User pan/zoom still
+    // drops follow; ResetRateView() re-arms it.
+    private bool _rateFollowLive = true;
+    private double _rateDataMinX;
+    private double _rateDataMaxX;
+    private bool _hasRateDataExtent;
+    private bool _rateAxisRefreshPending;
+
+    internal const double RatePageWindowBeats = 120.0;
 
     // Default live scope window shown on screen (500 ms) and the maximum span the
     // user may zoom out to (2 s), enforced by ScopeXViewBoundsRule. The Core retains
@@ -96,32 +113,16 @@ internal sealed class RateScopeRenderer
         _ratePlot = ratePlot;
         _textFontFamily = textFontFamily;
 
-        // Keep the default ScottPlot interactions: drag to swipe/pan and wheel zoom
-        // (including the Shift/Ctrl modifiers). Any user pan/zoom drops live-follow
-        // so the view holds where the user left it; the ScopeXViewBoundsRule then
-        // clamps that view to the retained data extent, so a pan/zoom can never drag
-        // the X-axis start point past the data ("move, but the start stays pinned to
-        // the data") — the Filter Scope behavior.
-        // Any user pan/zoom drops live-follow so the view holds where the user left
-        // it; the ScopeXViewBoundsRule then clamps that view to the retained data
-        // extent. After the interaction we re-lay the fixed 0.2 s time ruler over
-        // the new X range — ScottPlot's NumericManual is a fixed tick set, so it
-        // must be regenerated when the user zoom/pan changes the range (otherwise
-        // the newly revealed span shows no time labels on zoom-out).
-        _scopePlot.PointerWheelChanged += (_, _) =>
-        {
-            _scopeFollowLive = false;
-            ScheduleScopeAxisRefresh();
-        };
-        _scopePlot.PointerPressed += (_, _) => _scopeFollowLive = false;
-        _scopePlot.PointerReleased += (_, _) => ScheduleScopeAxisRefresh();
-        _scopePlot.PointerMoved += (_, e) =>
-        {
-            if (e.GetCurrentPoint(_scopePlot).Properties.IsLeftButtonPressed)
-            {
-                ScheduleScopeAxisRefresh();
-            }
-        };
+        // Both panes keep the default ScottPlot interactions (drag to swipe/pan, wheel
+        // zoom incl. Shift/Ctrl modifiers). Any user pan/zoom drops live-follow so the
+        // view holds where the user left it; the pane's bounds rule then clamps it to
+        // the retained data extent ("move, but the start stays pinned to the data" —
+        // the Filter Scope behavior). The scope's deferred refresh additionally re-lays
+        // its fixed 0.2 s time ruler over the new range (ScottPlot's NumericManual is a
+        // fixed tick set that must be regenerated when the range changes).
+        WireLiveFollowPan(_scopePlot, () => _scopeFollowLive = false, ScheduleScopeAxisRefresh);
+        LockRatePlotInputToX(_ratePlot);
+        WireLiveFollowPan(_ratePlot, () => _rateFollowLive = false, ScheduleRateAxisRefresh);
 
         GraphSeriesDefinition[] graphSeries = InfoTabCatalog.RateScope.GraphSeries.ToArray();
         _scopeSeries = graphSeries.Where(series => series.RenderMode == GraphSeriesRenderMode.Line).ToArray();
@@ -131,8 +132,40 @@ internal sealed class RateScopeRenderer
         _scopeY = CreateSeriesLists(_scopeSeries.Length);
         _scopeHistX = CreateSeriesLists(_scopeSeries.Length);
         _scopeHistY = CreateSeriesLists(_scopeSeries.Length);
+        _lastScopeSeries = new GraphSeriesFrame?[_scopeSeries.Length];
         _rateX = CreateSeriesLists(_rateSeries.Length);
         _rateY = CreateSeriesLists(_rateSeries.Length);
+        _rateAverageAnnotations = new AveragePeriodRateAnnotations(_textFontFamily);
+    }
+
+    /// <summary>
+    /// Wires drag-to-pan / wheel-zoom on a live-follow plot: a user pan/zoom invokes
+    /// <paramref name="dropFollow"/> (so the live window stops yanking the view back)
+    /// and queues a coalesced redraw via <paramref name="scheduleRefresh"/>; the pane's
+    /// bounds rule re-clamps the new range on the render that follows.
+    /// </summary>
+    internal static void WireLiveFollowPan(AvaPlot plot, Action dropFollow, Action scheduleRefresh)
+    {
+        plot.PointerWheelChanged += (_, _) =>
+        {
+            dropFollow();
+            scheduleRefresh();
+        };
+        plot.PointerPressed += (_, _) => dropFollow();
+        plot.PointerReleased += (_, _) => scheduleRefresh();
+        plot.PointerMoved += (_, e) =>
+        {
+            if (e.GetCurrentPoint(plot).Properties.IsLeftButtonPressed)
+            {
+                scheduleRefresh();
+            }
+        };
+    }
+
+    internal static void LockRatePlotInputToX(AvaPlot plot)
+    {
+        plot.UserInputProcessor.LeftClickDragPan(true, true, false);
+        plot.UserInputProcessor.RightClickDragZoom(true, true, false);
     }
 
     public void ApplyTheme(PlotThemePalette theme)
@@ -141,6 +174,7 @@ internal sealed class RateScopeRenderer
         ApplyPlotTheme(_scopePlot.Plot);
         ApplyPlotTheme(_ratePlot.Plot);
         ApplySeriesTheme();
+        _rateAverageAnnotations.ApplyTheme(theme);
         _scopePlot.Refresh();
         _ratePlot.Refresh();
     }
@@ -148,8 +182,9 @@ internal sealed class RateScopeRenderer
     public void CreateGraphs(double rateErrorYScale, int rateDataPoints)
     {
         _rateErrorYScale = rateErrorYScale;
-        _rateDataPoints = rateDataPoints;
         _scopeFollowLive = true;
+        _rateFollowLive = true;
+        _lastMetricsHistory = null;
         Plot scope = _scopePlot.Plot;
         scope.Clear();
         ApplyPlotTheme(scope);
@@ -171,6 +206,7 @@ internal sealed class RateScopeRenderer
         scope.Axes.Bottom.MaximumSize = ScopeBottomAxisSizePx;
         ClearSeriesData(_scopeX, _scopeY);
         ClearSeriesData(_scopeHistX, _scopeHistY);
+        System.Array.Clear(_lastScopeSeries, 0, _lastScopeSeries.Length);
         DropScopeMarkerPool();
         AddScopePlottables();
         _scopeReviewCursor = AddReviewCursor(scope);
@@ -185,11 +221,15 @@ internal sealed class RateScopeRenderer
         rate.YLabel("Error Rate (ms)");
         rate.XLabel("Beat Index");
         rate.Axes.SetLimitsY(-rateErrorYScale, rateErrorYScale);
-        rate.Axes.SetLimitsX(0, rateDataPoints);
+        rate.Axes.SetLimitsX(0, RatePageWindowBeats);
         ClearSeriesData(_rateX, _rateY);
+        _rateAverageAnnotations.Reset();
         AddRatePlottables();
         rate.ShowLegend();
-        PlotAxisRules.ClampLeftEdgeToZero(rate);
+        _hasRateDataExtent = false;
+        rate.Axes.Rules.Clear();
+        rate.Axes.Rules.Add(new RateXViewBoundsRule(this, rate.Axes.Bottom));
+        PlotAxisRules.LockYRange(rate, -rateErrorYScale, rateErrorYScale);
 
         _scopePlot.Refresh();
         _ratePlot.Refresh();
@@ -198,13 +238,15 @@ internal sealed class RateScopeRenderer
     public void Reset(double rateErrorYScale, int rateDataPoints)
     {
         _rateErrorYScale = rateErrorYScale;
-        _rateDataPoints = rateDataPoints;
         _scopeFollowLive = true;
+        _rateFollowLive = true;
+        _lastMetricsHistory = null;
         Plot scope = _scopePlot.Plot;
         scope.Clear();
         ApplyPlotTheme(scope);
         ClearSeriesData(_scopeX, _scopeY);
         ClearSeriesData(_scopeHistX, _scopeHistY);
+        System.Array.Clear(_lastScopeSeries, 0, _lastScopeSeries.Length);
         DropScopeMarkerPool();
         AddScopePlottables();
         _scopeReviewCursor = AddReviewCursor(scope);
@@ -217,28 +259,56 @@ internal sealed class RateScopeRenderer
         rate.Clear();
         ApplyPlotTheme(rate);
         rate.Axes.SetLimitsY(-rateErrorYScale, rateErrorYScale);
-        rate.Axes.SetLimitsX(0, rateDataPoints);
+        rate.Axes.SetLimitsX(0, RatePageWindowBeats);
         ClearSeriesData(_rateX, _rateY);
+        _rateAverageAnnotations.Reset();
         AddRatePlottables();
-        PlotAxisRules.ClampLeftEdgeToZero(rate);
+        _hasRateDataExtent = false;
+        rate.Axes.Rules.Clear();
+        rate.Axes.Rules.Add(new RateXViewBoundsRule(this, rate.Axes.Bottom));
+        PlotAxisRules.LockYRange(rate, -rateErrorYScale, rateErrorYScale);
         _ratePlot.Refresh();
     }
 
     public void RenderFrame(AnalysisFrame frame, AnalysisTabRenderContext context)
     {
         _sampleRate = context.SampleRate;
+        _lastMetricsHistory = frame.MetricsHistory ?? _lastMetricsHistory;
 
-        bool scopeUpdated = MergeScopeHistory(frame);
+        // While scope follow is off, the scope pane holds the snapshot captured when
+        // the user panned. Rate still accepts incoming point snapshots after a pan;
+        // only its automatic page-following stops.
+        bool scopeUpdated = false;
+        bool scopeDataChanged = false;
+        if (_scopeFollowLive)
+        {
+            scopeUpdated = MergeScopeHistory(frame, out scopeDataChanged);
+        }
+
         bool rateUpdated = ReplaceRateSeries(frame);
         // Review cursor on the waveform pane only: its x base is absolute sample
         // ticks, so stream time maps onto it (the Filter Scope mapping).
-        // The rate pane plots a fixed beat-index ring (0..rateDataPoints), not
-        // stream time, so the review-cursor contract has no meaningful x mapping
-        // there.
+        // The rate pane plots a beat-index page, not stream time, so the review-cursor
+        // contract has no meaningful x mapping there.
         bool cursorMoved = UpdateReviewCursor(context);
 
         if (rateUpdated)
         {
+            // Keep collecting rate points after the user pans/zooms; only live-following
+            // moves the X view to the newest 120-beat page.
+            _hasRateDataExtent = RateDataExtent(out _rateDataMinX, out _rateDataMaxX);
+
+            if (_hasRateDataExtent)
+            {
+                if (_rateFollowLive)
+                {
+                    (double left, double right) = RatePageWindowFor(_rateDataMaxX);
+                    _ratePlot.Plot.Axes.SetLimitsX(left, right);
+                }
+
+                UpdateAveragePeriodAnnotations(frame.MetricsHistory);
+            }
+
             _ratePlot.Refresh();
         }
 
@@ -246,38 +316,34 @@ internal sealed class RateScopeRenderer
         {
             UpdateScopeMarkers(frame.VerticalMarkers, frame.HorizontalMarkers, frame.TextMarkers);
 
-            // Refresh the drawn-data extent every frame (even while panned) so the
-            // bounds rule confines pan/zoom to the current [oldest .. now] range and
-            // the X-axis start point stays pinned to the data.
-            // Extent spans the accumulated history (oldest retained .. newest), so the
-            // bounds rule lets a pan reach back through the whole retained window even
-            // though each frame only delivered the newest ~2 s slice.
+            // Live only (paused freezes this whole block): advance the drawn-data extent
+            // so the bounds rule tracks [oldest retained .. now] — the extent spans the
+            // accumulated history even though each frame delivered only the newest ~2 s
+            // slice — then follow the newest data with the default 500 ms window.
             _dataMaxX = frame.GraphTickEnd;
             _dataMinX = ScopeOldestTick();
             _hasDataExtent = _dataMaxX > _dataMinX;
 
-            if (_scopeFollowLive)
-            {
-                // Default 500 ms live window; the user can zoom out to at most 2 s
-                // (ScopeXViewBoundsRule caps the span at the retained extent).
-                double width = DefaultScopeWindowSeconds * context.SampleRate;
-                double end = frame.GraphTickEnd;
-                _scopePlot.Plot.Axes.SetLimitsX(end - width, end);
-            }
+            // Default 500 ms live window; the user can zoom out to at most 2 s
+            // (ScopeXViewBoundsRule caps the span at the retained extent).
+            double width = DefaultScopeWindowSeconds * context.SampleRate;
+            double end = frame.GraphTickEnd;
+            _scopePlot.Plot.Axes.SetLimitsX(end - width, end);
 
             // Reduce the now-visible X range out of the accumulated history into the
             // plottable arrays: the on-screen trace then carries the producer's full
             // resolution over the visible window instead of the budget being spread
-            // across the entire retention.
-            ReduceVisibleScope();
-
-            if (_scopeFollowLive)
+            // across the entire retention. Skipped when the producer re-attached an
+            // unchanged slice — the data and the (latched) X window are identical, so
+            // the reduction would only reproduce the existing arrays.
+            if (scopeDataChanged)
             {
+                ReduceVisibleScope();
                 _scopePlot.Plot.Axes.AutoScaleY();
-            }
 
-            // Re-lay the fixed 0.2 s ruler over whatever X range is now shown.
-            ApplyScopeTimeTicks();
+                // Re-lay the fixed 0.2 s ruler over whatever X range is now shown.
+                ApplyScopeTimeTicks();
+            }
         }
 
         if (scopeUpdated || cursorMoved)
@@ -304,12 +370,172 @@ internal sealed class RateScopeRenderer
         return cursor;
     }
 
-    /// <summary>Resets the rate plot (top) to its configured limits.</summary>
+    /// <summary>Restores the rate plot (top): re-arms live follow and refits to the current page.</summary>
     public void ResetRateView()
     {
+        _rateFollowLive = true;
         _ratePlot.Plot.Axes.SetLimitsY(-_rateErrorYScale, _rateErrorYScale);
-        _ratePlot.Plot.Axes.SetLimitsX(0, _rateDataPoints);
+        _hasRateDataExtent = RateDataExtent(out _rateDataMinX, out _rateDataMaxX);
+        _ratePlot.Plot.Axes.SetLimitsX(
+            _hasRateDataExtent ? RatePageWindowFor(_rateDataMaxX).Left : 0,
+            _hasRateDataExtent ? RatePageWindowFor(_rateDataMaxX).Right : RatePageWindowBeats);
+        if (_hasRateDataExtent)
+        {
+            UpdateAveragePeriodAnnotations(_lastMetricsHistory);
+        }
         _ratePlot.Refresh();
+    }
+
+    private void UpdateAveragePeriodAnnotations(BeatMetricsHistorySnapshot? history)
+    {
+        _rateAverageAnnotations.Update(
+            _ratePlot.Plot,
+            history?.AveragePeriodRateIntervals ?? Array.Empty<AveragePeriodRateInterval>());
+    }
+
+    /// <summary>
+    /// Oldest/newest retained beat index across the tic/toc rate series (each ascending,
+    /// holding the latest WatchMetrics.MaxRateDataPoints beats). Returns false until at
+    /// least two distinct beats exist (no meaningful extent yet).
+    /// </summary>
+    private bool RateDataExtent(out double min, out double max)
+    {
+        min = double.MaxValue;
+        max = double.MinValue;
+        bool any = false;
+        for (int i = 0; i < _rateX.Length; i++)
+        {
+            int n = _rateX[i].Count;
+            if (n == 0)
+            {
+                continue;
+            }
+
+            if (_rateX[i][0] < min)
+            {
+                min = _rateX[i][0];
+            }
+
+            if (_rateX[i][n - 1] > max)
+            {
+                max = _rateX[i][n - 1];
+            }
+
+            any = true;
+        }
+
+        if (!any)
+        {
+            min = 0;
+            max = 0;
+            return false;
+        }
+
+        return max > min;
+    }
+
+    internal static (double Left, double Right) RatePageWindowFor(double maxBeat)
+    {
+        double page = Math.Max(0.0, Math.Floor(maxBeat / RatePageWindowBeats));
+        double left = page * RatePageWindowBeats;
+        return (left, left + RatePageWindowBeats);
+    }
+
+    /// <summary>
+    /// Coalesced deferred refresh after a user pan/zoom on the rate plot: a drag fires
+    /// PointerMoved many times per second, so only one redraw needs queuing. The
+    /// RateXViewBoundsRule re-clamps the new range on the render that follows.
+    /// </summary>
+    private void ScheduleRateAxisRefresh()
+    {
+        if (_rateAxisRefreshPending)
+        {
+            return;
+        }
+
+        _rateAxisRefreshPending = true;
+        Dispatcher.UIThread.Post(
+            () =>
+            {
+                _rateAxisRefreshPending = false;
+                UpdateAveragePeriodAnnotations(_lastMetricsHistory);
+                _ratePlot.Refresh();
+            },
+            DispatcherPriority.Background);
+    }
+
+    /// <summary>
+    /// Confines the rate plot's X view to fixed 120-beat pages. Live-follow stays on
+    /// the newest data extent; after a user pan/zoom, the older pages remain reachable
+    /// while incoming points continue to refresh.
+    /// </summary>
+    private sealed class RateXViewBoundsRule : IAxisRule
+    {
+        private readonly RateScopeRenderer _owner;
+        private readonly IXAxis _xAxis;
+
+        public RateXViewBoundsRule(RateScopeRenderer owner, IXAxis xAxis)
+        {
+            _owner = owner;
+            _xAxis = xAxis;
+        }
+
+        public void Apply(RenderPack rp, bool beforeLayout)
+        {
+            if (!_owner._hasRateDataExtent)
+            {
+                return;
+            }
+
+            (double pageLeft, double pageRight) = RatePageWindowFor(_owner._rateDataMaxX);
+            double minLeft = _owner._rateFollowLive ? _owner._rateDataMinX : 0.0;
+            double firstPageLeft = _owner._rateFollowLive ? pageLeft : 0.0;
+            ClampViewToPagedExtent(_xAxis, minLeft, pageRight, firstPageLeft, RatePageWindowBeats);
+        }
+    }
+
+    internal static void ClampViewToPagedExtent(
+        IXAxis xAxis,
+        double min,
+        double maxRight,
+        double pageLeft,
+        double maxSpan)
+    {
+        double left = xAxis.Range.Min;
+        double right = xAxis.Range.Max;
+        double span = right - left;
+        if (span <= 0.0)
+        {
+            return;
+        }
+
+        if (span > maxSpan)
+        {
+            span = maxSpan;
+            right = left + span;
+        }
+
+        if (right > maxRight)
+        {
+            right = maxRight;
+            left = right - span;
+        }
+
+        double minLeft = Math.Min(min, pageLeft);
+        if (left < minLeft)
+        {
+            left = minLeft;
+            right = left + span;
+        }
+
+        if (right > maxRight)
+        {
+            right = maxRight;
+            left = right - span;
+        }
+
+        xAxis.Range.Min = left;
+        xAxis.Range.Max = right;
     }
 
     /// <summary>Restores the scope plot (bottom): re-arms live auto-follow and refits.</summary>
@@ -337,12 +563,73 @@ internal sealed class RateScopeRenderer
     }
 
     /// <summary>
+    /// Confines an X view ([<paramref name="xAxis"/>.Range.Min..Max]) to the drawn-data
+    /// extent [<paramref name="min"/>, <paramref name="max"/>], capping the visible span
+    /// at <paramref name="maxSpan"/>. A pan/zoom-out past either end is shifted back
+    /// inside with its span preserved (so the start point can never drift off the data),
+    /// and a view wider than the data snaps to the full extent. Shared by the scope
+    /// (time axis) and rate (beat-index axis) bounds rules. No extent (max ≤ min) is a no-op.
+    /// </summary>
+    private static void ClampViewToExtent(IXAxis xAxis, double min, double max, double maxSpan)
+    {
+        double extent = max - min;
+        if (extent <= 0.0)
+        {
+            return;
+        }
+
+        // Zoom-out ceiling: never show more than maxSpan at once (nor more than the
+        // retained data when that is shorter).
+        double cap = Math.Min(extent, maxSpan);
+
+        double left = xAxis.Range.Min;
+        double right = xAxis.Range.Max;
+        double span = right - left;
+        if (span <= 0.0)
+        {
+            return;
+        }
+
+        // Clamp the span to the zoom-out ceiling, anchored on the view's right edge so
+        // an over-zoom shrinks in place instead of snapping to the newest data. (The
+        // old "span >= cap -> right = max" pinned the view to the newest window, which
+        // blocked panning once the retained window grew past the ceiling — at full zoom
+        // every frame dragged the view back to now.)
+        if (span > cap)
+        {
+            left = right - cap;
+            span = cap;
+        }
+
+        // Confine the window to the data extent, preserving its span so a pan stops at
+        // the data edges with the start point pinned to the data.
+        if (right > max)
+        {
+            right = max;
+            left = max - span;
+        }
+
+        if (left < min)
+        {
+            left = min;
+            right = min + span;
+        }
+
+        // Span still wider than the data after capping: snap to the full extent.
+        if (right > max)
+        {
+            right = max;
+        }
+
+        xAxis.Range.Min = left;
+        xAxis.Range.Max = right;
+    }
+
+    /// <summary>
     /// Confines the scope's X view to the live drawn-data extent
-    /// (<see cref="_dataMinX"/>..<see cref="_dataMaxX"/>), refreshed each frame. A
-    /// pan/zoom-out that would carry the view past either end is shifted back inside
-    /// (span preserved); a view wider than the data snaps to the full range. This
-    /// lets the user swipe/zoom within the retained window while the X-axis start
-    /// point can never drift off the data. No data yet (Max ≤ Min) is a no-op.
+    /// (<see cref="_dataMinX"/>..<see cref="_dataMaxX"/>), refreshed each frame, so the
+    /// user can swipe/zoom within the retained window while the X-axis start point can
+    /// never drift off the data. Zoom-out ceiling is the 2 s on-screen window.
     /// </summary>
     private sealed class ScopeXViewBoundsRule : IAxisRule
     {
@@ -362,70 +649,21 @@ internal sealed class RateScopeRenderer
                 return;
             }
 
-            double min = _owner._dataMinX;
-            double max = _owner._dataMaxX;
-            double extent = max - min;
-            if (extent <= 0.0)
-            {
-                return;
-            }
-
-            // Zoom-out ceiling: the user can never show more than 2 s at once (nor
-            // more than the retained data when that is shorter).
-            double cap = Math.Min(extent, MaxScopeWindowSeconds * _owner._sampleRate);
-
-            double left = _xAxis.Range.Min;
-            double right = _xAxis.Range.Max;
-            double span = right - left;
-            if (span <= 0.0)
-            {
-                return;
-            }
-
-            // Clamp the span to the zoom-out ceiling, anchored on the view's right
-            // edge so an over-zoom shrinks in place instead of snapping to the newest
-            // data. (The old "span >= cap -> right = max" pinned the view to the
-            // newest 2 s, which blocked panning once the retained window grew past
-            // the 2 s ceiling — at full zoom every frame dragged the view back to now.)
-            if (span > cap)
-            {
-                left = right - cap;
-                span = cap;
-            }
-
-            // Confine the window to the retained data extent, preserving its span so
-            // a pan stops at the data edges with the start point pinned to the data.
-            if (right > max)
-            {
-                right = max;
-                left = max - span;
-            }
-
-            if (left < min)
-            {
-                left = min;
-                right = min + span;
-            }
-
-            // Span still wider than the data after capping: snap to the full extent.
-            if (right > max)
-            {
-                right = max;
-            }
-
-            _xAxis.Range.Min = left;
-            _xAxis.Range.Max = right;
+            ClampViewToExtent(_xAxis, _owner._dataMinX, _owner._dataMaxX, MaxScopeWindowSeconds * _owner._sampleRate);
         }
     }
 
     /// <summary>
     /// Merges each incoming scope slice (the producer's newest ~2 s, keyed on absolute
     /// X ticks) into the rolling per-series history, trimmed to
-    /// <see cref="ScopeHistorySeconds"/>. Returns true if any scope series was present.
+    /// <see cref="ScopeHistorySeconds"/>. Returns true if any scope series was present;
+    /// sets <paramref name="dataChanged"/> only when a new (non-reattached) slice was
+    /// actually merged.
     /// </summary>
-    private bool MergeScopeHistory(AnalysisFrame frame)
+    private bool MergeScopeHistory(AnalysisFrame frame, out bool dataChanged)
     {
-        bool merged = false;
+        bool present = false;
+        dataChanged = false;
         double retentionSamples = ScopeHistorySeconds * _sampleRate;
         for (int i = 0; i < _scopeSeries.Length; i++)
         {
@@ -435,11 +673,21 @@ internal sealed class RateScopeRenderer
                 continue;
             }
 
+            present = true;
+            // The throttled producer re-attaches the same immutable frame between
+            // rebuilds; re-merging it is idempotent, so skip the merge when the
+            // reference is unchanged.
+            if (ReferenceEquals(series, _lastScopeSeries[i]))
+            {
+                continue;
+            }
+
+            _lastScopeSeries[i] = series;
             MergeScopeSlice(_scopeHistX[i], _scopeHistY[i], series.X, series.Y, retentionSamples);
-            merged = true;
+            dataChanged = true;
         }
 
-        return merged;
+        return present;
     }
 
     /// <summary>
@@ -872,7 +1120,7 @@ internal sealed class RateScopeRenderer
 
         Text created = _scopePlot.Plot.Add.Text("", 0.0, 0.0);
         created.LabelFontName = _textFontFamily;
-        created.LabelFontSize = 10;
+        created.LabelFontSize = PlotThemeHelper.GraphLabelFontSize;
         _scopeTextPool.Add(created);
         _scopeTextSourceColors.Add(sourceColor);
         _scopeTextsUsed++;

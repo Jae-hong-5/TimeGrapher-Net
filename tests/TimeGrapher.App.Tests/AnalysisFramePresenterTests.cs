@@ -101,7 +101,7 @@ public sealed class AnalysisFramePresenterTests
         AnalysisFramePresenter presenter = Create(vm);
 
         presenter.Present(new AnalysisFrame { BackgroundFps = 30 }, 0, 0, 48000);
-        Assert.Contains("Backgroud", vm.StatusText); // throughput line emitted
+        Assert.Contains("BG", vm.StatusText); // throughput line emitted
 
         // The reporter only re-emits on change: an identical frame leaves the status untouched.
         vm.StatusText = "marker";
@@ -112,7 +112,7 @@ public sealed class AnalysisFramePresenterTests
         presenter.Reset();
         vm.StatusText = "marker";
         presenter.Present(new AnalysisFrame { BackgroundFps = 30 }, 0, 0, 48000);
-        Assert.Contains("Backgroud", vm.StatusText);
+        Assert.Contains("BG", vm.StatusText);
     }
 
     [Fact]

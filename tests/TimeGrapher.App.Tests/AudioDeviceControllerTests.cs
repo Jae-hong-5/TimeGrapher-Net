@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using TimeGrapher.App.Services;
 using TimeGrapher.App.ViewModels;
+using TimeGrapher.App.Views;
 using TimeGrapher.Core.Shared;
 using Xunit;
 
@@ -105,6 +106,65 @@ public sealed class AudioDeviceControllerTests
         }
     }
 
+    private sealed class CoordinatedHarness
+    {
+        public MainWindowViewModel ViewModel { get; } = new();
+        public AudioSelectionState State { get; } = new();
+        public FakeBackend Backend { get; } = new();
+        public ControllableRunner Runner { get; } = new();
+        public MainWindowSelectionCoordinator Coordinator { get; }
+        public AudioDeviceController Controller { get; }
+
+        public CoordinatedHarness()
+        {
+            var operations = new CoordinatorOperations(State);
+            Coordinator = new MainWindowSelectionCoordinator(
+                ViewModel,
+                operations,
+                new MainWindowSelectionOptions("Playback", "Simulation"));
+            Controller = new AudioDeviceController(
+                ViewModel,
+                State,
+                Backend,
+                new ImmediateDispatcher(),
+                name => name,
+                MainWindow.SelectInputDeviceIndexAfterReload,
+                playbackSourceName: "Playback",
+                simulationSourceName: "Simulation",
+                runOffThread: Runner.Run);
+            operations.PopulateSampleRatesAction = Controller.PopulateSampleRates;
+            Controller.AttachSelectionEventGate(Coordinator);
+            ViewModel.PropertyChanged += Coordinator.OnViewModelPropertyChanged;
+        }
+    }
+
+    private sealed class CoordinatorOperations : IMainWindowSelectionOperations
+    {
+        private readonly AudioSelectionState _state;
+
+        public CoordinatorOperations(AudioSelectionState state)
+        {
+            _state = state;
+        }
+
+        public IReadOnlyList<int> InputDeviceNumbers => _state.InputDeviceNumbers;
+
+        public int AvailableSampleRateCount => _state.AvailableSampleRateCount;
+
+        public Action<int> PopulateSampleRatesAction { get; set; } = _ => { };
+
+        public int GetAvailableSampleRate(int index) => _state.GetAvailableSampleRate(index);
+
+        public void PopulateSampleRates(int deviceNumber) => PopulateSampleRatesAction(deviceNumber);
+
+        public void SetCurrentSampleRate(int sampleRate) => _state.CurrentSampleRate = sampleRate;
+
+        public void SetAudioInputVolume(float normalizedVolume)
+        {
+            _ = normalizedVolume;
+        }
+    }
+
     [Fact]
     public void LoadAudioDevices_CanCaptureFalse_OnlyPlaybackAndSimulation()
     {
@@ -157,6 +217,30 @@ public sealed class AudioDeviceControllerTests
 
         // Fallback to index 0; the initial selected index is -1 (not 0), so forceChanged stays false.
         Assert.Equal(new[] { (0, false) }, h.Gate.SelectedInputDeviceCalls);
+    }
+
+    [Theory]
+    [InlineData("Playback", 2, (int)RunCommandMode.Playback)]
+    [InlineData("Simulation", 3, (int)RunCommandMode.Simulation)]
+    [InlineData("Live: Mic B", 1, (int)RunCommandMode.Live)]
+    public void LoadAudioDevices_PreservesCurrentSourceThroughSelectionCoordinator(
+        string currentDeviceName,
+        int expectedIndex,
+        int expectedMode)
+    {
+        var h = new CoordinatedHarness();
+        h.Backend.Devices.Add(new LiveAudioDevice(7, "Mic A"));
+        h.Backend.Devices.Add(new LiveAudioDevice(9, "Mic B"));
+
+        h.Controller.LoadAudioDevices(currentDeviceName);
+
+        Assert.Equal(expectedIndex, h.ViewModel.SelectedInputDeviceIndex);
+        Assert.Equal(
+            currentDeviceName,
+            MainWindowSelectionCoordinator.ItemText(
+                h.ViewModel.InputDeviceNames,
+                h.ViewModel.SelectedInputDeviceIndex));
+        Assert.Equal((RunCommandMode)expectedMode, h.Coordinator.CurrentMode);
     }
 
     [Fact]

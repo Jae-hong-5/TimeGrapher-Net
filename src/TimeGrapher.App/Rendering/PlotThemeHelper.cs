@@ -9,6 +9,14 @@ namespace TimeGrapher.App.Rendering;
 /// </summary>
 internal static class PlotThemeHelper
 {
+    /// <summary>
+    /// Graph label font size shared by every ScottPlot renderer. Mirrors the
+    /// App.axaml base FontSize (14); ScottPlot label sizes cannot bind to Avalonia
+    /// resources, so this single code constant replaces the per-file literals that
+    /// had drifted (10-16) before standardization.
+    /// </summary>
+    public const float GraphLabelFontSize = 14f;
+
     public static void Apply(Plot plot, PlotThemePalette theme)
     {
         plot.FigureBackground.Color = Color.FromARGB(theme.SurfaceBg);

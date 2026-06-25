@@ -40,8 +40,8 @@ class AnalysisRunSettings {
     +int SoundImageWidth
     +int SoundImageHeight
     +int ScopeSnapshotPointBudget
-    +bool PllEventVeto
     +int AnalysisBlockSize
+    +bool WeakAOnsetRescue
 }
 
 class AudioSource {
@@ -417,7 +417,7 @@ class TgConfig {
     +double MinPeakFractionInit
     +bool SuppressPreSyncEvents
     +TgCPlacement CPlacement
-    +bool TrackEventPllMatch
+    +double PhaseGuideOnsetRescueScale
 }
 
 class TgResult {
@@ -467,7 +467,6 @@ class DetectorResultSnapshot {
     +float ReferencePeak
     +ulong MissedBeats
     +uint SyncLossCount
-    +ulong VetoedEvents
 }
 
 class DetectorMetricsEngineConfig {
@@ -478,8 +477,8 @@ class DetectorMetricsEngineConfig {
     +bool AutoBph
     +int ManualBph
     +double HpfCutoffHz
-    +BeatEventGateConfig? EventGate
     +double AmplitudeOnsetLatencyS
+    +double PhaseGuideOnsetRescueScale
 }
 
 class DetectorMetricsBlockUpdate {
@@ -492,20 +491,6 @@ class DetectedEventUpdate {
     +TgEvent Event
     +double EventSample
     +WatchMetricsUpdate MetricsUpdate
-}
-
-class BeatCandidate {
-    +TgEvent Event
-    +bool Synced
-    +int DetectedBph
-    +double BeatPeriodS
-    +float NoiseFloor
-    +float ReferencePeak
-    +bool PllMatched
-}
-
-class BeatEventGateConfig {
-    +IBeatEventGate Gate
 }
 
 AudioSource <|-- LiveAudioSource
@@ -540,11 +525,9 @@ TgEvent "1" --> "1" TgEventType : 이벤트 종류
 DetectorResultSnapshot "1" --> "1" TgSyncStatus : sync 상태
 DetectorMetricsEngineConfig "1" --> "0..*" DetectorMetricsBlockUpdate : 공유 엔진 계약(블록당 산출)
 DetectorMetricsEngineConfig "1" --> "1" TgConfig : 엔진이 내부 검출기 설정 파생
-DetectorMetricsEngineConfig "1" o-- "0..1" BeatEventGateConfig : 선택적 게이트 설정
 DetectorMetricsBlockUpdate "1" *-- "1" DetectorResultSnapshot : 원검출 스냅샷
 DetectorMetricsBlockUpdate "1" o-- "0..*" DetectedEventUpdate : 표시/메트릭 이벤트
 DetectedEventUpdate "1" *-- "1" WatchMetricsUpdate : 이벤트별 메트릭
-BeatEventGateConfig "1" --> "0..*" BeatCandidate : 게이트 판정 입력
 
 AnalysisFrame "1" *-- "0..*" GraphSeriesFrame : 스코프/레이트 시리즈
 ScopeFilterSample "1" --> "0..*" GraphSeriesFrame : Filter Scope F0–F3 투영(MultiFilterFrameProjector)
@@ -580,23 +563,21 @@ BeatNoiseAverageSnapshot "1" *-- "0..5" BeatNoiseAverageMilestone : 10/20/30/40/
 | 엔티티 | 소속 | 의미 |
 |---|---|---|
 | `WavFile`, `WavFormatInfo`, `WavData` | `Core.AudioIo` | 영속/디코딩된 오디오 데이터. `WavData`는 `WavFileReader.ReadMonoFloat`의 전체 파일 디코딩 결과로, Verify는 이를 `DetectorMetricsEngine`에 블록 단위로 직접 공급하고 분석 벤치마크(`AnalysisBenchmarkRunner`)는 `MasterAudioBuffer`에 써넣어 `AnalysisWorker`로 흘린다. 라이브 재생은 `PlaybackWorker`가 `WavFile`을 블록 단위로 디코딩해 `MasterAudioBuffer`에 스트리밍한다(WavData 미경유). 녹음은 별도 `QueuedWavStreamWriter` 경로다. `WavFile`은 개념 노드(파일 자체) |
-| `AnalysisRunSettings` | `TimeGrapher.App` | 사용자가 고른 실행 파라미터(`AnalysisWorker.Config`로 변환). `PllEventVeto`가 켜지면 `PllMatchGate`를 연결한다(적응형 floor·regime guard는 기본 동작). `AnalysisBlockSize`는 검출기 입력 블록(윈도우) 크기(샘플)로 `Config.AnalysisBlockSize`로 흐른다 |
-| `SamplingSettings`, `SamplingSettingsStore` | `TimeGrapher.App` | 설정 창의 Run Parameters에서 조정하는 실행 시작 파라미터: Error Rate 평균 구간/Avg. Period(초), 분석 블록 크기(검출기 입력 윈도우, 샘플), 캡처 버퍼 길이(ms). `SamplingSettingsStore`가 `%AppData%/TimeGrapher/sampling.json`에 영속화하고 시작 시 로드해 시드한다(누락·손상 시 `Default`로 폴백, accept-bands와 동일). 셋 모두 실행 시작 시점에 읽혀(라이브 미반영) 다음 실행부터 적용. 캡처 버퍼는 Windows `BufferMilliseconds`/Linux `pw-record --latency`·`arecord --buffer-time`로 매핑하며 기본값(`LiveAudioDefaults.BufferMilliseconds`)에서는 플래그를 생략해 현 동작을 보존 |
+| `AnalysisRunSettings` | `TimeGrapher.App` | 사용자가 고른 실행 파라미터(`AnalysisWorker.Config`로 변환). 적응형 floor·regime guard는 기본 동작이다. `AnalysisBlockSize`는 검출기 입력 블록(윈도우) 크기(샘플)로 `Config.AnalysisBlockSize`로 흐른다. `WeakAOnsetRescue`(App "Weak-A onset rescue" 토글)가 켜지면 `PhaseGuideOnsetRescueScale = 1.0`(꺼지면 0.0)으로 변환되어 `DetectorMetricsEngineConfig`→`TgConfig.PhaseGuideOnsetRescueScale`로 흐른다(post-lock 약한 A onset 구제) |
+| `SamplingSettings`, `SamplingSettingsStore` | `TimeGrapher.App` | 설정 창의 Run Parameters에서 조정하는 실행 시작 파라미터: 상단바 판독 완료 평균 구간/Avg. Period(초), 분석 블록 크기(검출기 입력 윈도우, 샘플), 캡처 버퍼 길이(ms). `SamplingSettingsStore`가 `%AppData%/TimeGrapher/sampling.json`에 영속화하고 시작 시 로드해 시드한다(누락·손상 시 `Default`로 폴백, accept-bands와 동일). 셋 모두 실행 시작 시점에 읽혀(라이브 미반영) 다음 실행부터 적용. Avg. Period는 완료 구간의 같은 위상 period 차이 평균을 s/24h Error Rate로 변환하고, 상단바 Amplitude와 BEAT ERROR도 같은 완료 구간의 쌍평균 진폭/절대 beat error 평균을 표시한 뒤 다음 구간 완료 전까지 유지한다. 그래프/히스토리 이벤트 시리즈는 기존 A/C 이벤트 샘플(RLS rate, 부호 beat error, tic/toc 쌍평균 진폭)을 계속 사용하고, 완료된 Error Rate 구간만 `AveragePeriodRateInterval`로 별도 보존해 Rate/Scope와 Beat Error의 Error Rate 그래프에 구간 overlay로 표시한다. 캡처 버퍼는 Windows `BufferMilliseconds`/Linux `pw-record --latency`·`arecord --buffer-time`로 매핑하며 기본값(`LiveAudioDefaults.BufferMilliseconds`)에서는 플래그를 생략해 현 동작을 보존 |
 | `AudioSource` 특수화 | App 실행 모드 / Core 워커 | 라이브 마이크, WAV 재생, 합성 신호 입력. 단일 클래스가 아니라 `RunCommandMode`와 세 워커로 표현되는 개념 |
 | `LiveAudioDevice` | `Core.Shared` | 라이브 입력 장치(번호/이름) |
 | `WatchSynthStreamConfig` | `Core.Sim` | 합성 워치 스트림 설정. BPH·Error Rate·BEAT ERROR·진폭/리프트각 외에 패킷·공진·노이즈·임펄스 모델 등 다수 필드. 다이어그램은 대표 필드만 표시 |
 | `WatchSynthStreamEvent`, `WatchSynthStreamFillResult`, `WatchSynthEventKind` | `Core.Sim` | 합성 스트림의 그라운드트루스 사이드채널. `FillF32`가 비트별 진실 이벤트(틱/톡·시간·샘플·간격오프셋·진폭·리프트각)와 채움 결과(쓴/드롭 샘플·이벤트 수)를 반환해 `Verify`의 이벤트 수준 채점(`DetectionScorer`) 진실값으로 사용 |
 | `MasterAudioBuffer` | `Core.Shared` | 입력 워커(쓰기)와 분석 워커(읽기) 간 공유 모노 float 링버퍼(30초). 입력 throughput 카운터와 지연 보고용 캡처 타임스탬프 조회 제공 |
 | `TgConfig`, `TgResult`, `TgEvent` | `Core.Detection` | 검출기 설정 / sync 상태·처리 PCM·이벤트 목록·sync edge 플래그·검출 임계값 / A·C 이벤트(`TgEvent.Type`로 구분, C-onset 메타 포함). `TgResult`는 `DetectorMetricsEngine`이 블록마다 비우고 다시 채우는 재사용 버퍼 1개이며, UI/Verify에 발행되는 블록당 불변 계약은 `DetectorResultSnapshot`/`DetectorMetricsBlockUpdate`다 |
-| `DetectorMetricsEngineConfig` | `Core.Analysis` | 공유 검출/메트릭 엔진(`DetectorMetricsEngine`)의 입력 계약(샘플레이트·리프트각·평균구간·C-onset·BPH·HPF·선택적 `BeatEventGateConfig`·`AmplitudeOnsetLatencyS`). `AmplitudeOnsetLatencyS`는 A-온셋 검출 지연(임계 교차가 실제 온셋보다 늦고 C 피크보다 더 늦음)을 보정하려고 진폭 계산 전 A→C 구간에 더하는 초 단위 값(기본 ~45µs, 기준 합성기 기준 보정·실측 리그 재보정 가능). `AnalysisWorker`와 `Verify`가 동일하게 구성하며, 엔진이 이로부터 내부 `TgConfig`를 파생 |
+| `DetectorMetricsEngineConfig` | `Core.Analysis` | 공유 검출/메트릭 엔진(`DetectorMetricsEngine`)의 입력 계약(샘플레이트·리프트각·평균구간·C-onset·BPH·HPF·`AmplitudeOnsetLatencyS`). `AmplitudeOnsetLatencyS`는 A-온셋 검출 지연(임계 교차가 실제 온셋보다 늦고 C 피크보다 더 늦음)을 보정하려고 진폭 계산 전 A→C 구간에 더하는 초 단위 값(기본 ~45µs, 기준 합성기 기준 보정·실측 리그 재보정 가능). `AnalysisWorker`와 `Verify`가 동일하게 구성하며, 엔진이 이로부터 내부 `TgConfig`를 파생 |
 | `DetectorResultSnapshot`, `DetectorMetricsBlockUpdate`, `DetectedEventUpdate` | `Core.Analysis` | 공유 검출/메트릭 엔진의 블록당 계약. 원검출 스냅샷과 표시/메트릭 이벤트 스트림을 라이브 워커와 Verify가 공유 |
-| `BeatCandidate`, `BeatEventGateConfig` | `Core.Detection.Scoring`, `Core.Analysis` | 게이트(`IBeatEventGate`)에 넘기는 후보 이벤트 문맥(이벤트·sync·임계값·PLL 매치 판정)과 엔진 레벨 게이트 설정 |
-| `BeatWindowFeatures` | `Core.Detection.Scoring` | 엔벨로프 윈도우의 고정 길이 특징 벡터(128점, bucket-max 데시메이션 후 피크 정규화) 추출기 |
 | `AnalysisFrame` | `Core.Shared` | 한 번의 분석 패스가 만드는 UI 업데이트 단위. 세션·소스 식별자(`SessionId`/`SourceId`, 단조 증가)·백로그/데드라인 상태·지연 타임스탬프·sync 카운터·그래프 tick·beat-sync 상태·선택적 이미지·누적 스냅샷 포함 |
 | `GraphSeriesFrame`, 마커 3종, `WatchMetricsUpdate`, `PixelBuffer` | `Core.Shared` | 스코프/레이트 그래프 데이터, 마커 DTO, 수치 결과, 사운드/스펙트로그램 이미지. 스펙트로그램은 최근 입력 윈도우의 STFT(x=시간, y=주파수, 색=dB)로 고정 버퍼 풀에서 발행 |
 | `ScopeFilterSample` | `Core.Detection` | Filter Scope 필터뱅크의 샘플당 4채널(F0–F3) 출력. `MultiFilterFrameProjector`가 `AnalysisFrame`의 스코프 시리즈 `filter.f0`–`filter.f3`로 투영(Sweep은 `sweep.trace`) |
-| `BeatTimingSample`, `AmplitudeSample`, `DerivedTimingMeasures` | `Core.Shared` | A/C 이벤트별 기계 판독 가능 값. Error Rate/유효성/부호 BEAT ERROR/락 BPH/진폭/쌍평균 갱신/DiffTicTac·DiffPeriod·AvgPeriod |
-| `BeatMetricsHistorySnapshot`, `MetricsHistorySeries` | `Core.Shared` (`Core.Metrics.BeatMetricsHistory`가 생성) | Error Rate/amplitude/BEAT ERROR 누적 이력 시리즈 + 최신 판독값·통계·활성 위치·락 BPH. 프레임 간 공유되며 latest-wins 합병에도 손실 없음 |
+| `BeatTimingSample`, `AmplitudeSample`, `DerivedTimingMeasures`, `AveragePeriodRateInterval` | `Core.Shared` | A/C 이벤트별 기계 판독 가능 값. Error Rate/유효성/부호 BEAT ERROR/락 BPH/진폭/쌍평균 갱신/DiffTicTac·DiffPeriod·AvgPeriod. Error Rate 이벤트 샘플은 그래프/히스토리용 rolling RLS 값이고, 상단바 Avg. Period가 완료될 때의 구간 범위·Error Rate·Amplitude·BEAT ERROR 표시는 `AveragePeriodRateInterval`로 따로 전달된다 |
+| `BeatMetricsHistorySnapshot`, `MetricsHistorySeries` | `Core.Shared` (`Core.Metrics.BeatMetricsHistory`가 생성) | Error Rate/amplitude/BEAT ERROR 누적 이력 시리즈 + 최신 판독값·통계·활성 위치·락 BPH + 완료된 Avg. Period Error Rate 구간 목록. 시리즈는 이벤트 샘플 기반 그래프 값으로 유지되고, 완료 구간 목록은 두 Error Rate 그래프의 구간 overlay와 구간별 Error Rate/Amplitude/BEAT ERROR 라벨에만 사용된다. 같은 구간의 Amplitude/BEAT ERROR 평균이 rate 구간보다 늦게 완성되면 히스토리는 중복 추가가 아니라 마지막 matching interval을 교체해 latest-wins 합병에도 손실이 없다 |
 | `StatsSummary` | `Core.Shared` (`Core.Metrics.RunningStats`가 공급) | 현재 위치 시작 이후 min/max/mean/모집단 σ. 시리즈 데시메이션과 무관한 정확한 비트별 통계(Vario 표시) |
 | `WatchPosition` | `Core.Shared` | NIHS 95-10 / ISO 3158 표준 검사 위치. 내부 enum은 기존 CH/CB/6H/9H/3H/12H 계열 식별자와 0..9 ordinal을 유지하지만, 사용자 표시 용어와 `WatchPositions.All` 표시 순서는 메일의 제안 용어 기준 CH, CB, 12H, 1:30H, 3H, 4:30H, 6H, 7:30H, 9H, 10:30H 총 10단계다 |
 | `PositionSummary` | `Core.Shared` (`BeatMetricsHistory`가 집계) | 위치별 Error Rate/amplitude/부호 BEAT ERROR 누적 통계. 측정된 위치만 등장(최대 `WatchPositions.Count`=10) |
@@ -610,7 +591,6 @@ BeatNoiseAverageSnapshot "1" *-- "0..5" BeatNoiseAverageMilestone : 10/20/30/40/
 |---|---|
 | 1:1 | 한 `AnalysisRun`은 `AnalysisRunSettings` 하나, 선택된 `AudioSource` 하나, `MasterAudioBuffer` 하나를 가진다 |
 | 1:n | 한 `AnalysisRun`은 다수 `AnalysisFrame`을 생성하고, 한 `TgResult`는 다수 `TgEvent`를, 한 `AnalysisFrame`은 다수 그래프 시리즈·마커 DTO를 포함한다 |
-| Pre/post-gate 이벤트 스트림 | 게이트가 설정되면 `DetectorResultSnapshot.Events`는 PRE-gate 원검출 스트림(진단용)을, `DetectorMetricsBlockUpdate`의 `DisplayEvents`/`MetricsEvents`는 `WatchMetrics`에 도달한 POST-gate 스트림을 전달한다. `DetectorResultSnapshot.VetoedEvents`는 누락 이벤트 수(쌍 거부된 C 포함)를 센다 |
 | n:n | DB가 없고 대부분의 런타임 데이터는 단일 run/frame이 소유하므로 영속 다대다 관계는 없다 |
 | 일반화/특수화 | `AudioSource`는 live/playback/sim으로 특수화된다(개념 수준). 검출 이벤트는 `TgEvent.Type`로 구분되는 단일 DTO이며, 마커는 공유 상위형 없이 3개의 별도 DTO다 |
 | 집약/합성 | `AnalysisFrame`은 그래프 시리즈·마커·메트릭·선택적 이미지(`PixelBuffer`)로 합성된다. 단, 누적 스냅샷(`BeatMetricsHistorySnapshot`/`BeatSegmentsSnapshot`)은 여러 프레임이 같은 불변 인스턴스를 공유하므로 집약(소유 아님)이다. `BeatMetricsHistorySnapshot`은 `MetricsHistorySeries` 3개와 최대 10개 `PositionSummary`를, `BeatSegmentsSnapshot`은 최대 8개(`SegmentRingCount`)의 `BeatSegment`를 모은다. `BeatNoiseAverageSnapshot`은 현재 평균과 최대 5개의 milestone 평균 스냅샷을 함께 합성해 UI가 Core 내부 누적 배열을 직접 참조하지 않게 한다 |

@@ -313,9 +313,9 @@
           "Avalonia.Desktop": "[11.3.17, )",
           "Avalonia.Themes.Fluent": "[11.3.17, )",
           "ScottPlot.Avalonia": "[5.0.55, )",
-          "TimeGrapher.Core": "[0.5.0, )",
-          "TimeGrapher.Platform.LinuxAudio": "[0.5.0, )",
-          "TimeGrapher.Platform.WindowsAudio": "[0.5.0, )"
+          "TimeGrapher.Core": "[0.8.2, )",
+          "TimeGrapher.Platform.LinuxAudio": "[0.8.2, )",
+          "TimeGrapher.Platform.WindowsAudio": "[0.8.2, )"
         }
       },
       "timegrapher.core": {
@@ -324,7 +324,7 @@
       "timegrapher.platform.linuxaudio": {
         "type": "Project",
         "dependencies": {
-          "TimeGrapher.Core": "[0.5.0, )"
+          "TimeGrapher.Core": "[0.8.2, )"
         }
       },
       "timegrapher.platform.windowsaudio": {
@@ -332,7 +332,7 @@
         "dependencies": {
           "NAudio.Wasapi": "[2.2.1, )",
           "NAudio.WinMM": "[2.2.1, )",
-          "TimeGrapher.Core": "[0.5.0, )"
+          "TimeGrapher.Core": "[0.8.2, )"
         }
       },
       "Avalonia": {

@@ -15,6 +15,17 @@ public sealed class MetricsHistorySeries
     public IReadOnlyList<double> YMax { get; init; } = Array.Empty<double>();
 }
 
+public readonly record struct AveragePeriodRateInterval(
+    double StartBeatIndex,
+    double EndBeatIndex,
+    double StartTimeS,
+    double EndTimeS,
+    double RateSPerDay,
+    bool AmplitudeValid,
+    double AmplitudeDeg,
+    bool BeatErrorValid,
+    double BeatErrorMs);
+
 /// <summary>
 /// Running min/max/mean/population-sigma summary of one measure since
 /// measurement start (built by <see cref="TimeGrapher.Core.Metrics.RunningStats"/>).
@@ -76,6 +87,9 @@ public sealed class BeatMetricsHistorySnapshot
     public MetricsHistorySeries BeatError { get; init; } = MetricsHistorySeries.Empty;
 
     public DerivedTimingMeasures Derived { get; init; }
+
+    public IReadOnlyList<AveragePeriodRateInterval> AveragePeriodRateIntervals { get; init; } =
+        Array.Empty<AveragePeriodRateInterval>();
 
     /// <summary>Latest instantaneous readings (the "current" column of stability views).</summary>
     public bool RateValid { get; init; }

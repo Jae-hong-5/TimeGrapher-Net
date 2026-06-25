@@ -27,6 +27,11 @@ internal static class PlotAxisRules
         plot.Axes.Rules.Add(new LeftEdgeFloor(plot.Axes.Bottom, minLeft));
     }
 
+    public static void LockYRange(Plot plot, double min, double max)
+    {
+        plot.Axes.Rules.Add(new FixedYRange(plot.Axes.Left, min, max));
+    }
+
     /// <summary>
     /// Floors the X view's left edge whenever pan/zoom-out would carry it below
     /// the bound, leaving the right edge untouched. ScottPlot's built-in
@@ -52,6 +57,26 @@ internal static class PlotAxisRules
             {
                 _xAxis.Range.Min = _minLeft;
             }
+        }
+    }
+
+    private sealed class FixedYRange : IAxisRule
+    {
+        private readonly IYAxis _yAxis;
+        private readonly double _min;
+        private readonly double _max;
+
+        public FixedYRange(IYAxis yAxis, double min, double max)
+        {
+            _yAxis = yAxis;
+            _min = min;
+            _max = max;
+        }
+
+        public void Apply(RenderPack rp, bool beforeLayout)
+        {
+            _yAxis.Range.Min = _min;
+            _yAxis.Range.Max = _max;
         }
     }
 }

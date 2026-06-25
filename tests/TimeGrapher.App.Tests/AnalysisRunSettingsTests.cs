@@ -1,17 +1,17 @@
 using TimeGrapher.App;
 using TimeGrapher.Core.Analysis;
-using TimeGrapher.Core.Detection.Scoring;
 using Xunit;
 
 namespace TimeGrapher.App.Tests;
 
 /// <summary>
-/// Pins the run-settings -> worker-config policy: the PLL event veto stays
-/// behind the checkbox and defaults off.
+/// Pins the run-settings -> worker-config policy: the weak-A onset rescue stays
+/// behind its toggle and defaults off.
 /// </summary>
 public sealed class AnalysisRunSettingsTests
 {
-    private static AnalysisRunSettings NewSettings(bool pllEventVeto, int analysisBlockSize = 4096) => new(
+    private static AnalysisRunSettings NewSettings(
+        int analysisBlockSize = 4096, bool weakAOnsetRescue = false) => new(
         SampleRate: 48000,
         LiftAngle: 52.0,
         AveragingPeriod: 2,
@@ -22,31 +22,31 @@ public sealed class AnalysisRunSettingsTests
         SoundImageWidth: 100,
         SoundImageHeight: 100,
         ScopeSnapshotPointBudget: 8000,
-        PllEventVeto: pllEventVeto,
-        AnalysisBlockSize: analysisBlockSize);
+        AnalysisBlockSize: analysisBlockSize,
+        WeakAOnsetRescue: weakAOnsetRescue);
 
     [Fact]
-    public void Default_DoesNotWireTheVeto()
+    public void Default_DoesNotWireTheRescue()
     {
-        AnalysisWorker.Config config = NewSettings(pllEventVeto: false)
+        AnalysisWorker.Config config = NewSettings()
             .ToWorkerConfig(sessionId: 1, sampleWriter: null);
 
-        Assert.Null(config.EventGate);
+        Assert.Equal(0.0, config.PhaseGuideOnsetRescueScale);
     }
 
     [Fact]
-    public void PllEventVetoOn_AddsTheGate()
+    public void WeakAOnsetRescueOn_SetsTheRescueScale()
     {
-        AnalysisWorker.Config config = NewSettings(pllEventVeto: true)
+        AnalysisWorker.Config config = NewSettings(weakAOnsetRescue: true)
             .ToWorkerConfig(sessionId: 1, sampleWriter: null);
 
-        Assert.IsType<PllMatchGate>(config.EventGate);
+        Assert.Equal(1.0, config.PhaseGuideOnsetRescueScale);
     }
 
     [Fact]
     public void AnalysisBlockSize_FlowsToWorkerConfig()
     {
-        AnalysisWorker.Config config = NewSettings(pllEventVeto: false, analysisBlockSize: 8192)
+        AnalysisWorker.Config config = NewSettings(analysisBlockSize: 8192)
             .ToWorkerConfig(sessionId: 1, sampleWriter: null);
 
         Assert.Equal(8192, config.AnalysisBlockSize);

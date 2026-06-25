@@ -65,16 +65,20 @@ public sealed class TgConfig
     public double OnsetFractionInit;
     public double MinPeakFractionInit;
 
+    /* >0 replaces the post-lock in-window onset hardening (x1.5/x3.0) with this
+     * scale (multiplies OnsetFraction) so a weak A the hardening suppressed is
+     * caught at the expected phase. ~1.0 is recommended: it uses the normal
+     * out-of-window threshold in-window (just removes the hardening) with the
+     * usual noise margin; values well below 1.0 lower past normal and start
+     * catching noise. 0 = off: hardening applies, detection bit-identical. */
+    public double PhaseGuideOnsetRescueScale;
+
     /* If true, drop events emitted before BPH lock from the output. */
     public bool SuppressPreSyncEvents;
 
     /* V5.4: C-event timing placement. Default Peak (backward compatible
      * with V5.3 and earlier). */
     public TgCPlacement CPlacement;
-
-    /* Diagnostics for event gates. When true, TgDetector records per-event PLL
-     * phase-match verdicts; detector output itself is unchanged. */
-    public bool TrackEventPllMatch;
 
     /// <summary>tg_config_default: populate with the library defaults.</summary>
     public static TgConfig Default()
@@ -93,9 +97,9 @@ public sealed class TgConfig
             PllAcGain = 0.05,
             OnsetFractionInit = 0.0,
             MinPeakFractionInit = 0.0,
+            PhaseGuideOnsetRescueScale = 0.0,
             SuppressPreSyncEvents = false,
             CPlacement = TgCPlacement.Peak, // V5.4 default
-            TrackEventPllMatch = false,
         };
     }
 }

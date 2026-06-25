@@ -104,6 +104,8 @@ public sealed class WatchMetricsUpdate
     public AmplitudeSample AmplitudeSample { get; private set; }
     public bool DerivedMeasuresUpdated { get; private set; }
     public DerivedTimingMeasures DerivedMeasures { get; private set; }
+    public bool AveragePeriodRateIntervalUpdated { get; private set; }
+    public AveragePeriodRateInterval AveragePeriodRateInterval { get; private set; }
 
     internal void SetTicRate(IReadOnlyList<double> x, IReadOnlyList<double> y)
     {
@@ -146,6 +148,12 @@ public sealed class WatchMetricsUpdate
     {
         DerivedMeasures = measures;
         DerivedMeasuresUpdated = true;
+    }
+
+    internal void SetAveragePeriodRateInterval(AveragePeriodRateInterval interval)
+    {
+        AveragePeriodRateInterval = interval;
+        AveragePeriodRateIntervalUpdated = true;
     }
 
     private static void Replace(List<double> target, IReadOnlyList<double> source)

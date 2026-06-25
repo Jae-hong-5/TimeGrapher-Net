@@ -542,6 +542,53 @@ public sealed class BeatMetricsHistoryTests
     }
 
     [Fact]
+    public void AveragePeriodRateIntervalsAreCumulativeInSnapshots()
+    {
+        var history = new BeatMetricsHistory();
+        var update = new WatchMetricsUpdate();
+        update.SetAveragePeriodRateInterval(new AveragePeriodRateInterval(
+            0.0, 4.0, 0.0, 3.0, 1728.0,
+            AmplitudeValid: true, AmplitudeDeg: 280.0,
+            BeatErrorValid: true, BeatErrorMs: 0.2));
+
+        history.Record(update);
+
+        AveragePeriodRateInterval interval = Assert.Single(history.CurrentSnapshot()!.AveragePeriodRateIntervals);
+        Assert.Equal(0.0, interval.StartBeatIndex);
+        Assert.Equal(4.0, interval.EndBeatIndex);
+        Assert.Equal(1728.0, interval.RateSPerDay);
+        Assert.True(interval.AmplitudeValid);
+        Assert.Equal(280.0, interval.AmplitudeDeg);
+        Assert.True(interval.BeatErrorValid);
+        Assert.Equal(0.2, interval.BeatErrorMs);
+    }
+
+    [Fact]
+    public void AveragePeriodRateIntervalsReplaceMatchingCompletedIntervalValues()
+    {
+        var history = new BeatMetricsHistory();
+        var rateOnly = new WatchMetricsUpdate();
+        rateOnly.SetAveragePeriodRateInterval(new AveragePeriodRateInterval(
+            0.0, 4.0, 0.0, 3.0, 1728.0,
+            AmplitudeValid: false, AmplitudeDeg: 0.0,
+            BeatErrorValid: false, BeatErrorMs: 0.0));
+        var completed = new WatchMetricsUpdate();
+        completed.SetAveragePeriodRateInterval(new AveragePeriodRateInterval(
+            0.0, 4.0, 0.0, 3.0, 1728.0,
+            AmplitudeValid: true, AmplitudeDeg: 280.0,
+            BeatErrorValid: true, BeatErrorMs: 0.2));
+
+        history.Record(rateOnly);
+        history.Record(completed);
+
+        AveragePeriodRateInterval interval = Assert.Single(history.CurrentSnapshot()!.AveragePeriodRateIntervals);
+        Assert.True(interval.AmplitudeValid);
+        Assert.Equal(280.0, interval.AmplitudeDeg);
+        Assert.True(interval.BeatErrorValid);
+        Assert.Equal(0.2, interval.BeatErrorMs);
+    }
+
+    [Fact]
     public void ProjectorAppliesTheVolatilePositionKnobOnProject()
     {
         var projector = new BeatMetricsFrameProjector();

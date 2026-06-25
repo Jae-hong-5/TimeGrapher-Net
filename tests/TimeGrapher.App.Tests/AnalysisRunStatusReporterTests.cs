@@ -17,8 +17,8 @@ public sealed class AnalysisRunStatusReporterTests
         AnalysisRunStatusReporter.Report report = reporter.Describe(frame, droppedFrames: 0, SampleRate);
 
         Assert.Equal(
-            "Backgroud Audio Thread Average - FPS:60, SPS:48000, SPF: 800 " +
-            "Foregroud Audio Handler Average - FPS:0, SPS:0, SPF: 0",
+            "BG - FPS:60, SPS:48000, SPF: 800 " +
+            "FG - FPS:0, SPS:0, SPF: 0",
             report.StatusText);
         Assert.Null(report.ConsoleWarning);
     }
@@ -43,8 +43,8 @@ public sealed class AnalysisRunStatusReporterTests
         AnalysisRunStatusReporter.Report report = reporter.Describe(frame, droppedFrames: 0, SampleRate);
 
         Assert.Equal(
-            "Backgroud Audio Thread Average - FPS:60, SPS:48000, SPF: 800 " +
-            "Foregroud Audio Handler Average - FPS:50, SPS:48000, SPF: 960",
+            "BG - FPS:60, SPS:48000, SPF: 800 " +
+            "FG - FPS:50, SPS:48000, SPF: 960",
             report.StatusText);
     }
 
@@ -139,8 +139,8 @@ public sealed class AnalysisRunStatusReporterTests
         AnalysisRunStatusReporter.Report afterReset = reporter.Describe(frame, 0, SampleRate);
 
         Assert.Equal(
-            "Backgroud Audio Thread Average - FPS:60, SPS:48000, SPF: 800 " +
-            "Foregroud Audio Handler Average - FPS:0, SPS:0, SPF: 0",
+            "BG - FPS:60, SPS:48000, SPF: 800 " +
+            "FG - FPS:0, SPS:0, SPF: 0",
             afterReset.StatusText);
     }
 }

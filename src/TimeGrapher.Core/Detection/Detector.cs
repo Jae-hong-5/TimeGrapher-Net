@@ -331,7 +331,8 @@ internal sealed class TgDetectorCore
         }
     }
 
-    public void SetPhaseGuide(double nextATime, double beatPeriod, double acOffset, double windowS)
+    public void SetPhaseGuide(double nextATime, double beatPeriod, double acOffset, double windowS,
+                              double onsetScaleOverride = 0.0)
     {
         if (beatPeriod <= 0.0 || windowS <= 0.0)
         {
@@ -347,8 +348,12 @@ internal sealed class TgDetectorCore
         /* Post-lock, longer beat periods leave more idle time for broadband
          * noise to cross the onset threshold before the real A packet. Harden
          * the guided-onset threshold for those slower beats, while keeping
-         * faster 28800+ BPH packets sensitive enough to avoid skipped onsets. */
-        PhaseGuideOnsetScale = beatPeriod >= 0.15 ? 3.0 : 1.5;
+         * faster 28800+ BPH packets sensitive enough to avoid skipped onsets.
+         * A configured rescue scale (>0) overrides this: it instead LOWERS the
+         * in-window threshold to catch a weak A that sits just below the trigger. */
+        PhaseGuideOnsetScale = onsetScaleOverride > 0.0
+            ? onsetScaleOverride
+            : (beatPeriod >= 0.15 ? 3.0 : 1.5);
     }
 
     public void ClearPhaseGuide()

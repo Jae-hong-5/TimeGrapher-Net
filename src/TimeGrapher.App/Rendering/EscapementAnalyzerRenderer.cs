@@ -107,6 +107,12 @@ internal sealed class EscapementAnalyzerRenderer
         _plot = plot;
         _valueTexts = valueTexts;
         _textFontFamily = textFontFamily;
+
+        // Read-only escapement-zoomed view: the X/Y limits are recomputed and
+        // re-applied on every new beat, so a mouse zoom only snaps back next
+        // frame. Disable the built-in mouse interaction so the view stays at its
+        // computed zoom instead of fighting the user.
+        _plot.UserInputProcessor.Disable();
     }
 
     public void ApplyTheme(PlotThemePalette theme)
@@ -491,7 +497,7 @@ internal sealed class EscapementAnalyzerRenderer
     {
         Text label = plot.Add.Text("", 0.0, 0.0);
         label.LabelFontName = _textFontFamily;
-        label.LabelFontSize = 11;
+        label.LabelFontSize = PlotThemeHelper.GraphLabelFontSize;
         label.Alignment = Alignment.UpperLeft;
         label.IsVisible = false;
         return label;

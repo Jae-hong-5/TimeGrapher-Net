@@ -3,7 +3,7 @@
         x:Class="TimeGrapher.App.Views.SettingsWindow"
         Title="Settings"
         Icon="/Assets/App/AppIcon-256.png"
-        Width="420" Height="720"
+        Width="760" Height="520"
         CanResize="False"
         SystemDecorations="None"
         ShowInTaskbar="False"
@@ -39,200 +39,217 @@
       </Grid>
     </Border>
 
-    <Border Grid.Row="1" Classes="GlassCard" Margin="12,8,12,12">
-    <StackPanel Margin="14"
-                Spacing="12"
-                HorizontalAlignment="Stretch"
-                VerticalAlignment="Top">
-      <TextBlock Text="Run Settings"
-                 Classes="SectionHeader"
-                 HorizontalAlignment="Left" />
-      <Grid ColumnDefinitions="*,Auto"
-            HorizontalAlignment="Stretch"
-            IsEnabled="{Binding AreRunParametersEnabled}">
-        <TextBlock Text="Use C-onset timing"
-                   FontWeight="Bold"
-                   HorizontalAlignment="Left"
-                   VerticalAlignment="Center" />
-        <ToggleSwitch Name="UseConsetToggleSwitch"
-                      Grid.Column="1"
-                      AutomationProperties.Name="Use C-onset timing"
-                      OffContent=""
-                      OnContent=""
-                      FontWeight="Bold"
-                      HorizontalAlignment="Right"
-                      IsEnabled="{Binding AreRunParametersEnabled}"
-                      IsChecked="{Binding UseCOnset, Mode=TwoWay}"
-                      ToolTip.Tip="Time the C event from its onset instead of its peak" />
-      </Grid>
-      <Grid ColumnDefinitions="*,Auto"
-            HorizontalAlignment="Stretch"
-            IsEnabled="{Binding AreRunParametersEnabled}">
-        <TextBlock Text="PLL Event Veto (impulse rejection)"
-                   FontWeight="Bold"
-                   HorizontalAlignment="Left"
-                   VerticalAlignment="Center" />
-        <ToggleSwitch Name="PllEventVetoToggleSwitch"
-                      Grid.Column="1"
-                      AutomationProperties.Name="PLL Event Veto (impulse rejection)"
-                      OffContent=""
-                      OnContent=""
-                      FontWeight="Bold"
-                      HorizontalAlignment="Right"
-                      IsEnabled="{Binding AreRunParametersEnabled}"
-                      IsChecked="{Binding PllEventVeto, Mode=TwoWay}"
-                      ToolTip.Tip="Reject phase-mismatched impulse events before metrics" />
-      </Grid>
-      <Grid ColumnDefinitions="*,Auto"
-            HorizontalAlignment="Stretch"
-            IsEnabled="{Binding AreRunParametersEnabled}">
-        <TextBlock Text="Pause on position change"
-                   FontWeight="Bold"
-                   HorizontalAlignment="Left"
-                   VerticalAlignment="Center" />
-        <ToggleSwitch Name="PauseOnPositionChangeToggleSwitch"
-                      Grid.Column="1"
-                      AutomationProperties.Name="Pause on position change"
-                      OffContent=""
-                      OnContent=""
-                      FontWeight="Bold"
-                      HorizontalAlignment="Right"
-                      IsEnabled="{Binding AreRunParametersEnabled}"
-                      IsChecked="{Binding PauseOnPositionChange, Mode=TwoWay}"
-                      ToolTip.Tip="Pause a running measurement after a position button changes the active position" />
-      </Grid>
-      <Border Height="1"
-              Background="{DynamicResource ChromeBorderBrush}"
-              Margin="0,2" />
-      <TextBlock Text="Run Parameters"
-                 Classes="SectionHeader"
-                 HorizontalAlignment="Left" />
-      <!-- These construction-time inputs are read at run start and gated on the
-           run state: edits apply on the next run, and persist across restarts. -->
-      <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto"
-            HorizontalAlignment="Stretch">
-        <TextBlock Grid.Row="0" Grid.Column="0" Text="Avg. Period"
-                   VerticalAlignment="Center" FontWeight="Bold" />
-        <NumericUpDown Name="AveragingPeriodSpinBox" Grid.Row="0" Grid.Column="1"
-                       Margin="6,3"
-                       AutomationProperties.Name="Error Rate averaging period (seconds)"
-                       Value="{Binding AveragingPeriod, Mode=TwoWay}"
-                       IsEnabled="{Binding AreRunParametersEnabled}"
-                       FontWeight="Bold" FormatString="0' s'"
-                       Minimum="1" Maximum="240" Increment="1"
-                       ClipValueToMinMax="True"
-                       ToolTip.Tip="Error Rate averaging window in seconds. Applies on the next run." />
-        <TextBlock Grid.Row="1" Grid.Column="0" Text="Block Size"
-                   VerticalAlignment="Center" FontWeight="Bold" />
-        <NumericUpDown Name="AnalysisBlockSizeSpinBox" Grid.Row="1" Grid.Column="1"
-                       Margin="6,3"
-                       AutomationProperties.Name="Analysis block size (samples)"
-                       Value="{Binding AnalysisBlockSize, Mode=TwoWay}"
-                       IsEnabled="{Binding AreRunParametersEnabled}"
-                       FontWeight="Bold" FormatString="0' samples'"
-                       Minimum="256" Maximum="16384" Increment="256"
-                       ClipValueToMinMax="True"
-                       ToolTip.Tip="Detector input window in samples (~85 ms at 48 kHz for 4096). Applies on the next run." />
-        <TextBlock Grid.Row="2" Grid.Column="0" Text="Capture Buffer"
-                   VerticalAlignment="Center" FontWeight="Bold" />
-        <NumericUpDown Name="CaptureBufferMsSpinBox" Grid.Row="2" Grid.Column="1"
-                       Margin="6,3"
-                       AutomationProperties.Name="Capture buffer length (milliseconds)"
-                       Value="{Binding CaptureBufferMs, Mode=TwoWay}"
-                       IsEnabled="{Binding AreRunParametersEnabled}"
-                       FontWeight="Bold" FormatString="0' ms'"
-                       Minimum="5" Maximum="200" Increment="5"
-                       ClipValueToMinMax="True"
-                       ToolTip.Tip="Audio capture buffer length in ms (latency vs. stability). Applies on the next run." />
-      </Grid>
-      <Border Height="1"
-              Background="{DynamicResource ChromeBorderBrush}"
-              Margin="0,2" />
-      <TextBlock Text="Acceptable Bands"
-                 Classes="SectionHeader"
-                 HorizontalAlignment="Left" />
-      <!-- The normal-range limits every graph judges against (Error Rate /
-           Amplitude / Beat Error). Always editable: the bands are display policy,
-           applied live and persisted, so they are not gated on the run state. -->
-      <Grid ColumnDefinitions="Auto,*,*" RowDefinitions="Auto,Auto,Auto,Auto"
-            HorizontalAlignment="Stretch">
-        <TextBlock Grid.Row="0" Grid.Column="1" Text="Min"
-                   HorizontalAlignment="Center" FontWeight="Bold" Margin="6,0,6,2"
-                   Foreground="{DynamicResource TextPrimaryBrush}" />
-        <TextBlock Grid.Row="0" Grid.Column="2" Text="Max"
-                   HorizontalAlignment="Center" FontWeight="Bold" Margin="6,0,6,2"
-                   Foreground="{DynamicResource TextPrimaryBrush}" />
+    <Grid Grid.Row="1"
+          Margin="12,8,12,12"
+          ColumnDefinitions="*,*"
+          ColumnSpacing="14"
+          HorizontalAlignment="Stretch"
+          VerticalAlignment="Stretch">
+      <Border Grid.Column="0" Classes="GlassCard" Padding="14">
+        <StackPanel Spacing="12"
+                    HorizontalAlignment="Stretch">
+        <TextBlock Text="Run Settings"
+                   Classes="SectionHeader"
+                   HorizontalAlignment="Left" />
+        <Grid ColumnDefinitions="*,Auto"
+              HorizontalAlignment="Stretch"
+              IsEnabled="{Binding AreRunParametersEnabled}">
+          <TextBlock Text="Use C-onset timing"
+                     FontWeight="Bold"
+                     HorizontalAlignment="Left"
+                     VerticalAlignment="Center" />
+          <ToggleSwitch Name="UseConsetToggleSwitch"
+                        Grid.Column="1"
+                        AutomationProperties.Name="Use C-onset timing"
+                        OffContent=""
+                        OnContent=""
+                        FontWeight="Bold"
+                        HorizontalAlignment="Right"
+                        IsEnabled="{Binding AreRunParametersEnabled}"
+                        IsChecked="{Binding UseCOnset, Mode=TwoWay}"
+                        ToolTip.Tip="Time the C event from its onset instead of its peak" />
+        </Grid>
+        <Grid ColumnDefinitions="*,Auto"
+              HorizontalAlignment="Stretch"
+              IsEnabled="{Binding AreRunParametersEnabled}">
+          <TextBlock Text="Weak-A onset rescue"
+                     FontWeight="Bold"
+                     HorizontalAlignment="Left"
+                     VerticalAlignment="Center" />
+          <ToggleSwitch Name="WeakAOnsetRescueToggleSwitch"
+                        Grid.Column="1"
+                        AutomationProperties.Name="Weak-A onset rescue"
+                        OffContent=""
+                        OnContent=""
+                        FontWeight="Bold"
+                        HorizontalAlignment="Right"
+                        IsEnabled="{Binding AreRunParametersEnabled}"
+                        IsChecked="{Binding WeakAOnsetRescue, Mode=TwoWay}"
+                        ToolTip.Tip="Catch a weak A near the locked phase (lowers the in-window onset trigger)" />
+        </Grid>
+        <Grid ColumnDefinitions="*,Auto"
+              HorizontalAlignment="Stretch"
+              IsEnabled="{Binding AreRunParametersEnabled}">
+          <TextBlock Text="Pause on position change"
+                     FontWeight="Bold"
+                     HorizontalAlignment="Left"
+                     VerticalAlignment="Center" />
+          <ToggleSwitch Name="PauseOnPositionChangeToggleSwitch"
+                        Grid.Column="1"
+                        AutomationProperties.Name="Pause on position change"
+                        OffContent=""
+                        OnContent=""
+                        FontWeight="Bold"
+                        HorizontalAlignment="Right"
+                        IsEnabled="{Binding AreRunParametersEnabled}"
+                        IsChecked="{Binding PauseOnPositionChange, Mode=TwoWay}"
+                        ToolTip.Tip="Pause a running measurement after a position button changes the active position" />
+        </Grid>
+        <Border Height="1"
+                Background="{DynamicResource ChromeBorderBrush}"
+                Margin="0,2" />
+        <TextBlock Text="Run Parameters"
+                   Classes="SectionHeader"
+                   HorizontalAlignment="Left" />
+        <!-- These construction-time inputs are read at run start and gated on the
+             run state: edits apply on the next run, and persisted values restore
+             only for the sampling parameters. -->
+        <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto"
+              HorizontalAlignment="Stretch">
+          <TextBlock Grid.Row="0" Grid.Column="0" Text="Avg. Period"
+                     VerticalAlignment="Center" FontWeight="Bold" />
+          <NumericUpDown Name="AveragingPeriodSpinBox" Grid.Row="0" Grid.Column="1"
+                         Margin="6,3"
+                         AutomationProperties.Name="Error Rate averaging period (seconds)"
+                         Value="{Binding AveragingPeriod, Mode=TwoWay}"
+                         IsEnabled="{Binding AreRunParametersEnabled}"
+                         FontWeight="Bold" FormatString="0' s'"
+                         Minimum="1" Maximum="240" Increment="1"
+                         ClipValueToMinMax="True"
+                         ToolTip.Tip="Error Rate averaging window in seconds. Applies on the next run." />
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="Block Size"
+                     VerticalAlignment="Center" FontWeight="Bold" />
+          <NumericUpDown Name="AnalysisBlockSizeSpinBox" Grid.Row="1" Grid.Column="1"
+                         Margin="6,3"
+                         AutomationProperties.Name="Analysis block size (samples)"
+                         Value="{Binding AnalysisBlockSize, Mode=TwoWay}"
+                         IsEnabled="{Binding AreRunParametersEnabled}"
+                         FontWeight="Bold" FormatString="0' samples'"
+                         Minimum="256" Maximum="16384" Increment="256"
+                         ClipValueToMinMax="True"
+                         ToolTip.Tip="Detector input window in samples (~85 ms at 48 kHz for 4096). Applies on the next run." />
+          <TextBlock Grid.Row="2" Grid.Column="0" Text="Capture Buffer"
+                     VerticalAlignment="Center" FontWeight="Bold" />
+          <NumericUpDown Name="CaptureBufferMsSpinBox" Grid.Row="2" Grid.Column="1"
+                         Margin="6,3"
+                         AutomationProperties.Name="Capture buffer length (milliseconds)"
+                         Value="{Binding CaptureBufferMs, Mode=TwoWay}"
+                         IsEnabled="{Binding AreRunParametersEnabled}"
+                         FontWeight="Bold" FormatString="0' ms'"
+                         Minimum="5" Maximum="200" Increment="5"
+                         ClipValueToMinMax="True"
+                         ToolTip.Tip="Audio capture buffer length in ms (latency vs. stability). Applies on the next run." />
+          <TextBlock Grid.Row="3" Grid.Column="0" Text="High Pass Cutoff"
+                     VerticalAlignment="Center" FontWeight="Bold" />
+          <TextBox Name="HighLineEdit" Grid.Row="3" Grid.Column="1"
+                   Margin="6,3"
+                   AutomationProperties.Name="High Pass Cutoff (Hz)"
+                   IsEnabled="{Binding AreRunParametersEnabled}"
+                   Text="{Binding HighPassCutoffText, Mode=TwoWay}"
+                   ToolTip.Tip="High-pass filter cutoff in Hz. Applies on the next run." />
+        </Grid>
+        </StackPanel>
+      </Border>
 
-        <TextBlock Grid.Row="1" Grid.Column="0" Text="Error Rate"
-                   VerticalAlignment="Center" FontWeight="Bold" />
-        <NumericUpDown Name="RateAcceptMinSpinBox" Grid.Row="1" Grid.Column="1"
-                       Margin="6,3"
-                       AutomationProperties.Name="Error Rate band minimum (s/d)"
-                       Value="{Binding RateAcceptMin, Mode=TwoWay}"
-                       FontWeight="Bold" FormatString="0' s/d'"
-                       Minimum="-120" Maximum="120" Increment="1"
-                       ToolTip.Tip="Error Rate normal-band lower limit (s/d)" />
-        <NumericUpDown Name="RateAcceptMaxSpinBox" Grid.Row="1" Grid.Column="2"
-                       Margin="6,3"
-                       AutomationProperties.Name="Error Rate band maximum (s/d)"
-                       Value="{Binding RateAcceptMax, Mode=TwoWay}"
-                       FontWeight="Bold" FormatString="0' s/d'"
-                       Minimum="-120" Maximum="120" Increment="1"
-                       ToolTip.Tip="Error Rate normal-band upper limit (s/d)" />
+      <Border Grid.Column="1" Classes="GlassCard" Padding="14">
+        <StackPanel Spacing="12"
+                    HorizontalAlignment="Stretch">
+        <TextBlock Text="Acceptable Bands"
+                   Classes="SectionHeader"
+                   HorizontalAlignment="Left" />
+        <!-- The normal-range limits every graph judges against (Error Rate /
+             Amplitude / Beat Error). Always editable: the bands are display policy,
+             applied live and persisted, so they are not gated on the run state. -->
+        <Grid ColumnDefinitions="Auto,*,*" RowDefinitions="Auto,Auto,Auto,Auto"
+              HorizontalAlignment="Stretch">
+          <TextBlock Grid.Row="0" Grid.Column="1" Text="Min"
+                     HorizontalAlignment="Center" FontWeight="Bold" Margin="6,0,6,2"
+                     Foreground="{DynamicResource TextPrimaryBrush}" />
+          <TextBlock Grid.Row="0" Grid.Column="2" Text="Max"
+                     HorizontalAlignment="Center" FontWeight="Bold" Margin="6,0,6,2"
+                     Foreground="{DynamicResource TextPrimaryBrush}" />
 
-        <TextBlock Grid.Row="2" Grid.Column="0" Text="Amplitude"
-                   VerticalAlignment="Center" FontWeight="Bold" />
-        <NumericUpDown Name="AmplitudeAcceptMinSpinBox" Grid.Row="2" Grid.Column="1"
-                       Margin="6,3"
-                       AutomationProperties.Name="Amplitude band minimum (degrees)"
-                       Value="{Binding AmplitudeAcceptMin, Mode=TwoWay}"
-                       FontWeight="Bold" FormatString="0'°'"
-                       Minimum="0" Maximum="360" Increment="1"
-                       ToolTip.Tip="Amplitude normal-band lower limit (°)" />
-        <NumericUpDown Name="AmplitudeAcceptMaxSpinBox" Grid.Row="2" Grid.Column="2"
-                       Margin="6,3"
-                       AutomationProperties.Name="Amplitude band maximum (degrees)"
-                       Value="{Binding AmplitudeAcceptMax, Mode=TwoWay}"
-                       FontWeight="Bold" FormatString="0'°'"
-                       Minimum="0" Maximum="360" Increment="1"
-                       ToolTip.Tip="Amplitude normal-band upper limit (°)" />
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="Error Rate"
+                     VerticalAlignment="Center" FontWeight="Bold" />
+          <NumericUpDown Name="RateAcceptMinSpinBox" Grid.Row="1" Grid.Column="1"
+                         Margin="6,3"
+                         AutomationProperties.Name="Error Rate band minimum (s/d)"
+                         Value="{Binding RateAcceptMin, Mode=TwoWay}"
+                         FontWeight="Bold" FormatString="0' s/d'"
+                         Minimum="-120" Maximum="120" Increment="1"
+                         ToolTip.Tip="Error Rate normal-band lower limit (s/d)" />
+          <NumericUpDown Name="RateAcceptMaxSpinBox" Grid.Row="1" Grid.Column="2"
+                         Margin="6,3"
+                         AutomationProperties.Name="Error Rate band maximum (s/d)"
+                         Value="{Binding RateAcceptMax, Mode=TwoWay}"
+                         FontWeight="Bold" FormatString="0' s/d'"
+                         Minimum="-120" Maximum="120" Increment="1"
+                         ToolTip.Tip="Error Rate normal-band upper limit (s/d)" />
 
-        <TextBlock Grid.Row="3" Grid.Column="0" Text="Beat Error"
-                   VerticalAlignment="Center" FontWeight="Bold" />
-        <NumericUpDown Name="BeatErrorAcceptMagSpinBox" Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="2"
-                       Margin="6,3"
-                       AutomationProperties.Name="Beat Error band magnitude, symmetric (± ms)"
-                       Value="{Binding BeatErrorAcceptMag, Mode=TwoWay}"
-                       FontWeight="Bold" FormatString="'±'0.0' ms'"
-                       Minimum="0.1" Maximum="10" Increment="0.1"
-                       ToolTip.Tip="Beat Error normal band, symmetric about zero (± ms)" />
-      </Grid>
-      <Border Height="1"
-              Background="{DynamicResource ChromeBorderBrush}"
-              Margin="0,2" />
-      <TextBlock Text="Logging"
-                 Classes="SectionHeader"
-                 HorizontalAlignment="Left" />
-      <Grid ColumnDefinitions="*,Auto"
-            HorizontalAlignment="Stretch"
-            IsEnabled="{Binding AreRunParametersEnabled}">
-        <TextBlock Text="Save measurement CSV log"
-                   FontWeight="Bold"
-                   HorizontalAlignment="Left"
-                   VerticalAlignment="Center" />
-        <ToggleSwitch Name="MeasurementLogEnabledToggleSwitch"
-                      Grid.Column="1"
-                      AutomationProperties.Name="Save measurement CSV log"
-                      OffContent=""
-                      OnContent=""
-                      FontWeight="Bold"
-                      HorizontalAlignment="Right"
-                      IsEnabled="{Binding AreRunParametersEnabled}"
-                      IsChecked="{Binding IsMeasurementLogEnabled, Mode=TwoWay}"
-                      ToolTip.Tip="Save result rows to the executable log folder" />
-      </Grid>
-    </StackPanel>
-    </Border>
+          <TextBlock Grid.Row="2" Grid.Column="0" Text="Amplitude"
+                     VerticalAlignment="Center" FontWeight="Bold" />
+          <NumericUpDown Name="AmplitudeAcceptMinSpinBox" Grid.Row="2" Grid.Column="1"
+                         Margin="6,3"
+                         AutomationProperties.Name="Amplitude band minimum (degrees)"
+                         Value="{Binding AmplitudeAcceptMin, Mode=TwoWay}"
+                         FontWeight="Bold" FormatString="0'°'"
+                         Minimum="0" Maximum="360" Increment="1"
+                         ToolTip.Tip="Amplitude normal-band lower limit (°)" />
+          <NumericUpDown Name="AmplitudeAcceptMaxSpinBox" Grid.Row="2" Grid.Column="2"
+                         Margin="6,3"
+                         AutomationProperties.Name="Amplitude band maximum (degrees)"
+                         Value="{Binding AmplitudeAcceptMax, Mode=TwoWay}"
+                         FontWeight="Bold" FormatString="0'°'"
+                         Minimum="0" Maximum="360" Increment="1"
+                         ToolTip.Tip="Amplitude normal-band upper limit (°)" />
+
+          <TextBlock Grid.Row="3" Grid.Column="0" Text="Beat Error"
+                     VerticalAlignment="Center" FontWeight="Bold" />
+          <NumericUpDown Name="BeatErrorAcceptMagSpinBox" Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="2"
+                         Margin="6,3"
+                         AutomationProperties.Name="Beat Error band magnitude, symmetric (± ms)"
+                         Value="{Binding BeatErrorAcceptMag, Mode=TwoWay}"
+                         FontWeight="Bold" FormatString="'±'0.0' ms'"
+                         Minimum="0.1" Maximum="10" Increment="0.1"
+                         ToolTip.Tip="Beat Error normal band, symmetric about zero (± ms)" />
+        </Grid>
+        <Border Height="1"
+                Background="{DynamicResource ChromeBorderBrush}"
+                Margin="0,2" />
+        <TextBlock Text="Logging"
+                   Classes="SectionHeader"
+                   HorizontalAlignment="Left" />
+        <Grid ColumnDefinitions="*,Auto"
+              HorizontalAlignment="Stretch"
+              IsEnabled="{Binding AreRunParametersEnabled}">
+          <TextBlock Text="Save measurement CSV log"
+                     FontWeight="Bold"
+                     HorizontalAlignment="Left"
+                     VerticalAlignment="Center" />
+          <ToggleSwitch Name="MeasurementLogEnabledToggleSwitch"
+                        Grid.Column="1"
+                        AutomationProperties.Name="Save measurement CSV log"
+                        OffContent=""
+                        OnContent=""
+                        FontWeight="Bold"
+                        HorizontalAlignment="Right"
+                        IsEnabled="{Binding AreRunParametersEnabled}"
+                        IsChecked="{Binding IsMeasurementLogEnabled, Mode=TwoWay}"
+                        ToolTip.Tip="Save result rows to the executable log folder" />
+        </Grid>
+        </StackPanel>
+      </Border>
+    </Grid>
   </Grid>
   </Border>
 </Window>

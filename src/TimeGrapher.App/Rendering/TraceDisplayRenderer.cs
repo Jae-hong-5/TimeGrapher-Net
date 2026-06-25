@@ -546,7 +546,7 @@ internal sealed class TraceDisplayRenderer
     {
         Annotation label = plot.Add.Annotation(string.Empty, Alignment.UpperLeft);
         label.LabelBold = true;
-        label.LabelFontSize = 12;
+        label.LabelFontSize = PlotThemeHelper.GraphLabelFontSize;
         label.OffsetX = AverageReadoutOffsetXPx;
         label.OffsetY = AverageReadoutOffsetYPx;
         label.LabelBackgroundColor = Colors.Transparent;
@@ -561,7 +561,7 @@ internal sealed class TraceDisplayRenderer
         Text label = plot.Add.Text(
             value.ToString(format, System.Globalization.CultureInfo.InvariantCulture), 0.0, value);
         label.LabelBold = true;
-        label.LabelFontSize = 12;
+        label.LabelFontSize = PlotThemeHelper.GraphLabelFontSize;
         label.Alignment = Alignment.MiddleRight;
         label.IsVisible = false;
         return label;

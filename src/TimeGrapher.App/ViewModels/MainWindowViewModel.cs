@@ -23,6 +23,7 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     public const double ReviewStepS = 1.0;
 
     private readonly AsyncRelayCommand _playPauseCommand;
+    private readonly RelayCommand _stopCommand;
     private readonly RelayCommand _resetCommand;
     private readonly RelayCommand _reviewStepBackCommand;
     private readonly RelayCommand _reviewStepForwardCommand;
@@ -58,7 +59,7 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     private bool _realistic = true;
     private string _highPassCutoffText = "200";
     private bool _useCOnset;
-    private bool _pllEventVeto;
+    private bool _weakAOnsetRescue;
     private bool _pauseOnPositionChange;
     private int _sweepMultiple = SweepFrameProjector.DefaultSweepMultiple;
     private int _selectedPositionIndex; // 0 = WatchPosition.CH (dial up)
@@ -84,6 +85,7 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     public MainWindowViewModel()
     {
         _playPauseCommand = new AsyncRelayCommand(ExecutePlayPauseAsync, () => IsPlayPauseEnabled);
+        _stopCommand = new RelayCommand(() => _runner?.StopRunWithoutReset(), () => IsStopEnabled);
         _resetCommand = new RelayCommand(() => _runner?.Reset(), () => IsResetEnabled);
         _reviewStepBackCommand = new RelayCommand(() => StepReviewCursor(-ReviewStepS), () => IsReviewBarEnabled);
         _reviewStepForwardCommand = new RelayCommand(() => StepReviewCursor(ReviewStepS), () => IsReviewBarEnabled);
@@ -118,6 +120,7 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     public event PropertyChangedEventHandler? PropertyChanged;
 
     public ICommand PlayPauseCommand => _playPauseCommand;
+    public ICommand StopCommand => _stopCommand;
     public ICommand ResetCommand => _resetCommand;
     public ICommand ReviewStepBackCommand => _reviewStepBackCommand;
     public ICommand ReviewStepForwardCommand => _reviewStepForwardCommand;
@@ -133,6 +136,8 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     public bool AreRunParametersEnabled => _runState == RunUiState.Stopped;
 
     public bool IsPlayPauseEnabled => _runState is RunUiState.Stopped or RunUiState.Running or RunUiState.Paused;
+
+    public bool IsStopEnabled => _runState is RunUiState.Running or RunUiState.Paused or RunUiState.Stopping or RunUiState.StopFailed;
 
     public bool IsResetEnabled => _runState is RunUiState.Stopped or RunUiState.Paused or RunUiState.Stopping or RunUiState.StopFailed;
 
@@ -281,15 +286,14 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     }
 
     /// <summary>
-    /// PLL event veto (drops phase-mismatched events before metrics).
-    /// Adaptive floor and regime guard are always on; this opt-in adds the
-    /// veto, which boosts precision on impulse-contaminated signals while
-    /// accepting a small recall cost.
+    /// Opt-in post-lock weak-A onset rescue (a run parameter): lowers the onset
+    /// trigger inside the phase-guide window so a weak A just below the trigger
+    /// is caught instead of latching B. Off by default.
     /// </summary>
-    public bool PllEventVeto
+    public bool WeakAOnsetRescue
     {
-        get => _pllEventVeto;
-        set => SetProperty(ref _pllEventVeto, value);
+        get => _weakAOnsetRescue;
+        set => SetProperty(ref _weakAOnsetRescue, value);
     }
 
     public bool PauseOnPositionChange
@@ -630,6 +634,7 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(IsReviewBarEnabled));
         OnPropertyChanged(nameof(AreRunParametersEnabled));
         OnPropertyChanged(nameof(IsPlayPauseEnabled));
+        OnPropertyChanged(nameof(IsStopEnabled));
         OnPropertyChanged(nameof(IsResetEnabled));
         OnPropertyChanged(nameof(IsSampleRateEnabled));
         OnPropertyChanged(nameof(AreSimulationParametersEnabled));
@@ -637,6 +642,7 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(IsPlayPauseButtonShowingPause));
         OnPropertyChanged(nameof(IsPlayPauseButtonShowingPlay));
         _playPauseCommand.NotifyCanExecuteChanged();
+        _stopCommand.NotifyCanExecuteChanged();
         _resetCommand.NotifyCanExecuteChanged();
         _reviewStepBackCommand.NotifyCanExecuteChanged();
         _reviewStepForwardCommand.NotifyCanExecuteChanged();

@@ -13,18 +13,6 @@ public struct WatchMetricsConfig
     public int AveragingPeriod;     // 2
     public int MaxRateDataPoints;   // 250
     public double RateErrorYScale;  // 10.0
-    public int RlsWindowInit;       // 100
-
-    // Minimum points each tic/toc regression window must hold before the s/d rate
-    // is published. A 2-point slope has zero residual degrees of freedom, so its
-    // value is pure per-event jitter amplification (the first plotted rate point
-    // could read the wrong sign by tens of s/d); requiring several points first
-    // suppresses that startup transient at the cost of a slightly later first
-    // reading. 6 is the smallest floor at which the first plotted value lands on
-    // the correct sign within a few s/d across jitter seeds (measured); steady-
-    // state convergence is unaffected (the full window keeps filling afterwards).
-    // Not in the C++ original (which used the 2-point GetRate floor).
-    public int RateWarmupPoints;    // 6
 
     // Seconds added to the measured A->C interval before the amplitude formula, to
     // offset the detector's onset-detection latency (the A onset is timestamped at a
@@ -42,8 +30,6 @@ public struct WatchMetricsConfig
         AveragingPeriod = 2;
         MaxRateDataPoints = 250;
         RateErrorYScale = 10.0;
-        RlsWindowInit = 100;
-        RateWarmupPoints = 6;
         AmplitudeOnsetLatencyS = 0.0;
     }
 }
@@ -57,6 +43,8 @@ public sealed class WatchMetrics
     // Local constants from the anonymous namespace in WatchMetrics.cpp.
     private const int Tic = 0;
     private const int Toc = 1;
+    private const int GraphRateWindowInitialCapacity = 100;
+    private const int GraphRateWarmupPoints = 6;
 
     private readonly WatchMetricsConfig _config;
 
@@ -71,10 +59,20 @@ public sealed class WatchMetrics
     private bool _haveZeroOffset = false;
     private double _startTime = 0.0;
     private double _zeroOffsetValue = 0.0;
-    private readonly RollingLeastSquares _rlsTicRate;
-    private readonly RollingLeastSquares _rlsTocRate;
-    private double _rlsRate = 0.0;
-    private bool _rlsRateValid = false;
+    private readonly RollingLeastSquares _graphRlsTicRate;
+    private readonly RollingLeastSquares _graphRlsTocRate;
+    private double _graphRateSPerDay = 0.0;
+    private bool _graphRateValid = false;
+    private double _displayRateSPerDay = 0.0;
+    private bool _displayRateValid = false;
+    private double _rateWindowStartS = 0.0;
+    private double _rateWindowStartGraphX = 0.0;
+    private double _rateWindowDeltaSumS = 0.0;
+    private int _rateWindowDeltaCount = 0;
+    private readonly double[] _lastRatePhaseEventS = { 0.0, 0.0 };
+    private readonly bool[] _haveRatePhaseEvent = { false, false };
+    private bool _haveAveragePeriodRateInterval = false;
+    private AveragePeriodRateInterval _lastAveragePeriodRateInterval;
     private int _bph = 0;
     private bool _bphValid = false;
     private int _beatsPerSecondWindow = 0;
@@ -82,11 +80,19 @@ public sealed class WatchMetrics
     private readonly double[] _beatErrorTimes = { 0.0, 0.0, 0.0 };
     private int _beatErrorIdx = 0;
     private double _beatErrorMs = 0.0;
-    private readonly RollingAverage _rollBeatError;
+    private double _displayBeatErrorMs = 0.0;
+    private bool _displayBeatErrorValid = false;
+    private double _displayBeatErrorWindowStartS = 0.0;
+    private double _displayBeatErrorWindowSumMs = 0.0;
+    private int _displayBeatErrorWindowCount = 0;
 
     private double _lastAEvent = 0.0;
     private bool _haveAEvent = false;
-    private readonly RollingAverage _rollAmplitude;
+    private double _displayAmplitudeDeg = 0.0;
+    private bool _displayAmplitudeValid = false;
+    private double _displayAmplitudeWindowStartS = 0.0;
+    private double _displayAmplitudeWindowSumDeg = 0.0;
+    private int _displayAmplitudeWindowCount = 0;
     private double _amplitudeTic = 0.0;
     private double _amplitudeToc = 0.0;
     private bool _amplitudeTicValid = false;
@@ -124,10 +130,8 @@ public sealed class WatchMetrics
     public WatchMetrics(WatchMetricsConfig config)
     {
         _config = config;
-        _rlsTicRate = new RollingLeastSquares(config.RlsWindowInit);
-        _rlsTocRate = new RollingLeastSquares(config.RlsWindowInit);
-        _rollBeatError = new RollingAverage(10);
-        _rollAmplitude = new RollingAverage(10);
+        _graphRlsTicRate = new RollingLeastSquares(GraphRateWindowInitialCapacity);
+        _graphRlsTocRate = new RollingLeastSquares(GraphRateWindowInitialCapacity);
         // mX*/mY*.reserve(max_rate_data_points) in the original is a capacity hint only.
     }
 
@@ -135,10 +139,8 @@ public sealed class WatchMetrics
     {
         _haveAEvent = false;
         _amplitudeTicValid = false;
-        _rollAmplitude.Reset();
 
         _beatErrorIdx = 0;
-        _rollBeatError.Reset();
 
         _bphValid = false;
         _xTicIndex = 0;
@@ -151,9 +153,9 @@ public sealed class WatchMetrics
         _xToc.Clear();
         _yTic.Clear();
         _yToc.Clear();
-        _rlsTicRate.Reset();
-        _rlsTocRate.Reset();
-        _rlsRateValid = false;
+        ResetGraphRate();
+        ResetRateAveraging(0.0);
+        ResetDisplayAveraging(0.0);
 
         ResetDerivedMeasures();
         _missedBeats = 0;
@@ -173,6 +175,58 @@ public sealed class WatchMetrics
         _signedBeatErrorValid = false;
     }
 
+    private void ResetRateAveraging(double startTimeS)
+    {
+        _displayRateSPerDay = 0.0;
+        _displayRateValid = false;
+        _rateWindowStartS = startTimeS;
+        _rateWindowStartGraphX = CurrentRateGraphX();
+        ResetRateWindow();
+        _haveRatePhaseEvent[Tic] = false;
+        _haveRatePhaseEvent[Toc] = false;
+        _haveAveragePeriodRateInterval = false;
+        _lastAveragePeriodRateInterval = default;
+    }
+
+    private void ResetGraphRate()
+    {
+        _graphRateSPerDay = 0.0;
+        _graphRateValid = false;
+        _graphRlsTicRate.Reset();
+        _graphRlsTocRate.Reset();
+    }
+
+    private void ResetRateWindow()
+    {
+        _rateWindowDeltaSumS = 0.0;
+        _rateWindowDeltaCount = 0;
+    }
+
+    private void ResetDisplayAveraging(double startTimeS)
+    {
+        _displayBeatErrorMs = 0.0;
+        _displayBeatErrorValid = false;
+        _displayBeatErrorWindowStartS = startTimeS;
+        ResetDisplayBeatErrorWindow();
+
+        _displayAmplitudeDeg = 0.0;
+        _displayAmplitudeValid = false;
+        _displayAmplitudeWindowStartS = startTimeS;
+        ResetDisplayAmplitudeWindow();
+    }
+
+    private void ResetDisplayBeatErrorWindow()
+    {
+        _displayBeatErrorWindowSumMs = 0.0;
+        _displayBeatErrorWindowCount = 0;
+    }
+
+    private void ResetDisplayAmplitudeWindow()
+    {
+        _displayAmplitudeWindowSumDeg = 0.0;
+        _displayAmplitudeWindowCount = 0;
+    }
+
     public WatchMetricsUpdate HandleAEvent(double eventSample, bool haveValidBph, double bph)
     {
         var update = new WatchMetricsUpdate();
@@ -180,7 +234,7 @@ public sealed class WatchMetrics
         {
             return update;
         }
-        ComputeBeatError(eventSample);
+        ComputeBeatError(eventSample, update);
 
         if (_haveStartTime && _bphValid)
         {
@@ -189,8 +243,8 @@ public sealed class WatchMetrics
                 eventSample / (double)_config.SampleRate,
                 CurrentBeatPhase() == Tic,
                 _lastRateErrorMs,
-                _rlsRateValid,
-                _rlsRate,
+                _graphRateValid,
+                _graphRateSPerDay,
                 _signedBeatErrorValid,
                 _signedBeatErrorMs,
                 _bph));
@@ -218,7 +272,7 @@ public sealed class WatchMetrics
 
         update.SetCMarkerText(FormatCMarkerText(beatTimeSeconds, haveValidBph, bph));
 
-        ComputeAmplitude(eventSample, bph);
+        ComputeAmplitude(eventSample, bph, update);
         update.SetResults(FormatResults());
 
         if (_lastAmplitudeInstValid || _lastAmplitudePairUpdated)
@@ -295,6 +349,9 @@ public sealed class WatchMetrics
         {
             _haveStartTime = false;
             _bphValid = false;
+            ResetGraphRate();
+            ResetRateAveraging(0.0);
+            ResetDisplayAveraging(0.0);
         }
         else if ((haveValidBph) && (!_haveStartTime))
         {
@@ -305,26 +362,19 @@ public sealed class WatchMetrics
             _startTime = eventSample / (double)_config.SampleRate;
             _haveZeroOffset = false;
             _zeroOffsetValue = 0.0;
-            _rlsRateValid = false;
             _beatsPerSecondWindow = BeatWindowSize(_bph, seconds: 1);
-            // The rate RLS window must hold at least RateWarmupPoints samples per
-            // phase, or the rate-valid gate (Count >= RateWarmupPoints) can never be
-            // satisfied. For low manual BPH (e.g. 3600-7800) AveragingPeriod*beats-
-            // per-second falls below that floor, which would otherwise leave error-
-            // rate s/day permanently unproduced for those supported rates.
-            int rateWindow = Math.Max(_config.RateWarmupPoints, _config.AveragingPeriod * _beatsPerSecondWindow);
-            _rlsTicRate.Resize(rateWindow);
-            _rlsTocRate.Resize(rateWindow);
-            _rlsTicRate.Reset();
-            _rlsTocRate.Reset();
+            int rateWindow = Math.Max(GraphRateWarmupPoints, AveragingPeriodS() * _beatsPerSecondWindow);
+            _graphRlsTicRate.Resize(rateWindow);
+            _graphRlsTocRate.Resize(rateWindow);
+            ResetGraphRate();
+            ResetRateAveraging(_startTime);
+            ResetDisplayAveraging(_startTime);
 
             // Restart the beat-error window with the new sync segment too: a stale
             // _beatErrorTimes[0] from before the re-lock would otherwise let a
             // boundary interval that happens to pass IsSingleBeatInterval at the
             // new BPH validate a false signed beat error spanning two watches.
             _beatErrorIdx = 0;
-            _rollBeatError.Reset();
-            _rollAmplitude.Reset();
             // A tic amplitude staged before the sync loss must not pair with the
             // first toc after re-lock. Reset() clears this on a full reset, but the
             // inline re-sync path here did not, so clear the staged tic on (re)sync.
@@ -374,24 +424,14 @@ public sealed class WatchMetrics
 
             if (gapDetected)
             {
-                // A regression window mixing pre- and post-gap points sees the
-                // re-anchored schedule's sub-beat residual as a step and emits
-                // a transient slope spike (thousands of s/d for one missed
-                // beat) that the cumulative rate statistics would record
-                // permanently. Restart both estimators from the post-gap
-                // segment instead - the same recovery a fresh sync lock
-                // performs; the reading returns after two beats per phase. The
-                // gap-ending event seeds the new window below: its own instant
-                // is measured on the post-gap schedule.
-                _rlsTicRate.Reset();
-                _rlsTocRate.Reset();
-                _rlsRateValid = false;
                 // A staged tic amplitude belongs to the pre-gap schedule; the
                 // gap re-anchors tic/toc parity, so the gap-ending event can be
                 // a toc that would otherwise pair the stale pre-gap tic with a
                 // post-gap toc into a bogus pair average. Drop it, mirroring the
                 // re-sync clear and the rate-estimator restart above.
                 _amplitudeTicValid = false;
+                ResetGraphRate();
+                ResetDisplayAveraging(timeMeasured);
             }
 
             double wrappedRateError = WrapIntoRange(
@@ -401,45 +441,27 @@ public sealed class WatchMetrics
 
             if (ticOrToc == Tic)
             {
-                _rlsTicRate.AddPoint(timeMeasured, instTimingError);
-                AddOrOverwrite(_xTic, _yTic, wrappedRateError, _config.MaxRateDataPoints, ref _xTicIndex);
+                _graphRlsTicRate.AddPoint(timeMeasured, instTimingError);
+                AddRatePoint(_xTic, _yTic, wrappedRateError, _config.MaxRateDataPoints, ref _xTicIndex);
                 update.SetTicRate(_xTic, _yTic);
             }
             else
             {
-                _rlsTocRate.AddPoint(timeMeasured, instTimingError);
-                AddOrOverwrite(_xToc, _yToc, wrappedRateError, _config.MaxRateDataPoints, ref _xTocIndex);
+                _graphRlsTocRate.AddPoint(timeMeasured, instTimingError);
+                AddRatePoint(_xToc, _yToc, wrappedRateError, _config.MaxRateDataPoints, ref _xTocIndex);
                 update.SetTocRate(_xToc, _yToc);
             }
 
-            if (ticOrToc == Toc)
-            {
-                double slopeTic;
-                double rlsTic;
-                double slopeToc;
-                double rlsToc;
-
-                // Hold the rate invalid until both windows clear the warmup floor:
-                // a 2-point regression amplifies per-event jitter into a wild
-                // first reading, so the early beats are skipped rather than plotted.
-                if ((_rlsTicRate.Count >= _config.RateWarmupPoints) &&
-                    (_rlsTocRate.Count >= _config.RateWarmupPoints) &&
-                    (_rlsTicRate.GetRate(out slopeTic)) &&
-                    (_rlsTocRate.GetRate(out slopeToc)))
-                {
-                    rlsTic = slopeTic * 86400.00;
-                    rlsToc = slopeToc * 86400.00;
-                    _rlsRate = (rlsTic + rlsToc) / 2.0;
-                    _rlsRateValid = true;
-                }
-                else
-                {
-                    _rlsRateValid = false;
-                }
-            }
+            UpdateGraphRate(ticOrToc);
+            AccumulateRateAverage(ticOrToc, timeMeasured, expectedTimeTarget, gapDetected, update);
         }
 
         return true;
+    }
+
+    private int AveragingPeriodS()
+    {
+        return Math.Max(1, _config.AveragingPeriod);
     }
 
     /// <summary>
@@ -498,6 +520,107 @@ public sealed class WatchMetrics
         return Math.Max(1, (int)Math.Round(bph * seconds / 3600.0, MidpointRounding.AwayFromZero));
     }
 
+    private void UpdateGraphRate(int ticOrToc)
+    {
+        if (ticOrToc != Toc)
+        {
+            return;
+        }
+
+        if ((_graphRlsTicRate.Count >= GraphRateWarmupPoints) &&
+            (_graphRlsTocRate.Count >= GraphRateWarmupPoints) &&
+            (_graphRlsTicRate.GetRate(out double slopeTic)) &&
+            (_graphRlsTocRate.GetRate(out double slopeToc)))
+        {
+            _graphRateSPerDay = ((slopeTic * 86400.0) + (slopeToc * 86400.0)) / 2.0;
+            _graphRateValid = true;
+        }
+        else
+        {
+            _graphRateValid = false;
+        }
+    }
+
+    private void AccumulateRateAverage(
+        int ticOrToc,
+        double timeMeasured,
+        double expectedTimeTarget,
+        bool gapDetected,
+        WatchMetricsUpdate update)
+    {
+        if (gapDetected)
+        {
+            ResetRateAveraging(timeMeasured);
+        }
+
+        double nominalSamePhasePeriodS = expectedTimeTarget * 2.0;
+        if (_haveRatePhaseEvent[ticOrToc])
+        {
+            double measuredSamePhasePeriodS = timeMeasured - _lastRatePhaseEventS[ticOrToc];
+            double deltaS = measuredSamePhasePeriodS - nominalSamePhasePeriodS;
+            if (Math.Abs(deltaS) < nominalSamePhasePeriodS * 0.5)
+            {
+                _rateWindowDeltaSumS += deltaS;
+                _rateWindowDeltaCount++;
+            }
+        }
+
+        _lastRatePhaseEventS[ticOrToc] = timeMeasured;
+        _haveRatePhaseEvent[ticOrToc] = true;
+        CompleteRateAverageWindows(timeMeasured, nominalSamePhasePeriodS, update);
+    }
+
+    private void CompleteRateAverageWindows(
+        double timeMeasured,
+        double nominalSamePhasePeriodS,
+        WatchMetricsUpdate update)
+    {
+        int periodS = AveragingPeriodS();
+        if (timeMeasured - _rateWindowStartS < periodS)
+        {
+            return;
+        }
+
+        double intervalStartS = _rateWindowStartS;
+        double intervalStartGraphX = _rateWindowStartGraphX;
+        double intervalEndGraphX = CurrentRateGraphX();
+
+        if (_rateWindowDeltaCount > 0)
+        {
+            double averageDeltaS = _rateWindowDeltaSumS / _rateWindowDeltaCount;
+            _displayRateSPerDay = -(averageDeltaS / nominalSamePhasePeriodS) * 86400.0;
+            _displayRateValid = true;
+            _lastAveragePeriodRateInterval = new AveragePeriodRateInterval(
+                intervalStartGraphX,
+                intervalEndGraphX,
+                intervalStartS,
+                intervalStartS + periodS,
+                _displayRateSPerDay,
+                _displayAmplitudeValid,
+                _displayAmplitudeDeg,
+                _displayBeatErrorValid,
+                _displayBeatErrorMs);
+            _haveAveragePeriodRateInterval = true;
+            update.SetAveragePeriodRateInterval(_lastAveragePeriodRateInterval);
+        }
+        else
+        {
+            _displayRateSPerDay = 0.0;
+            _displayRateValid = false;
+        }
+
+        do
+        {
+            _rateWindowStartS += periodS;
+        }
+        while (timeMeasured - _rateWindowStartS >= periodS);
+
+        _rateWindowStartGraphX = intervalEndGraphX;
+        ResetRateWindow();
+    }
+
+    private double CurrentRateGraphX() => Math.Max(_xTicIndex, _xTocIndex);
+
     /// <summary>
     /// True when the A-to-A interval is within half a nominal beat of the locked
     /// beat period, i.e. it represents exactly one beat (no detection gap, no
@@ -509,8 +632,9 @@ public sealed class WatchMetrics
         return Math.Abs(intervalS - expectedS) < expectedS * 0.5;
     }
 
-    private void ComputeBeatError(double eventSample)
+    private void ComputeBeatError(double eventSample, WatchMetricsUpdate update)
     {
+        bool displayAverageCompleted = false;
         _beatErrorTimes[_beatErrorIdx] = eventSample;
         _beatErrorIdx++;
         if (_beatErrorIdx == 3)
@@ -522,7 +646,9 @@ public sealed class WatchMetrics
 
             if (_haveStartTime && IsSingleBeatInterval(t1) && IsSingleBeatInterval(t2))
             {
-                _rollBeatError.Add(_beatErrorMs);
+                displayAverageCompleted |= AccumulateDisplayBeatErrorAverage(
+                    eventSample / (double)_config.SampleRate,
+                    _beatErrorMs);
                 // The window start's phase equals the current event's phase (the
                 // window advances two beats per completion), so a tic-start window
                 // makes t1 the tick duration and t2 the tock duration; normalize
@@ -548,10 +674,57 @@ public sealed class WatchMetrics
             _beatErrorTimes[0] = _beatErrorTimes[2];
             _beatErrorIdx = 1;
         }
+
+        if (_haveStartTime)
+        {
+            displayAverageCompleted |= CompleteDisplayBeatErrorWindows(eventSample / (double)_config.SampleRate);
+        }
+
+        if (displayAverageCompleted)
+        {
+            RefreshAveragePeriodRateInterval(update);
+        }
     }
 
-    private void ComputeAmplitude(double eventSample, double bph)
+    private bool AccumulateDisplayBeatErrorAverage(double eventTimeS, double beatErrorMs)
     {
+        _displayBeatErrorWindowSumMs += beatErrorMs;
+        _displayBeatErrorWindowCount++;
+        return CompleteDisplayBeatErrorWindows(eventTimeS);
+    }
+
+    private bool CompleteDisplayBeatErrorWindows(double eventTimeS)
+    {
+        int periodS = AveragingPeriodS();
+        if (eventTimeS - _displayBeatErrorWindowStartS < periodS)
+        {
+            return false;
+        }
+
+        if (_displayBeatErrorWindowCount > 0)
+        {
+            _displayBeatErrorMs = _displayBeatErrorWindowSumMs / _displayBeatErrorWindowCount;
+            _displayBeatErrorValid = true;
+        }
+        else
+        {
+            _displayBeatErrorMs = 0.0;
+            _displayBeatErrorValid = false;
+        }
+
+        do
+        {
+            _displayBeatErrorWindowStartS += periodS;
+        }
+        while (eventTimeS - _displayBeatErrorWindowStartS >= periodS);
+
+        ResetDisplayBeatErrorWindow();
+        return true;
+    }
+
+    private void ComputeAmplitude(double eventSample, double bph, WatchMetricsUpdate update)
+    {
+        bool displayAverageCompleted = false;
         _lastAmplitudeInstValid = false;
         _lastAmplitudePairUpdated = false;
 
@@ -591,10 +764,12 @@ public sealed class WatchMetrics
                     if (_amplitudeTicValid)
                     {
                         double averageAmplitudeTicToc = (_amplitudeTic + _amplitudeToc) / 2.0;
-                        _rollAmplitude.Add(averageAmplitudeTicToc);
                         _amplitudeTicValid = false;
                         _lastAmplitudePairUpdated = true;
                         _lastAmplitudePairDeg = averageAmplitudeTicToc;
+                        displayAverageCompleted |= AccumulateDisplayAmplitudeAverage(
+                            eventSample / (double)_config.SampleRate,
+                            averageAmplitudeTicToc);
                     }
                 }
             }
@@ -602,7 +777,67 @@ public sealed class WatchMetrics
             {
                 _amplitudeTicValid = false;
             }
+
+            displayAverageCompleted |= CompleteDisplayAmplitudeWindows(eventSample / (double)_config.SampleRate);
         }
+
+        if (displayAverageCompleted)
+        {
+            RefreshAveragePeriodRateInterval(update);
+        }
+    }
+
+    private bool AccumulateDisplayAmplitudeAverage(double eventTimeS, double amplitudeDeg)
+    {
+        _displayAmplitudeWindowSumDeg += amplitudeDeg;
+        _displayAmplitudeWindowCount++;
+        return CompleteDisplayAmplitudeWindows(eventTimeS);
+    }
+
+    private bool CompleteDisplayAmplitudeWindows(double eventTimeS)
+    {
+        int periodS = AveragingPeriodS();
+        if (eventTimeS - _displayAmplitudeWindowStartS < periodS)
+        {
+            return false;
+        }
+
+        if (_displayAmplitudeWindowCount > 0)
+        {
+            _displayAmplitudeDeg = _displayAmplitudeWindowSumDeg / _displayAmplitudeWindowCount;
+            _displayAmplitudeValid = true;
+        }
+        else
+        {
+            _displayAmplitudeDeg = 0.0;
+            _displayAmplitudeValid = false;
+        }
+
+        do
+        {
+            _displayAmplitudeWindowStartS += periodS;
+        }
+        while (eventTimeS - _displayAmplitudeWindowStartS >= periodS);
+
+        ResetDisplayAmplitudeWindow();
+        return true;
+    }
+
+    private void RefreshAveragePeriodRateInterval(WatchMetricsUpdate update)
+    {
+        if (!_haveAveragePeriodRateInterval)
+        {
+            return;
+        }
+
+        _lastAveragePeriodRateInterval = _lastAveragePeriodRateInterval with
+        {
+            AmplitudeValid = _displayAmplitudeValid,
+            AmplitudeDeg = _displayAmplitudeDeg,
+            BeatErrorValid = _displayBeatErrorValid,
+            BeatErrorMs = _displayBeatErrorMs,
+        };
+        update.SetAveragePeriodRateInterval(_lastAveragePeriodRateInterval);
     }
 
     private bool AcceptAcInterval(double acMs)
@@ -687,9 +922,9 @@ public sealed class WatchMetrics
 
     private string FormatResults() => BuildResults(
         _bphValid, _bph,
-        _rlsRateValid, _rlsRate,
-        _rollBeatError.CurrentSize() > 0, _rollBeatError.GetAverage(),
-        _rollAmplitude.CurrentSize() > 0, _rollAmplitude.GetAverage());
+        _displayRateValid, _displayRateSPerDay,
+        _displayBeatErrorValid, _displayBeatErrorMs,
+        _displayAmplitudeValid, _displayAmplitudeDeg);
 
     /// <summary>
     /// Pure formatter for the title-bar readout. Each field is fixed-width so the line never
@@ -704,7 +939,6 @@ public sealed class WatchMetrics
         bool amplitudeValid, double amplitude)
     {
         string beatsPerHour = bphValid ? Mark(ArgInt(bph, 5)) : "-----";
-        // Original: QString::asprintf("%+6.1f", RlsRate) — width 6.
         string rateError = rateValid ? Mark(PrintfPlusFloat(rate, 6, 1)) : "------";
         string beatErrorText = beatErrorValid ? Mark(ArgFixed(beatError, 4, 1)) : "----";
         string amplitudeText = amplitudeValid ? Mark(ArgLong(QRound64(amplitude), 3)) : "---";
@@ -727,18 +961,23 @@ public sealed class WatchMetrics
         return wrapped + lowerBound;
     }
 
-    private void AddOrOverwrite(List<double> xvec, List<double> yvec, double value, int maxSize, ref int index)
+    // Appends the newest rate-error point and keeps only the latest maxSize, so the
+    // plot shows a scrolling window of the most recent beats. X is the absolute beat
+    // index (monotonically increasing, never wrapped), so the renderer can follow the
+    // newest window and older points scroll off the left edge. The old ring-overwrite
+    // kept the buffer pinned at maxSize and mutated existing slots in place, so past
+    // ~250 beats no new point ever appeared and the plot froze as a static cloud.
+    private void AddRatePoint(List<double> xvec, List<double> yvec, double value, int maxSize, ref int beatIndex)
     {
-        if (yvec.Count < maxSize)
+        xvec.Add(beatIndex);
+        yvec.Add(value);
+        beatIndex++;
+
+        if (xvec.Count > maxSize)
         {
-            yvec.Add(value);
-            xvec.Add(index);
-            index = (index + 1) % maxSize;
-        }
-        else
-        {
-            yvec[index] = value;
-            index = (index + 1) % maxSize;
+            int excess = xvec.Count - maxSize;
+            xvec.RemoveRange(0, excess);
+            yvec.RemoveRange(0, excess);
         }
     }
 

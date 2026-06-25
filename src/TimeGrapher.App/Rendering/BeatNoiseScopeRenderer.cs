@@ -2,6 +2,7 @@ using Avalonia.Controls;
 using ScottPlot;
 using ScottPlot.Avalonia;
 using ScottPlot.Plottables;
+using ScottPlot.Rendering;
 using TimeGrapher.App.Tabs;
 using TimeGrapher.Core.Analysis;
 using TimeGrapher.Core.Shared;
@@ -258,7 +259,17 @@ internal sealed class BeatNoiseScopeRenderer
         _signalQualityOverlay.Reset();
         _reviewCursor = AddCursor(main);
         ApplyRangeLimits();
-        PlotAxisRules.ClampLeftEdgeToZero(main);
+        // Cap zoom-out/pan to the initial full output on both axes: X to the
+        // selected range [0, _rangeMs] and Y to the live auto-fit
+        // [_mainYLower, _mainYUpper]. Zoom-in still works; zoom-out cannot pass
+        // the first-output extent.
+        main.Axes.Rules.Clear();
+        main.Axes.Rules.Add(new ScopeViewBoundsRule(
+            main.Axes.Bottom, main.Axes.Left,
+            () => (0.0, _rangeMs),
+            () => _mainYLower is double lo && _mainYUpper is double hi && hi > lo
+                ? ((double, double)?)(lo, hi)
+                : null));
         main.Axes.Left.MinimumSize = StripLeftAxisSizePx;
         main.Axes.Left.MaximumSize = StripLeftAxisSizePx;
 
@@ -329,7 +340,13 @@ internal sealed class BeatNoiseScopeRenderer
         _lane2Scatter.LegendText = "Trace 2";
         average.ShowLegend();
         average.Axes.SetLimits(0, BeatNoiseAverager.LaneWindowMs, -0.1, Lane1Baseline + 1.15);
-        PlotAxisRules.ClampLeftEdgeToZero(average);
+        // Same zoom-out cap as the main plot, bounded to the average view's
+        // fixed extent so zoom-out never passes the initial output.
+        average.Axes.Rules.Clear();
+        average.Axes.Rules.Add(new ScopeViewBoundsRule(
+            average.Axes.Bottom, average.Axes.Left,
+            () => (0.0, BeatNoiseAverager.LaneWindowMs),
+            () => (-0.1, Lane1Baseline + 1.15)));
         average.Axes.Left.MinimumSize = StripLeftAxisSizePx;
         average.Axes.Left.MaximumSize = StripLeftAxisSizePx;
 
@@ -1160,7 +1177,7 @@ internal sealed class BeatNoiseScopeRenderer
     private Text AddWeakSignalLabel(Plot plot)
     {
         Text label = plot.Add.Text("WEAK SIGNAL", 0.0, 0.0);
-        label.LabelFontSize = 13;
+        label.LabelFontSize = PlotThemeHelper.GraphLabelFontSize;
         label.LabelBold = true;
         label.Alignment = Alignment.UpperRight;
         label.IsVisible = false;
@@ -1331,5 +1348,88 @@ internal sealed class BeatNoiseScopeRenderer
         _mainPlot.Refresh();
         _stripPlot.Refresh();
         _averagePlot.Refresh();
+    }
+
+    /// <summary>
+    /// Caps zoom-out and pan on a scope plot to its initial full-output extent on
+    /// both axes: the view can still zoom in and pan within, but never past
+    /// [xMin, xMax] x [yMin, yMax]. The bounds are read live each render via the
+    /// providers, so a range-button change (X) or a running Y auto-fit grow is
+    /// honored. A null Y bound (before the first render) leaves Y unconstrained.
+    /// </summary>
+    private sealed class ScopeViewBoundsRule : IAxisRule
+    {
+        private readonly IXAxis _xAxis;
+        private readonly IYAxis _yAxis;
+        private readonly Func<(double Min, double Max)> _xBounds;
+        private readonly Func<(double Min, double Max)?> _yBounds;
+
+        public ScopeViewBoundsRule(
+            IXAxis xAxis,
+            IYAxis yAxis,
+            Func<(double Min, double Max)> xBounds,
+            Func<(double Min, double Max)?> yBounds)
+        {
+            _xAxis = xAxis;
+            _yAxis = yAxis;
+            _xBounds = xBounds;
+            _yBounds = yBounds;
+        }
+
+        public void Apply(RenderPack rp, bool beforeLayout)
+        {
+            (double xMin, double xMax) = _xBounds();
+            ClampAxis(_xAxis, xMin, xMax);
+            if (_yBounds() is (double yMin, double yMax))
+            {
+                ClampAxis(_yAxis, yMin, yMax);
+            }
+        }
+
+        /// <summary>
+        /// Holds the axis view inside [min, max]: a span at or past the full
+        /// extent snaps to it (zoom-out cap); otherwise the window is shifted
+        /// back inside the bound (pan cap). Mirrors the X-bounds rules used by
+        /// the other scopes.
+        /// </summary>
+        private static void ClampAxis(IAxis axis, double min, double max)
+        {
+            double extent = max - min;
+            if (extent <= 0.0)
+            {
+                return;
+            }
+
+            double lo = axis.Range.Min;
+            double hi = axis.Range.Max;
+            double span = hi - lo;
+            if (span >= extent)
+            {
+                lo = min;
+                hi = max;
+            }
+            else
+            {
+                if (lo < min)
+                {
+                    lo = min;
+                    hi = min + span;
+                }
+
+                if (hi > max)
+                {
+                    hi = max;
+                    lo = max - span;
+                }
+
+                if (lo < min)
+                {
+                    lo = min;
+                }
+            }
+
+            axis.Range.Min = lo;
+            axis.Range.Max = hi;
+        }
     }
 }

@@ -48,25 +48,36 @@ public sealed class WatchMetricsDerivedMeasuresTests
         double aSample,
         double cOffsetMs = 50.0)
     {
-        metrics.HandleAEvent(aSample, true, Bph);
+        return FeedAThenCAndGetResultsAtBph(metrics, Bph, aSample, cOffsetMs);
+    }
+
+    private static string FeedAThenCAndGetResultsAtBph(
+        WatchMetrics metrics,
+        double bph,
+        double aSample,
+        double cOffsetMs)
+    {
+        metrics.HandleAEvent(aSample, true, bph);
         WatchMetricsUpdate cUpdate = metrics.HandleCEvent(
             aSample + cOffsetMs / 1000.0 * SampleRate,
             true,
-            Bph);
+            bph);
         Assert.True(cUpdate.ResultsUpdated);
         return cUpdate.ResultsText;
     }
 
-    [Fact]
-    public void RateRls_WarmsUpAtLowManualBph()
+    private static double AToCOffsetMsForAmplitude(double bph, double amplitudeDeg)
     {
-        // At a low BPH (7200 = 2 beats/s) the per-phase RLS window used to be
-        // AveragingPeriod*beatsPerSecond = 4, below RateWarmupPoints (6), so the
-        // rate-valid gate (Count >= 6) could never be satisfied and error-rate
-        // s/day stayed permanently unproduced. The window is now floored at
-        // RateWarmupPoints, so a steady low-BPH stream eventually validates.
+        double arg = Math.Asin(52.0 / (2.0 * amplitudeDeg));
+        double seconds = (7200.0 / bph) * arg / Math.PI;
+        return seconds * 1000.0;
+    }
+
+    [Fact]
+    public void RateAverage_PublishesAfterConfiguredPeriodAtLowManualBph()
+    {
         var metrics = new WatchMetrics(new WatchMetricsConfig { SampleRate = SampleRate, AveragingPeriod = 2 });
-        const double lowBph = 7200.0; // 2 beats/s -> 500 ms between A events
+        const double lowBph = 7200.0;
         var intervals = new double[24];
         for (int i = 0; i < intervals.Length; i++)
         {
@@ -76,6 +87,106 @@ public sealed class WatchMetricsDerivedMeasuresTests
         List<WatchMetricsUpdate> updates = FeedAEventsAtBph(metrics, lowBph, intervals);
 
         Assert.Contains(updates, u => u.BeatTimingSampleUpdated && u.BeatTimingSample.RateValid);
+    }
+
+    [Fact]
+    public void DisplayRateAverage_UsesCompletedAveragingPeriodsRatherThanRollingEveryBeat()
+    {
+        var metrics = new WatchMetrics(new WatchMetricsConfig
+        {
+            SampleRate = SampleRate,
+            AveragingPeriod = 3,
+        });
+        const double bph = 7200.0;
+        const double cOffsetMs = 200.0;
+        double sample = 0.0;
+        string results = FeedAThenCAndGetResultsAtBph(metrics, bph, sample, cOffsetMs);
+
+        for (int i = 0; i < 6; i++)
+        {
+            sample += 490.0 / 1000.0 * SampleRate;
+            results = FeedAThenCAndGetResultsAtBph(metrics, bph, sample, cOffsetMs);
+        }
+
+        Assert.Contains("Error Rate ------ s/d", results);
+
+        sample += 490.0 / 1000.0 * SampleRate;
+        results = FeedAThenCAndGetResultsAtBph(metrics, bph, sample, cOffsetMs);
+        Assert.Contains($"Error Rate {WatchMetrics.ValueSpanStart}+1728.0{WatchMetrics.ValueSpanEnd} s/d", results);
+
+        for (int i = 0; i < 4; i++)
+        {
+            sample += 510.0 / 1000.0 * SampleRate;
+            results = FeedAThenCAndGetResultsAtBph(metrics, bph, sample, cOffsetMs);
+        }
+
+        Assert.Contains($"Error Rate {WatchMetrics.ValueSpanStart}+1728.0{WatchMetrics.ValueSpanEnd} s/d", results);
+
+        sample += 510.0 / 1000.0 * SampleRate;
+        _ = FeedAThenCAndGetResultsAtBph(metrics, bph, sample, cOffsetMs);
+        sample += 510.0 / 1000.0 * SampleRate;
+        results = FeedAThenCAndGetResultsAtBph(metrics, bph, sample, cOffsetMs);
+
+        Assert.Contains($"Error Rate {WatchMetrics.ValueSpanStart}-1440.0{WatchMetrics.ValueSpanEnd} s/d", results);
+    }
+
+    [Fact]
+    public void DisplayRateAverage_EmitsCompletedIntervalForGraphs()
+    {
+        var metrics = new WatchMetrics(new WatchMetricsConfig
+        {
+            SampleRate = SampleRate,
+            AveragingPeriod = 3,
+        });
+        const double bph = 7200.0;
+        double cOffsetMs = AToCOffsetMsForAmplitude(bph, 104.0);
+        double sample = 0.0;
+        WatchMetricsUpdate latestA = metrics.HandleAEvent(sample, true, bph);
+        _ = metrics.HandleCEvent(sample + cOffsetMs / 1000.0 * SampleRate, true, bph);
+
+        for (int i = 0; i < 7; i++)
+        {
+            sample += 490.0 / 1000.0 * SampleRate;
+            latestA = metrics.HandleAEvent(sample, true, bph);
+            _ = metrics.HandleCEvent(sample + cOffsetMs / 1000.0 * SampleRate, true, bph);
+        }
+
+        Assert.True(latestA.AveragePeriodRateIntervalUpdated);
+        AveragePeriodRateInterval interval = latestA.AveragePeriodRateInterval;
+        Assert.Equal(0.0, interval.StartBeatIndex);
+        Assert.Equal(4.0, interval.EndBeatIndex);
+        Assert.Equal(0.0, interval.StartTimeS);
+        Assert.Equal(3.0, interval.EndTimeS);
+        Assert.Equal(1728.0, interval.RateSPerDay, 6);
+        Assert.True(interval.AmplitudeValid);
+        Assert.Equal(104.0, interval.AmplitudeDeg, 6);
+        Assert.True(interval.BeatErrorValid);
+        Assert.Equal(0.0, interval.BeatErrorMs, 6);
+    }
+
+    [Fact]
+    public void GraphRate_RemainsRollingWhileDisplayRateWaitsForAvgPeriod()
+    {
+        var metrics = new WatchMetrics(new WatchMetricsConfig
+        {
+            SampleRate = SampleRate,
+            AveragingPeriod = 12,
+        });
+        double sample = 0.0;
+
+        WatchMetricsUpdate latestA = metrics.HandleAEvent(sample, true, Bph);
+        WatchMetricsUpdate latestC = metrics.HandleCEvent(sample + 50.0 / 1000.0 * SampleRate, true, Bph);
+
+        for (int i = 0; i < 11; i++)
+        {
+            sample += 125.0 / 1000.0 * SampleRate;
+            latestA = metrics.HandleAEvent(sample, true, Bph);
+            latestC = metrics.HandleCEvent(sample + 50.0 / 1000.0 * SampleRate, true, Bph);
+        }
+
+        Assert.True(latestA.BeatTimingSample.RateValid);
+        Assert.Equal(0.0, latestA.BeatTimingSample.RateSPerDay, 6);
+        Assert.Contains("Error Rate ------ s/d", latestC.ResultsText);
     }
 
     [Fact]
@@ -221,9 +332,59 @@ public sealed class WatchMetricsDerivedMeasuresTests
     }
 
     [Fact]
+    public void DisplayReadouts_UseCompletedAvgPeriodForAmplitudeAndBeatError()
+    {
+        const double bph = 7200.0;
+        double amp52OffsetMs = AToCOffsetMsForAmplitude(bph, 52.0);
+        double amp104OffsetMs = AToCOffsetMsForAmplitude(bph, 104.0);
+        var metrics = new WatchMetrics(new WatchMetricsConfig
+        {
+            SampleRate = SampleRate,
+            AveragingPeriod = 3,
+        });
+
+        double sample = 0.0;
+        string results = FeedAThenCAndGetResultsAtBph(metrics, bph, sample, amp52OffsetMs);
+
+        foreach (double intervalMs in new[] { 510.0, 490.0, 510.0, 490.0, 510.0 })
+        {
+            sample += intervalMs / 1000.0 * SampleRate;
+            results = FeedAThenCAndGetResultsAtBph(metrics, bph, sample, amp52OffsetMs);
+        }
+
+        Assert.Contains("Amplitude ---°", results);
+        Assert.Contains("BEAT ERROR ---- ms", results);
+
+        sample += 490.0 / 1000.0 * SampleRate;
+        results = FeedAThenCAndGetResultsAtBph(metrics, bph, sample, amp104OffsetMs);
+
+        Assert.Contains($"Amplitude {WatchMetrics.ValueSpanStart} 52{WatchMetrics.ValueSpanEnd}°", results);
+        Assert.Contains($"BEAT ERROR {WatchMetrics.ValueSpanStart}10.0{WatchMetrics.ValueSpanEnd} ms", results);
+
+        sample += 520.0 / 1000.0 * SampleRate;
+        results = FeedAThenCAndGetResultsAtBph(metrics, bph, sample, amp104OffsetMs);
+
+        Assert.Contains($"Amplitude {WatchMetrics.ValueSpanStart} 52{WatchMetrics.ValueSpanEnd}°", results);
+        Assert.Contains($"BEAT ERROR {WatchMetrics.ValueSpanStart}10.0{WatchMetrics.ValueSpanEnd} ms", results);
+
+        foreach (double intervalMs in new[] { 480.0, 520.0, 480.0, 520.0, 480.0 })
+        {
+            sample += intervalMs / 1000.0 * SampleRate;
+            results = FeedAThenCAndGetResultsAtBph(metrics, bph, sample, amp104OffsetMs);
+        }
+
+        Assert.Contains($"Amplitude {WatchMetrics.ValueSpanStart}104{WatchMetrics.ValueSpanEnd}°", results);
+        Assert.Contains($"BEAT ERROR {WatchMetrics.ValueSpanStart}20.0{WatchMetrics.ValueSpanEnd} ms", results);
+    }
+
+    [Fact]
     public void DisplayBeatError_ExcludesGapSpanningWindows()
     {
-        WatchMetrics metrics = NewMetrics();
+        var metrics = new WatchMetrics(new WatchMetricsConfig
+        {
+            SampleRate = SampleRate,
+            AveragingPeriod = 1,
+        });
         double sample = 0.0;
 
         string results = FeedAThenCAndGetResults(metrics, sample);
@@ -232,18 +393,17 @@ public sealed class WatchMetricsDerivedMeasuresTests
         sample += 375.0 / 1000.0 * SampleRate;
         results = FeedAThenCAndGetResults(metrics, sample);
 
-        Assert.Equal(
-            $"Error Rate ------ s/d | Amplitude {WatchMetrics.ValueSpanStart} 44{WatchMetrics.ValueSpanEnd}° | BEAT ERROR ---- ms | BPH {WatchMetrics.ValueSpanStart}28800{WatchMetrics.ValueSpanEnd}",
-            results);
+        Assert.Contains("Amplitude ---°", results);
+        Assert.Contains("BEAT ERROR ---- ms", results);
 
-        sample += 125.0 / 1000.0 * SampleRate;
-        results = FeedAThenCAndGetResults(metrics, sample);
-        sample += 125.0 / 1000.0 * SampleRate;
-        results = FeedAThenCAndGetResults(metrics, sample);
+        for (int i = 0; i < 8; i++)
+        {
+            sample += 125.0 / 1000.0 * SampleRate;
+            results = FeedAThenCAndGetResults(metrics, sample);
+        }
 
-        Assert.Equal(
-            $"Error Rate ------ s/d | Amplitude {WatchMetrics.ValueSpanStart} 44{WatchMetrics.ValueSpanEnd}° | BEAT ERROR {WatchMetrics.ValueSpanStart} 0.0{WatchMetrics.ValueSpanEnd} ms | BPH {WatchMetrics.ValueSpanStart}28800{WatchMetrics.ValueSpanEnd}",
-            results);
+        Assert.Contains($"Amplitude {WatchMetrics.ValueSpanStart} 44{WatchMetrics.ValueSpanEnd}°", results);
+        Assert.Contains($"BEAT ERROR {WatchMetrics.ValueSpanStart} 0.0{WatchMetrics.ValueSpanEnd} ms", results);
     }
 
     [Fact]
@@ -318,51 +478,33 @@ public sealed class WatchMetricsDerivedMeasuresTests
     }
 
     [Fact]
-    public void RlsRate_RestartsCleanAcrossADetectionGap()
+    public void RateAverage_RestartsCleanAcrossADetectionGap()
     {
-        // A 190 ms interval is a detection gap with a sub-beat residual: the
-        // re-anchored schedule steps by 60 ms, which a regression window
-        // mixing pre- and post-gap points would report as a slope spike of
-        // thousands of s/d - permanently recorded by the cumulative rate
-        // statistics. The estimators restart at the gap instead: the gap
-        // sample reports rate-invalid, the reading returns once the post-gap
-        // segment refills past the warmup floor, and no emitted sample ever
-        // carries the spike. Both runs are long enough to clear RateWarmupPoints
-        // on each side of the gap (6 points per tic/toc phase).
         WatchMetrics metrics = NewMetrics();
-        double[] intervals = Enumerable.Repeat(125.0, 13)
+        double[] intervals = Enumerable.Repeat(125.0, 18)
             .Append(190.0)
-            .Concat(Enumerable.Repeat(125.0, 16))
+            .Concat(Enumerable.Repeat(125.0, 18))
             .ToArray();
         List<WatchMetricsUpdate> updates = FeedAEvents(metrics, intervals);
 
-        // Valid before the gap (the 13-beat run clears the warmup floor)...
-        Assert.Contains(updates.Take(14), u => u.BeatTimingSample.RateValid);
-        // ...the gap event resets both estimators, so it reports invalid...
-        Assert.False(updates[14].BeatTimingSample.RateValid);
-        // ...and the reading returns once the post-gap segment refills.
-        Assert.Contains(updates.Skip(15), u => u.BeatTimingSample.RateValid);
+        Assert.Contains(updates.Take(19), u => u.BeatTimingSample.RateValid);
+        Assert.False(updates[19].BeatTimingSample.RateValid);
+        Assert.Contains(updates.Skip(20), u => u.BeatTimingSample.RateValid);
         Assert.All(
             updates.Where(u => u.BeatTimingSampleUpdated && u.BeatTimingSample.RateValid),
             u => Assert.InRange(u.BeatTimingSample.RateSPerDay, -1.0, 1.0));
     }
 
     [Fact]
-    public void RlsRate_WaitsForWarmupPointsBeforeFirstValidReading()
+    public void GraphRate_WaitsForWarmupPointsBeforeFirstValidReading()
     {
-        // A 2-point regression has zero residual degrees of freedom, so its slope
-        // is pure per-event jitter amplification (the first plotted rate point can
-        // read the wrong sign by tens of s/d). The rate is therefore withheld until
-        // each tic/toc window holds RateWarmupPoints (default 6) samples. With clean
-        // nominal beats that floor is first cleared on the 6th toc (beat 12, index
-        // 11) - not the 2-point beat-4 (index 3) the bare GetRate floor would allow.
         WatchMetrics metrics = NewMetrics();
-        List<WatchMetricsUpdate> updates = FeedAEvents(metrics, Enumerable.Repeat(125.0, 12).ToArray());
+        List<WatchMetricsUpdate> updates = FeedAEvents(metrics, Enumerable.Repeat(125.0, 16).ToArray());
 
         Assert.DoesNotContain(updates.Take(11), u => u.BeatTimingSample.RateValid);
         Assert.False(updates[3].BeatTimingSample.RateValid);   // old 2-point first-valid beat
-        Assert.False(updates[9].BeatTimingSample.RateValid);   // 5 points/phase, still short
-        Assert.True(updates[11].BeatTimingSample.RateValid);   // 6 points/phase clears the floor
+        Assert.False(updates[9].BeatTimingSample.RateValid);
+        Assert.True(updates[11].BeatTimingSample.RateValid);
     }
 
     [Fact]

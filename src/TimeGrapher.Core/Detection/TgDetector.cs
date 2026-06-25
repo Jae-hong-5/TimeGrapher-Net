@@ -62,23 +62,6 @@ public sealed class TgDetector
     private int _evHistoryHead;
     private int _evHistoryCount;
 
-    /* Per-event PLL phase-match recording (diagnostics only; the
-     * detector output is unchanged). Indices align with result.Events of the
-     * most recent Process call; contents are valid until the next call. */
-    private readonly bool _trackEventPllMatch;
-    private byte[] _rawPllMatch = Array.Empty<byte>();
-    private byte[] _eventPllMatch = Array.Empty<byte>();
-    private int _eventPllMatchCount;
-
-    /// <summary>
-    /// PLL phase-match verdicts (1 = matched or not gated) aligned with the
-    /// Events list filled by the last <see cref="Process"/> call. Empty
-    /// unless <see cref="TgConfig.TrackEventPllMatch"/> was set. An event is 0
-    /// only when it failed the phase match while a lock was held, so a
-    /// veto keyed on this can never starve lock acquisition.
-    /// </summary>
-    public ReadOnlySpan<byte> LastEventPllMatch => _eventPllMatch.AsSpan(0, _eventPllMatchCount);
-
     // tg_init
     public TgDetector(TgConfig cfg)
     {
@@ -106,7 +89,7 @@ public sealed class TgDetector
             MinPeakFractionInit = cfg.MinPeakFractionInit,
             SuppressPreSyncEvents = cfg.SuppressPreSyncEvents,
             CPlacement = cfg.CPlacement,
-            TrackEventPllMatch = cfg.TrackEventPllMatch,
+            PhaseGuideOnsetRescueScale = cfg.PhaseGuideOnsetRescueScale,
         };
 
         /* Apply zero-defaults at runtime */
@@ -128,8 +111,6 @@ public sealed class TgDetector
             _det.SetOnsetFraction(_cfg.OnsetFractionInit);
         if (_cfg.MinPeakFractionInit > 0.0)
             _det.SetMinPeakFraction(_cfg.MinPeakFractionInit);
-
-        _trackEventPllMatch = _cfg.TrackEventPllMatch;
 
         _sync = new TgSync();
         _sync.Init();
@@ -287,7 +268,8 @@ public sealed class TgDetector
                 if (guideWindow < minWindow) guideWindow = minWindow;
                 double maxWindow = 0.12 * _currentBeatPeriod;
                 if (guideWindow > maxWindow) guideWindow = maxWindow;
-                _det.SetPhaseGuide(_sync.NextATime, _currentBeatPeriod, _sync.AcOffset, guideWindow);
+                _det.SetPhaseGuide(_sync.NextATime, _currentBeatPeriod, _sync.AcOffset, guideWindow,
+                                   _cfg.PhaseGuideOnsetRescueScale);
             }
             else
             {
@@ -420,28 +402,13 @@ public sealed class TgDetector
             }
         }
 
-        /* Per-raw-event PLL match verdicts, prefilled 1 so events outside a
-         * held lock (pre-sync, after mid-batch loss) always count matched. */
-        if (_trackEventPllMatch && rawCount > _rawPllMatch.Length)
-        {
-            Array.Resize(ref _rawPllMatch, rawCount);
-        }
-        if (_trackEventPllMatch)
-        {
-            for (int i = 0; i < rawCount; ++i) _rawPllMatch[i] = 1;
-        }
-
         /* Run sync tracker and detect loss */
         int prevSynced = _sync.Synced;
         if (_sync.Synced != 0)
         {
             for (int i = 0; i < rawCount; ++i)
             {
-                int matched = _sync.Update(_rawEvents[i].TimeSeconds);
-                if (_trackEventPllMatch)
-                {
-                    _rawPllMatch[i] = (byte)matched;
-                }
+                _sync.Update(_rawEvents[i].TimeSeconds);
                 if (_sync.Synced == 0) break;
             }
         }
@@ -503,13 +470,8 @@ public sealed class TgDetector
         result.MeasuredPeriodS = _currentBeatPeriod;
 
         /* Emit events: copy timing, set is_pre_sync, optionally drop. */
-        _eventPllMatchCount = 0;
         if (rawCount > 0)
         {
-            if (_trackEventPllMatch && rawCount > _eventPllMatch.Length)
-            {
-                Array.Resize(ref _eventPllMatch, rawCount);
-            }
             bool preSync = (_currentBph <= 0);
             for (int i = 0; i < rawCount; ++i)
             {
@@ -548,10 +510,6 @@ public sealed class TgDetector
                 ev.OnsetValid = r.OnsetValid != 0;
 
                 result.Events.Add(ev);
-                if (_trackEventPllMatch)
-                {
-                    _eventPllMatch[_eventPllMatchCount++] = _rawPllMatch[i];
-                }
             }
         }
 
