@@ -28,14 +28,10 @@
         </Grid>
         <StackPanel Grid.Column="1" Orientation="Horizontal">
           <Button Name="ResetSettingsButton"
-                  Classes="TitleBarIconButton"
+                  Classes="TitleBarTextButton"
                   Command="{Binding ResetSettingsWindowCommand}"
-                  ToolTip.Tip="Reset settings to defaults">
-            <Viewbox Width="16" Height="16">
-              <Path Width="24" Height="24" Stretch="Uniform"
-                    Data="M12 5V2L7 7L12 12V9C15.31 9 18 11.69 18 15C18 16.01 17.75 16.96 17.3 17.8L19.04 19.54C19.65 18.22 20 16.69 20 15C20 10.58 16.42 7 12 7V5ZM6.7 12.2L4.96 10.46C4.35 11.78 4 13.31 4 15C4 19.42 7.58 23 12 23V20C8.69 20 6 17.31 6 14C6 12.99 6.25 12.04 6.7 11.2Z" />
-            </Viewbox>
-          </Button>
+                  ToolTip.Tip="Reset settings to defaults"
+                  Content="Reset Defaults" />
           <Button Name="CloseSettingsButton"
                   Classes="TitleBarIconButton TitleBarCloseButton"
                   Click="OnCloseSettingsButtonClick"

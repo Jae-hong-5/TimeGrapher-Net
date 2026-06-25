@@ -63,6 +63,10 @@ public sealed class SettingsToggleBindingTests
 
         Assert.Same(parent, close.Parent);
         Assert.True(parent.Children.IndexOf(reset) < parent.Children.IndexOf(close));
+        Assert.Equal("Reset Defaults", reset.Content);
+        Assert.Contains("TitleBarTextButton", reset.Classes);
+        Assert.DoesNotContain("TitleBarIconButton", reset.Classes);
+        Assert.True(reset.MinWidth >= 124);
         Assert.Same(vm.ResetSettingsWindowCommand, reset.Command);
         vm.ResetSettingsWindowCommand.Execute(null);
         Assert.Equal(1, runner.ResetCount);
