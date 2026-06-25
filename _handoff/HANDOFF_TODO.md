@@ -1,0 +1,76 @@
+# Handoff — Positions / Health redesign
+
+**Branch:** `feat/positions-health-redesign` (based on latest `origin/main`).
+**Purpose of this file:** commit-unit checklist + design spec so another agent (Codex) can continue if the current session stops mid-way.
+**Delete this whole `_handoff/` folder in the final commit / before opening the PR.**
+
+> CAUTION: this branch is on the latest `origin/main`, which moved 13 commits past the
+> checkout the spec was drafted on. **Re-read each target file before editing** — line
+> numbers and small details below may have shifted. Verify symbol names still exist.
+
+Spec images in this folder: `spec-health.png`, `spec-positions.png` (rendered HTML mockups, sample data).
+
+---
+
+## What we're building (decisions from the design session)
+
+Two tabs share the same per-position snapshot (`PositionSummary`). We split responsibilities:
+**Positions = acquire/observe raw data**, **Health = all diagnosis (judgment)**.
+
+### Health  =  Radar  +  unified Diagnosis rail   (see `spec-health.png`)
+- Layout: content row = left **radar card** (flex, ~60%) + right **Diagnosis rail** (~470px).
+- Radar: keep existing `WatchHealthRadarControl` (hexagon, 6 cardinal positions, accept-band ring, metric polygon). Move the Amplitude/Rate/Beat-error **metric toggle into the rail header**.
+- Diagnosis rail (single panel), top→bottom:
+  1. Header `DIAGNOSIS · unified` + metric toggle.
+  2. **OVERALL** verdict: big word (OK / WATCH / ALERT) colored `VarioGood/VarioWarn/VarioBad` + chip; subline `worse of the two axes · N/10 positions · elapsed`.
+  3. **LEVELS · per position vs accept band**: list of the 6 cardinal positions — `pos | amplitude | rate | beat err | status-dot`; then `Weakest: <pos> (reason)`.
+  4. **CONSISTENCY · across positions**: 3 rows `D-SPREAD / BALANCE-WHEEL / V·H BIAS`, each `name | reading (s/d) | chip(OK/CHECK/COLLECTING)`.
+  5. Criteria inline footnote: "CHECK when rate spread > 15 s/d across qualified positions. Reuses the Positions sequence — no new sensor."
+- Data: radar + levels from `frame.MetricsHistory.Positions`. **Consistency from `SequenceSummary.Compute(positions)` — REUSE the existing pure computation** (currently consumed by the Positions tab). OVERALL = worse severity of {levels worst-of-band, consistency verdict}.
+
+### Positions  =  ACTIVE hero  +  one merged table   (see `spec-positions.png`)
+- **Remove** from the Positions tab: the `POSITION CONSISTENCY` block, requirement guides, unbalance banner, and the `View criteria ▾` flyout. (Consistency now lives in Health.)
+- Layout: content column = top **hero row**, then **merged table** (fills).
+- Hero row:
+  - **ACTIVE bar** (left): watch-dial graphic + small caption `current position` (NO position name, NO "Dial up") + live readout `Rate / Amplitude / Beat err / Beats` + Collection progress bar (beats vs `VarioVerdict.MinSamples` = 30; qualified / collecting).
+  - **Sequence KPIs** (right, 2×2): `X̄ rate`, `X̄ amplitude`, `Positions n/10`, `Total beats` (from `SequenceSummary`).
+- **Merged table** — one row per position (`WatchPositions.All`, 10 rows). Columns:
+  `POS | RATE | AMPLITUDE | BEAT ERR | BEATS | RATE RANGE vs BAND | COLLECTION`
+  - **POS: always BLACK** (not red for active, not gray for unmeasured).
+  - **Active row** = pale-red band background = LongTerm Rate-pane band color (`VarioBad` `0xFFC03030`) at ~15% alpha, with an inset 3px red left marker. (LongTerm uses `ThemePane(_rate, VarioBad, VarioBad)` + `BandFillAlpha=44`.)
+  - RATE/AMP/BEAT/BEATS monospace. **Values out of accept band → red** (`VarioBad`): rate vs `VarioGaugePolicy.RateAccept*`, amplitude vs `VarioGaugePolicy.AmplitudeAccept*`. Unmeasured = faint `—`.
+  - **RATE RANGE vs BAND**: per-row horizontal lane — amber accept band (`VarioGaugePolicy` rate min/max), zero line, blue **min–max** bar (`PositionSummary.Rate.Min/Max`), **mean dot** (`PositionSummary.Rate.Mean`): dark navy normally, **red when mean is outside the accept band**. Scale hint `−20···0···+20 s/d` in the header.
+  - **COLLECTION**: progress toward 30 beats — green `qualified` when ≥30, amber `n/30 collecting` otherwise, `not measured` at 0.
+  - Legend above the table: `● mean / ▬ min–max range / ▮ accept band / ● mean out of band / ▬ qualified / ▬ collecting`.
+- Data: **all from `PositionSummary` stats (min/max/mean/count)** — NO new Core data (TREND sparkline was dropped → lightweight). Accept bands from `VarioGaugePolicy` (shared single source).
+
+---
+
+## Key files (verify current paths/names before editing)
+- Health: `src/TimeGrapher.App/Tabs/InfoTabRegistry.Radar.cs`, `Rendering/WatchHealthRadarModel.cs`, `Rendering/WatchHealthRadarRenderer.cs`, `Rendering/WatchHealthRadarControl.cs`
+- Positions: `src/TimeGrapher.App/Tabs/InfoTabRegistry.cs` (search `WatchPositions`, `POSITION CONSISTENCY`, `View criteria`), `Rendering/MultiPositionSeqRenderer.cs`, `Rendering/SequenceSummary.cs`, `Rendering/PositionSequenceDashboardControls.cs`
+- Shared: `Rendering/VarioGaugePolicy.cs` (accept bands), `Rendering/VarioVerdict.cs` (`MinSamples`, levels), `Rendering/PlotThemePalette.cs` (VarioBad/Good/Warn, AcceptBand), `Core/Shared/` (`PositionSummary`, `StatsSummary`, `BeatMetricsHistorySnapshot`)
+- Tests: `tests/TimeGrapher.App.Tests/` (`WatchHealthRadarModelTests`, `VarioLogicTests`, `…`)
+- Docs to update: `docs/for-ai/DATA_MODEL_VIEW.md`, `docs/for-ai/MODULE_USES_VIEW.md`, `docs/for-ai/SAP_TACTICS_ANALYSIS.md`
+
+Conventions: read `AGENTS.md`. Commit subject in English (Conventional Commits); body in English then Korean. Smallest logically-separable commits. Reuse App.axaml colors / `PlotThemePalette`. Push to this branch (do not force-push).
+
+Build/test:
+```
+dotnet build TimeGrapherNet.sln -c Release
+dotnet test  TimeGrapherNet.sln -c Release
+```
+
+---
+
+## Commit-unit checklist  (tick as you go)
+- [x] **C1** docs: add `_handoff/` plan + spec (this commit)
+- [ ] **C2** refactor(positions): extract the consistency verdict (OK/CHECK/COLLECTING + D-spread/balance/V·H) out of `MultiPositionSeqRenderer` into a **pure, shared helper** (e.g. on `SequenceSummary` or a new `ConsistencyVerdict` type) so Health can consume it. No UI change. + tests.
+- [ ] **C3** feat(health): extend `WatchHealthRadarModel` with Levels list + Consistency axis + Overall (consume C2 helper + `SequenceSummary`). + `WatchHealthRadarModelTests`.
+- [ ] **C4** feat(health): rebuild `InfoTabRegistry.Radar.cs` into radar + unified Diagnosis rail; `WatchHealthRadarRenderer` populates the rail controls.
+- [ ] **C5** feat(positions): remove `POSITION CONSISTENCY` block + criteria flyout + unbalance banner from the Positions tab (`InfoTabRegistry.cs`, `MultiPositionSeqRenderer`, `PositionSequenceDashboardControls`). Keep table + active card building blocks.
+- [ ] **C6** feat(positions): add merged acquisition columns (RATE RANGE lane + COLLECTION) to the per-position table from `PositionSummary` stats + `VarioGaugePolicy`; POS black; out-of-band values red; mean dot dark/red. New small lane renderer/control. + tests.
+- [ ] **C7** feat(positions): add ACTIVE hero (dial + `current position` + live readout + collection) + sequence KPI tiles.
+- [ ] **C8** docs(architecture): update `DATA_MODEL_VIEW.md` / `MODULE_USES_VIEW.md` / `SAP_TACTICS_ANALYSIS.md` (one snapshot, multiple consumers; consistency single-source reuse).
+- [ ] **C9** test: `dotnet build` + `dotnet test` green; fix fallout; add/adjust tests for changed behavior.
+- [ ] **C10** chore: **delete `_handoff/`** and open the PR.
