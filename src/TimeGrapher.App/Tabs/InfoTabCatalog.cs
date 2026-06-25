@@ -13,6 +13,7 @@ internal enum InfoTabKind
     MultiFilterScope,
     LongTermPerformance,
     WatchPositions,
+    WatchHealthRadar,
     BeatNoiseScope,
     EscapementAnalyzer,
     WaveformCompare,
@@ -54,6 +55,7 @@ internal static class InfoTabCatalog
     public const string MultiFilterScopeTabId = "multi-filter-scope";
     public const string LongTermPerfTabId = "long-term-perf";
     public const string WatchPositionsTabId = "watch-positions";
+    public const string WatchHealthRadarTabId = "watch-health-radar";
     public const string BeatNoiseScopeTabId = "beat-noise-scope";
     public const string EscapementAnalyzerTabId = "escapement-analyzer";
     public const string WaveformCompareTabId = "waveform-compare";
@@ -121,6 +123,12 @@ internal static class InfoTabCatalog
             // and per-position aggregates; it declares no per-frame graph-series
             // contract. Placed eighth so it leads the wrapped second tab row.
             new(WatchPositionsTabId, "Positions", InfoTabKind.WatchPositions, DefaultUiRefreshIntervalMs, UsesGraphSnapshots: false, Array.Empty<GraphSeriesDefinition>()),
+            // Watch Health renders a six-position radar of the per-position
+            // aggregates the same cumulative snapshot already carries (amplitude /
+            // rate / beat error by position), with the shared accept band as the
+            // healthy ring; it declares no per-frame graph-series contract. Placed
+            // right after Positions since it reuses that multi-position data.
+            new(WatchHealthRadarTabId, "Health", InfoTabKind.WatchHealthRadar, DefaultUiRefreshIntervalMs, UsesGraphSnapshots: false, Array.Empty<GraphSeriesDefinition>()),
             // Beat Noise renders the cumulative BeatSegmentsSnapshot the
             // frame carries (Scope 1 segments + Scope 2 lane averages); it
             // declares no per-frame graph-series contract.

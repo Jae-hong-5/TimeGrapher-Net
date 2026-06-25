@@ -51,6 +51,7 @@ internal sealed partial class InfoTabRegistry
             [InfoTabKind.MultiFilterScope] = CreateMultiFilterScopeRegistration,
             [InfoTabKind.LongTermPerformance] = CreateLongTermPerfRegistration,
             [InfoTabKind.WatchPositions] = CreateWatchPositionsRegistration,
+            [InfoTabKind.WatchHealthRadar] = CreateWatchHealthRadarRegistration,
             [InfoTabKind.BeatNoiseScope] = CreateBeatNoiseScopeRegistration,
             [InfoTabKind.EscapementAnalyzer] = CreateEscapementAnalyzerRegistration,
             [InfoTabKind.WaveformCompare] = CreateWaveformCompareRegistration,
