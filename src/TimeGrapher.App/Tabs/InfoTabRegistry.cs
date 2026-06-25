@@ -311,12 +311,29 @@ internal sealed partial class InfoTabRegistry
     {
         var ratePlot = new AvaPlot();
         var scopePlot = new AvaPlot();
+        Button resetViewButton = CreateOverlayButton(
+            "Reset View", ResetAllGraphViewsTooltip, context.ResetViews.ResetAll);
+        resetViewButton.MinHeight = TraceHeaderButtonMinHeight;
+        resetViewButton.FontSize = TraceHeaderButtonFontSize;
+        resetViewButton.Padding = TraceHeaderButtonPadding;
+        resetViewButton.VerticalAlignment = VerticalAlignment.Center;
+        resetViewButton.Classes.Add("PositionButton");
+        var headerStrip = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions("*,Auto"),
+            Margin = new Thickness(8, 1, 8, 2),
+        };
+        Grid.SetColumn(resetViewButton, 1);
+        headerStrip.Children.Add(resetViewButton);
+
         var grid = new Grid
         {
-            RowDefinitions = new RowDefinitions("*,*"),
+            RowDefinitions = new RowDefinitions("Auto,*,*"),
         };
-        Grid.SetRow(ratePlot, 0);
-        Grid.SetRow(scopePlot, 1);
+        Grid.SetRow(headerStrip, 0);
+        Grid.SetRow(ratePlot, 1);
+        Grid.SetRow(scopePlot, 2);
+        grid.Children.Add(headerStrip);
         grid.Children.Add(ratePlot);
         grid.Children.Add(scopePlot);
 
@@ -324,16 +341,13 @@ internal sealed partial class InfoTabRegistry
         // below already shows the live waveform before sync).
         if (CreateWaitingOverlay(context.ViewModel) is { } overlay)
         {
-            Grid.SetRow(overlay, 0);
+            Grid.SetRow(overlay, 1);
             grid.Children.Add(overlay);
         }
 
         var renderer = new RateScopeRenderer(scopePlot, ratePlot, context.TextFontFamily);
         context.ResetViews.Register(renderer.ResetRateView);
         context.ResetViews.Register(renderer.ResetScopeView);
-
-        grid.Children.Add(CreatePinnedResetViewButton(ResetAllGraphViewsTooltip, row: 0, context.ResetViews.ResetAll));
-        grid.Children.Add(CreatePinnedResetViewButton(ResetAllGraphViewsTooltip, row: 1, context.ResetViews.ResetAll));
 
         var consumer = new RateScopeFrameConsumer(renderer);
         return new InfoTabRegistration(definition, CreateTabItem(definition, grid), consumer);

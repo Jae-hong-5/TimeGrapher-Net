@@ -53,7 +53,7 @@ public sealed class InfoTabRegistryTests
         InfoTabRegistry registry = InfoTabRegistry.FromCatalog(tabControl, positionStrip, "Arial");
         Button[] buttons = ResetViewButtons(registry);
 
-        Assert.Equal(6, buttons.Length);
+        Assert.Equal(5, buttons.Length);
         Assert.All(buttons, button => Assert.Equal("Reset all graph views", ToolTip.GetTip(button)));
     }
 
@@ -801,6 +801,34 @@ public sealed class InfoTabRegistryTests
     }
 
     [Fact]
+    public void RateScopeTabUsesSingleReservedHeaderResetButton()
+    {
+        Grid content = CreateRateScopeContent();
+        var headerStrip = Assert.IsType<Grid>(
+            content.Children.Single(child => Grid.GetRow(child) == 0));
+
+        Assert.Equal(3, content.RowDefinitions.Count);
+        Assert.Equal(GridUnitType.Auto, content.RowDefinitions[0].Height.GridUnitType);
+        Assert.True(content.RowDefinitions[1].Height.IsStar);
+        Assert.True(content.RowDefinitions[2].Height.IsStar);
+        Assert.Equal(2, headerStrip.ColumnDefinitions.Count);
+        Assert.True(headerStrip.ColumnDefinitions[0].Width.IsStar);
+        Assert.Equal(GridUnitType.Auto, headerStrip.ColumnDefinitions[1].Width.GridUnitType);
+
+        Button resetView = headerStrip.Children.OfType<Button>().Single();
+        Assert.Equal(1, Grid.GetColumn(resetView));
+        Assert.Equal("Reset View", resetView.Content);
+        Assert.Contains("PositionButton", resetView.Classes);
+        Assert.Equal(TraceHeaderButtonFontSizeForTest, resetView.FontSize);
+        Assert.Equal(TraceHeaderButtonMinHeightForTest, resetView.MinHeight);
+
+        Assert.Equal(2, content.Children.OfType<AvaPlot>().Count());
+        Assert.DoesNotContain(content.Children.OfType<Button>(), button =>
+            Grid.GetRow(button) == 1 || Grid.GetRow(button) == 2);
+        Assert.Single(Descendants(content).OfType<Button>(), button => Equals(button.Content, "Reset View"));
+    }
+
+    [Fact]
     public void BeatErrorDiagTabReservesAlertBannerSpaceBesideResetView()
     {
         Grid content = CreateBeatErrorDiagContent();
@@ -1055,6 +1083,14 @@ public sealed class InfoTabRegistryTests
         InfoTabRegistry registry = InfoTabRegistry.FromCatalog(tabControl, new Grid(), "Arial");
         return Assert.IsType<Grid>(registry.Registrations.Single(
             registration => registration.Definition.Id == InfoTabCatalog.TraceDisplayTabId).TabItem.Content);
+    }
+
+    private static Grid CreateRateScopeContent()
+    {
+        var tabControl = new TabControl();
+        InfoTabRegistry registry = InfoTabRegistry.FromCatalog(tabControl, new Grid(), "Arial");
+        return Assert.IsType<Grid>(registry.Registrations.Single(
+            registration => registration.Definition.Id == InfoTabCatalog.RateScopeTabId).TabItem.Content);
     }
 
     private static Grid CreateBeatErrorDiagContent()
