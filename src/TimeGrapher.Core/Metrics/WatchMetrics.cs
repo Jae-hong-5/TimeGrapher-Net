@@ -255,27 +255,6 @@ public sealed class WatchMetrics
         return update;
     }
 
-    /// <summary>
-    /// Records that the engine's event gate vetoed an A (unlock) event: the beat
-    /// physically occurred but its measurement is dropped. Advances the tic/toc
-    /// beat clock and the last-A reference by one beat so the next accepted A is
-    /// not misread as a missed beat - which would re-anchor tic/toc parity (one
-    /// rate series starving) and restart the Avg. Period window (the title-bar
-    /// reading freezing). It contributes no rate / amplitude / beat-error sample.
-    /// Only advances while locked at the current BPH; a pre-lock or re-lock A
-    /// falls through to the normal acquisition path on the next accepted event.
-    /// </summary>
-    public void NoteVetoedAEvent(double eventSample, bool haveValidBph, double bph)
-    {
-        if (!haveValidBph || !_haveStartTime || (int)bph != _bph)
-        {
-            return;
-        }
-        _ticTocBeatNumber++;
-        _lastAEvent = eventSample;
-        _haveAEvent = true;
-    }
-
     public WatchMetricsUpdate HandleCEvent(double eventSample, bool haveValidBph, double bph)
     {
         var update = new WatchMetricsUpdate();

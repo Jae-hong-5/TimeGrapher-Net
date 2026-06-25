@@ -20,7 +20,6 @@ using System.Text.RegularExpressions;
 using TimeGrapher.Core.Analysis;
 using TimeGrapher.Core.AudioIo;
 using TimeGrapher.Core.Detection;
-using TimeGrapher.Core.Detection.Scoring;
 using TimeGrapher.Core.Metrics;
 using TimeGrapher.Core.Shared;
 using TimeGrapher.Core.Sim;

@@ -1,7 +1,6 @@
 using System.Diagnostics;
 using TimeGrapher.Core.AudioIo;
 using TimeGrapher.Core.Detection;
-using TimeGrapher.Core.Detection.Scoring;
 using TimeGrapher.Core.Shared;
 
 namespace TimeGrapher.Core.Analysis;
@@ -28,8 +27,6 @@ public sealed class AnalysisWorker : IDisposable
         public bool AutoBph = true;
         public int ManualBph = 0;
         public double HpfCutoffHz = 0.0;
-        /// <summary>Opt-in veto gate at the metrics choke point; null = no gate.</summary>
-        public IBeatEventGate? EventGate = null;
         /// <summary>&gt;0 enables the post-lock weak-A onset rescue (see TgConfig.PhaseGuideOnsetRescueScale); 0 = off.</summary>
         public double PhaseGuideOnsetRescueScale = 0.0;
         public int SoundImageWidth = 0;
@@ -104,7 +101,6 @@ public sealed class AnalysisWorker : IDisposable
             config.AutoBph,
             config.ManualBph,
             config.HpfCutoffHz,
-            config.EventGate != null ? new BeatEventGateConfig(config.EventGate) : null,
             PhaseGuideOnsetRescueScale: config.PhaseGuideOnsetRescueScale));
 
         _inputBlock = new float[config.AnalysisBlockSize];
@@ -121,7 +117,7 @@ public sealed class AnalysisWorker : IDisposable
         _beatSegmentCapture = new BeatSegmentCapture(
             config.SampleRate,
             config.LiftAngle,
-            config.EventGate?.WindowPostMs ?? 0.0,
+            0.0,
             config.AnalysisBlockSize);
         _sweepProjector = new SweepFrameProjector(config.SampleRate);
         _multiFilterProjector = new MultiFilterFrameProjector(config.SampleRate);
