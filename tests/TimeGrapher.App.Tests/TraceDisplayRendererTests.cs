@@ -80,6 +80,8 @@ public sealed class TraceDisplayRendererTests
 
         renderer.CreateGraphs();
 
+        Assert.False(ratePlot.UserInputProcessor.IsEnabled);
+        Assert.False(amplitudePlot.UserInputProcessor.IsEnabled);
         foreach (AvaPlot plot in new[] { ratePlot, amplitudePlot })
         {
             Assert.Equal(ExpectedLeftPanel, plot.Plot.Axes.Left.MinimumSize);
