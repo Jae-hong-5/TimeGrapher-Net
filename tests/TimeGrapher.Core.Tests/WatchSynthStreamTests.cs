@@ -56,6 +56,40 @@ public sealed class WatchSynthStreamTests
         Assert.NotEqual(bufA, bufB);
     }
 
+    [Fact]
+    public void PostCImpulse_AddsBeatLockedBurstWithoutPerturbingEarlierSignal()
+    {
+        WatchSynthStreamConfig off = Clean(bph: 21600, noise: 0.0);
+        WatchSynthStreamConfig on = Clean(bph: 21600, noise: 0.0);
+        on.PostCImpulseLevel = 0.16;
+        on.PostCImpulseDelayS = 0.073;
+        on.PostCImpulseFreqHz = 4500.0;
+        on.PostCImpulseDecayMs = 2.0;
+
+        var bufOff = new float[48000];
+        var bufOn = new float[48000];
+        new WatchSynthStream(off).Generate(bufOff);
+        new WatchSynthStream(on).Generate(bufOn);
+
+        double aToC = WatchSynthStream.ComputeAToCTimeS(off);
+        int firstImpulse = (int)Math.Round((off.StartTimeS + aToC + on.PostCImpulseDelayS) * 48000.0);
+
+        // Before the first impulse fires the two streams are sample-identical:
+        // the impulse path draws no RNG and never perturbs tick timing or noise.
+        for (int i = 0; i < firstImpulse - 50; i++)
+        {
+            Assert.Equal(bufOff[i], bufOn[i]);
+        }
+
+        // The impulse adds energy in its ~16 ms burst window that off lacks.
+        double maxDiff = 0.0;
+        for (int i = firstImpulse; i < firstImpulse + 768 && i < bufOn.Length; i++)
+        {
+            maxDiff = Math.Max(maxDiff, Math.Abs(bufOn[i] - bufOff[i]));
+        }
+        Assert.True(maxDiff > 0.05, $"post-C impulse burst not found (maxDiff={maxDiff})");
+    }
+
     // Deterministic realistic A/B/C packet: realistic packet structure on, but every
     // stochastic component (jitter/noise/variation/drift/resonance/wander) left off so
     // per-cluster amplitude scaling can be measured in isolation.
