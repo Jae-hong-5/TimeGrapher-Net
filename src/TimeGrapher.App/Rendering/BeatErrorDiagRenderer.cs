@@ -2,6 +2,7 @@ using Avalonia.Controls;
 using ScottPlot;
 using ScottPlot.Avalonia;
 using ScottPlot.Plottables;
+using ScottPlot.Rendering;
 using TimeGrapher.App.Tabs;
 using TimeGrapher.Core.Shared;
 
@@ -21,6 +22,8 @@ internal sealed class BeatErrorDiagRenderer
     private const float TraceMarkerSize = 6.0f;
     private const double MinimumBeatWindow = 40.0;
     private const double BeatWindowPadding = 8.0;
+    /// <summary>Y zoom-out cap on the signed Error Rate (ms) axis: +/-100 s (100 x 1000 ms).</summary>
+    private const double YZoomOutLimitMs = 100_000.0;
 
     private readonly AvaPlot _tracePlot;
     private readonly Border _alertBanner;
@@ -104,7 +107,10 @@ internal sealed class BeatErrorDiagRenderer
 
         AddTracePlottables();
         trace.ShowLegend();
+        // X: floor the left edge at 0 (beat index). Y: cap zoom-out to +/-100 s
+        // so the signed Error Rate axis can no longer be zoomed out indefinitely.
         PlotAxisRules.ClampLeftEdgeToZero(trace);
+        trace.Axes.Rules.Add(new YZoomOutCapRule(trace.Axes.Left, YZoomOutLimitMs));
         _tracePlot.Refresh();
     }
 
@@ -245,5 +251,60 @@ internal sealed class BeatErrorDiagRenderer
         AnalysisGraphSeries.RateToc => _theme.TraceTock,
         _ => _theme.TraceWave,
     };
+
+    /// <summary>
+    /// Caps Y zoom-out (and pan) to [-limit, +limit] ms: the view can still zoom
+    /// in freely, but zoom-out never extends Y past the bound. A span at or past
+    /// the full 2*limit extent snaps to it; otherwise the window is shifted back
+    /// inside the bound. Mirrors the X-bounds rules used by the other scopes.
+    /// </summary>
+    private sealed class YZoomOutCapRule : IAxisRule
+    {
+        private readonly IYAxis _yAxis;
+        private readonly double _limit;
+
+        public YZoomOutCapRule(IYAxis yAxis, double limit)
+        {
+            _yAxis = yAxis;
+            _limit = limit;
+        }
+
+        public void Apply(RenderPack rp, bool beforeLayout)
+        {
+            double min = -_limit;
+            double max = _limit;
+            double extent = max - min;
+            double lo = _yAxis.Range.Min;
+            double hi = _yAxis.Range.Max;
+            double span = hi - lo;
+            if (span >= extent)
+            {
+                lo = min;
+                hi = max;
+            }
+            else
+            {
+                if (lo < min)
+                {
+                    lo = min;
+                    hi = min + span;
+                }
+
+                if (hi > max)
+                {
+                    hi = max;
+                    lo = max - span;
+                }
+
+                if (lo < min)
+                {
+                    lo = min;
+                }
+            }
+
+            _yAxis.Range.Min = lo;
+            _yAxis.Range.Max = hi;
+        }
+    }
 
 }
