@@ -154,6 +154,27 @@ public class WatchHealthRadarModelTests
     }
 
     [Fact]
+    public void BeatError_VerdictTracksTheSharedAcceptBand()
+    {
+        // The beat-error verdict grades against the shared AcceptBandSettings magnitude
+        // (Good within the band, Marginal up to 2x, High beyond) rather than a hardcoded
+        // ±1/±2 ms convention, so the radar agrees with the other beat-error displays.
+        double band = AcceptBandSettings.Current.BeatErrorMagnitudeMs;
+
+        WatchHealthRadarModel good = WatchHealthRadarModel.Build(
+            WatchHealthRadarModel.AxisOrder.Select(p => Beat(p, band * 0.5)).ToArray(), RadarMetric.BeatError);
+        Assert.Equal(VarioVerdictLevel.Good, good.VerdictLevel);
+
+        WatchHealthRadarModel marginal = WatchHealthRadarModel.Build(
+            WatchHealthRadarModel.AxisOrder.Select(p => Beat(p, band * 1.5)).ToArray(), RadarMetric.BeatError);
+        Assert.Equal(VarioVerdictLevel.Warn, marginal.VerdictLevel);
+
+        WatchHealthRadarModel bad = WatchHealthRadarModel.Build(
+            WatchHealthRadarModel.AxisOrder.Select(p => Beat(p, band * 3.0)).ToArray(), RadarMetric.BeatError);
+        Assert.Equal(VarioVerdictLevel.Bad, bad.VerdictLevel);
+    }
+
+    [Fact]
     public void Rate_FormatsSignedValueAndSelectsMetricTitle()
     {
         WatchHealthRadarModel model = WatchHealthRadarModel.Build(

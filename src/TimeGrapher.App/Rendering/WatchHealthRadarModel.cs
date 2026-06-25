@@ -296,9 +296,14 @@ internal sealed record WatchHealthRadarModel(
                 BetterHint = "smaller is healthier",
                 Stats = p => p.BeatError,
                 RadiusValue = mean => Math.Abs(mean),
-                Scale = (dataMin, dataMax) => (0.0, Math.Max(2.0, (double.IsFinite(dataMax) ? dataMax : 0.0) + 0.5)),
-                // Healthy zone: within ±1 ms of perfect (the industry ≤1 ms convention).
-                Band = (scaleMin, span) => RingBand(0.0, 1.0, scaleMin, span),
+                Scale = (dataMin, dataMax) => (0.0, Math.Max(
+                    AcceptBandSettings.Current.BeatErrorMagnitudeMs + 0.5,
+                    Math.Max(2.0, (double.IsFinite(dataMax) ? dataMax : 0.0) + 0.5))),
+                // Healthy zone: within the shared accept band (the same magnitude every
+                // other beat-error display judges against), so a Settings edit re-projects
+                // the radar consistently instead of a hardcoded ≤1 ms convention.
+                Band = (scaleMin, span) => RingBand(
+                    0.0, AcceptBandSettings.Current.BeatErrorMagnitudeMs, scaleMin, span),
                 Format = v => string.Format(CultureInfo.InvariantCulture, "{0:+0.0;-0.0;0.0} ms", v),
                 FormatScale = v => string.Format(CultureInfo.InvariantCulture, "{0:0.0} ms", v),
                 Verdict = BeatErrorVerdict,
@@ -310,7 +315,9 @@ internal sealed record WatchHealthRadarModel(
         }
 
         // Beat error has no shared VarioVerdict; gate on the same warm-up count and
-        // grade the magnitude against the ±1 ms (good) / ±2 ms (watch) convention.
+        // grade the magnitude against the shared accept band: Good within the band,
+        // Marginal up to 2x it, High beyond. Tracks the Settings value so the radar
+        // verdict agrees with the other beat-error displays by construction.
         private static VarioVerdict BeatErrorVerdict(StatsSummary stats)
         {
             if (!stats.Valid || stats.Count < VarioVerdict.MinSamples)
@@ -318,13 +325,14 @@ internal sealed record WatchHealthRadarModel(
                 return VarioVerdict.Measuring;
             }
 
+            double band = AcceptBandSettings.Current.BeatErrorMagnitudeMs;
             double magnitude = Math.Abs(stats.Mean);
-            if (magnitude <= 1.0)
+            if (magnitude <= band)
             {
                 return new VarioVerdict("Good", VarioVerdictLevel.Good);
             }
 
-            return magnitude <= 2.0
+            return magnitude <= 2.0 * band
                 ? new VarioVerdict("Marginal", VarioVerdictLevel.Warn)
                 : new VarioVerdict("High", VarioVerdictLevel.Bad);
         }
