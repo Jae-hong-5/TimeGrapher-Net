@@ -200,7 +200,6 @@ internal sealed class WaveformCompareRenderer
             _ghostTocScatters[i]!.IsVisible = false;
         }
 
-        // Legend: tic (green) left half, toc (red) right half — readable without axis text.
         if (_laneScatters[0] != null) _laneScatters[0]!.LegendText = "tic";
         if (_laneScatters[1] != null) _laneScatters[1]!.LegendText = "toc";
         plot.Legend.IsVisible = true;
@@ -730,10 +729,7 @@ internal sealed class WaveformCompareRenderer
             Scatter? scatter = _laneScatters[i];
             if (scatter != null)
             {
-                // Even index = tic (TraceTick color), odd index = toc (TraceTock color)
-                scatter.LineColor = (i % 2 == 0)
-                    ? Color.FromARGB(_theme.TraceTick)
-                    : Color.FromARGB(_theme.TraceTock);
+                scatter.LineColor = Color.FromARGB(_theme.TraceWave);
             }
         }
 
@@ -745,19 +741,16 @@ internal sealed class WaveformCompareRenderer
             }
         }
 
-        // A and C guides: use the theme's primary text color (same as the lane
-        // labels above) so they contrast against the scope background in both
-        // themes. A hardcoded black turned invisible on the dark theme's black
-        // ScopeBg; the palette color is dark in Light and light in Dark.
-        Color guideColor = Color.FromARGB(_theme.TextPrimary);
-        if (_aGuide != null)         _aGuide.LineColor           = guideColor;
-        if (_aGuideLabel != null)    _aGuideLabel.LabelFontColor = guideColor;
-        if (_aGuideToc != null)      _aGuideToc.LineColor        = guideColor;
-        if (_aGuideLabelToc != null) _aGuideLabelToc.LabelFontColor = guideColor;
-        foreach (LinePlot? cGuide in _cGuidesTic) if (cGuide != null) cGuide.LineColor = guideColor;
-        foreach (LinePlot? cGuide in _cGuidesToc) if (cGuide != null) cGuide.LineColor = guideColor;
-        foreach (Text? cLabel in _cLabelsTic) if (cLabel != null) cLabel.LabelFontColor = guideColor;
-        foreach (Text? cLabel in _cLabelsToc) if (cLabel != null) cLabel.LabelFontColor = guideColor;
+        Color aColor = Color.FromARGB(_theme.TraceTick);
+        Color cColor = Color.FromARGB(_theme.TraceTock);
+        if (_aGuide != null)         _aGuide.LineColor           = aColor;
+        if (_aGuideLabel != null)    _aGuideLabel.LabelFontColor = aColor;
+        if (_aGuideToc != null)      _aGuideToc.LineColor        = aColor;
+        if (_aGuideLabelToc != null) _aGuideLabelToc.LabelFontColor = aColor;
+        foreach (LinePlot? cGuide in _cGuidesTic) if (cGuide != null) cGuide.LineColor = cColor;
+        foreach (LinePlot? cGuide in _cGuidesToc) if (cGuide != null) cGuide.LineColor = cColor;
+        foreach (Text? cLabel in _cLabelsTic) if (cLabel != null) cLabel.LabelFontColor = cColor;
+        foreach (Text? cLabel in _cLabelsToc) if (cLabel != null) cLabel.LabelFontColor = cColor;
         Color ghostColor = Color.FromARGB(_theme.TraceGhost).WithAlpha(GhostAlpha);
         foreach (Scatter? s in _ghostTicScatters) if (s != null) s.LineColor = ghostColor;
         foreach (Scatter? s in _ghostTocScatters) if (s != null) s.LineColor = ghostColor;

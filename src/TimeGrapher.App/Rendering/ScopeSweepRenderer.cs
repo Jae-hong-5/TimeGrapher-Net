@@ -481,20 +481,16 @@ internal sealed class ScopeSweepRenderer
     {
         if (_sweepScatter != null)
         {
-            // Trace uses TraceTick (green) to match the tic waveform color of the
-            // newest Waveform Compare lane, giving visual consistency across tabs.
-            _sweepScatter.LineColor = Color.FromARGB(_theme.TraceTick);
+            _sweepScatter.LineColor = Color.FromARGB(_theme.TraceWave);
         }
 
         if (_preRollScatter != null)
         {
-            _preRollScatter.LineColor = Color.FromARGB(_theme.TraceTick);
+            _preRollScatter.LineColor = Color.FromARGB(_theme.TraceWave);
         }
 
-        // A and C markers use TextPrimary, matching the Waveform Compare A/C
-        // guide color, so both tabs share the same escapement-event color contract.
-        Color aColor = Color.FromARGB(_theme.TextPrimary);
-        Color cColor = Color.FromARGB(_theme.TextPrimary);
+        Color aColor = Color.FromARGB(_theme.TraceTick);
+        Color cColor = Color.FromARGB(_theme.TraceTock);
         for (int k = 0; k < MaxSweepMultiple; k++)
         {
             if (_aTicMarkers[k] != null) _aTicMarkers[k]!.LineColor     = aColor;
