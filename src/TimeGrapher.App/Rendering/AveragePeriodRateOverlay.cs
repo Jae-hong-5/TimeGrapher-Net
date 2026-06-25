@@ -31,7 +31,7 @@ internal sealed class AveragePeriodRateOverlay
         _theme = theme;
         for (int i = 0; i < _spans.Count; i++)
         {
-            ApplyTheme(_spans[i], _labels[i]);
+            ApplyTheme(_spans[i], _labels[i], i);
         }
     }
 
@@ -69,6 +69,7 @@ internal sealed class AveragePeriodRateOverlay
             label.LabelText = FormatRate(interval.RateSPerDay);
             label.Location = new Coordinates((start + end) * 0.5, labelY);
             label.IsVisible = true;
+            ApplyTheme(span, label, used);
             used++;
         }
 
@@ -92,13 +93,14 @@ internal sealed class AveragePeriodRateOverlay
             span.LineStyle.IsVisible = false;
             _spans.Add(span);
             _labels.Add(label);
-            ApplyTheme(span, label);
+            ApplyTheme(span, label, _spans.Count - 1);
         }
     }
 
-    private void ApplyTheme(HorizontalSpan span, Text label)
+    private void ApplyTheme(HorizontalSpan span, Text label, int intervalIndex)
     {
-        span.FillStyle.Color = Color.FromARGB(_theme.TraceTick).WithAlpha(FillAlpha);
+        uint fillColor = intervalIndex % 2 == 0 ? _theme.TraceTick : _theme.TraceTock;
+        span.FillStyle.Color = Color.FromARGB(fillColor).WithAlpha(FillAlpha);
         label.LabelFontColor = Color.FromARGB(_theme.TextPrimary);
     }
 

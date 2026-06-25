@@ -1,3 +1,4 @@
+using ScottPlot;
 using ScottPlot.Avalonia;
 using ScottPlot.Plottables;
 using TimeGrapher.App.Rendering;
@@ -35,6 +36,14 @@ public sealed class RateScopeHistoryTests
         var ratePlot = new AvaPlot();
         var renderer = new RateScopeRenderer(scopePlot, ratePlot, "Arial");
         renderer.CreateGraphs(rateErrorYScale: 10.0, rateDataPoints: 600);
+        renderer.ApplyTheme(new PlotThemePalette(
+            SurfaceBg: 0xFF101010,
+            ScopeBg: 0xFF202020,
+            ScopeGrid: 0xFF303030,
+            TextPrimary: 0xFFFAFAFA,
+            TraceWave: 0xFF404040,
+            TraceTick: 0xFF112233,
+            TraceTock: 0xFF445566));
 
         var frame = new AnalysisFrame
         {
@@ -43,24 +52,30 @@ public sealed class RateScopeHistoryTests
                 AveragePeriodRateIntervals = new[]
                 {
                     new AveragePeriodRateInterval(0.0, 4.0, 0.0, 3.0, 1728.0),
+                    new AveragePeriodRateInterval(4.0, 8.0, 3.0, 6.0, -864.0),
                 },
             },
         };
         AddRateSeries(frame, new GraphSeriesFrame
         {
             Id = AnalysisGraphSeries.RateTic,
-            X = new[] { 0.0, 4.0 },
-            Y = new[] { 0.0, 1.0 },
+            X = new[] { 0.0, 4.0, 8.0 },
+            Y = new[] { 0.0, 1.0, -1.0 },
             Replace = true,
         });
 
         renderer.RenderFrame(frame, new AnalysisTabRenderContext(48000));
 
-        HorizontalSpan span = Assert.Single(ratePlot.Plot.GetPlottables<HorizontalSpan>(), s => s.IsVisible);
-        Assert.Equal(0.0, span.X1);
-        Assert.Equal(4.0, span.X2);
-        Text label = Assert.Single(ratePlot.Plot.GetPlottables<Text>(), t => t.IsVisible);
-        Assert.Equal("+1728.0 s/d", label.LabelText);
+        HorizontalSpan[] spans = ratePlot.Plot.GetPlottables<HorizontalSpan>().Where(s => s.IsVisible).ToArray();
+        Assert.Equal(2, spans.Length);
+        Assert.Equal(0.0, spans[0].X1);
+        Assert.Equal(4.0, spans[0].X2);
+        Assert.Equal(4.0, spans[1].X1);
+        Assert.Equal(8.0, spans[1].X2);
+        Assert.Equal(Color.FromARGB(0xFF112233).WithAlpha(34), spans[0].FillStyle.Color);
+        Assert.Equal(Color.FromARGB(0xFF445566).WithAlpha(34), spans[1].FillStyle.Color);
+        Text[] labels = ratePlot.Plot.GetPlottables<Text>().Where(t => t.IsVisible).ToArray();
+        Assert.Equal(new[] { "+1728.0 s/d", "-864.0 s/d" }, labels.Select(t => t.LabelText).ToArray());
     }
 
     private static void AddRateSeries(AnalysisFrame frame, GraphSeriesFrame series)
