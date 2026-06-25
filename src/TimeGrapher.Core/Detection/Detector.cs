@@ -42,12 +42,14 @@ internal sealed class TgDetectorCore
     public const int TG_PEAK_HISTORY_N = 16;    // ~2 s at 28800 BPH
 
     /* Acquisition spurious-beat gate: minimum accepted-peak history before the
-     * gate engages. The gate compares against ReferencePeak, which is the MAX of
-     * the accepted peaks until the median bootstrap (>=4) takes over -- weak
-     * between-beat artifacts cannot drag a max-based reference down, so the gate
-     * can engage after only a couple of beats while staying robust to an early
-     * outlier. This bounds how many artifacts can leak before the gate is active. */
-    public const int TG_ACQ_GATE_MIN_HISTORY = 2;
+     * gate engages. Set to the median-bootstrap count (>=4) so the gate always
+     * compares against the robust MedianPeakCache rather than the MAX of the first
+     * few accepted peaks. Engaging at 2 (max-based) let a single early loud beat set
+     * a high reference that rejected genuinely weaker alternating beats -- a watch
+     * with strong-tic / weak-toc amplitude asymmetry -- stalling acquisition or
+     * locking half-rate; the median tolerates that tick/tock asymmetry while still
+     * rejecting the far-weaker between-beat artifacts the gate targets. */
+    public const int TG_ACQ_GATE_MIN_HISTORY = 4;
 
     /* V5.6 regime-change detector constants. */
     public const int TG_REGIME_RING_N = 8;       // short-term burst peak ring
