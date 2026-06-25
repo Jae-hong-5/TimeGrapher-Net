@@ -527,7 +527,7 @@ internal sealed class EscapementAnalyzerRenderer
     {
         Text label = plot.Add.Text("", 0.0, 0.0);
         label.LabelFontName = _textFontFamily;
-        label.LabelFontSize = 13;
+        label.LabelFontSize = PlotThemeHelper.GraphLabelFontSize;
         label.LabelBold = true;
         label.Alignment = Alignment.UpperRight;
         label.IsVisible = false;

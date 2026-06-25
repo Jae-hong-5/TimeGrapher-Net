@@ -725,6 +725,7 @@ public sealed class WatchMetrics
     private void ComputeAmplitude(double eventSample, double bph, WatchMetricsUpdate update)
     {
         bool displayAverageCompleted = false;
+        double eventTimeS = eventSample / (double)_config.SampleRate;
         _lastAmplitudeInstValid = false;
         _lastAmplitudePairUpdated = false;
 
@@ -740,6 +741,10 @@ public sealed class WatchMetrics
                 if (ticOrToc == Tic)
                 {
                     _amplitudeTicValid = false;
+                }
+                if (CompleteDisplayAmplitudeWindows(eventTimeS))
+                {
+                    RefreshAveragePeriodRateInterval(update);
                 }
                 return;
             }
@@ -768,7 +773,7 @@ public sealed class WatchMetrics
                         _lastAmplitudePairUpdated = true;
                         _lastAmplitudePairDeg = averageAmplitudeTicToc;
                         displayAverageCompleted |= AccumulateDisplayAmplitudeAverage(
-                            eventSample / (double)_config.SampleRate,
+                            eventTimeS,
                             averageAmplitudeTicToc);
                     }
                 }
@@ -778,7 +783,7 @@ public sealed class WatchMetrics
                 _amplitudeTicValid = false;
             }
 
-            displayAverageCompleted |= CompleteDisplayAmplitudeWindows(eventSample / (double)_config.SampleRate);
+            displayAverageCompleted |= CompleteDisplayAmplitudeWindows(eventTimeS);
         }
 
         if (displayAverageCompleted)
@@ -851,14 +856,11 @@ public sealed class WatchMetrics
             accepted = Math.Abs(acMs - median) <= threshold;
         }
 
-        if (accepted)
+        _recentAcMs[_recentAcHead] = acMs;
+        _recentAcHead = (_recentAcHead + 1) % _recentAcMs.Length;
+        if (_recentAcCount < _recentAcMs.Length)
         {
-            _recentAcMs[_recentAcHead] = acMs;
-            _recentAcHead = (_recentAcHead + 1) % _recentAcMs.Length;
-            if (_recentAcCount < _recentAcMs.Length)
-            {
-                _recentAcCount++;
-            }
+            _recentAcCount++;
         }
 
         return accepted;
