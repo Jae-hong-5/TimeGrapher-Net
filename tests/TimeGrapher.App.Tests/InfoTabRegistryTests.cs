@@ -18,6 +18,8 @@ namespace TimeGrapher.App.Tests;
 public sealed class InfoTabRegistryTests
 {
     private const double VarioCapturedMinimumFontSize = 16.0;
+    private const double TraceHeaderButtonMinHeightForTest = 30.0;
+    private const double TraceHeaderButtonFontSizeForTest = 12.0;
 
     [Fact]
     public void RegistryCreatesCatalogTabsAndConsumers()
@@ -799,6 +801,55 @@ public sealed class InfoTabRegistryTests
     }
 
     [Fact]
+    public void BeatErrorDiagTabReservesAlertBannerSpaceBesideResetView()
+    {
+        Grid content = CreateBeatErrorDiagContent();
+        var headerStrip = Assert.IsType<Grid>(
+            content.Children.Single(child => Grid.GetRow(child) == 0));
+
+        Assert.Equal(2, headerStrip.ColumnDefinitions.Count);
+        Assert.True(headerStrip.ColumnDefinitions[0].Width.IsStar);
+        Assert.Equal(GridUnitType.Auto, headerStrip.ColumnDefinitions[1].Width.GridUnitType);
+
+        Border banner = headerStrip.Children.OfType<Border>().Single();
+        Assert.Equal(0, Grid.GetColumn(banner));
+        Assert.False(banner.IsVisible);
+        Assert.True(banner.Margin.Right > 0);
+
+        Button resetView = headerStrip.Children.OfType<Button>().Single();
+        Assert.Equal(1, Grid.GetColumn(resetView));
+        Assert.Equal("Reset View", resetView.Content);
+        Assert.Contains("PositionButton", resetView.Classes);
+        Assert.Equal(TraceHeaderButtonFontSizeForTest, resetView.FontSize);
+        Assert.Equal(TraceHeaderButtonMinHeightForTest, resetView.MinHeight);
+
+        Assert.DoesNotContain(content.Children.OfType<Button>(), button => Grid.GetRow(button) == 2);
+    }
+
+    [Fact]
+    public void BeatErrorDiagAlertDoesNotResizeThePlotRow()
+    {
+        EnsureAvaloniaPlatform();
+        Grid content = CreateBeatErrorDiagContent();
+        var contentSize = new Size(1280, 680);
+        var tracePlot = Assert.IsType<AvaPlot>(content.Children.Single(child => Grid.GetRow(child) == 2));
+        var headerStrip = Assert.IsType<Grid>(content.Children.Single(child => Grid.GetRow(child) == 0));
+        Border banner = headerStrip.Children.OfType<Border>().Single();
+        var alertText = Assert.IsType<TextBlock>(banner.Child);
+
+        content.Measure(contentSize);
+        content.Arrange(new Rect(contentSize));
+        Rect hiddenBounds = tracePlot.Bounds;
+
+        alertText.Text = "Tic/toc separation +0.90 ms exceeds the acceptable ±0.8 ms";
+        banner.IsVisible = true;
+        content.Measure(contentSize);
+        content.Arrange(new Rect(contentSize));
+
+        Assert.Equal(hiddenBounds, tracePlot.Bounds);
+    }
+
+    [Fact]
     public void TraceTabSmoothingButtonTogglesSplineOnBothPlots()
     {
         var tabControl = new TabControl();
@@ -1004,6 +1055,14 @@ public sealed class InfoTabRegistryTests
         InfoTabRegistry registry = InfoTabRegistry.FromCatalog(tabControl, new Grid(), "Arial");
         return Assert.IsType<Grid>(registry.Registrations.Single(
             registration => registration.Definition.Id == InfoTabCatalog.TraceDisplayTabId).TabItem.Content);
+    }
+
+    private static Grid CreateBeatErrorDiagContent()
+    {
+        var tabControl = new TabControl();
+        InfoTabRegistry registry = InfoTabRegistry.FromCatalog(tabControl, new Grid(), "Arial");
+        return Assert.IsType<Grid>(registry.Registrations.Single(
+            registration => registration.Definition.Id == InfoTabCatalog.BeatErrorDiagTabId).TabItem.Content);
     }
 
     private static InfoTabRegistration CreateVarioRegistration()

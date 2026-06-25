@@ -925,7 +925,24 @@ internal sealed partial class InfoTabRegistry
         var tracePlot = new AvaPlot();
 
         Border alertBanner = CreateAlertBanner(out TextBlock alertText);
-
+        Button resetViewButton = CreateOverlayButton(
+            "Reset View", ResetAllGraphViewsTooltip, context.ResetViews.ResetAll);
+        resetViewButton.MinHeight = TraceHeaderButtonMinHeight;
+        resetViewButton.FontSize = TraceHeaderButtonFontSize;
+        resetViewButton.Padding = TraceHeaderButtonPadding;
+        resetViewButton.VerticalAlignment = VerticalAlignment.Center;
+        resetViewButton.Classes.Add("PositionButton");
+        alertBanner.VerticalAlignment = VerticalAlignment.Center;
+        alertBanner.Margin = new Thickness(0, 0, 8, 0);
+        var headerStrip = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions("*,Auto"),
+            Margin = new Thickness(8, 1, 8, 2),
+        };
+        Grid.SetColumn(alertBanner, 0);
+        Grid.SetColumn(resetViewButton, 1);
+        headerStrip.Children.Add(alertBanner);
+        headerStrip.Children.Add(resetViewButton);
 
         // Numeric panel: label/value cells for the plan readings (error rate,
         // amplitude, beat error, BPH) on the top row and the derived
@@ -974,11 +991,11 @@ internal sealed partial class InfoTabRegistry
         {
             RowDefinitions = new RowDefinitions("Auto,Auto,*,Auto"),
         };
-        Grid.SetRow(alertBanner, 0);
+        Grid.SetRow(headerStrip, 0);
         Grid.SetRow(readoutGrid, 1);
         Grid.SetRow(tracePlot, 2);
         Grid.SetRow(explanationText, 3);
-        grid.Children.Add(alertBanner);
+        grid.Children.Add(headerStrip);
         grid.Children.Add(readoutGrid);
         grid.Children.Add(tracePlot);
         grid.Children.Add(explanationText);
@@ -996,8 +1013,6 @@ internal sealed partial class InfoTabRegistry
             valueTexts,
             context.TextFontFamily);
         context.ResetViews.Register(renderer.ResetView);
-
-        grid.Children.Add(CreatePinnedResetViewButton(ResetAllGraphViewsTooltip, row: 2, context.ResetViews.ResetAll));
 
         var consumer = new BeatErrorDiagFrameConsumer(renderer);
         return new InfoTabRegistration(definition, CreateTabItem(definition, grid), consumer);
