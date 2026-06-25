@@ -31,7 +31,7 @@ diagnostic view를 보고 있어도 같은 위치에서 경고를 볼 수 있게
 
 이 뷰는 compile-time/code-level 책임 분리를 설명한다. 실선 `A --> B`는 A가 B를 직접 사용·소유·호출한다는 뜻이고, 점선 `A -.-> B`는 이미 전달받은 `frame.BeatSegments` DTO를 읽는 소비 관계를 뜻한다. 점선은 callback, ownership, 역방향 runtime dependency를 의미하지 않는다.
 
-![AnalysisFrame.BeatSegments Uses View](assets/signal-quality-beatsegments-uses.svg)
+![AnalysisFrame.BeatSegments Uses View](../docs/architecture/assets/signal-quality-beatsegments-uses.svg)
 
 ```mermaid
 flowchart TB
@@ -103,7 +103,7 @@ flowchart TB
 
 이 뷰는 구현 메서드 호출을 모두 펼치지 않고, `AnalysisFrame` 하나가 signal-quality 정보뿐 아니라 metrics, graph payload, image payload, runtime 상태를 같은 UI update 단위로 App 표시 계층까지 전달하는 큰 흐름을 보여준다.
 
-![AnalysisFrame.BeatSegments Runtime Sequence View](assets/signal-quality-beatsegments-sequence.svg)
+![AnalysisFrame.BeatSegments Runtime Sequence View](../docs/architecture/assets/signal-quality-beatsegments-sequence.svg)
 
 ```mermaid
 sequenceDiagram

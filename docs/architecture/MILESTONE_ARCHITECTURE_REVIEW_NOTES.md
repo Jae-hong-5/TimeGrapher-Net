@@ -2,7 +2,7 @@
 
 이 문서는 현재 `TimeGrapher-Docs/Milestone/en`의 architecture 자료를 강의 피드백과
 현재 source architecture 관점에서 검토한 메모다. 구현 브랜치에 판단 근거와 발표 보완
-방향을 남기기 위해 source repo의 `docs/for-ai/` 아래에 둔다.
+방향을 남기기 위해 source repo의 `docs/architecture/` 아래에 둔다.
 
 ## 검토한 자료
 
