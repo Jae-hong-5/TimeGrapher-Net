@@ -94,12 +94,10 @@ public sealed class EscapementAnalyzerRendererTests
         renderer.RenderFrame(frame, new AnalysisTabRenderContext(SampleRate: 48000));
 
         AxisLimits limits = plot.Plot.Axes.GetLimits();
-        // X is A-relative and padded on both sides by ViewPadFraction of the
-        // content width, floored at ViewPadMs (= 8 ms). Content runs -5..6.8 ms
-        // (span 11.8), whose 12% pad is below the 8 ms floor, so both edges move
-        // out by 8 ms: left = -5 - 8, right = 6.8 + 8.
-        Assert.InRange(limits.Left, -13.01, -12.99);
-        Assert.InRange(limits.Right, 14.79, 14.81);
+        // X is A-relative with asymmetric padding. Content runs -5..6.8 ms
+        // (span 11.8), below both pad floors: left = -5 - 6, right = 6.8 + 12.
+        Assert.InRange(limits.Left, -11.01, -10.99);
+        Assert.InRange(limits.Right, 18.79, 18.81);
         // Not the unzoomed 400 ms capture window.
         Assert.True(limits.Right < BeatSegmentCapture.WindowMs);
 
@@ -167,9 +165,9 @@ public sealed class EscapementAnalyzerRendererTests
         AxisLimits limits = plot.Plot.Axes.GetLimits();
         // tic A at axis 0; the toc is framed to the right at its real spacing
         // (tocBase 115 + toc A 5 = 120 ms; toc C 126.9 ms). Content runs
-        // -5..126.9 ms (span 131.9), padded each side by 12% = 15.83 ms.
-        Assert.InRange(limits.Left, -20.84, -20.82);
-        Assert.InRange(limits.Right, 142.72, 142.74);
+        // -5..126.9 ms (span 131.9), padded left by 10% and right by 16%.
+        Assert.InRange(limits.Left, -18.20, -18.18);
+        Assert.InRange(limits.Right, 147.99, 148.01);
         Assert.True(limits.Right > 120.0);  // the toc beat is on screen, not just the tic
 
         double[] markerXs = plot.Plot.GetPlottables()

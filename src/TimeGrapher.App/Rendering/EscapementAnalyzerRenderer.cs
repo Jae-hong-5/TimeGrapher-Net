@@ -56,14 +56,10 @@ internal sealed class EscapementAnalyzerRenderer
     /// <summary>Second label row (C onset, which sits close to C peak), kept below the top row.</summary>
     private const double SecondLabelFraction = 0.97;
 
-    /// <summary>
-    /// Each side's view margin as a fraction of the content width (the tic's
-    /// pre-A roll start through the last event), so the tic and toc bursts sit
-    /// inset from the frame edges instead of jammed against them.
-    /// </summary>
-    private const double ViewPadFraction = 0.12;
-    /// <summary>Smallest per-side margin (ms): floors the fractional pad so a tight single beat keeps room for its labels.</summary>
-    private const double ViewPadMs = 8.0;
+    private const double LeftViewPadFraction = 0.10;
+    private const double RightViewPadFraction = 0.16;
+    private const double LeftViewPadMs = 6.0;
+    private const double RightViewPadMs = 12.0;
     /// <summary>Smallest visible span (ms), so a very tight single-beat A→C still frames sensibly.</summary>
     private const double MinViewSpanMs = 18.0;
 
@@ -289,10 +285,7 @@ internal sealed class EscapementAnalyzerRenderer
     /// Tic-A-relative, zoomed X view: tic A sits at 0 and the content runs from
     /// the anchor's pre-A roll (-AOffsetMs) through the last event — the toc's C
     /// (or A, when its C is missing) when a toc is shown, otherwise the tic's own
-    /// C. Both ends are padded by <see cref="ViewPadFraction"/> of that content
-    /// width (floored at <see cref="ViewPadMs"/> so labels still fit on a tight
-    /// single beat) so the bursts sit inset from the frame edges, and the whole
-    /// span is floored at <see cref="MinViewSpanMs"/>. Returns the view edges in
+    /// C. The whole span is floored at <see cref="MinViewSpanMs"/>. Returns the view edges in
     /// tic-A-relative ms and the absolute-ms cutoff (into the anchor window) past
     /// which points are off-screen, so Y can scale to the visible bursts only.
     /// </summary>
@@ -327,9 +320,11 @@ internal sealed class EscapementAnalyzerRenderer
         }
 
         double contentStart = -aMs;
-        double pad = Math.Max((lastEventRel - contentStart) * ViewPadFraction, ViewPadMs);
-        double startRel = contentStart - pad;
-        double endRel = lastEventRel + pad;
+        double contentWidth = lastEventRel - contentStart;
+        double leftPad = Math.Max(contentWidth * LeftViewPadFraction, LeftViewPadMs);
+        double rightPad = Math.Max(contentWidth * RightViewPadFraction, RightViewPadMs);
+        double startRel = contentStart - leftPad;
+        double endRel = lastEventRel + rightPad;
         double shortfall = MinViewSpanMs - (endRel - startRel);
         if (shortfall > 0.0)
         {
