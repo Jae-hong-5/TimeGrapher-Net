@@ -3,7 +3,6 @@ using Avalonia.Threading;
 using ScottPlot;
 using ScottPlot.Avalonia;
 using ScottPlot.Plottables;
-using ScottPlot.Rendering;
 using TimeGrapher.App.Tabs;
 using TimeGrapher.Core.Shared;
 
@@ -21,6 +20,11 @@ namespace TimeGrapher.App.Rendering;
 internal sealed class BeatErrorDiagRenderer
 {
     private const float TraceMarkerSize = 6.0f;
+    private const double RateAutoScalePaddingFraction = 0.08;
+    private const double RateLiveMinWindowBeats = 30.0;
+    private const double RateLiveMaxWindowBeats = RateScopeRenderer.RatePageWindowBeats;
+    private const double RateAutoScaleMinimumYSpanMs = 2.0;
+    private static readonly double[] RateZoomFactors = { 1.0, 2.0, 4.0, 8.0, 16.0 };
 
     private readonly AvaPlot _tracePlot;
     private readonly Border _alertBanner;
@@ -42,6 +46,8 @@ internal sealed class BeatErrorDiagRenderer
     private double _rateDataMaxX;
     private bool _hasRateDataExtent;
     private bool _rateAxisRefreshPending;
+    private int _rateZoomIndex;
+    private Action<string>? _rateZoomLabelChanged;
 
     public BeatErrorDiagRenderer(
         AvaPlot tracePlot,
@@ -95,10 +101,50 @@ internal sealed class BeatErrorDiagRenderer
         }
     }
 
+    public string RateZoomLabel => $"{RateZoomFactors[_rateZoomIndex]:0}x";
+
+    public void SetRateZoomLabelCallback(Action<string> callback)
+    {
+        _rateZoomLabelChanged = callback;
+        callback(RateZoomLabel);
+    }
+
+    public void ZoomRateIn() => SetRateZoomIndex(Math.Min(_rateZoomIndex + 1, RateZoomFactors.Length - 1));
+
+    public void ZoomRateOut() => SetRateZoomIndex(Math.Max(_rateZoomIndex - 1, 0));
+
+    public void SetRateZoomFactor(double factor)
+    {
+        int index = Array.IndexOf(RateZoomFactors, factor);
+        ArgumentOutOfRangeException.ThrowIfNegative(index);
+        SetRateZoomIndex(index);
+    }
+
+    private void SetRateZoomIndex(int index)
+    {
+        if (index == _rateZoomIndex)
+        {
+            return;
+        }
+
+        _rateZoomIndex = index;
+        _rateFollowLive = true;
+        _rateZoomLabelChanged?.Invoke(RateZoomLabel);
+        _hasRateDataExtent = RateDataExtent(out _rateDataMinX, out _rateDataMaxX);
+        AutoScaleRateAxesForLiveData();
+        if (_hasRateDataExtent)
+        {
+            UpdateAveragePeriodAnnotations(_lastHistory);
+        }
+        _tracePlot.Refresh();
+    }
+
     public void CreateGraphs(double rateErrorYScale, int rateDataPoints)
     {
         _rateErrorYScale = rateErrorYScale;
         _rateFollowLive = true;
+        _rateZoomIndex = 0;
+        _rateZoomLabelChanged?.Invoke(RateZoomLabel);
         _lastVersion = 0;
         _lastHistory = null;
         _alertBanner.IsVisible = false;
@@ -113,7 +159,7 @@ internal sealed class BeatErrorDiagRenderer
         trace.YLabel("Error Rate (ms)");
         trace.XLabel("Beat Index");
         trace.Axes.SetLimitsY(-rateErrorYScale, rateErrorYScale);
-        trace.Axes.SetLimitsX(0, RateScopeRenderer.RatePageWindowBeats);
+        trace.Axes.SetLimitsX(0, RateLiveMinWindowBeats);
         trace.Axes.Bottom.TickLabelStyle.IsVisible = true;
         for (int i = 0; i < _rateSeries.Length; i++)
         {
@@ -126,8 +172,6 @@ internal sealed class BeatErrorDiagRenderer
         trace.ShowLegend();
         _hasRateDataExtent = false;
         trace.Axes.Rules.Clear();
-        trace.Axes.Rules.Add(new RateXViewBoundsRule(this, trace.Axes.Bottom));
-        PlotAxisRules.LockYRange(trace, -rateErrorYScale, rateErrorYScale);
         _tracePlot.Refresh();
     }
 
@@ -135,11 +179,10 @@ internal sealed class BeatErrorDiagRenderer
     public void ResetView()
     {
         _rateFollowLive = true;
-        _tracePlot.Plot.Axes.SetLimitsY(-_rateErrorYScale, _rateErrorYScale);
+        _rateZoomIndex = 0;
+        _rateZoomLabelChanged?.Invoke(RateZoomLabel);
         _hasRateDataExtent = RateDataExtent(out _rateDataMinX, out _rateDataMaxX);
-        _tracePlot.Plot.Axes.SetLimitsX(
-            _hasRateDataExtent ? RateScopeRenderer.RatePageWindowFor(_rateDataMaxX).Left : 0,
-            _hasRateDataExtent ? RateScopeRenderer.RatePageWindowFor(_rateDataMaxX).Right : RateScopeRenderer.RatePageWindowBeats);
+        AutoScaleRateAxesForLiveData();
         if (_hasRateDataExtent)
         {
             UpdateAveragePeriodAnnotations(_lastHistory);
@@ -175,8 +218,11 @@ internal sealed class BeatErrorDiagRenderer
             {
                 if (_rateFollowLive)
                 {
-                    (double left, double right) = RateScopeRenderer.RatePageWindowFor(_rateDataMaxX);
-                    _tracePlot.Plot.Axes.SetLimitsX(left, right);
+                    AutoScaleRateAxesForLiveData();
+                }
+                else
+                {
+                    AutoScaleRateYForCurrentView();
                 }
 
                 UpdateAveragePeriodAnnotations(history);
@@ -284,6 +330,96 @@ internal sealed class BeatErrorDiagRenderer
         return max > min;
     }
 
+    private void AutoScaleRateAxesForLiveData()
+    {
+        if (!_hasRateDataExtent)
+        {
+            _tracePlot.Plot.Axes.SetLimitsX(0, RateLiveMinWindowBeats);
+            _tracePlot.Plot.Axes.SetLimitsY(-_rateErrorYScale, _rateErrorYScale);
+            return;
+        }
+
+        (double left, double right) = RateLiveWindowFor(_rateDataMinX, _rateDataMaxX);
+        _tracePlot.Plot.Axes.SetLimitsX(left, right);
+        AutoScaleRateY(left, right);
+    }
+
+    private (double Left, double Right) RateLiveWindowFor(double min, double max)
+    {
+        double dataSpan = Math.Max(max - min, 0.0);
+        double paddedSpan = dataSpan * (1.0 + RateAutoScalePaddingFraction * 2.0);
+        double zoom = RateZoomFactors[_rateZoomIndex];
+        double maxWindow = RateLiveMaxWindowBeats / zoom;
+        double minWindow = Math.Min(RateLiveMinWindowBeats, maxWindow);
+        double span = Math.Clamp(paddedSpan, minWindow, maxWindow);
+        double right = Math.Max(max, span);
+        double left = right - span;
+        if (left < min && dataSpan <= span)
+        {
+            left = Math.Max(0.0, min - (span - dataSpan) / 2.0);
+            right = left + span;
+        }
+
+        return (left, right);
+    }
+
+    private void AutoScaleRateYForCurrentView()
+    {
+        AxisLimits limits = _tracePlot.Plot.Axes.GetLimits();
+        AutoScaleRateY(limits.Left, limits.Right);
+    }
+
+    private void AutoScaleRateY(double left, double right)
+    {
+        if (!TryRateYRange(left, right, out double min, out double max))
+        {
+            _tracePlot.Plot.Axes.SetLimitsY(-_rateErrorYScale, _rateErrorYScale);
+            return;
+        }
+
+        double center = (min + max) / 2.0;
+        double span = Math.Max((max - min) * (1.0 + RateAutoScalePaddingFraction * 2.0), RateAutoScaleMinimumYSpanMs);
+        _tracePlot.Plot.Axes.SetLimitsY(center - span / 2.0, center + span / 2.0);
+    }
+
+    private bool TryRateYRange(double left, double right, out double min, out double max)
+    {
+        min = double.MaxValue;
+        max = double.MinValue;
+        bool any = false;
+        for (int seriesIndex = 0; seriesIndex < _rateX.Length; seriesIndex++)
+        {
+            List<double> xs = _rateX[seriesIndex];
+            List<double> ys = _rateY[seriesIndex];
+            int count = Math.Min(xs.Count, ys.Count);
+            for (int i = 0; i < count; i++)
+            {
+                double x = xs[i];
+                if (x < left)
+                {
+                    continue;
+                }
+
+                if (x > right)
+                {
+                    break;
+                }
+
+                double y = ys[i];
+                if (!double.IsFinite(y))
+                {
+                    continue;
+                }
+
+                min = Math.Min(min, y);
+                max = Math.Max(max, y);
+                any = true;
+            }
+        }
+
+        return any;
+    }
+
     private void ScheduleRateAxisRefresh()
     {
         if (_rateAxisRefreshPending)
@@ -296,40 +432,11 @@ internal sealed class BeatErrorDiagRenderer
             () =>
             {
                 _rateAxisRefreshPending = false;
+                AutoScaleRateYForCurrentView();
                 UpdateAveragePeriodAnnotations(_lastHistory);
                 _tracePlot.Refresh();
             },
             DispatcherPriority.Background);
-    }
-
-    private sealed class RateXViewBoundsRule : IAxisRule
-    {
-        private readonly BeatErrorDiagRenderer _owner;
-        private readonly IXAxis _xAxis;
-
-        public RateXViewBoundsRule(BeatErrorDiagRenderer owner, IXAxis xAxis)
-        {
-            _owner = owner;
-            _xAxis = xAxis;
-        }
-
-        public void Apply(RenderPack rp, bool beforeLayout)
-        {
-            if (!_owner._hasRateDataExtent)
-            {
-                return;
-            }
-
-            (double pageLeft, double pageRight) = RateScopeRenderer.RatePageWindowFor(_owner._rateDataMaxX);
-            double minLeft = _owner._rateFollowLive ? _owner._rateDataMinX : 0.0;
-            double firstPageLeft = _owner._rateFollowLive ? pageLeft : 0.0;
-            RateScopeRenderer.ClampViewToPagedExtent(
-                _xAxis,
-                minLeft,
-                pageRight,
-                firstPageLeft,
-                RateScopeRenderer.RatePageWindowBeats);
-        }
     }
 
     private void ApplySeriesTheme()

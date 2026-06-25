@@ -955,6 +955,65 @@ internal sealed partial class InfoTabRegistry
         resetViewButton.Padding = TraceHeaderButtonPadding;
         resetViewButton.VerticalAlignment = VerticalAlignment.Center;
         resetViewButton.Classes.Add("PositionButton");
+
+        const string zoomActiveClass = "active";
+        var zoomButtons = new List<(Button Button, double Factor)>();
+
+        Button ZoomButton(string content, double factor)
+        {
+            var button = new Button
+            {
+                Content = content,
+                MinWidth = 36,
+            };
+            ToolTip.SetTip(button, $"Show Beat Error slope at {content}");
+            zoomButtons.Add((button, factor));
+            return button;
+        }
+
+        void UpdateZoomButtons(string label)
+        {
+            foreach ((Button button, double factor) in zoomButtons)
+            {
+                bool active = label == $"{factor:0}x";
+                if (active && !button.Classes.Contains(zoomActiveClass))
+                {
+                    button.Classes.Add(zoomActiveClass);
+                }
+                else if (!active)
+                {
+                    button.Classes.Remove(zoomActiveClass);
+                }
+            }
+        }
+
+        Button zoom1xButton = ZoomButton("1x", 1.0);
+        Button zoom2xButton = ZoomButton("2x", 2.0);
+        Button zoom4xButton = ZoomButton("4x", 4.0);
+        Button zoom8xButton = ZoomButton("8x", 8.0);
+        Button zoom16xButton = ZoomButton("16x", 16.0);
+        foreach (Button button in zoomButtons.Select(item => item.Button))
+        {
+            button.MinHeight = TraceHeaderButtonMinHeight;
+            button.FontSize = TraceHeaderButtonFontSize;
+            button.Padding = TraceHeaderButtonPadding;
+            button.VerticalAlignment = VerticalAlignment.Center;
+            button.Classes.Add("PositionButton");
+        }
+
+        var controls = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 3,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        controls.Children.Add(zoom1xButton);
+        controls.Children.Add(zoom2xButton);
+        controls.Children.Add(zoom4xButton);
+        controls.Children.Add(zoom8xButton);
+        controls.Children.Add(zoom16xButton);
+        controls.Children.Add(resetViewButton);
+
         alertBanner.VerticalAlignment = VerticalAlignment.Center;
         alertBanner.Margin = new Thickness(0, 0, 8, 0);
         var headerStrip = new Grid
@@ -963,9 +1022,9 @@ internal sealed partial class InfoTabRegistry
             Margin = new Thickness(8, 1, 8, 2),
         };
         Grid.SetColumn(alertBanner, 0);
-        Grid.SetColumn(resetViewButton, 1);
+        Grid.SetColumn(controls, 1);
         headerStrip.Children.Add(alertBanner);
-        headerStrip.Children.Add(resetViewButton);
+        headerStrip.Children.Add(controls);
 
         // Numeric panel: label/value cells for the plan readings (error rate,
         // amplitude, beat error, BPH) on the top row and the derived
@@ -1023,6 +1082,11 @@ internal sealed partial class InfoTabRegistry
             alertText,
             valueTexts,
             context.TextFontFamily);
+        renderer.SetRateZoomLabelCallback(UpdateZoomButtons);
+        foreach ((Button button, double factor) in zoomButtons)
+        {
+            button.Click += (_, _) => renderer.SetRateZoomFactor(factor);
+        }
         context.ResetViews.Register(renderer.ResetView);
 
         var consumer = new BeatErrorDiagFrameConsumer(renderer);

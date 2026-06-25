@@ -178,6 +178,60 @@ public sealed class AnalysisRunStatusReporterTests
     }
 
     [Fact]
+    public void NoBeatSignalAfterGracePeriodReportsInputGuidance()
+    {
+        var reporter = new AnalysisRunStatusReporter();
+        var frame = new AnalysisFrame
+        {
+            GraphTickEnd = SampleRate * 3,
+            BeatSynced = false,
+        };
+
+        AnalysisRunStatusReporter.Report report = reporter.Describe(frame, 0, SampleRate);
+
+        Assert.Equal("No signal detected. Reposition the watch or check the microphone.", report.StatusText);
+        Assert.Equal(
+            "Signal quality warning: analysis is running, but no stable beat onset has been detected.",
+            report.LogDetail);
+    }
+
+    [Fact]
+    public void NoBeatSignalBeforeGracePeriodKeepsWaitingQuiet()
+    {
+        var reporter = new AnalysisRunStatusReporter();
+        var frame = new AnalysisFrame
+        {
+            GraphTickEnd = SampleRate * 2,
+            BeatSynced = false,
+        };
+
+        AnalysisRunStatusReporter.Report report = reporter.Describe(frame, 0, SampleRate);
+
+        Assert.Null(report.StatusText);
+        Assert.Null(report.LogDetail);
+    }
+
+    [Fact]
+    public void NoBeatSignalWarningStopsAfterBeatSegmentsArrive()
+    {
+        var reporter = new AnalysisRunStatusReporter();
+        var frame = new AnalysisFrame
+        {
+            GraphTickEnd = SampleRate * 3,
+            BeatSynced = false,
+            BeatSegments = new BeatSegmentsSnapshot
+            {
+                Segments = new[] { new BeatSegment() },
+            },
+        };
+
+        AnalysisRunStatusReporter.Report report = reporter.Describe(frame, 0, SampleRate);
+
+        Assert.Null(report.StatusText);
+        Assert.Null(report.LogDetail);
+    }
+
+    [Fact]
     public void ResetClearsRememberedThroughput()
     {
         var reporter = new AnalysisRunStatusReporter();

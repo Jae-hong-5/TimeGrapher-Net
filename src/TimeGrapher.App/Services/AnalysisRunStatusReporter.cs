@@ -14,6 +14,8 @@ namespace TimeGrapher.App.Services;
 /// </summary>
 internal sealed class AnalysisRunStatusReporter
 {
+    private const double NoBeatSignalGraceSeconds = 3.0;
+
     private double _backgroundFps;
     private double _backgroundSps;
     private double _backgroundSpf;
@@ -96,6 +98,11 @@ internal sealed class AnalysisRunStatusReporter
             statusText = SignalQualityText.Guidance(quality);
             logDetail = "Signal quality warning: " + SignalQualityText.Summary(quality) + ".";
         }
+        else if (NoBeatSignalDetected(frame, sampleRate))
+        {
+            statusText = SignalQualityText.Guidance(SignalQualityFlags.NoSignal);
+            logDetail = "Signal quality warning: analysis is running, but no stable beat onset has been detected.";
+        }
         else if (droppedFrames != 0)
         {
             consoleWarning = "UI render coalesced " +
@@ -113,6 +120,17 @@ internal sealed class AnalysisRunStatusReporter
     private static SignalQualityFlags CombinedSignalQuality(AnalysisFrame frame)
         => (frame.BeatSegments?.Quality ?? SignalQualityFlags.None)
            | SignalQualityFlagsMap.From(frame.SignalQuality);
+
+    private static bool NoBeatSignalDetected(AnalysisFrame frame, int sampleRate)
+    {
+        if (frame.BeatSynced || frame.BeatSegments?.Segments.Count > 0 || sampleRate <= 0)
+        {
+            return false;
+        }
+
+        double elapsedSeconds = frame.GraphTickEnd / (double)sampleRate;
+        return elapsedSeconds >= NoBeatSignalGraceSeconds;
+    }
 
     private string FormatThroughput() => string.Format(
         CultureInfo.InvariantCulture,

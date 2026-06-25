@@ -37,6 +37,24 @@ public sealed class BeatErrorDiagRendererTests
         });
         renderer.RenderFrame(first, new AnalysisTabRenderContext(48000));
 
+        AxisLimits firstLimits = tracePlot.Plot.Axes.GetLimits();
+        Assert.Equal(0.0, firstLimits.Left);
+        Assert.Equal(30.0, firstLimits.Right);
+        Assert.InRange(firstLimits.Bottom, -0.96, -0.94);
+        Assert.InRange(firstLimits.Top, 1.04, 1.06);
+
+        renderer.SetRateZoomFactor(8.0);
+        AxisLimits zoomedLimits = tracePlot.Plot.Axes.GetLimits();
+        Assert.Equal(0.0, zoomedLimits.Left);
+        Assert.Equal(15.0, zoomedLimits.Right);
+        Assert.Equal("8x", renderer.RateZoomLabel);
+
+        renderer.ResetView();
+        AxisLimits resetLimits = tracePlot.Plot.Axes.GetLimits();
+        Assert.Equal(0.0, resetLimits.Left);
+        Assert.Equal(30.0, resetLimits.Right);
+        Assert.Equal("1x", renderer.RateZoomLabel);
+
         SetPrivateField(renderer, "_rateFollowLive", false);
         tracePlot.Plot.Axes.SetLimitsX(0.0, RateScopeRenderer.RatePageWindowBeats);
 
@@ -67,14 +85,18 @@ public sealed class BeatErrorDiagRendererTests
             new[] { "-432.0 s/d\n250°  0.4 ms" },
             tracePlot.Plot.GetPlottables<Text>().Where(t => t.IsVisible).Select(t => t.LabelText).ToArray());
 
+        AxisLimits autoLimits = tracePlot.Plot.Axes.GetLimits();
+        Assert.InRange(autoLimits.Bottom, 0.19, 0.21);
+        Assert.InRange(autoLimits.Top, 2.19, 2.21);
+
         tracePlot.Plot.Axes.SetLimitsX(0.0, RateScopeRenderer.RatePageWindowBeats / 2.0);
         tracePlot.Plot.Axes.SetLimitsY(100.0, 110.0);
         tracePlot.Plot.RenderInMemory(900, 240);
         AxisLimits limits = tracePlot.Plot.Axes.GetLimits();
         Assert.Equal(0.0, limits.Left);
-        Assert.Equal(RateScopeRenderer.RatePageWindowBeats, limits.Right);
-        Assert.Equal(-10.0, limits.Bottom);
-        Assert.Equal(10.0, limits.Top);
+        Assert.Equal(RateScopeRenderer.RatePageWindowBeats / 2.0, limits.Right);
+        Assert.Equal(100.0, limits.Bottom);
+        Assert.Equal(110.0, limits.Top);
     }
 
     private static void AddRateSeries(AnalysisFrame frame, GraphSeriesFrame series)
