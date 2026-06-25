@@ -64,7 +64,6 @@ public sealed class WatchMetrics
     private double _graphRateSPerDay = 0.0;
     private bool _graphRateValid = false;
     private double _displayRateSPerDay = 0.0;
-    private bool _displayRateValid = false;
     private double _rateWindowStartS = 0.0;
     private double _rateWindowStartGraphX = 0.0;
     private double _rateWindowDeltaSumS = 0.0;
@@ -178,7 +177,6 @@ public sealed class WatchMetrics
     private void ResetRateAveraging(double startTimeS)
     {
         _displayRateSPerDay = 0.0;
-        _displayRateValid = false;
         _rateWindowStartS = startTimeS;
         _rateWindowStartGraphX = CurrentRateGraphX();
         ResetRateWindow();
@@ -603,7 +601,6 @@ public sealed class WatchMetrics
             // per-beat RLS rate and the simulator's reciprocal rate model at large
             // rates (e.g. +999 s/d would read +987.6).
             _displayRateSPerDay = -(averageDeltaS / (nominalSamePhasePeriodS + averageDeltaS)) * 86400.0;
-            _displayRateValid = true;
             _lastAveragePeriodRateInterval = new AveragePeriodRateInterval(
                 intervalStartGraphX,
                 intervalEndGraphX,
@@ -620,7 +617,6 @@ public sealed class WatchMetrics
         else
         {
             _displayRateSPerDay = 0.0;
-            _displayRateValid = false;
         }
 
         do
@@ -958,9 +954,15 @@ public sealed class WatchMetrics
 
     private static string Mark(string value) => ValueSpanStart + value + ValueSpanEnd;
 
+    // The title-bar Error Rate uses the rolling least-squares graph rate (the same
+    // _graphRateSPerDay carried in BeatTimingSample and surfaced as the single
+    // RateSPerDay across every other view), so the title bar agrees with the Beat
+    // Error / Long-Term / Waveform-Compare readouts and the measurement CSV instead
+    // of carrying its own completed-averaging-period value. Amplitude and beat error
+    // stay on the completed avg-period display values they have always shown.
     private string FormatResults() => BuildResults(
         _bphValid, _bph,
-        _displayRateValid, _displayRateSPerDay,
+        _graphRateValid, _graphRateSPerDay,
         _displayBeatErrorValid, _displayBeatErrorMs,
         _displayAmplitudeValid, _displayAmplitudeDeg);
 

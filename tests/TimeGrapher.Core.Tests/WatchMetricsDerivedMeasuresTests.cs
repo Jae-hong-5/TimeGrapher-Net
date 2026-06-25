@@ -90,8 +90,12 @@ public sealed class WatchMetricsDerivedMeasuresTests
     }
 
     [Fact]
-    public void DisplayRateAverage_UsesCompletedAveragingPeriodsRatherThanRollingEveryBeat()
+    public void DisplayRateAverage_PublishesCompletedPeriodsToRateIntervals()
     {
+        // The avg-period display rate no longer drives the title-bar Error Rate (that
+        // now follows the rolling graph rate); it lives on as the per-interval rate the
+        // rate-graph annotations draw, still stepping only when an averaging period
+        // completes rather than rolling every beat.
         var metrics = new WatchMetrics(new WatchMetricsConfig
         {
             SampleRate = SampleRate,
@@ -100,34 +104,53 @@ public sealed class WatchMetricsDerivedMeasuresTests
         const double bph = 7200.0;
         const double cOffsetMs = 200.0;
         double sample = 0.0;
-        string results = FeedAThenCAndGetResultsAtBph(metrics, bph, sample, cOffsetMs);
 
+        AveragePeriodRateInterval? latest = null;
+        void Feed(double aSample)
+        {
+            WatchMetricsUpdate a = metrics.HandleAEvent(aSample, true, bph);
+            if (a.AveragePeriodRateIntervalUpdated)
+            {
+                latest = a.AveragePeriodRateInterval;
+            }
+
+            WatchMetricsUpdate c = metrics.HandleCEvent(aSample + cOffsetMs / 1000.0 * SampleRate, true, bph);
+            if (c.AveragePeriodRateIntervalUpdated)
+            {
+                latest = c.AveragePeriodRateInterval;
+            }
+        }
+
+        Feed(sample);
         for (int i = 0; i < 6; i++)
         {
             sample += 490.0 / 1000.0 * SampleRate;
-            results = FeedAThenCAndGetResultsAtBph(metrics, bph, sample, cOffsetMs);
+            Feed(sample);
         }
 
-        Assert.Contains("Error Rate ------ s/d", results);
+        // No 3 s averaging period has completed yet (t < 3 s): nothing published.
+        Assert.Null(latest);
 
         sample += 490.0 / 1000.0 * SampleRate;
-        results = FeedAThenCAndGetResultsAtBph(metrics, bph, sample, cOffsetMs);
-        Assert.Contains($"Error Rate {WatchMetrics.ValueSpanStart}+1763.3{WatchMetrics.ValueSpanEnd} s/d", results);
+        Feed(sample);
+        Assert.NotNull(latest);
+        Assert.Equal(1763.3, latest!.Value.RateSPerDay, 1);
 
         for (int i = 0; i < 4; i++)
         {
             sample += 510.0 / 1000.0 * SampleRate;
-            results = FeedAThenCAndGetResultsAtBph(metrics, bph, sample, cOffsetMs);
+            Feed(sample);
         }
 
-        Assert.Contains($"Error Rate {WatchMetrics.ValueSpanStart}+1763.3{WatchMetrics.ValueSpanEnd} s/d", results);
+        // Still inside the same completed period -> unchanged.
+        Assert.Equal(1763.3, latest!.Value.RateSPerDay, 1);
 
         sample += 510.0 / 1000.0 * SampleRate;
-        _ = FeedAThenCAndGetResultsAtBph(metrics, bph, sample, cOffsetMs);
+        Feed(sample);
         sample += 510.0 / 1000.0 * SampleRate;
-        results = FeedAThenCAndGetResultsAtBph(metrics, bph, sample, cOffsetMs);
+        Feed(sample);
 
-        Assert.Contains($"Error Rate {WatchMetrics.ValueSpanStart}-1416.4{WatchMetrics.ValueSpanEnd} s/d", results);
+        Assert.Equal(-1416.4, latest!.Value.RateSPerDay, 1);
     }
 
     [Fact]
@@ -165,8 +188,13 @@ public sealed class WatchMetricsDerivedMeasuresTests
     }
 
     [Fact]
-    public void GraphRate_RemainsRollingWhileDisplayRateWaitsForAvgPeriod()
+    public void TitleBarRate_TracksRollingGraphRateNotAvgPeriod()
     {
+        // The title-bar Error Rate now mirrors the rolling graph rate carried in
+        // BeatTimingSample (the single rate source), so it shows the value as soon as
+        // the graph rate warms up rather than waiting a full averaging period: with a
+        // 12 s period the avg-period rate has not published once, yet the title bar
+        // already reads the rolling rate.
         var metrics = new WatchMetrics(new WatchMetricsConfig
         {
             SampleRate = SampleRate,
@@ -186,7 +214,9 @@ public sealed class WatchMetricsDerivedMeasuresTests
 
         Assert.True(latestA.BeatTimingSample.RateValid);
         Assert.Equal(0.0, latestA.BeatTimingSample.RateSPerDay, 6);
-        Assert.Contains("Error Rate ------ s/d", latestC.ResultsText);
+        Assert.Contains(
+            $"Error Rate {WatchMetrics.ValueSpanStart}  +0.0{WatchMetrics.ValueSpanEnd} s/d",
+            latestC.ResultsText);
     }
 
     [Fact]
