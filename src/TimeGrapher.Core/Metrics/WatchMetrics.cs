@@ -884,6 +884,14 @@ public sealed class WatchMetrics
             accepted = Math.Abs(acMs - median) <= threshold;
         }
 
+        // Every interval feeds the median/MAD baseline, accepted or not: this is the
+        // adaptation path, not just an outlier filter. The A-C interval legitimately
+        // shifts when the watch amplitude changes (a larger swing moves the C peak),
+        // which is NOT a segment/BPH change and so does not reset the ring; pushing
+        // unconditionally lets a sustained shift pull the median across so the new
+        // amplitude is tracked, while the MAD threshold still rejects a lone outlier
+        // for the current beat. (Verified by DisplayReadouts_UseCompletedAvgPeriod*,
+        // which drives a 52deg->104deg amplitude change through this path.)
         _recentAcMs[_recentAcHead] = acMs;
         _recentAcHead = (_recentAcHead + 1) % _recentAcMs.Length;
         if (_recentAcCount < _recentAcMs.Length)
