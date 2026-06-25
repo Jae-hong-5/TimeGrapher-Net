@@ -9,7 +9,6 @@ internal static class AppSettingsStore
     private static readonly object SaveGate = new();
     private static QueuedSave? PendingSave;
     private static Task? SaveTask;
-    private static Exception? SaveException;
 
     public static string FilePath => BuildFilePath(
         Environment.GetFolderPath(
@@ -79,6 +78,14 @@ internal static class AppSettingsStore
 
     internal static void Flush()
     {
+        // Settings are best-effort display/run policy. Flush is called from UI close
+        // handlers (the Settings dialog Closed handler and main-window OnWindowClosed,
+        // the latter before the input/analysis workers and the WAV recording are torn
+        // down), so it must never throw: a failed save (read-only or full config dir,
+        // locked file) used to crash the app on Settings-dialog close and abort
+        // main-window teardown before those resources were released. Drain the queue
+        // and let the background drain swallow any write failure, mirroring the prior
+        // fire-and-forget sampling/accept-band stores.
         while (true)
         {
             Task? task;
@@ -93,18 +100,6 @@ internal static class AppSettingsStore
             }
 
             task.GetAwaiter().GetResult();
-        }
-
-        Exception? exception;
-        lock (SaveGate)
-        {
-            exception = SaveException;
-            SaveException = null;
-        }
-
-        if (exception != null)
-        {
-            throw exception;
         }
     }
 
@@ -196,10 +191,9 @@ internal static class AppSettingsStore
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
-                lock (SaveGate)
-                {
-                    SaveException = ex;
-                }
+                // Best-effort persistence: a write failure is intrinsic to file
+                // persistence and must not surface as an unhandled exception (this
+                // runs on a background task and Flush no longer rethrows). Drop it.
             }
         }
     }

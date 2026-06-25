@@ -159,4 +159,19 @@ public sealed class AppSettingsStoreTests : IDisposable
 
         Assert.Equal(latest, AppSettingsStore.LoadFrom(path));
     }
+
+    [Fact]
+    public void Flush_DoesNotThrow_WhenTheSaveFails()
+    {
+        // Flush is called from UI close handlers (and on the main window before its
+        // workers and WAV recording are torn down), so a failed background save must be
+        // swallowed, never rethrown. Here the target path is an existing directory, so
+        // the write throws — Flush must still return cleanly.
+        string path = Path.Combine(_directory, "settings.json");
+        Directory.CreateDirectory(path);
+
+        AppSettingsStore.SaveQueuedTo(path, AppSettings.Default);
+
+        AppSettingsStore.Flush();
+    }
 }
