@@ -850,7 +850,7 @@ internal sealed partial class InfoTabRegistry
         };
 
         Grid rateHeader = GaugeHeader("Error Rate (s/d)", "Acceptable band -4 to +6 s/d", out Border rateBandBadge, out TextBlock rateBandText);
-        Grid amplitudeHeader = GaugeHeader("Amplitude(°)", "Acceptable band 270 to 315°", out Border amplitudeBandBadge, out TextBlock amplitudeBandText);
+        Grid amplitudeHeader = GaugeHeader("Amplitude(°)", "Acceptable band 270 to 300°", out Border amplitudeBandBadge, out TextBlock amplitudeBandText);
         Border rateReadout = BuildReadoutStrip(rateCells);
         Border amplitudeReadout = BuildReadoutStrip(amplitudeCells);
 

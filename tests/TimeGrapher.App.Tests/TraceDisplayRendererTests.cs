@@ -191,7 +191,7 @@ public sealed class TraceDisplayRendererTests
             new AnalysisTabRenderContext(48000));
 
         Assert.Equal(new[] { "-4", "+6" }, VisibleTextLabels(ratePlot));
-        Assert.Equal(new[] { "270", "315" }, VisibleTextLabels(amplitudePlot));
+        Assert.Equal(new[] { "270", "300" }, VisibleTextLabels(amplitudePlot));
     }
 
     [Fact]

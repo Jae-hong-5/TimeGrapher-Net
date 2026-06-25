@@ -6,7 +6,7 @@ namespace TimeGrapher.App.Tests;
 
 /// <summary>
 /// Pure logic behind the Trace Display tab: summary math over decimated series
-/// and the project-plan alert policy (running late; amplitude outside the default 270-315°).
+/// and the project-plan alert policy (running late; amplitude outside the default 270-300°).
 /// </summary>
 public sealed class TraceDisplayLogicTests
 {
@@ -58,9 +58,9 @@ public sealed class TraceDisplayLogicTests
     [Theory]
     [InlineData(269.0, true)]
     [InlineData(270.0, false)]
-    [InlineData(315.0, false)]
-    [InlineData(316.0, true)]
-    public void Alert_AmplitudeBandIs270To315Inclusive(double amplitude, bool expectAlert)
+    [InlineData(300.0, false)]
+    [InlineData(301.0, true)]
+    public void Alert_AmplitudeBandIs270To300Inclusive(double amplitude, bool expectAlert)
     {
         TraceAlertState state = TraceAlertEvaluator.Evaluate(
             Snapshot(amplitudeValid: true, amplitude: amplitude));
@@ -76,7 +76,7 @@ public sealed class TraceDisplayLogicTests
 
         Assert.True(state.RateSlow);
         Assert.True(state.AmplitudeOutOfRange);
-        Assert.Equal("Watch is running late (-5.0 s/d)  |  Amplitude 240° outside normal range 270–315°", state.Message);
+        Assert.Equal("Watch is running late (-5.0 s/d)  |  Amplitude 240° outside normal range 270–300°", state.Message);
     }
 
     [Fact]

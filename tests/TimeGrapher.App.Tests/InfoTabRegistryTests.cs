@@ -707,7 +707,7 @@ public sealed class InfoTabRegistryTests
             text => text.Text == "Acceptable band -4 to +6 s/d");
         Assert.Contains(
             Descendants(amplitudeHeader).OfType<TextBlock>(),
-            text => text.Text == "Acceptable band 270 to 315°");
+            text => text.Text == "Acceptable band 270 to 300°");
     }
 
     [Fact]
@@ -1023,7 +1023,7 @@ public sealed class InfoTabRegistryTests
         InfoTabRegistration registration = CreateVarioRegistration();
         Grid content = Assert.IsType<Grid>(registration.TabItem.Content);
         Border rateBadge = AcceptBandBadge(content, "Acceptable band -4 to +6 s/d");
-        Border amplitudeBadge = AcceptBandBadge(content, "Acceptable band 270 to 315°");
+        Border amplitudeBadge = AcceptBandBadge(content, "Acceptable band 270 to 300°");
 
         Assert.False(rateBadge.IsVisible);
         Assert.False(amplitudeBadge.IsVisible);

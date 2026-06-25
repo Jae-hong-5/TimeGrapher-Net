@@ -29,7 +29,7 @@ namespace TimeGrapher.App;
 internal sealed record SamplingSettings(
     int AnalysisBlockSize,
     int CaptureBufferMs,
-    int AveragingPeriod = 20)
+    int AveragingPeriod = 10)
 {
     // Editable bounds and step grid — the same limits/increments the SettingsWindow
     // NumericUpDown controls expose. IsValid enforces them so a hand-edited or corrupt
@@ -41,7 +41,7 @@ internal sealed record SamplingSettings(
     public const int CaptureBufferFloorMs = 5;
     public const int CaptureBufferCeilingMs = 200;
     public const int CaptureBufferStepMs = 5;
-    public const int DefaultAveragingPeriodSeconds = 20;
+    public const int DefaultAveragingPeriodSeconds = 10;
     public const int AveragingPeriodFloorSeconds = 1;
     public const int AveragingPeriodCeilingSeconds = 240;
     public const int AveragingPeriodStepSeconds = 1;

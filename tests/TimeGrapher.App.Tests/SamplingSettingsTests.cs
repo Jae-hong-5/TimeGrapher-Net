@@ -12,7 +12,7 @@ namespace TimeGrapher.App.Tests;
 public sealed class SamplingSettingsTests
 {
     [Theory]
-    [InlineData(4096, 20, 20, true)]    // Default
+    [InlineData(4096, 20, 10, true)]    // Default
     [InlineData(256, 5, 1, true)]       // floors
     [InlineData(16384, 200, 240, true)] // ceilings
     [InlineData(255, 20, 20, false)]    // block below floor

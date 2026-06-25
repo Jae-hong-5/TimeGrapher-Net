@@ -8,7 +8,7 @@ internal readonly record struct TraceAlertState(bool RateSlow, bool AmplitudeOut
 /// <summary>
 /// Trace-display alert policy from the project plan: alert when the watch runs
 /// late (losing time) and when amplitude leaves its normal range (default
-/// 270-315°, now read live from the shared <see cref="AcceptBandSettings"/> so the
+/// 270-300°, now read live from the shared <see cref="AcceptBandSettings"/> so the
 /// band is user-editable). Pure so the thresholds are unit-testable; evaluated
 /// against the same snapshot the graphs render, which keeps numbers and visuals
 /// consistent by construction. The late-running threshold below is an asymmetric

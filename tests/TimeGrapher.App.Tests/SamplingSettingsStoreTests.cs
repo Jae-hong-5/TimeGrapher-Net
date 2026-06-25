@@ -54,7 +54,7 @@ public sealed class SamplingSettingsStoreTests : IDisposable
         Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
         File.WriteAllText(_path, "{\"AnalysisBlockSize\":8192,\"CaptureBufferMs\":50}");
 
-        Assert.Equal(new SamplingSettings(8192, 50, 20), SamplingSettingsStore.LoadFrom(_path));
+        Assert.Equal(new SamplingSettings(8192, 50, 10), SamplingSettingsStore.LoadFrom(_path));
     }
 
     [Fact]

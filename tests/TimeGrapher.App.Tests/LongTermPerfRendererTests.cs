@@ -33,7 +33,7 @@ public sealed class LongTermPerfRendererTests
         Assert.False(amplitudePlot.Plot.Axes.Right.TickLabelStyle.IsVisible);
         Assert.False(beatErrorPlot.Plot.Axes.Right.TickLabelStyle.IsVisible);
         Assert.Equal(new[] { "-4", "+6" }, VisibleAcceptTextLabels(ratePlot));
-        Assert.Equal(new[] { "270", "315" }, VisibleAcceptTextLabels(amplitudePlot));
+        Assert.Equal(new[] { "270", "300" }, VisibleAcceptTextLabels(amplitudePlot));
         Assert.Equal(new[] { "-0.8", "+0.8" }, VisibleAcceptTextLabels(beatErrorPlot));
         Assert.Empty(AcceptLineLabels(ratePlot));
         Assert.Empty(AcceptLineLabels(amplitudePlot));
@@ -208,13 +208,13 @@ public sealed class LongTermPerfRendererTests
 
         AssertIncludes(ratePlot, -4, 6);
         AssertIncludes(ratePlot, 1.8, 2.0);
-        AssertIncludes(amplitudePlot, 270, 315);
+        AssertIncludes(amplitudePlot, 270, 300);
         AssertIncludes(amplitudePlot, 282.0, 282.0);
         AssertIncludes(beatErrorPlot, -0.8, 0.8);
         AssertIncludes(beatErrorPlot, 0.3, 0.3);
         Assert.True(AcceptBand(amplitudePlot).IsVisible);
         Assert.True(AcceptBand(beatErrorPlot).IsVisible);
-        Assert.Equal(new[] { "270", "315" }, VisibleAcceptTextLabels(amplitudePlot));
+        Assert.Equal(new[] { "270", "300" }, VisibleAcceptTextLabels(amplitudePlot));
     }
 
     [Fact]
@@ -234,7 +234,7 @@ public sealed class LongTermPerfRendererTests
         // labels stay visible alongside the trace (the hybrid corridor inclusion).
         AssertIncludes(amplitudePlot, 298.5, 300.0);
         Assert.True(AcceptBand(amplitudePlot).IsVisible);
-        Assert.Equal(new[] { "270", "315" }, VisibleAcceptTextLabels(amplitudePlot));
+        Assert.Equal(new[] { "270", "300" }, VisibleAcceptTextLabels(amplitudePlot));
     }
 
     [Fact]
@@ -254,7 +254,7 @@ public sealed class LongTermPerfRendererTests
         Assert.True(AcceptBand(amplitudePlot).IsVisible);
         Assert.True(limits.Bottom <= LongTermAcceptPolicy.Amplitude.Min);
         Assert.True(limits.Top >= 305.0);
-        Assert.Equal(new[] { "270", "315" }, VisibleAcceptTextLabels(amplitudePlot));
+        Assert.Equal(new[] { "270", "300" }, VisibleAcceptTextLabels(amplitudePlot));
     }
 
     [Fact]

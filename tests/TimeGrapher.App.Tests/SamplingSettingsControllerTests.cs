@@ -57,7 +57,7 @@ public sealed class SamplingSettingsControllerTests : IDisposable
         SamplingSettings saved = Assert.Single(persisted);
         Assert.Equal(8192, saved.AnalysisBlockSize);
         Assert.Equal(20, saved.CaptureBufferMs);
-        Assert.Equal(20, saved.AveragingPeriod);
+        Assert.Equal(10, saved.AveragingPeriod);
         Assert.Equal(8192m, vm.AnalysisBlockSize);
     }
 
@@ -71,7 +71,7 @@ public sealed class SamplingSettingsControllerTests : IDisposable
         SamplingSettings saved = Assert.Single(persisted);
         Assert.Equal(4096, saved.AnalysisBlockSize);
         Assert.Equal(50, saved.CaptureBufferMs);
-        Assert.Equal(20, saved.AveragingPeriod);
+        Assert.Equal(10, saved.AveragingPeriod);
         Assert.Equal(50m, vm.CaptureBufferMs);
     }
 
@@ -155,7 +155,7 @@ public sealed class SamplingSettingsControllerTests : IDisposable
 
         vm.AnalysisBlockSize = 8192m;
 
-        Assert.Equal(new SamplingSettings(8192, 20, 20), SamplingSettings.Current);
+        Assert.Equal(new SamplingSettings(8192, 20, 10), SamplingSettings.Current);
     }
 
     [Fact]

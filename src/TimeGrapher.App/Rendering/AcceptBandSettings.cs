@@ -11,7 +11,7 @@ namespace TimeGrapher.App.Rendering;
 /// construction (the project's consistency driver, QAS-4). Beat error is symmetric
 /// about zero, so it is stored as a single magnitude. The defaults follow common
 /// industry references — rate −4/+6 s/d (COSC/ISO 3159 chronometer rate), amplitude
-/// 270–315° (healthy modern movement), beat error ±0.8 ms (well within the
+/// 270–300° (project trace-display normal range), beat error ±0.8 ms (well within the
 /// "acceptable" ≤1 ms convention) — and the user can edit them in Settings.
 ///
 /// Thread confinement: <see cref="Current"/> is published once on startup (before
@@ -37,7 +37,7 @@ internal sealed record AcceptBandSettings(
     public const double BeatErrorCeilingMs = 10.0;
 
     public static AcceptBandSettings Default { get; } =
-        new(-4.0, 6.0, 270.0, 315.0, 0.8);
+        new(-4.0, 6.0, 270.0, 300.0, 0.8);
 
     /// <summary>
     /// The live limits every graph reads; replaced (not mutated) when the user

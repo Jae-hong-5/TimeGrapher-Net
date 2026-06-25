@@ -68,7 +68,7 @@ public sealed class VarioRendererThemeTests
 
         renderer.CreateGraphs();
         Assert.Equal("Acceptable band -4 to 6 s/d", rateText.Text);
-        Assert.Equal("Acceptable band 270 to 315°", amplitudeText.Text);
+        Assert.Equal("Acceptable band 270 to 300°", amplitudeText.Text);
 
         AcceptBandSettings original = AcceptBandSettings.Current;
         try
