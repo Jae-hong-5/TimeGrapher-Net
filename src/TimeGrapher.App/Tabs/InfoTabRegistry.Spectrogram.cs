@@ -203,9 +203,12 @@ internal sealed partial class InfoTabRegistry
             var button = new Button { Content = content };
             ToolTip.SetTip(button, tooltip);
             button.MinHeight = TraceHeaderButtonMinHeight;
+            button.Height = TraceHeaderButtonMinHeight;
             button.MinWidth = 36;
             button.FontSize = TraceHeaderButtonFontSize;
             button.Padding = TraceHeaderButtonPadding;
+            button.HorizontalContentAlignment = HorizontalAlignment.Center;
+            button.VerticalContentAlignment = VerticalAlignment.Center;
             button.VerticalAlignment = VerticalAlignment.Center;
             button.Classes.Add("PositionButton");
             return button;
@@ -218,10 +221,16 @@ internal sealed partial class InfoTabRegistry
         {
             FontSize = TraceHeaderButtonFontSize,
             VerticalAlignment = VerticalAlignment.Center,
+            HorizontalAlignment = HorizontalAlignment.Center,
             TextAlignment = TextAlignment.Center,
+        };
+        var secondsReadout = new Border
+        {
+            Height = TraceHeaderButtonMinHeight,
             MinHeight = TraceHeaderButtonMinHeight,
             MinWidth = 44,
             Margin = new Thickness(2, 0, 2, 0),
+            Child = secondsText,
         };
 
         void UpdateToolbar()
@@ -296,7 +305,7 @@ internal sealed partial class InfoTabRegistry
         toolbar.Children.Add(lastBeatButton);
         toolbar.Children.Add(secondsButton);
         toolbar.Children.Add(minusButton);
-        toolbar.Children.Add(secondsText);
+        toolbar.Children.Add(secondsReadout);
         toolbar.Children.Add(plusButton);
 
         var grid = new Grid

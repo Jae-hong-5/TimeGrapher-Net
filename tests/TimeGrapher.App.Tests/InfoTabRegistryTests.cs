@@ -658,16 +658,26 @@ public sealed class InfoTabRegistryTests
             Assert.Contains("PositionButton", button.Classes);
             Assert.Equal(TraceHeaderButtonFontSizeForTest, button.FontSize);
             Assert.Equal(TraceHeaderButtonMinHeightForTest, button.MinHeight);
+            Assert.Equal(TraceHeaderButtonMinHeightForTest, button.Height);
             Assert.Equal(36, button.MinWidth);
             Assert.Equal(new Thickness(10, 2, 10, 2), button.Padding);
+            Assert.Equal(HorizontalAlignment.Center, button.HorizontalContentAlignment);
+            Assert.Equal(VerticalAlignment.Center, button.VerticalContentAlignment);
             Assert.Equal(VerticalAlignment.Center, button.VerticalAlignment);
         });
 
-        TextBlock secondsText = buttonStrip.Children.OfType<TextBlock>().Single();
+        Border secondsReadout = buttonStrip.Children.OfType<Border>().Single();
+        Assert.Equal(TraceHeaderButtonMinHeightForTest, secondsReadout.Height);
+        Assert.Equal(TraceHeaderButtonMinHeightForTest, secondsReadout.MinHeight);
+        Assert.Equal(44, secondsReadout.MinWidth);
+        Assert.Equal(new Thickness(2, 0, 2, 0), secondsReadout.Margin);
+
+        TextBlock secondsText = Assert.IsType<TextBlock>(secondsReadout.Child);
         Assert.Equal("1 s", secondsText.Text);
         Assert.Equal(TraceHeaderButtonFontSizeForTest, secondsText.FontSize);
-        Assert.Equal(TraceHeaderButtonMinHeightForTest, secondsText.MinHeight);
-        Assert.Equal(44, secondsText.MinWidth);
+        Assert.Equal(HorizontalAlignment.Center, secondsText.HorizontalAlignment);
+        Assert.Equal(VerticalAlignment.Center, secondsText.VerticalAlignment);
+        Assert.Equal(TextAlignment.Center, secondsText.TextAlignment);
     }
 
     [Fact]
