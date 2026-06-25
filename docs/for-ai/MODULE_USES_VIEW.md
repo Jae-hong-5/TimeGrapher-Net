@@ -14,6 +14,7 @@ flowchart TB
         Verify["TimeGrapher.Verify<br/>헤드리스 검증 콘솔"]
         WindowsAudio["TimeGrapher.Platform.WindowsAudio<br/>Windows 라이브 오디오"]
         LinuxAudio["TimeGrapher.Platform.LinuxAudio<br/>Linux 라이브 오디오"]
+        Inference["TimeGrapher.Inference<br/>TinyML 이벤트 게이트 (ONNX)"]
         Core["TimeGrapher.Core<br/>분석 엔진과 계약"]
     end
 
@@ -32,15 +33,20 @@ flowchart TB
         ScottPlot["ScottPlot.Avalonia"]
         NAudio["NAudio (Wasapi · WinMM)"]
         LinuxAudioStack["PipeWire / ALSA 도구<br/>wpctl · pw-record · arecord"]
+        OnnxRuntime["Microsoft.ML.OnnxRuntime<br/>온디바이스 추론"]
         Xunit["테스트 스택<br/>xUnit · xunit.runner.visualstudio · Microsoft.NET.Test.Sdk<br/>(Directory.Packages.props 중앙 버전)"]
     end
 
     App --> Core
     App -. "RID 조건부" .-> WindowsAudio
     App -. "RID 조건부" .-> LinuxAudio
+    App --> Inference
     Verify --> Core
+    Verify --> Inference
     WindowsAudio --> Core
     LinuxAudio --> Core
+    Inference --> Core
+    Inference --> OnnxRuntime
 
     AppTests --> App
     AppTests -. "전이 · Core 타입 직접 사용(Shared·Analysis·Detection·Detection.Scoring·Metrics·AudioIo·Sim)" .-> Core
@@ -68,8 +74,10 @@ flowchart TB
 ### 의존 규칙
 
 - `TimeGrapher.Core`는 **아무것도 참조하지 않는다**(UI·플랫폼 무의존). 외부 패키지도 없다.
-- 프로젝트 참조(`ProjectReference`) 기준으로 `TimeGrapher.Platform.*`와 `TimeGrapher.Verify`는 `Core`만 참조한다. 단 `TimeGrapher.Platform.WindowsAudio`는 외부 NuGet 패키지 `NAudio.Wasapi`·`NAudio.WinMM`도 참조한다(위 도식의 `WindowsAudio --> NAudio` 엣지). `TimeGrapher.Platform.LinuxAudio`는 CLI 도구를 프로세스로 구동하므로 패키지 의존이 없고, `TimeGrapher.Verify`도 외부 패키지가 없다.
+- `TimeGrapher.Platform.*`는 `Core`만 참조한다(`ProjectReference`). 단 `TimeGrapher.Platform.WindowsAudio`는 외부 NuGet 패키지 `NAudio.Wasapi`·`NAudio.WinMM`도 참조한다(위 도식의 `WindowsAudio --> NAudio` 엣지). `TimeGrapher.Platform.LinuxAudio`는 CLI 도구를 프로세스로 구동하므로 패키지 의존이 없다.
+- `TimeGrapher.Inference`는 `Core`(게이트 소켓 `IBeatEventGate`·`BeatWindowFeatures`)와 외부 NuGet `Microsoft.ML.OnnxRuntime`만 참조하는 리프다. `TimeGrapher.App`과 `TimeGrapher.Verify`가 이를 참조해(`App --> Inference`, `Verify --> Inference`) TinyML 게이트를 composition root에서 주입한다 — `Platform.*` 패턴과 동형. `Core`는 여전히 ONNX 런타임을 모른다(추론 의존은 leaf에 격리).
 - 두 플랫폼 어댑터는 각각 `Core.Shared`만 사용한다(`AudioCaptureWorker`, `LinuxLiveAudioWorker`).
+- **dev 전용 도구** `tools/TimeGrapher.GateTrainer`(→`Core` + `Microsoft.ML`/`Microsoft.ML.OnnxConverter`)는 게이트 모델을 학습해 `TimeGrapher.Inference/Models/tick-quality.onnx`로 export한다. shipped 빌드가 대형 ML.NET 학습 스택을 끌어오지 않도록 **`TimeGrapherNet.sln`에 포함하지 않는다**(런타임은 ONNX Runtime만 필요). 모델은 임베드 리소스로 추론 어셈블리에 동봉된다.
 
 ### App의 플랫폼 어댑터 참조 (RID 조건부)
 
@@ -87,9 +95,9 @@ flowchart TB
 
 `*.Tests`는 각자 검증 대상 프로젝트 **하나만** `ProjectReference`로 직접 참조한다(`App.Tests→App`, `Core.Tests→Core`, `Verify.Tests→Verify`, `WindowsAudio.Tests→WindowsAudio`, `LinuxAudio.Tests→LinuxAudio`). `Verify.Tests`는 `Verify`가 `InternalsVisibleTo`로 노출한 악조건 게이트 평가기(`AdverseScenarios.Evaluate`)와 `--gate` 스펙 해석(`TryResolveArm`)을 직접 단언하고, `Core`의 `DetectorResultSnapshot`/`TgEvent`/`DetectionScorer.Score`를 전이로 구성한다. `Core`는 전이 참조이지만, 어서션·테스트 지원에서 `Core` 타입을 직접 `using`하므로 점선으로 표시했다 — `App.Tests`는 `Shared`(DTO)에 더해 `Analysis`·`Detection`·`Detection.Scoring`·`Metrics`(예: `AnalysisRunSettingsTests`, `GraphFrameRendererTests`, `RunSelectionResolverTests`)와 `Core.AudioIo`·`Core.Sim`(`AnalysisBenchmarkRunnerTests`의 `WavStreamWriter`·`WatchSynthStream`)까지 직접 `using`한다(그래도 `ProjectReference`는 App 하나뿐이라 여전히 전이 참조다). `Core.Tests`만 `Core`를 직접 참조한다. `App.Tests`는 컨트롤(`AvaPlot`, `SplashWindow`)을 구성하므로 `Avalonia`·`ScottPlot`도 직접 사용한다.
 
-### 미래 계획 노드: TimeGrapher.Inference
+### TinyML 게이트 노드: TimeGrapher.Inference (구현됨)
 
-검출 강건성 동작(적응 플로어, 레짐 가드, PLL 후행 A-onset 게이팅)은 `Detection` 알고리즘에 흡수되어 있고, 이벤트 게이트 소켓(`IBeatEventGate`/`BeatEventGateHost`)은 `Core` 내부 요소라 **프로젝트 간 신규 엣지를 만들지 않는다**. 미래의 TinyML 게이트는 ONNX Runtime을 참조하는 리프 프로젝트 `TimeGrapher.Inference`로 들어올 계획이며, 그때 엣지는 `App → Inference → Core`, `Verify → Inference`로 `Platform.*` 패턴을 미러링한다. `Core`는 계속 무의존을 유지한다.
+검출 강건성 동작(적응 플로어, 레짐 가드, PLL 후행 A-onset 게이팅)은 `Detection` 알고리즘에 흡수돼 있고, 이벤트 게이트 소켓(`IBeatEventGate`/`BeatEventGateHost`)은 `Core` 내부 요소다. 그 소켓에 꽂히는 **TinyML 게이트는 리프 프로젝트 `TimeGrapher.Inference`로 구현됐다**: `OnnxBeatEventGate`가 ONNX Runtime으로 `BeatWindowFeatures`(128점 envelope 윈도우)를 분류해 bad-data 후보를 veto한다(명세 AI Feature의 *Bad Data Rejection / Signal Quality Classification*). 엣지는 계획대로 `App → Inference → Core`, `Verify → Inference`로 `Platform.*` 패턴과 동형이며, `Core`는 계속 무의존이다(ONNX 의존은 leaf에 격리). 모델은 dev 전용 `tools/TimeGrapher.GateTrainer`가 real 녹음으로 학습해 임베드한다(학습 스택은 sln 밖, 런타임은 ONNX Runtime만).
 
 ## 2. TimeGrapher.App 내부 사용 관계
 

@@ -102,6 +102,15 @@ scale 스윕(NH35/mine_adapter)으로 **권장값 = ~1.0** 확정:
 mine_adapter 30→0, clean mine_usb 악화 없음. 0.3~0.5는 정상보다 더 낮춰 불필요한 노이즈/scatter를
 더한다(0.4에서 NH35 std 0.27→0.79).
 
-단, 하드닝은 noisy-idle 시계의 보호막이라 1.0이 만능은 아니다 — watch별 opt-in. 1·2번(ML gate)은
-real 라벨 확보 후.
+단, 하드닝은 noisy-idle 시계의 보호막이라 1.0이 만능은 아니다 — watch별 opt-in.
+
+**1·2번(ML gate) 구현 완료**: 2번(분류 gate)을 `TimeGrapher.Inference`의 `OnnxBeatEventGate`로
+구현했다 — 후보의 128점 `BeatWindowFeatures` 윈도우를 임베드 ONNX 모델로 *good vs bad-data*
+분류해 veto. 모델은 `tools/TimeGrapher.GateTrainer`가 real 녹음으로 학습(clean watch=good,
+mine_false 침입자=bad, cadence pseudo-label; held-out AUC 0.994). 명세 AI Feature의 *Bad Data
+Rejection / Signal Quality Classification*에 대응. 측정(real `--ab`): mine_false veto 36.5% vs
+clean 1.9~2.3%. 단 real로 학습해 *합성* 스트림엔 분포 밖(sim↔real 격차) — 일반화는 real 라벨
+확대가 관건. 1번(민감 후보 모드)·3번 강화는 미도입; mine_false류의 **BPH 2배 lock**은 게이트
+다운스트림으론 못 고치며 detector octave 디스앰비규에이션(별도)이 필요하다(`postc-noise` adverse
+행이 ground-truth 회귀 픽스처로 대기).
 

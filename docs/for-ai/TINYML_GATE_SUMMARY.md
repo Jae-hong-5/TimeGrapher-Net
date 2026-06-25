@@ -2,7 +2,9 @@
 
 > 최신 구현 방향: 약한 A가 onset 트리거 아래로 묻혀 B로 잘못 잡히는 문제는 결정론적
 > phase-guided onset rescue로 해결했다(`PhaseGuideOnsetRescueScale`, App "Weak-A onset
-> rescue" 토글). 잡음 후보를 버리는 아래의 drop-only 후보 게이트는 후순위 방향으로 남는다.
+> rescue" 토글). 그 반대 방향(잡으면 안 될 bad-data 후보 거부)은 이제 **TinyML drop-only
+> 게이트로 구현됐다** — `TimeGrapher.Inference`의 `OnnxBeatEventGate`, App "TinyML Bad-Data
+> Rejection" 토글. 자세한 현황은 아래 "현재 상태" 절.
 
 ## 결론
 
@@ -45,13 +47,15 @@ TinyML 후보 필터는 후보 이벤트를 통과시키거나 버릴 수만 있
 
 이 제한이 핵심이다. TinyML 모델이 틀려도 영향은 "후보 하나를 잘못 통과시키거나 잘못 버리는 것"으로 제한된다. 동기화 기준이나 검출기 내부 상태를 직접 흔들 수 없다.
 
-## 현재 상태
+## 현재 상태 (구현됨)
 
-이미 `IBeatEventGate`라는 후보 이벤트 게이트 구조는 준비되어 있다.
+`IBeatEventGate` 소켓에 **실제 TinyML/ONNX 게이트가 구현·동봉됐다**: 리프 프로젝트 `TimeGrapher.Inference`의 `OnnxBeatEventGate`가 임베드 ONNX 모델(`Models/tick-quality.onnx`)로 후보의 128점 `BeatWindowFeatures` 윈도우를 *good escapement vs bad data*로 분류해 veto한다. 같은 소켓의 고전 구현 `PllMatchGate`도 그대로 남아 있다.
 
-현재는 실제 TinyML/ONNX 모델이 붙어 있는 상태가 아니다. 같은 위치에 `PllMatchGate`라는 기본 게이트가 붙어 있고, UI에서는 `PLL Event Veto (impulse rejection)` 옵션으로 켤 수 있다.
+- **UI**: Settings의 `TinyML Bad-Data Rejection` 토글(기존 `PLL Event Veto` 옆). 켜지면 onnx 게이트가 PLL veto보다 우선해 설치된다.
+- **검증**: `Verify --adverse --gate=onnx`(합성 행 INFO 측정) + `Verify <wav> --ab`(real off vs onnx A/B). 측정 — mine_false veto 36.5% vs clean watch 1.9~2.3%(~18배 차이).
+- **모델**: dev 전용 `tools/TimeGrapher.GateTrainer`(sln 밖)가 real 녹음으로 SDCA 로지스틱 회귀를 학습(held-out AUC 0.994)해 ONNX로 export하고, 추론 어셈블리에 임베드한다.
 
-따라서 현재 상태는 **TinyML 모델 완성**이 아니라, **나중에 TinyML을 안전하게 꽂을 수 있는 자리 마련**에 가깝다.
+남은 한계(정직): 모델이 **real 녹음으로 학습**돼 *합성* adverse 스트림에는 분포 밖으로 작동한다(약신호/잡음 행 과veto, postc-noise 합성 임펄스 무veto — sim↔real envelope 격차). real 입력에서의 bad-data 거부가 실효이며, 일반화는 real 라벨 확대에 달려 있다. 또 게이트는 검출 다운스트림이라 **BPH 자체(예: mine_false의 2배 lock)는 못 고친다** — 그건 detector 단 octave 디스앰비규에이션(별도 작업)의 몫이고, `postc-noise` adverse 행이 그 회귀 픽스처로 대기한다.
 
 ## 학습과 Raspberry Pi 사용 방식
 
