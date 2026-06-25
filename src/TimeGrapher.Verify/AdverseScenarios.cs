@@ -41,6 +41,7 @@ internal sealed record AdverseScenario(
     double GainStepAtS = 0.0,
     double GainStepFactor = 1.0,
     double EvalStartS = 2.0,
+    double AcquisitionPeakGateFraction = 0.0,
     AdverseGates? Default = null);
 
 internal static class AdverseScenarios
@@ -60,6 +61,19 @@ internal static class AdverseScenarios
                 MaxAbsMedianOffsetMs: 1.0, MaxRmsAfterOffsetMs: 2.0, MaxMissedBeats: 0)),
         new("weak-2", Bph: 18000, SampleRate: 48000, Seconds: 16,
             PcmPeak: 0.035, NoisePeak: 0.010, Realistic: false,
+            Default: new AdverseGates(MustSync: true, MinRecall: 0.90, MinPrecision: 0.90,
+                MaxAbsMedianOffsetMs: 1.0, MaxRmsAfterOffsetMs: 2.0, MaxMissedBeats: 0)),
+        // Gate-ON variants of the weak rows (F2): the app ships the spurious-beat
+        // gate on by default, so the amplitude-only gate must NOT false-reject genuine
+        // (realistic, beat-to-beat-varying) weak beats during acquisition. These hold
+        // the SAME quality gates as their gate-off twins; a regression that made the
+        // gate over-reject would drop recall / miss beats here.
+        new("weak-1-gated", Bph: 21600, SampleRate: 48000, Seconds: 14,
+            PcmPeak: 0.06, NoisePeak: 0.008, Realistic: true, AcquisitionPeakGateFraction: 0.35,
+            Default: new AdverseGates(MustSync: true, MinRecall: 0.90, MinPrecision: 0.90,
+                MaxAbsMedianOffsetMs: 1.0, MaxRmsAfterOffsetMs: 2.0, MaxMissedBeats: 0)),
+        new("weak-2-gated", Bph: 18000, SampleRate: 48000, Seconds: 16,
+            PcmPeak: 0.035, NoisePeak: 0.010, Realistic: false, AcquisitionPeakGateFraction: 0.35,
             Default: new AdverseGates(MustSync: true, MinRecall: 0.90, MinPrecision: 0.90,
                 MaxAbsMedianOffsetMs: 1.0, MaxRmsAfterOffsetMs: 2.0, MaxMissedBeats: 0)),
         // Sustained broadband noise (W-7). The default detector must keep
@@ -156,7 +170,8 @@ internal static class AdverseScenarios
             UseCOnset: false,
             AutoBph: true,
             ManualBph: 0,
-            HpfCutoffHz: 0.0));
+            HpfCutoffHz: 0.0,
+            AcquisitionPeakGateFraction: row.AcquisitionPeakGateFraction));
 
         double leadInS = (double)row.SilenceLeadInSamples / row.SampleRate;
         var truthTimes = new List<double>();
