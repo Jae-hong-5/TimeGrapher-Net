@@ -24,6 +24,7 @@ internal sealed class WatchHealthRadarRenderer
     private RadarMetric _metric = RadarMetric.Amplitude;
     private IReadOnlyList<PositionSummary> _positions = Array.Empty<PositionSummary>();
     private string? _verdictBrushKey;
+    private IDisposable? _verdictBrushBinding;
 
     public WatchHealthRadarRenderer(
         WatchHealthRadarControl radar,
@@ -85,9 +86,12 @@ internal sealed class WatchHealthRadarRenderer
     private void ApplyVerdictColor(VarioVerdictLevel level)
     {
         // Bind to the shared theme brush so the verdict recolors with the theme.
-        // Project() runs on every frame, so re-bind ONLY when the key actually
-        // changes: an unconditional Bind leaks a fresh resource-observable
-        // subscription onto the same TextBlock on every frame the Health tab renders.
+        // Project() runs on every frame, so re-bind ONLY when the key actually changes,
+        // and dispose the previous binding before installing the new one: Bind returns an
+        // IDisposable that, if discarded, leaves the old resource-observable subscription
+        // live on the TextBlock, so a verdict oscillating across Good/Warn/Bad thresholds
+        // would otherwise accumulate subscriptions over the run. The same-key guard keeps
+        // a steady verdict from rebinding at all (theme changes flow through the live one).
         string key = level switch
         {
             VarioVerdictLevel.Good => "VarioGoodBrush",
@@ -101,6 +105,7 @@ internal sealed class WatchHealthRadarRenderer
         }
 
         _verdictBrushKey = key;
-        _verdict.Bind(TextBlock.ForegroundProperty, _verdict.GetResourceObservable(key));
+        _verdictBrushBinding?.Dispose();
+        _verdictBrushBinding = _verdict.Bind(TextBlock.ForegroundProperty, _verdict.GetResourceObservable(key));
     }
 }
