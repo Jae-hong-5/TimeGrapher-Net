@@ -53,7 +53,7 @@ public sealed class InfoTabRegistryTests
         InfoTabRegistry registry = InfoTabRegistry.FromCatalog(tabControl, positionStrip, "Arial");
         Button[] buttons = ResetViewButtons(registry);
 
-        Assert.Equal(6, buttons.Length);
+        Assert.Equal(5, buttons.Length);
         Assert.All(buttons, button => Assert.Equal("Reset all graph views", ToolTip.GetTip(button)));
     }
 
@@ -524,25 +524,16 @@ public sealed class InfoTabRegistryTests
         Assert.True(headerStrip.ColumnDefinitions[0].Width.IsStar);
         Assert.Equal(GridUnitType.Auto, headerStrip.ColumnDefinitions[1].Width.GridUnitType);
 
-        // Right column: Smoothing then Reset View, in that order.
         var buttonStrip = headerStrip.Children.OfType<StackPanel>().Single();
         Assert.Equal(1, Grid.GetColumn(buttonStrip));
         string[] buttons = buttonStrip.Children
             .OfType<Button>()
             .Select(button => button.Content?.ToString() ?? string.Empty)
             .ToArray();
-        Assert.Equal(new[] { "Smoothing", "Reset View" }, buttons);
-        Button[] btns = buttonStrip.Children.OfType<Button>().ToArray();
-        Button smoothing = btns[0];
-        Button resetView = btns[1];
+        Assert.Equal(new[] { "Smoothing" }, buttons);
+        Button smoothing = buttonStrip.Children.OfType<Button>().Single();
         Assert.Contains("PositionButton", smoothing.Classes);
         Assert.True(smoothing.IsVisible);
-
-        // Reset View is sized to match Smoothing (one matched control group).
-        Assert.Contains("PositionButton", resetView.Classes);
-        Assert.Equal(smoothing.FontSize, resetView.FontSize);
-        Assert.Equal(smoothing.MinHeight, resetView.MinHeight);
-        Assert.Equal(smoothing.Padding, resetView.Padding);
 
         Border banner = headerStrip.Children.OfType<Border>().Single();
         Assert.Equal(0, Grid.GetColumn(banner));

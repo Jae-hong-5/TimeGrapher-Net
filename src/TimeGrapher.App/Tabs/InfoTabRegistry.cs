@@ -395,21 +395,7 @@ internal sealed partial class InfoTabRegistry
         var renderer = new TraceDisplayRenderer(ratePlot, amplitudePlot, alertBanner, alertText);
         context.ResetViews.Register(renderer.ResetView);
 
-        // Top strip (the Long-Term header pattern): the conditional alert banner
-        // holds the left "*" column so it shows and hides in place, and the right
-        // column carries the Smoothing toggle followed by Reset View. The
-        // always-present buttons fix the strip's height, so the plots below no
-        // longer shift up and down as the banner appears and clears.
         Button smoothingButton = CreateTraceSmoothingButton(renderer);
-        // Reset View sized to match the Smoothing button (same height/font/padding
-        // and the shared button style) so the pair reads as one control group.
-        Button resetViewButton = CreateOverlayButton(
-            "Reset View", ResetAllGraphViewsTooltip, context.ResetViews.ResetAll);
-        resetViewButton.MinHeight = TraceHeaderButtonMinHeight;
-        resetViewButton.FontSize = TraceHeaderButtonFontSize;
-        resetViewButton.Padding = TraceHeaderButtonPadding;
-        resetViewButton.VerticalAlignment = VerticalAlignment.Center;
-        resetViewButton.Classes.Add("PositionButton");
         var headerButtons = new StackPanel
         {
             Orientation = Orientation.Horizontal,
@@ -418,7 +404,6 @@ internal sealed partial class InfoTabRegistry
             VerticalAlignment = VerticalAlignment.Center,
         };
         headerButtons.Children.Add(smoothingButton);
-        headerButtons.Children.Add(resetViewButton);
 
         // Keep a gap to the left of the buttons so the conditional alert banner
         // never butts up against Smoothing when it appears.
@@ -459,8 +444,6 @@ internal sealed partial class InfoTabRegistry
         return new InfoTabRegistration(definition, CreateTabItem(definition, grid), consumer);
     }
 
-    // Shared dimensions for the Trace header buttons so Smoothing and Reset View
-    // stay the same size as one matched control group.
     private const double TraceHeaderButtonMinHeight = 30;
     private const double TraceHeaderButtonFontSize = 12;
     private static readonly Thickness TraceHeaderButtonPadding = new(10, 2, 10, 2);
