@@ -18,16 +18,24 @@ public sealed class AcquisitionPeakGateTests
 {
     private const int Fs = 48000;
 
-    // Clean 21600 stream with a weak damped-sine artifact injected at each
-    // half-beat. At 0.30x the real PCM beat level the artifact is loud enough to
-    // pass the standard min-peak gate (and alias the rate to 43200) yet clearly
-    // weaker than the real beats -- the band the acquisition gate targets.
-    private static float[] HalfBeatArtifactStream()
+    // Synthesized real-beat PCM level and the injected half-beat artifact amplitude
+    // as a fraction of it. The ratio is a PCM-domain knob (what we inject), NOT the
+    // smoothed-envelope ratio the gate actually keys on -- only a convenient proxy.
+    // Empirically the gate recovers the true rate for artifacts up to ~0.4x and lets
+    // them alias above ~0.5x (pinned by StrongArtifact_AboveGateBand_StillAliases).
+    private const double RealBeatPcmPeak = 0.40;
+    private const double ArtifactPcmRatio = 0.30;
+
+    // Clean 21600 stream with a weak damped-sine artifact injected at each half-beat.
+    // At the default ratio the artifact passes the standard min-peak gate (and aliases
+    // the rate to 43200) yet is clearly weaker than the real beats -- the band the
+    // acquisition gate targets.
+    private static float[] HalfBeatArtifactStream(double artifactRatio = ArtifactPcmRatio)
     {
         WatchSynthStreamConfig cfg = WatchSynthStreamConfig.Clean();
         cfg.SampleRateHz = Fs;
         cfg.Bph = 21600;
-        cfg.PcmPeakSignalLevel = 0.40;
+        cfg.PcmPeakSignalLevel = RealBeatPcmPeak;
         cfg.NoisePeakSignalLevel = 0.002;
 
         var synth = new WatchSynthStream(cfg);
@@ -50,7 +58,7 @@ public sealed class AcquisitionPeakGateTests
         for (int i = 1; i < beatSamples.Count; i++)
         {
             int mid = (int)((beatSamples[i - 1] + beatSamples[i]) * 0.5);
-            AddClick(pcm, mid, peak: 0.12, freqHz: 4500.0, decayMs: 2.0);
+            AddClick(pcm, mid, peak: RealBeatPcmPeak * artifactRatio, freqHz: 4500.0, decayMs: 2.0);
         }
         return pcm;
     }
@@ -96,6 +104,34 @@ public sealed class AcquisitionPeakGateTests
     {
         float[] pcm = HalfBeatArtifactStream();
         Assert.Equal(21600, DetectedBph(pcm, gateFraction: 0.35));
+    }
+
+    [Theory]
+    [InlineData(18000)]
+    [InlineData(21600)]
+    [InlineData(28800)]
+    [InlineData(36000)]
+    public void Gate_IsNoOpOnCleanSignal(int bph)
+    {
+        // The on-by-default gate must not change detection on a clean signal at the
+        // common rates: a clean stream has no anomalously-weak burst, so gate-on must
+        // detect exactly what gate-off does (the true rate). Guards the default-on path.
+        float[] pcm = CleanStream(bph, pcmPeak: 0.40, seconds: 8);
+        int off = DetectedBph(pcm, gateFraction: 0.0);
+        int on = DetectedBph(pcm, gateFraction: 0.35);
+        Assert.Equal(bph, off);
+        Assert.Equal(off, on);
+    }
+
+    [Fact]
+    public void StrongArtifact_AboveGateBand_StillAliases()
+    {
+        // Coverage-edge pin: the gate only rejects bursts FAR weaker than the real
+        // beats. A between-beat artifact at 0.5x the real beat level sits above the
+        // gate band, so it still aliases the rate to 2x even with the gate on.
+        // The recovery band is ~<=0.4x (AcquisitionGate_RecoversTrueRate uses 0.3x).
+        float[] pcm = HalfBeatArtifactStream(artifactRatio: 0.50);
+        Assert.Equal(43200, DetectedBph(pcm, gateFraction: 0.35));
     }
 
     [Fact]
