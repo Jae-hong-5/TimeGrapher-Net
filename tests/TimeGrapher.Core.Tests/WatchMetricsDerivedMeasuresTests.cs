@@ -48,13 +48,29 @@ public sealed class WatchMetricsDerivedMeasuresTests
         double aSample,
         double cOffsetMs = 50.0)
     {
-        metrics.HandleAEvent(aSample, true, Bph);
+        return FeedAThenCAndGetResultsAtBph(metrics, Bph, aSample, cOffsetMs);
+    }
+
+    private static string FeedAThenCAndGetResultsAtBph(
+        WatchMetrics metrics,
+        double bph,
+        double aSample,
+        double cOffsetMs)
+    {
+        metrics.HandleAEvent(aSample, true, bph);
         WatchMetricsUpdate cUpdate = metrics.HandleCEvent(
             aSample + cOffsetMs / 1000.0 * SampleRate,
             true,
-            Bph);
+            bph);
         Assert.True(cUpdate.ResultsUpdated);
         return cUpdate.ResultsText;
+    }
+
+    private static double AToCOffsetMsForAmplitude(double bph, double amplitudeDeg)
+    {
+        double arg = Math.Asin(52.0 / (2.0 * amplitudeDeg));
+        double seconds = (7200.0 / bph) * arg / Math.PI;
+        return seconds * 1000.0;
     }
 
     [Fact]
@@ -263,9 +279,59 @@ public sealed class WatchMetricsDerivedMeasuresTests
     }
 
     [Fact]
+    public void DisplayReadouts_UseCompletedAvgPeriodForAmplitudeAndBeatError()
+    {
+        const double bph = 7200.0;
+        double amp52OffsetMs = AToCOffsetMsForAmplitude(bph, 52.0);
+        double amp104OffsetMs = AToCOffsetMsForAmplitude(bph, 104.0);
+        var metrics = new WatchMetrics(new WatchMetricsConfig
+        {
+            SampleRate = SampleRate,
+            AveragingPeriod = 3,
+        });
+
+        double sample = 0.0;
+        string results = FeedAThenCAndGetResultsAtBph(metrics, bph, sample, amp52OffsetMs);
+
+        foreach (double intervalMs in new[] { 510.0, 490.0, 510.0, 490.0, 510.0 })
+        {
+            sample += intervalMs / 1000.0 * SampleRate;
+            results = FeedAThenCAndGetResultsAtBph(metrics, bph, sample, amp52OffsetMs);
+        }
+
+        Assert.Contains("Amplitude ---°", results);
+        Assert.Contains("BEAT ERROR ---- ms", results);
+
+        sample += 490.0 / 1000.0 * SampleRate;
+        results = FeedAThenCAndGetResultsAtBph(metrics, bph, sample, amp104OffsetMs);
+
+        Assert.Contains($"Amplitude {WatchMetrics.ValueSpanStart} 52{WatchMetrics.ValueSpanEnd}°", results);
+        Assert.Contains($"BEAT ERROR {WatchMetrics.ValueSpanStart}10.0{WatchMetrics.ValueSpanEnd} ms", results);
+
+        sample += 520.0 / 1000.0 * SampleRate;
+        results = FeedAThenCAndGetResultsAtBph(metrics, bph, sample, amp104OffsetMs);
+
+        Assert.Contains($"Amplitude {WatchMetrics.ValueSpanStart} 52{WatchMetrics.ValueSpanEnd}°", results);
+        Assert.Contains($"BEAT ERROR {WatchMetrics.ValueSpanStart}10.0{WatchMetrics.ValueSpanEnd} ms", results);
+
+        foreach (double intervalMs in new[] { 480.0, 520.0, 480.0, 520.0, 480.0 })
+        {
+            sample += intervalMs / 1000.0 * SampleRate;
+            results = FeedAThenCAndGetResultsAtBph(metrics, bph, sample, amp104OffsetMs);
+        }
+
+        Assert.Contains($"Amplitude {WatchMetrics.ValueSpanStart}104{WatchMetrics.ValueSpanEnd}°", results);
+        Assert.Contains($"BEAT ERROR {WatchMetrics.ValueSpanStart}20.0{WatchMetrics.ValueSpanEnd} ms", results);
+    }
+
+    [Fact]
     public void DisplayBeatError_ExcludesGapSpanningWindows()
     {
-        WatchMetrics metrics = NewMetrics();
+        var metrics = new WatchMetrics(new WatchMetricsConfig
+        {
+            SampleRate = SampleRate,
+            AveragingPeriod = 1,
+        });
         double sample = 0.0;
 
         string results = FeedAThenCAndGetResults(metrics, sample);
@@ -274,18 +340,17 @@ public sealed class WatchMetricsDerivedMeasuresTests
         sample += 375.0 / 1000.0 * SampleRate;
         results = FeedAThenCAndGetResults(metrics, sample);
 
-        Assert.Equal(
-            $"Error Rate ------ s/d | Amplitude {WatchMetrics.ValueSpanStart} 44{WatchMetrics.ValueSpanEnd}° | BEAT ERROR ---- ms | BPH {WatchMetrics.ValueSpanStart}28800{WatchMetrics.ValueSpanEnd}",
-            results);
+        Assert.Contains("Amplitude ---°", results);
+        Assert.Contains("BEAT ERROR ---- ms", results);
 
-        sample += 125.0 / 1000.0 * SampleRate;
-        results = FeedAThenCAndGetResults(metrics, sample);
-        sample += 125.0 / 1000.0 * SampleRate;
-        results = FeedAThenCAndGetResults(metrics, sample);
+        for (int i = 0; i < 8; i++)
+        {
+            sample += 125.0 / 1000.0 * SampleRate;
+            results = FeedAThenCAndGetResults(metrics, sample);
+        }
 
-        Assert.Equal(
-            $"Error Rate ------ s/d | Amplitude {WatchMetrics.ValueSpanStart} 44{WatchMetrics.ValueSpanEnd}° | BEAT ERROR {WatchMetrics.ValueSpanStart} 0.0{WatchMetrics.ValueSpanEnd} ms | BPH {WatchMetrics.ValueSpanStart}28800{WatchMetrics.ValueSpanEnd}",
-            results);
+        Assert.Contains($"Amplitude {WatchMetrics.ValueSpanStart} 44{WatchMetrics.ValueSpanEnd}°", results);
+        Assert.Contains($"BEAT ERROR {WatchMetrics.ValueSpanStart} 0.0{WatchMetrics.ValueSpanEnd} ms", results);
     }
 
     [Fact]

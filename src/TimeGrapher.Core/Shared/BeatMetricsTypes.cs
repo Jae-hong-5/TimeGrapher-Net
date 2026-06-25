@@ -26,8 +26,8 @@ public readonly record struct BeatTimingSample(
 
 /// <summary>
 /// One per-beat amplitude measurement, emitted with each synced C event.
-/// Instant is the single-beat estimate; PairAverage is the tic+toc average that
-/// also feeds the rolling display value, updated once per completed pair.
+/// Instant is the single-beat estimate; PairAverage is the tic+toc average,
+/// updated once per completed pair.
 /// </summary>
 public readonly record struct AmplitudeSample(
     double TimeS,
