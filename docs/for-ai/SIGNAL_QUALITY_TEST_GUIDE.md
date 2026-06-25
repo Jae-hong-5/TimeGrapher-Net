@@ -163,12 +163,13 @@ sequenceDiagram
 | `manual-fixtures/43200BPH_bad-signal_falseC_weak_192000Hz.wav` | high-rate false-C / weak-C risk | 공통 readout/status, Beat Noise, Waveform Compare, Escapement의 `PossibleFalseC`/`CTimingUnstable` 직접 경고 확인 |
 | `manual-fixtures/28800BPH_noisy_handling_impulse_192000Hz.wav` | ambient/handling noise | noisy/low-confidence 설명, spectrogram 외부 잡음 band, rate/beat-error 변동 해석 주의 확인 |
 | `manual-fixtures/28800BPH_weak_missingC_192000Hz.wav` | weak or partially missing C | `Amplitude ---°`, weak/missing signal guidance, mean-C/marker 신뢰도 저하 확인 |
-| `manual-fixtures/28800BPH_clipping_gain_high_192000Hz.wav` | gain too high / clipping risk | gain 조정 guidance, clipping/high-level waveform 시각 확인, clipping과 runtime deadline warning 구분 확인 |
+| `manual-fixtures/28800BPH_clipping_gain_high_192000Hz.wav` | gain too high / visible hard clipping | clipped flat-top waveform, gain 조정 guidance, clipping과 runtime deadline warning 구분 확인 |
+| `manual-fixtures/28800BPH_transient_falseC_then_clean_192000Hz.wav` | false/weak warning recovery | 앞 2초는 weak/missing-C warning을 유도하고 이후 clean 기준으로 돌아와 overlay/status fade-out을 확인 |
 
 Verifier smoke test:
 
 ```powershell
-dotnet run --project src/TimeGrapher.Verify -c Release -- manual-fixtures/28800BPH_clean_reference_192000Hz.wav manual-fixtures/43200BPH_bad-signal_falseC_weak_192000Hz.wav manual-fixtures/28800BPH_noisy_handling_impulse_192000Hz.wav manual-fixtures/28800BPH_weak_missingC_192000Hz.wav manual-fixtures/28800BPH_clipping_gain_high_192000Hz.wav
+dotnet run --project src/TimeGrapher.Verify -c Release -- manual-fixtures/28800BPH_clean_reference_192000Hz.wav manual-fixtures/43200BPH_bad-signal_falseC_weak_192000Hz.wav manual-fixtures/28800BPH_noisy_handling_impulse_192000Hz.wav manual-fixtures/28800BPH_weak_missingC_192000Hz.wav manual-fixtures/28800BPH_clipping_gain_high_192000Hz.wav manual-fixtures/28800BPH_transient_falseC_then_clean_192000Hz.wav
 ```
 
 기대 결과: 각 파일이 filename의 BPH(`28800` 또는 `43200`)로 `sync_status=Synced`를 출력한다. `28800BPH_weak_missingC_192000Hz.wav`는 amplitude가 `---°`로 나올 수 있으며, 이는 missing/low-confidence C 검증에 사용한다.
@@ -180,19 +181,20 @@ dotnet run --project src/TimeGrapher.App -c Release -- --analysis-benchmark --wa
 dotnet run --project src/TimeGrapher.App -c Release -- --analysis-benchmark --wav manual-fixtures/28800BPH_noisy_handling_impulse_192000Hz.wav
 dotnet run --project src/TimeGrapher.App -c Release -- --analysis-benchmark --wav manual-fixtures/28800BPH_weak_missingC_192000Hz.wav
 dotnet run --project src/TimeGrapher.App -c Release -- --analysis-benchmark --wav manual-fixtures/28800BPH_clipping_gain_high_192000Hz.wav
+dotnet run --project src/TimeGrapher.App -c Release -- --analysis-benchmark --wav manual-fixtures/28800BPH_transient_falseC_then_clean_192000Hz.wav
 ```
 
 기대 결과: `detected_bph=28800`, `max_deadline_level=0`. 이미 포함된 43200 fixture는 아래 수동 fixture 섹션의 benchmark 명령으로 확인한다.
 
 ### SNR Robustness Fixture
 
-white-noise 내성을 보기 위해 같은 28800 BPH clean base waveform에 deterministic Gaussian white noise를 RMS 기준으로 합성한 fixture를 포함한다. SNR은 전체 clean waveform RMS 대비 noise RMS로 계산한다.
+white-noise 내성을 보기 위해 같은 28800 BPH clean base waveform에 deterministic Gaussian white noise를 합성한 fixture를 포함한다. GUI에서 noise floor가 보이도록 SNR은 전체 파일 RMS가 아니라 beat packet active window(각 beat 시작 후 30 ms) RMS 대비 noise RMS로 계산한다. 따라서 25 dB fixture는 전체 파일 RMS 기준으로는 약 18.8 dB라 시각적으로도 noise가 보인다.
 
 | Fixture | measured SNR | 목적 | 기대 headless 결과 |
 |---|---:|---|---|
-| `manual-fixtures/28800BPH_snr25dB_white_noise_192000Hz.wav` | 25.000 dB | 가장 낮은 SNR smoke; noisy하지만 nominal beat lock 유지 확인 | `detected_bph=28800`, `sync_status=Synced`, amplitude 약 `271°` |
-| `manual-fixtures/28800BPH_snr30dB_white_noise_192000Hz.wav` | 30.000 dB | 중간 SNR; readout/graph가 clean 기준과 크게 어긋나지 않는지 확인 | `detected_bph=28800`, `sync_status=Synced`, amplitude 약 `270°` |
-| `manual-fixtures/28800BPH_snr35dB_white_noise_192000Hz.wav` | 35.000 dB | 높은 SNR; clean reference에 가까운 baseline noise tolerance 확인 | `detected_bph=28800`, `sync_status=Synced`, amplitude 약 `270°` |
+| `manual-fixtures/28800BPH_snr25dB_white_noise_192000Hz.wav` | 25.000 dB active-window SNR | 가장 낮은 SNR smoke; GUI에서도 noise floor 상승이 보이지만 nominal beat lock 유지 확인 | `detected_bph=28800`, `sync_status=Synced`, amplitude 약 `271°` |
+| `manual-fixtures/28800BPH_snr30dB_white_noise_192000Hz.wav` | 30.000 dB active-window SNR | 중간 SNR; readout/graph가 clean 기준과 크게 어긋나지 않는지 확인 | `detected_bph=28800`, `sync_status=Synced`, amplitude 약 `271°` |
+| `manual-fixtures/28800BPH_snr35dB_white_noise_192000Hz.wav` | 35.000 dB active-window SNR | 높은 SNR; clean reference에 가까운 baseline noise tolerance 확인 | `detected_bph=28800`, `sync_status=Synced`, amplitude 약 `270°` |
 
 SNR verifier:
 
@@ -204,7 +206,7 @@ dotnet run --project src/TimeGrapher.Verify -c Release -- manual-fixtures/28800B
 
 ```text
 28800BPH_snr25dB_white_noise_192000Hz.wav: detected_bph=28800 sync_status=Synced results=[Error Rate   -0.2 s/d | Amplitude 271° | BEAT ERROR  0.0 ms | BPH 28800]
-28800BPH_snr30dB_white_noise_192000Hz.wav: detected_bph=28800 sync_status=Synced results=[Error Rate   -0.1 s/d | Amplitude 270° | BEAT ERROR  0.0 ms | BPH 28800]
+28800BPH_snr30dB_white_noise_192000Hz.wav: detected_bph=28800 sync_status=Synced results=[Error Rate   -0.1 s/d | Amplitude 271° | BEAT ERROR  0.0 ms | BPH 28800]
 28800BPH_snr35dB_white_noise_192000Hz.wav: detected_bph=28800 sync_status=Synced results=[Error Rate   -0.1 s/d | Amplitude 270° | BEAT ERROR  0.0 ms | BPH 28800]
 ```
 
@@ -224,24 +226,26 @@ dotnet run --project src/TimeGrapher.App -c Release --no-build -- --analysis-ben
 2. 35 dB, 30 dB, 25 dB 순서로 재생하면서 noise floor 상승, spectrogram background energy, waveform lane의 잔물결 증가를 비교한다.
 3. 세 SNR 모두 nominal BPH와 amplitude가 유지되어야 하며, warning이 뜨더라도 측정 lock이 깨진 것으로 해석하지 않는다.
 4. 25 dB에서 marker나 lane shape가 흔들리면 `noisy but still locked` 사례로 설명하고, false-C/weak-C fixture처럼 직접 bad-marker warning을 유도하는 목적과 구분한다.
-### 체크리스트별 수동 QA 절차
+### 그래프별 Cross-Check 수동 QA 절차
 
-| 그래프 / 표시 영역 | 사용할 입력 | 확인 방법 |
-|---|---|---|
-| 공통 상단 readout / status guidance | clean, false-C, weak, noisy, clipping | clean에서는 `Signal ...` suffix가 없어야 한다. false-C/weak/noisy/clipping fixture에서는 readout suffix와 status guidance가 각각 Beat Noise 확인, reposition/gain 조정, handling/ambient noise 감소처럼 사용자가 취할 행동을 말하는지 확인한다. Benchmark의 `max_deadline_level=0` 상태에서는 acoustic warning과 runtime quality warning이 섞이지 않아야 한다. |
-| Sound Graph / Sound Print | clean, noisy, weak, clipping | 같은 입력을 Sound Print와 Rate/Scope에서 번갈아 보며 raw/processed signal이 같은 구간을 설명하는지 확인한다. noisy/weak/clipping에서는 warning context를 함께 언급하고, averaging/filtering이 약한 성분을 숨길 수 있음을 데모 설명에 포함한다. pause/review 후에도 마지막 warning 문맥이 사라지지 않는지 확인한다. |
-| Rate/Scope | clean, false-C, noisy | raw signal, threshold/reference, A/C marker가 Sound Print와 같은 입력 구간을 기준으로 보이는지 확인한다. false-C/noisy에서 marker가 흔들릴 때 readout/status warning과 모순되는 clean 판정처럼 설명하지 않는다. |
-| Trace Display | clean, noisy, weak | clean으로 정상 trace를 확인한 뒤 noisy/weak에서 rate/amplitude 값을 확정 진단으로 말하지 않는다. `weak_missingC`에서 amplitude가 `---°` 또는 불안정하게 보이면 out-of-range/low-confidence 사례로 설명한다. |
-| Vario / Rate-Amplitude Stability | clean, noisy, weak | clean 장기 통계와 noisy/weak 장기 통계를 비교한다. min/max/average/sigma가 variation 증가를 드러내는지 확인하고, warning이 있었던 구간의 통계는 clean long-term stability와 직접 비교하지 않는다고 설명한다. |
-| Multi-Position Sequence / Positions | clean + 동일 fixture를 position별로 수동 전환 | 같은 fixture를 재생하면서 active position을 바꿔 position 결과가 현재 position과 연결되는지 확인한다. noisy/weak fixture로 기록한 position은 실제 자세별 성능 차이가 아니라 signal-quality 문제일 수 있음을 표시한다. |
-| Beat Noise Scope | false-C, weak, noisy | false-C fixture에서 `POSSIBLE FALSE C` 또는 `C TIMING UNSTABLE`, weak fixture에서 `WEAK SIGNAL` 또는 C marker 부재/불안정을 확인한다. Scope 1 A/C marker가 의심 C를 clean C처럼 보이게 하지 않는지, Scope 2 averaging이 random noise 감소 목적임을 설명할 수 있는지 확인한다. strip 선택/확대 후에도 warning context가 유지되는지 확인한다. |
-| Beat Error Display / Diagnostic Trace | clean, noisy, weak | clean의 spacing/slope 기준을 먼저 보여준 뒤 noisy/weak에서 spacing/slope 이상을 watch fault로 단정하지 않는다. acceptable range/warning이 보이는지 확인하고 signal-quality warning과 함께 해석한다. |
-| Long-Term Performance Graph | clean, noisy | 12초 fixture를 반복 재생하거나 longer manual run으로 average와 variation range를 확인한다. noisy fixture의 variation이 장기 추세 해석을 오염시킬 수 있음을 설명한다. |
-| Escapement Analyzer / Marker-Line Display | false-C, weak | 우측 상단 overlay warning을 확인한다. C marker 위치와 waveform feature가 어긋나면 repeatability sample로 확정하지 않고 confidence 낮음/status guidance와 연결한다. |
-| Time-Frequency Spectrogram | clean, noisy, clipping | clean의 반복 beat energy와 noisy/clipping의 외부 band 또는 high-energy saturation risk를 비교한다. color intensity로 약한/강한 에너지를 구분하고, spectrogram만으로 rate/amplitude를 확정하지 않는다. |
-| Waveform Compare | false-C, weak, noisy | false-C/weak에서 우측 상단 overlay와 lane label의 signal-quality warning을 확인한다. `PossibleFalseC` beat가 mean-C guide에서 제외되는지 확인하고, lane 간 shape/spacing inconsistency를 noise 또는 weak signal 가능성과 연결한다. |
-| Scope Sweep | clean, noisy, weak | clean에서는 pattern이 sweep window에 안정적으로 머무는지 확인한다. noisy/weak에서는 drift처럼 보이는 현상을 sync 불안정 또는 signal-quality 문제와 구분해 설명하고 watch fault로 단정하지 않는다. |
-| Filter Scope / F0-F3 | clean, noisy, weak | 네 filter view가 같은 input/time axis를 공유하는지 확인한다. F0를 closest raw representation으로 설명하고, F1 smoothing은 noise를 줄이지만 low-amplitude component를 숨길 수 있으며, F2/F3 emphasis는 원신호와 다른 해석일 수 있음을 설명한다. |
+각 항목은 한 그래프를 띄워둔 상태에서 Playback WAV만 바꿔가며 확인한다. 프로젝트 플랜 근거는 `docs/requirement/Time-Grapher-Project-Plan-(Draft).md`의 관련 문단 기준이다.
+
+| 그래프 / 표시 영역 | 프로젝트 플랜 근거 | 사용할 입력 | 예상 결과 | Fail 조건 |
+|---|---|---|---|---|
+| 공통 상단 readout / status guidance | 측정 summary bar는 rate, amplitude, beat error, BPH를 실시간 표시해야 하며(line 113-117), noisy/weak/clipped/incomplete 상태는 명확한 status/error feedback과 recovery guidance를 제공해야 한다(line 94-102, 246-248). | clean, false-C, weak, noisy, clipping, transient | clean에서는 `Signal ...` suffix가 없다. bad 입력에서는 상단 readout에 `Signal Weak signal`, `Signal Possible false C`, `Signal C timing unstable`, `Signal Noisy signal`, `Signal Clipping` 중 해당 문구가 붙고 status bar는 reposition, gain 조정, handling/ambient noise 감소처럼 사용자가 할 행동을 말한다. transient fixture는 앞부분 경고 후 clean 구간에서 status/readout이 정상으로 돌아온다. | clean에서도 signal warning이 남거나, bad 입력에서 guidance가 없거나, acoustic warning과 `Display quality was reduced...` 같은 runtime deadline warning을 같은 문제처럼 표시한다. |
+| Rate/Scope | Rate/Scope는 timing 관계와 signal level waveform을 함께 보여 A/C marker, A-to-C interval, consecutive-A interval을 검토하게 해야 한다(line 119-125, 238-240). | clean, false-C, noisy, weak | clean에서는 tic/toc rate traces와 signal level marker가 안정적이다. false-C/weak/noisy에서는 marker 흔들림이나 C 부재가 상단/status warning과 모순되지 않아야 하며, Sound Print와 같은 입력 구간으로 설명할 수 있어야 한다. | marker가 의심스러운데 readout/status가 clean 판정처럼 보이거나, Rate/Scope와 Sound Print가 서로 다른 신호 상황처럼 설명된다. |
+| Trace | Trace display는 rate deviation과 amplitude over time을 계속 기록하고, late rate와 270-300도 범위 밖 amplitude를 alert해야 한다(line 269-281). | clean, noisy, weak | clean으로 정상 trace를 먼저 확인한다. noisy/weak에서는 rate/amplitude trace를 확정 진단으로 말하지 않고 low-confidence 문맥과 함께 본다. weak fixture에서 amplitude가 `---°` 또는 불안정하면 weak/missing-C 사례로 설명한다. | noisy/weak 구간의 trace를 clean long-term health 판정처럼 표시하거나, out-of-range/low-confidence 설명 없이 수치만 강조한다. |
+| Beat Error | Beat Error Display는 rate/amplitude/beat error/BPH 숫자와 timing trace가 일관되어야 하며, line separation 초과와 45도 이상 slope 같은 fault를 알려야 한다(line 325-336). | clean, noisy, weak, false-C | clean에서는 numeric panel과 tic/toc trace가 일관된다. noisy/weak/false-C에서는 spacing/slope 이상을 watch fault로 단정하지 않고 signal-quality warning과 함께 해석한다. 하단 설명 문구 없이도 numeric panel이 핵심 측정값을 읽게 해야 한다. | 숫자와 trace 방향이 맞지 않거나, signal warning 중에도 beat-error fault를 확정 판정처럼 보이게 한다. |
+| Vario / Rate-Amplitude Stability | Vario는 min/max/average/sigma, elapsed time, current reading을 표시하고 acceptable range와 measured values를 구분해야 한다(line 286-295). | clean, noisy, weak | clean 장기 통계와 noisy/weak 통계를 비교한다. noisy/weak에서는 min/max spread와 sigma 증가가 보일 수 있으며, warning 구간 통계는 clean stability와 직접 비교하지 않는다고 설명한다. | warning 구간의 통계가 clean quality summary와 구분되지 않거나 acceptable range와 measured values를 읽을 수 없다. |
+| Long-Term | Long-Term Performance Graph는 rate, amplitude, beat error의 extended-period 변화, average, typical variation range를 보여야 한다(line 338-346). | clean, noisy, transient | clean 반복 재생 또는 longer manual run에서 average/variation range를 확인한다. noisy fixture는 variation이 장기 추세 해석을 오염시킬 수 있음을 설명한다. transient fixture는 bad 앞부분과 clean 뒷부분이 같은 장기 summary에 섞일 때 주의가 필요함을 보여준다. | bad 구간이 장기 average에 섞였는데도 warning context 없이 clean trend처럼 해석된다. |
+| Sweep | Scope Mode는 fixed sweep window에서 beat pattern 안정성을 보여주고 fast/slow일 때 drift를 보여야 한다(line 392-400). | clean, noisy, weak, SNR 25/30/35 | clean과 SNR 35/30/25 dB 순서로 pattern stability와 noise floor를 비교한다. noisy/weak drift처럼 보이는 현상은 sync 불안정 또는 signal-quality 문제와 구분해 설명한다. | signal-quality warning 중 drift를 watch fault로 단정하거나, SNR 차이가 sweep/noise floor에서 전혀 구분되지 않는다. |
+| Escapement | Escapement Analyzer는 waveform, A/C timing markers, ms labels를 통해 fine-grained beat timing과 onset/peak alternative를 비교하게 해야 한다(line 348-358). | false-C, weak, transient | false-C/weak에서 우측 상단 overlay가 Beat Noise와 같은 warning text를 보여야 한다. C marker가 waveform feature와 어긋나면 repeatability sample로 확정하지 않고 confidence 낮음/status guidance와 연결한다. transient는 clean 전환 뒤 overlay fade-out을 확인한다. | warning이 Beat Noise와 다르거나, 의심 C marker를 정상 repeatability sample처럼 처리한다. |
+| Positions | Position testing은 standard positions를 식별하고, 포지션별 rate/amplitude/beat error 및 sequence summary를 보여야 한다(line 252-260, 296-304). | clean + 동일 fixture를 position별로 수동 전환, noisy/weak | 같은 fixture를 재생하며 active position을 바꿔 결과가 현재 position에 연결되는지 확인한다. noisy/weak로 기록한 position은 실제 자세별 성능 차이가 아니라 signal-quality 문제일 수 있음을 표시/설명한다. | active position과 결과가 연결되지 않거나, weak/noisy position 결과를 clean position과 같은 신뢰도로 비교한다. |
+| Beat Noise | Beat-Noise Scope는 Scope 1/2로 beat noise shape, timing, repeatability를 검사하고 A/C marker, selectable strips, Σ averaging을 제공해야 한다(line 306-319). | false-C, weak, noisy, transient | false-C fixture에서 `POSSIBLE FALSE C` 또는 `C TIMING UNSTABLE`, weak fixture에서 `WEAK SIGNAL` 또는 C marker 부재/불안정을 확인한다. Scope 1 A/C marker가 의심 C를 clean C처럼 보이게 하지 않고, Scope 2 Σ averaging은 random noise 감소 목적으로 설명된다. transient는 warning이 나타난 뒤 clean update 10회 유지, 100회에서 소거되는지 확인한다. | 빈/초기 상태에 `WEAK SIGNAL`이 뜨거나, strip 선택/확대 후 warning context가 사라지거나, transient clean 구간에서도 warning이 영구적으로 남는다. |
+| Waveforms | Waveform Comparison은 aligned lanes에서 shape, spacing, consistency와 timing landmarks를 비교하고 rate/beat error/BPH 같은 context를 함께 보여야 한다(line 377-387). | false-C, weak, noisy, transient | false-C/weak에서 우측 상단 overlay와 lane label의 signal-quality warning을 확인한다. `PossibleFalseC` beat는 mean-C guide에서 제외되어야 한다. lane 간 shape/spacing inconsistency는 noise 또는 weak signal 가능성과 연결한다. transient clean 구간에서는 overlay가 fade-out한다. | possible-false-C beat가 mean-C guide에 포함되거나, lane warning과 top/status warning이 서로 다르다. |
+| Filter Scope / F0-F3 | Filter Scope는 같은 신호를 F0-F3로 비교해 raw waveform, smoothing, rising-slope emphasis, feature detection을 돕고 저신호 성분이 덜 보일 수 있음을 설명해야 한다(line 402-419). | clean, noisy, weak, SNR 25/30/35 | 네 filter view가 같은 input/time axis를 공유한다. F0는 closest raw representation, F1은 noise smoothing, F2/F3는 T1/T2/T3 feature emphasis로 설명한다. SNR 25/30/35에서는 noise floor 차이가 filter별로 어떻게 줄거나 강조되는지 비교한다. | filter view 간 time axis가 맞지 않거나, smoothing/emphasis를 원신호 자체로 오해하게 만든다. |
+| Sound Print | Sound Print/Sound Graph는 raw 또는 processed watch signal과 A/C event markers를 sample-level로 보여 signal tracking consistency와 sample-rate resolution을 이해하게 해야 한다(line 127-139, 229-236). | clean, noisy, weak, clipping, SNR 25/30/35 | clean baseline 뒤 noisy/SNR/clipping을 바꿔가며 raw/processed signal, A/C marker consistency, noise floor, clipped flat tops를 비교한다. pause/review 후에도 마지막 warning 문맥을 설명할 수 있어야 한다. | clipping fixture가 flat-top처럼 보이지 않거나, noisy/weak인데 marker tracking을 clean처럼 보이게 한다. |
+| Spectrogram | Spectrogram은 time-frequency energy, repeated beat patterns, important acoustic components, color intensity legend를 보여야 한다(line 363-375). | clean, noisy, clipping, SNR 25/30/35 | clean의 반복 beat energy와 noisy/SNR 25 dB의 background energy, clipping의 high-energy/saturation risk를 비교한다. spectrogram은 rate/amplitude 확정 판정이 아니라 signal-quality cross-check로 사용한다. | color intensity 차이가 해석되지 않거나, spectrogram만으로 rate/amplitude를 확정한다. |
 ## Overlay Fade 규칙
 
 그래프가 clean하지 않은 `SignalQualityFlags` 값을 받으면 overlay는 가장 최근 warning을
@@ -317,6 +321,17 @@ detected_bph=43200
 sync_status=Synced
 results include Error Rate, Amplitude, Beat Error, and BPH 43200
 ```
+
+추가로, 회복 동작과 clipping 시각 확인에는 다음 28800 BPH fixture를 사용한다.
+
+```text
+manual-fixtures/28800BPH_transient_falseC_then_clean_192000Hz.wav
+manual-fixtures/28800BPH_clipping_gain_high_192000Hz.wav
+```
+
+`28800BPH_transient_falseC_then_clean_192000Hz.wav`는 앞 2초를 weak/missing-C 조건으로 두고 이후 clean reference로 전환한다. GUI에서는 warning이 먼저 나타나고 clean frame이 들어온 뒤 overlay fade 규칙에 따라 사라져야 한다. Headless verifier 기준은 `detected_bph=28800`, `sync_status=Synced`, 최종 amplitude 약 `270°`다.
+
+`28800BPH_clipping_gain_high_192000Hz.wav`는 clean reference를 high gain으로 증폭한 뒤 hard clipping해 flat-top waveform이 Sound Print, Scope, Filter Scope에서 눈으로 보이도록 만든 입력이다. Headless verifier 기준은 `detected_bph=28800`, `sync_status=Synced`, amplitude 약 `262°`다.
 
 ## 수동 검증
 
