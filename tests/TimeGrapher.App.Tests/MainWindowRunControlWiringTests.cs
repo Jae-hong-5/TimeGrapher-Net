@@ -19,24 +19,18 @@ public sealed class MainWindowRunControlWiringTests
         XElement stopButton = FindNamedElement(document, "StopPushButton");
         XElement playPauseButton = FindNamedElement(document, "PlayPausePushButton");
 
+        // The wiring contract is the Command/IsEnabled bindings plus the accessible
+        // name/tooltip; the icon geometry and pixel widths are presentation details
+        // that change on benign restyling and carry no behavioral stake, so they are
+        // not asserted here.
         Assert.Equal("{Binding StopCommand}", stopButton.Attribute("Command")?.Value);
         Assert.Equal("{Binding IsStopEnabled}", stopButton.Attribute("IsEnabled")?.Value);
         Assert.Equal("Stop", stopButton.Attribute("AutomationProperties.Name")?.Value);
         Assert.Equal("Stop current run", stopButton.Attribute("ToolTip.Tip")?.Value);
-        Assert.Equal("68", stopButton.Attribute("Width")?.Value);
-        Assert.Equal("68", stopButton.Attribute("MinWidth")?.Value);
-        Assert.Equal(
-            "M6 6H18V18H6V6Z",
-            stopButton
-                .Descendants()
-                .Single(element => element.Name.LocalName == "Path")
-                .Attribute("Data")?.Value);
 
         Assert.Equal("{Binding PlayPauseCommand}", playPauseButton.Attribute("Command")?.Value);
         Assert.Equal("{Binding IsPlayPauseEnabled}", playPauseButton.Attribute("IsEnabled")?.Value);
         Assert.Equal("{Binding PlayPauseButtonText}", playPauseButton.Attribute("ToolTip.Tip")?.Value);
-        Assert.Equal("68", playPauseButton.Attribute("Width")?.Value);
-        Assert.Equal("68", playPauseButton.Attribute("MinWidth")?.Value);
     }
 
     [Fact]

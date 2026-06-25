@@ -62,11 +62,12 @@ public sealed class AppXamlLoadTests
             .Where(style => style.Selector?.ToString() == "Border.PositionResultBadge.pending TextBlock")
             .SelectMany(style => style.Setters)
             .OfType<Setter>()
-            .Any(setter => setter.Property == TextBlock.ForegroundProperty);
+            .Any(setter => setter.Property == TextBlock.ForegroundProperty
+                           && DynamicResourceKey(setter.Value) == "TextPrimaryBrush");
 
         Assert.True(
             pendingTextUsesPrimary,
-            "Pending badges reuse ChromeBorderBrush, so their text must use TextPrimaryBrush for contrast.");
+            "Pending badges reuse ChromeBorderBrush, so their text must bind Foreground to the TextPrimaryBrush resource for contrast.");
     }
 
     [Fact]

@@ -1,3 +1,5 @@
+using TimeGrapher.App;
+using TimeGrapher.App.Rendering;
 using TimeGrapher.App.ViewModels;
 using TimeGrapher.Core.Shared;
 using Xunit;
@@ -182,7 +184,6 @@ public sealed class MainWindowViewModelTests
         Assert.Equal(100.0, vm.Gain);
         Assert.Equal(-1, vm.SelectedInputDeviceIndex);
         Assert.Equal(-1, vm.SelectedSampleRateIndex);
-        Assert.Equal(10m, vm.AveragingPeriod);
         Assert.Equal(0, vm.SelectedBphIndex);
         Assert.Equal(52m, vm.LiftAngle);
         Assert.Equal(-1, vm.SelectedSimBphIndex);
@@ -192,8 +193,17 @@ public sealed class MainWindowViewModelTests
         Assert.True(vm.Realistic);
         Assert.Equal("200", vm.HighPassCutoffText);
         Assert.False(vm.UseCOnset);
+        Assert.False(vm.WeakAOnsetRescue);
         Assert.False(vm.PauseOnPositionChange);
         Assert.False(vm.IsMeasurementLogEnabled);
+
+        // The view-model's literal defaults must mirror the canonical Default records
+        // (the single source of truth) so an un-seeded view-model builds a run with the
+        // documented defaults. Assert the invariant against the records, not bare literals.
+        Assert.Equal((decimal)SamplingSettings.Default.AveragingPeriod, vm.AveragingPeriod);
+        Assert.Equal((decimal)AcceptBandSettings.Default.RateMinSPerDay, vm.RateAcceptMin);
+        Assert.Equal((decimal)AcceptBandSettings.Default.RateMaxSPerDay, vm.RateAcceptMax);
+        Assert.Equal((decimal)AcceptBandSettings.Default.BeatErrorMagnitudeMs, vm.BeatErrorAcceptMag);
     }
 
     [Fact]
