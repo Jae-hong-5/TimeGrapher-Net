@@ -11,7 +11,7 @@ namespace TimeGrapher.App.Tests;
 public sealed class AnalysisRunSettingsTests
 {
     private static AnalysisRunSettings NewSettings(
-        bool pllEventVeto, int analysisBlockSize = 4096, bool weakAOnsetRescue = false) => new(
+        int analysisBlockSize = 4096, bool weakAOnsetRescue = false) => new(
         SampleRate: 48000,
         LiftAngle: 52.0,
         AveragingPeriod: 2,
@@ -22,14 +22,13 @@ public sealed class AnalysisRunSettingsTests
         SoundImageWidth: 100,
         SoundImageHeight: 100,
         ScopeSnapshotPointBudget: 8000,
-        PllEventVeto: pllEventVeto,
         AnalysisBlockSize: analysisBlockSize,
         WeakAOnsetRescue: weakAOnsetRescue);
 
     [Fact]
     public void Default_DoesNotWireTheRescue()
     {
-        AnalysisWorker.Config config = NewSettings(pllEventVeto: false)
+        AnalysisWorker.Config config = NewSettings()
             .ToWorkerConfig(sessionId: 1, sampleWriter: null);
 
         Assert.Equal(0.0, config.PhaseGuideOnsetRescueScale);
@@ -38,7 +37,7 @@ public sealed class AnalysisRunSettingsTests
     [Fact]
     public void WeakAOnsetRescueOn_SetsTheRescueScale()
     {
-        AnalysisWorker.Config config = NewSettings(pllEventVeto: false, weakAOnsetRescue: true)
+        AnalysisWorker.Config config = NewSettings(weakAOnsetRescue: true)
             .ToWorkerConfig(sessionId: 1, sampleWriter: null);
 
         Assert.Equal(1.0, config.PhaseGuideOnsetRescueScale);
@@ -47,7 +46,7 @@ public sealed class AnalysisRunSettingsTests
     [Fact]
     public void AnalysisBlockSize_FlowsToWorkerConfig()
     {
-        AnalysisWorker.Config config = NewSettings(pllEventVeto: false, analysisBlockSize: 8192)
+        AnalysisWorker.Config config = NewSettings(analysisBlockSize: 8192)
             .ToWorkerConfig(sessionId: 1, sampleWriter: null);
 
         Assert.Equal(8192, config.AnalysisBlockSize);

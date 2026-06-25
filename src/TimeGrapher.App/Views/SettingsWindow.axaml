@@ -72,42 +72,6 @@
         <Grid ColumnDefinitions="*,Auto"
               HorizontalAlignment="Stretch"
               IsEnabled="{Binding AreRunParametersEnabled}">
-          <TextBlock Text="PLL Event Veto (impulse rejection)"
-                     FontWeight="Bold"
-                     HorizontalAlignment="Left"
-                     VerticalAlignment="Center" />
-          <ToggleSwitch Name="PllEventVetoToggleSwitch"
-                        Grid.Column="1"
-                        AutomationProperties.Name="PLL Event Veto (impulse rejection)"
-                        OffContent=""
-                        OnContent=""
-                        FontWeight="Bold"
-                        HorizontalAlignment="Right"
-                        IsEnabled="{Binding AreRunParametersEnabled}"
-                        IsChecked="{Binding PllEventVeto, Mode=TwoWay}"
-                        ToolTip.Tip="Reject phase-mismatched impulse events before metrics" />
-        </Grid>
-        <Grid ColumnDefinitions="*,Auto"
-              HorizontalAlignment="Stretch"
-              IsEnabled="{Binding AreRunParametersEnabled}">
-          <TextBlock Text="TinyML Bad-Data Rejection"
-                     FontWeight="Bold"
-                     HorizontalAlignment="Left"
-                     VerticalAlignment="Center" />
-          <ToggleSwitch Name="TinyMlEventGateToggleSwitch"
-                        Grid.Column="1"
-                        AutomationProperties.Name="TinyML Bad-Data Rejection"
-                        OffContent=""
-                        OnContent=""
-                        FontWeight="Bold"
-                        HorizontalAlignment="Right"
-                        IsEnabled="{Binding AreRunParametersEnabled}"
-                        IsChecked="{Binding TinyMlEventGate, Mode=TwoWay}"
-                        ToolTip.Tip="On-device ONNX signal-quality classifier; vetoes bad-data events before metrics (overrides the PLL veto)" />
-        </Grid>
-        <Grid ColumnDefinitions="*,Auto"
-              HorizontalAlignment="Stretch"
-              IsEnabled="{Binding AreRunParametersEnabled}">
           <TextBlock Text="Weak-A onset rescue"
                      FontWeight="Bold"
                      HorizontalAlignment="Left"
