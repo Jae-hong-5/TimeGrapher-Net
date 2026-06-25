@@ -85,6 +85,7 @@ This baseline is the source of most tactics below.
 | Sanity checking | Live device/sample-rate choices are probed before use. Settings loaded from JSON are validated before replacing current defaults. | `AudioCaptureWorker.cs`, `LinuxLiveAudioWorker.cs`, `AppSettingsStore.cs` | ✓ |
 | Ignore faulty input and resynchronize | Detection gaps reset affected metric accumulation, prevent stale beat-error/rate values from leaking across lock changes, and count missed beats without interpolating false data. | `WatchMetrics.cs`, `BeatMetricsHistory.cs` | ✓ |
 | Condition monitoring | Detector thresholds adapt to weak/noisy signal conditions and detect regime changes such as sudden gain shifts. This is now normal detector behavior rather than an optional UI feature. | `Detector.cs`, `AdaptiveFloorTests.cs`, `RegimeGuardTests.cs`, `AdverseScenarios.cs` | ✓ |
+| Ignore faulty behavior (acquisition) | A weak between-beat artifact near the half-beat aliases the detected BPH to 2x during acquisition (it folds in-phase at the half period and drops the median A-to-A interval below the plausibility floor). The acquisition spurious-beat gate rejects, while unsynced, a burst far weaker than the recent accepted beats so the true cadence locks. Exposed as the "Spurious beat rejection" toggle (on by default in the app; off in the library, so default detection stays bit-identical). Never runs post-lock, where the phase guide already owns onset gating. | `Detector.cs`, `TgDetector.cs`, `AcquisitionPeakGateTests.cs` | ✓ |
 
 ### 3.4 Testability
 

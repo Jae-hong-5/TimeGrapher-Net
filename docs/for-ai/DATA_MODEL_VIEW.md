@@ -42,6 +42,7 @@ class AnalysisRunSettings {
     +int ScopeSnapshotPointBudget
     +int AnalysisBlockSize
     +bool WeakAOnsetRescue
+    +bool SpuriousBeatRejection
 }
 
 class AudioSource {
@@ -427,6 +428,7 @@ class TgConfig {
     +bool SuppressPreSyncEvents
     +TgCPlacement CPlacement
     +double PhaseGuideOnsetRescueScale
+    +double AcquisitionPeakGateFraction
 }
 
 class TgResult {
@@ -489,6 +491,7 @@ class DetectorMetricsEngineConfig {
     +double HpfCutoffHz
     +double AmplitudeOnsetLatencyS
     +double PhaseGuideOnsetRescueScale
+    +double AcquisitionPeakGateFraction
 }
 
 class DetectorMetricsBlockUpdate {
@@ -645,8 +648,8 @@ BeatMetricsHistorySnapshot "1" o-- "0..*" AveragePeriodRateInterval : 완료된 
 | 엔티티 | 소속 | 의미 |
 |---|---|---|
 | `WavFile`, `WavFormatInfo`, `WavData` | `Core.AudioIo` | 영속/디코딩된 오디오 데이터. `WavData`는 `WavFileReader.ReadMonoFloat`의 전체 파일 디코딩 결과로, Verify는 이를 `DetectorMetricsEngine`에 블록 단위로 직접 공급하고 분석 벤치마크(`AnalysisBenchmarkRunner`)는 `MasterAudioBuffer`에 써넣어 `AnalysisWorker`로 흘린다. 라이브 재생은 `PlaybackWorker`가 `WavFile`을 블록 단위로 디코딩해 `MasterAudioBuffer`에 스트리밍한다(WavData 미경유). 녹음은 별도 `QueuedWavStreamWriter` 경로다. `WavFile`은 개념 노드(파일 자체). 재생/읽기 경로는 `WavAcceptanceProfile`(`RequireIeeeFloat32`·`RequireMono`·`AcceptedSampleRates`)로 지원 WAV을 게이트한다(`PlaybackFloatMonoStandardRates` 프로파일을 `WavFileReader`/`PlaybackWorker`가 사용) |
-| `AnalysisRunSettings` | `TimeGrapher.App` | 사용자가 고른 실행 파라미터(`AnalysisWorker.Config`로 변환). 적응형 floor·regime guard는 기본 동작이다. `AnalysisBlockSize`는 검출기 입력 블록(윈도우) 크기(샘플)로 `Config.AnalysisBlockSize`로 흐른다. `WeakAOnsetRescue`(App "Weak-A onset rescue" 토글)가 켜지면 `PhaseGuideOnsetRescueScale = 1.0`(꺼지면 0.0)으로 변환되어 `DetectorMetricsEngineConfig`→`TgConfig.PhaseGuideOnsetRescueScale`로 흐른다(post-lock 약한 A onset 구제) |
-| `AppSettings`, `AppSettingsStore`, `SamplingSettings`, `AcceptBandSettings`, `LeftPanelSettings`, `SettingsWindowSettings` | `TimeGrapher.App` | 사용자 UI 설정 스냅샷. `AppSettingsStore`가 `%AppData%/TimeGrapher/settings.json`(Linux/Raspberry Pi는 사용자 config 폴더의 `TimeGrapher/settings.json`) 한 파일에 저장한다. `SamplingSettings`는 설정 창 Run Parameters의 Avg. Period(초), 분석 블록 크기(검출기 입력 윈도우, 샘플), 캡처 버퍼 길이(ms)이고 실행 시작 시점에 읽혀 다음 실행부터 적용된다. `AcceptBandSettings`는 Error Rate/Amplitude/Beat Error 정상 밴드이며 변경 즉시 그래프에 live 적용된다. `LeftPanelSettings`는 좌측 패널의 입력 소스 표시명, sample rate, gain, BPH/lift angle, simulation 파라미터를 저장하고, 장치·sample rate는 시작 후 실제 목록에 matching될 때만 복원된다. `SettingsWindowSettings`는 Use C-onset, Weak-A onset rescue(기본 on), position-change pause, high-pass cutoff, measurement-log 토글을 저장한다. 누락·손상·invalid JSON은 `AppSettings.Default`로 폴백한다. Avg. Period는 완료 구간의 같은 위상 period 차이 평균을 s/24h Error Rate로 변환하고, 상단바 Amplitude와 BEAT ERROR도 같은 완료 구간의 쌍평균 진폭/절대 beat error 평균을 표시한 뒤 다음 구간 완료 전까지 유지한다. 그래프/히스토리 이벤트 시리즈는 기존 A/C 이벤트 샘플(RLS rate, 부호 beat error, tic/toc 쌍평균 진폭)을 계속 사용하고, 완료된 Error Rate 구간만 `AveragePeriodRateInterval`로 별도 보존해 Rate/Scope와 Beat Error의 Error Rate 그래프에 구간 overlay로 표시한다. 캡처 버퍼는 Windows `BufferMilliseconds`/Linux `pw-record --latency`·`arecord --buffer-time`로 매핑하며 기본값(`LiveAudioDefaults.BufferMilliseconds`)에서는 플래그를 생략해 현 동작을 보존 |
+| `AnalysisRunSettings` | `TimeGrapher.App` | 사용자가 고른 실행 파라미터(`AnalysisWorker.Config`로 변환). 적응형 floor·regime guard는 기본 동작이다. `AnalysisBlockSize`는 검출기 입력 블록(윈도우) 크기(샘플)로 `Config.AnalysisBlockSize`로 흐른다. `WeakAOnsetRescue`(App "Weak-A onset rescue" 토글)가 켜지면 `PhaseGuideOnsetRescueScale = 1.0`(꺼지면 0.0)으로 변환되어 `DetectorMetricsEngineConfig`→`TgConfig.PhaseGuideOnsetRescueScale`로 흐른다(post-lock 약한 A onset 구제). 같은 방식으로 `SpuriousBeatRejection`(App "Spurious beat rejection" 토글, 기본 on)이 켜지면 `AcquisitionPeakGateFraction = 0.35`(꺼지면 0.0)으로 변환되어 `DetectorMetricsEngineConfig`→`TgConfig.AcquisitionPeakGateFraction`로 흐른다(미동기 acquisition 구간에서 하프비트 약한 잡음을 제거해 BPH 2× alias 방지) |
+| `AppSettings`, `AppSettingsStore`, `SamplingSettings`, `AcceptBandSettings`, `LeftPanelSettings`, `SettingsWindowSettings` | `TimeGrapher.App` | 사용자 UI 설정 스냅샷. `AppSettingsStore`가 `%AppData%/TimeGrapher/settings.json`(Linux/Raspberry Pi는 사용자 config 폴더의 `TimeGrapher/settings.json`) 한 파일에 저장한다. `SamplingSettings`는 설정 창 Run Parameters의 Avg. Period(초), 분석 블록 크기(검출기 입력 윈도우, 샘플), 캡처 버퍼 길이(ms)이고 실행 시작 시점에 읽혀 다음 실행부터 적용된다. `AcceptBandSettings`는 Error Rate/Amplitude/Beat Error 정상 밴드이며 변경 즉시 그래프에 live 적용된다. `LeftPanelSettings`는 좌측 패널의 입력 소스 표시명, sample rate, gain, BPH/lift angle, simulation 파라미터를 저장하고, 장치·sample rate는 시작 후 실제 목록에 matching될 때만 복원된다. `SettingsWindowSettings`는 Use C-onset, Weak-A onset rescue(기본 on), spurious beat rejection(기본 on), position-change pause, high-pass cutoff, measurement-log 토글을 저장한다. 누락·손상·invalid JSON은 `AppSettings.Default`로 폴백한다. Avg. Period는 완료 구간의 같은 위상 period 차이 평균을 s/24h Error Rate로 변환하고, 상단바 Amplitude와 BEAT ERROR도 같은 완료 구간의 쌍평균 진폭/절대 beat error 평균을 표시한 뒤 다음 구간 완료 전까지 유지한다. 그래프/히스토리 이벤트 시리즈는 기존 A/C 이벤트 샘플(RLS rate, 부호 beat error, tic/toc 쌍평균 진폭)을 계속 사용하고, 완료된 Error Rate 구간만 `AveragePeriodRateInterval`로 별도 보존해 Rate/Scope와 Beat Error의 Error Rate 그래프에 구간 overlay로 표시한다. 캡처 버퍼는 Windows `BufferMilliseconds`/Linux `pw-record --latency`·`arecord --buffer-time`로 매핑하며 기본값(`LiveAudioDefaults.BufferMilliseconds`)에서는 플래그를 생략해 현 동작을 보존 |
 | `AudioSource` 특수화 | App 실행 모드 / Core 워커 | 라이브 마이크, WAV 재생, 합성 신호 입력. 단일 클래스가 아니라 `RunCommandMode`와 세 워커로 표현되는 개념 |
 | `LiveAudioDevice` | `Core.Shared` | 라이브 입력 장치(번호/이름) |
 | `WatchSynthStreamConfig` | `Core.Sim` | 합성 워치 스트림 설정. BPH·Error Rate·BEAT ERROR·진폭/리프트각 외에 패킷·공진·노이즈·임펄스 모델 등 다수 필드. 다이어그램은 대표 필드만 표시 |
