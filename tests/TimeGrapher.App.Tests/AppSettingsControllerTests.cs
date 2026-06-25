@@ -77,6 +77,26 @@ public sealed class AppSettingsControllerTests : IDisposable
     }
 
     [Fact]
+    public void SettingsWindowEdit_PersistsSpuriousBeatRejection()
+    {
+        // F7: flipping the spurious-beat toggle must persist. Guards that the field
+        // stays in the controller's watched-property list and the saved snapshot.
+        var viewModel = new MainWindowViewModel();
+        var persisted = new List<AppSettings>();
+        AppSettings.Current = AppSettings.Default; // SpuriousBeatRejection defaults true
+        _ = new AppSettingsController(
+            viewModel,
+            () => new AppSettingsSelection(null, 48000, 0, 28800),
+            persisted.Add);
+
+        viewModel.SpuriousBeatRejection = false;
+
+        AppSettings saved = Assert.Single(persisted);
+        Assert.False(saved.SettingsWindow.SpuriousBeatRejection);
+        Assert.Equal(saved, AppSettings.Current);
+    }
+
+    [Fact]
     public void ResetSettingsWindow_RestoresOnlySettingsWindowControls()
     {
         var viewModel = new MainWindowViewModel

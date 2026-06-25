@@ -36,6 +36,18 @@ public sealed class MainWindowRunControlWiringTests
     }
 
     [Fact]
+    public void BuildRunSettingsWiresSpuriousBeatRejectionFromViewModel()
+    {
+        // F6: the spurious-beat toggle must reach AnalysisRunSettings (and thence the
+        // acquisition gate fraction) through BuildRunSettings. The ViewModel<->XAML
+        // binding and the AnalysisRunSettings->gate-fraction mapping are tested
+        // elsewhere; this guards the BuildRunSettings call-site argument from being
+        // dropped or inverted (which neither of those tests would catch).
+        string source = File.ReadAllText(FindSourceFile("src/TimeGrapher.App/Views/MainWindow.axaml.cs"));
+        Assert.Contains("SpuriousBeatRejection: mViewModel.SpuriousBeatRejection", source);
+    }
+
+    [Fact]
     public void RunControlSurfaceDoesNotExposeLegacyResetControls()
     {
         XDocument document = XDocument.Load(FindSourceFile("src/TimeGrapher.App/Views/MainWindow.axaml"));
