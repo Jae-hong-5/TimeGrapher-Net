@@ -443,6 +443,7 @@ public partial class MainWindow : Window
             ScopeSnapshotPointBudget: InfoTabCatalog.ScopeTargetPointBudget,
             PllEventVeto: mViewModel.PllEventVeto,
             WeakAOnsetRescue: mViewModel.WeakAOnsetRescue,
+            TinyMlEventGate: mViewModel.TinyMlEventGate,
             // Normalize at the boundary so an out-of-range/off-step view-model value can
             // never size the detector input block (the controller already snaps on edit).
             AnalysisBlockSize: SamplingSettings.NormalizeAnalysisBlockSize(mViewModel.AnalysisBlockSize));

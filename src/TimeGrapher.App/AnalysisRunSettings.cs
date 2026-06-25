@@ -2,6 +2,7 @@ using TimeGrapher.App.Rendering;
 using TimeGrapher.Core.Analysis;
 using TimeGrapher.Core.AudioIo;
 using TimeGrapher.Core.Detection.Scoring;
+using TimeGrapher.Inference;
 
 namespace TimeGrapher.App;
 
@@ -18,7 +19,8 @@ internal sealed record AnalysisRunSettings(
     int ScopeSnapshotPointBudget,
     bool PllEventVeto,
     int AnalysisBlockSize,
-    bool WeakAOnsetRescue = false)
+    bool WeakAOnsetRescue = false,
+    bool TinyMlEventGate = false)
 {
     public AnalysisWorker.Config ToWorkerConfig(ulong sessionId, ISampleWriter? sampleWriter)
     {
@@ -32,9 +34,13 @@ internal sealed record AnalysisRunSettings(
             AutoBph = AutoBph,
             ManualBph = ManualBph,
             HpfCutoffHz = HpfCutoffHz,
-            // The PLL event veto stays opt-in because it trades a small recall
-            // cost for precision on impulse-contaminated streams.
-            EventGate = PllEventVeto ? new PllMatchGate() : null,
+            // Both event gates stay opt-in. The TinyML signal-quality gate (Bad
+            // Data Rejection) takes precedence over the classical PLL veto when
+            // enabled; the PLL veto trades a small recall cost for precision on
+            // impulse-contaminated streams.
+            EventGate = TinyMlEventGate ? OnnxBeatEventGate.LoadDefault()
+                      : PllEventVeto ? new PllMatchGate()
+                      : null,
             // ~1.0 removes the post-lock in-window onset hardening to catch a weak A.
             PhaseGuideOnsetRescueScale = WeakAOnsetRescue ? 1.0 : 0.0,
             SoundImageWidth = SoundImageWidth,

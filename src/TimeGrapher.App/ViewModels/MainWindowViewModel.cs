@@ -59,6 +59,7 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     private string _highPassCutoffText = "200";
     private bool _useCOnset;
     private bool _pllEventVeto;
+    private bool _tinyMlEventGate;
     private bool _weakAOnsetRescue;
     private bool _pauseOnPositionChange;
     private int _sweepMultiple = SweepFrameProjector.DefaultSweepMultiple;
@@ -280,6 +281,19 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     {
         get => _pllEventVeto;
         set => SetProperty(ref _pllEventVeto, value);
+    }
+
+    /// <summary>
+    /// TinyML signal-quality gate (Bad Data Rejection): an on-device ONNX
+    /// classifier vetoes events that do not look like good escapement beats
+    /// (handling noise, interference, spurious post-beat impulses) before they
+    /// reach the metrics. Takes precedence over the PLL veto when both are on.
+    /// Off by default.
+    /// </summary>
+    public bool TinyMlEventGate
+    {
+        get => _tinyMlEventGate;
+        set => SetProperty(ref _tinyMlEventGate, value);
     }
 
     /// <summary>

@@ -243,6 +243,7 @@ public sealed class MainWindowRunControlWiringTests
             {
                 "UseConsetToggleSwitch",
                 "PllEventVetoToggleSwitch",
+                "TinyMlEventGateToggleSwitch",
                 "WeakAOnsetRescueToggleSwitch",
                 "PauseOnPositionChangeToggleSwitch",
                 "MeasurementLogEnabledToggleSwitch",
@@ -252,6 +253,7 @@ public sealed class MainWindowRunControlWiringTests
         {
             "Use C-onset timing",
             "PLL Event Veto (impulse rejection)",
+            "TinyML Bad-Data Rejection",
             "Weak-A onset rescue",
             "Pause on position change",
             "Save measurement CSV log",
@@ -276,6 +278,7 @@ public sealed class MainWindowRunControlWiringTests
             {
                 "{Binding UseCOnset, Mode=TwoWay}",
                 "{Binding PllEventVeto, Mode=TwoWay}",
+                "{Binding TinyMlEventGate, Mode=TwoWay}",
                 "{Binding WeakAOnsetRescue, Mode=TwoWay}",
                 "{Binding PauseOnPositionChange, Mode=TwoWay}",
                 "{Binding IsMeasurementLogEnabled, Mode=TwoWay}",
