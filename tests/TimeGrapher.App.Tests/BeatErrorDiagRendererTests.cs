@@ -23,7 +23,7 @@ public sealed class BeatErrorDiagRendererTests
             BeatErrorReadout.Labels.Select(_ => new TextBlock()).ToArray(),
             "Arial");
         renderer.CreateGraphs(rateErrorYScale: 10.0, rateDataPoints: 600);
-        AssertLocksMousePanAndDragZoomY(tracePlot);
+        AssertAllowsMousePanOnly(tracePlot);
 
         var first = new AnalysisFrame();
         AddRateSeries(first, new GraphSeriesFrame
@@ -65,6 +65,7 @@ public sealed class BeatErrorDiagRendererTests
             new[] { "-432.0 s/d\n250°  0.4 ms" },
             tracePlot.Plot.GetPlottables<Text>().Where(t => t.IsVisible).Select(t => t.LabelText).ToArray());
 
+        tracePlot.Plot.Axes.SetLimitsX(0.0, RateScopeRenderer.RatePageWindowBeats / 2.0);
         tracePlot.Plot.Axes.SetLimitsY(100.0, 110.0);
         tracePlot.Plot.RenderInMemory(900, 240);
         AxisLimits limits = tracePlot.Plot.Axes.GetLimits();
@@ -102,18 +103,15 @@ public sealed class BeatErrorDiagRendererTests
         return xs[index].ToArray();
     }
 
-    private static void AssertLocksMousePanAndDragZoomY(AvaPlot plot)
+    private static void AssertAllowsMousePanOnly(AvaPlot plot)
     {
         MouseDragPan pan = plot.UserInputProcessor.UserActionResponses
             .OfType<MouseDragPan>()
             .Single();
-        MouseDragZoom zoom = plot.UserInputProcessor.UserActionResponses
-            .OfType<MouseDragZoom>()
-            .Single();
 
         Assert.True(pan.LockY);
         Assert.False(pan.LockX);
-        Assert.True(zoom.LockY);
-        Assert.False(zoom.LockX);
+        Assert.DoesNotContain(plot.UserInputProcessor.UserActionResponses, response =>
+            response is MouseWheelZoom or MouseDragZoom or MouseDragZoomRectangle);
     }
 }

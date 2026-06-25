@@ -96,12 +96,12 @@ internal static class InfoTabCatalog
         var definitions = new List<InfoTabDefinition>
         {
             new(RateScopeTabId, "Rate/Scope", InfoTabKind.RateScope, DefaultUiRefreshIntervalMs, UsesGraphSnapshots: true, RateScopeSeries),
-            // Trace Display renders the cumulative BeatMetricsHistorySnapshot the
-            // frame carries; it declares no per-frame graph-series contract.
-            new(TraceDisplayTabId, "Trace", InfoTabKind.TraceDisplay, DefaultUiRefreshIntervalMs, UsesGraphSnapshots: false, Array.Empty<GraphSeriesDefinition>()),
             // Beat Error Diag plots the per-frame tic/toc Error Rate traces and reads the
             // cumulative snapshot for its numeric panel and diagnostic rules.
             new(BeatErrorDiagTabId, "Beat Error", InfoTabKind.BeatErrorDiag, DefaultUiRefreshIntervalMs, UsesGraphSnapshots: true, BeatErrorDiagSeries),
+            // Trace Display renders the cumulative BeatMetricsHistorySnapshot the
+            // frame carries; it declares no per-frame graph-series contract.
+            new(TraceDisplayTabId, "Trace", InfoTabKind.TraceDisplay, DefaultUiRefreshIntervalMs, UsesGraphSnapshots: false, Array.Empty<GraphSeriesDefinition>()),
             // Vario stability gauges render the running stats on the same snapshot.
             new(VarioTabId, "Vario", InfoTabKind.Vario, DefaultUiRefreshIntervalMs, UsesGraphSnapshots: false, Array.Empty<GraphSeriesDefinition>()),
             // Long-Term Performance renders the cumulative BeatMetricsHistorySnapshot

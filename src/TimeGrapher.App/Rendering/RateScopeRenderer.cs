@@ -1,6 +1,7 @@
 using Avalonia.Threading;
 using ScottPlot;
 using ScottPlot.Avalonia;
+using ScottPlot.Interactivity.UserActionResponses;
 using ScottPlot.Plottables;
 using ScottPlot.Rendering;
 using TimeGrapher.App.Tabs;
@@ -122,7 +123,7 @@ internal sealed class RateScopeRenderer
         // fixed tick set that must be regenerated when the range changes).
         WireLiveFollowPan(_scopePlot, () => _scopeFollowLive = false, ScheduleScopeAxisRefresh);
         LockRatePlotInputToX(_ratePlot);
-        WireLiveFollowPan(_ratePlot, () => _rateFollowLive = false, ScheduleRateAxisRefresh);
+        WireLiveFollowPan(_ratePlot, () => _rateFollowLive = false, ScheduleRateAxisRefresh, dropOnWheel: false);
 
         GraphSeriesDefinition[] graphSeries = InfoTabCatalog.RateScope.GraphSeries.ToArray();
         _scopeSeries = graphSeries.Where(series => series.RenderMode == GraphSeriesRenderMode.Line).ToArray();
@@ -144,13 +145,20 @@ internal sealed class RateScopeRenderer
     /// and queues a coalesced redraw via <paramref name="scheduleRefresh"/>; the pane's
     /// bounds rule re-clamps the new range on the render that follows.
     /// </summary>
-    internal static void WireLiveFollowPan(AvaPlot plot, Action dropFollow, Action scheduleRefresh)
+    internal static void WireLiveFollowPan(
+        AvaPlot plot,
+        Action dropFollow,
+        Action scheduleRefresh,
+        bool dropOnWheel = true)
     {
-        plot.PointerWheelChanged += (_, _) =>
+        if (dropOnWheel)
         {
-            dropFollow();
-            scheduleRefresh();
-        };
+            plot.PointerWheelChanged += (_, _) =>
+            {
+                dropFollow();
+                scheduleRefresh();
+            };
+        }
         plot.PointerPressed += (_, _) => dropFollow();
         plot.PointerReleased += (_, _) => scheduleRefresh();
         plot.PointerMoved += (_, e) =>
@@ -165,7 +173,8 @@ internal sealed class RateScopeRenderer
     internal static void LockRatePlotInputToX(AvaPlot plot)
     {
         plot.UserInputProcessor.LeftClickDragPan(true, true, false);
-        plot.UserInputProcessor.RightClickDragZoom(true, true, false);
+        plot.UserInputProcessor.UserActionResponses.RemoveAll(response =>
+            response is MouseWheelZoom or MouseDragZoom or MouseDragZoomRectangle);
     }
 
     public void ApplyTheme(PlotThemePalette theme)
@@ -509,7 +518,7 @@ internal sealed class RateScopeRenderer
             return;
         }
 
-        if (span > maxSpan)
+        if (Math.Abs(span - maxSpan) > 1e-9)
         {
             span = maxSpan;
             right = left + span;
@@ -542,7 +551,25 @@ internal sealed class RateScopeRenderer
     public void ResetScopeView()
     {
         _scopeFollowLive = true;
-        _scopePlot.Plot.Axes.AutoScale();
+        Plot scope = _scopePlot.Plot;
+        if (_hasDataExtent)
+        {
+            double width = DefaultScopeWindowSeconds * _sampleRate;
+            double span = Math.Min(width, _dataMaxX - _dataMinX);
+            double end = _dataMaxX;
+            scope.Axes.SetLimitsX(end - span, end);
+            ReduceVisibleScope();
+            scope.Axes.AutoScaleY();
+        }
+        else
+        {
+            scope.Axes.SetLimitsY(0, 0.1);
+            double width = DefaultScopeWindowSeconds * _sampleRate;
+            if (width > 0.0)
+            {
+                scope.Axes.SetLimitsX(0.0, width);
+            }
+        }
         ApplyScopeTimeTicks();
         _scopePlot.Refresh();
     }

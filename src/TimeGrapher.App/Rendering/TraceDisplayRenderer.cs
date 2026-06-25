@@ -99,16 +99,14 @@ internal sealed class TraceDisplayRenderer
         _alertBanner = alertBanner;
         _alertText = alertText;
 
-        // A user wheel-zoom or drag-pan drops live-follow and holds the view. The
-        // right-edge limit labels are repositioned after the interaction (deferred
-        // so ScottPlot has applied the new limits) so they track the view edge even
-        // when playback is stopped and no frame re-render is coming.
-        _ratePlot.PointerWheelChanged += (_, _) => { _followLive = false; ScheduleAcceptLabelRefresh(); };
-        _ratePlot.PointerPressed += (_, _) => _followLive = false;
-        _ratePlot.PointerReleased += (_, _) => ScheduleAcceptLabelRefresh();
-        _amplitudePlot.PointerWheelChanged += (_, _) => { _followLive = false; ScheduleAcceptLabelRefresh(); };
-        _amplitudePlot.PointerPressed += (_, _) => _followLive = false;
-        _amplitudePlot.PointerReleased += (_, _) => ScheduleAcceptLabelRefresh();
+        DisableGraphInteractions(_ratePlot);
+        DisableGraphInteractions(_amplitudePlot);
+    }
+
+    private static void DisableGraphInteractions(AvaPlot plot)
+    {
+        plot.UserInputProcessor.Disable();
+        plot.Menu?.Clear();
     }
 
     // Coalescing gate for the deferred limit-label reposition after a user pan/zoom.

@@ -37,7 +37,7 @@ public sealed class RateScopeHistoryTests
         var ratePlot = new AvaPlot();
         var renderer = new RateScopeRenderer(scopePlot, ratePlot, "Arial");
         renderer.CreateGraphs(rateErrorYScale: 10.0, rateDataPoints: 600);
-        AssertLocksMousePanAndDragZoomY(ratePlot);
+        AssertAllowsMousePanOnly(ratePlot);
         renderer.ApplyTheme(new PlotThemePalette(
             SurfaceBg: 0xFF101010,
             ScopeBg: 0xFF202020,
@@ -95,6 +95,36 @@ public sealed class RateScopeHistoryTests
     }
 
     [Fact]
+    public void ResetScopeView_RestoresDefaultLiveWindow()
+    {
+        var scopePlot = new AvaPlot();
+        var renderer = new RateScopeRenderer(scopePlot, new AvaPlot(), "Arial");
+        renderer.CreateGraphs(rateErrorYScale: 10.0, rateDataPoints: 600);
+
+        var frame = new AnalysisFrame { GraphTickEnd = 48000 };
+        AddScopeSeries(frame, new GraphSeriesFrame
+        {
+            Id = AnalysisGraphSeries.ScopePcm,
+            X = new[] { 0.0, 12000.0, 24000.0, 36000.0, 48000.0 },
+            Y = new[] { 0.0, 0.05, 0.1, 0.05, 0.0 },
+            Replace = true,
+        });
+        renderer.RenderFrame(frame, new AnalysisTabRenderContext(48000));
+
+        SetPrivateField(renderer, "_scopeFollowLive", false);
+        scopePlot.Plot.Axes.SetLimitsX(0.0, 48000.0);
+        scopePlot.Plot.Axes.SetLimitsY(100.0, 110.0);
+
+        renderer.ResetScopeView();
+        AxisLimits limits = scopePlot.Plot.Axes.GetLimits();
+
+        Assert.Equal(24000.0, limits.Left);
+        Assert.Equal(48000.0, limits.Right);
+        Assert.True(limits.Bottom < 0.05);
+        Assert.True(limits.Top > 0.05);
+    }
+
+    [Fact]
     public void RenderFrame_UpdatesRatePointsAfterUserDropsRateFollow()
     {
         var scopePlot = new AvaPlot();
@@ -142,6 +172,7 @@ public sealed class RateScopeHistoryTests
             new[] { "-432.0 s/d\n250°  0.4 ms" },
             ratePlot.Plot.GetPlottables<Text>().Where(t => t.IsVisible).Select(t => t.LabelText).ToArray());
 
+        ratePlot.Plot.Axes.SetLimitsX(0.0, RateScopeRenderer.RatePageWindowBeats / 2.0);
         ratePlot.Plot.Axes.SetLimitsY(100.0, 110.0);
         ratePlot.Plot.RenderInMemory(900, 240);
         AxisLimits limits = ratePlot.Plot.Axes.GetLimits();
@@ -155,6 +186,13 @@ public sealed class RateScopeHistoryTests
     {
         typeof(AnalysisFrame)
             .GetMethod("AddRateSeries", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+            .Invoke(frame, new object[] { series });
+    }
+
+    private static void AddScopeSeries(AnalysisFrame frame, GraphSeriesFrame series)
+    {
+        typeof(AnalysisFrame)
+            .GetMethod("AddScopeSeries", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
             .Invoke(frame, new object[] { series });
     }
 
@@ -179,19 +217,16 @@ public sealed class RateScopeHistoryTests
         return xs[index].ToArray();
     }
 
-    private static void AssertLocksMousePanAndDragZoomY(AvaPlot plot)
+    private static void AssertAllowsMousePanOnly(AvaPlot plot)
     {
         MouseDragPan pan = plot.UserInputProcessor.UserActionResponses
             .OfType<MouseDragPan>()
             .Single();
-        MouseDragZoom zoom = plot.UserInputProcessor.UserActionResponses
-            .OfType<MouseDragZoom>()
-            .Single();
 
         Assert.True(pan.LockY);
         Assert.False(pan.LockX);
-        Assert.True(zoom.LockY);
-        Assert.False(zoom.LockX);
+        Assert.DoesNotContain(plot.UserInputProcessor.UserActionResponses, response =>
+            response is MouseWheelZoom or MouseDragZoom or MouseDragZoomRectangle);
     }
 
     [Fact]

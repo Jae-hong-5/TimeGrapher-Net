@@ -59,7 +59,8 @@ internal sealed class BeatErrorDiagRenderer
         RateScopeRenderer.WireLiveFollowPan(
             _tracePlot,
             () => _rateFollowLive = false,
-            ScheduleRateAxisRefresh);
+            ScheduleRateAxisRefresh,
+            dropOnWheel: false);
 
         _rateSeries = InfoTabCatalog.Get(InfoTabCatalog.BeatErrorDiagTabId).GraphSeries.ToArray();
         _rateX = new List<double>[_rateSeries.Length];
