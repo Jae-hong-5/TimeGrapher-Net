@@ -72,12 +72,12 @@ internal sealed class ScopeSweepRenderer
     private ulong _lastReadoutSegmentVersion;
     private bool _followLive = true;
 
-    // Canonical "initial output" view captured at each live fit (and on a window
-    // change). X spans [XPreRollMs, _viewWindowMs] and Y is locked to
-    // [_viewYMin, _viewYMax]. SweepViewRule enforces these on every render, so a
-    // mouse zoom acts on X only (Y is held), zoom-out cannot pass the full
-    // window, and Reset/AutoScale restores exactly this captured view. False
-    // until the first fit has data.
+    // Canonical "initial output" view. Y ([_viewYMin, _viewYMax]) is captured on
+    // the first fit and on Reset/AutoScale only; live follow and 1x/2x/4x changes
+    // keep it and re-fit just the X window ([XPreRollMs, _viewWindowMs]), so
+    // toggling the multiple never rescales Y. SweepViewRule enforces these on
+    // every render, so a mouse zoom acts on X only (Y is held) and zoom-out
+    // cannot pass the full window. False until the first fit has data.
     private double _viewWindowMs;
     private double _viewYMin;
     private double _viewYMax;
@@ -158,9 +158,9 @@ internal sealed class ScopeSweepRenderer
     }
 
     /// <summary>
-    /// Re-arms live auto-fitting and restores the captured canonical view, so
-    /// AutoScale reproduces the initial graph output exactly (the same
-    /// <see cref="FitCanonicalView"/> path the live fit uses).
+    /// Re-arms live auto-fitting and re-captures the canonical view via
+    /// <see cref="FitCanonicalView"/> (the one place, with the first fit, that
+    /// re-autoscales Y), so AutoScale reproduces the initial graph output.
     /// </summary>
     public void ResetView()
     {
@@ -201,6 +201,25 @@ internal sealed class ScopeSweepRenderer
         return true;
     }
 
+    /// <summary>
+    /// Re-fits only the X window to the current data ([XPreRollMs, window]) while
+    /// keeping the already-captured Y, so live follow and a 1x/2x/4x change move
+    /// the X window without rescaling Y. Returns false before any sweep data
+    /// exists.
+    /// </summary>
+    private bool FitXKeepY()
+    {
+        double windowMs = ScopeSweepReadout.WindowMs(_sweepX);
+        if (windowMs <= 0)
+        {
+            return false;
+        }
+
+        _viewWindowMs = windowMs;
+        _sweepPlot.Plot.Axes.SetLimits(XPreRollMs, windowMs, _viewYMin, _viewYMax);
+        return true;
+    }
+
     public void RenderFrame(AnalysisFrame frame, AnalysisTabRenderContext context)
     {
         GraphSeriesFrame? sweepSeries = SeriesDataReducer.FindSeries(frame.ScopeSeries, AnalysisGraphSeries.SweepTrace);
@@ -211,8 +230,9 @@ internal sealed class ScopeSweepRenderer
             _lastSweepSeries = sweepSeries;
             _ticPhaseOffsetMs = sweepSeries!.TicPhaseOffsetMs;
 
-            // Re-arm live fitting when the window size changes (1x/2x/3x pressed)
-            // so the view snaps to [0, new window] even if the user had panned.
+            // Re-arm live fitting when the window size changes (1x/2x/4x pressed)
+            // so the X view snaps to the new window even if the user had panned.
+            // Y is kept (FitXKeepY), so a multiple change does not rescale Y.
             double windowMs = ScopeSweepReadout.WindowMs(_sweepX);
             if (Math.Abs(windowMs - _lastWindowMs) > 0.001)
             {
@@ -240,7 +260,17 @@ internal sealed class ScopeSweepRenderer
 
         if (dataUpdated && _followLive)
         {
-            FitCanonicalView();
+            // First fit captures the canonical Y (autoscale). After that, live
+            // follow and 1x/2x/4x changes only re-fit the X window and KEEP the
+            // captured Y, so toggling the sweep multiple never rescales Y.
+            if (_hasView)
+            {
+                FitXKeepY();
+            }
+            else
+            {
+                FitCanonicalView();
+            }
         }
 
         UpdateReferenceLine(frame.MetricsHistory, frame.BeatSegments);
