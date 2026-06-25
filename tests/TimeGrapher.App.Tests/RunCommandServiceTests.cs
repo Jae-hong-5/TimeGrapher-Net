@@ -179,6 +179,7 @@ public sealed class RunCommandServiceTests
         Assert.Equal(1, operations.CloseAudioCalls);
         Assert.Equal(1, operations.InvalidateRunSessionCalls);
         Assert.Equal(0, operations.RestorePlaybackOrSimulationAudioStateCalls);
+        Assert.Equal(1, operations.ResetRunStateCalls);
         Assert.Equal(RunUiState.Stopped, vm.RunState);
         Assert.Equal("Stopped", vm.StatusText);
         Assert.False(vm.IsSampleRateEnabled);
@@ -248,7 +249,7 @@ public sealed class RunCommandServiceTests
     [InlineData((int)RunCommandMode.Playback, 2, "Playback")]
     [InlineData((int)RunCommandMode.Simulation, 3, "Simulation")]
     [InlineData((int)RunCommandMode.Live, 1, "Live: Mic B")]
-    public void StopWithoutResetKeepsSelectedInputDevice(
+    public void StopClearsRunStateWithoutRefreshingDevicesAndKeepsSelectedInputDevice(
         int mode,
         int selectedIndex,
         string expectedSelection)
@@ -269,7 +270,7 @@ public sealed class RunCommandServiceTests
         Assert.Equal(
             expectedSelection,
             MainWindowSelectionCoordinator.ItemText(vm.InputDeviceNames, vm.SelectedInputDeviceIndex));
-        Assert.Equal(0, operations.ResetRunStateCalls);
+        Assert.Equal(1, operations.ResetRunStateCalls);
         Assert.Equal(0, operations.RefreshDevicesCalls);
     }
 
@@ -536,7 +537,7 @@ public sealed class RunCommandServiceTests
     }
 
     [Fact]
-    public void StopRetryAfterFailedPausedResetDoesNotCompleteThePendingReset()
+    public void StopRetryAfterFailedPausedResetClearsRunStateWithoutCompletingReset()
     {
         MainWindowViewModel vm = CreateViewModel();
         vm.SetPaused();
@@ -554,7 +555,7 @@ public sealed class RunCommandServiceTests
         Assert.Equal(2, operations.StopLiveCalls);
         Assert.Equal(1, operations.CloseAudioCalls);
         Assert.Equal(1, operations.InvalidateRunSessionCalls);
-        Assert.Equal(0, operations.ResetRunStateCalls);
+        Assert.Equal(1, operations.ResetRunStateCalls);
         Assert.Equal(0, operations.RefreshDevicesCalls);
         Assert.Equal(RunUiState.Stopped, vm.RunState);
         Assert.Equal("Stopped", vm.StatusText);

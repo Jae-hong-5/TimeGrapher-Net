@@ -187,7 +187,17 @@ public sealed class BeatMetricsHistory
 
         if (update.AveragePeriodRateIntervalUpdated)
         {
-            _averagePeriodRateIntervals.Add(update.AveragePeriodRateInterval);
+            AveragePeriodRateInterval interval = update.AveragePeriodRateInterval;
+            if (_averagePeriodRateIntervals.Count > 0 &&
+                IsSameAveragePeriodInterval(_averagePeriodRateIntervals[^1], interval))
+            {
+                _averagePeriodRateIntervals[^1] = interval;
+            }
+            else
+            {
+                _averagePeriodRateIntervals.Add(interval);
+            }
+
             if (_averagePeriodRateIntervals.Count > MaxAveragePeriodRateIntervals)
             {
                 _averagePeriodRateIntervals.RemoveRange(
@@ -313,6 +323,16 @@ public sealed class BeatMetricsHistory
         public readonly RunningStats Rate = new();
         public readonly RunningStats Amplitude = new();
         public readonly RunningStats BeatError = new();
+    }
+
+    private static bool IsSameAveragePeriodInterval(
+        AveragePeriodRateInterval left,
+        AveragePeriodRateInterval right)
+    {
+        return left.StartBeatIndex == right.StartBeatIndex &&
+            left.EndBeatIndex == right.EndBeatIndex &&
+            left.StartTimeS == right.StartTimeS &&
+            left.EndTimeS == right.EndTimeS;
     }
 
     private PositionAggregate ActiveAggregate()

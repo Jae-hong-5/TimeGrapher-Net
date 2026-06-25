@@ -26,8 +26,8 @@ internal readonly record struct PlotThemePalette(
     uint VarioGood = 0xFF0072B2,
     uint VarioWarn = 0xFFB06A00,
     uint VarioBad = 0xFFC03030,
-    uint AveragePeriodOverlayFill = 0xFFC8C8C8,
-    uint AveragePeriodOverlayAlternateFill = 0xFFE0E0E0)
+    uint AveragePeriodOverlayFill = 0xFF9A9A9A,
+    uint AveragePeriodOverlayAlternateFill = 0xFFC4C4C4)
 {
     /// <summary>
     /// True when the scope background is light, so image-based tabs (the

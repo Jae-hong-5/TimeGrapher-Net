@@ -139,13 +139,16 @@ public sealed class WatchMetricsDerivedMeasuresTests
             AveragingPeriod = 3,
         });
         const double bph = 7200.0;
+        double cOffsetMs = AToCOffsetMsForAmplitude(bph, 104.0);
         double sample = 0.0;
         WatchMetricsUpdate latestA = metrics.HandleAEvent(sample, true, bph);
+        _ = metrics.HandleCEvent(sample + cOffsetMs / 1000.0 * SampleRate, true, bph);
 
         for (int i = 0; i < 7; i++)
         {
             sample += 490.0 / 1000.0 * SampleRate;
             latestA = metrics.HandleAEvent(sample, true, bph);
+            _ = metrics.HandleCEvent(sample + cOffsetMs / 1000.0 * SampleRate, true, bph);
         }
 
         Assert.True(latestA.AveragePeriodRateIntervalUpdated);
@@ -155,6 +158,10 @@ public sealed class WatchMetricsDerivedMeasuresTests
         Assert.Equal(0.0, interval.StartTimeS);
         Assert.Equal(3.0, interval.EndTimeS);
         Assert.Equal(1728.0, interval.RateSPerDay, 6);
+        Assert.True(interval.AmplitudeValid);
+        Assert.Equal(104.0, interval.AmplitudeDeg, 6);
+        Assert.True(interval.BeatErrorValid);
+        Assert.Equal(0.0, interval.BeatErrorMs, 6);
     }
 
     [Fact]

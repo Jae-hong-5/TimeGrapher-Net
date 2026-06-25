@@ -44,8 +44,8 @@ public sealed class RateScopeHistoryTests
             TraceWave: 0xFF404040,
             TraceTick: 0xFF112233,
             TraceTock: 0xFF445566,
-            AveragePeriodOverlayFill: 0xFFB8B8B8,
-            AveragePeriodOverlayAlternateFill: 0xFFE8E8E8));
+            AveragePeriodOverlayFill: 0xFF9A9A9A,
+            AveragePeriodOverlayAlternateFill: 0xFFC4C4C4));
 
         var frame = new AnalysisFrame
         {
@@ -53,8 +53,14 @@ public sealed class RateScopeHistoryTests
             {
                 AveragePeriodRateIntervals = new[]
                 {
-                    new AveragePeriodRateInterval(0.0, 4.0, 0.0, 3.0, 1728.0),
-                    new AveragePeriodRateInterval(4.0, 8.0, 3.0, 6.0, -864.0),
+                    new AveragePeriodRateInterval(
+                        0.0, 4.0, 0.0, 3.0, 1728.0,
+                        AmplitudeValid: true, AmplitudeDeg: 280.0,
+                        BeatErrorValid: true, BeatErrorMs: 0.2),
+                    new AveragePeriodRateInterval(
+                        4.0, 8.0, 3.0, 6.0, -864.0,
+                        AmplitudeValid: false, AmplitudeDeg: 0.0,
+                        BeatErrorValid: false, BeatErrorMs: 0.0),
                 },
             },
         };
@@ -74,10 +80,16 @@ public sealed class RateScopeHistoryTests
         Assert.Equal(4.0, spans[0].X2);
         Assert.Equal(4.0, spans[1].X1);
         Assert.Equal(8.0, spans[1].X2);
-        Assert.Equal(Color.FromARGB(0xFFB8B8B8).WithAlpha(34), spans[0].FillStyle.Color);
-        Assert.Equal(Color.FromARGB(0xFFE8E8E8).WithAlpha(34), spans[1].FillStyle.Color);
+        Assert.Equal(Color.FromARGB(0xFF9A9A9A).WithAlpha(72), spans[0].FillStyle.Color);
+        Assert.Equal(Color.FromARGB(0xFFC4C4C4).WithAlpha(72), spans[1].FillStyle.Color);
         Text[] labels = ratePlot.Plot.GetPlottables<Text>().Where(t => t.IsVisible).ToArray();
-        Assert.Equal(new[] { "+1728.0 s/d", "-864.0 s/d" }, labels.Select(t => t.LabelText).ToArray());
+        Assert.Equal(
+            new[]
+            {
+                "ER +1728.0 s/d\nAMP 280°  BE 0.2 ms",
+                "ER -864.0 s/d\nAMP ---°  BE ---- ms",
+            },
+            labels.Select(t => t.LabelText).ToArray());
     }
 
     private static void AddRateSeries(AnalysisFrame frame, GraphSeriesFrame series)

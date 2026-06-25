@@ -20,7 +20,11 @@ public readonly record struct AveragePeriodRateInterval(
     double EndBeatIndex,
     double StartTimeS,
     double EndTimeS,
-    double RateSPerDay);
+    double RateSPerDay,
+    bool AmplitudeValid,
+    double AmplitudeDeg,
+    bool BeatErrorValid,
+    double BeatErrorMs);
 
 /// <summary>
 /// Running min/max/mean/population-sigma summary of one measure since

@@ -71,6 +71,8 @@ public sealed class WatchMetrics
     private int _rateWindowDeltaCount = 0;
     private readonly double[] _lastRatePhaseEventS = { 0.0, 0.0 };
     private readonly bool[] _haveRatePhaseEvent = { false, false };
+    private bool _haveAveragePeriodRateInterval = false;
+    private AveragePeriodRateInterval _lastAveragePeriodRateInterval;
     private int _bph = 0;
     private bool _bphValid = false;
     private int _beatsPerSecondWindow = 0;
@@ -174,6 +176,8 @@ public sealed class WatchMetrics
         ResetRateWindow();
         _haveRatePhaseEvent[Tic] = false;
         _haveRatePhaseEvent[Toc] = false;
+        _haveAveragePeriodRateInterval = false;
+        _lastAveragePeriodRateInterval = default;
     }
 
     private void ResetGraphRate()
@@ -222,7 +226,7 @@ public sealed class WatchMetrics
         {
             return update;
         }
-        ComputeBeatError(eventSample);
+        ComputeBeatError(eventSample, update);
 
         if (_haveStartTime && _bphValid)
         {
@@ -281,7 +285,7 @@ public sealed class WatchMetrics
 
         update.SetCMarkerText(FormatCMarkerText(beatTimeSeconds, haveValidBph, bph));
 
-        ComputeAmplitude(eventSample, bph);
+        ComputeAmplitude(eventSample, bph, update);
         update.SetResults(FormatResults());
 
         if (_lastAmplitudeInstValid || _lastAmplitudePairUpdated)
@@ -599,12 +603,18 @@ public sealed class WatchMetrics
             double averageDeltaS = _rateWindowDeltaSumS / _rateWindowDeltaCount;
             _displayRateSPerDay = -(averageDeltaS / nominalSamePhasePeriodS) * 86400.0;
             _displayRateValid = true;
-            update.SetAveragePeriodRateInterval(new AveragePeriodRateInterval(
+            _lastAveragePeriodRateInterval = new AveragePeriodRateInterval(
                 intervalStartGraphX,
                 intervalEndGraphX,
                 intervalStartS,
                 intervalStartS + periodS,
-                _displayRateSPerDay));
+                _displayRateSPerDay,
+                _displayAmplitudeValid,
+                _displayAmplitudeDeg,
+                _displayBeatErrorValid,
+                _displayBeatErrorMs);
+            _haveAveragePeriodRateInterval = true;
+            update.SetAveragePeriodRateInterval(_lastAveragePeriodRateInterval);
         }
         else
         {
@@ -635,8 +645,9 @@ public sealed class WatchMetrics
         return Math.Abs(intervalS - expectedS) < expectedS * 0.5;
     }
 
-    private void ComputeBeatError(double eventSample)
+    private void ComputeBeatError(double eventSample, WatchMetricsUpdate update)
     {
+        bool displayAverageCompleted = false;
         _beatErrorTimes[_beatErrorIdx] = eventSample;
         _beatErrorIdx++;
         if (_beatErrorIdx == 3)
@@ -648,7 +659,9 @@ public sealed class WatchMetrics
 
             if (_haveStartTime && IsSingleBeatInterval(t1) && IsSingleBeatInterval(t2))
             {
-                AccumulateDisplayBeatErrorAverage(eventSample / (double)_config.SampleRate, _beatErrorMs);
+                displayAverageCompleted |= AccumulateDisplayBeatErrorAverage(
+                    eventSample / (double)_config.SampleRate,
+                    _beatErrorMs);
                 // The window start's phase equals the current event's phase (the
                 // window advances two beats per completion), so a tic-start window
                 // makes t1 the tick duration and t2 the tock duration; normalize
@@ -677,23 +690,28 @@ public sealed class WatchMetrics
 
         if (_haveStartTime)
         {
-            CompleteDisplayBeatErrorWindows(eventSample / (double)_config.SampleRate);
+            displayAverageCompleted |= CompleteDisplayBeatErrorWindows(eventSample / (double)_config.SampleRate);
+        }
+
+        if (displayAverageCompleted)
+        {
+            RefreshAveragePeriodRateInterval(update);
         }
     }
 
-    private void AccumulateDisplayBeatErrorAverage(double eventTimeS, double beatErrorMs)
+    private bool AccumulateDisplayBeatErrorAverage(double eventTimeS, double beatErrorMs)
     {
         _displayBeatErrorWindowSumMs += beatErrorMs;
         _displayBeatErrorWindowCount++;
-        CompleteDisplayBeatErrorWindows(eventTimeS);
+        return CompleteDisplayBeatErrorWindows(eventTimeS);
     }
 
-    private void CompleteDisplayBeatErrorWindows(double eventTimeS)
+    private bool CompleteDisplayBeatErrorWindows(double eventTimeS)
     {
         int periodS = AveragingPeriodS();
         if (eventTimeS - _displayBeatErrorWindowStartS < periodS)
         {
-            return;
+            return false;
         }
 
         if (_displayBeatErrorWindowCount > 0)
@@ -714,10 +732,12 @@ public sealed class WatchMetrics
         while (eventTimeS - _displayBeatErrorWindowStartS >= periodS);
 
         ResetDisplayBeatErrorWindow();
+        return true;
     }
 
-    private void ComputeAmplitude(double eventSample, double bph)
+    private void ComputeAmplitude(double eventSample, double bph, WatchMetricsUpdate update)
     {
+        bool displayAverageCompleted = false;
         _lastAmplitudeInstValid = false;
         _lastAmplitudePairUpdated = false;
 
@@ -752,7 +772,7 @@ public sealed class WatchMetrics
                         _amplitudeTicValid = false;
                         _lastAmplitudePairUpdated = true;
                         _lastAmplitudePairDeg = averageAmplitudeTicToc;
-                        AccumulateDisplayAmplitudeAverage(
+                        displayAverageCompleted |= AccumulateDisplayAmplitudeAverage(
                             eventSample / (double)_config.SampleRate,
                             averageAmplitudeTicToc);
                     }
@@ -763,23 +783,28 @@ public sealed class WatchMetrics
                 _amplitudeTicValid = false;
             }
 
-            CompleteDisplayAmplitudeWindows(eventSample / (double)_config.SampleRate);
+            displayAverageCompleted |= CompleteDisplayAmplitudeWindows(eventSample / (double)_config.SampleRate);
+        }
+
+        if (displayAverageCompleted)
+        {
+            RefreshAveragePeriodRateInterval(update);
         }
     }
 
-    private void AccumulateDisplayAmplitudeAverage(double eventTimeS, double amplitudeDeg)
+    private bool AccumulateDisplayAmplitudeAverage(double eventTimeS, double amplitudeDeg)
     {
         _displayAmplitudeWindowSumDeg += amplitudeDeg;
         _displayAmplitudeWindowCount++;
-        CompleteDisplayAmplitudeWindows(eventTimeS);
+        return CompleteDisplayAmplitudeWindows(eventTimeS);
     }
 
-    private void CompleteDisplayAmplitudeWindows(double eventTimeS)
+    private bool CompleteDisplayAmplitudeWindows(double eventTimeS)
     {
         int periodS = AveragingPeriodS();
         if (eventTimeS - _displayAmplitudeWindowStartS < periodS)
         {
-            return;
+            return false;
         }
 
         if (_displayAmplitudeWindowCount > 0)
@@ -800,6 +825,24 @@ public sealed class WatchMetrics
         while (eventTimeS - _displayAmplitudeWindowStartS >= periodS);
 
         ResetDisplayAmplitudeWindow();
+        return true;
+    }
+
+    private void RefreshAveragePeriodRateInterval(WatchMetricsUpdate update)
+    {
+        if (!_haveAveragePeriodRateInterval)
+        {
+            return;
+        }
+
+        _lastAveragePeriodRateInterval = _lastAveragePeriodRateInterval with
+        {
+            AmplitudeValid = _displayAmplitudeValid,
+            AmplitudeDeg = _displayAmplitudeDeg,
+            BeatErrorValid = _displayBeatErrorValid,
+            BeatErrorMs = _displayBeatErrorMs,
+        };
+        update.SetAveragePeriodRateInterval(_lastAveragePeriodRateInterval);
     }
 
     private string FormatCMarkerText(double beatTimeSeconds, bool haveValidBph, double bph)

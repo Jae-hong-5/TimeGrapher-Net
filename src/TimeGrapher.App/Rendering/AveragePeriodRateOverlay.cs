@@ -7,7 +7,7 @@ namespace TimeGrapher.App.Rendering;
 
 internal sealed class AveragePeriodRateOverlay
 {
-    private const byte FillAlpha = 34;
+    private const byte FillAlpha = 72;
     private const double LabelTopPaddingFraction = 0.08;
 
     private readonly string _fontFamily;
@@ -66,7 +66,7 @@ internal sealed class AveragePeriodRateOverlay
             span.X2 = end;
             span.IsVisible = true;
 
-            label.LabelText = FormatRate(interval.RateSPerDay);
+            label.LabelText = FormatLabel(interval);
             label.Location = new Coordinates((start + end) * 0.5, labelY);
             label.IsVisible = true;
             ApplyTheme(span, label, used);
@@ -110,5 +110,29 @@ internal sealed class AveragePeriodRateOverlay
     {
         string sign = rateSPerDay < 0.0 ? "-" : "+";
         return sign + Math.Abs(rateSPerDay).ToString("F1", CultureInfo.InvariantCulture) + " s/d";
+    }
+
+    private static string FormatLabel(AveragePeriodRateInterval interval)
+    {
+        return "ER " + FormatRate(interval.RateSPerDay) + "\n" +
+               "AMP " + FormatAmplitude(interval) + "  BE " + FormatBeatError(interval);
+    }
+
+    private static string FormatAmplitude(AveragePeriodRateInterval interval)
+    {
+        if (!interval.AmplitudeValid)
+        {
+            return "---°";
+        }
+
+        long rounded = (long)Math.Round(interval.AmplitudeDeg, MidpointRounding.AwayFromZero);
+        return rounded.ToString(CultureInfo.InvariantCulture) + "°";
+    }
+
+    private static string FormatBeatError(AveragePeriodRateInterval interval)
+    {
+        return interval.BeatErrorValid
+            ? interval.BeatErrorMs.ToString("F1", CultureInfo.InvariantCulture) + " ms"
+            : "---- ms";
     }
 }

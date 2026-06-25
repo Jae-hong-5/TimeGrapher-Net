@@ -281,6 +281,11 @@ internal sealed partial class RunCommandService : IRunCommandRunner, IRunCommand
             return;
         }
 
+        if (intent == PendingStopIntent.StopOnly)
+        {
+            _operations.ResetRunState();
+        }
+
         if (intent == PendingStopIntent.RefreshDevicesAfterStop)
         {
             _operations.RefreshDevices();

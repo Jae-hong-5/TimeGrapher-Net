@@ -118,10 +118,10 @@ public sealed class AppXamlLoadTests
         foreach (ThemeVariant theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
         {
             Assert.True(app.TryGetResource("AveragePeriodOverlayFillColor", theme, out object? fill), theme.ToString());
-            Assert.Equal(Color.FromRgb(0xC8, 0xC8, 0xC8), Assert.IsType<Color>(fill));
+            Assert.Equal(Color.FromRgb(0x9A, 0x9A, 0x9A), Assert.IsType<Color>(fill));
 
             Assert.True(app.TryGetResource("AveragePeriodOverlayAlternateFillColor", theme, out object? alternate), theme.ToString());
-            Assert.Equal(Color.FromRgb(0xE0, 0xE0, 0xE0), Assert.IsType<Color>(alternate));
+            Assert.Equal(Color.FromRgb(0xC4, 0xC4, 0xC4), Assert.IsType<Color>(alternate));
         }
     }
 
