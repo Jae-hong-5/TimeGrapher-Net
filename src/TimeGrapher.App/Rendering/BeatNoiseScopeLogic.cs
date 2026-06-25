@@ -69,6 +69,12 @@ internal static class BeatNoiseScopeLogic
     public static double StripPointX(int slot, int p, int points) =>
         slot + 0.03 + 0.94 * (points > 1 ? (double)p / (points - 1) : 0.5);
 
+    public static double StripMarkerX(int slot, double offsetMs, double windowMs)
+    {
+        double fraction = windowMs > 0.0 ? Math.Clamp(offsetMs / windowMs, 0.0, 1.0) : 0.5;
+        return slot + 0.03 + 0.94 * fraction;
+    }
+
     /// <summary>
     /// Selection toggle: clicking an occupied slot selects it (the main plot
     /// enlarges that slot's beat), clicking it again — or an empty slot —

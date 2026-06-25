@@ -773,7 +773,7 @@ public sealed class BeatNoiseScopeRendererTests
     }
 
     [Fact]
-    public void MainScopeShowsWeakSignalWhenCMarkerIsMissing()
+    public void MainScopeDoesNotShowPerPlotWeakSignalWhenCMarkerIsMissing()
     {
         var mainPlot = new AvaPlot();
         var renderer = new BeatNoiseScopeRenderer(
@@ -802,7 +802,7 @@ public sealed class BeatNoiseScopeRendererTests
 
         Text weakSignal = mainPlot.Plot.GetPlottables<Text>()
             .Single(text => text.LabelText == "WEAK SIGNAL");
-        Assert.True(weakSignal.IsVisible);
+        Assert.False(weakSignal.IsVisible);
     }
 
     [Fact]

@@ -136,7 +136,9 @@ internal sealed class BeatNoiseScopeRenderer
             _lane2MilestoneY[i] = new List<double>();
         }
 
+        _mainPlot.UserInputProcessor.Disable();
         _stripPlot.UserInputProcessor.Disable();
+        _averagePlot.UserInputProcessor.Disable();
     }
 
     public int RangeMs => _rangeMs;
@@ -727,8 +729,9 @@ internal sealed class BeatNoiseScopeRenderer
                 sourceSpan = sourceSpan.Slice(0, sampleCount);
             }
 
-            SetStripCMarker(slot, segment, sampleCount * segment.MsPerPoint);
-            SetStripAMarker(slot, segment, sampleCount * segment.MsPerPoint);
+            double renderedWindowMs = Math.Max(0.0, (sampleCount - 1) * segment.MsPerPoint);
+            SetStripCMarker(slot, segment, renderedWindowMs);
+            SetStripAMarker(slot, segment, renderedWindowMs);
 
             // Compress each segment into its slot via the shared strip-lane
             // sampling policy (max-decimate + per-segment peak normalization).
@@ -1100,7 +1103,7 @@ internal sealed class BeatNoiseScopeRenderer
         marker.IsVisible = visible;
         if (visible)
         {
-            marker.X = slot + 0.03 + 0.94 * segment!.AOffsetMs / windowMs;
+            marker.X = BeatNoiseScopeLogic.StripMarkerX(slot, segment!.AOffsetMs, windowMs);
         }
     }
 
@@ -1121,7 +1124,7 @@ internal sealed class BeatNoiseScopeRenderer
         marker.IsVisible = visible;
         if (visible)
         {
-            marker.X = slot + 0.03 + 0.94 * cOffsetMs!.Value / windowMs;
+            marker.X = BeatNoiseScopeLogic.StripMarkerX(slot, cOffsetMs!.Value, windowMs);
         }
     }
 

@@ -112,6 +112,15 @@ public sealed class BeatNoiseScopeLogicTests
         Assert.Equal(3.0 + 0.03 + 0.94 * 0.5, x, precision: 6);
     }
 
+    [Theory]
+    [InlineData(0, 0.0, 200.0, 0.03)]
+    [InlineData(0, 200.0, 200.0, 0.97)]
+    [InlineData(2, 100.0, 200.0, 2.5)]
+    public void StripMarkerX_UsesTheSameSlotInsetAsStripPoints(int slot, double offsetMs, double windowMs, double expected)
+    {
+        Assert.Equal(expected, BeatNoiseScopeLogic.StripMarkerX(slot, offsetMs, windowMs), precision: 6);
+    }
+
     [Fact]
     public void Selection_TogglesOnOccupiedSlotsAndClearsOnEmptyOnes()
     {
