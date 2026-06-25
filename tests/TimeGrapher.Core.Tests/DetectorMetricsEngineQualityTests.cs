@@ -1,5 +1,6 @@
 using TimeGrapher.Core.Analysis;
 using TimeGrapher.Core.Analysis.Quality;
+using TimeGrapher.Core.Shared;
 using TimeGrapher.Core.Sim;
 using Xunit;
 

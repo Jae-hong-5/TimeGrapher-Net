@@ -1,4 +1,5 @@
 using TimeGrapher.Core.Detection;
+using TimeGrapher.Core.Shared;
 
 namespace TimeGrapher.Core.Analysis.Quality;
 

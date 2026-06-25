@@ -1,4 +1,4 @@
-namespace TimeGrapher.Core.Analysis.Quality;
+namespace TimeGrapher.Core.Shared;
 
 /// <summary>
 /// The numeric feature vector summarising recent signal health, derived only
@@ -8,7 +8,7 @@ namespace TimeGrapher.Core.Analysis.Quality;
 /// trainer, so the model can never be fed a feature layout that differs from
 /// what runs at measurement time (the same "shared engine contract" discipline
 /// used by <c>DetectorMetricsEngine</c>). The ML implementation lives outside
-/// Core; Core only defines the shape.
+/// Core; Core only defines the shape. A pure DTO, so it lives in Core.Shared.
 /// </summary>
 /// <param name="SnrDb">20·log10(referencePeak / noiseFloor): tick-to-background ratio in dB.</param>
 /// <param name="PeakMarginRatio">referencePeak / minPeakThreshold: how far the reference tick sits above the accept floor.</param>

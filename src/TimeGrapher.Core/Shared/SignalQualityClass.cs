@@ -1,4 +1,4 @@
-namespace TimeGrapher.Core.Analysis.Quality;
+namespace TimeGrapher.Core.Shared;
 
 /// <summary>
 /// Coarse signal-quality verdict for the current measurement window.
@@ -9,6 +9,10 @@ namespace TimeGrapher.Core.Analysis.Quality;
 /// dropped beats (an "ignore faulty input" tactic) and could hide the very
 /// irregularities a timegrapher exists to surface. Here we apply "condition
 /// monitoring": observe and report, never destroy.
+///
+/// Lives in Core.Shared (alongside SignalQualityFlags) because it is a pure DTO
+/// that rides the AnalysisFrame; the classifier behaviour that produces it lives
+/// in Core.Analysis.Quality.
 /// </summary>
 public enum SignalQualityClass
 {

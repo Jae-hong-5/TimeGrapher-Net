@@ -1,3 +1,5 @@
+using TimeGrapher.Core.Shared;
+
 namespace TimeGrapher.Core.Analysis.Quality;
 
 /// <summary>

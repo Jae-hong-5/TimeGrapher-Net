@@ -1,4 +1,5 @@
 using TimeGrapher.Core.Analysis.Quality;
+using TimeGrapher.Core.Shared;
 using Xunit;
 
 namespace TimeGrapher.Core.Tests;
