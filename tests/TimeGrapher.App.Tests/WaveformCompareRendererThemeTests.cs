@@ -3,6 +3,8 @@ using ScottPlot;
 using ScottPlot.Avalonia;
 using ScottPlot.Plottables;
 using TimeGrapher.App.Rendering;
+using TimeGrapher.App.Tabs;
+using TimeGrapher.Core.Shared;
 using Xunit;
 
 namespace TimeGrapher.App.Tests;
@@ -44,5 +46,47 @@ public sealed class WaveformCompareRendererThemeTests
         Assert.All(aGuides, guide => Assert.Equal(Color.FromARGB(green), guide.LineColor));
         Assert.Equal(WaveformCompareLogic.PairLanes * 2, cGuides.Count);
         Assert.All(cGuides, guide => Assert.Equal(Color.FromARGB(red), guide.LineColor));
+    }
+
+    [Fact]
+    public void RenderFrameFramesEarlyPairsAtTheFixedTopAnchoredAxis()
+    {
+        // Lanes are top-anchored: lane 0 (newest) always sits at the top, so the Y axis
+        // top must reach the fixed top lane as soon as any pair exists, independent of how
+        // many pairs are present. Before the fix the axis grew from the bottom with the
+        // pair count, leaving early (<4) pairs drawn above the visible axis (blank tab).
+        var plot = new AvaPlot();
+        var renderer = new WaveformCompareRenderer(plot, new TextBlock(), "Arial");
+        renderer.CreateGraphs();
+
+        renderer.RenderFrame(FrameWithSegments(segmentCount: 2, version: 1), new AnalysisTabRenderContext(SampleRate: 48000));
+        double onePairTop = plot.Plot.Axes.GetLimits().Top;
+
+        renderer.RenderFrame(FrameWithSegments(segmentCount: 8, version: 2), new AnalysisTabRenderContext(SampleRate: 48000));
+        double fourPairTop = plot.Plot.Axes.GetLimits().Top;
+
+        Assert.Equal(fourPairTop, onePairTop, 6);
+        // The top must clear lane 0's baseline ((PairLanes-1) * LaneSpacing) even for one pair.
+        Assert.True(onePairTop >= (WaveformCompareLogic.PairLanes - 1) * WaveformCompareLogic.LaneSpacing);
+    }
+
+    private static AnalysisFrame FrameWithSegments(int segmentCount, ulong version)
+    {
+        var segments = new BeatSegment[segmentCount];
+        for (int i = 0; i < segmentCount; i++)
+        {
+            segments[i] = new BeatSegment
+            {
+                Samples = new float[] { 0.5f, 0.5f },
+                MsPerPoint = 0.25,
+                AOffsetMs = 0.0,
+                IsTic = (i % 2) == 0,
+            };
+        }
+
+        return new AnalysisFrame
+        {
+            BeatSegments = new BeatSegmentsSnapshot { Version = version, Segments = segments },
+        };
     }
 }
