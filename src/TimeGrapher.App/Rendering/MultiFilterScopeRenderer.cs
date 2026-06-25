@@ -179,10 +179,8 @@ internal sealed class MultiFilterScopeRenderer
             // ApplyTimeTicks). Same on every lane.
             plot.Axes.Bottom.TickLabelStyle.IsVisible = true;
             plot.Axes.Bottom.MajorTickStyle.Length = 6;
-            // Reserve bottom-axis height so the "Time (ms)" title sits on its own
-            // row below the tick numbers instead of overlapping them in the short
-            // 2x2 lanes (the data area draws ~20 px shorter to make the room).
-            plot.Axes.Bottom.MinimumSize = 60f;
+            // Axis panel sizes (incl. the bottom title row) are the shared compact
+            // sizes applied in ApplyPlotTheme via PlotThemeHelper.ApplyCompactAxisPanels.
             // Start (and reset) each lane on a non-negative 0..MaxWindowMs ms axis
             // with 10 ms ticks, instead of ScottPlot's default +/- range, so the
             // stopped/initial view and a post-run reset read in ms from 0 rather

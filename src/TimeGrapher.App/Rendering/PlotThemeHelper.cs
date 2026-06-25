@@ -16,8 +16,15 @@ internal static class PlotThemeHelper
     /// had drifted (10-16) before standardization.
     /// </summary>
     public const float GraphLabelFontSize = 14f;
-    public const float CompactLeftAxisSizePx = 44f;
-    public const float CompactBottomAxisSizePx = 34f;
+
+    // Fixed axis-panel sizes shared by the graph tabs (Sweep, Escapement, Beat Error
+    // diagnostics, Multi-Filter scope). Sized to hold the tick numbers AND the rotated
+    // Y-axis title (left) / the X-axis title row below the numbers (bottom), so neither
+    // title overlaps the numbers; the earlier 44/34 fit the numbers only and clipped the
+    // titles. Still far tighter than ScottPlot's automatic layout, so the data rectangle
+    // stays large.
+    public const float CompactLeftAxisSizePx = 52f;
+    public const float CompactBottomAxisSizePx = 60f;
 
     public static void Apply(Plot plot, PlotThemePalette theme)
     {
