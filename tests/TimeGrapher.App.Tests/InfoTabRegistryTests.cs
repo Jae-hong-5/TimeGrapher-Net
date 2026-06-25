@@ -108,11 +108,6 @@ public sealed class InfoTabRegistryTests
         Assert.Equal(WatchPositions.Count + 1, tableGrid.RowDefinitions.Count);
         Assert.DoesNotContain(Descendants(content).OfType<Border>(), border =>
             border.Classes.Contains("PositionMapTile"));
-        Grid topSummaryGrid = Assert.Single(Descendants(content).OfType<Grid>(), grid =>
-            grid.ColumnDefinitions.Count == 2 &&
-            grid.RowDefinitions.Count == 1 &&
-            Math.Abs(grid.MaxHeight - 366.0) < 0.01);
-        Assert.Equal(366.0, topSummaryGrid.MaxHeight);
         for (int i = 0; i < buttons.Length; i++)
         {
             Assert.Equal(i, Grid.GetRow(buttons[i]));
@@ -209,8 +204,6 @@ public sealed class InfoTabRegistryTests
 
         WatchModelView diagram = Assert.Single(Descendants(content).OfType<WatchModelView>());
         Assert.Equal(WatchPosition.P9H45, diagram.Position);
-        Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "7:30H");
-        Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "7:30 up");
         Border activeRow = Assert.Single(Descendants(content).OfType<Border>(),
             border => border.Classes.Contains("SeqActiveRow"));
         Assert.Equal(8, Grid.GetRow(activeRow));
@@ -239,8 +232,6 @@ public sealed class InfoTabRegistryTests
 
         WatchModelView diagram = Assert.Single(Descendants(content).OfType<WatchModelView>());
         Assert.Equal(WatchPosition.P3H45, diagram.Position);
-        Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "1:30H");
-        Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "1:30 up");
         Button activeButton = Assert.Single(positionStrip.Children.OfType<Button>(),
             button => button.Classes.Contains("active"));
         Assert.IsType<TextBlock>(activeButton.Content);

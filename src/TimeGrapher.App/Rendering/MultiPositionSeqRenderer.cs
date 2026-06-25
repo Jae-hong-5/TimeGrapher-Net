@@ -50,13 +50,13 @@ internal sealed class MultiPositionSeqRenderer
         _lastVersion = 0;
         _lastPositions = Array.Empty<PositionSummary>();
         RebuildTable(_lastPositions, activePosition);
-        SetActivePosition(activePosition);
+        UpdateHero(_lastPositions, activePosition);
     }
 
     public void RequestPosition(WatchPosition position)
     {
         RebuildTable(_lastPositions, position);
-        SetActivePosition(position);
+        UpdateHero(_lastPositions, position);
     }
 
     public void RenderFrame(AnalysisFrame frame)
@@ -70,13 +70,62 @@ internal sealed class MultiPositionSeqRenderer
         _lastVersion = history.Version;
         _lastPositions = history.Positions ?? Array.Empty<PositionSummary>();
         RebuildTable(_lastPositions, history.ActivePosition);
-        SetActivePosition(history.ActivePosition);
+        UpdateHero(_lastPositions, history.ActivePosition);
     }
 
-    private void SetActivePosition(WatchPosition position)
+    private void UpdateHero(IReadOnlyList<PositionSummary> positions, WatchPosition active)
     {
-        _dashboard.ActivePositionText.Text = position.ShortName();
-        _dashboard.ActiveOrientationText.Text = position.LongName();
+        var byPosition = new Dictionary<WatchPosition, PositionSummary>();
+        foreach (PositionSummary position in positions)
+        {
+            byPosition[position.Position] = position;
+        }
+
+        byPosition.TryGetValue(active, out PositionSummary? summary);
+        StatsSummary rate = summary?.Rate ?? default;
+        StatsSummary amp = summary?.Amplitude ?? default;
+        StatsSummary beat = summary?.BeatError ?? default;
+        long beats = summary is null ? 0 : Math.Max(rate.Count, Math.Max(amp.Count, beat.Count));
+
+        _dashboard.LiveRate.Text = VarioReadout.Format(rate.Valid ? rate.Mean : (double?)null, "+0.0;-0.0;0.0", " s/d");
+        _dashboard.LiveAmplitude.Text = VarioReadout.Format(amp.Valid ? amp.Mean : (double?)null, "0", "°");
+        _dashboard.LiveBeatError.Text = VarioReadout.Format(beat.Valid ? beat.Mean : (double?)null, "+0.00;-0.00; 0.00", " ms");
+        _dashboard.LiveBeats.Text = beats.ToString(CultureInfo.InvariantCulture);
+
+        long threshold = VarioVerdict.MinSamples;
+        bool measured = beats > 0;
+        bool qualified = beats >= threshold;
+        double fraction = threshold <= 0 ? 0.0 : Math.Clamp(beats / (double)threshold, 0.0, 1.0);
+        _dashboard.CollectionBar.ColumnDefinitions = new ColumnDefinitions(string.Format(
+            CultureInfo.InvariantCulture, "{0:0.###}*,{1:0.###}*", fraction, 1.0 - fraction));
+        _dashboard.CollectionFill.IsVisible = measured;
+        if (measured)
+        {
+            _dashboard.CollectionFill.Bind(Border.BackgroundProperty,
+                _dashboard.CollectionFill.GetResourceObservable(qualified ? "VarioGoodBrush" : "VarioWarnBrush"));
+        }
+
+        _dashboard.CollectionLabel.Text = measured ? $"{beats} / {threshold} beats" : "not measured";
+
+        SequenceSummary sequence = SequenceSummary.Compute(positions);
+        _dashboard.SeqRate.Text = VarioReadout.Format(sequence.RateMeanSPerDay, "+0.0;-0.0;0.0", " s/d");
+        _dashboard.SeqAmplitude.Text = VarioReadout.Format(sequence.AmplitudeMeanDeg, "0", "°");
+
+        int measuredCount = 0;
+        long totalBeats = 0;
+        foreach (PositionSummary position in positions)
+        {
+            long b = Math.Max(position.Rate.Count, Math.Max(position.Amplitude.Count, position.BeatError.Count));
+            if (b > 0)
+            {
+                measuredCount++;
+            }
+
+            totalBeats += b;
+        }
+
+        _dashboard.PositionsMeasured.Text = $"{measuredCount} / {WatchPositions.All.Count}";
+        _dashboard.TotalBeats.Text = totalBeats.ToString(CultureInfo.InvariantCulture);
     }
 
     private void RebuildTable(IReadOnlyList<PositionSummary> positions, WatchPosition? activePosition)
