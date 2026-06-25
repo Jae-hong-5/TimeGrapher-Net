@@ -200,8 +200,14 @@ internal sealed partial class InfoTabRegistry
 
         Button ToolbarButton(string content, string tooltip)
         {
-            var button = new Button { Content = content, Padding = new Thickness(8, 2, 8, 2), FontSize = 11 };
+            var button = new Button { Content = content };
             ToolTip.SetTip(button, tooltip);
+            button.MinHeight = TraceHeaderButtonMinHeight;
+            button.MinWidth = 36;
+            button.FontSize = TraceHeaderButtonFontSize;
+            button.Padding = TraceHeaderButtonPadding;
+            button.VerticalAlignment = VerticalAlignment.Center;
+            button.Classes.Add("PositionButton");
             return button;
         }
         Button lastBeatButton = ToolbarButton("Last Beat", "Show the most recent single beat period");
@@ -210,11 +216,12 @@ internal sealed partial class InfoTabRegistry
         Button plusButton = ToolbarButton("+", "Longer window");
         var secondsText = new TextBlock
         {
-            FontSize = 11,
+            FontSize = TraceHeaderButtonFontSize,
             VerticalAlignment = VerticalAlignment.Center,
             TextAlignment = TextAlignment.Center,
-            MinWidth = 40,
-            Margin = new Thickness(4, 0, 4, 0),
+            MinHeight = TraceHeaderButtonMinHeight,
+            MinWidth = 44,
+            Margin = new Thickness(2, 0, 2, 0),
         };
 
         void UpdateToolbar()
@@ -282,8 +289,9 @@ internal sealed partial class InfoTabRegistry
         var toolbar = new StackPanel
         {
             Orientation = Orientation.Horizontal,
-            Spacing = 4,
-            Margin = new Thickness(8, 4),
+            Spacing = 6,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Center,
         };
         toolbar.Children.Add(lastBeatButton);
         toolbar.Children.Add(secondsButton);
@@ -296,9 +304,16 @@ internal sealed partial class InfoTabRegistry
             ColumnDefinitions = new ColumnDefinitions("Auto,Auto,*,Auto"),
             RowDefinitions = new RowDefinitions("Auto,*,Auto,Auto,Auto"),
         };
-        Grid.SetRow(toolbar, 0);
-        Grid.SetColumn(toolbar, 0);
-        Grid.SetColumnSpan(toolbar, 4);
+        var headerStrip = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions("*,Auto"),
+            Margin = new Thickness(8, 1, 8, 2),
+        };
+        Grid.SetColumn(toolbar, 1);
+        headerStrip.Children.Add(toolbar);
+        Grid.SetRow(headerStrip, 0);
+        Grid.SetColumn(headerStrip, 0);
+        Grid.SetColumnSpan(headerStrip, 4);
         Grid.SetRow(axisGrid, 1);
         Grid.SetColumn(axisGrid, 0);
         Grid.SetRow(freqTickStrip, 1);
@@ -315,7 +330,7 @@ internal sealed partial class InfoTabRegistry
         Grid.SetColumn(timeLabelGrid, 2);
         Grid.SetRow(timeAxisCaption, 4);
         Grid.SetColumn(timeAxisCaption, 2);
-        grid.Children.Add(toolbar);
+        grid.Children.Add(headerStrip);
         grid.Children.Add(axisGrid);
         grid.Children.Add(freqTickStrip);
         grid.Children.Add(imageHost);
