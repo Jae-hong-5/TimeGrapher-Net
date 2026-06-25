@@ -41,6 +41,11 @@ internal sealed class TgDetectorCore
     public const int TG_NOISE_HISTORY_N = 256; // ~256 ms at 1 ms/sample
     public const int TG_PEAK_HISTORY_N = 16;    // ~2 s at 28800 BPH
 
+    /* Acquisition spurious-beat gate: minimum accepted-peak history before the
+     * gate engages. Matches the reference-peak median bootstrap (>=4), so the
+     * median it compares against is already robust to a single early outlier. */
+    public const int TG_ACQ_GATE_MIN_HISTORY = 4;
+
     /* V5.6 regime-change detector constants. */
     public const int TG_REGIME_RING_N = 8;       // short-term burst peak ring
     public const double TG_REGIME_RATIO = 10.0;  // trip if new peak >= ratio * recent min
@@ -57,6 +62,12 @@ internal sealed class TgDetectorCore
     /* Tunable gate fractions. Clamped to [0.001, 0.9] by the setters. */
     public double OnsetFraction;
     public double MinPeakFraction;
+
+    /* Acquisition spurious-beat gate fraction (preserved across Reset; config,
+     * not runtime state). While unsynced, a burst whose peak is below this
+     * fraction of the recent accepted-peak median is rejected as a between-beat
+     * artifact. 0 = off. */
+    public double AcquisitionPeakGateFraction;
 
     /* Lock-aware sensitivity guide. The owning TgDetector enables this only
      * after BPH/PLL lock, so pre-lock acquisition still uses the conservative
@@ -258,6 +269,9 @@ internal sealed class TgDetectorCore
         /* Default gate fractions. */
         OnsetFraction = 0.03;
         MinPeakFraction = 0.20;
+
+        /* Acquisition spurious-beat gate off by default (detection bit-identical). */
+        AcquisitionPeakGateFraction = 0.0;
         PhaseGuideEnabled = 0;
         PhaseGuideNextATime = 0.0;
         PhaseGuideBeatPeriod = 0.0;
@@ -777,6 +791,11 @@ internal sealed class TgDetectorCore
     // tg_detector_set_min_peak_fraction
     public void SetMinPeakFraction(double frac) => MinPeakFraction = ClampFraction(frac);
 
+    // set acquisition spurious-beat gate fraction (0 = off; not clamped to the
+    // [0.001, 0.9] tick-gate range -- this is a relative-amplitude reject ratio).
+    public void SetAcquisitionPeakGateFraction(double frac)
+        => AcquisitionPeakGateFraction = frac < 0.0 ? 0.0 : frac;
+
     /* Process a block of envelope samples. Appends up to maxEvents-outCount
      * events to outEvents, increments outCount, returns events added. */
     // tg_detector_process
@@ -951,6 +970,26 @@ internal sealed class TgDetectorCore
                     ComputeThresholds(absIdx, BurstPhaseGuided != 0,
                                       out _, out _, out _, out _, out double minPeak);
                     bool isRealTick = (BurstMax >= minPeak);
+
+                    /* Acquisition spurious-beat gate (pre-lock only). A weak
+                     * between-beat artifact near the half-beat otherwise aliases
+                     * the detected BPH to 2x: the Rayleigh phase score folds it
+                     * in-phase at the half period, and the doubled event count
+                     * pulls the median A-to-A interval down so the plausibility
+                     * floor stops rejecting the half-period candidate. Rejecting a
+                     * burst far weaker than the recent accepted beats restores the
+                     * true cadence. Post-lock (PhaseGuideEnabled) the phase guide
+                     * already discards off-phase artifacts and the weak-A rescue
+                     * owns the weak-onset decision, so the gate must not run there. */
+                    if (isRealTick
+                        && AcquisitionPeakGateFraction > 0.0
+                        && PhaseGuideEnabled == 0
+                        && PeakHistoryCount >= TG_ACQ_GATE_MIN_HISTORY
+                        && MedianPeakCache > 0.0
+                        && BurstMax < AcquisitionPeakGateFraction * MedianPeakCache)
+                    {
+                        isRealTick = false;
+                    }
 
                     if (isRealTick)
                     {

@@ -90,6 +90,7 @@ public sealed class TgDetector
             SuppressPreSyncEvents = cfg.SuppressPreSyncEvents,
             CPlacement = cfg.CPlacement,
             PhaseGuideOnsetRescueScale = cfg.PhaseGuideOnsetRescueScale,
+            AcquisitionPeakGateFraction = cfg.AcquisitionPeakGateFraction,
         };
 
         /* Apply zero-defaults at runtime */
@@ -111,6 +112,9 @@ public sealed class TgDetector
             _det.SetOnsetFraction(_cfg.OnsetFractionInit);
         if (_cfg.MinPeakFractionInit > 0.0)
             _det.SetMinPeakFraction(_cfg.MinPeakFractionInit);
+
+        /* Acquisition spurious-beat gate (0 = off; default). */
+        _det.SetAcquisitionPeakGateFraction(_cfg.AcquisitionPeakGateFraction);
 
         _sync = new TgSync();
         _sync.Init();

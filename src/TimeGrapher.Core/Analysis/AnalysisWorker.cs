@@ -30,6 +30,8 @@ public sealed class AnalysisWorker : IDisposable
         public double HpfCutoffHz = 0.0;
         /// <summary>&gt;0 enables the post-lock weak-A onset rescue (see TgConfig.PhaseGuideOnsetRescueScale); 0 = off.</summary>
         public double PhaseGuideOnsetRescueScale = 0.0;
+        /// <summary>&gt;0 enables the acquisition spurious-beat gate (see TgConfig.AcquisitionPeakGateFraction); 0 = off.</summary>
+        public double AcquisitionPeakGateFraction = 0.0;
         public int SoundImageWidth = 0;
         public int SoundImageHeight = 0;
         public int ScopeSnapshotPointBudget = 8000;
@@ -107,7 +109,8 @@ public sealed class AnalysisWorker : IDisposable
             config.AutoBph,
             config.ManualBph,
             config.HpfCutoffHz,
-            PhaseGuideOnsetRescueScale: config.PhaseGuideOnsetRescueScale),
+            PhaseGuideOnsetRescueScale: config.PhaseGuideOnsetRescueScale,
+            AcquisitionPeakGateFraction: config.AcquisitionPeakGateFraction),
             config.QualityClassifier);
 
         _inputBlock = new float[config.AnalysisBlockSize];

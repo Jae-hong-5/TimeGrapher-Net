@@ -21,7 +21,10 @@ public sealed record DetectorMetricsEngineConfig(
     // reference synthesiser at the default 0.15 ms envelope smoothing; it is exposed
     // here so a real measuring rig can recalibrate it. 0 disables compensation.
     double AmplitudeOnsetLatencyS = 0.000045,
-    double PhaseGuideOnsetRescueScale = 0.0);
+    double PhaseGuideOnsetRescueScale = 0.0,
+    // >0 enables the acquisition spurious-beat gate (see TgConfig.AcquisitionPeakGateFraction);
+    // 0 = off. ~0.35 rejects weak between-beat noise that would alias the BPH to 2x.
+    double AcquisitionPeakGateFraction = 0.0);
 
 public readonly record struct DetectedEventUpdate(
     TgEvent Event,
@@ -96,6 +99,7 @@ public sealed class DetectorMetricsEngine
         detectorConfig.SuppressPreSyncEvents = true;
         detectorConfig.HpfCutoffHz = config.HpfCutoffHz;
         detectorConfig.PhaseGuideOnsetRescueScale = config.PhaseGuideOnsetRescueScale;
+        detectorConfig.AcquisitionPeakGateFraction = config.AcquisitionPeakGateFraction;
 
         _detector = new TgDetector(detectorConfig);
         _metrics.Reset();

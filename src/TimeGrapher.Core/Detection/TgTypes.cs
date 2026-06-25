@@ -73,6 +73,15 @@ public sealed class TgConfig
      * catching noise. 0 = off: hardening applies, detection bit-identical. */
     public double PhaseGuideOnsetRescueScale;
 
+    /* >0 enables the acquisition spurious-beat gate: while unsynced, a burst
+     * whose peak is below this fraction of the recent accepted-peak median is
+     * rejected as a weak between-beat artifact. Such an artifact near the
+     * half-beat otherwise aliases the detected BPH to 2x (the phase score folds
+     * it in-phase at the half period and the doubled event count drops the
+     * plausibility floor). Post-lock the phase guide owns onset gating, so this
+     * never runs there. ~0.35 is recommended. 0 = off: detection bit-identical. */
+    public double AcquisitionPeakGateFraction;
+
     /* If true, drop events emitted before BPH lock from the output. */
     public bool SuppressPreSyncEvents;
 
@@ -98,6 +107,7 @@ public sealed class TgConfig
             OnsetFractionInit = 0.0,
             MinPeakFractionInit = 0.0,
             PhaseGuideOnsetRescueScale = 0.0,
+            AcquisitionPeakGateFraction = 0.0,
             SuppressPreSyncEvents = false,
             CPlacement = TgCPlacement.Peak, // V5.4 default
         };
