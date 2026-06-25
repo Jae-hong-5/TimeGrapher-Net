@@ -1190,17 +1190,10 @@ internal sealed class BeatNoiseScopeRenderer
 
     private void SetSignalQuality(SignalQualityFlags quality)
     {
+        _ = quality;
         if (_weakSignalLabel != null)
         {
-            bool visible = _signalQualityOverlay.Update(quality, out string text, out byte alpha);
-            _weakSignalLabel.IsVisible = visible;
-            if (visible)
-            {
-                _weakSignalLabel.LabelText = text;
-                _weakSignalLabel.Location = new Coordinates(_rangeMs, _mainYUpper ?? 1.0);
-                _weakSignalLabel.LabelFontColor = Color.FromARGB(
-                    SignalQualityOverlayState.WithAlpha(_theme.VarioWarn, alpha));
-            }
+            _weakSignalLabel.IsVisible = false;
         }
     }
 
