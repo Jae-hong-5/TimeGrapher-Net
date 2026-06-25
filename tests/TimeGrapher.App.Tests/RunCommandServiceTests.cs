@@ -308,7 +308,7 @@ public sealed class RunCommandServiceTests
     {
         MainWindowViewModel vm = CreateViewModel();
         vm.SetRunning();
-        vm.StatusText = "Backgroud Audio Thread Average - FPS: 12.3";
+        vm.StatusText = "BG - FPS: 12.3";
         var operations = new FakeRunCommandOperations
         {
             CurrentMode = RunCommandMode.Live,
