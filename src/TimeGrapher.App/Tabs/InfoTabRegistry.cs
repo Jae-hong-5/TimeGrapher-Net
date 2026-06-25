@@ -1033,10 +1033,6 @@ internal sealed partial class InfoTabRegistry
         InfoTabDefinition definition,
         InfoTabFactoryContext context)
     {
-        // Four plots (F0..F3 of the same signal) in a 2x2 grid — F0/F1 on top,
-        // F2/F3 below — each under its one-line description, so the filter views
-        // compare at a glance with more width per plot than a single stack. The
-        // raw waveform shows before beat sync, so no waiting overlay is added.
         IReadOnlyList<MultiFilterScopeLane> lanes = MultiFilterScopeLanes.All;
         const int columns = 2;
         int rowPairs = (lanes.Count + columns - 1) / columns;
@@ -1075,6 +1071,11 @@ internal sealed partial class InfoTabRegistry
         var root = new Grid { RowDefinitions = new RowDefinitions("Auto,*") };
         Grid.SetRow(grid, 1);
         root.Children.Add(grid);
+        if (CreateWaitingOverlay(context.ViewModel) is { } overlay)
+        {
+            Grid.SetRow(overlay, 1);
+            root.Children.Add(overlay);
+        }
 
         Button resetButton = CreateOverlayButton(
             "Reset View", ResetAllGraphViewsTooltip, context.ResetViews.ResetAll);

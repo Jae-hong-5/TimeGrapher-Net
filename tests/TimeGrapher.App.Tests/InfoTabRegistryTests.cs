@@ -938,6 +938,18 @@ public sealed class InfoTabRegistryTests
     }
 
     [Fact]
+    public void FilterScopeTabShowsWaitingOverlayBeforeBeatSync()
+    {
+        Grid content = CreateMultiFilterScopeContent(new MainWindowViewModel());
+
+        TextBlock overlay = Descendants(content)
+            .OfType<TextBlock>()
+            .Single(text => text.Text == "Waiting for tick-tock sync…");
+
+        Assert.Equal(1, Grid.GetRow(overlay));
+    }
+
+    [Fact]
     public void ScopeSweepReferenceTextDoesNotResizePlotRow()
     {
         EnsureAvaloniaPlatform();
@@ -1242,10 +1254,10 @@ public sealed class InfoTabRegistryTests
             registration => registration.Definition.Id == InfoTabCatalog.BeatNoiseScopeTabId).TabItem.Content);
     }
 
-    private static Grid CreateMultiFilterScopeContent()
+    private static Grid CreateMultiFilterScopeContent(MainWindowViewModel? viewModel = null)
     {
         var tabControl = new TabControl();
-        InfoTabRegistry registry = InfoTabRegistry.FromCatalog(tabControl, new Grid(), "Arial");
+        InfoTabRegistry registry = InfoTabRegistry.FromCatalog(tabControl, new Grid(), "Arial", viewModel);
         return Assert.IsType<Grid>(registry.Registrations.Single(
             registration => registration.Definition.Id == InfoTabCatalog.MultiFilterScopeTabId).TabItem.Content);
     }

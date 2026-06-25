@@ -8,18 +8,6 @@ using TimeGrapher.Core.Shared;
 
 namespace TimeGrapher.App.Rendering;
 
-/// <summary>
-/// Filter Scope: four vertically stacked views (F0..F3, one lane per
-/// <see cref="MultiFilterScopeLanes"/> entry) of the same signal, refilled in
-/// place by series id from the frame's Core-decimated replace snapshots so the
-/// four filters are easy to switch between and compare. Each plot windows its
-/// X axis to the last two seconds of its own series (x = absolute sample ticks
-/// on the projector's counter, so limits derive from the series' own max x).
-/// The lanes are read-only (no mouse pan/zoom): the view stays beat-locked and
-/// every lane always reads on the same timestamp window. Honors the
-/// review-cursor contract by mapping the scrubbed stream time to sample ticks
-/// on every lane.
-/// </summary>
 internal sealed class MultiFilterScopeRenderer
 {
     // Semi-opaque baseline fill for the mirrored lanes, so the symmetric
@@ -64,12 +52,6 @@ internal sealed class MultiFilterScopeRenderer
     // Sample rate of the current run (X is in absolute sample ticks), used to
     // label the bottom axis in seconds with one tick per second.
     private int _sampleRate;
-
-    // Visible window length before the detector locks (rolling fallback). The
-    // producer retains a longer buffer (MultiFilterFrameProjector.WindowSeconds),
-    // so the shown window's left edge always sits on retained data and the rolling
-    // trim churn stays off-screen.
-    private const double DisplayWindowSeconds = 0.8;
 
     // Beat-locked window as a fraction of one beat period: less than a full period
     // so the beat impulse spreads across the width instead of being a thin spike.
@@ -290,8 +272,8 @@ internal sealed class MultiFilterScopeRenderer
     /// side), so a single beat shows centered and holds there (the spectrogram
     /// Last Beat behavior). The period is the average A-to-A onset spacing over the
     /// recent beats. X is in absolute sample ticks, so onset tick = onset seconds *
-    /// sampleRate. Returns false if no locked beat fits (e.g. before sync), so the
-    /// caller falls back to a rolling window.
+    /// sampleRate. Returns false if no locked beat fits, so the caller keeps the
+    /// Filter Scope hidden until the detector can supply a beat window.
     /// </summary>
     private bool TryBeatWindow(AnalysisFrame frame, double oldest, double newest, out double min, out double max)
     {
@@ -451,6 +433,11 @@ internal sealed class MultiFilterScopeRenderer
     public void RenderFrame(AnalysisFrame frame, AnalysisTabRenderContext context)
     {
         _sampleRate = context.SampleRate;
+        if (!frame.BeatSynced)
+        {
+            ClearDisplay();
+            return;
+        }
 
         // Replace each lane's data first, so the live extent below is computed
         // from THIS frame's data. Computing it before the replace would window on
@@ -471,30 +458,18 @@ internal sealed class MultiFilterScopeRenderer
             }
         }
 
+        bool hasBeatWindow = false;
         if (_x[0].Count > 0)
         {
-            // While following live, beat-track the view: center it on the most
-            // recent beat onset that fits the window, so a beat impulse sits in
-            // the middle and holds there, re-triggering each beat instead of
-            // scrolling by time. The retained buffer is longer than the window,
-            // so the centered window always has data on both sides (no churn at
-            // the edges). Before the detector locks, fall back to a rolling
-            // window ending at the latest sample. When the user has zoomed/panned
-            // (not following), the extent is frozen so their view stays put.
             if (_followLive)
             {
                 double newest = _x[0][^1];
                 double oldest = _x[0][0];
-                if (TryBeatWindow(frame, oldest, newest, out double beatMin, out double beatMax))
+                hasBeatWindow = TryBeatWindow(frame, oldest, newest, out double beatMin, out double beatMax);
+                if (hasBeatWindow)
                 {
                     _dataMinX = beatMin;
                     _dataMaxX = beatMax;
-                }
-                else
-                {
-                    // Before the detector locks: a rolling DisplayWindowSeconds window.
-                    _dataMaxX = newest;
-                    _dataMinX = Math.Max(oldest, newest - DisplayWindowSeconds * _sampleRate);
                 }
             }
 
@@ -503,6 +478,12 @@ internal sealed class MultiFilterScopeRenderer
         else
         {
             _hasDataExtent = false;
+        }
+
+        if (!hasBeatWindow)
+        {
+            ClearDisplay();
+            return;
         }
 
         for (int i = 0; i < _plots.Length; i++)
@@ -530,6 +511,28 @@ internal sealed class MultiFilterScopeRenderer
                 ApplyTimeTicks(i, limits.Left, limits.Right);
                 _plots[i].Refresh();
             }
+        }
+    }
+
+    private void ClearDisplay()
+    {
+        bool changed = _hasDataExtent;
+        _hasDataExtent = false;
+        _dataMinX = 0.0;
+        _dataMaxX = 0.0;
+        Array.Clear(_lanePeakMax);
+        for (int i = 0; i < _plots.Length; i++)
+        {
+            changed |= _x[i].Count > 0 || _y[i].Count > 0 || _yMirror[i].Count > 0 || _lastSeries[i] != null;
+            _x[i].Clear();
+            _y[i].Clear();
+            _yMirror[i].Clear();
+            _lastSeries[i] = null;
+        }
+
+        if (changed)
+        {
+            RefreshAll();
         }
     }
 
