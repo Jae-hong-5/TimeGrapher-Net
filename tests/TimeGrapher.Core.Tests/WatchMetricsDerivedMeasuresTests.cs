@@ -112,7 +112,7 @@ public sealed class WatchMetricsDerivedMeasuresTests
 
         sample += 490.0 / 1000.0 * SampleRate;
         results = FeedAThenCAndGetResultsAtBph(metrics, bph, sample, cOffsetMs);
-        Assert.Contains($"Error Rate {WatchMetrics.ValueSpanStart}+1728.0{WatchMetrics.ValueSpanEnd} s/d", results);
+        Assert.Contains($"Error Rate {WatchMetrics.ValueSpanStart}+1763.3{WatchMetrics.ValueSpanEnd} s/d", results);
 
         for (int i = 0; i < 4; i++)
         {
@@ -120,14 +120,14 @@ public sealed class WatchMetricsDerivedMeasuresTests
             results = FeedAThenCAndGetResultsAtBph(metrics, bph, sample, cOffsetMs);
         }
 
-        Assert.Contains($"Error Rate {WatchMetrics.ValueSpanStart}+1728.0{WatchMetrics.ValueSpanEnd} s/d", results);
+        Assert.Contains($"Error Rate {WatchMetrics.ValueSpanStart}+1763.3{WatchMetrics.ValueSpanEnd} s/d", results);
 
         sample += 510.0 / 1000.0 * SampleRate;
         _ = FeedAThenCAndGetResultsAtBph(metrics, bph, sample, cOffsetMs);
         sample += 510.0 / 1000.0 * SampleRate;
         results = FeedAThenCAndGetResultsAtBph(metrics, bph, sample, cOffsetMs);
 
-        Assert.Contains($"Error Rate {WatchMetrics.ValueSpanStart}-1440.0{WatchMetrics.ValueSpanEnd} s/d", results);
+        Assert.Contains($"Error Rate {WatchMetrics.ValueSpanStart}-1416.4{WatchMetrics.ValueSpanEnd} s/d", results);
     }
 
     [Fact]
@@ -157,7 +157,7 @@ public sealed class WatchMetricsDerivedMeasuresTests
         Assert.Equal(4.0, interval.EndBeatIndex);
         Assert.Equal(0.0, interval.StartTimeS);
         Assert.Equal(3.0, interval.EndTimeS);
-        Assert.Equal(1728.0, interval.RateSPerDay, 6);
+        Assert.Equal(1763.265306, interval.RateSPerDay, 6);
         Assert.True(interval.AmplitudeValid);
         Assert.Equal(104.0, interval.AmplitudeDeg, 6);
         Assert.True(interval.BeatErrorValid);

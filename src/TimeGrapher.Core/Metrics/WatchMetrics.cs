@@ -384,6 +384,14 @@ public sealed class WatchMetrics
             // from before a sync loss must not contribute a bogus period delta.
             _rollPeriodDelta.Resize(BeatWindowSize(_bph, DiffPeriodWindowSeconds));
             ResetDerivedMeasures();
+
+            // The A-C interval acceptance ring holds timings tied to the previous
+            // watch's BPH/amplitude. A re-lock to a different watch must not gate the
+            // new segment's first A-C intervals against the stale median, or they are
+            // rejected as outliers. Reset() clears these on a full reset; the inline
+            // re-sync path must do the same.
+            _recentAcHead = 0;
+            _recentAcCount = 0;
         }
 
         if ((haveValidBph) && (_haveStartTime))
@@ -588,7 +596,13 @@ public sealed class WatchMetrics
         if (_rateWindowDeltaCount > 0)
         {
             double averageDeltaS = _rateWindowDeltaSumS / _rateWindowDeltaCount;
-            _displayRateSPerDay = -(averageDeltaS / nominalSamePhasePeriodS) * 86400.0;
+            // Divide by the MEASURED same-phase period (nominal + delta), not the
+            // nominal one: s/day error is elapsed-real-time relative, so the
+            // denominator is the actual period the watch ran. Using the nominal
+            // period understates the rate by 1/(1+r/86400) and disagrees with the
+            // per-beat RLS rate and the simulator's reciprocal rate model at large
+            // rates (e.g. +999 s/d would read +987.6).
+            _displayRateSPerDay = -(averageDeltaS / (nominalSamePhasePeriodS + averageDeltaS)) * 86400.0;
             _displayRateValid = true;
             _lastAveragePeriodRateInterval = new AveragePeriodRateInterval(
                 intervalStartGraphX,
@@ -831,6 +845,20 @@ public sealed class WatchMetrics
     private void RefreshAveragePeriodRateInterval(WatchMetricsUpdate update)
     {
         if (!_haveAveragePeriodRateInterval)
+        {
+            return;
+        }
+
+        // Only refresh the interval whose averaging period the just-completed display
+        // window actually belongs to. When a period boundary falls between an A and
+        // its C, the amplitude window can complete (advancing _displayAmplitudeWindowStartS
+        // to that window's end) BEFORE the matching rate window is emitted; the last
+        // emitted interval is then the PREVIOUS period. Without this guard the new
+        // period's amplitude/beat-error would overwrite the previous interval. The
+        // window end equals the matching interval's EndTimeS, so a difference of a
+        // whole period means this completion belongs to a later, not-yet-emitted
+        // interval (which captures these values at creation instead).
+        if (_displayAmplitudeWindowStartS - _lastAveragePeriodRateInterval.EndTimeS > AveragingPeriodS() * 0.5)
         {
             return;
         }
