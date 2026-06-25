@@ -23,15 +23,16 @@
     { f: "graphs/filter-scope.html", n: 7,  t: "Filter Scope" },
     { f: "graphs/long-term.html",    n: 8,  t: "Long-Term" },
     { f: "graphs/positions.html",    n: 9,  t: "Positions" },
-    { f: "graphs/beat-noise.html",   n: 10, t: "Beat Noise" },
-    { f: "graphs/escapement.html",   n: 11, t: "Escapement" },
-    { f: "graphs/waveforms.html",    n: 12, t: "Waveforms" },
-    { f: "graphs/spectrogram.html",  n: 13, t: "Spectrogram" }
+    { f: "graphs/health.html",       n: 10, t: "Health" },
+    { f: "graphs/beat-noise.html",   n: 11, t: "Beat Noise" },
+    { f: "graphs/escapement.html",   n: 12, t: "Escapement" },
+    { f: "graphs/waveforms.html",    n: 13, t: "Waveforms" },
+    { f: "graphs/spectrogram.html",  n: 14, t: "Spectrogram" }
   ];
 
   /* App version + manual build date — bump these when regenerating the manual/screenshots. */
   var APP_VERSION = "0.9.1";
-  var BUILD_DATE = "2026-06-21";
+  var BUILD_DATE = "2026-06-25";
 
   var inGraphs = /\/graphs\//.test(location.pathname);
   var prefix = inGraphs ? "../" : "";
