@@ -49,7 +49,7 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     private decimal _captureBufferMs = 20m;
     private int _selectedInputDeviceIndex = -1;
     private int _selectedSampleRateIndex = -1;
-    private decimal _averagingPeriod = 20m;
+    private decimal _averagingPeriod = 10m;
     private int _selectedBphIndex;
     private decimal _liftAngle = 52m;
     private int _selectedSimBphIndex = -1;
@@ -69,11 +69,11 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     // bind cleanly to the NumericUpDown controls (the LiftAngle pattern); seeded
     // from the persisted AcceptBandSettings on startup and applied live by the
     // window. Literal defaults match AcceptBandSettings.Default.
-    private decimal _rateAcceptMin = -10m;
-    private decimal _rateAcceptMax = 10m;
+    private decimal _rateAcceptMin = -4m;
+    private decimal _rateAcceptMax = 6m;
     private decimal _amplitudeAcceptMin = 270m;
     private decimal _amplitudeAcceptMax = 300m;
-    private decimal _beatErrorAcceptMag = 0.6m;
+    private decimal _beatErrorAcceptMag = 0.8m;
     private double? _reviewCursorTimeS;
     private double _reviewMaximumS;
     private double _reviewMinimumS;

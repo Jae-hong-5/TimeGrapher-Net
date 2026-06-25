@@ -182,7 +182,7 @@ public sealed class MainWindowViewModelTests
         Assert.Equal(100.0, vm.Gain);
         Assert.Equal(-1, vm.SelectedInputDeviceIndex);
         Assert.Equal(-1, vm.SelectedSampleRateIndex);
-        Assert.Equal(20m, vm.AveragingPeriod);
+        Assert.Equal(10m, vm.AveragingPeriod);
         Assert.Equal(0, vm.SelectedBphIndex);
         Assert.Equal(52m, vm.LiftAngle);
         Assert.Equal(-1, vm.SelectedSimBphIndex);
