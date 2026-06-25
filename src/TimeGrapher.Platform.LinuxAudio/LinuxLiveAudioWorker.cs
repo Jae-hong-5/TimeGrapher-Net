@@ -43,6 +43,10 @@ public sealed class LinuxLiveAudioWorker : ILiveAudioWorker
     private Func<Process, TimeSpan, bool>? _waitForExitOverride;
     private volatile bool _paused;
     private volatile bool _stopRequested;
+    // Ensures CaptureEnded fires at most once per capture session, even when both the
+    // reader's end-of-stream path and the post-probe liveness re-check observe the
+    // same death. Reset to 0 at the start of each StartProcess.
+    private int _captureEndedFired;
 
     public LinuxLiveAudioWorker(MasterAudioBuffer buffer)
     {
@@ -361,6 +365,7 @@ public sealed class LinuxLiveAudioWorker : ILiveAudioWorker
             ?? throw new InvalidOperationException("Failed to start " + processName + ".");
 
         _process = process;
+        Interlocked.Exchange(ref _captureEndedFired, 0);
         // Suppress the reader's unexpected-death CaptureEnded until the startup
         // probe confirms the capture is live: if the process dies during the
         // probe, that failure is reported by the throw below, so CaptureEnded
@@ -409,6 +414,16 @@ public sealed class LinuxLiveAudioWorker : ILiveAudioWorker
         // Startup probe passed: the capture is live, so from here an unexpected
         // stream end is a real capture death that must raise CaptureEnded.
         _stopRequested = false;
+
+        // If the child died in the tiny window between the probe returning "still
+        // running" and clearing _stopRequested above, the reader already reached
+        // end-of-stream and suppressed CaptureEnded (it saw _stopRequested still
+        // true). Re-check liveness and raise it here so a capture that dies right
+        // after the probe is reported instead of leaving the UI stuck in Running.
+        if (process.HasExited && ReferenceEquals(Volatile.Read(ref _process), process))
+        {
+            RaiseCaptureEndedOnce();
+        }
     }
 
     public void SetVolume(float volume)
@@ -550,6 +565,14 @@ public sealed class LinuxLiveAudioWorker : ILiveAudioWorker
         // The capture stream ended. If no stop was requested and this is still the
         // active process (not a torn-down or replaced one), the capture died on us.
         if (!_stopRequested && ReferenceEquals(Volatile.Read(ref _process), process))
+        {
+            RaiseCaptureEndedOnce();
+        }
+    }
+
+    private void RaiseCaptureEndedOnce()
+    {
+        if (Interlocked.Exchange(ref _captureEndedFired, 1) == 0)
         {
             CaptureEnded?.Invoke();
         }
