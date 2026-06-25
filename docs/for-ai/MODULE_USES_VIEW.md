@@ -142,12 +142,14 @@ flowchart TB
 
     Services --> ViewModels
     Services --> Program
+    Services --> Rendering
     Services --> CoreAnalysis
     Services --> CoreAudioIo
     Services --> CoreDetection
     Services --> CoreMetrics
     Services --> CoreShared
 
+    Audio --> Tabs
     Audio --> CoreAnalysis
     Audio --> CoreAudioIo
     Audio --> CoreShared
@@ -173,11 +175,12 @@ flowchart TB
 | Program / 앱 시작 | Views, Audio, Rendering | Analysis, AudioIo, Shared |
 | Views | Program, ViewModels, Services, Audio, Tabs, Rendering, Assets | AudioIo, Detection, Shared, Sim |
 | ViewModels | — | Analysis, Shared |
-| Services | ViewModels, Program | Analysis, AudioIo, Detection, Metrics, Shared |
-| Audio | — | Analysis, AudioIo, Shared, Sim, 플랫폼 백엔드(RID 조건부) |
+| Services | ViewModels, Program, Rendering | Analysis, AudioIo, Detection, Metrics, Shared |
+| Audio | Tabs | Analysis, AudioIo, Shared, Sim, 플랫폼 백엔드(RID 조건부) |
 | Tabs | ViewModels, Rendering | Analysis, Shared |
 | Rendering | Tabs, Assets | Analysis, Metrics, Shared |
 
+- `Audio`→`Tabs`와 `Services`→`Rendering`는 MVVM 리팩토링과 무관한 별도 기능에서 생긴 엣지다: `AnalysisBenchmarkRunner`(`Audio`)가 `InfoTabCatalog.ScopeTargetPointBudget`(`Tabs`)로 스코프 포인트 예산을 맞추고, `AnalysisRunStatusReporter`(`Services`)가 신호 품질 상태 문구를 위해 `SignalQualityText`/`SignalQualityFlagsMap`(`Rendering`)를 사용한다.
 - `Program`은 `AnalysisRunSettings`에서 `AnalysisWorker.Config`를 조립하며 `PlotThemePalette`(`Rendering`)를 직접 사용한다. 또한 시작 시 `AcceptBandSettingsStore.Load()`로 사용자 정상 밴드를 `AcceptBandSettings.Current`(`Rendering`)에 복원한다(그래프 생성 이전). 마찬가지로 `SamplingSettingsStore.Load()`로 실행 시작 파라미터(Avg. Period·분석 블록 크기·캡처 버퍼)를 `SamplingSettings.Current`에 복원해 설정 창 입력의 시드로 쓴다(창 생성 이전).
 - `ViewModels`는 스윕 배수 기본값을 `SweepFrameProjector.DefaultSweepMultiple`(`Core.Analysis`)로 초기화하므로 `Shared` 외에 `Analysis`에도 의존한다.
 - `Rendering`과 `Tabs`는 순환처럼 보이지만 분리되어 있다: `Rendering`의 프레임 컨슈머가 `Tabs`의 라우팅 계약(`IAnalysisFrameConsumer`/`IThemedFrameConsumer`/`IAcceptBandConsumer`)을 구현하고, `Tabs`의 레지스트리가 컨슈머를 등록한다. `IAcceptBandConsumer`는 사용자 정상 밴드 편집을 모든 밴드 그래프에 라이브로 팬아웃하는 두 번째 브로드캐스트 계약으로, 테마 팬아웃(`IThemedFrameConsumer`)과 같은 패턴이다.
@@ -208,7 +211,7 @@ flowchart TB
 flowchart TB
     subgraph Core["TimeGrapher.Core"]
         direction TB
-        Analysis["Analysis<br/>워커, 검출기 메트릭, 프레임 프로젝터"]
+        Analysis["Analysis<br/>워커, 검출기 메트릭, 프레임 프로젝터, 신호 품질 분류기"]
         Detection["Detection<br/>tick/tock 검출, BPH, sync"]
         Metrics["Metrics<br/>워치 메트릭, 롤링 통계"]
         Imaging["Imaging<br/>사운드 이미지 렌더러"]
@@ -230,7 +233,7 @@ flowchart TB
 
 ### 검증 결과
 
-- **`Analysis`**는 `Detection`, `Metrics`, `Imaging`, `AudioIo`, `Shared`를 모두 사용한다.
+- **`Analysis`**는 `Detection`, `Metrics`, `Imaging`, `AudioIo`, `Shared`를 모두 사용한다. 하위 네임스페이스 `Analysis.Quality`(신호 품질 분류기: `ISignalQualityClassifier`/`HeuristicSignalQualityClassifier`/`SignalQualityFeatureExtractor`)도 `Analysis`에 속하며, `SignalQualityFeatureExtractor`의 `using TimeGrapher.Core.Detection`이 `Analysis --> Detection` 엣지의 구체적 출처 중 하나다.
 - **`Detection`**(`TgDetector`, `TgDetectorCore`, `Bph` 등)은 다른 `Core` 하위모듈을 사용하지 않는다.
 - **`Sim`**의 `DetectionScorer`는 `Detection`을 사용하지 않는다(이름에 보이는 `usedDetection`은 지역 변수). `Sim`은 `Shared`만 사용한다.
 - **`AudioIo`·`Metrics`·`Imaging`**은 각각 `Shared`만 사용한다.
@@ -243,6 +246,6 @@ flowchart TB
 | `TimeGrapher.Verify` | `TimeGrapher.Core` (Analysis, AudioIo, Detection, Metrics, Shared, Sim) | 콘솔 검증이 앱과 동일한 분석·검출·시뮬레이터 모듈을 공유 |
 | `TimeGrapher.Platform.WindowsAudio` | `TimeGrapher.Core.Shared`, NAudio | Windows 입력 백엔드가 Core 라이브 오디오 계약과 NAudio API에 결합 |
 | `TimeGrapher.Platform.LinuxAudio` | `TimeGrapher.Core.Shared`, `wpctl`·`pw-record`·`arecord` | Linux 입력 백엔드가 Core 라이브 오디오 계약과 Linux 오디오 CLI 도구에 결합 |
-| `TimeGrapher.App.Rendering` | `TimeGrapher.App.Tabs`, `Core.Analysis`, `Core.Metrics`, `Core.Shared` | 프레임 컨슈머가 탭 라우팅 계약을 구현하고 Core 프레임/메트릭 DTO를 렌더 |
+| `TimeGrapher.App.Rendering` | `TimeGrapher.App.Tabs`, `TimeGrapher.App.Assets`, `Core.Analysis`, `Core.Metrics`, `Core.Shared` | 프레임 컨슈머가 탭 라우팅 계약을 구현하고 Core 프레임/메트릭 DTO를 렌더. `WatchModelMesh`가 `avares://`로 번들 GLB 모델 리소스(`Assets`)를 로드 |
 | `TimeGrapher.Core.Analysis` | `Detection`, `Metrics`, `Imaging`, `AudioIo`, `Shared` | 핵심 알고리즘 모듈을 조율하는 가장 결합도 높은 Core 하위모듈 |
 | `*.Tests` | 검증 대상 프로젝트(직접), `Core` 타입(전이 — App.Tests는 DTO 외 Analysis/Detection/Metrics/AudioIo/Sim, Verify.Tests는 Analysis/Detection/Sim을 테스트 입력으로 직접 `using`), App UI 라이브러리(컨트롤 테스트), xUnit | 검증 대상과 어서션·테스트 입력에 쓰이는 Core 계약/타입, 테스트 프레임워크에 의존 |
