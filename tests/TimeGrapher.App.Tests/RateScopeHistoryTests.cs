@@ -10,6 +10,20 @@ namespace TimeGrapher.App.Tests;
 /// </summary>
 public sealed class RateScopeHistoryTests
 {
+    [Theory]
+    [InlineData(0.0, 0.0, 120.0)]
+    [InlineData(119.999, 0.0, 120.0)]
+    [InlineData(120.0, 120.0, 240.0)]
+    [InlineData(239.999, 120.0, 240.0)]
+    [InlineData(240.0, 240.0, 360.0)]
+    public void RatePageWindowFor_AdvancesInFixedPages(double maxBeat, double expectedLeft, double expectedRight)
+    {
+        (double left, double right) = RateScopeRenderer.RatePageWindowFor(maxBeat);
+
+        Assert.Equal(expectedLeft, left);
+        Assert.Equal(expectedRight, right);
+    }
+
     [Fact]
     public void MergeScopeSlice_AppendsAndIsIdempotentOnReplay()
     {

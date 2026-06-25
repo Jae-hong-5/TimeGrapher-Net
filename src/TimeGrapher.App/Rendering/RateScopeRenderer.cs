@@ -59,23 +59,18 @@ internal sealed class RateScopeRenderer
     // user pans/zooms it, we stop following so the view stays put; ResetView() re-enables it.
     private bool _scopeFollowLive = true;
     private double _rateErrorYScale;
-    private int _rateDataPoints;
     private int _sampleRate = 44100;
 
-    // The rate pane mirrors the scope: it auto-follows the newest beat (scrolls its X
-    // window each update), drops follow on a user pan/zoom, and RateXViewBoundsRule
-    // clamps the view to the retained beat extent. ResetRateView() re-arms follow.
+    // The rate pane mirrors the scope's live-follow contract, but its X view advances
+    // in fixed 120-beat pages instead of sliding every update. User pan/zoom still
+    // drops follow; ResetRateView() re-arms it.
     private bool _rateFollowLive = true;
     private double _rateDataMinX;
     private double _rateDataMaxX;
     private bool _hasRateDataExtent;
     private bool _rateAxisRefreshPending;
 
-    // Default live rate window shown on screen (50 beats) and the maximum span the user
-    // may zoom out to — the whole retained buffer (WatchMetrics.MaxRateDataPoints, mirrored
-    // here as _rateDataPoints). RateXViewBoundsRule enforces both, so no single view ever
-    // shows more than _rateDataPoints beats and a pan can reach back through the buffer.
-    private const double DefaultRateWindowBeats = 50.0;
+    internal const double RatePageWindowBeats = 120.0;
 
     // Default live scope window shown on screen (500 ms) and the maximum span the
     // user may zoom out to (2 s), enforced by ScopeXViewBoundsRule. The Core retains
@@ -176,7 +171,6 @@ internal sealed class RateScopeRenderer
     public void CreateGraphs(double rateErrorYScale, int rateDataPoints)
     {
         _rateErrorYScale = rateErrorYScale;
-        _rateDataPoints = rateDataPoints;
         _scopeFollowLive = true;
         _rateFollowLive = true;
         Plot scope = _scopePlot.Plot;
@@ -215,7 +209,7 @@ internal sealed class RateScopeRenderer
         rate.YLabel("Error Rate (ms)");
         rate.XLabel("Beat Index");
         rate.Axes.SetLimitsY(-rateErrorYScale, rateErrorYScale);
-        rate.Axes.SetLimitsX(0, DefaultRateWindowBeats);
+        rate.Axes.SetLimitsX(0, RatePageWindowBeats);
         ClearSeriesData(_rateX, _rateY);
         AddRatePlottables();
         rate.ShowLegend();
@@ -230,7 +224,6 @@ internal sealed class RateScopeRenderer
     public void Reset(double rateErrorYScale, int rateDataPoints)
     {
         _rateErrorYScale = rateErrorYScale;
-        _rateDataPoints = rateDataPoints;
         _scopeFollowLive = true;
         _rateFollowLive = true;
         Plot scope = _scopePlot.Plot;
@@ -251,7 +244,7 @@ internal sealed class RateScopeRenderer
         rate.Clear();
         ApplyPlotTheme(rate);
         rate.Axes.SetLimitsY(-rateErrorYScale, rateErrorYScale);
-        rate.Axes.SetLimitsX(0, DefaultRateWindowBeats);
+        rate.Axes.SetLimitsX(0, RatePageWindowBeats);
         ClearSeriesData(_rateX, _rateY);
         AddRatePlottables();
         _hasRateDataExtent = false;
@@ -281,22 +274,20 @@ internal sealed class RateScopeRenderer
         bool rateUpdated = _rateFollowLive && ReplaceRateSeries(frame);
         // Review cursor on the waveform pane only: its x base is absolute sample
         // ticks, so stream time maps onto it (the Filter Scope mapping).
-        // The rate pane plots a scrolling beat-index window (the latest
-        // rateDataPoints beats), not stream time, so the review-cursor contract has
-        // no meaningful x mapping there.
+        // The rate pane plots a beat-index page, not stream time, so the review-cursor
+        // contract has no meaningful x mapping there.
         bool cursorMoved = UpdateReviewCursor(context);
 
         if (rateUpdated)
         {
-            // Live only (paused freezes this block): advance the retained beat extent so
-            // the bounds rule tracks [oldest .. newest], then follow the newest beat.
+            // Live only (paused freezes this block): advance the retained beat extent,
+            // then show the fixed page containing the newest beat.
             _hasRateDataExtent = RateDataExtent(out _rateDataMinX, out _rateDataMaxX);
 
             if (_hasRateDataExtent)
             {
-                // Default 50-beat live window; the user can zoom out to at most the
-                // whole retained buffer (RateXViewBoundsRule caps the span at the extent).
-                _ratePlot.Plot.Axes.SetLimitsX(_rateDataMaxX - DefaultRateWindowBeats, _rateDataMaxX);
+                (double left, double right) = RatePageWindowFor(_rateDataMaxX);
+                _ratePlot.Plot.Axes.SetLimitsX(left, right);
             }
 
             _ratePlot.Refresh();
@@ -360,15 +351,15 @@ internal sealed class RateScopeRenderer
         return cursor;
     }
 
-    /// <summary>Restores the rate plot (top): re-arms live follow and refits to the latest window.</summary>
+    /// <summary>Restores the rate plot (top): re-arms live follow and refits to the current page.</summary>
     public void ResetRateView()
     {
         _rateFollowLive = true;
         _ratePlot.Plot.Axes.SetLimitsY(-_rateErrorYScale, _rateErrorYScale);
         _hasRateDataExtent = RateDataExtent(out _rateDataMinX, out _rateDataMaxX);
         _ratePlot.Plot.Axes.SetLimitsX(
-            _hasRateDataExtent ? _rateDataMaxX - DefaultRateWindowBeats : 0,
-            _hasRateDataExtent ? _rateDataMaxX : DefaultRateWindowBeats);
+            _hasRateDataExtent ? RatePageWindowFor(_rateDataMaxX).Left : 0,
+            _hasRateDataExtent ? RatePageWindowFor(_rateDataMaxX).Right : RatePageWindowBeats);
         _ratePlot.Refresh();
     }
 
@@ -413,6 +404,13 @@ internal sealed class RateScopeRenderer
         return max > min;
     }
 
+    internal static (double Left, double Right) RatePageWindowFor(double maxBeat)
+    {
+        double page = Math.Max(0.0, Math.Floor(maxBeat / RatePageWindowBeats));
+        double left = page * RatePageWindowBeats;
+        return (left, left + RatePageWindowBeats);
+    }
+
     /// <summary>
     /// Coalesced deferred refresh after a user pan/zoom on the rate plot: a drag fires
     /// PointerMoved many times per second, so only one redraw needs queuing. The
@@ -436,11 +434,9 @@ internal sealed class RateScopeRenderer
     }
 
     /// <summary>
-    /// Confines the rate plot's X view to the retained beat extent
-    /// (<see cref="_rateDataMinX"/>..<see cref="_rateDataMaxX"/>) and caps the zoom-out
-    /// span at <see cref="_rateDataPoints"/> beats. A pan/zoom-out past either end is
-    /// shifted back inside (span preserved); a view wider than the data snaps to the
-    /// full range. Mirrors <see cref="ScopeXViewBoundsRule"/> on the beat-index axis.
+    /// Confines the rate plot's X view to the retained beat extent while preserving the
+    /// fixed 120-beat page as the live-follow maximum span. A pan/zoom-out past either
+    /// end is shifted back inside with span preserved.
     /// </summary>
     private sealed class RateXViewBoundsRule : IAxisRule
     {
@@ -460,9 +456,58 @@ internal sealed class RateScopeRenderer
                 return;
             }
 
-            // Zoom-out ceiling is the whole retained buffer (250 beats, or fewer when held).
-            ClampViewToExtent(_xAxis, _owner._rateDataMinX, _owner._rateDataMaxX, _owner._rateDataPoints);
+            (double pageLeft, double pageRight) = RatePageWindowFor(_owner._rateDataMaxX);
+            ClampViewToPagedExtent(
+                _xAxis,
+                _owner._rateDataMinX,
+                pageRight,
+                pageLeft,
+                RatePageWindowBeats);
         }
+    }
+
+    private static void ClampViewToPagedExtent(
+        IXAxis xAxis,
+        double min,
+        double maxRight,
+        double pageLeft,
+        double maxSpan)
+    {
+        double left = xAxis.Range.Min;
+        double right = xAxis.Range.Max;
+        double span = right - left;
+        if (span <= 0.0)
+        {
+            return;
+        }
+
+        if (span > maxSpan)
+        {
+            span = maxSpan;
+            right = left + span;
+        }
+
+        if (right > maxRight)
+        {
+            right = maxRight;
+            left = right - span;
+        }
+
+        double minLeft = Math.Min(min, pageLeft);
+        if (left < minLeft)
+        {
+            left = minLeft;
+            right = left + span;
+        }
+
+        if (right > maxRight)
+        {
+            right = maxRight;
+            left = right - span;
+        }
+
+        xAxis.Range.Min = left;
+        xAxis.Range.Max = right;
     }
 
     /// <summary>Restores the scope plot (bottom): re-arms live auto-follow and refits.</summary>

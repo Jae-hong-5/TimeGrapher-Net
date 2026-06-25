@@ -20,8 +20,6 @@ namespace TimeGrapher.App.Rendering;
 internal sealed class BeatErrorDiagRenderer
 {
     private const float TraceMarkerSize = 6.0f;
-    private const double MinimumBeatWindow = 40.0;
-    private const double BeatWindowPadding = 8.0;
     /// <summary>Y zoom-out cap on the signed Error Rate (ms) axis: +/-100 s (100 x 1000 ms).</summary>
     private const double YZoomOutLimitMs = 100_000.0;
 
@@ -39,7 +37,6 @@ internal sealed class BeatErrorDiagRenderer
     private ulong _lastVersion;
     private BeatMetricsHistorySnapshot? _lastHistory;
     private double _rateErrorYScale;
-    private int _rateDataPoints;
 
     public BeatErrorDiagRenderer(AvaPlot tracePlot, Border alertBanner, TextBlock alertText, TextBlock[] valueTexts)
     {
@@ -82,7 +79,6 @@ internal sealed class BeatErrorDiagRenderer
     public void CreateGraphs(double rateErrorYScale, int rateDataPoints)
     {
         _rateErrorYScale = rateErrorYScale;
-        _rateDataPoints = rateDataPoints;
         _lastVersion = 0;
         _lastHistory = null;
         _alertBanner.IsVisible = false;
@@ -97,7 +93,7 @@ internal sealed class BeatErrorDiagRenderer
         trace.YLabel("Error Rate (ms)");
         trace.XLabel("Beat Index");
         trace.Axes.SetLimitsY(-rateErrorYScale, rateErrorYScale);
-        trace.Axes.SetLimitsX(0, Math.Min(rateDataPoints, MinimumBeatWindow));
+        trace.Axes.SetLimitsX(0, RateScopeRenderer.RatePageWindowBeats);
         trace.Axes.Bottom.TickLabelStyle.IsVisible = true;
         for (int i = 0; i < _rateSeries.Length; i++)
         {
@@ -114,21 +110,20 @@ internal sealed class BeatErrorDiagRenderer
         _tracePlot.Refresh();
     }
 
-    /// <summary>Restores the trace plot: signed-rate Y and the current scrolling window.</summary>
+    /// <summary>Restores the trace plot: signed-rate Y and the current 120-beat page.</summary>
     public void ResetView()
     {
         _tracePlot.Plot.Axes.SetLimitsY(-_rateErrorYScale, _rateErrorYScale);
-        _tracePlot.Plot.Axes.SetLimitsX(0, _rateDataPoints);
+        _tracePlot.Plot.Axes.SetLimitsX(0, RateScopeRenderer.RatePageWindowBeats);
         UpdateAdaptiveXLimits();
         _tracePlot.Refresh();
     }
 
     public void RenderFrame(AnalysisFrame frame, AnalysisTabRenderContext context)
     {
-        // Review cursor deliberately not rendered here: this trace's x-domain is
-        // the WatchMetrics absolute beat index (a scrolling latest-MaxRateDataPoints
-        // window), not stream time, so context.ReviewCursorTimeS has no meaningful x
-        // mapping on this plot.
+        // Review cursor deliberately not rendered here: this trace's x-domain is the
+        // WatchMetrics absolute beat index page, not stream time, so context has no
+        // meaningful x mapping on this plot.
         _ = context;
 
         bool rateUpdated = ReplaceRateSeries(frame);
@@ -219,11 +214,7 @@ internal sealed class BeatErrorDiagRenderer
             }
         }
 
-        // Grow from a minimum window while the first beats fill in, then scroll: once
-        // more than rateDataPoints beats have arrived the window slides to keep the
-        // newest rateDataPoints visible and older points leave the left edge.
-        double right = Math.Max(MinimumBeatWindow, Math.Ceiling(maxBeat + BeatWindowPadding));
-        double left = Math.Max(0.0, right - _rateDataPoints);
+        (double left, double right) = RateScopeRenderer.RatePageWindowFor(maxBeat);
         _tracePlot.Plot.Axes.SetLimitsX(left, right);
     }
 
