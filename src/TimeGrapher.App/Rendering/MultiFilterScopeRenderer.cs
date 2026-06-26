@@ -69,6 +69,13 @@ internal sealed class MultiFilterScopeRenderer
     // than this, so a slow watch (long period) still tops out at a 100 ms view.
     private const double MaxWindowMs = 100.0;
 
+    // Deadband (ms) for re-committing the beat-locked X window. Re-locking to the
+    // live onset every frame nudged the window edges by the sub-ms beat-period
+    // jitter, which re-scaled the axis and trembled the X-axis ticks on every
+    // render. Hold the committed window until an edge moves more than this; a real
+    // beat re-lock advances by ~one period and clears the band immediately.
+    private const double WindowDeadbandMs = 0.5;
+
     // Where the beat onset sits in that window, as a fraction from the left edge:
     // a small pre-roll, so the impulse is left-aligned and its decay fills out to
     // the right (the PC-RM4 scope look), not centered.
@@ -160,6 +167,8 @@ internal sealed class MultiFilterScopeRenderer
     {
         _followLive = true;
         _hasDataExtent = false;
+        _dataMinX = 0.0;
+        _dataMaxX = 0.0;
         _stickyMaxTickMs = 0.0;
         Array.Clear(_lanePeakMax);
         for (int i = 0; i < _plots.Length; i++)
@@ -533,8 +542,20 @@ internal sealed class MultiFilterScopeRenderer
                 hasBeatWindow = TryBeatWindow(frame, oldest, newest, out double beatMin, out double beatMax);
                 if (hasBeatWindow)
                 {
-                    _dataMinX = beatMin;
-                    _dataMaxX = StableWindowRight(beatMin, beatMax);
+                    double candidateMin = beatMin;
+                    double candidateMax = StableWindowRight(beatMin, beatMax);
+                    // Only re-commit the window when an edge moves past the
+                    // deadband, so per-frame beat-period jitter no longer re-scales
+                    // the axis (which trembled the ticks). A real beat re-lock jumps
+                    // by ~one period and clears the band, so the lock still advances.
+                    double deadband = WindowDeadbandMs * Math.Max(_sampleRate / 1000.0, 1.0);
+                    if (_dataMaxX <= _dataMinX
+                        || Math.Abs(candidateMin - _dataMinX) > deadband
+                        || Math.Abs(candidateMax - _dataMaxX) > deadband)
+                    {
+                        _dataMinX = candidateMin;
+                        _dataMaxX = candidateMax;
+                    }
                 }
             }
 
