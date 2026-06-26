@@ -138,17 +138,25 @@ var ml = new MLContext(seed: 0);
 IDataView data = ml.Data.LoadFromEnumerable(samples);
 DataOperationsCatalog.TrainTestData split = ml.Data.TrainTestSplit(data, testFraction: 0.2, seed: 0);
 
+// One-vs-all FastTree. A tree ensemble (unlike a linear model) can represent the
+// heuristic's axis-aligned thresholds and its precedence (e.g. "missed > 0.05
+// => Unstable regardless of SNR"), so it distils the heuristic faithfully even on
+// single-axis inputs. FastTree is pure-managed (no native dependency) and exports
+// cleanly to the ONNX TreeEnsemble operator.
+// Overwrite the string Label with its key in place: OneVersusAll and the inner
+// FastTree both default to the "Label" column, and OVA binarizes it per class.
 var pipeline =
-    ml.Transforms.Conversion.MapValueToKey("LabelKey", nameof(Sample.Label))
-    .Append(ml.Transforms.NormalizeMinMax(nameof(Sample.Features)))
-    .Append(ml.MulticlassClassification.Trainers.SdcaMaximumEntropy(
-        labelColumnName: "LabelKey", featureColumnName: nameof(Sample.Features)))
+    ml.Transforms.Conversion.MapValueToKey(nameof(Sample.Label), nameof(Sample.Label))
+    .Append(ml.MulticlassClassification.Trainers.OneVersusAll(
+        ml.BinaryClassification.Trainers.FastTree(
+            numberOfLeaves: 24, numberOfTrees: 120, minimumExampleCountPerLeaf: 10),
+        labelColumnName: nameof(Sample.Label)))
     .Append(ml.Transforms.Conversion.MapKeyToValue("PredictedLabel"));
 
 ITransformer model = pipeline.Fit(split.TrainSet);
 
 MulticlassClassificationMetrics metrics =
-    ml.MulticlassClassification.Evaluate(model.Transform(split.TestSet), labelColumnName: "LabelKey");
+    ml.MulticlassClassification.Evaluate(model.Transform(split.TestSet), labelColumnName: nameof(Sample.Label));
 Console.WriteLine($"TEST  microAcc={metrics.MicroAccuracy:F3}  macroAcc={metrics.MacroAccuracy:F3}  logLoss={metrics.LogLoss:F3}");
 
 // Class order = the Score column's slot names (Score index -> class name).
@@ -273,15 +281,36 @@ static IEnumerable<Sample> Augment(int n, Random rng, HeuristicSignalQualityClas
 {
     for (int i = 0; i < n; i++)
     {
-        bool unstable = rng.NextDouble() < 0.30;
-        float snrDb = (float)(rng.NextDouble() * 36.0);              // spans weak(<12)/noisy(<24)/good
-        float peakMargin = (float)(0.8 + rng.NextDouble() * 3.2);    // weak when < 1.5
+        // Baseline: timing-stable, so SNR (weak<12 / noisy<24) and peak-margin
+        // (weak<1.5) and peak-CV (noisy>0.25) decide Good / Noisy / WeakSignal.
+        // Sampling SNR and margin independently teaches BOTH weak triggers
+        // (low-SNR-only and low-margin-only).
+        float snrDb = (float)(rng.NextDouble() * 36.0);
+        float peakMargin = (float)(0.8 + rng.NextDouble() * 3.4);
         float noiseFloor = (float)(0.0005 + rng.NextDouble() * 0.05);
-        float intervalCv = unstable ? (float)(0.05 + rng.NextDouble() * 0.10) : (float)(rng.NextDouble() * 0.04);
-        float peakCv = (float)(rng.NextDouble() * 0.45);             // noisy when > 0.25
-        float missedRate = unstable ? (float)(rng.NextDouble() * 0.15) : 0f;
-        float syncLossRate = unstable ? (float)(rng.NextDouble() * 0.08) : 0f;
+        float peakCv = (float)(rng.NextDouble() * 0.45);
+        float intervalCv = (float)(rng.NextDouble() * 0.04);
+        float missedRate = 0f;
+        float syncLossRate = 0f;
         float syncedFraction = (float)(0.6 + rng.NextDouble() * 0.4); // >= 0.5 so never Unknown
+
+        // 30% target the unstable corner. Push a RANDOM, non-empty subset of the
+        // three timing axes past their thresholds (not all three at once) so the
+        // model learns that any single trigger - jitter OR missed OR sync-loss -
+        // means Unstable, matching the heuristic's OR.
+        if (rng.NextDouble() < 0.30)
+        {
+            bool jitter = false, missed = false, syncLoss = false;
+            while (!(jitter || missed || syncLoss))
+            {
+                jitter = rng.NextDouble() < 0.5;
+                missed = rng.NextDouble() < 0.5;
+                syncLoss = rng.NextDouble() < 0.5;
+            }
+            if (jitter) intervalCv = (float)(0.06 + rng.NextDouble() * 0.10);
+            if (missed) missedRate = (float)(0.06 + rng.NextDouble() * 0.12);
+            if (syncLoss) syncLossRate = (float)(0.03 + rng.NextDouble() * 0.06);
+        }
 
         var f = new SignalQualityFeatures(
             snrDb, peakMargin, noiseFloor, intervalCv, peakCv, missedRate, syncLossRate, syncedFraction);
