@@ -29,6 +29,9 @@ internal sealed class SpectrogramRenderer
     /// <summary>Beat period assumed before the detector locks (28800 BPH), for Last Beat.</summary>
     private const double FallbackBeatPeriodS = 0.125;
 
+    /// <summary>Width (px) of the solid Beats-mode lane dividers.</summary>
+    internal const double BeatDividerWidth = 6.0;
+
     private readonly Image _spectrogramImage;
     private readonly Image _legendImage;
     // Frequency-axis labels (top..bottom), filled to span 0..Nyquist once a frame
@@ -40,6 +43,12 @@ internal sealed class SpectrogramRenderer
     // Overlay marking the sweep head — the column where live data is being
     // written right now — positioned over the image on each render.
     private readonly Control _currentLine;
+
+    // Solid lane dividers shown between beats in Beats mode. They are vector
+    // overlays (not baked into the stretched bitmap, which would blur a 1-px line
+    // into a gradient), painted the surrounding surface color so each beat reads
+    // as its own cell.
+    private readonly IReadOnlyList<Control> _beatDividers;
 
     private bool _light = PlotThemePalette.Current.IsLight;
     private SpectrogramViewMode _viewMode = SpectrogramViewMode.Seconds;
@@ -98,7 +107,8 @@ internal sealed class SpectrogramRenderer
         TextBlock[] freqLabels,
         TextBlock[] timeLabels,
         TextBlock timeCaption,
-        Control currentLine)
+        Control currentLine,
+        IReadOnlyList<Control> beatDividers)
     {
         _spectrogramImage = spectrogramImage;
         _legendImage = legendImage;
@@ -106,6 +116,7 @@ internal sealed class SpectrogramRenderer
         _timeLabels = timeLabels;
         _timeCaption = timeCaption;
         _currentLine = currentLine;
+        _beatDividers = beatDividers;
         UpdateTimeAxis(CurrentWindowSeconds());
     }
 
@@ -186,6 +197,7 @@ internal sealed class SpectrogramRenderer
         // zero and the blank repaint below is skipped, which would leave stale data.
         _spectrogramImage.Source = null;
         _currentLine.IsVisible = false;
+        UpdateBeatDividers(); // _lastImage is null now, so this hides them all
 
         int w = (int)_spectrogramImage.Bounds.Width;
         int h = (int)_spectrogramImage.Bounds.Height;
@@ -227,6 +239,7 @@ internal sealed class SpectrogramRenderer
         {
             UpdateTimeAxis(windowSeconds);
             UpdateCurrentLine();
+            UpdateBeatDividers();
             return;
         }
 
@@ -253,6 +266,7 @@ internal sealed class SpectrogramRenderer
         UpdateTimeAxis(cols * _lastColumnSeconds); // label the window actually shown
         UpdateFrequencyAxis(height);
         UpdateCurrentLine();
+        UpdateBeatDividers();
     }
 
     // Labels the frequency axis 0..Nyquist (sampleRate / 2). The image's top row
@@ -381,14 +395,6 @@ internal sealed class SpectrogramRenderer
             }
         }
 
-        // Beats: mark each beat boundary with a thin grid-colored divider so the
-        // lanes read as separate beats to compare. Painted after the crop so it
-        // sits on top; the color comes from the theme (never hardcoded).
-        if (_viewMode == SpectrogramViewMode.Beats)
-        {
-            DrawBeatDividers(target, cols, height);
-        }
-
         _emptyColor = emptyColor;
         _sweepCols = cols;
         _sweepHead = (int)(((anchor - shift) % cols + cols) % cols); // live edge: next column to write
@@ -408,25 +414,25 @@ internal sealed class SpectrogramRenderer
         }
     }
 
-    // Paints a one-column grid-colored line at each lane boundary of the Beats
-    // window. The window is sized to whole lanes (cols = beatCols × beats), so the
-    // boundaries are exactly between the centered beats — drawing beats−1 dividers
-    // splits the window into one lane per beat with no leftover sliver.
-    private void DrawBeatDividers(uint[] target, int cols, int height)
+    // Positions the solid lane dividers over the beat boundaries: the window is
+    // sized to whole lanes, so the boundaries fall at width × m / beats. Shown only
+    // in Beats mode (and only beats−1 of them); the rest stay hidden.
+    private void UpdateBeatDividers()
     {
-        int beatCols = cols / _viewBeats;
-        if (beatCols <= 0)
+        double width = _spectrogramImage.Bounds.Width;
+        bool show = _viewMode == SpectrogramViewMode.Beats && _lastImage != null && width > 0.0;
+        for (int i = 0; i < _beatDividers.Count; i++)
         {
-            return;
-        }
-
-        uint divider = PlotThemePalette.Current.ScopeGrid;
-        for (int m = 1; m < _viewBeats; m++)
-        {
-            int x = m * beatCols;
-            for (int y = 0; y < height; y++)
+            int boundary = i + 1; // boundary between lane i and lane i+1
+            if (show && boundary < _viewBeats)
             {
-                target[y * cols + x] = divider;
+                double x = width * boundary / _viewBeats;
+                _beatDividers[i].Margin = new Thickness(x - BeatDividerWidth / 2.0, 0.0, 0.0, 0.0);
+                _beatDividers[i].IsVisible = true;
+            }
+            else
+            {
+                _beatDividers[i].IsVisible = false;
             }
         }
     }

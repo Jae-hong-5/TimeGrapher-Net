@@ -188,7 +188,29 @@ internal sealed partial class InfoTabRegistry
         // adapts to the light/dark variant.
         currentLine.Bind(Shape.FillProperty, currentLine.GetResourceObservable("ChromeAccentBrush"));
 
-        var renderer = new SpectrogramRenderer(image, legendImage, freqLabels, timeLabels, timeAxisCaption, currentLine);
+        // Beats-mode lane dividers: solid vertical bars the renderer positions over
+        // the beat boundaries so each beat reads as its own cell. They overlay the
+        // image like the live-head marker (vector, so they stay crisp instead of
+        // blurring like a line baked into the stretched bitmap) and are painted the
+        // surrounding surface color. One per possible boundary — the largest beat
+        // count on the ladder below is 8, so 7 dividers cover every count.
+        const int maxBeatDividers = 7;
+        var beatDividers = new Rectangle[maxBeatDividers];
+        for (int i = 0; i < maxBeatDividers; i++)
+        {
+            var divider = new Rectangle
+            {
+                Width = SpectrogramRenderer.BeatDividerWidth,
+                HorizontalAlignment = HorizontalAlignment.Left,
+                VerticalAlignment = VerticalAlignment.Stretch,
+                IsHitTestVisible = false,
+                IsVisible = false,
+            };
+            divider.Bind(Shape.FillProperty, divider.GetResourceObservable("SurfaceBgBrush"));
+            beatDividers[i] = divider;
+        }
+
+        var renderer = new SpectrogramRenderer(image, legendImage, freqLabels, timeLabels, timeAxisCaption, currentLine, beatDividers);
 
         // Time-window toolbar (the Qt original's Last Beat / Seconds selector, plus
         // a Beats compare view). The mode buttons follow the Scope Sweep "active
@@ -220,7 +242,7 @@ internal sealed partial class InfoTabRegistry
             return button;
         }
         Button lastBeatButton = ToolbarButton("Last Beat", "Show the most recent single beat period");
-        Button beatsButton = ToolbarButton("Beats", "Show the last few beats side by side to compare one with the next");
+        Button beatsButton = ToolbarButton("Compare Beats", "Show the last few beats side by side to compare one with the next");
         Button secondsButton = ToolbarButton("Seconds", "Show a fixed number of seconds");
         Button minusButton = ToolbarButton("−", "Shorter window / fewer beats");
         Button plusButton = ToolbarButton("+", "Longer window / more beats");
@@ -374,6 +396,12 @@ internal sealed partial class InfoTabRegistry
         grid.Children.Add(freqTickStrip);
         grid.Children.Add(imageHost);
         grid.Children.Add(currentLine); // after imageHost so it overlays the image
+        foreach (Rectangle divider in beatDividers)
+        {
+            Grid.SetRow(divider, 1);
+            Grid.SetColumn(divider, 2);
+            grid.Children.Add(divider); // same cell as the image, overlaid on top
+        }
         grid.Children.Add(colorbar);
         grid.Children.Add(timeTickStrip);
         grid.Children.Add(timeLabelGrid);

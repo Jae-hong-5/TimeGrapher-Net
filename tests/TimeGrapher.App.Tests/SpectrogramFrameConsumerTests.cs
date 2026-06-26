@@ -17,7 +17,8 @@ public sealed class SpectrogramFrameConsumerTests
         new[] { new TextBlock(), new TextBlock(), new TextBlock(), new TextBlock(), new TextBlock(), new TextBlock(), new TextBlock() },
         new[] { new TextBlock(), new TextBlock(), new TextBlock(), new TextBlock(), new TextBlock(), new TextBlock() },
         new TextBlock(),
-        new Border());
+        new Border(),
+        System.Array.Empty<Avalonia.Controls.Control>());
 
     [Fact]
     public void ObserveFrameCachesLatestSpectrogramImageAndResetClearsIt()

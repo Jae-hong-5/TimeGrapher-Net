@@ -16,7 +16,8 @@ public sealed class SpectrogramRendererTests
         new[] { new TextBlock(), new TextBlock(), new TextBlock(), new TextBlock(), new TextBlock(), new TextBlock(), new TextBlock() },
         timeLabels,
         caption,
-        new Border());
+        new Border(),
+        System.Array.Empty<Avalonia.Controls.Control>());
 
     private static TextBlock[] TimeLabels() =>
         new[] { new TextBlock(), new TextBlock(), new TextBlock(), new TextBlock(), new TextBlock(), new TextBlock() };
