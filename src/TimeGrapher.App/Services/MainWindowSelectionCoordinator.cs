@@ -76,6 +76,9 @@ internal sealed class MainWindowSelectionCoordinator : ISelectionEventGate
             case nameof(MainWindowViewModel.SimErrorRate):
             case nameof(MainWindowViewModel.SimAmplitude):
             case nameof(MainWindowViewModel.SimBeatError):
+            case nameof(MainWindowViewModel.SimSignalAScale):
+            case nameof(MainWindowViewModel.SimSignalBScale):
+            case nameof(MainWindowViewModel.SimSignalCScale):
                 OnSimulationParameterChanged();
                 break;
         }
@@ -179,11 +182,16 @@ internal sealed class MainWindowSelectionCoordinator : ISelectionEventGate
         // Forward the live-adjustable simulation knobs to the running sim worker
         // (the controller ignores the call unless a sim run is active). Beat error
         // is negated to match SimStart's cfg.BeatErrorMs sign convention so a live
-        // edit moves the reading the same direction as setting it before a run.
+        // edit moves the reading the same direction as setting it before a run. The
+        // A/B/C cluster scales only bite in Realistic mode (the synth ignores them
+        // otherwise), so forwarding them unconditionally is harmless.
         _operations.SetLiveSimulationParameters(
             (double)_viewModel.SimErrorRate,
             -(double)_viewModel.SimBeatError,
-            (double)_viewModel.SimAmplitude);
+            (double)_viewModel.SimAmplitude,
+            (double)_viewModel.SimSignalAScale,
+            (double)_viewModel.SimSignalBScale,
+            (double)_viewModel.SimSignalCScale);
     }
 
     internal static string ItemText(IReadOnlyList<string> items, int index)

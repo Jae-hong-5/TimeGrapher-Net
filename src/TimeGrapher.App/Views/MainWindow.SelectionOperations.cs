@@ -46,9 +46,21 @@ public partial class MainWindow
             _owner.mRunSessionController.SetLiveInputVolume(normalizedVolume);
         }
 
-        public void SetLiveSimulationParameters(double rateErrorSPerDay, double beatErrorMs, double watchAmplitudeDegrees)
+        public void SetLiveSimulationParameters(
+            double rateErrorSPerDay,
+            double beatErrorMs,
+            double watchAmplitudeDegrees,
+            double aClusterLevelScale,
+            double bClusterLevelScale,
+            double cClusterLevelScale)
         {
-            _owner.mRunSessionController.SetLiveSimulationParameters(rateErrorSPerDay, beatErrorMs, watchAmplitudeDegrees);
+            _owner.mRunSessionController.SetLiveSimulationParameters(
+                rateErrorSPerDay,
+                beatErrorMs,
+                watchAmplitudeDegrees,
+                aClusterLevelScale,
+                bClusterLevelScale,
+                cClusterLevelScale);
         }
     }
 }

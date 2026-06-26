@@ -187,16 +187,29 @@ internal sealed class RunSessionController : IDisposable, IRunSessionControls
 
     /// <summary>
     /// Forwards the live-adjustable simulation knobs (rate error s/day, beat error ms,
-    /// watch amplitude degrees) to the running sim worker. No-op unless a simulation
-    /// run is active, mirroring <see cref="SetLiveInputVolume"/> for the live worker.
-    /// The view model is the source of truth for the next run's start, so unlike the
-    /// analysis-worker knobs there is nothing to remember here.
+    /// watch amplitude degrees, and the per-cluster A/B/C level scales) to the running
+    /// sim worker. No-op unless a simulation run is active, mirroring
+    /// <see cref="SetLiveInputVolume"/> for the live worker. The view model is the
+    /// source of truth for the next run's start, so unlike the analysis-worker knobs
+    /// there is nothing to remember here.
     /// </summary>
-    public void SetLiveSimulationParameters(double rateErrorSPerDay, double beatErrorMs, double watchAmplitudeDegrees)
+    public void SetLiveSimulationParameters(
+        double rateErrorSPerDay,
+        double beatErrorMs,
+        double watchAmplitudeDegrees,
+        double aClusterLevelScale,
+        double bClusterLevelScale,
+        double cClusterLevelScale)
     {
         if (_inputWorker is SimWorker simWorker)
         {
-            simWorker.UpdateLiveParameters(rateErrorSPerDay, beatErrorMs, watchAmplitudeDegrees);
+            simWorker.UpdateLiveParameters(
+                rateErrorSPerDay,
+                beatErrorMs,
+                watchAmplitudeDegrees,
+                aClusterLevelScale,
+                bClusterLevelScale,
+                cClusterLevelScale);
         }
     }
 

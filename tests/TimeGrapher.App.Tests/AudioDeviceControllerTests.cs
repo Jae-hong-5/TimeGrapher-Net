@@ -166,11 +166,20 @@ public sealed class AudioDeviceControllerTests
             _ = normalizedVolume;
         }
 
-        public void SetLiveSimulationParameters(double rateErrorSPerDay, double beatErrorMs, double watchAmplitudeDegrees)
+        public void SetLiveSimulationParameters(
+            double rateErrorSPerDay,
+            double beatErrorMs,
+            double watchAmplitudeDegrees,
+            double aClusterLevelScale,
+            double bClusterLevelScale,
+            double cClusterLevelScale)
         {
             _ = rateErrorSPerDay;
             _ = beatErrorMs;
             _ = watchAmplitudeDegrees;
+            _ = aClusterLevelScale;
+            _ = bClusterLevelScale;
+            _ = cClusterLevelScale;
         }
     }
 

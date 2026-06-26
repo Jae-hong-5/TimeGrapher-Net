@@ -14,5 +14,11 @@ internal interface IMainWindowSelectionOperations
 
     void SetAudioInputVolume(float normalizedVolume);
 
-    void SetLiveSimulationParameters(double rateErrorSPerDay, double beatErrorMs, double watchAmplitudeDegrees);
+    void SetLiveSimulationParameters(
+        double rateErrorSPerDay,
+        double beatErrorMs,
+        double watchAmplitudeDegrees,
+        double aClusterLevelScale,
+        double bClusterLevelScale,
+        double cClusterLevelScale);
 }

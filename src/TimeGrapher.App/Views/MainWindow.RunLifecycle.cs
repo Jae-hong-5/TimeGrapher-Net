@@ -428,6 +428,10 @@ public partial class MainWindow
         cfg.WatchAmplitudeDegrees = (double)mViewModel.SimAmplitude;
         cfg.LiftAngleDegrees = (double)mViewModel.LiftAngle;
         cfg.RateErrorSPerDay = (double)mViewModel.SimErrorRate;
+        // Per-cluster A/B/C signal sizes (only effective with the realistic packet).
+        cfg.AClusterLevelScale = (double)mViewModel.SimSignalAScale;
+        cfg.BClusterLevelScale = (double)mViewModel.SimSignalBScale;
+        cfg.CClusterLevelScale = (double)mViewModel.SimSignalCScale;
 
         if (!await RecordSessionCheck(selection.SampleRate))
         {

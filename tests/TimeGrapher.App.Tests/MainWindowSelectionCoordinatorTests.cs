@@ -125,8 +125,22 @@ public sealed class MainWindowSelectionCoordinatorTests
         vm.SimBeatError = 1.5m;
 
         // Beat error is negated to match SimStart's cfg.BeatErrorMs sign convention;
-        // rate and amplitude pass through unchanged.
-        Assert.Equal((5.0, -1.5, 250.0), operations.LastSimulationParameters);
+        // rate, amplitude, and the (default) A/B/C scales pass through unchanged.
+        Assert.Equal((5.0, -1.5, 250.0, 1.0, 1.0, 1.0), operations.LastSimulationParameters);
+    }
+
+    [Fact]
+    public void SignalScaleChangeForwardsClusterScalesLive()
+    {
+        MainWindowViewModel vm = CreateViewModel();
+        var operations = new FakeSelectionOperations(-1);
+        MainWindowSelectionCoordinator coordinator = CreateCoordinator(vm, operations);
+
+        vm.SimSignalAScale = 0.3m;
+        vm.SimSignalBScale = 1.7m;
+        vm.SimSignalCScale = 0.5m;
+
+        Assert.Equal((0.0, 0.0, 300.0, 0.3, 1.7, 0.5), operations.LastSimulationParameters);
     }
 
     private static MainWindowViewModel CreateViewModel()
@@ -167,7 +181,7 @@ public sealed class MainWindowSelectionCoordinatorTests
 
         public float? LastVolume { get; private set; }
 
-        public (double RateErrorSPerDay, double BeatErrorMs, double WatchAmplitudeDegrees)? LastSimulationParameters { get; private set; }
+        public (double RateErrorSPerDay, double BeatErrorMs, double WatchAmplitudeDegrees, double AClusterLevelScale, double BClusterLevelScale, double CClusterLevelScale)? LastSimulationParameters { get; private set; }
 
         public int GetAvailableSampleRate(int index)
         {
@@ -189,9 +203,15 @@ public sealed class MainWindowSelectionCoordinatorTests
             LastVolume = normalizedVolume;
         }
 
-        public void SetLiveSimulationParameters(double rateErrorSPerDay, double beatErrorMs, double watchAmplitudeDegrees)
+        public void SetLiveSimulationParameters(
+            double rateErrorSPerDay,
+            double beatErrorMs,
+            double watchAmplitudeDegrees,
+            double aClusterLevelScale,
+            double bClusterLevelScale,
+            double cClusterLevelScale)
         {
-            LastSimulationParameters = (rateErrorSPerDay, beatErrorMs, watchAmplitudeDegrees);
+            LastSimulationParameters = (rateErrorSPerDay, beatErrorMs, watchAmplitudeDegrees, aClusterLevelScale, bClusterLevelScale, cClusterLevelScale);
         }
 
     }
