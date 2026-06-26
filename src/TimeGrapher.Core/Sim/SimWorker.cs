@@ -40,6 +40,16 @@ public sealed class SimWorker : IAudioInputWorker
     private volatile bool _interruptionRequested; // QThread::isInterruptionRequested()
     private readonly WorkerPauseGate _pauseGate = new();
 
+    // Live-adjustable knobs pushed from the UI thread (Error Rate / Amplitude /
+    // Beat Error). Stored under a lock and applied on the sim thread between fill
+    // blocks, mirroring the analysis worker's pending-knob pattern so the values
+    // never race the generator.
+    private readonly object _liveParamsLock = new();
+    private bool _hasPendingLiveParams;
+    private double _pendingRateErrorSPerDay;
+    private double _pendingBeatErrorMs;
+    private double _pendingWatchAmplitudeDegrees;
+
     /// <summary>Notify-only: new audio is available. Raised from the sim thread.</summary>
     public event Action? DataReady; // SimDataReady
 
@@ -110,6 +120,23 @@ public sealed class SimWorker : IAudioInputWorker
         _pauseGate.SetPaused(paused);
     }
 
+    /// <summary>
+    /// Push the live-adjustable simulation parameters (rate error s/day, beat error
+    /// ms, watch amplitude degrees). Callable from any thread; the values are applied
+    /// on the sim thread before the next fill block. No-op if no sim is running yet
+    /// or has already finished. BPH and sample rate are intentionally not live.
+    /// </summary>
+    public void UpdateLiveParameters(double rateErrorSPerDay, double beatErrorMs, double watchAmplitudeDegrees)
+    {
+        lock (_liveParamsLock)
+        {
+            _pendingRateErrorSPerDay = rateErrorSPerDay;
+            _pendingBeatErrorMs = beatErrorMs;
+            _pendingWatchAmplitudeDegrees = watchAmplitudeDegrees;
+            _hasPendingLiveParams = true;
+        }
+    }
+
     public void Dispose()
     {
         Stop();
@@ -161,6 +188,8 @@ public sealed class SimWorker : IAudioInputWorker
                 break;
             }
 
+            ApplyPendingLiveParameters(stream);
+
             start = _timer.ElapsedMilliseconds;
 
             r = stream.FillF32(_dataIn.AsSpan(0, _dataInSize), events.AsSpan(0, 16));
@@ -208,6 +237,25 @@ public sealed class SimWorker : IAudioInputWorker
         }
 
         SimDone?.Invoke(reason);
+    }
+
+    private void ApplyPendingLiveParameters(WatchSynthStream stream)
+    {
+        double rateErrorSPerDay, beatErrorMs, watchAmplitudeDegrees;
+        lock (_liveParamsLock)
+        {
+            if (!_hasPendingLiveParams)
+            {
+                return;
+            }
+
+            rateErrorSPerDay = _pendingRateErrorSPerDay;
+            beatErrorMs = _pendingBeatErrorMs;
+            watchAmplitudeDegrees = _pendingWatchAmplitudeDegrees;
+            _hasPendingLiveParams = false;
+        }
+
+        stream.ApplyLiveParameters(rateErrorSPerDay, beatErrorMs, watchAmplitudeDegrees);
     }
 
     private static bool JoinInfinite(Thread thread)

@@ -56,6 +56,69 @@ public sealed class WatchSynthStreamTests
         Assert.NotEqual(bufA, bufB);
     }
 
+    [Fact]
+    public void ApplyLiveParameters_SpeedingUpTheRateProducesMoreBeats()
+    {
+        // 28800 BPH = 8 beats/s, so a 1 s block holds ~8 events at the nominal rate.
+        var stream = new WatchSynthStream(Clean(bph: 28800));
+        var buf = new float[48000]; // 1 s
+        var events = new WatchSynthStreamEvent[64];
+
+        WatchSynthStreamFillResult nominal = stream.FillF32(buf, events);
+
+        // +43200 s/day runs the watch 1.5x fast, shrinking the beat interval, so the
+        // next second must contain strictly more beats once the new rate takes effect.
+        stream.ApplyLiveParameters(rateErrorSPerDay: 43200.0, beatErrorMs: 0.0, watchAmplitudeDegrees: 270.0);
+
+        WatchSynthStreamFillResult fast = stream.FillF32(buf, events);
+
+        Assert.True(fast.EventsWritten > nominal.EventsWritten);
+    }
+
+    [Fact]
+    public void ApplyLiveParameters_BeatErrorTakesEffectLive()
+    {
+        // Clean config has zero beat error: tick->tock and tock->tick intervals match,
+        // so AppliedIntervalOffsetUs is 0 for every event.
+        var stream = new WatchSynthStream(Clean(bph: 28800));
+        var buf = new float[48000];
+        var events = new WatchSynthStreamEvent[64];
+
+        WatchSynthStreamFillResult baseline = stream.FillF32(buf, events);
+        Assert.All(events.AsSpan(0, baseline.EventsWritten).ToArray(), e => Assert.Equal(0.0, e.AppliedIntervalOffsetUs));
+
+        // +2 ms beat error must appear as a +/-2000 us alternating interval offset.
+        stream.ApplyLiveParameters(rateErrorSPerDay: 0.0, beatErrorMs: 2.0, watchAmplitudeDegrees: 270.0);
+
+        WatchSynthStreamFillResult withError = stream.FillF32(buf, events);
+
+        Assert.Contains(
+            events.AsSpan(0, withError.EventsWritten).ToArray(),
+            e => Math.Abs(e.AppliedIntervalOffsetUs) > 1000.0);
+    }
+
+    [Fact]
+    public void ApplyLiveParameters_InvalidUpdateIsIgnoredKeepingLastGoodValues()
+    {
+        // Two identical clean streams advanced in lockstep; one then receives a beat
+        // error far larger than the beat interval (validation must reject it). The
+        // rejected update must leave the stream untouched, so both stay bit-identical.
+        var changed = new WatchSynthStream(Clean(bph: 28800, seed: 5));
+        var control = new WatchSynthStream(Clean(bph: 28800, seed: 5));
+        var bufChanged = new float[48000];
+        var bufControl = new float[48000];
+
+        changed.Generate(bufChanged);
+        control.Generate(bufControl);
+
+        changed.ApplyLiveParameters(rateErrorSPerDay: 0.0, beatErrorMs: 100_000.0, watchAmplitudeDegrees: 270.0);
+
+        changed.Generate(bufChanged);
+        control.Generate(bufControl);
+
+        Assert.Equal(bufControl, bufChanged);
+    }
+
     // Deterministic realistic A/B/C packet: realistic packet structure on, but every
     // stochastic component (jitter/noise/variation/drift/resonance/wander) left off so
     // per-cluster amplitude scaling can be measured in isolation.
