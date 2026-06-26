@@ -174,7 +174,7 @@ Capture "overview.png"
 # left-panel crop from the overview
 try {
   $ov = [System.Drawing.Image]::FromFile((Join-Path $OutDir "overview.png"))
-  $cw = [Math]::Min(360, $ov.Width); $ch = $ov.Height
+  $cw = [Math]::Min([int][Math]::Ceiling($ov.Width * (360.0 / 1280.0)), $ov.Width); $ch = $ov.Height
   $crop = New-Object System.Drawing.Bitmap($cw, $ch)
   $cg = [System.Drawing.Graphics]::FromImage($crop)
   $cg.DrawImage($ov, (New-Object System.Drawing.Rectangle(0,0,$cw,$ch)),

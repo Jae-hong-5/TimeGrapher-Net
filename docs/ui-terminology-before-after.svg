@@ -1,0 +1,489 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="3380" viewBox="0 0 1800 3380">
+  <rect width="1800" height="3380" fill="#1D1D1B"/>
+  <foreignObject x="0" y="0" width="1800" height="3380">
+    <div xmlns="http://www.w3.org/1999/xhtml">
+      <style>
+        * { box-sizing: border-box; }
+        body {
+          margin: 0;
+          background: #1D1D1B;
+          color: #C2C8CE;
+          font-family: "Malgun Gothic", "D2Coding", Arial, sans-serif;
+          font-weight: 700;
+        }
+        .page { padding: 48px 54px 68px; }
+        h1 {
+          margin: 0 0 10px;
+          color: #F3F5F6;
+          font-size: 42px;
+          line-height: 1.18;
+          font-weight: 900;
+          letter-spacing: 0;
+        }
+        .lead {
+          margin: 0;
+          color: #AEB6BA;
+          font-size: 21px;
+          line-height: 1.45;
+        }
+        .legend {
+          display: inline-flex;
+          align-items: center;
+          gap: 12px;
+          margin-top: 24px;
+          padding: 10px 14px;
+          border: 1px solid #333333;
+          background: #242421;
+          color: #E1E5E8;
+          font-size: 18px;
+        }
+        .legend-box {
+          width: 46px;
+          height: 26px;
+          border: 4px solid #FF3B30;
+          background: rgba(255, 59, 48, 0.05);
+        }
+        .section {
+          margin-top: 34px;
+          border: 1px solid #333333;
+          background: #232321;
+          box-shadow: 0 3px 14px rgba(0, 0, 0, 0.35);
+        }
+        .section-title {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 24px;
+          padding: 22px 24px 0;
+        }
+        .section-title h2 {
+          margin: 0 0 12px;
+          color: #FFFFFF;
+          font-size: 26px;
+          line-height: 1.25;
+          font-weight: 900;
+        }
+        .comparison {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 24px;
+          padding: 0 24px 24px;
+        }
+        .mock {
+          min-height: 270px;
+          border: 1px solid #3A3A38;
+          background: linear-gradient(180deg, rgba(255,255,255,0.09), rgba(255,255,255,0.04));
+          padding: 18px;
+        }
+        .mock-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          margin-bottom: 14px;
+          padding-bottom: 12px;
+          border-bottom: 1px solid #3A3A38;
+        }
+        .screen {
+          color: #FFFFFF;
+          font-size: 22px;
+          font-weight: 900;
+        }
+        .state {
+          color: #C24A62;
+          font-family: "D2Coding", Consolas, monospace;
+          font-size: 16px;
+          font-weight: 900;
+        }
+        .toolbar {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-bottom: 14px;
+          flex-wrap: wrap;
+        }
+        .button {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          min-height: 30px;
+          padding: 4px 10px;
+          border: 1px solid #464642;
+          background: #1D1D1B;
+          color: #D9DEE1;
+          font-family: "D2Coding", Consolas, monospace;
+          font-size: 17px;
+          line-height: 1.2;
+          font-weight: 900;
+        }
+        .grid {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 10px;
+        }
+        .grid.four { grid-template-columns: repeat(4, 1fr); }
+        .grid.two { grid-template-columns: repeat(2, 1fr); }
+        .cell {
+          min-height: 58px;
+          padding: 10px 11px;
+          border: 1px solid #333333;
+          background: rgba(0, 0, 0, 0.16);
+        }
+        .label {
+          color: #9A9DA1;
+          font-family: "D2Coding", Consolas, monospace;
+          font-size: 16px;
+          line-height: 1.25;
+          font-weight: 900;
+          margin-bottom: 6px;
+        }
+        .value {
+          color: #EEF1F3;
+          font-family: "D2Coding", Consolas, monospace;
+          font-size: 22px;
+          line-height: 1.25;
+          font-weight: 900;
+        }
+        .small-value {
+          color: #EEF1F3;
+          font-family: "D2Coding", Consolas, monospace;
+          font-size: 18px;
+          line-height: 1.28;
+          font-weight: 900;
+        }
+        .table {
+          display: grid;
+          grid-template-columns: 1.1fr 1.2fr 1.2fr 1.35fr 1fr 1.8fr;
+          border-top: 1px solid #333333;
+          border-left: 1px solid #333333;
+          overflow: hidden;
+        }
+        .table .th, .table .td {
+          min-height: 44px;
+          padding: 9px 10px;
+          border-right: 1px solid #333333;
+          border-bottom: 1px solid #333333;
+          font-family: "D2Coding", Consolas, monospace;
+          font-size: 15px;
+          line-height: 1.25;
+          font-weight: 900;
+          color: #E4E8EA;
+        }
+        .table .th {
+          color: #AEB6BA;
+          background: rgba(0, 0, 0, 0.18);
+        }
+        .hero-row {
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          gap: 12px;
+          margin-top: 14px;
+        }
+        .rail {
+          display: grid;
+          grid-template-columns: 1fr 1.2fr;
+          gap: 18px;
+        }
+        .radar {
+          min-height: 205px;
+          border: 1px solid #333333;
+          background: #111111;
+          position: relative;
+        }
+        .radar:before {
+          content: "";
+          position: absolute;
+          inset: 42px 72px;
+          border: 2px solid #3E4F56;
+          transform: rotate(45deg);
+        }
+        .diagnosis {
+          display: grid;
+          gap: 9px;
+        }
+        .diag-title {
+          color: #FFFFFF;
+          font-size: 24px;
+          font-weight: 900;
+        }
+        .diag-sub {
+          color: #AEB6BA;
+          font-size: 16px;
+          line-height: 1.3;
+        }
+        .metric-buttons {
+          display: flex;
+          gap: 8px;
+          flex-wrap: wrap;
+        }
+        .chip {
+          display: inline-flex;
+          min-height: 28px;
+          align-items: center;
+          padding: 4px 9px;
+          border: 1px solid #464642;
+          background: #1D1D1B;
+          color: #D9DEE1;
+          font-family: "D2Coding", Consolas, monospace;
+          font-size: 15px;
+          font-weight: 900;
+        }
+        .rowline {
+          display: grid;
+          grid-template-columns: 1fr 1fr 1fr;
+          gap: 8px;
+          align-items: center;
+          padding: 7px 0;
+          border-bottom: 1px solid #333333;
+          font-family: "D2Coding", Consolas, monospace;
+          font-size: 16px;
+        }
+        .graph {
+          min-height: 154px;
+          border: 1px solid #333333;
+          background:
+            linear-gradient(#20201E 1px, transparent 1px),
+            linear-gradient(90deg, #20201E 1px, transparent 1px),
+            #050505;
+          background-size: 44px 30px;
+          position: relative;
+          margin-top: 10px;
+        }
+        .graph:after {
+          content: "";
+          position: absolute;
+          left: 28px;
+          right: 28px;
+          top: 72px;
+          height: 2px;
+          background: #C24A62;
+          box-shadow: 0 -30px 0 #5FDD45, 0 31px 0 #FF5C5C;
+        }
+        .highlight {
+          display: inline-block;
+          padding: 2px 5px;
+          margin: -3px -6px;
+          border: 4px solid #FF3B30;
+          background: rgba(255, 59, 48, 0.05);
+          color: #FFFFFF;
+        }
+        .note {
+          margin-top: 10px;
+          color: #AEB6BA;
+          font-size: 16px;
+          line-height: 1.35;
+        }
+      </style>
+
+      <div class="page">
+        <h1>용어 변경 반영 시안 - 변경 전/후</h1>
+        <p class="lead">빨간 네모는 프로그램 화면에서 실제로 바뀌는 텍스트입니다. “현재 유지” 항목은 비교 시안에서 제외했습니다.</p>
+        <div class="legend"><span class="legend-box"></span><span>변경 대상 텍스트</span></div>
+
+        <section class="section">
+          <div class="section-title">
+            <h2>Beat Error 탭 - 변경 전</h2>
+            <h2>Beat Error 탭 - 변경 후</h2>
+          </div>
+          <div class="comparison">
+            <div class="mock">
+              <div class="mock-header"><span class="screen">Beat Error</span><span class="state">BEFORE</span></div>
+              <div class="grid">
+                <div class="cell"><div class="label">Error Rate</div><div class="value">+2.1 s/d</div></div>
+                <div class="cell"><div class="label">Amplitude</div><div class="value">286°</div></div>
+                <div class="cell"><div class="label"><span class="highlight">BEAT ERROR</span></div><div class="value">+0.12 ms</div></div>
+                <div class="cell"><div class="label"><span class="highlight">DIFF TIC-TAC</span></div><div class="value">+0.05 ms</div></div>
+                <div class="cell"><div class="label"><span class="highlight">DIFF PERIOD</span></div><div class="value">-0.02 ms</div></div>
+                <div class="cell"><div class="label"><span class="highlight">AVG PERIOD</span></div><div class="value">166.7 ms</div></div>
+              </div>
+            </div>
+            <div class="mock">
+              <div class="mock-header"><span class="screen">Beat Error</span><span class="state">AFTER</span></div>
+              <div class="grid">
+                <div class="cell"><div class="label">Error Rate</div><div class="value">+2.1 s/d</div></div>
+                <div class="cell"><div class="label">Amplitude</div><div class="value">286°</div></div>
+                <div class="cell"><div class="label"><span class="highlight">Beat Error</span></div><div class="value">+0.12 ms</div></div>
+                <div class="cell"><div class="label"><span class="highlight">Tic-Tac Diff</span></div><div class="value">+0.05 ms</div></div>
+                <div class="cell"><div class="label"><span class="highlight">Period Diff</span></div><div class="value">-0.02 ms</div></div>
+                <div class="cell"><div class="label"><span class="highlight">Avg Period</span></div><div class="value">166.7 ms</div></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="section-title">
+            <h2>Vario - 변경 전</h2>
+            <h2>Vario - 변경 후</h2>
+          </div>
+          <div class="comparison">
+            <div class="mock">
+              <div class="mock-header"><span class="screen">Vario</span><span class="state">BEFORE</span></div>
+              <div class="grid three">
+                <div class="cell"><div class="label">Error Rate</div><div class="value">Stable</div></div>
+                <div class="cell"><div class="label">Amplitude</div><div class="value">Healthy</div></div>
+                <div class="cell"><div class="label"><span class="highlight">ELAPSED</span></div><div class="value">02:14</div></div>
+              </div>
+              <div class="toolbar"><span class="button">View criteria ▾</span></div>
+              <div class="grid two">
+                <div class="cell"><div class="label">Error Rate (s/d)</div><div class="small-value">Min Max <span class="highlight">Average</span> <span class="highlight">Current</span></div></div>
+                <div class="cell"><div class="label"><span class="highlight">Amplitude(°)</span></div><div class="small-value">Std dev (σ) <span class="highlight">Current</span></div></div>
+              </div>
+            </div>
+            <div class="mock">
+              <div class="mock-header"><span class="screen">Vario</span><span class="state">AFTER</span></div>
+              <div class="grid three">
+                <div class="cell"><div class="label">Error Rate</div><div class="value">Stable</div></div>
+                <div class="cell"><div class="label">Amplitude</div><div class="value">Healthy</div></div>
+                <div class="cell"><div class="label"><span class="highlight">Elapsed</span></div><div class="value">02:14</div></div>
+              </div>
+              <div class="toolbar"><span class="button">View criteria ▾</span></div>
+              <div class="grid two">
+                <div class="cell"><div class="label">Error Rate (s/d)</div><div class="small-value">Min Max <span class="highlight">Average</span> <span class="highlight">Cur.</span></div></div>
+                <div class="cell"><div class="label"><span class="highlight">Amplitude (°)</span></div><div class="small-value">Std Dev (σ) <span class="highlight">Cur.</span></div></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="section-title">
+            <h2>Long-Term - 변경 전</h2>
+            <h2>Long-Term - 변경 후</h2>
+          </div>
+          <div class="comparison">
+            <div class="mock">
+              <div class="mock-header"><span class="screen">Long-Term</span><span class="state">BEFORE</span></div>
+              <div class="toolbar">
+                <span class="button">1h</span><span class="button">3h</span><span class="button">6h</span>
+                <span class="button"><span class="highlight">LIVE</span></span>
+                <span class="button"><span class="highlight">-1 s</span></span>
+                <span class="button"><span class="highlight">+1 s</span></span>
+              </div>
+              <div class="grid four">
+                <div class="cell"><div class="label"><span class="highlight">COLLECTING</span></div></div>
+                <div class="cell"><div class="label">Error Rate</div><div class="value">+1.8 s/d</div></div>
+                <div class="cell"><div class="label">Amplitude</div><div class="value">284°</div></div>
+                <div class="cell"><div class="label"><span class="highlight">BEAT ERROR</span></div><div class="value">+0.10 ms</div></div>
+              </div>
+              <div class="note"><span class="highlight">Error Rate</span> +1.8 s/d &#160; <span class="highlight">Amplitude</span> 284° &#160; <span class="highlight">BEAT ERROR</span> +0.10 ms</div>
+            </div>
+            <div class="mock">
+              <div class="mock-header"><span class="screen">Long-Term</span><span class="state">AFTER</span></div>
+              <div class="toolbar">
+                <span class="button">1h</span><span class="button">3h</span><span class="button">6h</span>
+                <span class="button"><span class="highlight">Live</span></span>
+                <span class="button"><span class="highlight">-1s</span></span>
+                <span class="button"><span class="highlight">+1s</span></span>
+              </div>
+              <div class="grid four">
+                <div class="cell"><div class="label"><span class="highlight">Collecting</span></div></div>
+                <div class="cell"><div class="label">Error Rate</div><div class="value">+1.8 s/d</div></div>
+                <div class="cell"><div class="label">Amplitude</div><div class="value">284°</div></div>
+                <div class="cell"><div class="label"><span class="highlight">Beat Error</span></div><div class="value">+0.10 ms</div></div>
+              </div>
+              <div class="note"><span class="highlight">Cur. Error Rate</span> +1.8 s/d &#160; <span class="highlight">Cur. Amplitude</span> 284° &#160; <span class="highlight">Cur. Beat Error</span> +0.10 ms</div>
+            </div>
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="section-title">
+            <h2>Positions - 변경 전</h2>
+            <h2>Positions - 변경 후</h2>
+          </div>
+          <div class="comparison">
+            <div class="mock">
+              <div class="mock-header"><span class="screen">Positions</span><span class="state">BEFORE</span></div>
+              <div class="table">
+                <div class="th"><span class="highlight">POS</span></div><div class="th"><span class="highlight">RATE</span></div><div class="th"><span class="highlight">AMPLITUDE</span></div><div class="th"><span class="highlight">BEAT ERR</span></div><div class="th"><span class="highlight">BEATS</span></div><div class="th"><span class="highlight">RATE RANGE vs BAND</span></div>
+                <div class="td">CH</div><div class="td">+1.2 s/d</div><div class="td">286°</div><div class="td">+0.08 ms</div><div class="td">42</div><div class="td">inside band</div>
+              </div>
+              <div class="hero-row">
+                <div class="cell"><div class="label"><span class="highlight">Rate</span></div><div class="value">+1.2</div></div>
+                <div class="cell"><div class="label">Amplitude</div><div class="value">286°</div></div>
+                <div class="cell"><div class="label"><span class="highlight">Beat err</span></div><div class="value">+0.08</div></div>
+                <div class="cell"><div class="label"><span class="highlight">current position</span></div><div class="value">CH</div></div>
+              </div>
+              <div class="note"><span class="highlight">Seq X̄ · rate</span> +1.4 s/d &#160; <span class="highlight">Seq X̄ · amplitude</span> 282°</div>
+            </div>
+            <div class="mock">
+              <div class="mock-header"><span class="screen">Positions</span><span class="state">AFTER</span></div>
+              <div class="table">
+                <div class="th"><span class="highlight">Position</span></div><div class="th"><span class="highlight">Error Rate</span></div><div class="th"><span class="highlight">Amplitude</span></div><div class="th"><span class="highlight">Beat Error</span></div><div class="th"><span class="highlight">Beats</span></div><div class="th"><span class="highlight">Error Rate vs Band</span></div>
+                <div class="td">CH</div><div class="td">+1.2 s/d</div><div class="td">286°</div><div class="td">+0.08 ms</div><div class="td">42</div><div class="td">inside band</div>
+              </div>
+              <div class="hero-row">
+                <div class="cell"><div class="label"><span class="highlight">Error Rate</span></div><div class="value">+1.2</div></div>
+                <div class="cell"><div class="label">Amplitude</div><div class="value">286°</div></div>
+                <div class="cell"><div class="label"><span class="highlight">Beat Error</span></div><div class="value">+0.08</div></div>
+                <div class="cell"><div class="label"><span class="highlight">Cur. Position</span></div><div class="value">CH</div></div>
+              </div>
+              <div class="note"><span class="highlight">Avg. Error Rate</span> +1.4 s/d &#160; <span class="highlight">Avg. Amplitude</span> 282°</div>
+            </div>
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="section-title">
+            <h2>Health - 변경 전</h2>
+            <h2>Health - 변경 후</h2>
+          </div>
+          <div class="comparison">
+            <div class="mock">
+              <div class="mock-header"><span class="screen">Health</span><span class="state">BEFORE</span></div>
+              <div class="rail">
+                <div class="radar"></div>
+                <div class="diagnosis">
+                  <div class="diag-title"><span class="highlight">DIAGNOSIS · unified</span></div>
+                  <div class="metric-buttons"><span class="chip"><span class="highlight">Amp</span></span><span class="chip"><span class="highlight">Rate</span></span><span class="chip"><span class="highlight">Beat</span></span></div>
+                  <div class="diag-sub"><span class="highlight">LEVELS · per position vs accept band</span></div>
+                  <div class="rowline"><span><span class="highlight">POS</span></span><span><span class="highlight">AMP</span></span><span><span class="highlight">RATE</span></span></div>
+                  <div class="diag-sub"><span class="highlight">CONSISTENCY · across positions</span></div>
+                  <div class="rowline"><span><span class="highlight">D-SPREAD</span></span><span><span class="highlight">BALANCE-WHEEL</span></span><span><span class="highlight">V / H BIAS</span></span></div>
+                </div>
+              </div>
+            </div>
+            <div class="mock">
+              <div class="mock-header"><span class="screen">Health</span><span class="state">AFTER</span></div>
+              <div class="rail">
+                <div class="radar"></div>
+                <div class="diagnosis">
+                  <div class="diag-title"><span class="highlight">Diagnosis</span></div>
+                  <div class="metric-buttons"><span class="chip"><span class="highlight">Amplitude</span></span><span class="chip"><span class="highlight">Error Rate</span></span><span class="chip"><span class="highlight">Beat Error</span></span></div>
+                  <div class="diag-sub"><span class="highlight">Levels</span></div>
+                  <div class="rowline"><span><span class="highlight">Amplitude</span></span><span><span class="highlight">Error Rate</span></span><span><span class="highlight">Beat Error</span></span></div>
+                  <div class="diag-sub"><span class="highlight">Consistency</span></div>
+                  <div class="rowline"><span><span class="highlight">D-Spread</span></span><span><span class="highlight">Balance Wheel</span></span><span><span class="highlight">V/H Bias</span></span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="section-title">
+            <h2>Beat Noise / Waveforms - 변경 전</h2>
+            <h2>Beat Noise / Waveforms - 변경 후</h2>
+          </div>
+          <div class="comparison">
+            <div class="mock">
+              <div class="mock-header"><span class="screen">Signal tabs</span><span class="state">BEFORE</span></div>
+              <div class="toolbar"><span class="button"><span class="highlight">Beat Scope</span></span><span class="button">Avg Envelope</span><span class="button">20 ms</span><span class="button">ABS</span><span class="button">Σ</span><span class="button"><span class="highlight">LIFT -</span></span></div>
+              <div class="note"><span class="highlight">Instantaneous Rate</span> +1.8 s/d &#160; | &#160; <span class="highlight">Instantaneous Beat Err</span> +0.10 ms</div>
+              <div class="note"><span class="highlight">A to C</span>: +8.4 ms &#160; <span class="highlight">TIC</span> / <span class="highlight">TOC</span></div>
+              <div class="graph"></div>
+            </div>
+            <div class="mock">
+              <div class="mock-header"><span class="screen">Signal tabs</span><span class="state">AFTER</span></div>
+              <div class="toolbar"><span class="button"><span class="highlight">Scope</span></span><span class="button">Avg Envelope</span><span class="button">20 ms</span><span class="button">ABS</span><span class="button">Σ</span><span class="button"><span class="highlight">Lift -</span></span></div>
+              <div class="note"><span class="highlight">Inst. Error Rate</span> +1.8 s/d &#160; | &#160; <span class="highlight">Inst. Beat Error</span> +0.10 ms</div>
+              <div class="note"><span class="highlight">A→C</span>: +8.4 ms &#160; <span class="highlight">Tic</span> / <span class="highlight">Toc</span></div>
+              <div class="graph"></div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </foreignObject>
+</svg>
+

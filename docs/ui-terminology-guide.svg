@@ -1,0 +1,258 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="6600" viewBox="0 0 1800 6600">
+  <rect width="1800" height="6600" fill="#151718"/>
+  <foreignObject x="0" y="0" width="1800" height="6600">
+    <div xmlns="http://www.w3.org/1999/xhtml">
+      <style>
+        * { box-sizing: border-box; }
+        body {
+          margin: 0;
+          background: #151718;
+          color: #d8dcde;
+          font-family: "Malgun Gothic", "D2Coding", Arial, sans-serif;
+        }
+        .page { padding: 48px 50px 70px; }
+        h1 {
+          margin: 0 0 12px;
+          color: #f3f5f6;
+          font-size: 42px;
+          line-height: 1.18;
+          font-weight: 800;
+          letter-spacing: 0;
+        }
+        .lead {
+          margin: 0;
+          color: #b9c0c4;
+          font-size: 21px;
+          line-height: 1.5;
+          font-weight: 700;
+        }
+        .panel {
+          margin-top: 38px;
+          padding: 26px 28px 30px;
+          border: 1px solid #303437;
+          border-radius: 10px;
+          background: #1d2022;
+        }
+        h2 {
+          margin: 0 0 22px;
+          color: #ffffff;
+          font-size: 30px;
+          line-height: 1.25;
+          font-weight: 800;
+          letter-spacing: 0;
+        }
+        table {
+          width: 100%;
+          border-collapse: collapse;
+          table-layout: fixed;
+        }
+        th {
+          padding: 13px 12px 14px;
+          border-bottom: 1px solid #33383b;
+          color: #d4dadd;
+          font-size: 19px;
+          line-height: 1.35;
+          text-align: left;
+          font-weight: 800;
+        }
+        td {
+          padding: 13px 12px 14px;
+          border-bottom: 1px solid #2c3033;
+          color: #d8dcde;
+          font-size: 18px;
+          line-height: 1.38;
+          vertical-align: top;
+          font-weight: 650;
+        }
+        tr:last-child td { border-bottom: 0; }
+        .rules th:nth-child(1), .rules td:nth-child(1) { width: 240px; }
+        .rules th:nth-child(2), .rules td:nth-child(2) { width: 560px; }
+        .rules th:nth-child(3), .rules td:nth-child(3) { width: 350px; }
+        .rules th:nth-child(4), .rules td:nth-child(4) { width: auto; }
+        .terms th:nth-child(1), .terms td:nth-child(1) { width: 310px; }
+        .terms th:nth-child(2), .terms td:nth-child(2) { width: 690px; }
+        .terms th:nth-child(3), .terms td:nth-child(3) { width: auto; }
+        .code {
+          color: #f0f2f3;
+          font-family: "D2Coding", Consolas, monospace;
+          font-weight: 800;
+        }
+        .area {
+          color: #e5e8ea;
+          font-weight: 800;
+        }
+        .muted { color: #aab1b5; }
+        .foot {
+          margin: 26px 4px 0;
+          color: #c6ccd0;
+          font-size: 18px;
+          line-height: 1.45;
+          font-weight: 700;
+        }
+      </style>
+      <div class="page">
+        <h1>TimeGrapher UI 용어 통일안</h1>
+        <p class="lead">팀 공유용 1차 정리: 먼저 공통 표기 규칙을 정의하고, 실제 화면/영역별 변경안을 적용한다.</p>
+        <p class="lead">탭 기본 폰트 14px 기준이며, 좁은 표·칩·툴바에서는 필요한 경우 축약어를 사용한다.</p>
+
+        <section class="panel">
+          <h2>1. 표기 규칙</h2>
+          <table class="rules">
+            <thead>
+              <tr>
+                <th>규칙</th>
+                <th>현재 표현</th>
+                <th>변경안</th>
+                <th>의견</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="area">평균/집계값</td>
+                <td class="code">Error Rate, RATE, Rate</td>
+                <td class="code">Rate 또는 Error Rate</td>
+                <td class="muted">화면 맥락상 설명성이 필요하면 Error Rate 유지, 좁은 영역은 Rate 허용</td>
+              </tr>
+              <tr>
+                <td class="area">순시값</td>
+                <td class="code">Instantaneous Rate, Instantaneous Beat Err</td>
+                <td class="code">Inst. Error Rate, Inst. Beat Error</td>
+                <td class="muted">새 beat에서 바로 계산된 순간값에만 Inst. 접두어 사용</td>
+              </tr>
+              <tr>
+                <td class="area">현재/커서값</td>
+                <td class="code">Error Rate, Amplitude, BEAT ERROR</td>
+                <td class="code">Cur. Error Rate, Cur. Amplitude, Cur. Beat Error</td>
+                <td class="muted">Long-Term 리뷰/커서처럼 현재 선택 지점 값에 사용</td>
+              </tr>
+              <tr>
+                <td class="area">대소문자</td>
+                <td class="code">BEAT ERROR, COLLECTING, DIAGNOSIS</td>
+                <td class="code">Beat Error, Collecting, Diagnosis</td>
+                <td class="muted">상태 칩이 아닌 일반 텍스트는 Title Case로 통일</td>
+              </tr>
+              <tr>
+                <td class="area">약어</td>
+                <td class="code">Amp, Beat, Cur., Inst.</td>
+                <td class="code">좁은 영역에서만 사용</td>
+                <td class="muted">토글, 표 헤더, 그래프 내부 라벨처럼 폭이 제한된 곳에만 적용</td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>2. 화면별 적용안</h2>
+          <table class="terms">
+            <thead>
+              <tr>
+                <th>화면/영역</th>
+                <th>현재 표현</th>
+                <th>변경안</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td class="area">좌측 패널 - Watch Parameters</td><td class="code">Error Rate</td><td class="code">현재 유지</td></tr>
+              <tr><td class="area">좌측 패널 - Watch Parameters</td><td class="code">Amplitude</td><td class="code">현재 유지</td></tr>
+              <tr><td class="area">좌측 패널 - Watch Parameters</td><td class="code">Beat Error</td><td class="code">현재 유지</td></tr>
+              <tr><td class="area">좌측 패널 - Run Parameters</td><td class="code">Input, Sample Rate, Gain</td><td class="code">현재 유지</td></tr>
+              <tr><td class="area">좌측 패널 - Simulation Parameters</td><td class="code">BPH, Lift Angle, Error Rate, Amplitude, Beat Error, Realistic</td><td class="code">현재 유지</td></tr>
+              <tr><td class="area">상태바</td><td class="code">Running, Stopped, latency/position text</td><td class="code">현재 유지</td></tr>
+              <tr><td class="area">Rate/Scope</td><td class="code">Tic Error Rate</td><td class="code">현재 유지</td></tr>
+              <tr><td class="area">Rate/Scope</td><td class="code">Toc Error Rate</td><td class="code">현재 유지</td></tr>
+              <tr><td class="area">Rate/Scope</td><td class="code">Rectified, Trigger</td><td class="code">현재 유지</td></tr>
+              <tr><td class="area">Rate/Scope</td><td class="code">Reset View</td><td class="code">현재 유지</td></tr>
+              <tr><td class="area">Beat Error 탭</td><td class="code">Error Rate</td><td class="code">현재 유지</td></tr>
+              <tr><td class="area">Beat Error 탭</td><td class="code">Amplitude</td><td class="code">현재 유지</td></tr>
+              <tr><td class="area">Beat Error 탭</td><td class="code">BEAT ERROR</td><td class="code">Beat Error</td></tr>
+              <tr><td class="area">Beat Error 탭</td><td class="code">DIFF TIC-TAC</td><td class="code">Tic-Tac Diff</td></tr>
+              <tr><td class="area">Beat Error 탭</td><td class="code">DIFF PERIOD</td><td class="code">Period Diff</td></tr>
+              <tr><td class="area">Beat Error 탭</td><td class="code">AVG PERIOD</td><td class="code">Avg Period</td></tr>
+              <tr><td class="area">Trace</td><td class="code">Smoothing</td><td class="code">현재 유지</td></tr>
+              <tr><td class="area">Trace</td><td class="code">alert banner text</td><td class="code">현재 유지</td></tr>
+              <tr><td class="area">Trace</td><td class="code">Reset View</td><td class="code">현재 유지</td></tr>
+              <tr><td class="area">Vario</td><td class="code">Error Rate (s/d)</td><td class="code">현재 유지</td></tr>
+              <tr><td class="area">Vario</td><td class="code">Amplitude(°)</td><td class="code">Amplitude (°)</td></tr>
+              <tr><td class="area">Vario</td><td class="code">ELAPSED</td><td class="code">Elapsed</td></tr>
+              <tr><td class="area">Vario</td><td class="code">Average</td><td class="code">현재 유지</td></tr>
+              <tr><td class="area">Vario</td><td class="code">Std dev (σ)</td><td class="code">Std Dev (σ)</td></tr>
+              <tr><td class="area">Vario</td><td class="code">Current</td><td class="code">Cur.</td></tr>
+              <tr><td class="area">Vario</td><td class="code">View criteria ▾</td><td class="code">현재 유지</td></tr>
+              <tr><td class="area">Vario 팝업</td><td class="code">Assessment criteria</td><td class="code">Assessment Criteria</td></tr>
+              <tr><td class="area">Vario 팝업</td><td class="code">In range</td><td class="code">Within Band</td></tr>
+              <tr><td class="area">Long-Term 요약</td><td class="code">COLLECTING</td><td class="code">Collecting</td></tr>
+              <tr><td class="area">Long-Term 요약</td><td class="code">IN TOLERANCE</td><td class="code">Within Band</td></tr>
+              <tr><td class="area">Long-Term 요약</td><td class="code">CHECK</td><td class="code">Check</td></tr>
+              <tr><td class="area">Long-Term 요약</td><td class="code">Error Rate</td><td class="code">현재 유지</td></tr>
+              <tr><td class="area">Long-Term 요약</td><td class="code">Amplitude</td><td class="code">현재 유지</td></tr>
+              <tr><td class="area">Long-Term 요약</td><td class="code">BEAT ERROR</td><td class="code">Beat Error</td></tr>
+              <tr><td class="area">Long-Term 리뷰바</td><td class="code">Error Rate</td><td class="code">Cur. Error Rate</td></tr>
+              <tr><td class="area">Long-Term 리뷰바</td><td class="code">Amplitude</td><td class="code">Cur. Amplitude</td></tr>
+              <tr><td class="area">Long-Term 리뷰바</td><td class="code">BEAT ERROR</td><td class="code">Cur. Beat Error</td></tr>
+              <tr><td class="area">Long-Term 버튼</td><td class="code">1h, 3h, 6h, LIVE, -1 s, +1 s</td><td class="code">1h, 3h, 6h, Live, -1s, +1s</td></tr>
+              <tr><td class="area">Sweep</td><td class="code">1x, 2x, 3x</td><td class="code">현재 유지</td></tr>
+              <tr><td class="area">Sweep</td><td class="code">Reset View</td><td class="code">현재 유지</td></tr>
+              <tr><td class="area">Escapement</td><td class="code">A→C PEAK</td><td class="code">A→C Peak</td></tr>
+              <tr><td class="area">Escapement</td><td class="code">A→C ONSET</td><td class="code">A→C Onset</td></tr>
+              <tr><td class="area">Escapement</td><td class="code">ONSET-PEAK</td><td class="code">Onset-Peak</td></tr>
+              <tr><td class="area">Escapement</td><td class="code">PEAK MEAN±σ</td><td class="code">Peak Mean ±σ</td></tr>
+              <tr><td class="area">Escapement</td><td class="code">ONSET MEAN±σ</td><td class="code">Onset Mean ±σ</td></tr>
+              <tr><td class="area">Escapement</td><td class="code">MORE REPEATABLE</td><td class="code">More Repeatable</td></tr>
+              <tr><td class="area">Positions 표</td><td class="code">POS</td><td class="code">Position</td></tr>
+              <tr><td class="area">Positions 표</td><td class="code">RATE</td><td class="code">Error Rate</td></tr>
+              <tr><td class="area">Positions 표</td><td class="code">AMPLITUDE</td><td class="code">Amplitude</td></tr>
+              <tr><td class="area">Positions 표</td><td class="code">BEAT ERR</td><td class="code">Beat Error</td></tr>
+              <tr><td class="area">Positions 표</td><td class="code">BEATS</td><td class="code">Beats</td></tr>
+              <tr><td class="area">Positions 표</td><td class="code">RATE RANGE vs BAND</td><td class="code">Error Rate vs Band</td></tr>
+              <tr><td class="area">Positions 표</td><td class="code">COLLECTION → 30</td><td class="code">Collection</td></tr>
+              <tr><td class="area">Positions hero</td><td class="code">Rate</td><td class="code">Error Rate</td></tr>
+              <tr><td class="area">Positions hero</td><td class="code">Amplitude</td><td class="code">Amplitude</td></tr>
+              <tr><td class="area">Positions hero</td><td class="code">Beat err</td><td class="code">Beat Error</td></tr>
+              <tr><td class="area">Positions hero</td><td class="code">current position</td><td class="code">Cur. Position</td></tr>
+              <tr><td class="area">Positions KPI</td><td class="code">Seq X̄ · rate</td><td class="code">Avg. Error Rate</td></tr>
+              <tr><td class="area">Positions KPI</td><td class="code">Seq X̄ · amplitude</td><td class="code">Avg. Amplitude</td></tr>
+              <tr><td class="area">Positions KPI</td><td class="code">Total beats</td><td class="code">Total Beats</td></tr>
+              <tr><td class="area">Positions legend</td><td class="code">mean</td><td class="code">Mean</td></tr>
+              <tr><td class="area">Positions legend</td><td class="code">min–max range</td><td class="code">Range</td></tr>
+              <tr><td class="area">Positions legend</td><td class="code">accept band</td><td class="code">Band</td></tr>
+              <tr><td class="area">Positions legend</td><td class="code">mean out of band</td><td class="code">Mean Out</td></tr>
+              <tr><td class="area">Positions legend</td><td class="code">30+ beats</td><td class="code">30+ Beats</td></tr>
+              <tr><td class="area">Positions legend</td><td class="code">collecting</td><td class="code">Collecting</td></tr>
+              <tr><td class="area">위치 버튼</td><td class="code">CH, CB, 12H, 6H, 3H, 9H</td><td class="code">현재 유지</td></tr>
+              <tr><td class="area">Health 토글</td><td class="code">Amp, Rate, Beat</td><td class="code">Amplitude, Error Rate, Beat Error</td></tr>
+              <tr><td class="area">Health 레일</td><td class="code">DIAGNOSIS · unified</td><td class="code">Diagnosis</td></tr>
+              <tr><td class="area">Health 레일</td><td class="code">LEVELS · per position vs accept band</td><td class="code">Levels</td></tr>
+              <tr><td class="area">Health 레일</td><td class="code">CONSISTENCY · across positions</td><td class="code">Consistency</td></tr>
+              <tr><td class="area">Health 레일</td><td class="code">Weakest</td><td class="code">현재 유지</td></tr>
+              <tr><td class="area">Health Level 표</td><td class="code">POS, AMP, RATE, BEAT</td><td class="code">Amplitude, Error Rate, Beat Error</td></tr>
+              <tr><td class="area">Health 판정</td><td class="code">OK — healthy</td><td class="code">OK — Healthy</td></tr>
+              <tr><td class="area">Health 판정</td><td class="code">WATCH — keep measuring</td><td class="code">WATCH — Keep Measuring</td></tr>
+              <tr><td class="area">Health 판정</td><td class="code">ALERT — service required</td><td class="code">ALERT — Service Required</td></tr>
+              <tr><td class="area">Health consistency</td><td class="code">D-SPREAD</td><td class="code">D-Spread</td></tr>
+              <tr><td class="area">Health consistency</td><td class="code">BALANCE-WHEEL</td><td class="code">Balance Wheel</td></tr>
+              <tr><td class="area">Health consistency</td><td class="code">V / H BIAS</td><td class="code">V/H Bias</td></tr>
+              <tr><td class="area">Beat Noise</td><td class="code">Beat Scope</td><td class="code">Scope</td></tr>
+              <tr><td class="area">Beat Noise</td><td class="code">Avg Envelope</td><td class="code">현재 유지</td></tr>
+              <tr><td class="area">Beat Noise</td><td class="code">20 ms, 200 ms, 400 ms</td><td class="code">현재 유지</td></tr>
+              <tr><td class="area">Beat Noise</td><td class="code">ABS, Σ</td><td class="code">현재 유지</td></tr>
+              <tr><td class="area">Beat Noise</td><td class="code">LIFT —</td><td class="code">Lift —</td></tr>
+              <tr><td class="area">Waveforms</td><td class="code">Instantaneous Rate</td><td class="code">Inst. Error Rate</td></tr>
+              <tr><td class="area">Waveforms</td><td class="code">Instantaneous Beat Err</td><td class="code">Inst. Beat Error</td></tr>
+              <tr><td class="area">Waveforms</td><td class="code">BPH</td><td class="code">현재 유지</td></tr>
+              <tr><td class="area">Waveforms</td><td class="code">A to C</td><td class="code">A→C</td></tr>
+              <tr><td class="area">Waveforms</td><td class="code">Amplitude</td><td class="code">현재 유지</td></tr>
+              <tr><td class="area">Waveforms</td><td class="code">TIC, TOC</td><td class="code">Tic, Toc</td></tr>
+              <tr><td class="area">Filter Scope</td><td class="code">F0, F1, F2, F3</td><td class="code">현재 유지</td></tr>
+              <tr><td class="area">Filter Scope 설명문</td><td class="code">긴 설명문</td><td class="code">tooltip/보조 설명</td></tr>
+              <tr><td class="area">Sound Print</td><td class="code">별도 주요 텍스트 없음</td><td class="code">현재 유지</td></tr>
+              <tr><td class="area">Spectrogram</td><td class="code">Last Beat</td><td class="code">현재 유지</td></tr>
+              <tr><td class="area">Spectrogram</td><td class="code">Seconds</td><td class="code">현재 유지</td></tr>
+              <tr><td class="area">Spectrogram</td><td class="code">dB</td><td class="code">현재 유지</td></tr>
+            </tbody>
+          </table>
+        </section>
+        <p class="foot">Rule of thumb: 설명성이 필요한 영역은 Error Rate / Amplitude / Beat Error를 유지하고, 순시값은 Inst., 현재 선택값은 Cur. 접두어로 구분한다.</p>
+      </div>
+    </div>
+  </foreignObject>
+</svg>
