@@ -38,7 +38,7 @@ public sealed class MainWindowBootstrapperTests : IDisposable
         public void PopulateSampleRates(int deviceNumber) { }
         public void SetCurrentSampleRate(int sampleRate) { }
         public void SetAudioInputVolume(float normalizedVolume) { }
-        public void SetLiveSimulationParameters(double rateErrorSPerDay, double beatErrorMs, double watchAmplitudeDegrees, double aClusterLevelScale, double bClusterLevelScale, double cClusterLevelScale) { }
+        public void SetLiveSimulationParameters(double rateErrorSPerDay, double beatErrorMs, double watchAmplitudeDegrees, double noiseScale, double aClusterLevelScale, double bClusterLevelScale, double cClusterLevelScale) { }
     }
 
     private sealed class FakeRunCommandOperations : IRunCommandOperations
@@ -188,6 +188,7 @@ public sealed class MainWindowBootstrapperTests : IDisposable
                 SimulationAmplitude = 280.0,
                 SimulationBeatError = 0.5,
                 SimulationRealistic = false,
+                SimulationNoiseScale = 2.1,
             },
             SettingsWindow = SettingsWindowSettings.Default with
             {
@@ -211,6 +212,7 @@ public sealed class MainWindowBootstrapperTests : IDisposable
         Assert.Equal(280m, vm.SimAmplitude);
         Assert.Equal(0.5m, vm.SimBeatError);
         Assert.False(vm.Realistic);
+        Assert.Equal(2.1m, vm.SimNoiseScale);
         Assert.True(vm.UseCOnset);
         Assert.True(vm.WeakAOnsetRescue);
         Assert.False(vm.SpuriousBeatRejection);

@@ -70,6 +70,7 @@ public sealed class WatchSynthStreamTests
         // next second must contain strictly more beats once the new rate takes effect.
         stream.ApplyLiveParameters(
             rateErrorSPerDay: 43200.0, beatErrorMs: 0.0, watchAmplitudeDegrees: 270.0,
+            noisePeakSignalLevel: 0.0,
             aClusterLevelScale: 1.0, bClusterLevelScale: 1.0, cClusterLevelScale: 1.0);
 
         WatchSynthStreamFillResult fast = stream.FillF32(buf, events);
@@ -92,6 +93,7 @@ public sealed class WatchSynthStreamTests
         // +2 ms beat error must appear as a +/-2000 us alternating interval offset.
         stream.ApplyLiveParameters(
             rateErrorSPerDay: 0.0, beatErrorMs: 2.0, watchAmplitudeDegrees: 270.0,
+            noisePeakSignalLevel: 0.0,
             aClusterLevelScale: 1.0, bClusterLevelScale: 1.0, cClusterLevelScale: 1.0);
 
         WatchSynthStreamFillResult withError = stream.FillF32(buf, events);
@@ -117,6 +119,7 @@ public sealed class WatchSynthStreamTests
 
         changed.ApplyLiveParameters(
             rateErrorSPerDay: 0.0, beatErrorMs: 100_000.0, watchAmplitudeDegrees: 270.0,
+            noisePeakSignalLevel: 0.0,
             aClusterLevelScale: 1.0, bClusterLevelScale: 1.0, cClusterLevelScale: 1.0);
 
         changed.Generate(bufChanged);
@@ -141,7 +144,30 @@ public sealed class WatchSynthStreamTests
 
         changed.ApplyLiveParameters(
             rateErrorSPerDay: 0.0, beatErrorMs: 0.0, watchAmplitudeDegrees: 270.0,
+            noisePeakSignalLevel: 0.0,
             aClusterLevelScale: 1.0, bClusterLevelScale: 1.0, cClusterLevelScale: 0.2);
+
+        changed.Generate(bufChanged);
+        control.Generate(bufControl);
+
+        Assert.NotEqual(bufControl, bufChanged);
+    }
+
+    [Fact]
+    public void ApplyLiveParameters_NoiseLevelTakesEffectLive()
+    {
+        var changed = new WatchSynthStream(Clean(bph: 28800, seed: 9));
+        var control = new WatchSynthStream(Clean(bph: 28800, seed: 9));
+        var bufChanged = new float[48000];
+        var bufControl = new float[48000];
+
+        changed.Generate(bufChanged);
+        control.Generate(bufControl);
+
+        changed.ApplyLiveParameters(
+            rateErrorSPerDay: 0.0, beatErrorMs: 0.0, watchAmplitudeDegrees: 270.0,
+            noisePeakSignalLevel: 0.05,
+            aClusterLevelScale: 1.0, bClusterLevelScale: 1.0, cClusterLevelScale: 1.0);
 
         changed.Generate(bufChanged);
         control.Generate(bufControl);

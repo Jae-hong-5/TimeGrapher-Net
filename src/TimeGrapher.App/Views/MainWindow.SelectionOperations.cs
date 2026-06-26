@@ -50,6 +50,7 @@ public partial class MainWindow
             double rateErrorSPerDay,
             double beatErrorMs,
             double watchAmplitudeDegrees,
+            double noiseScale,
             double aClusterLevelScale,
             double bClusterLevelScale,
             double cClusterLevelScale)
@@ -58,6 +59,7 @@ public partial class MainWindow
                 rateErrorSPerDay,
                 beatErrorMs,
                 watchAmplitudeDegrees,
+                noiseScale,
                 aClusterLevelScale,
                 bClusterLevelScale,
                 cClusterLevelScale);

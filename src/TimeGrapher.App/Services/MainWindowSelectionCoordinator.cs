@@ -76,6 +76,7 @@ internal sealed class MainWindowSelectionCoordinator : ISelectionEventGate
             case nameof(MainWindowViewModel.SimErrorRate):
             case nameof(MainWindowViewModel.SimAmplitude):
             case nameof(MainWindowViewModel.SimBeatError):
+            case nameof(MainWindowViewModel.SimNoiseScale):
             case nameof(MainWindowViewModel.SimSignalAScale):
             case nameof(MainWindowViewModel.SimSignalBScale):
             case nameof(MainWindowViewModel.SimSignalCScale):
@@ -189,6 +190,7 @@ internal sealed class MainWindowSelectionCoordinator : ISelectionEventGate
             (double)_viewModel.SimErrorRate,
             -(double)_viewModel.SimBeatError,
             (double)_viewModel.SimAmplitude,
+            (double)_viewModel.SimNoiseScale,
             (double)_viewModel.SimSignalAScale,
             (double)_viewModel.SimSignalBScale,
             (double)_viewModel.SimSignalCScale);

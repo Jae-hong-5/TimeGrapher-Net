@@ -38,6 +38,7 @@ public sealed class AppSettingsStoreTests : IDisposable
                 280.0,
                 0.5,
                 false,
+                1.8,
                 0.3,
                 1.7,
                 0.9),
@@ -193,6 +194,7 @@ public sealed class AppSettingsStoreTests : IDisposable
 
         // The file loaded (its distinctive Gain survived) rather than falling back to Default.
         Assert.Equal(200.0, loaded.LeftPanel.Gain);
+        Assert.Equal(1.0, loaded.LeftPanel.SimulationNoiseScale);
         Assert.Equal(1.0, loaded.LeftPanel.SimulationSignalAScale);
         Assert.Equal(1.0, loaded.LeftPanel.SimulationSignalBScale);
         Assert.Equal(1.0, loaded.LeftPanel.SimulationSignalCScale);

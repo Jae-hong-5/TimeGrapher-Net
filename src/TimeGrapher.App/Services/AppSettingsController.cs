@@ -43,6 +43,7 @@ internal sealed class AppSettingsController : ISettingsWindowResetRunner
         viewModel.SimAmplitude = (decimal)left.SimulationAmplitude;
         viewModel.SimBeatError = (decimal)left.SimulationBeatError;
         viewModel.Realistic = left.SimulationRealistic;
+        viewModel.SimNoiseScale = (decimal)left.SimulationNoiseScale;
         viewModel.SimSignalAScale = (decimal)left.SimulationSignalAScale;
         viewModel.SimSignalBScale = (decimal)left.SimulationSignalBScale;
         viewModel.SimSignalCScale = (decimal)left.SimulationSignalCScale;
@@ -106,6 +107,7 @@ internal sealed class AppSettingsController : ISettingsWindowResetRunner
             nameof(MainWindowViewModel.SimAmplitude) or
             nameof(MainWindowViewModel.SimBeatError) or
             nameof(MainWindowViewModel.Realistic) or
+            nameof(MainWindowViewModel.SimNoiseScale) or
             nameof(MainWindowViewModel.SimSignalAScale) or
             nameof(MainWindowViewModel.SimSignalBScale) or
             nameof(MainWindowViewModel.SimSignalCScale) or
@@ -173,6 +175,7 @@ internal sealed class AppSettingsController : ISettingsWindowResetRunner
                 (double)_viewModel.SimAmplitude,
                 (double)_viewModel.SimBeatError,
                 _viewModel.Realistic,
+                (double)_viewModel.SimNoiseScale,
                 (double)_viewModel.SimSignalAScale,
                 (double)_viewModel.SimSignalBScale,
                 (double)_viewModel.SimSignalCScale),

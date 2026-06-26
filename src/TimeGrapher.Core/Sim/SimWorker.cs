@@ -41,7 +41,7 @@ public sealed class SimWorker : IAudioInputWorker
     private readonly WorkerPauseGate _pauseGate = new();
 
     // Live-adjustable knobs pushed from the UI thread (Error Rate / Amplitude /
-    // Beat Error / per-cluster A/B/C level scales). Stored under a lock and applied
+    // Beat Error / noise scale / per-cluster A/B/C level scales). Stored under a lock and applied
     // on the sim thread between fill blocks, mirroring the analysis worker's
     // pending-knob pattern so the values never race the generator.
     private readonly object _liveParamsLock = new();
@@ -49,6 +49,7 @@ public sealed class SimWorker : IAudioInputWorker
     private double _pendingRateErrorSPerDay;
     private double _pendingBeatErrorMs;
     private double _pendingWatchAmplitudeDegrees;
+    private double _pendingNoiseScale;
     private double _pendingAClusterLevelScale;
     private double _pendingBClusterLevelScale;
     private double _pendingCClusterLevelScale;
@@ -75,7 +76,7 @@ public sealed class SimWorker : IAudioInputWorker
     }
 
     /// <summary>Start the sim on a dedicated thread (StartSim slot via worker thread).</summary>
-    public bool Start(WatchSynthStreamConfig cfg)
+    public bool Start(WatchSynthStreamConfig cfg, double baseNoisePeakSignalLevel)
     {
         if (_thread?.IsAlive == true)
         {
@@ -85,7 +86,7 @@ public sealed class SimWorker : IAudioInputWorker
         _interruptionRequested = false;
         _pauseGate.SetPaused(false);
         var cfgCopy = cfg.Clone(); // original receives cfg by value
-        _thread = new Thread(() => StartSim(cfgCopy))
+        _thread = new Thread(() => StartSim(cfgCopy, baseNoisePeakSignalLevel))
         {
             IsBackground = true,
             Name = "SimWorker",
@@ -125,7 +126,7 @@ public sealed class SimWorker : IAudioInputWorker
 
     /// <summary>
     /// Push the live-adjustable simulation parameters (rate error s/day, beat error
-    /// ms, watch amplitude degrees, and the per-cluster A/B/C level scales). Callable
+    /// ms, watch amplitude degrees, noise scale, and the per-cluster A/B/C level scales). Callable
     /// from any thread; the values are applied on the sim thread before the next fill
     /// block. No-op if no sim is running yet or has already finished. BPH and sample
     /// rate are intentionally not live.
@@ -134,6 +135,7 @@ public sealed class SimWorker : IAudioInputWorker
         double rateErrorSPerDay,
         double beatErrorMs,
         double watchAmplitudeDegrees,
+        double noiseScale,
         double aClusterLevelScale,
         double bClusterLevelScale,
         double cClusterLevelScale)
@@ -143,6 +145,7 @@ public sealed class SimWorker : IAudioInputWorker
             _pendingRateErrorSPerDay = rateErrorSPerDay;
             _pendingBeatErrorMs = beatErrorMs;
             _pendingWatchAmplitudeDegrees = watchAmplitudeDegrees;
+            _pendingNoiseScale = noiseScale;
             _pendingAClusterLevelScale = aClusterLevelScale;
             _pendingBClusterLevelScale = bClusterLevelScale;
             _pendingCClusterLevelScale = cClusterLevelScale;
@@ -156,7 +159,7 @@ public sealed class SimWorker : IAudioInputWorker
         _pauseGate.Dispose();
     }
 
-    private void StartSim(WatchSynthStreamConfig cfg)
+    private void StartSim(WatchSynthStreamConfig cfg, double baseNoisePeakSignalLevel)
     {
         long start, delta, sleepTime;
         double currentTime;
@@ -201,7 +204,7 @@ public sealed class SimWorker : IAudioInputWorker
                 break;
             }
 
-            ApplyPendingLiveParameters(stream);
+            ApplyPendingLiveParameters(stream, baseNoisePeakSignalLevel);
 
             start = _timer.ElapsedMilliseconds;
 
@@ -252,9 +255,9 @@ public sealed class SimWorker : IAudioInputWorker
         SimDone?.Invoke(reason);
     }
 
-    private void ApplyPendingLiveParameters(WatchSynthStream stream)
+    private void ApplyPendingLiveParameters(WatchSynthStream stream, double baseNoisePeakSignalLevel)
     {
-        double rateErrorSPerDay, beatErrorMs, watchAmplitudeDegrees;
+        double rateErrorSPerDay, beatErrorMs, watchAmplitudeDegrees, noiseScale;
         double aClusterLevelScale, bClusterLevelScale, cClusterLevelScale;
         lock (_liveParamsLock)
         {
@@ -266,6 +269,7 @@ public sealed class SimWorker : IAudioInputWorker
             rateErrorSPerDay = _pendingRateErrorSPerDay;
             beatErrorMs = _pendingBeatErrorMs;
             watchAmplitudeDegrees = _pendingWatchAmplitudeDegrees;
+            noiseScale = _pendingNoiseScale;
             aClusterLevelScale = _pendingAClusterLevelScale;
             bClusterLevelScale = _pendingBClusterLevelScale;
             cClusterLevelScale = _pendingCClusterLevelScale;
@@ -276,6 +280,7 @@ public sealed class SimWorker : IAudioInputWorker
             rateErrorSPerDay,
             beatErrorMs,
             watchAmplitudeDegrees,
+            baseNoisePeakSignalLevel * noiseScale,
             aClusterLevelScale,
             bClusterLevelScale,
             cClusterLevelScale);

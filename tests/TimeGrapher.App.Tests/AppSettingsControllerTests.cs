@@ -77,13 +77,32 @@ public sealed class AppSettingsControllerTests : IDisposable
     }
 
     [Fact]
-    public void SeedViewModel_AppliesPersistedClusterScales()
+    public void NoiseScaleEdit_PersistsNoiseScaleSnapshot()
+    {
+        var viewModel = new MainWindowViewModel();
+        var persisted = new List<AppSettings>();
+        AppSettings.Current = AppSettings.Default;
+        _ = new AppSettingsController(
+            viewModel,
+            () => new AppSettingsSelection(null, 48000, 0, 28800),
+            persisted.Add);
+
+        viewModel.SimNoiseScale = 2.5m;
+
+        AppSettings saved = Assert.Single(persisted);
+        Assert.Equal(2.5, saved.LeftPanel.SimulationNoiseScale);
+        Assert.Equal(saved, AppSettings.Current);
+    }
+
+    [Fact]
+    public void SeedViewModel_AppliesPersistedSimulationScales()
     {
         var viewModel = new MainWindowViewModel();
         AppSettings settings = AppSettings.Default with
         {
             LeftPanel = AppSettings.Default.LeftPanel with
             {
+                SimulationNoiseScale = 2.3,
                 SimulationSignalAScale = 0.2,
                 SimulationSignalBScale = 1.5,
                 SimulationSignalCScale = 0.8,
@@ -92,6 +111,7 @@ public sealed class AppSettingsControllerTests : IDisposable
 
         AppSettingsController.SeedViewModel(viewModel, settings, measurementLogEnabled: false);
 
+        Assert.Equal(2.3m, viewModel.SimNoiseScale);
         Assert.Equal(0.2m, viewModel.SimSignalAScale);
         Assert.Equal(1.5m, viewModel.SimSignalBScale);
         Assert.Equal(0.8m, viewModel.SimSignalCScale);
@@ -181,6 +201,7 @@ public sealed class AppSettingsControllerTests : IDisposable
             SimAmplitude = 250m,
             SimBeatError = 2m,
             Realistic = false,
+            SimNoiseScale = 2.2m,
             SimSignalAScale = 0.4m,
             SimSignalBScale = 1.6m,
             SimSignalCScale = 0.7m,
@@ -214,6 +235,7 @@ public sealed class AppSettingsControllerTests : IDisposable
         Assert.Equal(250m, viewModel.SimAmplitude);
         Assert.Equal(2m, viewModel.SimBeatError);
         Assert.False(viewModel.Realistic);
+        Assert.Equal(2.2m, viewModel.SimNoiseScale);
         Assert.Equal(0.4m, viewModel.SimSignalAScale);
         Assert.Equal(1.6m, viewModel.SimSignalBScale);
         Assert.Equal(0.7m, viewModel.SimSignalCScale);
