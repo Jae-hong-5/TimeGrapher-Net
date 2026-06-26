@@ -160,10 +160,9 @@ internal sealed class WaveformCompareRenderer
         Plot plot = _plot.Plot;
         plot.Clear();
         ApplyPlotTheme(plot);
-        // Direction axis (reads bottom-to-top): newest beat at the top, oldest at
-        // the bottom, joined by a continuous arrow shaft instead of a lone glyph
-        // adrift in blank space.
-        plot.YLabel("Past \u25c4\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014 Current");
+        // Direction (newest at top, oldest at bottom) is shown as a real arrow
+        // graphic in the tab layout beside the plot, not as a rotated text label.
+        plot.YLabel(string.Empty);
         plot.XLabel("(ms)");
         plot.Axes.Left.TickLabelStyle.IsVisible = false;
 

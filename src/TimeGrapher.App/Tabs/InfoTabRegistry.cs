@@ -1921,6 +1921,73 @@ internal sealed partial class InfoTabRegistry
         return new InfoTabRegistration(definition, CreateTabItem(definition, grid), consumer);
     }
 
+    /// <summary>
+    /// Vertical direction indicator for the Waveforms tab: a real up-arrow graphic
+    /// (shaft + head) with "Current" (newest, top, accent) and "Past" (oldest,
+    /// bottom), shown beside the plot in place of a rotated text label.
+    /// </summary>
+    private static Control CreateWaveformDirectionAxis()
+    {
+        var current = new TextBlock
+        {
+            Text = "Current",
+            FontSize = 14,
+            FontWeight = FontWeight.Bold,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Margin = new Thickness(0, 0, 0, 6),
+        };
+        current.Bind(TextBlock.ForegroundProperty, current.GetResourceObservable("ChromeAccentBrush"));
+
+        var past = new TextBlock
+        {
+            Text = "Past",
+            FontSize = 14,
+            Opacity = 0.6,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Margin = new Thickness(0, 6, 0, 0),
+        };
+
+        var head = new Avalonia.Controls.Shapes.Path
+        {
+            Data = Avalonia.Media.Geometry.Parse("M 7,0 L 0,13 L 14,13 Z"),
+            HorizontalAlignment = HorizontalAlignment.Center,
+        };
+        head.Bind(Avalonia.Controls.Shapes.Shape.FillProperty, head.GetResourceObservable("ChromeAccentBrush"));
+
+        var shaft = new Avalonia.Controls.Shapes.Rectangle
+        {
+            Width = 2,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Stretch,
+            Margin = new Thickness(0, -1, 0, 0),
+        };
+        shaft.Bind(Avalonia.Controls.Shapes.Shape.FillProperty, shaft.GetResourceObservable("ChromeAccentBrush"));
+
+        var arrow = new Grid
+        {
+            RowDefinitions = new RowDefinitions("Auto,*"),
+            HorizontalAlignment = HorizontalAlignment.Center,
+        };
+        Grid.SetRow(head, 0);
+        Grid.SetRow(shaft, 1);
+        arrow.Children.Add(head);
+        arrow.Children.Add(shaft);
+
+        var grid = new Grid
+        {
+            RowDefinitions = new RowDefinitions("Auto,*,Auto"),
+            Width = 66,
+            Margin = new Thickness(6, 12, 2, 28),
+        };
+        Grid.SetRow(current, 0);
+        Grid.SetRow(arrow, 1);
+        Grid.SetRow(past, 2);
+        grid.Children.Add(current);
+        grid.Children.Add(arrow);
+        grid.Children.Add(past);
+        return grid;
+    }
+
     private static InfoTabRegistration CreateWaveformCompareRegistration(
         InfoTabDefinition definition,
         InfoTabFactoryContext context)
@@ -1938,15 +2005,23 @@ internal sealed partial class InfoTabRegistry
         var grid = new Grid
         {
             RowDefinitions = new RowDefinitions("Auto,*"),
+            ColumnDefinitions = new ColumnDefinitions("Auto,*"),
         };
         Grid.SetRow(headerText, 0);
+        Grid.SetColumnSpan(headerText, 2);
+        Control directionAxis = CreateWaveformDirectionAxis();
+        Grid.SetRow(directionAxis, 1);
+        Grid.SetColumn(directionAxis, 0);
         Grid.SetRow(lanePlot, 1);
+        Grid.SetColumn(lanePlot, 1);
         grid.Children.Add(headerText);
+        grid.Children.Add(directionAxis);
         grid.Children.Add(lanePlot);
 
         if (CreateWaitingOverlay(context.ViewModel) is { } overlay)
         {
             Grid.SetRow(overlay, 1);
+            Grid.SetColumn(overlay, 1);
             grid.Children.Add(overlay);
         }
 
