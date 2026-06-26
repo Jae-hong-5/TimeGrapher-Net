@@ -20,7 +20,11 @@ internal sealed class SpectrogramFrameConsumer : IAnalysisFrameConsumer, IThemed
     private long _totalColumns;
     private double _latestColumnSeconds;
     private double _latestBeatPeriodS;
-    private double _latestBeatOnsetS;
+    // The most recent A-onset stream times (ascending, newest last), up to the
+    // largest Compare Beats count: the renderer crops one lane per onset so each
+    // beat stays centered regardless of the (non-integer) beat-period-in-columns.
+    private readonly double[] _recentOnsetsS = new double[SpectrogramRenderer.MaxCompareBeats];
+    private int _recentOnsetCount;
     private bool _displayedLight = PlotThemePalette.Current.IsLight;
 
     public SpectrogramFrameConsumer(SpectrogramRenderer renderer)
@@ -37,6 +41,10 @@ internal sealed class SpectrogramFrameConsumer : IAnalysisFrameConsumer, IThemed
     // window (it is absolute, so coalesced frames and buffer wraps never alias it).
     internal long TotalColumns => _totalColumns;
 
+    // The recent onsets (ascending, newest last) handed to the renderer's per-lane
+    // Beats crop; a snapshot copy for tests.
+    internal double[] RecentOnsetsSnapshot() => _recentOnsetsS[.._recentOnsetCount];
+
     public void Initialize(AnalysisTabResetContext context)
     {
         _ = context;
@@ -48,7 +56,7 @@ internal sealed class SpectrogramFrameConsumer : IAnalysisFrameConsumer, IThemed
         _ = context;
         _lastObservedFrame = null;
         _latestSpectrogramImage = null;
-        _latestBeatOnsetS = 0.0;
+        _recentOnsetCount = 0;
         _totalColumns = 0;
         _renderer.Reset();
     }
@@ -63,7 +71,8 @@ internal sealed class SpectrogramFrameConsumer : IAnalysisFrameConsumer, IThemed
         _renderer.ApplyTheme(theme.IsLight);
         if (TryRemapKeptImage(theme.IsLight, out PixelBuffer? remapped))
         {
-            _renderer.RenderWindowed(remapped, _totalColumns, _latestColumnSeconds, _latestBeatPeriodS, _latestBeatOnsetS);
+            _renderer.RenderWindowed(
+                remapped, _totalColumns, _latestColumnSeconds, _latestBeatPeriodS, _recentOnsetsS.AsSpan(0, _recentOnsetCount));
         }
     }
 
@@ -94,13 +103,20 @@ internal sealed class SpectrogramFrameConsumer : IAnalysisFrameConsumer, IThemed
 
     public void ObserveFrame(AnalysisFrame frame)
     {
-        // Track the most recent A (beat) onset so Last Beat can phase-lock to it.
-        // Beat segments complete on their own cadence, independent of the image
-        // publish, so this is read every frame it is present.
+        // Track the most recent A (beat) onsets: Last Beat phase-locks to the latest
+        // and Compare Beats crops one lane per onset. Beat segments complete on their
+        // own cadence, independent of the image publish, so this is read every frame
+        // they are present.
         if (frame.BeatSegments != null && frame.BeatSegments.Segments.Count > 0)
         {
-            BeatSegment last = frame.BeatSegments.Segments[^1];
-            _latestBeatOnsetS = last.StartTimeS + last.AOffsetMs / 1000.0;
+            var segments = frame.BeatSegments.Segments;
+            int take = Math.Min(segments.Count, _recentOnsetsS.Length);
+            _recentOnsetCount = take;
+            for (int i = 0; i < take; i++)
+            {
+                BeatSegment seg = segments[segments.Count - take + i];
+                _recentOnsetsS[i] = seg.StartTimeS + seg.AOffsetMs / 1000.0;
+            }
         }
 
         // Process each delivered spectrogram publish once, keyed on the frame
@@ -132,7 +148,8 @@ internal sealed class SpectrogramFrameConsumer : IAnalysisFrameConsumer, IThemed
         if (_latestSpectrogramImage != null)
         {
             _renderer.RenderWindowed(
-                _latestSpectrogramImage, _totalColumns, _latestColumnSeconds, _latestBeatPeriodS, _latestBeatOnsetS);
+                _latestSpectrogramImage, _totalColumns, _latestColumnSeconds, _latestBeatPeriodS,
+                _recentOnsetsS.AsSpan(0, _recentOnsetCount));
         }
     }
 }

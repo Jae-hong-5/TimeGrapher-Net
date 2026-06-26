@@ -32,6 +32,9 @@ internal sealed class SpectrogramRenderer
     /// <summary>Width (px) of the solid Beats-mode lane dividers.</summary>
     internal const double BeatDividerWidth = 6.0;
 
+    /// <summary>Largest beat count Compare Beats can show (also the recent-onset ring size).</summary>
+    internal const int MaxCompareBeats = 8;
+
     private readonly Image _spectrogramImage;
     private readonly Image _legendImage;
     // Frequency-axis labels (top..bottom), filled to span 0..Nyquist once a frame
@@ -58,6 +61,13 @@ internal sealed class SpectrogramRenderer
     // "compare one beat with the next"; larger counts make the recurring per-beat
     // energy structure visible as the same bands repeating lane to lane.
     private int _viewBeats = 2;
+
+    // Recent A-onset stream times (ascending, newest last) the consumer supplies.
+    // Beats mode crops each lane around its own onset — instead of extrapolating a
+    // uniform spacing from one anchor — so every beat sits centered in its cell
+    // regardless of the (non-integer) beat-period-in-columns or rate drift.
+    private readonly double[] _recentBeatOnsetsS = new double[MaxCompareBeats];
+    private int _recentBeatOnsetCount;
 
     // Latest published image and its windowing metadata, kept so a selector change
     // re-seeds the sweep without waiting for the next frame.
@@ -192,6 +202,7 @@ internal sealed class SpectrogramRenderer
         _totalColumns = 0;
         _renderedTotal = -1; // force a full rebuild on the next render
         _lastBeatOnsetS = 0.0;
+        _recentBeatOnsetCount = 0;
 
         // Always drop the previous run's image — with the tab hidden the bounds are
         // zero and the blank repaint below is skipped, which would leave stale data.
@@ -222,13 +233,20 @@ internal sealed class SpectrogramRenderer
     /// wrapped still shows the full recent window instead of losing history
     /// (reconstructing it here from the modulo write column would undercount).
     /// </remarks>
-    public void RenderWindowed(PixelBuffer image, long totalColumns, double columnSeconds, double beatPeriodS, double beatOnsetS)
+    public void RenderWindowed(
+        PixelBuffer image, long totalColumns, double columnSeconds, double beatPeriodS, ReadOnlySpan<double> recentOnsetsS)
     {
         _totalColumns = totalColumns;
         _lastImage = image;
         _lastColumnSeconds = columnSeconds;
         _lastBeatPeriodS = beatPeriodS;
-        _lastBeatOnsetS = beatOnsetS;
+
+        // Keep up to the most recent MaxCompareBeats onsets (ascending) for the
+        // per-lane Beats crop; the last one is the latest onset Last Beat locks to.
+        _recentBeatOnsetCount = Math.Min(recentOnsetsS.Length, MaxCompareBeats);
+        recentOnsetsS[^_recentBeatOnsetCount..].CopyTo(_recentBeatOnsetsS);
+        _lastBeatOnsetS = _recentBeatOnsetCount > 0 ? _recentBeatOnsetsS[_recentBeatOnsetCount - 1] : 0.0;
+
         RenderCurrent();
     }
 
@@ -330,20 +348,13 @@ internal sealed class SpectrogramRenderer
 
         // Last Beat phase-locks to the real A onset (re-read each beat) so the beat
         // stays put: shifting the sweep phase by (onset column − cols/2) centers
-        // the onset in the window. Beats centers the latest onset in the rightmost
-        // lane (half a lane in from the right edge); onsets are one lane (beatCols)
-        // apart, so every onset then lands on its own lane center. Seconds mode has
-        // no shift (phase = column % cols).
+        // the onset in the window. Seconds mode has no shift (phase = column % cols).
+        // Beats does not use this sweep at all — it crops each lane around its own
+        // onset in FillBeatsLanes below.
         long shift = 0;
         if (_viewMode == SpectrogramViewMode.LastBeat && _lastBeatOnsetS > 0.0 && _lastColumnSeconds > 0.0)
         {
             shift = (long)Math.Round(_lastBeatOnsetS / _lastColumnSeconds) - cols / 2;
-        }
-        else if (_viewMode == SpectrogramViewMode.Beats && _lastBeatOnsetS > 0.0 && _lastColumnSeconds > 0.0)
-        {
-            long onsetColumn = (long)Math.Round(_lastBeatOnsetS / _lastColumnSeconds);
-            int beatCols = cols / _viewBeats;
-            shift = onsetColumn - cols + beatCols / 2;
         }
 
         uint[] source = _lastImage!.Pixels;
@@ -375,7 +386,12 @@ internal sealed class SpectrogramRenderer
         }
 
         uint[] target = _sweepBuffer!.Pixels;
-        if (!canAppend)
+        if (_viewMode == SpectrogramViewMode.Beats)
+        {
+            _sweepBuffer.Fill(emptyColor);
+            FillBeatsLanes(source, target, cols, sourceWidth, height);
+        }
+        else if (!canAppend)
         {
             _sweepBuffer.Fill(emptyColor);
             long firstColumn = Math.Max(0, anchor - cols); // only the most recent cols exist
@@ -402,6 +418,59 @@ internal sealed class SpectrogramRenderer
         _renderedShift = shift;
         _renderedEmptyColor = emptyColor;
         _forceFullRebuild = false;
+    }
+
+    // Fills the Beats window one lane per beat: lane dL (left→right) is centered on
+    // its own detected onset, so each beat sits in the middle of its cell no matter
+    // how the (non-integer) beat period or rate drift place the onsets. The target
+    // is pre-filled with the empty color, so any column outside the retained source
+    // history (the not-yet-arrived right edge of the newest beat, or missing early
+    // history) is simply left empty.
+    private void FillBeatsLanes(uint[] source, uint[] target, int cols, int sourceWidth, int height)
+    {
+        int beatCols = cols / _viewBeats;
+        if (beatCols <= 0 || _lastColumnSeconds <= 0.0)
+        {
+            return;
+        }
+
+        long total = _totalColumns;
+        long minValid = Math.Max(0, total - sourceWidth); // oldest column still in the wrap buffer
+        for (int dL = 0; dL < _viewBeats; dL++)
+        {
+            // Lane dL holds the (viewBeats − dL)-th most recent onset; left lanes
+            // with no onset yet (early in a run) stay empty.
+            int onsetIndex = _recentBeatOnsetCount - _viewBeats + dL;
+            if (onsetIndex < 0)
+            {
+                continue;
+            }
+
+            double onsetS = _recentBeatOnsetsS[onsetIndex];
+            if (onsetS <= 0.0)
+            {
+                continue;
+            }
+
+            long onsetColumn = (long)Math.Round(onsetS / _lastColumnSeconds);
+            int laneStart = dL * beatCols;
+            int laneCenter = laneStart + beatCols / 2;
+            for (int xi = 0; xi < beatCols; xi++)
+            {
+                int x = laneStart + xi;
+                long c = onsetColumn + (x - laneCenter); // source column for this lane pixel
+                if (c < minValid || c >= total)
+                {
+                    continue; // outside retained history — leave empty
+                }
+
+                int sourceColumn = (int)(c % sourceWidth);
+                for (int y = 0; y < height; y++)
+                {
+                    target[y * cols + x] = source[y * sourceWidth + sourceColumn];
+                }
+            }
+        }
     }
 
     private static void WriteSweepColumn(uint[] source, uint[] target, long c, long shift, int cols, int sourceWidth, int height)

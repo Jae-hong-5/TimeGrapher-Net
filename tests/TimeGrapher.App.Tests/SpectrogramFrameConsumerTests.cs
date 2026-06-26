@@ -105,6 +105,51 @@ public sealed class SpectrogramFrameConsumerTests
     }
 
     [Fact]
+    public void ObserveFrameKeepsTheMostRecentOnsetsNewestLast()
+    {
+        var consumer = new SpectrogramFrameConsumer(CreateRenderer());
+
+        // 10 completed segments (oldest first); only the last MaxCompareBeats onsets
+        // are kept, in ascending stream-time order, for the per-lane Beats crop.
+        var segments = new BeatSegment[10];
+        for (int i = 0; i < segments.Length; i++)
+        {
+            segments[i] = new BeatSegment { StartTimeS = i, AOffsetMs = 0.0 };
+        }
+
+        consumer.ObserveFrame(new AnalysisFrame
+        {
+            BeatSegments = new BeatSegmentsSnapshot { Segments = segments },
+        });
+
+        Assert.Equal(
+            new double[] { 2, 3, 4, 5, 6, 7, 8, 9 },
+            consumer.RecentOnsetsSnapshot());
+    }
+
+    [Fact]
+    public void ObserveFrameAddsTheAOnsetOffsetAndKeepsFewerThanTheCap()
+    {
+        var consumer = new SpectrogramFrameConsumer(CreateRenderer());
+
+        // The onset stream time is StartTimeS + AOffsetMs/1000; with fewer segments
+        // than the cap, all of them are kept.
+        consumer.ObserveFrame(new AnalysisFrame
+        {
+            BeatSegments = new BeatSegmentsSnapshot
+            {
+                Segments = new[]
+                {
+                    new BeatSegment { StartTimeS = 1.0, AOffsetMs = 10.0 },
+                    new BeatSegment { StartTimeS = 2.0, AOffsetMs = 20.0 },
+                },
+            },
+        });
+
+        Assert.Equal(new[] { 1.01, 2.02 }, consumer.RecentOnsetsSnapshot());
+    }
+
+    [Fact]
     public void TryRemapKeptImageMirrorsKeptImageOnlyWhenTheThemeChanges()
     {
         var renderer = CreateRenderer();
