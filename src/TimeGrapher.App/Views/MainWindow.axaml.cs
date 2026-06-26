@@ -20,6 +20,7 @@ using TimeGrapher.App.ViewModels;
 using TimeGrapher.Core.Analysis.Quality;
 using TimeGrapher.Core.Detection;
 using TimeGrapher.Core.Shared;
+using TimeGrapher.Inference;
 
 namespace TimeGrapher.App.Views;
 
@@ -65,6 +66,11 @@ public partial class MainWindow : Window
 
     // --- Members (mirror MainWindow.h) ---
     private IRecordingWriter? mWavWriter;
+    // Single advisory signal-quality classifier for the app's lifetime (the ONNX
+    // session is built once and reused across runs; falls back to the heuristic if
+    // the model cannot be loaded). Freed at process exit, like the other analysis
+    // components, since the window has no disposal hook.
+    private readonly ISignalQualityClassifier mSignalQualityClassifier;
     private readonly ITimeGrapherDialogService mDialogs;
     private readonly IUserErrorLog mErrorLog;
     private readonly RecordingSessionService mRecordingSessionService;
@@ -136,12 +142,15 @@ public partial class MainWindow : Window
             dialogs,
             acceptBandOperations,
             new MainWindowSelectionOptions(PLAYBACK_SOURCE, SIMULATION_SOURCE));
+        // Build the advisory signal-quality classifier once (the composition root owns
+        // the Strategy choice): the on-device ONNX model, or the heuristic if it cannot
+        // be loaded. A misclassification only annotates trust, never drops a beat.
+        mSignalQualityClassifier = OnnxSignalQualityClassifier.LoadOrElse(
+            OnnxSignalQualityClassifier.LoadDefault,
+            static () => new HeuristicSignalQualityClassifier());
         var runSessionCallbacks = new MainWindowRunSessionCallbacks(
-            // Inject the advisory signal-quality classifier here (the composition root):
-            // the heuristic Strategy turns the window-level path on in production. A
-            // misclassification only annotates trust, never drops a beat.
             sessionId => BuildRunSettings().ToWorkerConfig(
-                sessionId, mWavWriter, new HeuristicSignalQualityClassifier()),
+                sessionId, mWavWriter, mSignalQualityClassifier),
             Reset,
             ClearPendingAnalysisFrames,
             () => mFrameRenderScheduler.ResetTiming(),

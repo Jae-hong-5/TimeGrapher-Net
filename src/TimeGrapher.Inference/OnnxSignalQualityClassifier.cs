@@ -74,6 +74,26 @@ public sealed class OnnxSignalQualityClassifier : ISignalQualityClassifier, IDis
         _scoreOutput = new[] { score };
     }
 
+    /// <summary>
+    /// Returns <paramref name="primary"/>() or, if it throws (model missing /
+    /// unreadable / shape mismatch), <paramref name="fallback"/>(). This is the
+    /// explicitly-requested graceful degradation: a model problem must never crash
+    /// startup - the advisory feature simply falls back to the heuristic Strategy.
+    /// The catch is broad on purpose (any load failure degrades the same way).
+    /// </summary>
+    public static ISignalQualityClassifier LoadOrElse(
+        Func<ISignalQualityClassifier> primary, Func<ISignalQualityClassifier> fallback)
+    {
+        try
+        {
+            return primary();
+        }
+        catch (Exception)
+        {
+            return fallback();
+        }
+    }
+
     /// <summary>Builds the classifier from the model + sidecar shipped inside this assembly.</summary>
     public static OnnxSignalQualityClassifier LoadDefault()
     {
