@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Windows.Input;
+using TimeGrapher.App;
 using TimeGrapher.Core.Analysis;
 using TimeGrapher.Core.Shared;
 
@@ -67,6 +68,7 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     private string _highPassCutoffText = "200";
     private bool _useCOnset;
     private bool _weakAOnsetRescue = true;
+    private int _weakAOnsetRescueStrengthStep = WeakAOnsetRescueStrengthPolicy.StandardStep;
     private bool _spuriousBeatRejection = true;
     private bool _pauseOnPositionChange;
     private int _sweepMultiple = SweepFrameProjector.DefaultSweepMultiple;
@@ -182,6 +184,8 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     // re-reads (WatchSynthStream.ApplyLiveParameters), so like Gain they are gated by
     // mode only, not by run state: editable whenever the Simulation source is selected.
     public bool AreLiveSimulationParametersEnabled => _modeAllowsSimulationParams;
+
+    public bool IsWeakAOnsetRescueStrengthEnabled => AreRunParametersEnabled && _weakAOnsetRescue;
 
     // The A/B/C signal-size scales are also live, but they only affect the synth when
     // the Realistic packet is on, so they additionally require Realistic to be enabled.
@@ -359,8 +363,33 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     public bool WeakAOnsetRescue
     {
         get => _weakAOnsetRescue;
-        set => SetProperty(ref _weakAOnsetRescue, value);
+        set
+        {
+            if (SetProperty(ref _weakAOnsetRescue, value))
+            {
+                OnPropertyChanged(nameof(IsWeakAOnsetRescueStrengthEnabled));
+            }
+        }
     }
+
+    public int WeakAOnsetRescueStrengthStep
+    {
+        get => _weakAOnsetRescueStrengthStep;
+        set
+        {
+            if (SetProperty(ref _weakAOnsetRescueStrengthStep, value))
+            {
+                OnPropertyChanged(nameof(WeakAOnsetRescueStrengthText));
+            }
+        }
+    }
+
+    public string WeakAOnsetRescueStrengthText => _weakAOnsetRescueStrengthStep switch
+    {
+        < WeakAOnsetRescueStrengthPolicy.StandardStep => "Safer",
+        WeakAOnsetRescueStrengthPolicy.StandardStep => "Standard",
+        _ => "Stronger",
+    };
 
     /// <summary>
     /// Acquisition spurious-beat rejection (a run parameter): while unsynced, drop
@@ -712,6 +741,7 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(RunState));
         OnPropertyChanged(nameof(IsReviewBarEnabled));
         OnPropertyChanged(nameof(AreRunParametersEnabled));
+        OnPropertyChanged(nameof(IsWeakAOnsetRescueStrengthEnabled));
         OnPropertyChanged(nameof(IsPlayPauseEnabled));
         OnPropertyChanged(nameof(IsStopEnabled));
         OnPropertyChanged(nameof(IsResetEnabled));

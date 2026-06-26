@@ -18,13 +18,12 @@ internal sealed record AnalysisRunSettings(
     int ScopeSnapshotPointBudget,
     int AnalysisBlockSize,
     bool WeakAOnsetRescue = true,
+    int WeakAOnsetRescueStrengthStep = WeakAOnsetRescueStrengthPolicy.StandardStep,
     bool SpuriousBeatRejection = true)
 {
-    // Calibrated run-parameter policy values, named so the App->Core conversion below
-    // is the single source of truth for both run-parameter toggles. Tests deliberately
-    // keep the bare literals (1.0 / 0.35) as tripwires: changing a constant here trips a
-    // test and forces a review of the policy value.
-    private const double WeakAOnsetRescueScaleValue = 1.0;
+    // Calibrated run-parameter policy values. Tests deliberately keep the bare
+    // literals (1.25/1.0/0.75 / 0.35) as tripwires: changing a constant here
+    // trips a test and forces a review of the policy value.
     private const double SpuriousBeatRejectionGateFraction = 0.35;
 
     public AnalysisWorker.Config ToWorkerConfig(
@@ -40,8 +39,9 @@ internal sealed record AnalysisRunSettings(
             AutoBph = AutoBph,
             ManualBph = ManualBph,
             HpfCutoffHz = HpfCutoffHz,
-            // ~1.0 removes the post-lock in-window onset hardening to catch a weak A.
-            PhaseGuideOnsetRescueScale = WeakAOnsetRescue ? WeakAOnsetRescueScaleValue : 0.0,
+            PhaseGuideOnsetRescueScale = WeakAOnsetRescue
+                ? WeakAOnsetRescueStrengthPolicy.ScaleFromStep(WeakAOnsetRescueStrengthStep)
+                : 0.0,
             // ~0.35 rejects weak between-beat noise during acquisition so it cannot alias the BPH to 2x.
             AcquisitionPeakGateFraction = SpuriousBeatRejection ? SpuriousBeatRejectionGateFraction : 0.0,
             SoundImageWidth = SoundImageWidth,

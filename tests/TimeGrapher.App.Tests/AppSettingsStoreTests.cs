@@ -47,7 +47,8 @@ public sealed class AppSettingsStoreTests : IDisposable
                 false,
                 true,
                 "180",
-                true));
+                true,
+                7));
 
         AppSettingsStore.SaveTo(path, saved);
 
@@ -78,6 +79,22 @@ public sealed class AppSettingsStoreTests : IDisposable
         AppSettingsStore.SaveTo(path, AppSettings.Default with
         {
             Sampling = new SamplingSettings(AnalysisBlockSize: 16, CaptureBufferMs: 20, AveragingPeriod: 20),
+        });
+
+        Assert.Equal(AppSettings.Default, AppSettingsStore.LoadFrom(path));
+    }
+
+    [Fact]
+    public void LoadFrom_InvalidRescueStrengthStep_ReturnsDefault()
+    {
+        string path = Path.Combine(_directory, "settings.json");
+        Directory.CreateDirectory(_directory);
+        AppSettingsStore.SaveTo(path, AppSettings.Default with
+        {
+            SettingsWindow = AppSettings.Default.SettingsWindow with
+            {
+                WeakAOnsetRescueStrengthStep = WeakAOnsetRescueStrengthPolicy.MaxStep + 1,
+            },
         });
 
         Assert.Equal(AppSettings.Default, AppSettingsStore.LoadFrom(path));
@@ -179,6 +196,7 @@ public sealed class AppSettingsStoreTests : IDisposable
         Assert.Equal(1.0, loaded.LeftPanel.SimulationSignalAScale);
         Assert.Equal(1.0, loaded.LeftPanel.SimulationSignalBScale);
         Assert.Equal(1.0, loaded.LeftPanel.SimulationSignalCScale);
+        Assert.Equal(WeakAOnsetRescueStrengthPolicy.StandardStep, loaded.SettingsWindow.WeakAOnsetRescueStrengthStep);
     }
 
     [Fact]

@@ -48,6 +48,7 @@ internal sealed class AppSettingsController : ISettingsWindowResetRunner
         viewModel.SimSignalCScale = (decimal)left.SimulationSignalCScale;
         viewModel.UseCOnset = window.UseCOnset;
         viewModel.WeakAOnsetRescue = window.WeakAOnsetRescue;
+        viewModel.WeakAOnsetRescueStrengthStep = window.WeakAOnsetRescueStrengthStep;
         viewModel.SpuriousBeatRejection = window.SpuriousBeatRejection;
         viewModel.PauseOnPositionChange = window.PauseOnPositionChange;
         viewModel.HighPassCutoffText = window.HighPassCutoffText;
@@ -64,6 +65,7 @@ internal sealed class AppSettingsController : ISettingsWindowResetRunner
         {
             _viewModel.UseCOnset = window.UseCOnset;
             _viewModel.WeakAOnsetRescue = window.WeakAOnsetRescue;
+            _viewModel.WeakAOnsetRescueStrengthStep = window.WeakAOnsetRescueStrengthStep;
             _viewModel.SpuriousBeatRejection = window.SpuriousBeatRejection;
             _viewModel.PauseOnPositionChange = window.PauseOnPositionChange;
             _viewModel.AveragingPeriod = sampling.AveragingPeriod;
@@ -109,6 +111,7 @@ internal sealed class AppSettingsController : ISettingsWindowResetRunner
             nameof(MainWindowViewModel.SimSignalCScale) or
             nameof(MainWindowViewModel.UseCOnset) or
             nameof(MainWindowViewModel.WeakAOnsetRescue) or
+            nameof(MainWindowViewModel.WeakAOnsetRescueStrengthStep) or
             nameof(MainWindowViewModel.SpuriousBeatRejection) or
             nameof(MainWindowViewModel.PauseOnPositionChange) or
             nameof(MainWindowViewModel.HighPassCutoffText) or
@@ -126,7 +129,8 @@ internal sealed class AppSettingsController : ISettingsWindowResetRunner
                 _viewModel.SpuriousBeatRejection,
                 _viewModel.PauseOnPositionChange,
                 _viewModel.HighPassCutoffText,
-                _viewModel.IsMeasurementLogEnabled));
+                _viewModel.IsMeasurementLogEnabled,
+                _viewModel.WeakAOnsetRescueStrengthStep));
 
         if (!next.IsValid || next == AppSettings.Current)
         {

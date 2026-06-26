@@ -98,6 +98,23 @@ public sealed class AppSettingsControllerTests : IDisposable
     }
 
     [Fact]
+    public void SeedViewModel_AppliesPersistedRescueStrengthStep()
+    {
+        var viewModel = new MainWindowViewModel();
+        AppSettings settings = AppSettings.Default with
+        {
+            SettingsWindow = AppSettings.Default.SettingsWindow with
+            {
+                WeakAOnsetRescueStrengthStep = 8,
+            },
+        };
+
+        AppSettingsController.SeedViewModel(viewModel, settings, measurementLogEnabled: false);
+
+        Assert.Equal(8, viewModel.WeakAOnsetRescueStrengthStep);
+    }
+
+    [Fact]
     public void SettingsWindowEdit_PersistsSettingsWindowSnapshot()
     {
         var viewModel = new MainWindowViewModel();
@@ -136,6 +153,24 @@ public sealed class AppSettingsControllerTests : IDisposable
     }
 
     [Fact]
+    public void SettingsWindowEdit_PersistsWeakARescueStrengthStep()
+    {
+        var viewModel = new MainWindowViewModel();
+        var persisted = new List<AppSettings>();
+        AppSettings.Current = AppSettings.Default;
+        _ = new AppSettingsController(
+            viewModel,
+            () => new AppSettingsSelection(null, 48000, 0, 28800),
+            persisted.Add);
+
+        viewModel.WeakAOnsetRescueStrengthStep = 8;
+
+        AppSettings saved = Assert.Single(persisted);
+        Assert.Equal(8, saved.SettingsWindow.WeakAOnsetRescueStrengthStep);
+        Assert.Equal(saved, AppSettings.Current);
+    }
+
+    [Fact]
     public void ResetSettingsWindow_RestoresOnlySettingsWindowControls()
     {
         var viewModel = new MainWindowViewModel
@@ -151,6 +186,7 @@ public sealed class AppSettingsControllerTests : IDisposable
             SimSignalCScale = 0.7m,
             UseCOnset = true,
             WeakAOnsetRescue = true,
+            WeakAOnsetRescueStrengthStep = 1,
             SpuriousBeatRejection = false,
             PauseOnPositionChange = true,
             AveragingPeriod = 45m,
@@ -183,6 +219,7 @@ public sealed class AppSettingsControllerTests : IDisposable
         Assert.Equal(0.7m, viewModel.SimSignalCScale);
         Assert.False(viewModel.UseCOnset);
         Assert.True(viewModel.WeakAOnsetRescue);
+        Assert.Equal(WeakAOnsetRescueStrengthPolicy.StandardStep, viewModel.WeakAOnsetRescueStrengthStep);
         Assert.True(viewModel.SpuriousBeatRejection);
         Assert.False(viewModel.PauseOnPositionChange);
         Assert.Equal(SamplingSettings.Default.AveragingPeriod, (int)viewModel.AveragingPeriod);

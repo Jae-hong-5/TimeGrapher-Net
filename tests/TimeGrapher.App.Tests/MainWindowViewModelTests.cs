@@ -241,6 +241,9 @@ public sealed class MainWindowViewModelTests
         Assert.Equal("200", vm.HighPassCutoffText);
         Assert.False(vm.UseCOnset);
         Assert.True(vm.WeakAOnsetRescue);
+        Assert.Equal(WeakAOnsetRescueStrengthPolicy.StandardStep, vm.WeakAOnsetRescueStrengthStep);
+        Assert.Equal("Standard", vm.WeakAOnsetRescueStrengthText);
+        Assert.True(vm.IsWeakAOnsetRescueStrengthEnabled);
         Assert.True(vm.SpuriousBeatRejection);
         Assert.False(vm.PauseOnPositionChange);
         Assert.False(vm.IsMeasurementLogEnabled);
@@ -252,6 +255,34 @@ public sealed class MainWindowViewModelTests
         Assert.Equal((decimal)AcceptBandSettings.Default.RateMinSPerDay, vm.RateAcceptMin);
         Assert.Equal((decimal)AcceptBandSettings.Default.RateMaxSPerDay, vm.RateAcceptMax);
         Assert.Equal((decimal)AcceptBandSettings.Default.BeatErrorMagnitudeMs, vm.BeatErrorAcceptMag);
+    }
+
+    [Fact]
+    public void WeakARescueStrengthEnablementTracksToggleAndRunState()
+    {
+        var vm = CreateViewModel();
+
+        vm.WeakAOnsetRescue = false;
+        Assert.False(vm.IsWeakAOnsetRescueStrengthEnabled);
+
+        vm.WeakAOnsetRescue = true;
+        Assert.True(vm.IsWeakAOnsetRescueStrengthEnabled);
+
+        vm.SetRunning();
+        Assert.False(vm.IsWeakAOnsetRescueStrengthEnabled);
+    }
+
+    [Theory]
+    [InlineData(WeakAOnsetRescueStrengthPolicy.MinStep, "Safer")]
+    [InlineData(WeakAOnsetRescueStrengthPolicy.StandardStep, "Standard")]
+    [InlineData(WeakAOnsetRescueStrengthPolicy.MaxStep, "Stronger")]
+    public void WeakARescueStrengthStepUpdatesReadout(int step, string expected)
+    {
+        var vm = CreateViewModel();
+
+        vm.WeakAOnsetRescueStrengthStep = step;
+
+        Assert.Equal(expected, vm.WeakAOnsetRescueStrengthText);
     }
 
     [Fact]

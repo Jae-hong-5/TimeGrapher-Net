@@ -25,15 +25,16 @@ public sealed class SettingsToggleBindingTests
         {
             DataContext = vm,
             Width = 760,
-            Height = 520,
+            Height = 600,
         };
 
         Control content = Assert.IsAssignableFrom<Control>(window.Content);
-        content.Measure(new Size(760, 520));
-        content.Arrange(new Rect(0, 0, 760, 520));
+        content.Measure(new Size(760, 600));
+        content.Arrange(new Rect(0, 0, 760, 600));
 
         AssertTwoWay(window, "UseConsetToggleSwitch", v => vm.UseCOnset = v, () => vm.UseCOnset);
         AssertTwoWay(window, "WeakAOnsetRescueToggleSwitch", v => vm.WeakAOnsetRescue = v, () => vm.WeakAOnsetRescue);
+        AssertSliderTwoWay(window, "WeakAOnsetRescueStrengthSlider", v => vm.WeakAOnsetRescueStrengthStep = v, () => vm.WeakAOnsetRescueStrengthStep);
         AssertTwoWay(window, "SpuriousBeatRejectionToggleSwitch", v => vm.SpuriousBeatRejection = v, () => vm.SpuriousBeatRejection);
         AssertTwoWay(window, "PauseOnPositionChangeToggleSwitch", v => vm.PauseOnPositionChange = v, () => vm.PauseOnPositionChange);
         AssertTwoWay(window, "MeasurementLogEnabledToggleSwitch", v => vm.IsMeasurementLogEnabled = v, () => vm.IsMeasurementLogEnabled);
@@ -51,12 +52,12 @@ public sealed class SettingsToggleBindingTests
         {
             DataContext = vm,
             Width = 760,
-            Height = 520,
+            Height = 600,
         };
 
         Control content = Assert.IsAssignableFrom<Control>(window.Content);
-        content.Measure(new Size(760, 520));
-        content.Arrange(new Rect(0, 0, 760, 520));
+        content.Measure(new Size(760, 600));
+        content.Arrange(new Rect(0, 0, 760, 600));
 
         var reset = Assert.IsType<Button>(window.FindControl<Control>("ResetSettingsButton"));
         var close = Assert.IsType<Button>(window.FindControl<Control>("CloseSettingsButton"));
@@ -90,6 +91,19 @@ public sealed class SettingsToggleBindingTests
         Assert.True(readSource());
         toggle.IsChecked = false;
         Assert.False(readSource());
+    }
+
+    private static void AssertSliderTwoWay(SettingsWindow window, string sliderName, Action<int> setSource, Func<int> readSource)
+    {
+        var slider = Assert.IsType<Slider>(window.FindControl<Control>(sliderName));
+
+        setSource(0);
+        Assert.Equal(0.0, slider.Value);
+        setSource(10);
+        Assert.Equal(10.0, slider.Value);
+
+        slider.Value = 3;
+        Assert.Equal(3, readSource());
     }
 
     private sealed class RecordingSettingsWindowResetRunner : ISettingsWindowResetRunner

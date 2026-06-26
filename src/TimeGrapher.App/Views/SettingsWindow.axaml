@@ -3,7 +3,7 @@
         x:Class="TimeGrapher.App.Views.SettingsWindow"
         Title="Settings"
         Icon="/Assets/App/AppIcon-256.png"
-        Width="760" Height="520"
+        Width="760" Height="600"
         CanResize="False"
         SystemDecorations="None"
         ShowInTaskbar="False"
@@ -75,23 +75,76 @@
                         IsChecked="{Binding UseCOnset, Mode=TwoWay}"
                         ToolTip.Tip="Time the C event from its onset instead of its peak" />
         </Grid>
-        <Grid ColumnDefinitions="*,Auto"
-              HorizontalAlignment="Stretch"
-              IsEnabled="{Binding AreRunParametersEnabled}">
-          <TextBlock Text="Weak-A onset rescue"
-                     FontWeight="Bold"
-                     HorizontalAlignment="Left"
-                     VerticalAlignment="Center" />
-          <ToggleSwitch Name="WeakAOnsetRescueToggleSwitch"
-                        Grid.Column="1"
-                        AutomationProperties.Name="Weak-A onset rescue"
-                        OffContent=""
-                        OnContent=""
-                        FontWeight="Bold"
-                        HorizontalAlignment="Right"
-                        IsEnabled="{Binding AreRunParametersEnabled}"
-                        IsChecked="{Binding WeakAOnsetRescue, Mode=TwoWay}"
-                        ToolTip.Tip="Catch a weak A near the locked phase (lowers the in-window onset trigger)" />
+        <Grid RowDefinitions="Auto,Auto"
+              RowSpacing="6"
+              HorizontalAlignment="Stretch">
+          <Grid Grid.Row="0"
+                ColumnDefinitions="*,Auto"
+                HorizontalAlignment="Stretch"
+                IsEnabled="{Binding AreRunParametersEnabled}">
+            <TextBlock Text="Weak-A onset rescue"
+                       FontWeight="Bold"
+                       HorizontalAlignment="Left"
+                       VerticalAlignment="Center" />
+            <ToggleSwitch Name="WeakAOnsetRescueToggleSwitch"
+                          Grid.Column="1"
+                          AutomationProperties.Name="Weak-A onset rescue"
+                          OffContent=""
+                          OnContent=""
+                          FontWeight="Bold"
+                          HorizontalAlignment="Right"
+                          IsEnabled="{Binding AreRunParametersEnabled}"
+                          IsChecked="{Binding WeakAOnsetRescue, Mode=TwoWay}"
+                          ToolTip.Tip="Catch a weak A near the locked phase (lowers the in-window onset trigger)" />
+          </Grid>
+          <Grid Grid.Row="1"
+                RowDefinitions="Auto,Auto,Auto"
+                RowSpacing="1"
+                HorizontalAlignment="Stretch"
+                IsEnabled="{Binding IsWeakAOnsetRescueStrengthEnabled}">
+            <Grid Grid.Row="0"
+                  ColumnDefinitions="*,Auto">
+              <TextBlock Text="Rescue strength"
+                         FontSize="12"
+                         Foreground="{DynamicResource TextSecondaryBrush}"
+                         HorizontalAlignment="Left"
+                         VerticalAlignment="Center" />
+              <TextBlock Grid.Column="1"
+                         Text="{Binding WeakAOnsetRescueStrengthText}"
+                         FontSize="12"
+                         Foreground="{DynamicResource TextSecondaryBrush}"
+                         HorizontalAlignment="Right"
+                         VerticalAlignment="Center" />
+            </Grid>
+            <Slider Name="WeakAOnsetRescueStrengthSlider"
+                    Grid.Row="1"
+                    AutomationProperties.Name="Weak-A onset rescue strength"
+                    Minimum="0"
+                    Maximum="10"
+                    TickFrequency="1"
+                    IsSnapToTickEnabled="True"
+                    TickPlacement="BottomRight"
+                    Height="30"
+                    Value="{Binding WeakAOnsetRescueStrengthStep, Mode=TwoWay}"
+                    ToolTip.Tip="Left is safer; right is stronger. Standard is the center tick." />
+            <Grid Grid.Row="2"
+                  ColumnDefinitions="*,*,*">
+              <TextBlock Text="Safer"
+                         FontSize="11"
+                         Foreground="{DynamicResource TextSecondaryBrush}"
+                         HorizontalAlignment="Left" />
+              <TextBlock Grid.Column="1"
+                         Text="Standard"
+                         FontSize="11"
+                         Foreground="{DynamicResource TextSecondaryBrush}"
+                         HorizontalAlignment="Center" />
+              <TextBlock Grid.Column="2"
+                         Text="Stronger"
+                         FontSize="11"
+                         Foreground="{DynamicResource TextSecondaryBrush}"
+                         HorizontalAlignment="Right" />
+            </Grid>
+          </Grid>
         </Grid>
         <Grid ColumnDefinitions="*,Auto"
               HorizontalAlignment="Stretch"
@@ -144,6 +197,7 @@
                      VerticalAlignment="Center" FontWeight="Bold" />
           <NumericUpDown Name="AveragingPeriodSpinBox" Grid.Row="0" Grid.Column="1"
                          Margin="6,3"
+                         Height="32"
                          AutomationProperties.Name="Error Rate averaging period (seconds)"
                          Value="{Binding AveragingPeriod, Mode=TwoWay}"
                          IsEnabled="{Binding AreRunParametersEnabled}"
@@ -155,6 +209,7 @@
                      VerticalAlignment="Center" FontWeight="Bold" />
           <NumericUpDown Name="AnalysisBlockSizeSpinBox" Grid.Row="1" Grid.Column="1"
                          Margin="6,3"
+                         Height="32"
                          AutomationProperties.Name="Analysis block size (samples)"
                          Value="{Binding AnalysisBlockSize, Mode=TwoWay}"
                          IsEnabled="{Binding AreRunParametersEnabled}"
@@ -166,6 +221,7 @@
                      VerticalAlignment="Center" FontWeight="Bold" />
           <NumericUpDown Name="CaptureBufferMsSpinBox" Grid.Row="2" Grid.Column="1"
                          Margin="6,3"
+                         Height="32"
                          AutomationProperties.Name="Capture buffer length (milliseconds)"
                          Value="{Binding CaptureBufferMs, Mode=TwoWay}"
                          IsEnabled="{Binding AreRunParametersEnabled}"
@@ -177,6 +233,7 @@
                      VerticalAlignment="Center" FontWeight="Bold" />
           <TextBox Name="HighLineEdit" Grid.Row="3" Grid.Column="1"
                    Margin="6,3"
+                   Height="32"
                    AutomationProperties.Name="High Pass Cutoff (Hz)"
                    IsEnabled="{Binding AreRunParametersEnabled}"
                    Text="{Binding HighPassCutoffText, Mode=TwoWay}"
@@ -207,6 +264,7 @@
                      VerticalAlignment="Center" FontWeight="Bold" />
           <NumericUpDown Name="RateAcceptMinSpinBox" Grid.Row="1" Grid.Column="1"
                          Margin="6,3"
+                         Height="32"
                          AutomationProperties.Name="Error Rate band minimum (s/d)"
                          Value="{Binding RateAcceptMin, Mode=TwoWay}"
                          FontWeight="Bold" FormatString="0' s/d'"
@@ -214,6 +272,7 @@
                          ToolTip.Tip="Error Rate normal-band lower limit (s/d)" />
           <NumericUpDown Name="RateAcceptMaxSpinBox" Grid.Row="1" Grid.Column="2"
                          Margin="6,3"
+                         Height="32"
                          AutomationProperties.Name="Error Rate band maximum (s/d)"
                          Value="{Binding RateAcceptMax, Mode=TwoWay}"
                          FontWeight="Bold" FormatString="0' s/d'"
@@ -224,6 +283,7 @@
                      VerticalAlignment="Center" FontWeight="Bold" />
           <NumericUpDown Name="AmplitudeAcceptMinSpinBox" Grid.Row="2" Grid.Column="1"
                          Margin="6,3"
+                         Height="32"
                          AutomationProperties.Name="Amplitude band minimum (degrees)"
                          Value="{Binding AmplitudeAcceptMin, Mode=TwoWay}"
                          FontWeight="Bold" FormatString="0'°'"
@@ -231,6 +291,7 @@
                          ToolTip.Tip="Amplitude normal-band lower limit (°)" />
           <NumericUpDown Name="AmplitudeAcceptMaxSpinBox" Grid.Row="2" Grid.Column="2"
                          Margin="6,3"
+                         Height="32"
                          AutomationProperties.Name="Amplitude band maximum (degrees)"
                          Value="{Binding AmplitudeAcceptMax, Mode=TwoWay}"
                          FontWeight="Bold" FormatString="0'°'"
@@ -241,6 +302,7 @@
                      VerticalAlignment="Center" FontWeight="Bold" />
           <NumericUpDown Name="BeatErrorAcceptMagSpinBox" Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="2"
                          Margin="6,3"
+                         Height="32"
                          AutomationProperties.Name="Beat Error band magnitude, symmetric (± ms)"
                          Value="{Binding BeatErrorAcceptMag, Mode=TwoWay}"
                          FontWeight="Bold" FormatString="'±'0.0' ms'"

@@ -98,7 +98,8 @@ internal sealed record SettingsWindowSettings(
     bool SpuriousBeatRejection,
     bool PauseOnPositionChange,
     string HighPassCutoffText,
-    bool MeasurementLogEnabled)
+    bool MeasurementLogEnabled,
+    int WeakAOnsetRescueStrengthStep = WeakAOnsetRescueStrengthPolicy.StandardStep)
 {
     public static SettingsWindowSettings Default { get; } = new(
         UseCOnset: false,
@@ -106,8 +107,11 @@ internal sealed record SettingsWindowSettings(
         SpuriousBeatRejection: true,
         PauseOnPositionChange: false,
         HighPassCutoffText: "200",
-        MeasurementLogEnabled: false);
+        MeasurementLogEnabled: false,
+        WeakAOnsetRescueStrengthStep: WeakAOnsetRescueStrengthPolicy.StandardStep);
 
     [JsonIgnore]
-    public bool IsValid => HighPassCutoffText != null;
+    public bool IsValid =>
+        HighPassCutoffText != null &&
+        WeakAOnsetRescueStrengthPolicy.IsValidStep(WeakAOnsetRescueStrengthStep);
 }

@@ -123,11 +123,11 @@ public sealed class MainWindowRunControlWiringTests
         {
             DataContext = new MainWindowViewModel(),
             Width = 760,
-            Height = 520,
+            Height = 600,
         };
         Control content = Assert.IsAssignableFrom<Control>(window.Content);
-        content.Measure(new Size(760, 520));
-        content.Arrange(new Rect(0, 0, 760, 520));
+        content.Measure(new Size(760, 600));
+        content.Arrange(new Rect(0, 0, 760, 600));
 
         NumericUpDown averagingPeriod = Assert.IsType<NumericUpDown>(
             window.FindControl<Control>("AveragingPeriodSpinBox"));
@@ -137,17 +137,27 @@ public sealed class MainWindowRunControlWiringTests
             window.FindControl<Control>("CaptureBufferMsSpinBox"));
         TextBox highPass = Assert.IsType<TextBox>(
             window.FindControl<Control>("HighLineEdit"));
+        Slider rescueStrength = Assert.IsType<Slider>(
+            window.FindControl<Control>("WeakAOnsetRescueStrengthSlider"));
 
-        Assert.True(averagingPeriod.Bounds.Width > 0);
-        Assert.True(blockSize.Bounds.Width > 0);
-        Assert.True(captureBuffer.Bounds.Width > 0);
-        Assert.True(highPass.Bounds.Width > 0);
-        Assert.True(highPass.Bounds.Bottom <= 520);
+        Rect averagingPeriodBounds = BoundsInContent(averagingPeriod, content);
+        Rect blockSizeBounds = BoundsInContent(blockSize, content);
+        Rect captureBufferBounds = BoundsInContent(captureBuffer, content);
+        Rect rescueStrengthBounds = BoundsInContent(rescueStrength, content);
+        Rect highPassBounds = BoundsInContent(highPass, content);
 
-        var target = new RenderTargetBitmap(new PixelSize(760, 520), new Vector(96, 96));
+        Assert.True(averagingPeriodBounds.Width > 0);
+        Assert.True(blockSizeBounds.Width > 0);
+        Assert.True(captureBufferBounds.Width > 0);
+        Assert.True(rescueStrengthBounds.Width > 0);
+        Assert.True(rescueStrengthBounds.Bottom <= 600);
+        Assert.True(highPassBounds.Width > 0);
+        Assert.True(highPassBounds.Bottom <= 600);
+
+        var target = new RenderTargetBitmap(new PixelSize(760, 600), new Vector(96, 96));
         target.Render(content);
 
-        Assert.True(CountOpaquePixels(target, 760, 520) > 10000);
+        Assert.True(CountOpaquePixels(target, 760, 600) > 10000);
     }
 
     [Fact]
@@ -249,7 +259,7 @@ public sealed class MainWindowRunControlWiringTests
         XDocument document = XDocument.Load(FindSourceFile("src/TimeGrapher.App/Views/SettingsWindow.axaml"));
 
         Assert.Equal("760", document.Root?.Attribute("Width")?.Value);
-        Assert.Equal("520", document.Root?.Attribute("Height")?.Value);
+        Assert.Equal("600", document.Root?.Attribute("Height")?.Value);
         Assert.Equal(
             new[]
             {
@@ -314,6 +324,16 @@ public sealed class MainWindowRunControlWiringTests
         Assert.All(
             toggleSwitches,
             toggleSwitch => Assert.Equal("{Binding AreRunParametersEnabled}", toggleSwitch.Attribute("IsEnabled")?.Value));
+        XElement rescueStrengthSlider = FindNamedElement(document, "WeakAOnsetRescueStrengthSlider");
+        Assert.Equal("Slider", rescueStrengthSlider.Name.LocalName);
+        Assert.Equal("Weak-A onset rescue strength", rescueStrengthSlider.Attribute("AutomationProperties.Name")?.Value);
+        Assert.Equal("0", rescueStrengthSlider.Attribute("Minimum")?.Value);
+        Assert.Equal("10", rescueStrengthSlider.Attribute("Maximum")?.Value);
+        Assert.Equal("1", rescueStrengthSlider.Attribute("TickFrequency")?.Value);
+        Assert.Equal("True", rescueStrengthSlider.Attribute("IsSnapToTickEnabled")?.Value);
+        Assert.Equal("BottomRight", rescueStrengthSlider.Attribute("TickPlacement")?.Value);
+        Assert.Equal("{Binding WeakAOnsetRescueStrengthStep, Mode=TwoWay}", rescueStrengthSlider.Attribute("Value")?.Value);
+        Assert.Equal("{Binding IsWeakAOnsetRescueStrengthEnabled}", rescueStrengthSlider.Parent?.Attribute("IsEnabled")?.Value);
         Assert.DoesNotContain(
             document.Descendants().Attributes("Name").Select(attribute => attribute.Value),
             name => name.Contains("MeasurementLogPath", StringComparison.Ordinal) ||
@@ -434,6 +454,13 @@ public sealed class MainWindowRunControlWiringTests
         }
 
         throw new FileNotFoundException("Could not locate source file.", relativePath);
+    }
+
+    private static Rect BoundsInContent(Control control, Control content)
+    {
+        Point origin = control.TranslatePoint(new Point(0, 0), content)
+            ?? throw new InvalidOperationException("Control is not in the rendered content tree.");
+        return new Rect(origin, control.Bounds.Size);
     }
 
     private static int CountOpaquePixels(RenderTargetBitmap bitmap, int width, int height)
