@@ -113,6 +113,22 @@ public sealed class MainWindowSelectionCoordinatorTests
         Assert.Equal(0.25f, operations.LastVolume);
     }
 
+    [Fact]
+    public void SimulationParameterChangeForwardsLiveValuesWithNegatedBeatError()
+    {
+        MainWindowViewModel vm = CreateViewModel();
+        var operations = new FakeSelectionOperations(-1);
+        MainWindowSelectionCoordinator coordinator = CreateCoordinator(vm, operations);
+
+        vm.SimErrorRate = 5m;
+        vm.SimAmplitude = 250m;
+        vm.SimBeatError = 1.5m;
+
+        // Beat error is negated to match SimStart's cfg.BeatErrorMs sign convention;
+        // rate and amplitude pass through unchanged.
+        Assert.Equal((5.0, -1.5, 250.0), operations.LastSimulationParameters);
+    }
+
     private static MainWindowViewModel CreateViewModel()
     {
         return new MainWindowViewModel();
@@ -151,6 +167,8 @@ public sealed class MainWindowSelectionCoordinatorTests
 
         public float? LastVolume { get; private set; }
 
+        public (double RateErrorSPerDay, double BeatErrorMs, double WatchAmplitudeDegrees)? LastSimulationParameters { get; private set; }
+
         public int GetAvailableSampleRate(int index)
         {
             return AvailableSampleRates[index];
@@ -169,6 +187,11 @@ public sealed class MainWindowSelectionCoordinatorTests
         public void SetAudioInputVolume(float normalizedVolume)
         {
             LastVolume = normalizedVolume;
+        }
+
+        public void SetLiveSimulationParameters(double rateErrorSPerDay, double beatErrorMs, double watchAmplitudeDegrees)
+        {
+            LastSimulationParameters = (rateErrorSPerDay, beatErrorMs, watchAmplitudeDegrees);
         }
 
     }

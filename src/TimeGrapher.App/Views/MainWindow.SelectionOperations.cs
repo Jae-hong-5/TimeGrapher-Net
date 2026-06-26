@@ -45,5 +45,10 @@ public partial class MainWindow
         {
             _owner.mRunSessionController.SetLiveInputVolume(normalizedVolume);
         }
+
+        public void SetLiveSimulationParameters(double rateErrorSPerDay, double beatErrorMs, double watchAmplitudeDegrees)
+        {
+            _owner.mRunSessionController.SetLiveSimulationParameters(rateErrorSPerDay, beatErrorMs, watchAmplitudeDegrees);
+        }
     }
 }

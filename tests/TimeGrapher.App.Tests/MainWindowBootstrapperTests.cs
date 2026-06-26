@@ -38,6 +38,7 @@ public sealed class MainWindowBootstrapperTests : IDisposable
         public void PopulateSampleRates(int deviceNumber) { }
         public void SetCurrentSampleRate(int sampleRate) { }
         public void SetAudioInputVolume(float normalizedVolume) { }
+        public void SetLiveSimulationParameters(double rateErrorSPerDay, double beatErrorMs, double watchAmplitudeDegrees) { }
     }
 
     private sealed class FakeRunCommandOperations : IRunCommandOperations

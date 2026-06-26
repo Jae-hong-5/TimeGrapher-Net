@@ -165,6 +165,13 @@ public sealed class AudioDeviceControllerTests
         {
             _ = normalizedVolume;
         }
+
+        public void SetLiveSimulationParameters(double rateErrorSPerDay, double beatErrorMs, double watchAmplitudeDegrees)
+        {
+            _ = rateErrorSPerDay;
+            _ = beatErrorMs;
+            _ = watchAmplitudeDegrees;
+        }
     }
 
     [Fact]

@@ -1,5 +1,6 @@
 using TimeGrapher.Core.Analysis;
 using TimeGrapher.Core.Shared;
+using TimeGrapher.Core.Sim;
 
 namespace TimeGrapher.App.Services;
 
@@ -181,6 +182,21 @@ internal sealed class RunSessionController : IDisposable, IRunSessionControls
         if (_inputWorker is ILiveAudioWorker liveWorker)
         {
             liveWorker.SetVolume(normalizedVolume);
+        }
+    }
+
+    /// <summary>
+    /// Forwards the live-adjustable simulation knobs (rate error s/day, beat error ms,
+    /// watch amplitude degrees) to the running sim worker. No-op unless a simulation
+    /// run is active, mirroring <see cref="SetLiveInputVolume"/> for the live worker.
+    /// The view model is the source of truth for the next run's start, so unlike the
+    /// analysis-worker knobs there is nothing to remember here.
+    /// </summary>
+    public void SetLiveSimulationParameters(double rateErrorSPerDay, double beatErrorMs, double watchAmplitudeDegrees)
+    {
+        if (_inputWorker is SimWorker simWorker)
+        {
+            simWorker.UpdateLiveParameters(rateErrorSPerDay, beatErrorMs, watchAmplitudeDegrees);
         }
     }
 

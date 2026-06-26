@@ -73,6 +73,11 @@ internal sealed class MainWindowSelectionCoordinator : ISelectionEventGate
             case nameof(MainWindowViewModel.Gain):
                 OnGainChanged();
                 break;
+            case nameof(MainWindowViewModel.SimErrorRate):
+            case nameof(MainWindowViewModel.SimAmplitude):
+            case nameof(MainWindowViewModel.SimBeatError):
+                OnSimulationParameterChanged();
+                break;
         }
     }
 
@@ -167,6 +172,18 @@ internal sealed class MainWindowSelectionCoordinator : ISelectionEventGate
     private void OnGainChanged()
     {
         _operations.SetAudioInputVolume((float)(_viewModel.Gain / 1000.0));
+    }
+
+    private void OnSimulationParameterChanged()
+    {
+        // Forward the live-adjustable simulation knobs to the running sim worker
+        // (the controller ignores the call unless a sim run is active). Beat error
+        // is negated to match SimStart's cfg.BeatErrorMs sign convention so a live
+        // edit moves the reading the same direction as setting it before a run.
+        _operations.SetLiveSimulationParameters(
+            (double)_viewModel.SimErrorRate,
+            -(double)_viewModel.SimBeatError,
+            (double)_viewModel.SimAmplitude);
     }
 
     internal static string ItemText(IReadOnlyList<string> items, int index)

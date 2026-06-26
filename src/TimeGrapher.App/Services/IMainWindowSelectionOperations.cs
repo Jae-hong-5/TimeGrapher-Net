@@ -13,4 +13,6 @@ internal interface IMainWindowSelectionOperations
     void SetCurrentSampleRate(int sampleRate);
 
     void SetAudioInputVolume(float normalizedVolume);
+
+    void SetLiveSimulationParameters(double rateErrorSPerDay, double beatErrorMs, double watchAmplitudeDegrees);
 }
