@@ -58,7 +58,7 @@ internal static class LongTermReadout
             history.BeatErrorValid;
         if (!hasAnyReading)
         {
-            return "COLLECTING";
+            return "Collecting";
         }
 
         return SeriesOrCurrentInRange(
@@ -76,8 +76,8 @@ internal static class LongTermReadout
                    history.BeatErrorValid,
                    history.BeatErrorSignedMs,
                    LongTermAcceptPolicy.BeatError)
-            ? "IN TOLERANCE"
-            : "CHECK";
+            ? "Within Band"
+            : "Check";
     }
 
     public static string CurrentRate(BeatMetricsHistorySnapshot history) =>
@@ -87,7 +87,7 @@ internal static class LongTermReadout
         "Amplitude " + VarioReadout.Format(history.AmplitudeValid ? history.AmplitudeDeg : null, "0", "°");
 
     public static string CurrentBeatError(BeatMetricsHistorySnapshot history) =>
-        "BEAT ERROR " + VarioReadout.Format(history.BeatErrorValid ? history.BeatErrorSignedMs : null, "+0.0;-0.0;0.0", " ms");
+        "Beat Error " + VarioReadout.Format(history.BeatErrorValid ? history.BeatErrorSignedMs : null, "+0.0;-0.0;0.0", " ms");
 
     public static string ReviewMetrics(BeatMetricsHistorySnapshot history, double? cursorTimeS)
     {
@@ -102,9 +102,9 @@ internal static class LongTermReadout
             : history.BeatErrorValid ? history.BeatErrorSignedMs : null;
 
         return string.Join("   ",
-            "Error Rate " + VarioReadout.Format(rate, "+0.0;-0.0;0.0", " s/d"),
-            "Amplitude " + VarioReadout.Format(amplitude, "0", "°"),
-            "BEAT ERROR " + VarioReadout.Format(beatError, "+0.0;-0.0;0.0", " ms"));
+            "Cur. Error Rate " + VarioReadout.Format(rate, "+0.0;-0.0;0.0", " s/d"),
+            "Cur. Amplitude " + VarioReadout.Format(amplitude, "0", "°"),
+            "Cur. Beat Error " + VarioReadout.Format(beatError, "+0.0;-0.0;0.0", " ms"));
     }
 
     /// <summary>

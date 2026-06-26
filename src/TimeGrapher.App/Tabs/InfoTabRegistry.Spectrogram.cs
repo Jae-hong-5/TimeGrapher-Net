@@ -212,12 +212,6 @@ internal sealed partial class InfoTabRegistry
 
         var renderer = new SpectrogramRenderer(image, legendImage, freqLabels, timeLabels, timeAxisCaption, currentLine, beatDividers);
 
-        // Time-window toolbar (the Qt original's Last Beat / Seconds selector, plus
-        // a Beats compare view). The mode buttons follow the Scope Sweep "active
-        // option disabled" pattern; the −/+ buttons step the active mode's ladder
-        // (a seconds ladder in Seconds mode, a beat-count ladder in Beats mode).
-        // Display-only: the renderer re-crops the kept image on the UI thread, so no
-        // analysis-worker round trip is needed.
         double[] secondsLadder = { 0.5, 1.0, 2.0, 5.0, 10.0 };
         int secondsIndex = 1; // 1.0 s, matching the SpectrogramRenderer default
         // Beat-count ladder for Beats mode: 2 (compare one beat with the next) up to
@@ -264,9 +258,9 @@ internal sealed partial class InfoTabRegistry
 
         void UpdateToolbar()
         {
-            lastBeatButton.IsEnabled = viewMode != SpectrogramViewMode.LastBeat;
-            beatsButton.IsEnabled = viewMode != SpectrogramViewMode.Beats;
-            secondsButton.IsEnabled = viewMode != SpectrogramViewMode.Seconds;
+            SetActiveButtonClass(lastBeatButton, viewMode == SpectrogramViewMode.LastBeat);
+            SetActiveButtonClass(beatsButton, viewMode == SpectrogramViewMode.Beats);
+            SetActiveButtonClass(secondsButton, viewMode == SpectrogramViewMode.Seconds);
 
             bool seconds = viewMode == SpectrogramViewMode.Seconds;
             bool beats = viewMode == SpectrogramViewMode.Beats;

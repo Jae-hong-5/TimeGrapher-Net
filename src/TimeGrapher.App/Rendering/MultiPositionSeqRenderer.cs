@@ -23,7 +23,7 @@ internal sealed class MultiPositionSeqRenderer
     private const string ActiveRowClass = "SeqActiveRow";
 
     private static readonly string[] Headers =
-        { "POS", "RATE", "AMPLITUDE", "BEAT ERR", "BEATS", "RATE RANGE vs BAND", "COLLECTION → 30" };
+        { "Position", "Error Rate", "Amplitude", "Beat Error", "Beats", "Error Rate vs Band", "Collection" };
 
     private readonly Grid _tableGrid;
     private readonly PositionSequenceDashboardControls _dashboard;

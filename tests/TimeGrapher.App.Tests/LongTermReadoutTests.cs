@@ -61,10 +61,10 @@ public sealed class LongTermReadoutTests
         };
 
         Assert.Equal(
-            "Error Rate -3.0 s/d   Amplitude 282°   BEAT ERROR +0.3 ms",
+            "Cur. Error Rate -3.0 s/d   Cur. Amplitude 282°   Cur. Beat Error +0.3 ms",
             LongTermReadout.ReviewMetrics(history, null));
         Assert.Equal(
-            "Error Rate -2.0 s/d   Amplitude 281°   BEAT ERROR +0.2 ms",
+            "Cur. Error Rate -2.0 s/d   Cur. Amplitude 281°   Cur. Beat Error +0.2 ms",
             LongTermReadout.ReviewMetrics(history, 12.0));
     }
 
@@ -85,9 +85,9 @@ public sealed class LongTermReadoutTests
             BeatError = Series(new[] { 0.0, 60.0 }, new[] { 0.1, 0.1 }),
         };
 
-        Assert.Equal("IN TOLERANCE", LongTermReadout.Verdict(okHistory));
-        Assert.Equal("CHECK", LongTermReadout.Verdict(badHistory));
-        Assert.Equal("COLLECTING", LongTermReadout.Verdict(new BeatMetricsHistorySnapshot()));
+        Assert.Equal("Within Band", LongTermReadout.Verdict(okHistory));
+        Assert.Equal("Check", LongTermReadout.Verdict(badHistory));
+        Assert.Equal("Collecting", LongTermReadout.Verdict(new BeatMetricsHistorySnapshot()));
     }
 
     [Fact]
@@ -102,6 +102,6 @@ public sealed class LongTermReadoutTests
             BeatError = Series(new[] { 0.0, 10.0, 3600.0 }, new[] { 0.1, 0.1, 0.1 }),
         };
 
-        Assert.Equal("IN TOLERANCE", LongTermReadout.Verdict(history));
+        Assert.Equal("Within Band", LongTermReadout.Verdict(history));
     }
 }

@@ -101,10 +101,10 @@ public sealed class InfoTabRegistryTests
 
         Assert.Equal(WatchPosition.CH, activeDiagram.Position);
         Assert.DoesNotContain(Descendants(content).OfType<TextBlock>(), text => text.Text == "POSITION MAP");
-        Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "AMPLITUDE");
+        Assert.Contains(Descendants(content).OfType<TextBlock>(), text => text.Text == "Amplitude");
         Grid tableGrid = Assert.Single(Descendants(content).OfType<Grid>(), grid =>
             grid.ColumnDefinitions.Count == 7 &&
-            grid.Children.OfType<TextBlock>().Any(text => text.Text == "POS"));
+            grid.Children.OfType<TextBlock>().Any(text => text.Text == "Position"));
         Assert.Equal(WatchPositions.Count + 1, tableGrid.RowDefinitions.Count);
         Assert.DoesNotContain(Descendants(content).OfType<Border>(), border =>
             border.Classes.Contains("PositionMapTile"));
@@ -304,9 +304,7 @@ public sealed class InfoTabRegistryTests
         var summaryCard = Assert.IsType<Border>(
             content.Children.Single(child => Grid.GetRow(child) == 0));
         var summaryStack = Assert.IsType<StackPanel>(summaryCard.Child);
-        var summaryTopBar = Assert.IsType<Grid>(summaryStack.Children[0]);
-        var overallText = Assert.IsType<TextBlock>(
-            summaryTopBar.Children.Single(child => Grid.GetColumn(child) == 0));
+        var overallText = Assert.IsType<TextBlock>(summaryStack.Children[0]);
         var summaryColumns = Assert.IsType<Grid>(summaryStack.Children[1]);
         StackPanel[] measureColumns = summaryColumns.Children
             .OfType<StackPanel>()
@@ -355,8 +353,8 @@ public sealed class InfoTabRegistryTests
         TextBlock[] rules = panel.Children
             .OfType<TextBlock>()
             .Where(text => text.Text is { } value &&
-                (value.StartsWith("Stable · in range:", StringComparison.Ordinal) ||
-                 value.StartsWith("In range · unstable:", StringComparison.Ordinal) ||
+                (value.StartsWith("Stable · Within Band:", StringComparison.Ordinal) ||
+                 value.StartsWith("Within Band · unstable:", StringComparison.Ordinal) ||
                  value.StartsWith("Fast / Slow · out of range:", StringComparison.Ordinal) ||
                  value.StartsWith("Healthy:", StringComparison.Ordinal) ||
                  value.StartsWith("Slightly low / High:", StringComparison.Ordinal) ||
@@ -372,16 +370,15 @@ public sealed class InfoTabRegistryTests
     }
 
     [Fact]
-    public void VarioCriteriaGuideSitsAboveElapsedReadout()
+    public void VarioCriteriaGuideSitsBesideElapsedReadout()
     {
         Grid content = CreateVarioContent();
         var summaryCard = Assert.IsType<Border>(
             content.Children.Single(child => Grid.GetRow(child) == 0));
         var summaryStack = Assert.IsType<StackPanel>(summaryCard.Child);
-        var summaryTopBar = Assert.IsType<Grid>(summaryStack.Children[0]);
         var summaryColumns = Assert.IsType<Grid>(summaryStack.Children[1]);
         Button criteriaButton = Assert.IsType<Button>(
-            summaryTopBar.Children.Single(child => Grid.GetColumn(child) == 1));
+            summaryColumns.Children.Single(child => Grid.GetColumn(child) == 3));
         StackPanel elapsedColumn = Assert.IsType<StackPanel>(
             summaryColumns.Children.Single(child => Grid.GetColumn(child) == 2));
 
@@ -389,13 +386,13 @@ public sealed class InfoTabRegistryTests
         Assert.True(criteriaButton.FontSize >= VarioCapturedMinimumFontSize);
         Assert.True(criteriaButton.MinWidth >= 168);
         Assert.True(criteriaButton.MinHeight >= 36);
-        Assert.Equal(HorizontalAlignment.Right, criteriaButton.HorizontalAlignment);
-        Assert.Equal(VerticalAlignment.Top, criteriaButton.VerticalAlignment);
-        Assert.Equal(160, summaryColumns.ColumnDefinitions[2].Width.Value);
+        Assert.Equal(HorizontalAlignment.Left, criteriaButton.HorizontalAlignment);
+        Assert.Equal(VerticalAlignment.Center, criteriaButton.VerticalAlignment);
+        Assert.Equal(150, summaryColumns.ColumnDefinitions[2].Width.Value);
         Assert.Equal(HorizontalAlignment.Left, elapsedColumn.HorizontalAlignment);
         Assert.Contains(
             elapsedColumn.Children.OfType<TextBlock>(),
-            text => text.Text == "ELAPSED");
+            text => text.Text == "Elapsed");
     }
 
     [Fact]
@@ -472,7 +469,7 @@ public sealed class InfoTabRegistryTests
 
         Assert.Equal(new[] { "1h", "3h", "6h", "‹", "›", "Reset View" }, buttons);
         Assert.DoesNotContain(Descendants(header).OfType<TextBlock>(), text => text.Text == "24H LONG-TERM");
-        Assert.Contains(Descendants(header).OfType<TextBlock>(), text => text.Text == "COLLECTING");
+        Assert.Contains(Descendants(header).OfType<TextBlock>(), text => text.Text == "Collecting");
         Assert.Contains(Descendants(header).OfType<TextBlock>(), text => text.Text == "Error Rate —");
         Button resetView = Descendants(header).OfType<Button>().Single(button => Equals(button.Content, "Reset View"));
         Assert.Contains("PositionButton", resetView.Classes);
@@ -482,7 +479,7 @@ public sealed class InfoTabRegistryTests
             !Equals(button.Content, "Reset View") && button.Classes.Contains("active"));
         Assert.DoesNotContain(Descendants(header).OfType<TextBlock>(), text => text.Text?.Contains("Elapsed", StringComparison.Ordinal) == true);
         Assert.Empty(header.RowDefinitions);
-        Assert.Equal(5, content.RowDefinitions.Count);
+        Assert.Equal(4, content.RowDefinitions.Count);
         // Beat-error row (3) is enlarged to offset its visible time-axis so all three
         // data areas match; a revert to '*' would silently break equal heights.
         Assert.True(content.RowDefinitions[3].Height.IsStar);
@@ -606,9 +603,13 @@ public sealed class InfoTabRegistryTests
             Assert.Equal(resetView.MinHeight, button.MinHeight);
             Assert.Equal(resetView.Padding, button.Padding);
         });
+        Assert.Contains("active", buttonStrip.Children.OfType<Button>().Single(button => Equals(button.Content, "1x")).Classes);
+        Assert.DoesNotContain("active", buttonStrip.Children.OfType<Button>().Single(button => Equals(button.Content, "2x")).Classes);
+        Assert.DoesNotContain("active", buttonStrip.Children.OfType<Button>().Single(button => Equals(button.Content, "3x")).Classes);
 
         Assert.DoesNotContain(content.Children.OfType<Button>(), button => Grid.GetRow(button) == 1);
         TextBlock referenceText = content.Children.OfType<TextBlock>().Single(IsScopeSweepReferenceText);
+        Assert.Equal(14, referenceText.FontSize);
         Assert.Equal(VerticalAlignment.Center, referenceText.VerticalAlignment);
         Assert.Equal(TextWrapping.NoWrap, referenceText.TextWrapping);
         Assert.Equal(TextTrimming.CharacterEllipsis, referenceText.TextTrimming);
@@ -669,6 +670,9 @@ public sealed class InfoTabRegistryTests
         Assert.Equal(HorizontalAlignment.Center, secondsText.HorizontalAlignment);
         Assert.Equal(VerticalAlignment.Center, secondsText.VerticalAlignment);
         Assert.Equal(TextAlignment.Center, secondsText.TextAlignment);
+        Assert.Contains("active", buttonStrip.Children.OfType<Button>().Single(button => Equals(button.Content, "Seconds")).Classes);
+        Assert.DoesNotContain("active", buttonStrip.Children.OfType<Button>().Single(button => Equals(button.Content, "Last Beat")).Classes);
+        Assert.DoesNotContain("active", buttonStrip.Children.OfType<Button>().Single(button => Equals(button.Content, "Compare Beats")).Classes);
     }
 
     [Fact]
@@ -696,7 +700,7 @@ public sealed class InfoTabRegistryTests
             .OfType<Button>()
             .Select(button => button.Content?.ToString() ?? string.Empty)
             .ToArray();
-        Assert.Equal(new[] { "Beat Scope", "Avg Envelope", "20 ms", "200 ms", "400 ms", "ABS", "Σ" }, buttons);
+        Assert.Equal(new[] { "Scope", "Avg Envelope", "20 ms", "200 ms", "400 ms", "ABS", "Σ" }, buttons);
 
         Assert.All(buttonStrip.Children.OfType<Button>(), button =>
         {
@@ -709,6 +713,9 @@ public sealed class InfoTabRegistryTests
             Assert.Equal(VerticalAlignment.Center, button.VerticalContentAlignment);
             Assert.Equal(VerticalAlignment.Center, button.VerticalAlignment);
         });
+        Assert.Contains("active", buttonStrip.Children.OfType<Button>().Single(button => Equals(button.Content, "Scope")).Classes);
+        Assert.Contains("active", buttonStrip.Children.OfType<Button>().Single(button => Equals(button.Content, "400 ms")).Classes);
+        Assert.DoesNotContain("active", buttonStrip.Children.OfType<Button>().Single(button => Equals(button.Content, "Avg Envelope")).Classes);
         Assert.DoesNotContain(buttonStrip.Children.OfType<TextBlock>(), text => text.Text?.Contains("LIFT") == true);
     }
 
@@ -767,7 +774,7 @@ public sealed class InfoTabRegistryTests
 
         referenceText.Text = string.Join(
             "   |   ",
-            Enumerable.Repeat("Instantaneous Rate +1234.5 s/d", 20));
+            Enumerable.Repeat("Inst. Rate +1234.5 s/d", 20));
         content.Measure(contentSize);
         content.Arrange(new Rect(contentSize));
 
@@ -860,36 +867,18 @@ public sealed class InfoTabRegistryTests
     }
 
     [Fact]
-    public void LongTermTabOwnsReviewBarControls()
+    public void LongTermTabOmitsReviewBarControls()
     {
         var vm = new MainWindowViewModel();
         Grid content = CreateLongTermContent(vm);
         content.DataContext = vm;
 
-        Border reviewBar = Assert.Single(content.Children.OfType<Border>(), border => border.Name == "ReviewBar");
-        Assert.Equal(4, Grid.GetRow(reviewBar));
-        Assert.True(reviewBar.IsVisible);
-        Assert.False(reviewBar.IsEnabled);
-
-        vm.SetRunning();
-        Assert.False(reviewBar.IsEnabled);
-
-        vm.SetPaused();
-        Assert.True(reviewBar.IsEnabled);
-
-        string[] buttons = Descendants(reviewBar)
-            .OfType<Button>()
-            .Select(button => button.Content?.ToString() ?? string.Empty)
-            .ToArray();
-        Assert.Equal(new[] { "-1 s", "+1 s", "LIVE" }, buttons);
-        Slider reviewSlider = Descendants(reviewBar).OfType<Slider>().Single(slider => slider.Name == "ReviewSlider");
-        // Compact-strip resource overrides are scoped to this slider instance (not
-        // app-wide), so the gain slider keeps its default height.
-        Assert.Equal(18.0, Assert.IsType<double>(reviewSlider.Resources["SliderHorizontalHeight"]));
-        Assert.Equal(new GridLength(0), Assert.IsType<GridLength>(reviewSlider.Resources["SliderPreContentMargin"]));
-        Assert.Equal(new GridLength(0), Assert.IsType<GridLength>(reviewSlider.Resources["SliderPostContentMargin"]));
-        Assert.Contains(Descendants(reviewBar).OfType<TextBlock>(), text => text.Name == "ReviewReadoutLabel");
-        Assert.Contains(Descendants(reviewBar).OfType<TextBlock>(), text => text.Name == "ReviewMetricsLabel");
+        Assert.Equal(4, content.RowDefinitions.Count);
+        Assert.DoesNotContain(content.Children.OfType<Border>(), border => border.Name == "ReviewBar");
+        Assert.DoesNotContain(Descendants(content).OfType<Button>(), button => Equals(button.Content, "-1s"));
+        Assert.DoesNotContain(Descendants(content).OfType<Button>(), button => Equals(button.Content, "+1s"));
+        Assert.DoesNotContain(Descendants(content).OfType<Button>(), button => Equals(button.Content, "Live"));
+        Assert.DoesNotContain(Descendants(content).OfType<Slider>(), slider => slider.Name == "ReviewSlider");
     }
 
     [Fact]
@@ -921,7 +910,7 @@ public sealed class InfoTabRegistryTests
             },
             new AnalysisTabRenderContext(48000, ReviewCursorTimeS: 12.0));
 
-        Assert.Equal("Error Rate -2.0 s/d   Amplitude 281°   BEAT ERROR +0.2 ms", vm.ReviewMetricsText);
+        Assert.Equal("Cur. Error Rate -2.0 s/d   Cur. Amplitude 281°   Cur. Beat Error +0.2 ms", vm.ReviewMetricsText);
     }
 
     [Fact]
@@ -1002,10 +991,10 @@ public sealed class InfoTabRegistryTests
         var legend = Assert.IsType<TextBlock>(legendBox.Child);
         string legendText = string.Concat(legend.Inlines!.OfType<Run>().Select(run => run.Text));
         Run currentSwatch = legend.Inlines!.OfType<Run>()
-            .Single(run => run.Text == "Red dashed");
+            .Single(run => run.Text == "Black dashed");
 
         Assert.Equal(
-            "Amber band = acceptable band   Blue solid = measured min/max   Red solid = average   Red dashed = current",
+            "Amber band = acceptable band   Blue solid = measured min/max   Red solid = average   Black dashed = current",
             legendText);
         Assert.IsAssignableFrom<IBrush>(currentSwatch.GetValue(TextElement.ForegroundProperty));
         Assert.Equal(TextWrapping.NoWrap, legend.TextWrapping);

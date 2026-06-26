@@ -45,10 +45,10 @@ internal sealed partial class InfoTabRegistry
             Margin = new Thickness(0, 6, 0, 0),
         };
         levelsGrid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
-        AddLevelHeader(levelsGrid, 0, "POS");
-        AddLevelHeader(levelsGrid, 1, "AMP");
-        AddLevelHeader(levelsGrid, 2, "RATE");
-        AddLevelHeader(levelsGrid, 3, "BEAT");
+        AddLevelHeader(levelsGrid, 0, "Position");
+        AddLevelHeader(levelsGrid, 1, "Amplitude");
+        AddLevelHeader(levelsGrid, 2, "Error Rate");
+        AddLevelHeader(levelsGrid, 3, "Beat Error");
 
         var levelRows = new List<HealthLevelRowControls>(WatchHealthRadarModel.AxisOrder.Count);
         for (int i = 0; i < WatchHealthRadarModel.AxisOrder.Count; i++)
@@ -59,11 +59,11 @@ internal sealed partial class InfoTabRegistry
         var weakest = new TextBlock { FontSize = 12, FontWeight = FontWeight.Bold, Margin = new Thickness(0, 8, 0, 0), TextWrapping = TextWrapping.Wrap };
 
         (Border spreadCard, HealthConsistencyRowControls spread) =
-            MakeConsistencyCard("D-SPREAD", "best−worst rate gap · limit 15 s/d");
+            MakeConsistencyCard("D-Spread", "best−worst rate gap · limit 15 s/d");
         (Border balanceCard, HealthConsistencyRowControls balance) =
-            MakeConsistencyCard("BALANCE-WHEEL", "vertical-position rate spread · limit 15 s/d");
+            MakeConsistencyCard("Balance Wheel", "vertical-position rate spread · limit 15 s/d");
         (Border vhCard, HealthConsistencyRowControls verticalHorizontal) =
-            MakeConsistencyCard("V / H BIAS", "vertical − horizontal mean rate");
+            MakeConsistencyCard("V/H Bias", "vertical − horizontal mean rate");
 
         var rail = new HealthDiagnosisControls(
             hint, overall, overallSub, levelRows, weakest, spread, balance, verticalHorizontal);
@@ -111,9 +111,9 @@ internal sealed partial class InfoTabRegistry
         }
 
         var toggleRow = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-        toggleRow.Children.Add(MetricButton("Amp", RadarMetric.Amplitude));
-        toggleRow.Children.Add(MetricButton("Rate", RadarMetric.Rate));
-        toggleRow.Children.Add(MetricButton("Beat", RadarMetric.BeatError));
+        toggleRow.Children.Add(MetricButton("Amplitude", RadarMetric.Amplitude));
+        toggleRow.Children.Add(MetricButton("Error Rate", RadarMetric.Rate));
+        toggleRow.Children.Add(MetricButton("Beat Error", RadarMetric.BeatError));
         UpdateMetricButtons();
 
         // --- radar area (col 0) ---
@@ -135,7 +135,7 @@ internal sealed partial class InfoTabRegistry
         var railStack = new StackPanel { Margin = new Thickness(12) };
 
         var railHeader = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto") };
-        var railTitle = new TextBlock { Text = "DIAGNOSIS · unified", FontSize = 11, Opacity = 0.6, VerticalAlignment = VerticalAlignment.Center };
+        var railTitle = new TextBlock { Text = "Diagnosis", FontSize = 11, Opacity = 0.6, VerticalAlignment = VerticalAlignment.Center };
         Grid.SetColumn(railTitle, 0);
         Grid.SetColumn(toggleRow, 1);
         railHeader.Children.Add(railTitle);
@@ -145,11 +145,11 @@ internal sealed partial class InfoTabRegistry
         railStack.Children.Add(overall);
         railStack.Children.Add(overallSub);
 
-        railStack.Children.Add(SectionLabel("LEVELS · per position vs accept band"));
+        railStack.Children.Add(SectionLabel("Levels"));
         railStack.Children.Add(levelsGrid);
         railStack.Children.Add(weakest);
 
-        railStack.Children.Add(SectionLabel("CONSISTENCY · across positions"));
+        railStack.Children.Add(SectionLabel("Consistency"));
         railStack.Children.Add(spreadCard);
         railStack.Children.Add(balanceCard);
         railStack.Children.Add(vhCard);

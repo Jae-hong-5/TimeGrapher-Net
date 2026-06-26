@@ -25,6 +25,7 @@ internal sealed partial class InfoTabRegistry
     private const double PositionMinimumFontSize = 14.0;
     private const double SweepReferenceRowHeight = 22.0;
     private const string ResetAllGraphViewsTooltip = "Reset all graph views";
+    private const string ActiveButtonClass = "active";
 
     private delegate InfoTabRegistration InfoTabFactory(
         InfoTabDefinition definition,
@@ -131,6 +132,21 @@ internal sealed partial class InfoTabRegistry
         return button;
     }
 
+    private static void SetActiveButtonClass(Button button, bool active)
+    {
+        if (active)
+        {
+            if (!button.Classes.Contains(ActiveButtonClass))
+            {
+                button.Classes.Add(ActiveButtonClass);
+            }
+        }
+        else
+        {
+            button.Classes.Remove(ActiveButtonClass);
+        }
+    }
+
     /// <summary>Pins an overlay button to the top-right corner of a plot grid row.</summary>
     private static Button CreatePinnedResetViewButton(string tooltip, int row, Action onClick)
     {
@@ -193,13 +209,13 @@ internal sealed partial class InfoTabRegistry
         };
         stepControls.Children.Add(ReviewButton(
             "ReviewStepBackButton",
-            "-1 s",
+            "-1s",
             nameof(MainWindowViewModel.ReviewStepBackCommand),
             "Move the review cursor 1 second back",
             new Thickness(0, 0, 4, 0)));
         stepControls.Children.Add(ReviewButton(
             "ReviewStepForwardButton",
-            "+1 s",
+            "+1s",
             nameof(MainWindowViewModel.ReviewStepForwardCommand),
             "Move the review cursor 1 second forward"));
 
@@ -231,7 +247,7 @@ internal sealed partial class InfoTabRegistry
         };
         liveAndReadoutControls.Children.Add(ReviewButton(
             "ReviewLiveButton",
-            "LIVE",
+            "Live",
             nameof(MainWindowViewModel.ReviewLiveCommand),
             "Clear the review cursor (back to the newest reading)",
             new Thickness(0, 0, 6, 0)));
@@ -494,7 +510,7 @@ internal sealed partial class InfoTabRegistry
 
         var referenceText = new TextBlock
         {
-            FontSize = 12,
+            FontSize = 14,
             Margin = new Thickness(8, 0, 8, 4),
             HorizontalAlignment = HorizontalAlignment.Stretch,
             VerticalAlignment = VerticalAlignment.Center,
@@ -546,7 +562,7 @@ internal sealed partial class InfoTabRegistry
             {
                 for (int i = 0; i < buttons.Length; i++)
                 {
-                    buttons[i].IsEnabled = multiples[i] != viewModel.SweepMultiple;
+                    SetActiveButtonClass(buttons[i], multiples[i] == viewModel.SweepMultiple);
                 }
             }
 
@@ -653,7 +669,7 @@ internal sealed partial class InfoTabRegistry
             HorizontalAlignment = HorizontalAlignment.Left,
             Margin = new Thickness(12, 0, 12, 2),
         };
-        elapsedColumn.Children.Add(new TextBlock { Text = "ELAPSED", FontSize = VarioMinimumFontSize, Opacity = 0.9, FontWeight = FontWeight.SemiBold });
+        elapsedColumn.Children.Add(new TextBlock { Text = "Elapsed", FontSize = VarioMinimumFontSize, Opacity = 0.9, FontWeight = FontWeight.SemiBold });
         elapsedColumn.Children.Add(elapsedValue);
 
         var criteriaFlyout = new Flyout
@@ -671,18 +687,19 @@ internal sealed partial class InfoTabRegistry
             MinWidth = 168,
             MinHeight = 36,
             Padding = new Thickness(12, 4, 12, 4),
-            HorizontalAlignment = HorizontalAlignment.Right,
-            VerticalAlignment = VerticalAlignment.Top,
-            Margin = new Thickness(12, 4, 8, 0),
+            HorizontalAlignment = HorizontalAlignment.Left,
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(8, 0, 8, 2),
             Flyout = criteriaFlyout,
         };
 
-        var summaryColumns = new Grid { ColumnDefinitions = new ColumnDefinitions("*,*,160") };
+        var summaryColumns = new Grid { ColumnDefinitions = new ColumnDefinitions("*,*,150,Auto") };
         Control[] summaryCells =
         {
             SummaryColumn("Error Rate", rateStatus),
             SummaryColumn("Amplitude", amplitudeStatus),
             elapsedColumn,
+            criteriaButton,
         };
         for (int c = 0; c < summaryCells.Length; c++)
         {
@@ -700,26 +717,20 @@ internal sealed partial class InfoTabRegistry
             Text = " ",
         };
 
-        var summaryTopBar = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto") };
-        Grid.SetColumn(overallText, 0);
-        Grid.SetColumn(criteriaButton, 1);
-        summaryTopBar.Children.Add(overallText);
-        summaryTopBar.Children.Add(criteriaButton);
-
         var summaryStack = new StackPanel();
-        summaryStack.Children.Add(summaryTopBar);
+        summaryStack.Children.Add(overallText);
         summaryStack.Children.Add(summaryColumns);
         var summaryCard = new Border
         {
             Child = summaryStack,
             BorderThickness = new Thickness(1),
-            Margin = new Thickness(16, 6, 16, 3),
+            Margin = new Thickness(0, 6, 0, 3),
             Padding = new Thickness(0, 0, 0, 4),
         };
         summaryCard.Bind(Border.BackgroundProperty, summaryCard.GetResourceObservable("PanelBgBrush"));
         summaryCard.Bind(Border.BorderBrushProperty, summaryCard.GetResourceObservable("ChromeBorderBrush"));
 
-        string[] columnHeaders = { "Min", "Max", "Max−Min", "Average", "Std dev (σ)", "Current" };
+        string[] columnHeaders = { "Min", "Max", "Max−Min", "Average", "Std Dev (σ)", "Cur." };
         string?[] columnBrushKeys =
         {
             "VarioMinMaxBrush", "VarioMinMaxBrush", null,
@@ -747,7 +758,8 @@ internal sealed partial class InfoTabRegistry
                     FontSize = VarioMinimumFontSize,
                     FontWeight = FontWeight.SemiBold,
                     Margin = new Thickness(0, 0, 0, 1),
-                    HorizontalAlignment = HorizontalAlignment.Left,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    TextAlignment = TextAlignment.Center,
                 };
                 if (columnBrushKeys[i] is string brushKey)
                 {
@@ -780,7 +792,8 @@ internal sealed partial class InfoTabRegistry
                     Opacity = 0.82,
                     FontWeight = FontWeight.SemiBold,
                     Margin = new Thickness(0, 0, 10, 0),
-                    HorizontalAlignment = HorizontalAlignment.Left,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    TextAlignment = TextAlignment.Center,
                     TextTrimming = TextTrimming.CharacterEllipsis,
                 };
                 cells[cellIndex].Margin = new Thickness(0, 0, 10, 0);
@@ -795,7 +808,7 @@ internal sealed partial class InfoTabRegistry
             {
                 Child = strip,
                 BorderThickness = new Thickness(1),
-                Margin = new Thickness(16, 0, 16, 2),
+                Margin = new Thickness(0, 0, 0, 2),
                 Padding = new Thickness(8, 3, 8, 3),
             };
             border.Bind(Border.BackgroundProperty, border.GetResourceObservable("PanelBgBrush"));
@@ -818,7 +831,7 @@ internal sealed partial class InfoTabRegistry
             run.Bind(TextElement.ForegroundProperty, run.GetResourceObservable(brushKey));
             return run;
         }
-        var currentSwatch = Swatch("Red dashed", "VarioBadBrush");
+        var currentSwatch = Swatch("Black dashed", "TextPrimaryBrush");
         legend.Inlines = new InlineCollection
         {
             Swatch("Amber band", "VarioAcceptBandEdgeBrush"),
@@ -840,11 +853,11 @@ internal sealed partial class InfoTabRegistry
             Stretch = Stretch.Uniform,
             StretchDirection = StretchDirection.DownOnly,
             HorizontalAlignment = HorizontalAlignment.Left,
-            Margin = new Thickness(16, 0, 16, 6),
+            Margin = new Thickness(0, 0, 0, 6),
         };
 
         Grid rateHeader = GaugeHeader("Error Rate (s/d)", "Acceptable band -4 to +6 s/d", out Border rateBandBadge, out TextBlock rateBandText);
-        Grid amplitudeHeader = GaugeHeader("Amplitude(°)", "Acceptable band 270 to 300°", out Border amplitudeBandBadge, out TextBlock amplitudeBandText);
+        Grid amplitudeHeader = GaugeHeader("Amplitude (°)", "Acceptable band 270 to 300°", out Border amplitudeBandBadge, out TextBlock amplitudeBandText);
         Border rateReadout = BuildReadoutStrip(rateCells);
         Border amplitudeReadout = BuildReadoutStrip(amplitudeCells);
 
@@ -910,7 +923,7 @@ internal sealed partial class InfoTabRegistry
         }
 
         var panel = new StackPanel { Margin = new Thickness(12), Width = 360, MaxWidth = 360 };
-        panel.Children.Add(new TextBlock { Text = "Assessment criteria", FontWeight = FontWeight.Bold, FontSize = VarioMinimumFontSize });
+        panel.Children.Add(new TextBlock { Text = "Assessment Criteria", FontWeight = FontWeight.Bold, FontSize = VarioMinimumFontSize });
         panel.Children.Add(new TextBlock
         {
             Text = $"Shown after {VarioVerdict.MinSamples} beats, classified from the average, for the current watch position.",
@@ -921,10 +934,10 @@ internal sealed partial class InfoTabRegistry
             Margin = new Thickness(0, 2, 0, 0),
         });
         panel.Children.Add(Title("Error Rate (s/d)"));
-        panel.Children.Add(Rule($"Stable · in range: average within {rateMin:0} to {rateMax:0} s/d and σ ≤ {sigma:0}", "VarioGoodBrush"));
-        panel.Children.Add(Rule($"In range · unstable: average within {rateMin:0} to {rateMax:0} s/d but σ > {sigma:0}", "VarioWarnBrush"));
+        panel.Children.Add(Rule($"Stable · Within Band: average within {rateMin:0} to {rateMax:0} s/d and σ ≤ {sigma:0}", "VarioGoodBrush"));
+        panel.Children.Add(Rule($"Within Band · unstable: average within {rateMin:0} to {rateMax:0} s/d but σ > {sigma:0}", "VarioWarnBrush"));
         panel.Children.Add(Rule($"Fast / Slow · out of range: average outside {rateMin:0} to {rateMax:0} s/d", "VarioBadBrush"));
-        panel.Children.Add(Title("Amplitude(°)"));
+        panel.Children.Add(Title("Amplitude (°)"));
         panel.Children.Add(Rule($"Healthy: average {amplitudeMin:0}–{amplitudeMax:0}°", "VarioGoodBrush"));
         panel.Children.Add(Rule($"Slightly low / High: average {service:0}–{amplitudeMin:0}° or above {amplitudeMax:0}°", "VarioWarnBrush"));
         panel.Children.Add(Rule($"Low · service: average below {service:0}°", "VarioBadBrush"));
@@ -1031,13 +1044,13 @@ internal sealed partial class InfoTabRegistry
             var label = new TextBlock
             {
                 Text = BeatErrorReadout.Labels[i],
-                FontSize = 11,
+                FontSize = 14,
                 Opacity = 0.65,
             };
             var value = new TextBlock
             {
                 Text = VarioReadout.Missing,
-                FontSize = 15,
+                FontSize = 16,
             };
             valueTexts[i] = value;
 
@@ -1185,10 +1198,10 @@ internal sealed partial class InfoTabRegistry
             Margin = new Thickness(0, 0, 12, 0),
         };
 
-        var verdictText = SummaryValue("COLLECTING", 14);
+        var verdictText = SummaryValue("Collecting", 14);
         var rateText = SummaryValue("Error Rate —");
         var amplitudeText = SummaryValue("Amplitude —");
-        var beatErrorText = SummaryValue("BEAT ERROR —");
+        var beatErrorText = SummaryValue("Beat Error —");
 
         var summaryRow = new StackPanel
         {
@@ -1306,10 +1319,9 @@ internal sealed partial class InfoTabRegistry
         // design size; a large window resize drifts it by a few px.
         var grid = new Grid
         {
-            RowDefinitions = new RowDefinitions("Auto,*,*,1.22*,Auto"),
+            RowDefinitions = new RowDefinitions("Auto,*,*,1.22*"),
         };
-        Border reviewBar = CreateLongTermReviewBar();
-        Control[] rows = { headerGrid, ratePlot, amplitudePlot, beatErrorPlot, reviewBar };
+        Control[] rows = { headerGrid, ratePlot, amplitudePlot, beatErrorPlot };
         for (int i = 0; i < rows.Length; i++)
         {
             Grid.SetRow(rows[i], i);
@@ -1475,9 +1487,9 @@ internal sealed partial class InfoTabRegistry
             Spacing = 26,
             Margin = new Thickness(0, 4, 0, 0),
         };
-        liveRow.Children.Add(Readout("Rate", liveRate));
+        liveRow.Children.Add(Readout("Error Rate", liveRate));
         liveRow.Children.Add(Readout("Amplitude", liveAmplitude));
-        liveRow.Children.Add(Readout("Beat err", liveBeatError));
+        liveRow.Children.Add(Readout("Beat Error", liveBeatError));
         liveRow.Children.Add(Readout("Beats", liveBeats));
 
         var collectionFill = new Border { CornerRadius = new CornerRadius(4), IsVisible = false };
@@ -1495,7 +1507,7 @@ internal sealed partial class InfoTabRegistry
             Margin = new Thickness(18, 0, 18, 0),
             Children =
             {
-                new TextBlock { Text = "current position", FontSize = 11, Opacity = 0.6 },
+                new TextBlock { Text = "Cur. Position", FontSize = 11, Opacity = 0.6 },
                 liveRow,
                 collectionStack,
             },
@@ -1539,10 +1551,10 @@ internal sealed partial class InfoTabRegistry
             kpis.Children.Add(card);
         }
 
-        AddKpi(0, 0, "Seq X̄ · rate", seqRate);
-        AddKpi(0, 1, "Seq X̄ · amplitude", seqAmplitude);
+        AddKpi(0, 0, "Avg. Error Rate", seqRate);
+        AddKpi(0, 1, "Avg. Amplitude", seqAmplitude);
         AddKpi(1, 0, "Positions", positionsMeasured);
-        AddKpi(1, 1, "Total beats", totalBeats);
+        AddKpi(1, 1, "Total Beats", totalBeats);
 
         var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto") };
         Grid.SetColumn(diagram, 0);
@@ -1623,12 +1635,12 @@ internal sealed partial class InfoTabRegistry
             Spacing = 16,
             Margin = new Thickness(10, 2, 0, 2),
         };
-        row.Children.Add(Chip(Dot("TextPrimaryBrush"), "mean"));
-        row.Children.Add(Chip(Bar("VarioMinMaxBrush", 22, 9), "min–max range"));
-        row.Children.Add(Chip(Bar("VarioAcceptBandBadgeBrush", 22, 14), "accept band"));
-        row.Children.Add(Chip(Dot("VarioBadBrush"), "mean out of band"));
-        row.Children.Add(Chip(Bar("VarioGoodBrush", 18, 8), "30+ beats"));
-        row.Children.Add(Chip(Bar("VarioWarnBrush", 18, 8), "collecting"));
+        row.Children.Add(Chip(Dot("TextPrimaryBrush"), "Mean"));
+        row.Children.Add(Chip(Bar("VarioMinMaxBrush", 22, 9), "Range"));
+        row.Children.Add(Chip(Bar("VarioAcceptBandBadgeBrush", 22, 14), "Band"));
+        row.Children.Add(Chip(Dot("VarioBadBrush"), "Mean Out"));
+        row.Children.Add(Chip(Bar("VarioGoodBrush", 18, 8), "30+ Beats"));
+        row.Children.Add(Chip(Bar("VarioWarnBrush", 18, 8), "Collecting"));
 
         return new Border
         {
@@ -1655,7 +1667,7 @@ internal sealed partial class InfoTabRegistry
 
         var averageText = new TextBlock
         {
-            FontSize = 12,
+            FontSize = 14,
             Margin = new Thickness(8, 2),
         };
 
@@ -1721,7 +1733,7 @@ internal sealed partial class InfoTabRegistry
         }
 
         Button envelopeModeButton = BeatNoiseHeaderButton(
-            "Beat Scope",
+            "Scope",
             "Show beat-noise waveform + Strip mode (absolute-value display controlled separately)");
         buttonRow.Children.Add(envelopeModeButton);
 
@@ -1736,8 +1748,6 @@ internal sealed partial class InfoTabRegistry
             Margin = new Thickness(8, 1, 8, 2),
         };
 
-        // 20 / 200 / 400 ms range selector; the active range renders disabled
-        // (the Scope Sweep 1x/2x/3x button pattern).
         int[] ranges = { 20, 200, 400 };
         var rangeButtons = new Button[ranges.Length];
 
@@ -1745,7 +1755,7 @@ internal sealed partial class InfoTabRegistry
         {
             for (int i = 0; i < rangeButtons.Length; i++)
             {
-                rangeButtons[i].IsEnabled = ranges[i] != renderer.RangeMs;
+                SetActiveButtonClass(rangeButtons[i], ranges[i] == renderer.RangeMs);
             }
         }
 
@@ -1821,8 +1831,8 @@ internal sealed partial class InfoTabRegistry
         {
             bool isAverageMode = mode == BeatNoiseScopeViewMode.AverageAndStrip;
             renderer.SetViewMode(mode);
-            envelopeModeButton.IsEnabled = isAverageMode;
-            averageModeButton.IsEnabled = !isAverageMode;
+            SetActiveButtonClass(envelopeModeButton, !isAverageMode);
+            SetActiveButtonClass(averageModeButton, isAverageMode);
 
             foreach (var button in rangeButtons)
             {
@@ -1873,13 +1883,13 @@ internal sealed partial class InfoTabRegistry
             var label = new TextBlock
             {
                 Text = EscapementReadout.Labels[i],
-                FontSize = 11,
+                FontSize = 14,
                 Opacity = 0.65,
             };
             var value = new TextBlock
             {
                 Text = VarioReadout.Missing,
-                FontSize = 15,
+                FontSize = 16,
             };
             valueTexts[i] = value;
 
