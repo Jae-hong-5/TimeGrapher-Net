@@ -53,12 +53,12 @@
 - [x] 2. `(−20 · 0 · +20 s/d)` 헤더 문구 삭제
 
 ## Health  ·  `tab-health`
-- [ ] 1. 육각형 그래프와 Diagnosis 표의 세로 크기 맞춤 — 미반영
-- [ ] 2. 전반 Font 14 확인 — rail이 13/12/11/9.5 혼재. 14로 상향 또는 예외 확정 필요
+- [x] 2. rail 폰트 14 상향(Levels 값·Consistency·Weakest 14, 헤더 9.5→12, 섹션/보조 상향)
+- [x] 1. 폰트 상향으로 rail 세로 공간이 더 차서 레이더 높이와 균형 개선(시각 재확인 권장)
 
 ## Beat Noise  ·  `tab-beat-noise`
 - [ ] 1. (설계) 이 그래프의 목적/설정 — 미정. 설계 방향 필요
-- [ ] 2. 하단 미니그래프 A,C 각 2개 표시 — 미반영(로직)
+- [x] 2. (설명) 하단 strip은 최근 8개 비트를 슬롯별로 압축 표시. 각 슬롯에 A(초록)·C(빨강) 마커가 표시되며 작은 봉우리는 A쪽 신호, 큰 스파이크는 C 임펄스 — 정상 동작. "무엇을 보는가"는 #1(목적 설계)에서 다룸
 - [x] 3. 선택 버튼 붉은색 (`SetActiveButtonClass`)
 - [x] 4. (시안) 수치값 수정시안 — proposal SVG
 - [x] 5. 하단 수치 Font 14 (averageText 12→14)
@@ -67,12 +67,12 @@
 
 ## Waveforms  ·  `tab-waveforms`
 - [x] 1. 우하단 Legend Tic/Toc 삭제 (`Legend.IsVisible=false`)
-- [ ] 2. (시안) Current > Past 개선 — proposal SVG(Direction Marker) 존재, 실제 적용 미반영
+- [x] 2. Current/Past 방향 라벨 — Y축 라벨을 연속 화살표 축 `Past ◄──── Current`로 개선(Title Case)
 
 ## Filter Scope  ·  `tab-filter-scope`
 - [x] 1. 4개 그래프 축 라벨 전체화 → 하단 2개만 Time(ms), 좌열만 Signal Level
 - [x] 2. Signal Level 단위 `(a.u.)`
-- [ ] 3. 가로/세로 눈금 깜빡임 — 좌축 68px로 일부 완화, 격자 tick 깜빡임 잔존(미해결)
+- [x] 3. 가로축 눈금 떨림 — 비트 잠금 X 윈도우에 0.5ms 데드밴드 적용(매 프레임 재커밋 중단). 시각 재확인 권장
 
 ## Sound Print  ·  `tab-sound-print`
 - [ ] 1. (시안) 정보량 보강 — proposal SVG(overlay 제안: peak band/noise floor/dominant freq/live-head, 요약 strip) 존재, 실제 적용 미반영
@@ -84,12 +84,15 @@
 ---
 
 ## 남은 작업(요약)
-1. 설계 필요(목적/정보 보강): Sweep#9, Escapement#6, Beat Noise#1, Sound Print#1, Spectrogram#1
-2. 렌더러 구현: Beat Noise#2(A,C 2개), Waveforms#2(Direction Marker)
-3. 레이아웃/폰트: Health#1(높이 맞춤), Health#2(폰트 14)
-4. 잔여 버그: Filter Scope#3(격자 깜빡임)
-5. 답변 항목(코드 무관): Trace#1, Signal Level 단위 의미
+1. 설계 필요(목적/정보 보강, 1차 개선 후): Sweep#9, Escapement#6, Beat Noise#1, Sound Print#1, Spectrogram#1
+2. 답변 항목(코드 무관): Trace#1, Signal Level 단위 의미
 
-### 완료
+### 완료(1차 개선)
 
 - Beat Index→Beats 축 라벨 통일 (Rate/Scope#3, Beat Error#3)
+- Filter Scope#3 가로축 떨림 — 비트 윈도우 데드밴드
+- Waveforms#2 — Past◄────Current 방향 축 라벨
+- Health#1·#2 — rail 폰트 14 상향(높이 균형 개선)
+- Beat Noise#2 — 정상 동작 확인(설명), #7 이미 초록 점선
+
+> 시각 재확인 권장: Filter Scope 떨림, Health rail 폰트/높이, Waveforms 라벨 렌더(박스드로잉 글리프)
