@@ -65,7 +65,6 @@ class SimSource {
     +double Bph
     +double RateErrorSPerDay
     +double BeatErrorMs
-    +double NoiseScale
 }
 
 class LiveAudioDevice {
@@ -78,7 +77,6 @@ class WatchSynthStreamConfig {
     +double Bph
     +double RateErrorSPerDay
     +double BeatErrorMs
-    +double NoisePeakSignalLevel
     +double WatchAmplitudeDegrees
     +double LiftAngleDegrees
     +int EnableRealisticPacket

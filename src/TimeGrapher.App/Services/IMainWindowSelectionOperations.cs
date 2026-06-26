@@ -18,7 +18,6 @@ internal interface IMainWindowSelectionOperations
         double rateErrorSPerDay,
         double beatErrorMs,
         double watchAmplitudeDegrees,
-        double noiseScale,
         double aClusterLevelScale,
         double bClusterLevelScale,
         double cClusterLevelScale);

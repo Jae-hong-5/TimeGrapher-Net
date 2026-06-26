@@ -235,7 +235,6 @@ public sealed class MainWindowViewModelTests
         Assert.Equal(300m, vm.SimAmplitude);
         Assert.Equal(0m, vm.SimBeatError);
         Assert.True(vm.Realistic);
-        Assert.Equal(1m, vm.SimNoiseScale);
         Assert.Equal(1m, vm.SimSignalAScale);
         Assert.Equal(1m, vm.SimSignalBScale);
         Assert.Equal(1m, vm.SimSignalCScale);

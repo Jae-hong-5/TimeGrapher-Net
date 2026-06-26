@@ -170,7 +170,6 @@ public sealed class AudioDeviceControllerTests
             double rateErrorSPerDay,
             double beatErrorMs,
             double watchAmplitudeDegrees,
-            double noiseScale,
             double aClusterLevelScale,
             double bClusterLevelScale,
             double cClusterLevelScale)
@@ -178,7 +177,6 @@ public sealed class AudioDeviceControllerTests
             _ = rateErrorSPerDay;
             _ = beatErrorMs;
             _ = watchAmplitudeDegrees;
-            _ = noiseScale;
             _ = aClusterLevelScale;
             _ = bClusterLevelScale;
             _ = cClusterLevelScale;

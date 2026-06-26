@@ -78,8 +78,7 @@ public sealed class WorkerPauseTests
             }
         };
 
-        WatchSynthStreamConfig cfg = WatchSynthStreamConfig.Clean();
-        Assert.True(worker.Start(cfg, cfg.NoisePeakSignalLevel));
+        Assert.True(worker.Start(WatchSynthStreamConfig.Clean()));
         Assert.True(paused.Wait(TimeSpan.FromSeconds(2)));
         ulong pausedAt = buffer.GetSnapshot().TotalSamplesWritten;
 

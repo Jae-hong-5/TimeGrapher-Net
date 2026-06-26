@@ -187,7 +187,7 @@ internal sealed class RunSessionController : IDisposable, IRunSessionControls
 
     /// <summary>
     /// Forwards the live-adjustable simulation knobs (rate error s/day, beat error ms,
-    /// watch amplitude degrees, noise scale, and the per-cluster A/B/C level scales) to the running
+    /// watch amplitude degrees, and the per-cluster A/B/C level scales) to the running
     /// sim worker. No-op unless a simulation run is active, mirroring
     /// <see cref="SetLiveInputVolume"/> for the live worker. The view model is the
     /// source of truth for the next run's start, so unlike the analysis-worker knobs
@@ -197,7 +197,6 @@ internal sealed class RunSessionController : IDisposable, IRunSessionControls
         double rateErrorSPerDay,
         double beatErrorMs,
         double watchAmplitudeDegrees,
-        double noiseScale,
         double aClusterLevelScale,
         double bClusterLevelScale,
         double cClusterLevelScale)
@@ -208,7 +207,6 @@ internal sealed class RunSessionController : IDisposable, IRunSessionControls
                 rateErrorSPerDay,
                 beatErrorMs,
                 watchAmplitudeDegrees,
-                noiseScale,
                 aClusterLevelScale,
                 bClusterLevelScale,
                 cClusterLevelScale);

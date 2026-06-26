@@ -59,7 +59,6 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     private decimal _simErrorRate;
     private decimal _simAmplitude = 300m;
     private decimal _simBeatError;
-    private decimal _simNoiseScale = 1m;
     private bool _realistic = true;
     // Per-cluster A/B/C signal-size scales for the realistic packet (1.0 = nominal),
     // mapped to WatchSynthStreamConfig.{A,B,C}ClusterLevelScale.
@@ -310,12 +309,6 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     {
         get => _simBeatError;
         set => SetProperty(ref _simBeatError, value);
-    }
-
-    public decimal SimNoiseScale
-    {
-        get => _simNoiseScale;
-        set => SetProperty(ref _simNoiseScale, value);
     }
 
     public bool Realistic

@@ -512,7 +512,7 @@ public sealed class WatchSynthStream
 
         Called from the SimWorker thread between fill blocks, never concurrently with
         FillF32, so it mutates state in place without locking. BeatErrorMs,
-        WatchAmplitudeDegrees, NoisePeakSignalLevel, and the cluster scales are read live by the fill loop
+        WatchAmplitudeDegrees, and the cluster scales are read live by the fill loop
         (the scales only bite when the realistic packet is enabled); RateErrorSPerDay
         only enters through the cached _adjustedIntervalS, recomputed here against the
         running BPH (BPH and sample rate are not live — the UI keeps them disabled
@@ -524,7 +524,6 @@ public sealed class WatchSynthStream
         double rateErrorSPerDay,
         double beatErrorMs,
         double watchAmplitudeDegrees,
-        double noisePeakSignalLevel,
         double aClusterLevelScale,
         double bClusterLevelScale,
         double cClusterLevelScale)
@@ -533,7 +532,6 @@ public sealed class WatchSynthStream
         candidate.RateErrorSPerDay = rateErrorSPerDay;
         candidate.BeatErrorMs = beatErrorMs;
         candidate.WatchAmplitudeDegrees = watchAmplitudeDegrees;
-        candidate.NoisePeakSignalLevel = noisePeakSignalLevel;
         candidate.AClusterLevelScale = aClusterLevelScale;
         candidate.BClusterLevelScale = bClusterLevelScale;
         candidate.CClusterLevelScale = cClusterLevelScale;
@@ -545,7 +543,6 @@ public sealed class WatchSynthStream
         _cfg.RateErrorSPerDay = rateErrorSPerDay;
         _cfg.BeatErrorMs = beatErrorMs;
         _cfg.WatchAmplitudeDegrees = watchAmplitudeDegrees;
-        _cfg.NoisePeakSignalLevel = noisePeakSignalLevel;
         _cfg.AClusterLevelScale = aClusterLevelScale;
         _cfg.BClusterLevelScale = bClusterLevelScale;
         _cfg.CClusterLevelScale = cClusterLevelScale;

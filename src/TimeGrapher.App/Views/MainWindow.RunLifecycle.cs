@@ -140,7 +140,7 @@ public partial class MainWindow
         }
     }
 
-    private void StartSimThread(WatchSynthStreamConfig cfg, double baseNoisePeakSignalLevel)
+    private void StartSimThread(WatchSynthStreamConfig cfg)
     {
         MasterAudioBuffer buffer = mRunSessionController.PrepareInputRun(mAudioSelection.CurrentSampleRate, out ulong runSessionToken);
 
@@ -148,7 +148,7 @@ public partial class MainWindow
         Action<SimCompletionReason> doneHandler = reason => OnSimDone(runSessionToken, reason);
         simWorker.SimDone += doneHandler;
         mRunSessionController.AttachInputWorker(simWorker, runSessionToken, () => simWorker.SimDone -= doneHandler);
-        if (!simWorker.Start(cfg, baseNoisePeakSignalLevel))
+        if (!simWorker.Start(cfg))
         {
             throw new InvalidOperationException("Sim worker is already running.");
         }
@@ -428,8 +428,6 @@ public partial class MainWindow
         cfg.WatchAmplitudeDegrees = (double)mViewModel.SimAmplitude;
         cfg.LiftAngleDegrees = (double)mViewModel.LiftAngle;
         cfg.RateErrorSPerDay = (double)mViewModel.SimErrorRate;
-        double baseNoisePeakSignalLevel = cfg.NoisePeakSignalLevel;
-        cfg.NoisePeakSignalLevel = baseNoisePeakSignalLevel * (double)mViewModel.SimNoiseScale;
         // Per-cluster A/B/C signal sizes (only effective with the realistic packet).
         cfg.AClusterLevelScale = (double)mViewModel.SimSignalAScale;
         cfg.BClusterLevelScale = (double)mViewModel.SimSignalBScale;
@@ -454,7 +452,7 @@ public partial class MainWindow
 
         try
         {
-            StartSimThread(cfg, baseNoisePeakSignalLevel);
+            StartSimThread(cfg);
         }
         catch
         {

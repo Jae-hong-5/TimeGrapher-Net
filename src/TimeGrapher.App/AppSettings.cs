@@ -38,7 +38,6 @@ internal sealed record LeftPanelSettings(
     double SimulationAmplitude,
     double SimulationBeatError,
     bool SimulationRealistic,
-    double SimulationNoiseScale = 1.0,
     // Per-cluster A/B/C signal-size scales. Optional (defaulted to 1.0) so a settings
     // file written before these knobs existed still loads, defaulting each cluster to
     // its nominal size rather than silently muting it.
@@ -57,7 +56,6 @@ internal sealed record LeftPanelSettings(
         SimulationAmplitude: 300.0,
         SimulationBeatError: 0.0,
         SimulationRealistic: true,
-        SimulationNoiseScale: 1.0,
         SimulationSignalAScale: 1.0,
         SimulationSignalBScale: 1.0,
         SimulationSignalCScale: 1.0);
@@ -73,7 +71,6 @@ internal sealed record LeftPanelSettings(
         IsFiniteBetween(SimulationErrorRate, -999.0, 999.0) &&
         IsFiniteBetween(SimulationAmplitude, 100.0, 360.0) &&
         IsFiniteBetween(SimulationBeatError, -10.0, 10.0) &&
-        IsFiniteBetween(SimulationNoiseScale, 0.0, 5.0) &&
         IsFiniteBetween(SimulationSignalAScale, 0.0, 2.0) &&
         IsFiniteBetween(SimulationSignalBScale, 0.0, 2.0) &&
         IsFiniteBetween(SimulationSignalCScale, 0.0, 2.0);
