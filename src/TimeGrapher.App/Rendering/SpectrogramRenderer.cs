@@ -232,7 +232,19 @@ internal sealed class SpectrogramRenderer
 
         int sourceWidth = _lastImage.Width;
         int height = _lastImage.Height;
-        int cols = (int)Math.Round(windowSeconds / _lastColumnSeconds);
+        int cols;
+        if (_viewMode == SpectrogramViewMode.Beats)
+        {
+            // Size the window to a whole number of beat-lanes so the lane dividers
+            // and the per-lane centering line up to the column (cols / beats is then
+            // the exact lane width).
+            int beatCols = Math.Max(1, (int)Math.Round(BeatPeriodSeconds() / _lastColumnSeconds));
+            cols = beatCols * _viewBeats;
+        }
+        else
+        {
+            cols = (int)Math.Round(windowSeconds / _lastColumnSeconds);
+        }
         cols = Math.Clamp(cols, 1, sourceWidth);
 
         RebuildView(cols, sourceWidth, height);
@@ -297,17 +309,17 @@ internal sealed class SpectrogramRenderer
 
         long total = _totalColumns;
 
-        // Right edge of the crop window. Seconds / Last Beat sweep up to the live
-        // edge (total). Beats ends at the latest completed-beat boundary (the most
-        // recent A onset) so it shows whole beats laid out in lanes rather than the
-        // partial in-progress beat at the live edge.
+        // Right edge of the crop window: both modes sweep the most recent `cols`
+        // real columns up to the live edge (total); the phase shift below rotates
+        // them so the beat lands where it should, so no column is ever empty.
         long anchor = total;
 
         // Last Beat phase-locks to the real A onset (re-read each beat) so the beat
         // stays put: shifting the sweep phase by (onset column − cols/2) centers
-        // the onset in the window. Beats lays the last N beats out left→right with
-        // each onset on a lane boundary (shift = anchor − cols, no wrap). Seconds
-        // mode has no shift (phase = column % cols).
+        // the onset in the window. Beats centers the latest onset in the rightmost
+        // lane (half a lane in from the right edge); onsets are one lane (beatCols)
+        // apart, so every onset then lands on its own lane center. Seconds mode has
+        // no shift (phase = column % cols).
         long shift = 0;
         if (_viewMode == SpectrogramViewMode.LastBeat && _lastBeatOnsetS > 0.0 && _lastColumnSeconds > 0.0)
         {
@@ -316,8 +328,8 @@ internal sealed class SpectrogramRenderer
         else if (_viewMode == SpectrogramViewMode.Beats && _lastBeatOnsetS > 0.0 && _lastColumnSeconds > 0.0)
         {
             long onsetColumn = (long)Math.Round(_lastBeatOnsetS / _lastColumnSeconds);
-            anchor = Math.Min(total, onsetColumn);
-            shift = anchor - cols;
+            int beatCols = cols / _viewBeats;
+            shift = onsetColumn - cols + beatCols / 2;
         }
 
         uint[] source = _lastImage!.Pixels;
@@ -396,27 +408,22 @@ internal sealed class SpectrogramRenderer
         }
     }
 
-    // Paints a one-column grid-colored line at each beat boundary of the Beats
-    // window (every beatCols columns). Boundaries fall on the lane edges because
-    // the crop phase-locks each onset there, so the dividers separate one beat
-    // from the next. No-op until a frame supplies the column duration.
+    // Paints a one-column grid-colored line at each lane boundary of the Beats
+    // window. The window is sized to whole lanes (cols = beatCols × beats), so the
+    // boundaries are exactly between the centered beats — drawing beats−1 dividers
+    // splits the window into one lane per beat with no leftover sliver.
     private void DrawBeatDividers(uint[] target, int cols, int height)
     {
-        if (_lastColumnSeconds <= 0.0)
-        {
-            return;
-        }
-
-        double beatPeriod = _lastBeatPeriodS > 0.0 ? _lastBeatPeriodS : FallbackBeatPeriodS;
-        int beatCols = (int)Math.Round(beatPeriod / _lastColumnSeconds);
+        int beatCols = cols / _viewBeats;
         if (beatCols <= 0)
         {
             return;
         }
 
         uint divider = PlotThemePalette.Current.ScopeGrid;
-        for (int x = beatCols; x < cols; x += beatCols)
+        for (int m = 1; m < _viewBeats; m++)
         {
+            int x = m * beatCols;
             for (int y = 0; y < height; y++)
             {
                 target[y * cols + x] = divider;
@@ -424,13 +431,15 @@ internal sealed class SpectrogramRenderer
         }
     }
 
+    /// <summary>The beat period to window by, falling back before the detector locks.</summary>
+    private double BeatPeriodSeconds() => _lastBeatPeriodS > 0.0 ? _lastBeatPeriodS : FallbackBeatPeriodS;
+
     private double CurrentWindowSeconds()
     {
-        double beatPeriod = _lastBeatPeriodS > 0.0 ? _lastBeatPeriodS : FallbackBeatPeriodS;
         return _viewMode switch
         {
-            SpectrogramViewMode.LastBeat => beatPeriod,
-            SpectrogramViewMode.Beats => beatPeriod * _viewBeats,
+            SpectrogramViewMode.LastBeat => BeatPeriodSeconds(),
+            SpectrogramViewMode.Beats => BeatPeriodSeconds() * _viewBeats,
             _ => _viewSeconds,
         };
     }
