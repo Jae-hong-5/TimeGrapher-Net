@@ -175,7 +175,11 @@ internal sealed partial class InfoTabRegistry
             },
         };
 
-        var root = new Grid { ColumnDefinitions = new ColumnDefinitions("*,470") };
+        // Rail is wide enough for the 14 px Diagnosis fonts without horizontal
+        // clipping (the ScrollViewer disables horizontal scroll, so overflow is
+        // cut, not scrolled). The radar keeps the remaining width — it has ample
+        // empty margin around the hexagon to spare.
+        var root = new Grid { ColumnDefinitions = new ColumnDefinitions("*,540") };
         Grid.SetColumn(radarArea, 0);
         Grid.SetColumn(panel, 1);
         root.Children.Add(radarArea);
