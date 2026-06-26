@@ -1,5 +1,6 @@
 using TimeGrapher.App;
 using TimeGrapher.Core.Analysis;
+using TimeGrapher.Core.Analysis.Quality;
 using Xunit;
 
 namespace TimeGrapher.App.Tests;
@@ -70,5 +71,25 @@ public sealed class AnalysisRunSettingsTests
             .ToWorkerConfig(sessionId: 1, sampleWriter: null);
 
         Assert.Equal(8192, config.AnalysisBlockSize);
+    }
+
+    [Fact]
+    public void NoClassifier_LeavesTheWindowPathOff()
+    {
+        AnalysisWorker.Config config = NewSettings()
+            .ToWorkerConfig(sessionId: 1, sampleWriter: null);
+
+        Assert.Null(config.QualityClassifier);
+    }
+
+    [Fact]
+    public void InjectedClassifier_FlowsToWorkerConfig()
+    {
+        var classifier = new HeuristicSignalQualityClassifier();
+
+        AnalysisWorker.Config config = NewSettings()
+            .ToWorkerConfig(sessionId: 1, sampleWriter: null, qualityClassifier: classifier);
+
+        Assert.Same(classifier, config.QualityClassifier);
     }
 }

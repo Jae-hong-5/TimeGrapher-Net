@@ -17,6 +17,7 @@ using TimeGrapher.App.Rendering;
 using TimeGrapher.App.Services;
 using TimeGrapher.App.Tabs;
 using TimeGrapher.App.ViewModels;
+using TimeGrapher.Core.Analysis.Quality;
 using TimeGrapher.Core.Detection;
 using TimeGrapher.Core.Shared;
 
@@ -136,7 +137,11 @@ public partial class MainWindow : Window
             acceptBandOperations,
             new MainWindowSelectionOptions(PLAYBACK_SOURCE, SIMULATION_SOURCE));
         var runSessionCallbacks = new MainWindowRunSessionCallbacks(
-            sessionId => BuildRunSettings().ToWorkerConfig(sessionId, mWavWriter),
+            // Inject the advisory signal-quality classifier here (the composition root):
+            // the heuristic Strategy turns the window-level path on in production. A
+            // misclassification only annotates trust, never drops a beat.
+            sessionId => BuildRunSettings().ToWorkerConfig(
+                sessionId, mWavWriter, new HeuristicSignalQualityClassifier()),
             Reset,
             ClearPendingAnalysisFrames,
             () => mFrameRenderScheduler.ResetTiming(),

@@ -1,5 +1,6 @@
 using TimeGrapher.App.Rendering;
 using TimeGrapher.Core.Analysis;
+using TimeGrapher.Core.Analysis.Quality;
 using TimeGrapher.Core.AudioIo;
 
 namespace TimeGrapher.App;
@@ -26,7 +27,8 @@ internal sealed record AnalysisRunSettings(
     private const double WeakAOnsetRescueScaleValue = 1.0;
     private const double SpuriousBeatRejectionGateFraction = 0.35;
 
-    public AnalysisWorker.Config ToWorkerConfig(ulong sessionId, ISampleWriter? sampleWriter)
+    public AnalysisWorker.Config ToWorkerConfig(
+        ulong sessionId, ISampleWriter? sampleWriter, ISignalQualityClassifier? qualityClassifier = null)
     {
         return new AnalysisWorker.Config
         {
@@ -52,6 +54,11 @@ internal sealed record AnalysisRunSettings(
             // the empty (no-input) background follows the theme.
             SpectrogramLightColormap = PlotThemePalette.Current.IsLight,
             SampleWriter = sampleWriter,
+            // Advisory signal-quality classifier (window-level). Null leaves the
+            // window path off; the composition root decides which Strategy to inject
+            // (heuristic fallback, or the ONNX model once available). The per-beat
+            // geometry rules in BeatSegmentCapture are unaffected either way.
+            QualityClassifier = qualityClassifier,
         };
     }
 }
