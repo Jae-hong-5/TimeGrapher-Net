@@ -37,7 +37,10 @@ public sealed class AppSettingsStoreTests : IDisposable
                 -12.0,
                 280.0,
                 0.5,
-                false),
+                false,
+                0.3,
+                1.7,
+                0.9),
             new SettingsWindowSettings(
                 true,
                 true,
@@ -122,6 +125,60 @@ public sealed class AppSettingsStoreTests : IDisposable
         """);
 
         Assert.Equal(AppSettings.Default, AppSettingsStore.LoadFrom(path));
+    }
+
+    [Fact]
+    public void LoadFrom_ConfigWithoutSignalScales_LoadsWithUnityDefaults()
+    {
+        // A settings file written before the A/B/C signal-size knobs existed (no
+        // Simulation*Scale fields) must still load — the fields are optional — and each
+        // cluster scale must default to 1.0 so an upgrade never silently mutes a cluster.
+        string path = Path.Combine(_directory, "settings.json");
+        Directory.CreateDirectory(_directory);
+        File.WriteAllText(path, """
+        {
+          "Sampling": {
+            "AnalysisBlockSize": 4096,
+            "CaptureBufferMs": 20,
+            "AveragingPeriod": 10
+          },
+          "AcceptBands": {
+            "RateMinSPerDay": -4,
+            "RateMaxSPerDay": 6,
+            "AmplitudeMinDeg": 270,
+            "AmplitudeMaxDeg": 300,
+            "BeatErrorMagnitudeMs": 0.8
+          },
+          "LeftPanel": {
+            "InputDeviceName": null,
+            "SampleRate": 48000,
+            "Gain": 200,
+            "Bph": 0,
+            "LiftAngle": 52,
+            "SimulationBph": 28800,
+            "SimulationErrorRate": 0,
+            "SimulationAmplitude": 300,
+            "SimulationBeatError": 0,
+            "SimulationRealistic": true
+          },
+          "SettingsWindow": {
+            "UseCOnset": false,
+            "WeakAOnsetRescue": true,
+            "SpuriousBeatRejection": true,
+            "PauseOnPositionChange": false,
+            "HighPassCutoffText": "200",
+            "MeasurementLogEnabled": false
+          }
+        }
+        """);
+
+        AppSettings loaded = AppSettingsStore.LoadFrom(path);
+
+        // The file loaded (its distinctive Gain survived) rather than falling back to Default.
+        Assert.Equal(200.0, loaded.LeftPanel.Gain);
+        Assert.Equal(1.0, loaded.LeftPanel.SimulationSignalAScale);
+        Assert.Equal(1.0, loaded.LeftPanel.SimulationSignalBScale);
+        Assert.Equal(1.0, loaded.LeftPanel.SimulationSignalCScale);
     }
 
     [Fact]

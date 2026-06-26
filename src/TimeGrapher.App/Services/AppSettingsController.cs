@@ -43,6 +43,9 @@ internal sealed class AppSettingsController : ISettingsWindowResetRunner
         viewModel.SimAmplitude = (decimal)left.SimulationAmplitude;
         viewModel.SimBeatError = (decimal)left.SimulationBeatError;
         viewModel.Realistic = left.SimulationRealistic;
+        viewModel.SimSignalAScale = (decimal)left.SimulationSignalAScale;
+        viewModel.SimSignalBScale = (decimal)left.SimulationSignalBScale;
+        viewModel.SimSignalCScale = (decimal)left.SimulationSignalCScale;
         viewModel.UseCOnset = window.UseCOnset;
         viewModel.WeakAOnsetRescue = window.WeakAOnsetRescue;
         viewModel.SpuriousBeatRejection = window.SpuriousBeatRejection;
@@ -101,6 +104,9 @@ internal sealed class AppSettingsController : ISettingsWindowResetRunner
             nameof(MainWindowViewModel.SimAmplitude) or
             nameof(MainWindowViewModel.SimBeatError) or
             nameof(MainWindowViewModel.Realistic) or
+            nameof(MainWindowViewModel.SimSignalAScale) or
+            nameof(MainWindowViewModel.SimSignalBScale) or
+            nameof(MainWindowViewModel.SimSignalCScale) or
             nameof(MainWindowViewModel.UseCOnset) or
             nameof(MainWindowViewModel.WeakAOnsetRescue) or
             nameof(MainWindowViewModel.SpuriousBeatRejection) or
@@ -162,7 +168,10 @@ internal sealed class AppSettingsController : ISettingsWindowResetRunner
                 (double)_viewModel.SimErrorRate,
                 (double)_viewModel.SimAmplitude,
                 (double)_viewModel.SimBeatError,
-                _viewModel.Realistic),
+                _viewModel.Realistic,
+                (double)_viewModel.SimSignalAScale,
+                (double)_viewModel.SimSignalBScale,
+                (double)_viewModel.SimSignalCScale),
             SettingsWindow = settingsWindow,
         };
     }

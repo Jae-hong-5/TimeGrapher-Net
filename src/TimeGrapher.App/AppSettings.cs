@@ -37,7 +37,13 @@ internal sealed record LeftPanelSettings(
     double SimulationErrorRate,
     double SimulationAmplitude,
     double SimulationBeatError,
-    bool SimulationRealistic)
+    bool SimulationRealistic,
+    // Per-cluster A/B/C signal-size scales. Optional (defaulted to 1.0) so a settings
+    // file written before these knobs existed still loads, defaulting each cluster to
+    // its nominal size rather than silently muting it.
+    double SimulationSignalAScale = 1.0,
+    double SimulationSignalBScale = 1.0,
+    double SimulationSignalCScale = 1.0)
 {
     public static LeftPanelSettings Default { get; } = new(
         InputDeviceName: null,
@@ -49,7 +55,10 @@ internal sealed record LeftPanelSettings(
         SimulationErrorRate: 0.0,
         SimulationAmplitude: 300.0,
         SimulationBeatError: 0.0,
-        SimulationRealistic: true);
+        SimulationRealistic: true,
+        SimulationSignalAScale: 1.0,
+        SimulationSignalBScale: 1.0,
+        SimulationSignalCScale: 1.0);
 
     [JsonIgnore]
     public bool IsValid =>
@@ -61,7 +70,10 @@ internal sealed record LeftPanelSettings(
         Contains(BphCatalog.ManualBph, SimulationBph) &&
         IsFiniteBetween(SimulationErrorRate, -999.0, 999.0) &&
         IsFiniteBetween(SimulationAmplitude, 100.0, 360.0) &&
-        IsFiniteBetween(SimulationBeatError, -10.0, 10.0);
+        IsFiniteBetween(SimulationBeatError, -10.0, 10.0) &&
+        IsFiniteBetween(SimulationSignalAScale, 0.0, 2.0) &&
+        IsFiniteBetween(SimulationSignalBScale, 0.0, 2.0) &&
+        IsFiniteBetween(SimulationSignalCScale, 0.0, 2.0);
 
     private static bool IsFiniteBetween(double value, double min, double max) =>
         double.IsFinite(value) && value >= min && value <= max;
