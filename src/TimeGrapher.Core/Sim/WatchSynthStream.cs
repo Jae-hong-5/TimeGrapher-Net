@@ -504,27 +504,37 @@ public sealed class WatchSynthStream
 
     /*
         Apply the live-adjustable subset of the config to a stream that is already
-        running: rate error (s/day), beat error (ms), and watch amplitude (degrees).
-        Not part of the original C generator — it backs the App's live simulation
-        knobs (Error Rate / Amplitude / Beat Error stay editable mid-run, mirroring
-        the live Gain knob), so the user can sweep these while watching the detector
+        running: rate error (s/day), beat error (ms), watch amplitude (degrees), and
+        the per-cluster A/B/C level scales. Not part of the original C generator — it
+        backs the App's live simulation knobs (these stay editable mid-run, mirroring
+        the live Gain knob), so the user can sweep them while watching the detector
         respond instead of having to stop and restart.
 
         Called from the SimWorker thread between fill blocks, never concurrently with
-        FillF32, so it mutates state in place without locking. BeatErrorMs and
-        WatchAmplitudeDegrees are read live by the fill loop; RateErrorSPerDay only
-        enters through the cached _adjustedIntervalS, recomputed here against the
+        FillF32, so it mutates state in place without locking. BeatErrorMs,
+        WatchAmplitudeDegrees, and the cluster scales are read live by the fill loop
+        (the scales only bite when the realistic packet is enabled); RateErrorSPerDay
+        only enters through the cached _adjustedIntervalS, recomputed here against the
         running BPH (BPH and sample rate are not live — the UI keeps them disabled
         during a run). A combination that would fail ValidateConfig (e.g. a beat
         error too large for the BPH) is ignored, leaving the last good values in
         place, so a transient out-of-range edit cannot corrupt the running stream.
     */
-    public void ApplyLiveParameters(double rateErrorSPerDay, double beatErrorMs, double watchAmplitudeDegrees)
+    public void ApplyLiveParameters(
+        double rateErrorSPerDay,
+        double beatErrorMs,
+        double watchAmplitudeDegrees,
+        double aClusterLevelScale,
+        double bClusterLevelScale,
+        double cClusterLevelScale)
     {
         WatchSynthStreamConfig candidate = _cfg.Clone();
         candidate.RateErrorSPerDay = rateErrorSPerDay;
         candidate.BeatErrorMs = beatErrorMs;
         candidate.WatchAmplitudeDegrees = watchAmplitudeDegrees;
+        candidate.AClusterLevelScale = aClusterLevelScale;
+        candidate.BClusterLevelScale = bClusterLevelScale;
+        candidate.CClusterLevelScale = cClusterLevelScale;
         if (!ValidateConfig(candidate, out _))
         {
             return;
@@ -533,6 +543,9 @@ public sealed class WatchSynthStream
         _cfg.RateErrorSPerDay = rateErrorSPerDay;
         _cfg.BeatErrorMs = beatErrorMs;
         _cfg.WatchAmplitudeDegrees = watchAmplitudeDegrees;
+        _cfg.AClusterLevelScale = aClusterLevelScale;
+        _cfg.BClusterLevelScale = bClusterLevelScale;
+        _cfg.CClusterLevelScale = cClusterLevelScale;
         _adjustedIntervalS = (3600.0 / _cfg.Bph) / (1.0 + _cfg.RateErrorSPerDay / 86400.0);
     }
 

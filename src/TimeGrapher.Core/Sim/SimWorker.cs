@@ -41,14 +41,17 @@ public sealed class SimWorker : IAudioInputWorker
     private readonly WorkerPauseGate _pauseGate = new();
 
     // Live-adjustable knobs pushed from the UI thread (Error Rate / Amplitude /
-    // Beat Error). Stored under a lock and applied on the sim thread between fill
-    // blocks, mirroring the analysis worker's pending-knob pattern so the values
-    // never race the generator.
+    // Beat Error / per-cluster A/B/C level scales). Stored under a lock and applied
+    // on the sim thread between fill blocks, mirroring the analysis worker's
+    // pending-knob pattern so the values never race the generator.
     private readonly object _liveParamsLock = new();
     private bool _hasPendingLiveParams;
     private double _pendingRateErrorSPerDay;
     private double _pendingBeatErrorMs;
     private double _pendingWatchAmplitudeDegrees;
+    private double _pendingAClusterLevelScale;
+    private double _pendingBClusterLevelScale;
+    private double _pendingCClusterLevelScale;
 
     /// <summary>Notify-only: new audio is available. Raised from the sim thread.</summary>
     public event Action? DataReady; // SimDataReady
@@ -122,17 +125,27 @@ public sealed class SimWorker : IAudioInputWorker
 
     /// <summary>
     /// Push the live-adjustable simulation parameters (rate error s/day, beat error
-    /// ms, watch amplitude degrees). Callable from any thread; the values are applied
-    /// on the sim thread before the next fill block. No-op if no sim is running yet
-    /// or has already finished. BPH and sample rate are intentionally not live.
+    /// ms, watch amplitude degrees, and the per-cluster A/B/C level scales). Callable
+    /// from any thread; the values are applied on the sim thread before the next fill
+    /// block. No-op if no sim is running yet or has already finished. BPH and sample
+    /// rate are intentionally not live.
     /// </summary>
-    public void UpdateLiveParameters(double rateErrorSPerDay, double beatErrorMs, double watchAmplitudeDegrees)
+    public void UpdateLiveParameters(
+        double rateErrorSPerDay,
+        double beatErrorMs,
+        double watchAmplitudeDegrees,
+        double aClusterLevelScale,
+        double bClusterLevelScale,
+        double cClusterLevelScale)
     {
         lock (_liveParamsLock)
         {
             _pendingRateErrorSPerDay = rateErrorSPerDay;
             _pendingBeatErrorMs = beatErrorMs;
             _pendingWatchAmplitudeDegrees = watchAmplitudeDegrees;
+            _pendingAClusterLevelScale = aClusterLevelScale;
+            _pendingBClusterLevelScale = bClusterLevelScale;
+            _pendingCClusterLevelScale = cClusterLevelScale;
             _hasPendingLiveParams = true;
         }
     }
@@ -242,6 +255,7 @@ public sealed class SimWorker : IAudioInputWorker
     private void ApplyPendingLiveParameters(WatchSynthStream stream)
     {
         double rateErrorSPerDay, beatErrorMs, watchAmplitudeDegrees;
+        double aClusterLevelScale, bClusterLevelScale, cClusterLevelScale;
         lock (_liveParamsLock)
         {
             if (!_hasPendingLiveParams)
@@ -252,10 +266,19 @@ public sealed class SimWorker : IAudioInputWorker
             rateErrorSPerDay = _pendingRateErrorSPerDay;
             beatErrorMs = _pendingBeatErrorMs;
             watchAmplitudeDegrees = _pendingWatchAmplitudeDegrees;
+            aClusterLevelScale = _pendingAClusterLevelScale;
+            bClusterLevelScale = _pendingBClusterLevelScale;
+            cClusterLevelScale = _pendingCClusterLevelScale;
             _hasPendingLiveParams = false;
         }
 
-        stream.ApplyLiveParameters(rateErrorSPerDay, beatErrorMs, watchAmplitudeDegrees);
+        stream.ApplyLiveParameters(
+            rateErrorSPerDay,
+            beatErrorMs,
+            watchAmplitudeDegrees,
+            aClusterLevelScale,
+            bClusterLevelScale,
+            cClusterLevelScale);
     }
 
     private static bool JoinInfinite(Thread thread)

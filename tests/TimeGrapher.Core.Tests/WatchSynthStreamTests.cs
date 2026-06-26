@@ -68,7 +68,9 @@ public sealed class WatchSynthStreamTests
 
         // +43200 s/day runs the watch 1.5x fast, shrinking the beat interval, so the
         // next second must contain strictly more beats once the new rate takes effect.
-        stream.ApplyLiveParameters(rateErrorSPerDay: 43200.0, beatErrorMs: 0.0, watchAmplitudeDegrees: 270.0);
+        stream.ApplyLiveParameters(
+            rateErrorSPerDay: 43200.0, beatErrorMs: 0.0, watchAmplitudeDegrees: 270.0,
+            aClusterLevelScale: 1.0, bClusterLevelScale: 1.0, cClusterLevelScale: 1.0);
 
         WatchSynthStreamFillResult fast = stream.FillF32(buf, events);
 
@@ -88,7 +90,9 @@ public sealed class WatchSynthStreamTests
         Assert.All(events.AsSpan(0, baseline.EventsWritten).ToArray(), e => Assert.Equal(0.0, e.AppliedIntervalOffsetUs));
 
         // +2 ms beat error must appear as a +/-2000 us alternating interval offset.
-        stream.ApplyLiveParameters(rateErrorSPerDay: 0.0, beatErrorMs: 2.0, watchAmplitudeDegrees: 270.0);
+        stream.ApplyLiveParameters(
+            rateErrorSPerDay: 0.0, beatErrorMs: 2.0, watchAmplitudeDegrees: 270.0,
+            aClusterLevelScale: 1.0, bClusterLevelScale: 1.0, cClusterLevelScale: 1.0);
 
         WatchSynthStreamFillResult withError = stream.FillF32(buf, events);
 
@@ -111,12 +115,38 @@ public sealed class WatchSynthStreamTests
         changed.Generate(bufChanged);
         control.Generate(bufControl);
 
-        changed.ApplyLiveParameters(rateErrorSPerDay: 0.0, beatErrorMs: 100_000.0, watchAmplitudeDegrees: 270.0);
+        changed.ApplyLiveParameters(
+            rateErrorSPerDay: 0.0, beatErrorMs: 100_000.0, watchAmplitudeDegrees: 270.0,
+            aClusterLevelScale: 1.0, bClusterLevelScale: 1.0, cClusterLevelScale: 1.0);
 
         changed.Generate(bufChanged);
         control.Generate(bufControl);
 
         Assert.Equal(bufControl, bufChanged);
+    }
+
+    [Fact]
+    public void ApplyLiveParameters_ClusterScaleTakesEffectLive()
+    {
+        // Realistic packet on (per-cluster scales only bite there) with every
+        // stochastic component off, so shrinking the C cluster on one stream is the
+        // only difference and the next block must diverge from the untouched control.
+        var changed = new WatchSynthStream(RealisticDeterministic());
+        var control = new WatchSynthStream(RealisticDeterministic());
+        var bufChanged = new float[48000];
+        var bufControl = new float[48000];
+
+        changed.Generate(bufChanged);
+        control.Generate(bufControl);
+
+        changed.ApplyLiveParameters(
+            rateErrorSPerDay: 0.0, beatErrorMs: 0.0, watchAmplitudeDegrees: 270.0,
+            aClusterLevelScale: 1.0, bClusterLevelScale: 1.0, cClusterLevelScale: 0.2);
+
+        changed.Generate(bufChanged);
+        control.Generate(bufControl);
+
+        Assert.NotEqual(bufControl, bufChanged);
     }
 
     // Deterministic realistic A/B/C packet: realistic packet structure on, but every
