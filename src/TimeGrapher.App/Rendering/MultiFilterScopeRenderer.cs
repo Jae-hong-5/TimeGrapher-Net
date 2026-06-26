@@ -533,6 +533,7 @@ internal sealed class MultiFilterScopeRenderer
         }
 
         bool hasBeatWindow = false;
+        bool windowChanged = false;
         if (_x[0].Count > 0)
         {
             if (_followLive)
@@ -555,6 +556,7 @@ internal sealed class MultiFilterScopeRenderer
                     {
                         _dataMinX = candidateMin;
                         _dataMaxX = candidateMax;
+                        windowChanged = true;
                     }
                 }
             }
@@ -581,9 +583,9 @@ internal sealed class MultiFilterScopeRenderer
                 // Y always auto-fits to 1.2x the running peak so the waveform never
                 // clips and the scale stays steady — independent of X interaction.
                 // The X window only follows the beat-tracked extent while following
-                // live; when the user has zoomed/panned, the axis rule keeps X
-                // inside the data and their X view stays put.
-                if (_followLive)
+                // live, and only when it actually moved (the deadband), so the axis
+                // limits and ms ruler are left untouched on the in-between frames.
+                if (_followLive && windowChanged)
                 {
                     _plots[i].Plot.Axes.SetLimitsX(_dataMinX, _dataMaxX);
                 }
@@ -593,8 +595,16 @@ internal sealed class MultiFilterScopeRenderer
 
             if (updated[i] || cursorMoved)
             {
-                AxisLimits limits = _plots[i].Plot.Axes.GetLimits();
-                ApplyTimeTicks(i, limits.Left, limits.Right);
+                // Re-lay the ms ruler only when the window moved. Rebuilding the
+                // tick generator every frame (even with identical positions) was
+                // what trembled the bottom axis; with the deadband holding the
+                // window steady, the ticks now stay put between beat re-locks.
+                if (windowChanged)
+                {
+                    AxisLimits limits = _plots[i].Plot.Axes.GetLimits();
+                    ApplyTimeTicks(i, limits.Left, limits.Right);
+                }
+
                 _plots[i].Refresh();
             }
         }
