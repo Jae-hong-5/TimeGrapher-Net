@@ -228,7 +228,7 @@ internal sealed class RateScopeRenderer
         rate.Clear();
         ApplyPlotTheme(rate);
         rate.YLabel("Error Rate (ms)");
-        rate.XLabel("Beat Index");
+        rate.XLabel("Beats");
         rate.Axes.SetLimitsY(-rateErrorYScale, rateErrorYScale);
         rate.Axes.SetLimitsX(0, RatePageWindowBeats);
         ClearSeriesData(_rateX, _rateY);

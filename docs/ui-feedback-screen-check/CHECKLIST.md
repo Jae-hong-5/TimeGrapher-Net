@@ -10,12 +10,12 @@
 ## Rate/Scope  ·  `tab-rate-scope`
 - [x] 1. Signal Level 세로축 밀착·깜빡임 → 좌측 축 패널 52→68px (`RateScopeRenderer.ScopeLeftAxisSizePx`)
 - [x] 2. Signal Level 단위 → `Signal Level (a.u.)` (a.u. = arbitrary units, 정규화된 신호 진폭)
-- [ ] 3. (답변) Beat Index = Beats 와 동일 개념(캡처 후 누적 비트 카운트). 일관성 위해 축 라벨 `Beat Index`→`Beats` 통일 권장(미반영)
+- [x] 3. (답변) Beat Index = Beats 동일 개념(누적 비트 카운트). 축 라벨 `Beat Index`→`Beats` 통일 완료
 
 ## Beat Error  ·  `tab-beat-error`
 - [x] 1. 라벨 Font 14 → 라벨 11→14, 값 15→16 (`InfoTabRegistry.cs` 패널)
 - [x] 2. (시안) 수치값 가독성 개선 수정시안 제공 — `ui-feedback-value-readout-proposal.svg` (Beat Error/Escapement 카드)
-- [ ] 3. (답변) Beat Index = Beats 동일(위와 동일). 축 라벨 통일 권장(미반영)
+- [x] 3. (답변) Beat Index = Beats 동일(위와 동일). 축 라벨 통일 완료
 
 ## Trace  ·  `tab-trace`
 - [ ] 1. (답변) 가운데 회색 band = 롤링 평균 ±1σ(안정도 폭, `AddSigmaBand`), 점선 = 롤링 평균선(mean). 컬러(amber) band = 허용 공차 band
@@ -88,5 +88,8 @@
 2. 렌더러 구현: Beat Noise#2(A,C 2개), Beat Noise#7(A 초록 점선), Waveforms#2(Direction Marker)
 3. 레이아웃/폰트: Health#1(높이 맞춤), Health#2(폰트 14)
 4. 잔여 버그: Filter Scope#3(격자 깜빡임)
-5. 일관성(권장): Beat Index→Beats 축 라벨 통일 (Rate/Scope#3, Beat Error#3)
-6. 답변 항목(코드 무관): Trace#1, Signal Level 단위 의미
+5. 답변 항목(코드 무관): Trace#1, Signal Level 단위 의미
+
+### 완료
+
+- Beat Index→Beats 축 라벨 통일 (Rate/Scope#3, Beat Error#3)

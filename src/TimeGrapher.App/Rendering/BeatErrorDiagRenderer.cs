@@ -157,7 +157,7 @@ internal sealed class BeatErrorDiagRenderer
         trace.Clear();
         ApplyPlotTheme(trace);
         trace.YLabel("Error Rate (ms)");
-        trace.XLabel("Beat Index");
+        trace.XLabel("Beats");
         trace.Axes.SetLimitsY(-rateErrorYScale, rateErrorYScale);
         trace.Axes.SetLimitsX(0, RateLiveMinWindowBeats);
         trace.Axes.Bottom.TickLabelStyle.IsVisible = true;
