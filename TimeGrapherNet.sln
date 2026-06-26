@@ -29,6 +29,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TimeGrapher.Verify.Tests", 
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TimeGrapher.Inference", "src\TimeGrapher.Inference\TimeGrapher.Inference.csproj", "{367A089E-695B-44D3-A3FA-E7B96885776A}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TimeGrapher.Inference.Tests", "tests\TimeGrapher.Inference.Tests\TimeGrapher.Inference.Tests.csproj", "{B7DEED72-C80F-4D19-BBD7-5C9C78E68DF7}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -82,6 +84,10 @@ Global
 		{367A089E-695B-44D3-A3FA-E7B96885776A}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{367A089E-695B-44D3-A3FA-E7B96885776A}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{367A089E-695B-44D3-A3FA-E7B96885776A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B7DEED72-C80F-4D19-BBD7-5C9C78E68DF7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B7DEED72-C80F-4D19-BBD7-5C9C78E68DF7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B7DEED72-C80F-4D19-BBD7-5C9C78E68DF7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B7DEED72-C80F-4D19-BBD7-5C9C78E68DF7}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{7C1E4464-F6F9-44E0-B865-8D273717ED6A} = {6F8CB6CB-3947-447D-98E4-EB96F60105C5}
@@ -95,5 +101,6 @@ Global
 		{ECA97C8E-A9F5-4680-BA7E-7D201B8D9E33} = {F3BAE50B-17BD-4B39-8349-13E8FA87CCD6}
 		{EC816D1B-B84E-4A64-9CEE-2F8B8EADA36E} = {F3BAE50B-17BD-4B39-8349-13E8FA87CCD6}
 		{367A089E-695B-44D3-A3FA-E7B96885776A} = {6F8CB6CB-3947-447D-98E4-EB96F60105C5}
+		{B7DEED72-C80F-4D19-BBD7-5C9C78E68DF7} = {F3BAE50B-17BD-4B39-8349-13E8FA87CCD6}
 	EndGlobalSection
 EndGlobal
