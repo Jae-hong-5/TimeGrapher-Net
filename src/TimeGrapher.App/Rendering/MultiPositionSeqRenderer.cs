@@ -23,13 +23,14 @@ internal sealed class MultiPositionSeqRenderer
     private const string ActiveRowClass = "SeqActiveRow";
 
     private static readonly string[] Headers =
-        { "POS", "RATE", "AMPLITUDE", "BEAT ERR", "BEATS", "RATE RANGE vs BAND  (−20 · 0 · +20 s/d)", "COLLECTION → 30" };
+        { "POS", "RATE", "AMPLITUDE", "BEAT ERR", "BEATS", "RATE RANGE vs BAND", "COLLECTION → 30" };
 
     private readonly Grid _tableGrid;
     private readonly PositionSequenceDashboardControls _dashboard;
     private readonly WatchPosition _initialPosition;
 
     private ulong _lastVersion;
+    private WatchPosition _activePosition;
     private IReadOnlyList<PositionSummary> _lastPositions = Array.Empty<PositionSummary>();
 
     public MultiPositionSeqRenderer(
@@ -40,6 +41,7 @@ internal sealed class MultiPositionSeqRenderer
         _tableGrid = tableGrid;
         _dashboard = dashboard;
         _initialPosition = initialPosition;
+        _activePosition = initialPosition;
         Reset();
     }
 
@@ -48,6 +50,7 @@ internal sealed class MultiPositionSeqRenderer
     public void Reset(WatchPosition activePosition)
     {
         _lastVersion = 0;
+        _activePosition = activePosition;
         _lastPositions = Array.Empty<PositionSummary>();
         RebuildTable(_lastPositions, activePosition);
         UpdateHero(_lastPositions, activePosition);
@@ -55,8 +58,15 @@ internal sealed class MultiPositionSeqRenderer
 
     public void RequestPosition(WatchPosition position)
     {
+        _activePosition = position;
         RebuildTable(_lastPositions, position);
         UpdateHero(_lastPositions, position);
+    }
+
+    public void ApplyAcceptBands()
+    {
+        RebuildTable(_lastPositions, _activePosition);
+        UpdateHero(_lastPositions, _activePosition);
     }
 
     public void RenderFrame(AnalysisFrame frame)
@@ -68,6 +78,7 @@ internal sealed class MultiPositionSeqRenderer
         }
 
         _lastVersion = history.Version;
+        _activePosition = history.ActivePosition;
         _lastPositions = history.Positions ?? Array.Empty<PositionSummary>();
         RebuildTable(_lastPositions, history.ActivePosition);
         UpdateHero(_lastPositions, history.ActivePosition);
@@ -170,11 +181,13 @@ internal sealed class MultiPositionSeqRenderer
                 (rate.Mean < VarioGaugePolicy.RateAcceptMinSPerDay || rate.Mean > VarioGaugePolicy.RateAcceptMaxSPerDay);
             bool ampOut = amp.Valid &&
                 (amp.Mean < VarioGaugePolicy.AmplitudeAcceptMinDeg || amp.Mean > VarioGaugePolicy.AmplitudeAcceptMaxDeg);
+            bool beatOut = beat.Valid &&
+                Math.Abs(beat.Mean) > AcceptBandSettings.Current.BeatErrorMagnitudeMs;
 
             AddText(position.ShortName(), gridRow, 0, bold: true, outOfBand: false);
             AddText(VarioReadout.Format(rate.Valid ? rate.Mean : (double?)null, "+0.0;-0.0;0.0", " s/d"), gridRow, 1, false, rateOut);
             AddText(VarioReadout.Format(amp.Valid ? amp.Mean : (double?)null, "0", "°"), gridRow, 2, false, ampOut);
-            AddText(VarioReadout.Format(beat.Valid ? beat.Mean : (double?)null, "+0.00;-0.00; 0.00", " ms"), gridRow, 3, false, false);
+            AddText(VarioReadout.Format(beat.Valid ? beat.Mean : (double?)null, "+0.00;-0.00; 0.00", " ms"), gridRow, 3, false, beatOut);
             AddText(beats > 0 ? beats.ToString(CultureInfo.InvariantCulture) : VarioReadout.Missing, gridRow, 4, false, false);
 
             var lane = new RateRangeLaneControl(

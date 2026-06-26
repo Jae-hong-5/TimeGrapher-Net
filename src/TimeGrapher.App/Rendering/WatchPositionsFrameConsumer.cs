@@ -3,7 +3,7 @@ using TimeGrapher.Core.Shared;
 
 namespace TimeGrapher.App.Rendering;
 
-internal sealed class WatchPositionsFrameConsumer : IAnalysisFrameConsumer
+internal sealed class WatchPositionsFrameConsumer : IAnalysisFrameConsumer, IAcceptBandConsumer
 {
     private readonly WatchPositionsRenderer _positionRenderer;
     private readonly MultiPositionSeqRenderer _sequenceRenderer;
@@ -41,4 +41,6 @@ internal sealed class WatchPositionsFrameConsumer : IAnalysisFrameConsumer
         _ = context;
         _sequenceRenderer.RenderFrame(frame);
     }
+
+    public void ApplyAcceptBands() => _sequenceRenderer.ApplyAcceptBands();
 }

@@ -15,8 +15,8 @@ namespace TimeGrapher.App.Rendering;
 /// </summary>
 internal sealed class RateRangeLaneControl : Control
 {
-    private const double AxisMin = -20.0;
-    private const double AxisMax = 20.0;
+    private const double AxisPaddingFraction = 0.08;
+    private const double MinAxisSpan = 1.0;
 
     private readonly bool _hasValue;
     private readonly double _min;
@@ -46,19 +46,20 @@ internal sealed class RateRangeLaneControl : Control
         PlotThemePalette palette = PlotThemePalette.Current;
         const double laneH = 8.0;
         double cy = h / 2.0;
+        (double axisMin, double axisMax) = AxisRange(_hasValue, _min, _mean, _max);
 
         // Track.
         context.DrawRectangle(Solid(0xFFE9EBEC), null, new RoundedRect(new Rect(0, cy - laneH / 2, w, laneH), 4));
 
         // Accept band (shared single source).
-        double bandLo = X(VarioGaugePolicy.RateAcceptMinSPerDay, w);
-        double bandHi = X(VarioGaugePolicy.RateAcceptMaxSPerDay, w);
+        double bandLo = X(VarioGaugePolicy.RateAcceptMinSPerDay, w, axisMin, axisMax);
+        double bandHi = X(VarioGaugePolicy.RateAcceptMaxSPerDay, w, axisMin, axisMax);
         context.DrawRectangle(
             Solid(WithAlpha(palette.VarioAcceptBand, 64)), null,
             new Rect(bandLo, cy - laneH / 2 - 2, Math.Max(1.0, bandHi - bandLo), laneH + 4));
 
         // Zero line.
-        double zero = X(0.0, w);
+        double zero = X(0.0, w, axisMin, axisMax);
         context.DrawLine(
             new Pen(Solid(0xFFB9BEC1), 1),
             new Point(zero, cy - laneH / 2 - 3),
@@ -70,8 +71,8 @@ internal sealed class RateRangeLaneControl : Control
         }
 
         // Measured min–max range.
-        double lo = X(_min, w);
-        double hi = X(_max, w);
+        double lo = X(_min, w, axisMin, axisMax);
+        double hi = X(_max, w, axisMin, axisMax);
         context.DrawRectangle(
             Solid(palette.VarioMinMax), null,
             new RoundedRect(new Rect(lo, cy - laneH / 2, Math.Max(2.0, hi - lo), laneH), 4));
@@ -80,12 +81,28 @@ internal sealed class RateRangeLaneControl : Control
         bool outOfBand = _mean < VarioGaugePolicy.RateAcceptMinSPerDay ||
             _mean > VarioGaugePolicy.RateAcceptMaxSPerDay;
         IBrush dot = outOfBand ? Solid(palette.VarioBad) : Solid(palette.TextPrimary);
-        double mx = X(_mean, w);
+        double mx = X(_mean, w, axisMin, axisMax);
         context.DrawEllipse(dot, new Pen(Brushes.White, 2), new Point(mx, cy), 6, 6);
     }
 
-    private static double X(double value, double width) =>
-        (Math.Clamp(value, AxisMin, AxisMax) - AxisMin) / (AxisMax - AxisMin) * width;
+    internal static (double Min, double Max) AxisRange(bool hasValue, double min, double mean, double max)
+    {
+        double axisMin = Math.Min(0.0, VarioGaugePolicy.RateAcceptMinSPerDay);
+        double axisMax = Math.Max(0.0, VarioGaugePolicy.RateAcceptMaxSPerDay);
+
+        if (hasValue)
+        {
+            axisMin = Math.Min(axisMin, Math.Min(Math.Min(min, mean), max));
+            axisMax = Math.Max(axisMax, Math.Max(Math.Max(min, mean), max));
+        }
+
+        double span = Math.Max(axisMax - axisMin, MinAxisSpan);
+        double padding = span * AxisPaddingFraction;
+        return (axisMin - padding, axisMax + padding);
+    }
+
+    private static double X(double value, double width, double axisMin, double axisMax) =>
+        (Math.Clamp(value, axisMin, axisMax) - axisMin) / (axisMax - axisMin) * width;
 
     private static IBrush Solid(uint argb) => new SolidColorBrush(Color.FromUInt32(argb));
 
