@@ -167,7 +167,7 @@ internal sealed partial class InfoTabRegistry
         {
             Classes = { "PositionPanel" },
             Padding = new Thickness(4),
-            Margin = new Thickness(0, 0, 4, 0),
+            Margin = new Thickness(2, 0, 4, 0),
             Child = new ScrollViewer
             {
                 HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled,
@@ -175,14 +175,25 @@ internal sealed partial class InfoTabRegistry
             },
         };
 
+        // Frame the radar in the same PositionPanel so both columns are equal-height
+        // white boxes that align top and bottom (the radar header sits inside its box
+        // just as the Diagnosis header sits inside the rail box).
+        var radarPanel = new Border
+        {
+            Classes = { "PositionPanel" },
+            Padding = new Thickness(4),
+            Margin = new Thickness(4, 0, 2, 0),
+            Child = radarArea,
+        };
+
         // Rail is wide enough for the 14 px Diagnosis fonts without horizontal
         // clipping (the ScrollViewer disables horizontal scroll, so overflow is
         // cut, not scrolled). The radar keeps the remaining width — it has ample
         // empty margin around the hexagon to spare.
         var root = new Grid { ColumnDefinitions = new ColumnDefinitions("*,540") };
-        Grid.SetColumn(radarArea, 0);
+        Grid.SetColumn(radarPanel, 0);
         Grid.SetColumn(panel, 1);
-        root.Children.Add(radarArea);
+        root.Children.Add(radarPanel);
         root.Children.Add(panel);
 
         var consumer = new WatchHealthRadarFrameConsumer(renderer);
