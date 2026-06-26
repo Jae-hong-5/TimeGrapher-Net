@@ -63,7 +63,7 @@
 - [x] 4. (시안) 수치값 수정시안 — proposal SVG
 - [x] 5. 하단 수치 Font 14 (averageText 12→14)
 - [x] 6. Signal Level 단위 `(a.u.)`
-- [ ] 7. A Marker 초록 점선 표시 — 미반영(렌더러)
+- [x] 7. A Marker 초록 점선 — 이미 구현됨(AddMainMarker: `TraceTick` green + `LinePattern.Dashed`, 범례 "A marker"도 초록 점선). 변경 불필요
 
 ## Waveforms  ·  `tab-waveforms`
 - [x] 1. 우하단 Legend Tic/Toc 삭제 (`Legend.IsVisible=false`)
@@ -85,7 +85,7 @@
 
 ## 남은 작업(요약)
 1. 설계 필요(목적/정보 보강): Sweep#9, Escapement#6, Beat Noise#1, Sound Print#1, Spectrogram#1
-2. 렌더러 구현: Beat Noise#2(A,C 2개), Beat Noise#7(A 초록 점선), Waveforms#2(Direction Marker)
+2. 렌더러 구현: Beat Noise#2(A,C 2개), Waveforms#2(Direction Marker)
 3. 레이아웃/폰트: Health#1(높이 맞춤), Health#2(폰트 14)
 4. 잔여 버그: Filter Scope#3(격자 깜빡임)
 5. 답변 항목(코드 무관): Trace#1, Signal Level 단위 의미
