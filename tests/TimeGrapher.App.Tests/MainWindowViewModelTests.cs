@@ -177,6 +177,28 @@ public sealed class MainWindowViewModelTests
     }
 
     [Fact]
+    public void LiveSimulationParametersAreModeGatedOnlyNotRunStateGated()
+    {
+        var vm = CreateViewModel();
+
+        // Non-simulation source keeps the live knobs disabled like the rest.
+        Assert.False(vm.AreLiveSimulationParametersEnabled);
+
+        vm.SetModeAllowsSimulationParameters(true);
+        Assert.True(vm.AreLiveSimulationParametersEnabled);
+
+        vm.SetRunning();
+
+        // BPH/Realistic lock on run start, but Error Rate / Amplitude / Beat Error
+        // stay adjustable mid-run (the running sim worker re-reads them).
+        Assert.False(vm.AreSimulationParametersEnabled);
+        Assert.True(vm.AreLiveSimulationParametersEnabled);
+
+        vm.SetStopped();
+        Assert.True(vm.AreLiveSimulationParametersEnabled);
+    }
+
+    [Fact]
     public void SettingsPropertiesExposeOriginalUiDefaults()
     {
         var vm = CreateViewModel();

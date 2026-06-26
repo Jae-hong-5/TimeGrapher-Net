@@ -168,9 +168,15 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
 
     public bool IsSampleRateEnabled => AreRunParametersEnabled && _modeAllowsSampleRate;
 
-    // Simulation parameters configure the simulated source and only apply before a
-    // run starts, so Live/Playback (and any active run) leave them disabled.
+    // BPH and Realistic select the run's structure (beat period, preset of acoustic
+    // imperfections), so they only apply before a run starts: Live/Playback (and any
+    // active run) leave them disabled.
     public bool AreSimulationParametersEnabled => AreRunParametersEnabled && _modeAllowsSimulationParams;
+
+    // Error Rate / Amplitude / Beat Error are live knobs the running sim worker
+    // re-reads (WatchSynthStream.ApplyLiveParameters), so like Gain they are gated by
+    // mode only, not by run state: editable whenever the Simulation source is selected.
+    public bool AreLiveSimulationParametersEnabled => _modeAllowsSimulationParams;
 
     // Gain is a live knob (both platform workers forward SetVolume mid-capture,
     // matching the Qt original's slider), so it is gated by mode only, not by
@@ -626,6 +632,7 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
 
         _modeAllowsSimulationParams = value;
         OnPropertyChanged(nameof(AreSimulationParametersEnabled));
+        OnPropertyChanged(nameof(AreLiveSimulationParametersEnabled));
     }
 
     public void SetInputDeviceNames(IEnumerable<string> values) => ReplaceItems(InputDeviceNames, values);

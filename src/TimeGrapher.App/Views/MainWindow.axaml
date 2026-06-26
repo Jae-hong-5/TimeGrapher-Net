@@ -292,7 +292,7 @@
                 <TextBlock Name="SimErrorRateLabel" Grid.Row="1" Grid.Column="0"
                            VerticalAlignment="Center" HorizontalAlignment="Center" FontWeight="Bold" Text="Error Rate" />
                 <NumericUpDown Name="SimErrorRateSpinBox" Grid.Row="1" Grid.Column="1"
-                               IsEnabled="{Binding AreSimulationParametersEnabled}"
+                               IsEnabled="{Binding AreLiveSimulationParametersEnabled}"
                                Value="{Binding SimErrorRate, Mode=TwoWay}"
                                FontWeight="Bold" FormatString="0' s/d'"
                                Minimum="-999" Maximum="999" Increment="1" />
@@ -300,7 +300,7 @@
                 <TextBlock Name="SimAmpLabel" Grid.Row="2" Grid.Column="0"
                            VerticalAlignment="Center" HorizontalAlignment="Center" FontWeight="Bold" Text="Amplitude" />
                 <NumericUpDown Name="SimAmplitudeSpinBox" Grid.Row="2" Grid.Column="1"
-                               IsEnabled="{Binding AreSimulationParametersEnabled}"
+                               IsEnabled="{Binding AreLiveSimulationParametersEnabled}"
                                Value="{Binding SimAmplitude, Mode=TwoWay}"
                                FontWeight="Bold" FormatString="0'°'"
                                Minimum="100" Maximum="360" Increment="1" />
@@ -308,7 +308,7 @@
                 <TextBlock Name="SimBeatErrorLabel" Grid.Row="3" Grid.Column="0"
                            VerticalAlignment="Center" HorizontalAlignment="Center" FontWeight="Bold" Text="Beat Error" />
                 <NumericUpDown Name="SimBeatErrorSpinBox" Grid.Row="3" Grid.Column="1"
-                               IsEnabled="{Binding AreSimulationParametersEnabled}"
+                               IsEnabled="{Binding AreLiveSimulationParametersEnabled}"
                                Value="{Binding SimBeatError, Mode=TwoWay}"
                                FontWeight="Bold" FormatString="0.0' ms'"
                                Minimum="-10" Maximum="10" Increment="0.1" />
