@@ -92,6 +92,15 @@ public sealed class WatchMetrics
     private double _displayAmplitudeWindowStartS = 0.0;
     private double _displayAmplitudeWindowSumDeg = 0.0;
     private int _displayAmplitudeWindowCount = 0;
+
+    // Title-bar Amplitude / Beat Error: per-beat rolling means over the same paired-amplitude
+    // and clean-window beat-error samples the avg-period display sums, but as a sliding window
+    // updated every beat, so all three title-bar readouts refresh per beat (matching the rolling
+    // graph-rate Error Rate). Title-bar only: these intentionally diverge from the avg-period
+    // values the Long-Term / Waveform-Compare views and the measurement CSV still show. The
+    // window is sized to one averaging period on lock.
+    private readonly RollingAverage _titleAmplitudeDeg = new(0);
+    private readonly RollingAverage _titleBeatErrorMs = new(0);
     private double _amplitudeTic = 0.0;
     private double _amplitudeToc = 0.0;
     private bool _amplitudeTicValid = false;
@@ -211,6 +220,11 @@ public sealed class WatchMetrics
         _displayAmplitudeValid = false;
         _displayAmplitudeWindowStartS = startTimeS;
         ResetDisplayAmplitudeWindow();
+
+        // The title-bar rolling means restart with the display averaging (full reset,
+        // re-sync, or detection gap) so a stale pre-segment sample cannot leak across.
+        _titleAmplitudeDeg.Reset();
+        _titleBeatErrorMs.Reset();
     }
 
     private void ResetDisplayBeatErrorWindow()
@@ -364,6 +378,12 @@ public sealed class WatchMetrics
             int rateWindow = Math.Max(GraphRateWarmupPoints, AveragingPeriodS() * _beatsPerSecondWindow);
             _graphRlsTicRate.Resize(rateWindow);
             _graphRlsTocRate.Resize(rateWindow);
+            // Title-bar rolling means span the same averaging period. Amplitude pairs and
+            // clean beat-error windows each yield ~one sample per two beats, so the window
+            // holds about half as many samples as the per-beat rate window.
+            int displayAverageWindow = Math.Max(1, AveragingPeriodS() * _beatsPerSecondWindow / 2);
+            _titleAmplitudeDeg.Resize(displayAverageWindow);
+            _titleBeatErrorMs.Resize(displayAverageWindow);
             ResetGraphRate();
             ResetRateAveraging(_startTime);
             ResetDisplayAveraging(_startTime);
@@ -659,6 +679,8 @@ public sealed class WatchMetrics
                 displayAverageCompleted |= AccumulateDisplayBeatErrorAverage(
                     eventSample / (double)_config.SampleRate,
                     _beatErrorMs);
+                // Title-bar rolling mean: same clean-window sample, updated every beat.
+                _titleBeatErrorMs.Add(_beatErrorMs);
                 // The window start's phase equals the current event's phase (the
                 // window advances two beats per completion), so a tic-start window
                 // makes t1 the tick duration and t2 the tock duration; normalize
@@ -785,6 +807,8 @@ public sealed class WatchMetrics
                         displayAverageCompleted |= AccumulateDisplayAmplitudeAverage(
                             eventTimeS,
                             averageAmplitudeTicToc);
+                        // Title-bar rolling mean: same paired sample, updated every beat.
+                        _titleAmplitudeDeg.Add(averageAmplitudeTicToc);
                     }
                 }
             }
@@ -954,17 +978,19 @@ public sealed class WatchMetrics
 
     private static string Mark(string value) => ValueSpanStart + value + ValueSpanEnd;
 
-    // The title-bar Error Rate uses the rolling least-squares graph rate (the same
-    // _graphRateSPerDay carried in BeatTimingSample and surfaced as the single
-    // RateSPerDay across every other view), so the title bar agrees with the Beat
-    // Error / Long-Term / Waveform-Compare readouts and the measurement CSV instead
-    // of carrying its own completed-averaging-period value. Amplitude and beat error
-    // stay on the completed avg-period display values they have always shown.
+    // All three title-bar live values now refresh every beat. Error Rate uses the
+    // rolling least-squares graph rate (_graphRateSPerDay, the single RateSPerDay
+    // carried in BeatTimingSample and shared across every other view). Amplitude and
+    // beat error use per-beat rolling means (_titleAmplitudeDeg / _titleBeatErrorMs)
+    // instead of the completed-averaging-period block values, so they update smoothly
+    // with the rate rather than stepping once per period. Title-bar only: these rolling
+    // means intentionally diverge from the avg-period amplitude/beat-error the Long-Term /
+    // Waveform-Compare views and the measurement CSV still show.
     private string FormatResults() => BuildResults(
         _bphValid, _bph,
         _graphRateValid, _graphRateSPerDay,
-        _displayBeatErrorValid, _displayBeatErrorMs,
-        _displayAmplitudeValid, _displayAmplitudeDeg);
+        _titleBeatErrorMs.CurrentSize() > 0, _titleBeatErrorMs.GetAverage(),
+        _titleAmplitudeDeg.CurrentSize() > 0, _titleAmplitudeDeg.GetAverage());
 
     /// <summary>
     /// Pure formatter for the title-bar readout. Each field is fixed-width so the line never

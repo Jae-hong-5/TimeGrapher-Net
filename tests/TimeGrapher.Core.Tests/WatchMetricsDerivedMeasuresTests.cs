@@ -362,49 +362,36 @@ public sealed class WatchMetricsDerivedMeasuresTests
     }
 
     [Fact]
-    public void DisplayReadouts_UseCompletedAvgPeriodForAmplitudeAndBeatError()
+    public void DisplayReadouts_RefreshAmplitudeAndBeatErrorPerBeatNotPerAvgPeriod()
     {
-        const double bph = 7200.0;
+        // The title-bar amplitude/beat-error now use a per-beat rolling mean, so they
+        // appear as soon as the first paired/clean sample lands instead of waiting a full
+        // averaging period. With a 10 s period and a ~3 s run no averaging period
+        // completes, so the old completed-avg-period behaviour would still show dashes
+        // here; the rolling mean must already read the steady values.
+        const double bph = 7200.0; // 2 beats/s, 250 ms half-period
         double amp52OffsetMs = AToCOffsetMsForAmplitude(bph, 52.0);
-        double amp104OffsetMs = AToCOffsetMsForAmplitude(bph, 104.0);
         var metrics = new WatchMetrics(new WatchMetricsConfig
         {
             SampleRate = SampleRate,
-            AveragingPeriod = 3,
+            AveragingPeriod = 10,
         });
 
         double sample = 0.0;
+        double elapsedMs = 0.0;
         string results = FeedAThenCAndGetResultsAtBph(metrics, bph, sample, amp52OffsetMs);
 
-        foreach (double intervalMs in new[] { 510.0, 490.0, 510.0, 490.0, 510.0 })
+        // Steady 52° amplitude with alternating 510/490 ms beats -> beat error 10 ms.
+        foreach (double intervalMs in new[] { 510.0, 490.0, 510.0, 490.0, 510.0, 490.0 })
         {
             sample += intervalMs / 1000.0 * SampleRate;
+            elapsedMs += intervalMs;
             results = FeedAThenCAndGetResultsAtBph(metrics, bph, sample, amp52OffsetMs);
         }
 
-        Assert.Contains("Amplitude ---°", results);
-        Assert.Contains("BEAT ERROR ---- ms", results);
-
-        sample += 490.0 / 1000.0 * SampleRate;
-        results = FeedAThenCAndGetResultsAtBph(metrics, bph, sample, amp104OffsetMs);
-
+        Assert.True(elapsedMs < 10_000.0); // no averaging period has completed yet
         Assert.Contains($"Amplitude {WatchMetrics.ValueSpanStart} 52{WatchMetrics.ValueSpanEnd}°", results);
         Assert.Contains($"BEAT ERROR {WatchMetrics.ValueSpanStart}10.0{WatchMetrics.ValueSpanEnd} ms", results);
-
-        sample += 520.0 / 1000.0 * SampleRate;
-        results = FeedAThenCAndGetResultsAtBph(metrics, bph, sample, amp104OffsetMs);
-
-        Assert.Contains($"Amplitude {WatchMetrics.ValueSpanStart} 52{WatchMetrics.ValueSpanEnd}°", results);
-        Assert.Contains($"BEAT ERROR {WatchMetrics.ValueSpanStart}10.0{WatchMetrics.ValueSpanEnd} ms", results);
-
-        foreach (double intervalMs in new[] { 480.0, 520.0, 480.0, 520.0, 480.0 })
-        {
-            sample += intervalMs / 1000.0 * SampleRate;
-            results = FeedAThenCAndGetResultsAtBph(metrics, bph, sample, amp104OffsetMs);
-        }
-
-        Assert.Contains($"Amplitude {WatchMetrics.ValueSpanStart}104{WatchMetrics.ValueSpanEnd}°", results);
-        Assert.Contains($"BEAT ERROR {WatchMetrics.ValueSpanStart}20.0{WatchMetrics.ValueSpanEnd} ms", results);
     }
 
     [Fact]
