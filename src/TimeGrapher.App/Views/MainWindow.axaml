@@ -155,7 +155,7 @@
     <Grid ColumnDefinitions="300,Auto,92,*">
       <ScrollViewer Grid.Column="0"
                     HorizontalScrollBarVisibility="Disabled"
-                    VerticalScrollBarVisibility="Disabled"
+                    VerticalScrollBarVisibility="Auto"
                     Background="Transparent">
         <StackPanel Margin="8" Spacing="9">
           <Border Classes="GlassCard" Padding="8,6">
