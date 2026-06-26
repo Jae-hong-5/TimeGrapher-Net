@@ -54,7 +54,7 @@ public sealed class EscapementAnalyzerObservePathTests
         AnalysisFrame latest = Frame(version: 2, Segment(0.50));
         consumer.ObserveFrame(latest);
 
-        int meanSigmaIndex = Array.IndexOf(EscapementReadout.Labels, "PEAK MEAN±σ");
+        int meanSigmaIndex = Array.IndexOf(EscapementReadout.Labels, "Peak Mean ±σ");
         // The observe path only accumulates; it must not render the readout.
         Assert.Equal(VarioReadout.Missing, valueTexts[meanSigmaIndex].Text);
 

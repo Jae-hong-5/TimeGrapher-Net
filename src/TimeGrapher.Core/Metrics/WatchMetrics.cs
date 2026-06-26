@@ -1010,7 +1010,7 @@ public sealed class WatchMetrics
         string amplitudeText = amplitudeValid ? Mark(ArgLong(QRound64(amplitude), 3)) : "---";
 
         return "Error Rate " + rateError + " s/d | Amplitude " + amplitudeText + "°" +
-               " | BEAT ERROR " + beatErrorText + " ms | BPH " + beatsPerHour;
+               " | Beat Error " + beatErrorText + " ms | BPH " + beatsPerHour;
     }
 
     // MainWindow::WrapInToRange: fmod into the range, adding the range size

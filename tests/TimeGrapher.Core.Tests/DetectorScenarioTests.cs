@@ -126,8 +126,8 @@ public sealed class DetectorScenarioTests
         string withError = FeedSeconds(NewEngine(sr, true, 0), new WatchSynthStream(Synth(sr, bph, 0.0, 5.0)), sr, 12, out _);
         string clean = FeedSeconds(NewEngine(sr, true, 0), new WatchSynthStream(Synth(sr, bph, 0.0, 0.0)), sr, 12, out _);
 
-        double beWith = Math.Abs(Field(withError, "BEAT ERROR "));
-        double beClean = Math.Abs(Field(clean, "BEAT ERROR "));
+        double beWith = Math.Abs(Field(withError, "Beat Error "));
+        double beClean = Math.Abs(Field(clean, "Beat Error "));
 
         Assert.True(beWith > beClean + 1.0, $"injected beat error {beWith} vs clean {beClean}");
     }

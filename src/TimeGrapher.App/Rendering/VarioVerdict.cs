@@ -50,8 +50,8 @@ internal readonly record struct VarioVerdict(string Text, VarioVerdictLevel Leve
         }
 
         return stats.Sigma > RateUnstableSigma
-            ? new VarioVerdict("In range · unstable", VarioVerdictLevel.Warn)
-            : new VarioVerdict("Stable · in range", VarioVerdictLevel.Good);
+            ? new VarioVerdict("Within Band · unstable", VarioVerdictLevel.Warn)
+            : new VarioVerdict("Stable · Within Band", VarioVerdictLevel.Good);
     }
 
     /// <summary>Amplitude (deg): healthy band, marginally low/high, or low enough to flag service.</summary>

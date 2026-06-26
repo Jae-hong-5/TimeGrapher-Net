@@ -53,9 +53,9 @@ internal static class WaveformCompareLogic
     /// read from the cumulative metrics-history currents (em dash when absent).
     /// </summary>
     public static string HeaderLine(BeatMetricsHistorySnapshot? history) =>
-        "Instantaneous Rate " + VarioReadout.Format(
+        "Inst. Error Rate " + VarioReadout.Format(
             history is { RateValid: true } ? history.RateSPerDay : null, "+0.0;-0.0;0.0", " s/d")
-        + "   |   Instantaneous Beat Err " + VarioReadout.Format(
+        + "   |   Inst. Beat Error " + VarioReadout.Format(
             history is { BeatErrorValid: true } ? history.BeatErrorSignedMs : null, "+0.00;-0.00;0.00", " ms")
         + "   |   BPH " + VarioReadout.Format(
             history is { Bph: > 0 } ? history.Bph : null, "0", "");
@@ -69,8 +69,8 @@ internal static class WaveformCompareLogic
     /// for the same beat.
     /// </summary>
     public static string LaneLabel(BeatSegment segment, int bph, double liftAngleDeg) =>
-        (segment.IsTic ? "TIC" : "TOC") + "\n" +
-        "A to C: " + (segment.CPeakValid
+        (segment.IsTic ? "Tic" : "Toc") + "\n" +
+        "A→C: " + (segment.CPeakValid
             ? (segment.CPeakOffsetMs - segment.AOffsetMs)
                 .ToString(SignedTenthsMsFormat, CultureInfo.InvariantCulture) + " ms"
             : VarioReadout.Missing) + "\n" +

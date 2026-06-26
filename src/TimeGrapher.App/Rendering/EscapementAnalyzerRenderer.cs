@@ -135,7 +135,7 @@ internal sealed class EscapementAnalyzerRenderer
         _envelopeY.Clear();
         _rawMinY.Clear();
         ApplyPlotTheme(plot);
-        plot.YLabel("Signal Level");
+        plot.YLabel("Signal Level (a.u.)");
         plot.XLabel("ms from A");
         _envelopeScatter = plot.Add.Scatter(_envelopeX, _envelopeY);
         _envelopeScatter.LineWidth = 1;
@@ -374,7 +374,7 @@ internal sealed class EscapementAnalyzerRenderer
         _lastViewRight = endRel;
         _lastViewTop = YHeadroom * extent;
         _plot.Plot.Axes.SetLimitsX(startRel, endRel);
-        _plot.Plot.Axes.SetLimitsY(-_lastViewTop, _lastViewTop);
+        _plot.Plot.Axes.SetLimitsY(0.0, _lastViewTop);
         return extent;
     }
 
@@ -408,7 +408,7 @@ internal sealed class EscapementAnalyzerRenderer
         _lastViewRight = endRel;
         _lastViewTop = YHeadroom * max;
         _plot.Plot.Axes.SetLimitsX(startRel, endRel);
-        _plot.Plot.Axes.SetLimitsY(-0.02 * max, _lastViewTop);
+        _plot.Plot.Axes.SetLimitsY(0.0, _lastViewTop);
         return max;
     }
 

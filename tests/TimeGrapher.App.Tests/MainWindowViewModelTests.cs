@@ -585,11 +585,11 @@ public sealed class MainWindowViewModelTests
     {
         var vm = CreateViewModel();
 
-        Assert.Equal("LIVE 00:00", vm.ReviewReadoutText);
+        Assert.Equal("Live 00:00", vm.ReviewReadoutText);
 
         vm.UpdateReviewMaximum(754.0);
         Assert.Equal(754.0, vm.ReviewMaximumS);
-        Assert.Equal("LIVE 12:34", vm.ReviewReadoutText);
+        Assert.Equal("Live 12:34", vm.ReviewReadoutText);
 
         // Late or history-less frames never shrink the captured range.
         vm.UpdateReviewMaximum(0.0);
@@ -605,14 +605,14 @@ public sealed class MainWindowViewModelTests
         var vm = CreateViewModel();
         vm.UpdateReviewMaximum(120.0);
         vm.ReviewCursorTimeS = 60.0;
-        vm.UpdateReviewMetricsText("Error Rate +1.0 s/d   Amplitude 280°   BEAT ERROR +0.1 ms");
+        vm.UpdateReviewMetricsText("Cur. Error Rate +1.0 s/d   Cur. Amplitude 280°   Cur. Beat Error +0.1 ms");
 
         vm.ResetReview();
 
         Assert.Null(vm.ReviewCursorTimeS);
         Assert.Equal(0.0, vm.ReviewMaximumS);
         Assert.Equal(0.0, vm.ReviewSliderValueS);
-        Assert.Equal("LIVE 00:00", vm.ReviewReadoutText);
+        Assert.Equal("Live 00:00", vm.ReviewReadoutText);
         Assert.Equal("", vm.ReviewMetricsText);
     }
 

@@ -40,6 +40,8 @@ internal sealed class ScopeSweepRenderer
     private const int MaxSweepMultiple = 3;
     /// <summary>Pre-roll margin shown to the left of the A onset (ms).</summary>
     private const double XPreRollMs = -10.0;
+    private const double MarkerLineLeftGuardMs = 0.75;
+    private const double MarkerLabelEdgeGuardMs = 9.0;
     private readonly VerticalLine?[] _aTicMarkers = new VerticalLine?[MaxSweepMultiple];
     private readonly Text?[]         _aTicLabels  = new Text?[MaxSweepMultiple];
     private readonly VerticalLine?[] _aTocMarkers = new VerticalLine?[MaxSweepMultiple];
@@ -123,7 +125,7 @@ internal sealed class ScopeSweepRenderer
         _preRollY.Clear();
         _lastSweepSeries = null;
         ApplyPlotTheme(sweep);
-        sweep.YLabel("Signal Level");
+        sweep.YLabel("Signal Level (a.u.)");
         sweep.XLabel("Sweep (ms)");
         _sweepScatter = sweep.Add.Scatter(_sweepX, _sweepY);
         _sweepScatter.LineWidth = 1;
@@ -366,10 +368,10 @@ internal sealed class ScopeSweepRenderer
         {
             for (int k = 0; k < MaxSweepMultiple; k++)
             {
-                UpdateMarkerLabel(_aTicLabels[k], _aTicMarkers[k], yTop, "A");
-                UpdateMarkerLabel(_aTocLabels[k], _aTocMarkers[k], yTop, "A");
-                UpdateMarkerLabel(_cTicLabels[k], _cTicMarkers[k], yTop, "C");
-                UpdateMarkerLabel(_cTocLabels[k], _cTocMarkers[k], yTop, "C");
+                UpdateMarkerLabel(_aTicLabels[k], _aTicMarkers[k], yTop, "A", windowMs);
+                UpdateMarkerLabel(_aTocLabels[k], _aTocMarkers[k], yTop, "A", windowMs);
+                UpdateMarkerLabel(_cTicLabels[k], _cTicMarkers[k], yTop, "C", windowMs);
+                UpdateMarkerLabel(_cTocLabels[k], _cTocMarkers[k], yTop, "C", windowMs);
             }
         }
     }
@@ -397,15 +399,24 @@ internal sealed class ScopeSweepRenderer
     private static void SetMarkerLine(VerticalLine? line, double? x)
     {
         if (line == null) return;
-        line.IsVisible = x.HasValue;
-        if (x.HasValue) line.X = x.Value;
+        if (x is double value && value >= MarkerLineLeftGuardMs)
+        {
+            line.IsVisible = true;
+            line.X = value;
+            return;
+        }
+
+        line.IsVisible = false;
     }
 
-    private static void UpdateMarkerLabel(Text? label, VerticalLine? line, double yTop, string text)
+    private static void UpdateMarkerLabel(Text? label, VerticalLine? line, double yTop, string text, double windowMs)
     {
         if (label == null || line == null) return;
-        label.IsVisible = line.IsVisible;
-        if (line.IsVisible)
+        bool visible = line.IsVisible
+            && line.X >= MarkerLabelEdgeGuardMs
+            && line.X <= windowMs - MarkerLabelEdgeGuardMs;
+        label.IsVisible = visible;
+        if (visible)
         {
             label.LabelText = text;
             label.Location = new Coordinates(line.X + 1.5, yTop);

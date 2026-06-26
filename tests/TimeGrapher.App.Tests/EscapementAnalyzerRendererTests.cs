@@ -36,7 +36,7 @@ public sealed class EscapementAnalyzerRendererTests
     }
 
     [Fact]
-    public void RenderFrameScalesScopeFromRawMinMaxInsteadOfEnvelope()
+    public void RenderFrameScalesPositiveScopeFromRawMinMaxInsteadOfEnvelope()
     {
         EscapementAnalyzerRenderer renderer = NewRenderer(out AvaPlot plot);
 
@@ -62,7 +62,7 @@ public sealed class EscapementAnalyzerRendererTests
 
         AxisLimits limits = plot.Plot.Axes.GetLimits();
         Assert.InRange(limits.Top, 0.87, 0.89);
-        Assert.InRange(limits.Bottom, -0.89, -0.87);
+        Assert.Equal(0.0, limits.Bottom, 6);
     }
 
     [Fact]

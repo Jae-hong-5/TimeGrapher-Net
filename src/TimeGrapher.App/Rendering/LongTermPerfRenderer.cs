@@ -122,7 +122,7 @@ internal sealed class LongTermPerfRenderer
         LongTermSummaryControls? summary = null)
     {
         _rate = new Pane { Plot = ratePlot, YLabel = "Error Rate (s/d)", AcceptLabelFormat = "+0;-0;0", Accept = LongTermAcceptPolicy.Rate };
-        _amplitude = new Pane { Plot = amplitudePlot, YLabel = "Amplitude(°)", AcceptLabelFormat = "0", Accept = LongTermAcceptPolicy.Amplitude };
+        _amplitude = new Pane { Plot = amplitudePlot, YLabel = "Amplitude (°)", AcceptLabelFormat = "0", Accept = LongTermAcceptPolicy.Amplitude };
         _beatError = new Pane { Plot = beatErrorPlot, YLabel = "Beat Error (ms)", AcceptLabelFormat = "+0.0;-0.0;0.0", Accept = LongTermAcceptPolicy.BeatError };
         _panes = new[] { _rate, _amplitude, _beatError };
         _summary = summary;
@@ -1055,11 +1055,11 @@ internal sealed class LongTermPerfRenderer
             return;
         }
 
-        _summary.Verdict.Text = "COLLECTING";
+        _summary.Verdict.Text = "Collecting";
         _summary.Rate.Text = "Error Rate " + VarioReadout.Missing;
         _summary.Amplitude.Text = "Amplitude " + VarioReadout.Missing;
-        _summary.BeatError.Text = "BEAT ERROR " + VarioReadout.Missing;
-        ApplySummaryTheme("COLLECTING");
+        _summary.BeatError.Text = "Beat Error " + VarioReadout.Missing;
+        ApplySummaryTheme("Collecting");
         _reviewMetricsCallback?.Invoke("");
     }
 
@@ -1094,8 +1094,8 @@ internal sealed class LongTermPerfRenderer
 
         _summary.Verdict.Foreground = Brush(verdict switch
         {
-            "IN TOLERANCE" => _theme.TraceTick,
-            "CHECK" => _theme.VarioWarn,
+            "Within Band" => _theme.TraceTick,
+            "Check" => _theme.VarioWarn,
             // Merge: the dedicated VarioPending color was folded into the shared
             // ChromeBorder pending-gray; use it so the verdict tracks that change.
             _ => _theme.ChromeBorder,

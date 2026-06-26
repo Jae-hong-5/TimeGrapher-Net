@@ -195,9 +195,9 @@ internal sealed record WatchHealthRadarModel(
                 level = worst;
                 verdictText = level switch
                 {
-                    VarioVerdictLevel.Bad => "ALERT — service required",
-                    VarioVerdictLevel.Warn => "WATCH — keep measuring",
-                    _ => "OK — healthy",
+                    VarioVerdictLevel.Bad => "ALERT — Service Required",
+                    VarioVerdictLevel.Warn => "WATCH — Keep Measuring",
+                    _ => "OK — Healthy",
                 };
             }
             else
@@ -243,9 +243,9 @@ internal sealed record WatchHealthRadarModel(
         VarioVerdictLevel overallLevel = (VarioVerdictLevel)Math.Max((int)level, (int)consistency.Level);
         string overallText = overallLevel switch
         {
-            VarioVerdictLevel.Bad => "ALERT — service required",
-            VarioVerdictLevel.Warn => "WATCH — keep measuring",
-            VarioVerdictLevel.Good => "OK — healthy",
+            VarioVerdictLevel.Bad => "ALERT — Service Required",
+            VarioVerdictLevel.Warn => "WATCH — Keep Measuring",
+            VarioVerdictLevel.Good => "OK — Healthy",
             _ => "Measuring…",
         };
 

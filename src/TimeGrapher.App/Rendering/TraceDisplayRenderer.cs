@@ -176,7 +176,7 @@ internal sealed class TraceDisplayRenderer
         _amplitudeY.Clear();
         ApplyPlotTheme(amplitude);
         LockAxisPanels(amplitude, BottomAxisSizePx);
-        amplitude.YLabel("Amplitude(°)");
+        amplitude.YLabel("Amplitude (°)");
         amplitude.XLabel("Elapsed (s)");
         _amplitudeBand = AddAcceptBand(amplitude, LongTermAcceptPolicy.Amplitude);
         _amplitudeSigmaBand = AddSigmaBand(amplitude);

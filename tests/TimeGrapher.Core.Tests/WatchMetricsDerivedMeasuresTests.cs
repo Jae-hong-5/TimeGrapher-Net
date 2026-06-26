@@ -391,7 +391,7 @@ public sealed class WatchMetricsDerivedMeasuresTests
 
         Assert.True(elapsedMs < 10_000.0); // no averaging period has completed yet
         Assert.Contains($"Amplitude {WatchMetrics.ValueSpanStart} 52{WatchMetrics.ValueSpanEnd}°", results);
-        Assert.Contains($"BEAT ERROR {WatchMetrics.ValueSpanStart}10.0{WatchMetrics.ValueSpanEnd} ms", results);
+        Assert.Contains($"Beat Error {WatchMetrics.ValueSpanStart}10.0{WatchMetrics.ValueSpanEnd} ms", results);
     }
 
     [Fact]
@@ -411,7 +411,7 @@ public sealed class WatchMetricsDerivedMeasuresTests
         results = FeedAThenCAndGetResults(metrics, sample);
 
         Assert.Contains("Amplitude ---°", results);
-        Assert.Contains("BEAT ERROR ---- ms", results);
+        Assert.Contains("Beat Error ---- ms", results);
 
         for (int i = 0; i < 8; i++)
         {
@@ -420,7 +420,7 @@ public sealed class WatchMetricsDerivedMeasuresTests
         }
 
         Assert.Contains($"Amplitude {WatchMetrics.ValueSpanStart} 44{WatchMetrics.ValueSpanEnd}°", results);
-        Assert.Contains($"BEAT ERROR {WatchMetrics.ValueSpanStart} 0.0{WatchMetrics.ValueSpanEnd} ms", results);
+        Assert.Contains($"Beat Error {WatchMetrics.ValueSpanStart} 0.0{WatchMetrics.ValueSpanEnd} ms", results);
     }
 
     [Fact]

@@ -26,8 +26,8 @@ internal static class EscapementReadout
     /// <summary>Panel labels; <see cref="Values"/> returns matching positions.</summary>
     public static readonly string[] Labels =
     {
-        "A→C PEAK", "A→C ONSET", "ONSET-PEAK",
-        "PEAK MEAN±σ", "ONSET MEAN±σ", "MORE REPEATABLE",
+        "A→C Peak", "A→C Onset", "Onset-Peak",
+        "Peak Mean ±σ", "Onset Mean ±σ", "More Repeatable",
     };
 
     public static string CPeakMarkerLabel(double aToCPeakMs) =>

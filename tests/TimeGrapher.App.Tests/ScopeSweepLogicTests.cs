@@ -27,7 +27,7 @@ public sealed class ScopeSweepLogicTests
         string line = ScopeSweepReadout.ReferenceLine(snapshot);
 
         Assert.Equal(
-            "Instantaneous Rate -3.2 s/d   |   Instantaneous Amp 282°   |   Instantaneous Beat Err +0.46 ms" +
+            "Inst. Rate -3.2 s/d   |   Inst. Amp 282°   |   Inst. Beat Err +0.46 ms" +
             "   |   A to C —   |   Nominal BPH —",
             line);
     }
@@ -41,7 +41,7 @@ public sealed class ScopeSweepLogicTests
         foreach (string line in new[] { empty, invalid })
         {
             Assert.Equal(
-                "Instantaneous Rate —   |   Instantaneous Amp —   |   Instantaneous Beat Err —   |   A to C —   |   Nominal BPH —",
+                "Inst. Rate —   |   Inst. Amp —   |   Inst. Beat Err —   |   A to C —   |   Nominal BPH —",
                 line);
         }
     }

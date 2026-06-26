@@ -43,6 +43,7 @@ internal sealed class VarioRenderer
 
     private const byte AcceptBandAlpha = 64;
     private const float MarkerLabelFontSize = PlotThemeHelper.GraphLabelFontSize;
+    private const double AxisTickLabelPaddingFraction = 0.01;
 
     // Y layout inside each gauge: bands fill the plot; labels sit in the headroom.
     private const double YMax = 1.9;
@@ -184,7 +185,7 @@ internal sealed class VarioRenderer
 
             ApplyGaugeTheme(gauge);
             (double lo, double hi) = VarioGaugePolicy.GaugeRange(gauge.AcceptMin, gauge.AcceptMax, default, null);
-            plot.Axes.SetLimitsX(lo, hi);
+            SetGaugeAxisLimits(plot, lo, hi);
             plot.Axes.SetLimitsY(0.0, YMax);
             UpdateBandBadgeText(gauge);
             gauge.Plot.Refresh();
@@ -279,7 +280,7 @@ internal sealed class VarioRenderer
         foreach (Gauge gauge in new[] { _rate, _amplitude })
         {
             (double lo, double hi) = VarioGaugePolicy.GaugeRange(gauge.AcceptMin, gauge.AcceptMax, default, null);
-            gauge.Plot.Plot.Axes.SetLimitsX(lo, hi);
+            SetGaugeAxisLimits(gauge.Plot.Plot, lo, hi);
             gauge.Plot.Refresh();
         }
     }
@@ -292,7 +293,7 @@ internal sealed class VarioRenderer
         double? avg = stats.Valid ? stats.Mean : null;
 
         (double lo, double hi) = VarioGaugePolicy.GaugeRange(gauge.AcceptMin, gauge.AcceptMax, stats, current);
-        plot.Axes.SetLimitsX(lo, hi);
+        SetGaugeAxisLimits(plot, lo, hi);
         plot.Axes.SetLimitsY(0.0, YMax);
 
         bool showAcceptBand = VarioGaugePolicy.ShouldShowAcceptBand(stats, current);
@@ -353,6 +354,13 @@ internal sealed class VarioRenderer
         gauge.Cells[CellAverage].Text = Stat(stats.Valid ? stats.Mean : null, gauge.NumericFormat);
         gauge.Cells[CellSigma].Text = Stat(stats.Valid ? stats.Sigma : null, "0.00");
         gauge.Cells[CellCurrent].Text = Stat(current, gauge.NumericFormat);
+    }
+
+    private static void SetGaugeAxisLimits(Plot plot, double lo, double hi)
+    {
+        double span = Math.Max(hi - lo, 1.0);
+        double pad = span * AxisTickLabelPaddingFraction;
+        plot.Axes.SetLimitsX(lo - pad, hi + pad);
     }
 
     private void UpdateOverall(VarioVerdict rate, VarioVerdict amplitude)

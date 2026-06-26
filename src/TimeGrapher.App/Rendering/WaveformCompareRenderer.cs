@@ -200,10 +200,7 @@ internal sealed class WaveformCompareRenderer
             _ghostTocScatters[i]!.IsVisible = false;
         }
 
-        if (_laneScatters[0] != null) _laneScatters[0]!.LegendText = "tic";
-        if (_laneScatters[1] != null) _laneScatters[1]!.LegendText = "toc";
-        plot.Legend.IsVisible = true;
-        plot.Legend.Alignment = Alignment.LowerRight;
+        plot.Legend.IsVisible = false;
 
         // A onset guides: one full-height vertical line per side.
         _aGuide         = AddGuide(plot);

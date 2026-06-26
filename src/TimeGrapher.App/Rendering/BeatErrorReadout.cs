@@ -16,8 +16,8 @@ internal static class BeatErrorReadout
     /// <summary>Panel labels; <see cref="Values"/> returns matching positions.</summary>
     public static readonly string[] Labels =
     {
-        "Error Rate", "Amplitude", "BEAT ERROR", "BPH",
-        "DIFF TIC-TAC", "DIFF PERIOD", "AVG PERIOD",
+        "Error Rate", "Amplitude", "Beat Error", "BPH",
+        "Tic-Tac Diff", "Period Diff", "Avg Period",
     };
 
     /// <summary>Formatted readings in <see cref="Labels"/> order (em dash when absent).</summary>

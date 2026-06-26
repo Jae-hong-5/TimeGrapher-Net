@@ -40,7 +40,7 @@ internal sealed class BeatNoiseScopeRenderer
     public const int DefaultRangeMs = 400;
 
     private const int StripPointBudget = 200;
-    private const float StripLeftAxisSizePx = 50.0f;
+    private const float StripLeftAxisSizePx = 68.0f;
     private const byte StripDividerAlpha = 140;
     private const double Lane2Baseline = 0.0;
     private const double Lane1Baseline = 1.2;
@@ -232,7 +232,7 @@ internal sealed class BeatNoiseScopeRenderer
         _mainCLegendY.Clear();
         ApplyPlotTheme(main);
         main.Axes.Left.TickLabelStyle.IsVisible = false;
-        main.YLabel("Signal Level");
+        main.YLabel("Signal Level (a.u.)");
         main.XLabel("ms");
         _mainScatter = main.Add.Scatter(_mainX, _mainY);
         _mainScatter.LineWidth = 1;

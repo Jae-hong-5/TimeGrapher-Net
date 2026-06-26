@@ -72,10 +72,10 @@ public sealed class VarioLogicTests
         Assert.Equal(VarioVerdict.Measuring, VarioVerdict.ForRate(few, -10, 10));
 
         var stable = new StatsSummary(true, -2, 4, 1.0, 1.0, 200);
-        Assert.Equal(new VarioVerdict("Stable · in range", VarioVerdictLevel.Good), VarioVerdict.ForRate(stable, -10, 10));
+        Assert.Equal(new VarioVerdict("Stable · Within Band", VarioVerdictLevel.Good), VarioVerdict.ForRate(stable, -10, 10));
 
         var jittery = new StatsSummary(true, -9, 9, 1.0, 5.0, 200);
-        Assert.Equal(new VarioVerdict("In range · unstable", VarioVerdictLevel.Warn), VarioVerdict.ForRate(jittery, -10, 10));
+        Assert.Equal(new VarioVerdict("Within Band · unstable", VarioVerdictLevel.Warn), VarioVerdict.ForRate(jittery, -10, 10));
 
         var fast = new StatsSummary(true, 8, 20, 15.0, 2.0, 200);
         Assert.Equal(new VarioVerdict("Fast · out of range", VarioVerdictLevel.Bad), VarioVerdict.ForRate(fast, -10, 10));
@@ -103,7 +103,7 @@ public sealed class VarioLogicTests
     [Fact]
     public void Overall_TakesWorseSeverityAndStaysPendingUntilBothReady()
     {
-        var good = new VarioVerdict("Stable · in range", VarioVerdictLevel.Good);
+        var good = new VarioVerdict("Stable · Within Band", VarioVerdictLevel.Good);
         var warn = new VarioVerdict("Slightly low", VarioVerdictLevel.Warn);
         var bad = new VarioVerdict("Low · service", VarioVerdictLevel.Bad);
 
@@ -113,7 +113,7 @@ public sealed class VarioLogicTests
 
         VarioVerdict overall = VarioVerdict.Overall(good, bad);
         Assert.Equal("Overall: ALERT - Service required before recording", overall.Text);
-        Assert.DoesNotContain("Stable · in range", overall.Text);
+        Assert.DoesNotContain("Stable · Within Band", overall.Text);
         Assert.DoesNotContain("Low · service", overall.Text);
 
         Assert.Equal(VarioVerdictLevel.Pending, VarioVerdict.Overall(VarioVerdict.Measuring, good).Level);

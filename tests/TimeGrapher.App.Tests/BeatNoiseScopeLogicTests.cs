@@ -162,7 +162,7 @@ public sealed class BeatNoiseScopeLogicTests
         };
 
         string line = BeatNoiseScopeLogic.AverageLine(average);
-        Assert.Equal("TRACE 1 (top) Signal Level 0.382 · TRACE 2 Signal Level 0.391   |   Σ 23/50 · 22/50", line);
+        Assert.Equal("TRACE 1 (top) Signal Level (a.u.) 0.382 · TRACE 2 Signal Level (a.u.) 0.391   |   Σ 23/50 · 22/50", line);
     }
 
     [Fact]

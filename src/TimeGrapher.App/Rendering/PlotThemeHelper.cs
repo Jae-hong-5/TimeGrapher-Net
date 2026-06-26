@@ -23,7 +23,7 @@ internal static class PlotThemeHelper
     // title overlaps the numbers; the earlier 44/34 fit the numbers only and clipped the
     // titles. Still far tighter than ScottPlot's automatic layout, so the data rectangle
     // stays large.
-    public const float CompactLeftAxisSizePx = 52f;
+    public const float CompactLeftAxisSizePx = 68f;
     public const float CompactBottomAxisSizePx = 60f;
 
     public static void Apply(Plot plot, PlotThemePalette theme)

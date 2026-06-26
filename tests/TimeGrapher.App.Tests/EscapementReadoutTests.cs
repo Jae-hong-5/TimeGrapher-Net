@@ -41,12 +41,12 @@ public sealed class EscapementReadoutTests
         string[] values = EscapementReadout.Values(latest, tracker);
 
         Assert.Equal(EscapementReadout.Labels.Length, values.Length);
-        Assert.Equal("+142.5 ms", values[0]);              // A→C PEAK
-        Assert.Equal("+141.8 ms", values[1]);              // A→C ONSET (rounded for display)
-        Assert.Equal("-0.75 ms", values[2]);               // ONSET-PEAK
-        Assert.Equal("142.5 ±0.00 ms (n=1)", values[3]);   // PEAK MEAN±σ
-        Assert.Equal("141.8 ±0.00 ms (n=1)", values[4]);   // ONSET MEAN±σ
-        Assert.Equal("—", values[5]);                      // verdict needs ≥ 8 samples per reference
+        Assert.Equal("+142.5 ms", values[0]);
+        Assert.Equal("+141.8 ms", values[1]);
+        Assert.Equal("-0.75 ms", values[2]);
+        Assert.Equal("142.5 ±0.00 ms (n=1)", values[3]);
+        Assert.Equal("141.8 ±0.00 ms (n=1)", values[4]);
+        Assert.Equal("—", values[5]);
     }
 
     [Fact]

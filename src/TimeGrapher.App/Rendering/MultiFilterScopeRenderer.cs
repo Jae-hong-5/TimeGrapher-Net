@@ -172,9 +172,8 @@ internal sealed class MultiFilterScopeRenderer
             _mirrorScatters[i] = null;
             _lastSeries[i] = null;
             ApplyPlotTheme(plot);
-            // Axis units (matching the Scope tab): time on X, signal level on Y.
-            plot.XLabel("Time (ms)");
-            plot.YLabel("Signal Level");
+            plot.XLabel(i >= _plots.Length - 2 ? "Time (ms)" : string.Empty);
+            plot.YLabel(i % 2 == 0 ? "Signal Level (a.u.)" : string.Empty);
             // Time ruler: ms ticks measured from the window's left edge (see
             // ApplyTimeTicks). Same on every lane.
             plot.Axes.Bottom.TickLabelStyle.IsVisible = true;

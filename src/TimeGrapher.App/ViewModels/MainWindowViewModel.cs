@@ -544,11 +544,11 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
         }
     }
 
-    /// <summary>Review-bar readout: "REVIEW 83.0 s (01:23) / 12:34" while scrubbed, "LIVE 12:34" otherwise.
+    /// <summary>Review-bar readout: "REVIEW 83.0 s (01:23) / 12:34" while scrubbed, "Live 12:34" otherwise.
     /// The seconds value matches the graph X-axis so the user can correlate slider position to graph.</summary>
     public string ReviewReadoutText => _reviewCursorTimeS is double timeS
         ? $"REVIEW {timeS:F1} s ({FormatStreamTime(timeS)}) / {FormatStreamTime(_reviewMaximumS)}"
-        : "LIVE " + FormatStreamTime(_reviewMaximumS);
+        : "Live " + FormatStreamTime(_reviewMaximumS);
 
     public string ReviewMetricsText => _reviewMetricsText;
 

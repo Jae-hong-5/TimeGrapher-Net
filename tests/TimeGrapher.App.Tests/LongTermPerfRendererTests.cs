@@ -122,7 +122,7 @@ public sealed class LongTermPerfRendererTests
         renderer.CreateGraphs();
 
         Assert.Equal("Amplitude —", amplitude.Text);
-        Assert.Equal("BEAT ERROR —", beatError.Text);
+        Assert.Equal("Beat Error —", beatError.Text);
         AssertInitialDayWindow(ratePlot);
         AssertInitialDayWindow(amplitudePlot);
         AssertInitialDayWindow(beatErrorPlot);
@@ -183,10 +183,10 @@ public sealed class LongTermPerfRendererTests
         renderer.CreateGraphs();
         renderer.RenderFrame(SampleFrame(), new AnalysisTabRenderContext(48000, ReviewCursorTimeS: 3720.0));
 
-        Assert.Equal("IN TOLERANCE", verdict.Text);
+        Assert.Equal("Within Band", verdict.Text);
         Assert.Equal("Error Rate +1.8 s/d", rate.Text);
         Assert.Equal("Amplitude 282°", amplitude.Text);
-        Assert.Equal("BEAT ERROR +0.3 ms", beatError.Text);
+        Assert.Equal("Beat Error +0.3 ms", beatError.Text);
     }
 
     [Fact]

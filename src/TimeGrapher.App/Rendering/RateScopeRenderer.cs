@@ -93,7 +93,7 @@ internal sealed class RateScopeRenderer
     // the data area constant: otherwise ScottPlot resizes the plot when the tick
     // labels change (e.g. a time label scrolls out of view, or the Y autoscale
     // gains/loses a digit), which makes the whole graph grow/shrink.
-    private const float ScopeLeftAxisSizePx = 52.0f;
+    private const float ScopeLeftAxisSizePx = 68.0f;
     private const float ScopeBottomAxisSizePx = 42.0f;
 
     // Live drawn-data extent on the scope X base (oldest..newest retained tick),
@@ -197,7 +197,7 @@ internal sealed class RateScopeRenderer
         Plot scope = _scopePlot.Plot;
         scope.Clear();
         ApplyPlotTheme(scope);
-        scope.YLabel("Signal Level");
+        scope.YLabel("Signal Level (a.u.)");
         scope.XLabel("Time (s)");
         scope.Axes.SetLimitsY(0, 0.1);
         // Fixed-interval time ruler (matches the Filter Scope): a minor tick
