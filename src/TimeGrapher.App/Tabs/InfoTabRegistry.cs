@@ -1471,7 +1471,7 @@ internal sealed partial class InfoTabRegistry
         {
             Children =
             {
-                new TextBlock { Text = label, FontSize = 10, Opacity = 0.55 },
+                new TextBlock { Text = label, FontSize = 14, Opacity = 0.55 },
                 value,
             },
         };
@@ -1498,7 +1498,7 @@ internal sealed partial class InfoTabRegistry
         collectionBar.Children.Add(collectionFill);
         var collectionTrack = new Border { Height = 8, CornerRadius = new CornerRadius(4), Child = collectionBar };
         collectionTrack.Bind(Border.BackgroundProperty, collectionTrack.GetResourceObservable("ChromeBorderBrush"));
-        var collectionLabel = new TextBlock { Text = "not measured", FontSize = 11, Opacity = 0.7, Margin = new Thickness(0, 4, 0, 0) };
+        var collectionLabel = new TextBlock { Text = "not measured", FontSize = 14, Opacity = 0.7, Margin = new Thickness(0, 4, 0, 0) };
         var collectionStack = new StackPanel { Margin = new Thickness(0, 8, 0, 0), Children = { collectionTrack, collectionLabel } };
 
         var center = new StackPanel
@@ -1507,7 +1507,7 @@ internal sealed partial class InfoTabRegistry
             Margin = new Thickness(18, 0, 18, 0),
             Children =
             {
-                new TextBlock { Text = "Cur. Position", FontSize = 11, Opacity = 0.6 },
+                new TextBlock { Text = "Cur. Position", FontSize = 14, Opacity = 0.6 },
                 liveRow,
                 collectionStack,
             },
@@ -1522,7 +1522,7 @@ internal sealed partial class InfoTabRegistry
         {
             var stack = new StackPanel
             {
-                Children = { new TextBlock { Text = label, FontSize = 10, Opacity = 0.55 }, value },
+                Children = { new TextBlock { Text = label, FontSize = 14, Opacity = 0.55 }, value },
             };
             var card = new Border
             {
@@ -1588,7 +1588,7 @@ internal sealed partial class InfoTabRegistry
             var label = new TextBlock
             {
                 Text = text,
-                FontSize = 11,
+                FontSize = 14,
                 Opacity = 0.72,
                 VerticalAlignment = VerticalAlignment.Center,
                 Margin = new Thickness(5, 0, 0, 0),

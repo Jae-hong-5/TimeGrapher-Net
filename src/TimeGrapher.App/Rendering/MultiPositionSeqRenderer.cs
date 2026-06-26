@@ -208,7 +208,7 @@ internal sealed class MultiPositionSeqRenderer
         var cell = new TextBlock
         {
             Text = text,
-            FontSize = 11,
+            FontSize = 14,
             FontWeight = FontWeight.Bold,
             Opacity = 0.55,
             Margin = new Thickness(8, 0, 8, 4),
@@ -268,7 +268,7 @@ internal sealed class MultiPositionSeqRenderer
         var label = new TextBlock
         {
             Text = !measured ? "not measured" : qualified ? $"{threshold}+ beats" : $"{beats} / {threshold} beats",
-            FontSize = 10.5,
+            FontSize = 14,
             Opacity = 0.7,
             Margin = new Thickness(0, 3, 0, 0),
         };

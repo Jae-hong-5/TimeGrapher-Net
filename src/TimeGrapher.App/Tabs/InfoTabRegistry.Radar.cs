@@ -29,7 +29,7 @@ internal sealed partial class InfoTabRegistry
         // --- radar header (metric title + better-is hint) ---
         var hint = new TextBlock
         {
-            FontSize = 12,
+            FontSize = 14,
             Opacity = 0.75,
             VerticalAlignment = VerticalAlignment.Center,
             Margin = new Thickness(12, 0, 0, 0),
@@ -37,7 +37,7 @@ internal sealed partial class InfoTabRegistry
 
         // --- Diagnosis rail controls ---
         var overall = new TextBlock { FontSize = 22, FontWeight = FontWeight.Bold, TextWrapping = TextWrapping.Wrap };
-        var overallSub = new TextBlock { FontSize = 12, Opacity = 0.6, Margin = new Thickness(0, 2, 0, 0) };
+        var overallSub = new TextBlock { FontSize = 14, Opacity = 0.6, Margin = new Thickness(0, 2, 0, 0) };
 
         var levelsGrid = new Grid
         {
@@ -94,7 +94,7 @@ internal sealed partial class InfoTabRegistry
             var button = new Button
             {
                 Content = text,
-                FontSize = 11,
+                FontSize = 14,
                 MinHeight = 26,
                 Padding = new Thickness(8, 2),
                 Margin = new Thickness(0, 0, 4, 0),
@@ -135,7 +135,7 @@ internal sealed partial class InfoTabRegistry
         var railStack = new StackPanel { Margin = new Thickness(12) };
 
         var railHeader = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto") };
-        var railTitle = new TextBlock { Text = "Diagnosis", FontSize = 11, Opacity = 0.6, VerticalAlignment = VerticalAlignment.Center };
+        var railTitle = new TextBlock { Text = "Diagnosis", FontSize = 14, Opacity = 0.6, VerticalAlignment = VerticalAlignment.Center };
         Grid.SetColumn(railTitle, 0);
         Grid.SetColumn(toggleRow, 1);
         railHeader.Children.Add(railTitle);
@@ -157,7 +157,7 @@ internal sealed partial class InfoTabRegistry
         railStack.Children.Add(new TextBlock
         {
             Text = "Criteria (inline): CHECK when rate spread > 15 s/d across qualified positions. Reuses the Positions sequence — no new sensor.",
-            FontSize = 11,
+            FontSize = 14,
             Opacity = 0.6,
             TextWrapping = TextWrapping.Wrap,
             Margin = new Thickness(0, 12, 0, 0),
@@ -192,14 +192,14 @@ internal sealed partial class InfoTabRegistry
     private static TextBlock SectionLabel(string text) => new()
     {
         Text = text,
-        FontSize = 12,
+        FontSize = 14,
         Opacity = 0.5,
         Margin = new Thickness(0, 14, 0, 4),
     };
 
     private static void AddLevelHeader(Grid grid, int column, string text)
     {
-        var label = new TextBlock { Text = text, FontSize = 12, Opacity = 0.5, Margin = new Thickness(0, 0, 0, 2) };
+        var label = new TextBlock { Text = text, FontSize = 14, Opacity = 0.5, Margin = new Thickness(0, 0, 0, 2) };
         Grid.SetRow(label, 0);
         Grid.SetColumn(label, column);
         grid.Children.Add(label);
@@ -235,13 +235,13 @@ internal sealed partial class InfoTabRegistry
     private static (Border Card, HealthConsistencyRowControls Controls) MakeConsistencyCard(string name, string sub)
     {
         var nameLabel = new TextBlock { Text = name, FontSize = 14, FontWeight = FontWeight.Bold };
-        var subLabel = new TextBlock { Text = sub, FontSize = 11, Opacity = 0.55, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 1, 0, 0) };
+        var subLabel = new TextBlock { Text = sub, FontSize = 14, Opacity = 0.55, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 1, 0, 0) };
         var left = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
         left.Children.Add(nameLabel);
         left.Children.Add(subLabel);
 
         var reading = new TextBlock { FontSize = 14, FontWeight = FontWeight.Bold, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 10, 0) };
-        var chip = new TextBlock { FontSize = 12, FontWeight = FontWeight.Bold, VerticalAlignment = VerticalAlignment.Center };
+        var chip = new TextBlock { FontSize = 14, FontWeight = FontWeight.Bold, VerticalAlignment = VerticalAlignment.Center };
 
         var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto,Auto") };
         Place(grid, left, 0, 0);
