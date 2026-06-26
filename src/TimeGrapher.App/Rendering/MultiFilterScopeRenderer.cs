@@ -56,6 +56,11 @@ internal sealed class MultiFilterScopeRenderer
     // span genuinely moves to the next/previous tick. Reset per run.
     private double _stickyMaxTickMs;
 
+    // Absolute onset tick of the beat the window is currently locked onto. Held
+    // across frames so the view stops jumping to the newest beat every period;
+    // NaN until the first lock and whenever the run resets.
+    private double _lockedOnsetTick = double.NaN;
+
     // Sample rate of the current run (X is in absolute sample ticks), used to
     // label the bottom axis in milliseconds from the window's left edge.
     private int _sampleRate;
@@ -76,6 +81,12 @@ internal sealed class MultiFilterScopeRenderer
     // beat re-lock advances by ~one period and clears the band immediately.
     private const double WindowDeadbandMs = 0.5;
 
+    // Quantum (ms) the beat-locked window width snaps to. The width is derived from
+    // the average beat period, which jitters frame to frame; without snapping, that
+    // jitter wobbled the window span — and with it the impulse's on-screen position
+    // and the ms ruler — every render. Snapping holds the span steady for a fixed BPH.
+    private const double WidthQuantumMs = 5.0;
+
     // Where the beat onset sits in that window, as a fraction from the left edge:
     // a small pre-roll, so the impulse is left-aligned and its decay fills out to
     // the right (the PC-RM4 scope look), not centered.
@@ -86,13 +97,12 @@ internal sealed class MultiFilterScopeRenderer
     // amplitude scale steady. Reset each run.
     private readonly double[] _lanePeakMax;
 
-    // Per-lane Y half-height actually applied to the axis. The running peak inches
-    // up frame by frame under realistic noise; re-applying the Y limit on every one
-    // of those nudges crept the horizontal gridlines (read as "the axis trembles").
-    // Hold the applied limit until the peak grows past it by this fraction — well
-    // under the YHeadroom margin, so the data never clips between updates.
+    // Per-lane Y half-height actually applied to the axis, snapped to a "nice"
+    // number (1 / 2 / 2.5 / 5 x 10^n). Re-fitting the Y axis to the raw running
+    // peak every frame crept the horizontal gridlines and Y labels (read as "the
+    // axis trembles"); snapping means the limit — and the gridlines — only change
+    // when the peak crosses a nice boundary, then hold steady.
     private readonly double[] _appliedHalf;
-    private const double YLimitGrowFraction = 0.08;
 
     // Display decimation budget (the density slider): the producer emits the
     // envelope at its full budget; the renderer peak-decimates to this so the
@@ -179,6 +189,7 @@ internal sealed class MultiFilterScopeRenderer
         _dataMinX = 0.0;
         _dataMaxX = 0.0;
         _stickyMaxTickMs = 0.0;
+        _lockedOnsetTick = double.NaN;
         Array.Clear(_lanePeakMax);
         Array.Clear(_appliedHalf);
         for (int i = 0; i < _plots.Length; i++)
@@ -251,6 +262,7 @@ internal sealed class MultiFilterScopeRenderer
     public void ResetView()
     {
         _followLive = true;
+        _lockedOnsetTick = double.NaN;
         Array.Clear(_appliedHalf);
         for (int i = 0; i < _plots.Length; i++)
         {
@@ -377,7 +389,10 @@ internal sealed class MultiFilterScopeRenderer
         // Show a fraction of the period so the beat impulse spreads horizontally,
         // with the onset left-aligned (a small pre-roll) so its decay fills out to
         // the right. Capped at MaxWindowMs so a slow watch still tops out at 100 ms.
-        double width = Math.Min(period * BeatWindowFraction, MaxWindowMs / 1000.0 * _sampleRate);
+        double samplesPerMs = _sampleRate / 1000.0;
+        double widthMs = Math.Min(period * BeatWindowFraction / samplesPerMs, MaxWindowMs);
+        widthMs = Math.Max(WidthQuantumMs, Math.Round(widthMs / WidthQuantumMs) * WidthQuantumMs);
+        double width = widthMs * samplesPerMs;
         double preroll = width * BeatPrerollFraction;
         double minOnset = oldest + preroll;          // left edge stays within the data
         double maxOnset = newest - (width - preroll); // right edge stays within the data
@@ -386,18 +401,40 @@ internal sealed class MultiFilterScopeRenderer
             return false;
         }
 
-        for (int i = segments.Count - 1; i >= 0; i--)
+        // Hold the currently locked beat while it still fits the retained buffer,
+        // instead of re-selecting the newest onset every frame. Re-locking to the
+        // newest beat each period jumped the window — and the beat impulse — sideways
+        // ~8x/s, which read as the X axis trembling. Holding keeps the same beat (and
+        // ms ruler) stationary until it scrolls out, then re-locks to the newest.
+        double chosen = double.NaN;
+        if (!double.IsNaN(_lockedOnsetTick) && _lockedOnsetTick >= minOnset && _lockedOnsetTick <= maxOnset)
         {
-            double onset = OnsetTick(i);
-            if (onset >= minOnset && onset <= maxOnset)
+            chosen = _lockedOnsetTick;
+        }
+        else
+        {
+            // First lock, or the held beat scrolled out: take the newest fitting
+            // onset (it has the most buffer headroom, so it holds the longest).
+            for (int i = segments.Count - 1; i >= 0; i--)
             {
-                min = onset - preroll;
-                max = onset - preroll + width;
-                return true;
+                double onset = OnsetTick(i);
+                if (onset >= minOnset && onset <= maxOnset)
+                {
+                    chosen = onset;
+                    break;
+                }
             }
         }
 
-        return false;
+        if (double.IsNaN(chosen))
+        {
+            return false;
+        }
+
+        _lockedOnsetTick = chosen;
+        min = chosen - preroll;
+        max = chosen - preroll + width;
+        return true;
     }
 
     /// <summary>Largest absolute sample in a lane's current display buffer (its data peak).</summary>
@@ -433,12 +470,11 @@ internal sealed class MultiFilterScopeRenderer
             return;
         }
 
-        double half = YHeadroom * peak;
-        // Hold the applied limit unless the peak grew past it by YLimitGrowFraction,
-        // so the running peak's per-frame nudges no longer creep the horizontal
-        // gridlines. The grow margin stays under YHeadroom, so the data never clips
-        // before the limit is bumped.
-        if (_appliedHalf[lane] > 0.0 && half <= _appliedHalf[lane] * (1.0 + YLimitGrowFraction))
+        // Snap to a nice round half-height so a filtered lane's peak wobble no longer
+        // nudges the gridlines; the limit only moves when the peak crosses a nice
+        // boundary, then holds. Skipped entirely when the nice limit is unchanged.
+        double half = NiceCeiling(YHeadroom * peak);
+        if (_appliedHalf[lane] == half)
         {
             return;
         }
@@ -452,6 +488,24 @@ internal sealed class MultiFilterScopeRenderer
         {
             _plots[lane].Plot.Axes.SetLimitsY(0.0, half);
         }
+    }
+
+    /// <summary>Smallest "nice" number (1 / 2 / 2.5 / 5 x 10^n) greater than or equal to x.</summary>
+    private static double NiceCeiling(double x)
+    {
+        if (x <= 0.0)
+        {
+            return 0.0;
+        }
+
+        double pow = Math.Pow(10.0, Math.Floor(Math.Log10(x)));
+        double mantissa = x / pow;
+        double nice = mantissa <= 1.0 ? 1.0
+            : mantissa <= 2.0 ? 2.0
+            : mantissa <= 2.5 ? 2.5
+            : mantissa <= 5.0 ? 5.0
+            : 10.0;
+        return nice * pow;
     }
 
     /// <summary>
@@ -638,6 +692,7 @@ internal sealed class MultiFilterScopeRenderer
         _dataMinX = 0.0;
         _dataMaxX = 0.0;
         _stickyMaxTickMs = 0.0;
+        _lockedOnsetTick = double.NaN;
         Array.Clear(_lanePeakMax);
         Array.Clear(_appliedHalf);
         for (int i = 0; i < _plots.Length; i++)
