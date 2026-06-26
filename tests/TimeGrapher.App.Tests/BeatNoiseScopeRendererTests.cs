@@ -58,6 +58,18 @@ public sealed class BeatNoiseScopeRendererTests
     }
 
     [Fact]
+    public void AverageEnvelopeLabelsYAxisAsSignalLevel()
+    {
+        var averagePlot = new AvaPlot();
+        var renderer = new BeatNoiseScopeRenderer(
+            new AvaPlot(), new AvaPlot(), averagePlot, new TextBlock());
+
+        renderer.CreateGraphs();
+
+        Assert.Equal("Signal Level", averagePlot.Plot.Axes.Left.Label.Text);
+    }
+
+    [Fact]
     public void Scope1YRangeRecomputesForCurrentWaveform()
     {
         var mainPlot = new AvaPlot();
@@ -276,7 +288,7 @@ public sealed class BeatNoiseScopeRendererTests
         Assert.Equal(LinePattern.Dotted, mainCMarker.LinePattern);
 
         VerticalLine stripCMarker = stripPlot.Plot.GetPlottables<VerticalLine>()
-            .Single(line => line.IsVisible && line.X > 7.0 && line.X < 8.0 && Equals(line.LinePattern, LinePattern.Dotted));
+            .Single(line => line.IsVisible && line.X > 6.0 && line.X < 7.0 && Equals(line.LinePattern, LinePattern.Dotted));
         Assert.Equal(LinePattern.Dotted, stripCMarker.LinePattern);
     }
 
@@ -566,7 +578,7 @@ public sealed class BeatNoiseScopeRendererTests
 
         VerticalLine stripCMarker = stripPlot.Plot.GetPlottables<VerticalLine>()
             .Single(line => line.IsVisible && Equals(line.LinePattern, LinePattern.Dotted));
-        Assert.InRange(stripCMarker.X, 7.4, 7.5);
+        Assert.InRange(stripCMarker.X, 6.4, 6.5);
     }
 
     [Fact]
@@ -858,8 +870,10 @@ public sealed class BeatNoiseScopeRendererTests
             .Where(scatter => scatter.IsVisible)
             .ToArray();
         Assert.Equal(6, visibleScatters.Length);
-        Assert.Contains(visibleScatters, scatter => scatter.LegendText == "10 avg Trace 1");
-        Assert.Contains(visibleScatters, scatter => scatter.LegendText == "20 avg Trace 2");
+        Scatter[] legendEntries = visibleScatters
+            .Where(scatter => !string.IsNullOrEmpty(scatter.LegendText))
+            .ToArray();
+        Assert.Equal(new[] { "Trace 1", "Trace 2" }, legendEntries.Select(scatter => scatter.LegendText));
 
         var lane1Milestones = (List<double>[])typeof(BeatNoiseScopeRenderer)
             .GetField("_lane1MilestoneY", BindingFlags.Instance | BindingFlags.NonPublic)!

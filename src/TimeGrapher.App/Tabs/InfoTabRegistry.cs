@@ -1778,6 +1778,7 @@ internal sealed partial class InfoTabRegistry
         ToggleButton sigmaToggle = BeatNoiseHeaderToggle(
             "Σ",
             "Average 50 + 50 beat noises into the two Scope 2 traces");
+        sigmaToggle.Margin = new Thickness(0, 2, 0, 0);
         sigmaToggle.IsChecked = context.ViewModel?.SigmaAveraging == true;
         sigmaToggle.IsCheckedChanged += (_, _) =>
         {
@@ -1831,7 +1832,7 @@ internal sealed partial class InfoTabRegistry
             absoluteToggle.IsVisible = !isAverageMode;
             mainPlot.IsVisible = !isAverageMode;
             averagePlot.IsVisible = isAverageMode;
-            averageText.IsVisible = isAverageMode;
+            averageText.IsVisible = false;
             sigmaToggle.IsVisible = isAverageMode;
         }
 
