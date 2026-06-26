@@ -317,6 +317,7 @@
                            VerticalAlignment="Center" HorizontalAlignment="Center" FontWeight="Bold" Text="Noise" />
                 <Slider Name="SimNoiseSlider" Grid.Row="4" Grid.Column="1"
                         VerticalAlignment="Center" Height="32"
+                        Margin="0,-7,0,7"
                         IsEnabled="{Binding AreLiveSimulationParametersEnabled}"
                         Minimum="0" Maximum="5" TickFrequency="0.1" IsSnapToTickEnabled="True"
                         Value="{Binding SimNoiseScale, Mode=TwoWay}" Orientation="Horizontal" />
@@ -335,6 +336,7 @@
                            VerticalAlignment="Center" HorizontalAlignment="Center" FontWeight="Bold" Text="Signal A" />
                 <Slider Name="SimSignalASlider" Grid.Row="6" Grid.Column="1"
                         VerticalAlignment="Center" Height="32"
+                        Margin="0,-7,0,7"
                         IsEnabled="{Binding AreSimulationClusterScalesEnabled}"
                         Minimum="0" Maximum="2" TickFrequency="0.1" IsSnapToTickEnabled="True"
                         Value="{Binding SimSignalAScale, Mode=TwoWay}" Orientation="Horizontal" />
@@ -343,6 +345,7 @@
                            VerticalAlignment="Center" HorizontalAlignment="Center" FontWeight="Bold" Text="Signal B" />
                 <Slider Name="SimSignalBSlider" Grid.Row="7" Grid.Column="1"
                         VerticalAlignment="Center" Height="32"
+                        Margin="0,-7,0,7"
                         IsEnabled="{Binding AreSimulationClusterScalesEnabled}"
                         Minimum="0" Maximum="2" TickFrequency="0.1" IsSnapToTickEnabled="True"
                         Value="{Binding SimSignalBScale, Mode=TwoWay}" Orientation="Horizontal" />
@@ -351,6 +354,7 @@
                            VerticalAlignment="Center" HorizontalAlignment="Center" FontWeight="Bold" Text="Signal C" />
                 <Slider Name="SimSignalCSlider" Grid.Row="8" Grid.Column="1"
                         VerticalAlignment="Center" Height="32"
+                        Margin="0,-7,0,7"
                         IsEnabled="{Binding AreSimulationClusterScalesEnabled}"
                         Minimum="0" Maximum="2" TickFrequency="0.1" IsSnapToTickEnabled="True"
                         Value="{Binding SimSignalCScale, Mode=TwoWay}" Orientation="Horizontal" />
