@@ -163,7 +163,7 @@ internal sealed class WaveformCompareRenderer
         // Direction axis (reads bottom-to-top): newest beat at the top, oldest at
         // the bottom, joined by a continuous arrow shaft instead of a lone glyph
         // adrift in blank space.
-        plot.YLabel("Past \u25c4\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 Current");
+        plot.YLabel("Past \u25c4\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014 Current");
         plot.XLabel("(ms)");
         plot.Axes.Left.TickLabelStyle.IsVisible = false;
 
