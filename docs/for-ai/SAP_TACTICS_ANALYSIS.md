@@ -103,7 +103,7 @@ This baseline is the source of most tactics below.
 | SAP tactic | How the project applies it | Evidence | Mark |
 |---|---|---|---|
 | Defer binding | RID-conditioned project references decide which platform adapter assembly is compiled into a RID-specific build/publish; `LiveAudioBackend` then selects the concrete worker at runtime with OS checks. Later than source design but earlier than runtime plugin loading. | `TimeGrapher.App.csproj`, `LiveAudioBackend.cs` | △ |
-| Degradation | Linux device discovery falls back from PipeWire (`wpctl`) to ALSA (`arecord -l`) enumeration when PipeWire returns no devices; capture then runs whichever backend the chosen device maps to. | `LinuxLiveAudioWorker.cs` | ✓ |
+| Degradation | Linux device discovery falls back from PipeWire (`wpctl`) to ALSA (`arecord -l`) enumeration when PipeWire returns no devices; capture then runs whichever backend the chosen device maps to. The advisory signal-quality classifier degrades the same way: if the embedded ONNX model cannot be loaded, `OnnxSignalQualityClassifier.LoadOrElse` falls back to the heuristic Strategy so a model problem never crashes startup. | `LinuxLiveAudioWorker.cs`, `OnnxSignalQualityClassifier.cs` | ✓ |
 | Maintain UI consistency | Theme colors and graph palettes are centralized. Graph axis panels, reset controls, alert strips, acceptable bands, and the Scope Sweep fixed readout slot use shared rendering conventions so transient labels do not resize or overlap graph rows. | `App.axaml`, `PlotThemePalette.cs`, `PlotThemeHelper.cs`, `InfoTabRegistry.cs` | ✓ |
 | Pause/resume | Worker pause gates allow run control without destroying the whole session state, while stop remains separately requestable. | `WorkerPauseGate.cs` | ✓ |
 
@@ -114,7 +114,7 @@ This baseline is the source of most tactics below.
 | Layers | App, Platform, Core, Verify form a directed layered structure. | ✓ |
 | Adapter | Platform audio workers translate Windows/Linux APIs into Core/App audio contracts. | ✓ |
 | Factory | Audio backends, tab registrations, and recording writers are created through narrow factory boundaries. | ✓ |
-| Strategy | Input modes, tab frame consumers, and the swappable signal-quality classifier (`ISignalQualityClassifier` / `HeuristicSignalQualityClassifier`) share stable interfaces but differ in implementation. | ✓ |
+| Strategy | Input modes, tab frame consumers, and the swappable signal-quality classifier (`ISignalQualityClassifier`) share stable interfaces but differ in implementation. The shipped Strategy is the on-device TinyML `OnnxSignalQualityClassifier` (`TimeGrapher.Inference` leaf); `HeuristicSignalQualityClassifier` is the dependency-free fallback. The composition root selects one behind the seam, so the ONNX runtime never leaks into Core. | ✓ |
 | State | Run lifecycle behavior is delegated to explicit state classes. | ✓ |
 | Command | View-model commands expose UI actions and CanExecute state. | ✓ |
 | Observer | Workers raise frame/data/completion events; lifecycle code subscribes and detaches. | ✓ |

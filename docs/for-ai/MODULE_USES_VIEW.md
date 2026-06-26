@@ -14,6 +14,7 @@ flowchart TB
         Verify["TimeGrapher.Verify<br/>헤드리스 검증 콘솔"]
         WindowsAudio["TimeGrapher.Platform.WindowsAudio<br/>Windows 라이브 오디오"]
         LinuxAudio["TimeGrapher.Platform.LinuxAudio<br/>Linux 라이브 오디오"]
+        Inference["TimeGrapher.Inference<br/>온디바이스 ONNX 신호품질 분류기"]
         Core["TimeGrapher.Core<br/>분석 엔진과 계약"]
     end
 
@@ -24,6 +25,7 @@ flowchart TB
         VerifyTests["TimeGrapher.Verify.Tests"]
         WindowsAudioTests["TimeGrapher.Platform.WindowsAudio.Tests"]
         LinuxAudioTests["TimeGrapher.Platform.LinuxAudio.Tests"]
+        InferenceTests["TimeGrapher.Inference.Tests"]
     end
 
     subgraph External["외부 라이브러리 / OS 서비스"]
@@ -33,14 +35,17 @@ flowchart TB
         NAudio["NAudio (Wasapi · WinMM)"]
         LinuxAudioStack["PipeWire / ALSA 도구<br/>wpctl · pw-record · arecord"]
         Xunit["테스트 스택<br/>xUnit · xunit.runner.visualstudio · Microsoft.NET.Test.Sdk<br/>(Directory.Packages.props 중앙 버전)"]
+        OnnxRuntime["Microsoft.ML.OnnxRuntime<br/>(중앙 버전 1.20.1)"]
     end
 
     App --> Core
+    App --> Inference
     App -. "RID 조건부" .-> WindowsAudio
     App -. "RID 조건부" .-> LinuxAudio
     Verify --> Core
     WindowsAudio --> Core
     LinuxAudio --> Core
+    Inference --> Core
 
     AppTests --> App
     AppTests -. "전이 · Core 타입 직접 사용(Shared·Analysis·Detection·Metrics·AudioIo·Sim)" .-> Core
@@ -51,11 +56,14 @@ flowchart TB
     WindowsAudioTests -. "전이 · Core DTO 사용" .-> Core
     LinuxAudioTests --> LinuxAudio
     LinuxAudioTests -. "전이 · Core DTO 사용" .-> Core
+    InferenceTests --> Inference
+    InferenceTests -. "전이 · Core 타입(Shared·Analysis·Detection·Sim) 사용" .-> Core
 
     App --> Avalonia
     App --> ScottPlot
     WindowsAudio --> NAudio
     LinuxAudio --> LinuxAudioStack
+    Inference --> OnnxRuntime
     AppTests --> Avalonia
     AppTests --> ScottPlot
     AppTests --> Xunit
@@ -63,6 +71,7 @@ flowchart TB
     VerifyTests --> Xunit
     WindowsAudioTests --> Xunit
     LinuxAudioTests --> Xunit
+    InferenceTests --> Xunit
 ```
 
 ### 의존 규칙
@@ -70,6 +79,7 @@ flowchart TB
 - `TimeGrapher.Core`는 **아무것도 참조하지 않는다**(UI·플랫폼 무의존). 외부 패키지도 없다.
 - `TimeGrapher.Platform.*`는 `Core`만 참조한다(`ProjectReference`). 단 `TimeGrapher.Platform.WindowsAudio`는 외부 NuGet 패키지 `NAudio.Wasapi`·`NAudio.WinMM`도 참조한다(위 도식의 `WindowsAudio --> NAudio` 엣지). `TimeGrapher.Platform.LinuxAudio`는 CLI 도구를 프로세스로 구동하므로 패키지 의존이 없다.
 - 두 플랫폼 어댑터는 각각 `Core.Shared`만 사용한다(`AudioCaptureWorker`, `LinuxLiveAudioWorker`).
+- `TimeGrapher.Inference`는 `Core`와 외부 NuGet 패키지 `Microsoft.ML.OnnxRuntime`(중앙 버전)만 참조하는 리프다. `Core.Analysis.Quality`의 `ISignalQualityClassifier` seam을 ONNX 모델(`OnnxSignalQualityClassifier`, 임베드된 `signal-quality.onnx` + 클래스 순서 사이드카)로 구현한다. `App`만 합성 루트에서 이를 참조하며(`App --> Inference`), 로드 실패 시 `HeuristicSignalQualityClassifier`로 폴백한다. ONNX 타입은 `Core`로 새지 않으므로 `Core`의 무의존 규칙은 유지된다. 모델을 학습하는 `tools/TimeGrapher.SignalQualityTrainer`는 **dev 전용**이며 `TimeGrapherNet.sln` 밖에 있어(런타임은 ONNX Runtime만 필요, ML.NET 학습 스택은 배포 빌드에서 제외) uses 그래프의 엣지를 만들지 않는다.
 
 ### App의 플랫폼 어댑터 참조 (RID 조건부)
 
@@ -116,6 +126,7 @@ flowchart TB
         CoreShared["Core.Shared"]
         CoreSim["Core.Sim"]
         PlatformAudio["플랫폼 오디오 백엔드"]
+        InferenceLeaf["TimeGrapher.Inference<br/>ONNX 신호품질 분류기"]
     end
 
     Program --> Views
@@ -136,6 +147,7 @@ flowchart TB
     Views --> CoreShared
     Views --> CoreSim
     Views --> Assets
+    Views --> InferenceLeaf
 
     ViewModels --> CoreAnalysis
     ViewModels --> CoreShared
@@ -185,6 +197,7 @@ flowchart TB
 - `ViewModels`는 스윕 배수 기본값을 `SweepFrameProjector.DefaultSweepMultiple`(`Core.Analysis`)로 초기화하므로 `Shared` 외에 `Analysis`에도 의존한다.
 - `Rendering`과 `Tabs`는 순환처럼 보이지만 분리되어 있다: `Rendering`의 프레임 컨슈머가 `Tabs`의 라우팅 계약(`IAnalysisFrameConsumer`/`IThemedFrameConsumer`/`IAcceptBandConsumer`)을 구현하고, `Tabs`의 레지스트리가 컨슈머를 등록한다. `IAcceptBandConsumer`는 사용자 정상 밴드 편집을 모든 밴드 그래프에 라이브로 팬아웃하는 두 번째 브로드캐스트 계약으로, 테마 팬아웃(`IThemedFrameConsumer`)과 같은 패턴이다.
 - Positions 탭의 활성 워치 자세는 `WatchModelView`(자체 CPU 소프트웨어 렌더)가 표시한다. 번들된 vertex-color GLB(`Assets/Model/watch_model_round_vertexcolor.glb`)를 `GlbMeshLoader`가 읽고 `WatchModelRasterizer`가 `System.Numerics`만으로 원근 투영·z-buffer·flat 음영 래스터화한다(GPU/외부 3D 라이브러리 무의존 — 이식성 driver, `SAP_TACTICS_ANALYSIS.md` 참고). 포지션 버튼이 `WatchPositionsRenderer`를 통해 `Position`을 바꾸면 `WatchModelOrientation`이 정한 목표 사원수로 `Quaternion.Slerp`(650 ms) 애니메이션한다. 즉 `Rendering`이 `Assets`(avares 모델 리소스)를 사용한다.
+- `Views`(`MainWindow`)는 합성 루트에서 `TimeGrapher.Inference`의 `OnnxSignalQualityClassifier`를 1회 생성해(로드 실패 시 `HeuristicSignalQualityClassifier`로 폴백) `AnalysisRunSettings.ToWorkerConfig`에 주입한다. 이 advisory 분류기는 `ISignalQualityClassifier` seam을 통해서만 `Core.Analysis`로 전달되므로, App 계층에서 ONNX 리프를 직접 참조하는 곳은 합성 루트 한 곳뿐이다(`Views --> Inference`).
 
 ### MVVM 리팩토링 후 App 내부 구조 (순수 MVVM 정리)
 
@@ -246,6 +259,7 @@ flowchart TB
 | `TimeGrapher.Verify` | `TimeGrapher.Core` (Analysis, AudioIo, Detection, Metrics, Shared, Sim) | 콘솔 검증이 앱과 동일한 분석·검출·시뮬레이터 모듈을 공유 |
 | `TimeGrapher.Platform.WindowsAudio` | `TimeGrapher.Core.Shared`, NAudio | Windows 입력 백엔드가 Core 라이브 오디오 계약과 NAudio API에 결합 |
 | `TimeGrapher.Platform.LinuxAudio` | `TimeGrapher.Core.Shared`, `wpctl`·`pw-record`·`arecord` | Linux 입력 백엔드가 Core 라이브 오디오 계약과 Linux 오디오 CLI 도구에 결합 |
+| `TimeGrapher.Inference` | `TimeGrapher.Core`, `Microsoft.ML.OnnxRuntime` | 온디바이스 ONNX 신호품질 분류기(`ISignalQualityClassifier`의 `OnnxSignalQualityClassifier` 구현)가 Core 계약과 ONNX Runtime에 결합. `App`이 합성 루트에서만 참조하며 로드 실패 시 휴리스틱으로 폴백 |
 | `TimeGrapher.App.Rendering` | `TimeGrapher.App.Tabs`, `TimeGrapher.App.Assets`, `Core.Analysis`, `Core.Metrics`, `Core.Shared` | 프레임 컨슈머가 탭 라우팅 계약을 구현하고 Core 프레임/메트릭 DTO를 렌더. `WatchModelMesh`가 `avares://`로 번들 GLB 모델 리소스(`Assets`)를 로드 |
 | `TimeGrapher.Core.Analysis` | `Detection`, `Metrics`, `Imaging`, `AudioIo`, `Shared` | 핵심 알고리즘 모듈을 조율하는 가장 결합도 높은 Core 하위모듈 |
 | `*.Tests` | 검증 대상 프로젝트(직접), `Core` 타입(전이 — App.Tests는 DTO 외 Analysis/Detection/Metrics/AudioIo/Sim, Verify.Tests는 Analysis/Detection/Sim을 테스트 입력으로 직접 `using`), App UI 라이브러리(컨트롤 테스트), xUnit | 검증 대상과 어서션·테스트 입력에 쓰이는 Core 계약/타입, 테스트 프레임워크에 의존 |
