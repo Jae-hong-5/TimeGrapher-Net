@@ -32,7 +32,8 @@ internal sealed partial class InfoTabRegistry
             FontSize = 14,
             Opacity = 0.75,
             VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(12, 0, 0, 0),
+            TextWrapping = TextWrapping.Wrap,
+            Margin = new Thickness(12, 0, 8, 0),
         };
 
         // --- Diagnosis rail controls ---
