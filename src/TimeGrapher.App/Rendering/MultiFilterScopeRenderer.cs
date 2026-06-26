@@ -86,6 +86,14 @@ internal sealed class MultiFilterScopeRenderer
     // amplitude scale steady. Reset each run.
     private readonly double[] _lanePeakMax;
 
+    // Per-lane Y half-height actually applied to the axis. The running peak inches
+    // up frame by frame under realistic noise; re-applying the Y limit on every one
+    // of those nudges crept the horizontal gridlines (read as "the axis trembles").
+    // Hold the applied limit until the peak grows past it by this fraction — well
+    // under the YHeadroom margin, so the data never clips between updates.
+    private readonly double[] _appliedHalf;
+    private const double YLimitGrowFraction = 0.08;
+
     // Display decimation budget (the density slider): the producer emits the
     // envelope at its full budget; the renderer peak-decimates to this so the
     // user can trade render cost for resolution. The max is the producer budget
@@ -114,6 +122,7 @@ internal sealed class MultiFilterScopeRenderer
         _yMirror = new List<double>[_plots.Length];
         _mirrorScatters = new Scatter?[_plots.Length];
         _lanePeakMax = new double[_plots.Length];
+        _appliedHalf = new double[_plots.Length];
 
         for (int i = 0; i < _plots.Length; i++)
         {
@@ -171,6 +180,7 @@ internal sealed class MultiFilterScopeRenderer
         _dataMaxX = 0.0;
         _stickyMaxTickMs = 0.0;
         Array.Clear(_lanePeakMax);
+        Array.Clear(_appliedHalf);
         for (int i = 0; i < _plots.Length; i++)
         {
             Plot plot = _plots[i].Plot;
@@ -241,6 +251,7 @@ internal sealed class MultiFilterScopeRenderer
     public void ResetView()
     {
         _followLive = true;
+        Array.Clear(_appliedHalf);
         for (int i = 0; i < _plots.Length; i++)
         {
             _plots[i].Plot.Axes.AutoScale();
@@ -423,6 +434,16 @@ internal sealed class MultiFilterScopeRenderer
         }
 
         double half = YHeadroom * peak;
+        // Hold the applied limit unless the peak grew past it by YLimitGrowFraction,
+        // so the running peak's per-frame nudges no longer creep the horizontal
+        // gridlines. The grow margin stays under YHeadroom, so the data never clips
+        // before the limit is bumped.
+        if (_appliedHalf[lane] > 0.0 && half <= _appliedHalf[lane] * (1.0 + YLimitGrowFraction))
+        {
+            return;
+        }
+
+        _appliedHalf[lane] = half;
         if (MultiFilterScopeLanes.All[lane].Mirrored)
         {
             _plots[lane].Plot.Axes.SetLimitsY(-half, half);
@@ -618,6 +639,7 @@ internal sealed class MultiFilterScopeRenderer
         _dataMaxX = 0.0;
         _stickyMaxTickMs = 0.0;
         Array.Clear(_lanePeakMax);
+        Array.Clear(_appliedHalf);
         for (int i = 0; i < _plots.Length; i++)
         {
             changed |= _x[i].Count > 0 || _y[i].Count > 0 || _yMirror[i].Count > 0 || _lastSeries[i] != null;
