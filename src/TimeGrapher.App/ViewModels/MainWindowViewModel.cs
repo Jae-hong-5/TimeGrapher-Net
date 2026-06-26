@@ -59,6 +59,11 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     private decimal _simAmplitude = 300m;
     private decimal _simBeatError;
     private bool _realistic = true;
+    // Per-cluster A/B/C signal-size scales for the realistic packet (1.0 = nominal),
+    // mapped to WatchSynthStreamConfig.{A,B,C}ClusterLevelScale.
+    private decimal _simSignalAScale = 1m;
+    private decimal _simSignalBScale = 1m;
+    private decimal _simSignalCScale = 1m;
     private string _highPassCutoffText = "200";
     private bool _useCOnset;
     private bool _weakAOnsetRescue = true;
@@ -177,6 +182,10 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     // re-reads (WatchSynthStream.ApplyLiveParameters), so like Gain they are gated by
     // mode only, not by run state: editable whenever the Simulation source is selected.
     public bool AreLiveSimulationParametersEnabled => _modeAllowsSimulationParams;
+
+    // The A/B/C signal-size scales are also live, but they only affect the synth when
+    // the Realistic packet is on, so they additionally require Realistic to be enabled.
+    public bool AreSimulationClusterScalesEnabled => _modeAllowsSimulationParams && _realistic;
 
     // Gain is a live knob (both platform workers forward SetVolume mid-capture,
     // matching the Qt original's slider), so it is gated by mode only, not by
@@ -301,7 +310,33 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     public bool Realistic
     {
         get => _realistic;
-        set => SetProperty(ref _realistic, value);
+        set
+        {
+            if (SetProperty(ref _realistic, value))
+            {
+                // The A/B/C signal-size sliders only have an effect in Realistic mode,
+                // so their enabled state tracks this toggle.
+                OnPropertyChanged(nameof(AreSimulationClusterScalesEnabled));
+            }
+        }
+    }
+
+    public decimal SimSignalAScale
+    {
+        get => _simSignalAScale;
+        set => SetProperty(ref _simSignalAScale, value);
+    }
+
+    public decimal SimSignalBScale
+    {
+        get => _simSignalBScale;
+        set => SetProperty(ref _simSignalBScale, value);
+    }
+
+    public decimal SimSignalCScale
+    {
+        get => _simSignalCScale;
+        set => SetProperty(ref _simSignalCScale, value);
     }
 
     public string HighPassCutoffText
@@ -633,6 +668,7 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
         _modeAllowsSimulationParams = value;
         OnPropertyChanged(nameof(AreSimulationParametersEnabled));
         OnPropertyChanged(nameof(AreLiveSimulationParametersEnabled));
+        OnPropertyChanged(nameof(AreSimulationClusterScalesEnabled));
     }
 
     public void SetInputDeviceNames(IEnumerable<string> values) => ReplaceItems(InputDeviceNames, values);

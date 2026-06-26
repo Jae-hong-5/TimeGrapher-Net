@@ -199,6 +199,28 @@ public sealed class MainWindowViewModelTests
     }
 
     [Fact]
+    public void SimulationClusterScalesRequireSimulationModeAndRealistic()
+    {
+        var vm = CreateViewModel();
+
+        // Non-simulation source: disabled.
+        Assert.False(vm.AreSimulationClusterScalesEnabled);
+
+        // Simulation mode with Realistic on (the default) enables the A/B/C scales.
+        vm.SetModeAllowsSimulationParameters(true);
+        Assert.True(vm.AreSimulationClusterScalesEnabled);
+
+        // Realistic off disables them even in simulation mode (no effect there).
+        vm.Realistic = false;
+        Assert.False(vm.AreSimulationClusterScalesEnabled);
+
+        // With Realistic back on they stay live during a run.
+        vm.Realistic = true;
+        vm.SetRunning();
+        Assert.True(vm.AreSimulationClusterScalesEnabled);
+    }
+
+    [Fact]
     public void SettingsPropertiesExposeOriginalUiDefaults()
     {
         var vm = CreateViewModel();
@@ -213,6 +235,9 @@ public sealed class MainWindowViewModelTests
         Assert.Equal(300m, vm.SimAmplitude);
         Assert.Equal(0m, vm.SimBeatError);
         Assert.True(vm.Realistic);
+        Assert.Equal(1m, vm.SimSignalAScale);
+        Assert.Equal(1m, vm.SimSignalBScale);
+        Assert.Equal(1m, vm.SimSignalCScale);
         Assert.Equal("200", vm.HighPassCutoffText);
         Assert.False(vm.UseCOnset);
         Assert.True(vm.WeakAOnsetRescue);

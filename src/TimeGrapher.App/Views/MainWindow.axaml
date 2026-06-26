@@ -279,7 +279,7 @@
               <TextBlock Name="SimParamLabel"
                          Classes="SectionHeader"
                          Text="Simulation Parameters" />
-              <Grid ColumnDefinitions="106,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto" RowSpacing="6" ColumnSpacing="8">
+              <Grid ColumnDefinitions="106,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="6" ColumnSpacing="8">
                 <TextBlock Name="SimBphLabel" Grid.Row="0" Grid.Column="0"
                            VerticalAlignment="Center" HorizontalAlignment="Center" FontWeight="Bold" Text="BPH" />
                 <ComboBox Name="SimBPHComboBox" Grid.Row="0" Grid.Column="1"
@@ -322,6 +322,30 @@
                               OnContent=""
                               IsEnabled="{Binding AreSimulationParametersEnabled}"
                               FontWeight="Bold" IsChecked="{Binding Realistic, Mode=TwoWay}" />
+
+                <TextBlock Name="SimSignalALabel" Grid.Row="5" Grid.Column="0"
+                           VerticalAlignment="Center" HorizontalAlignment="Center" FontWeight="Bold" Text="Signal A" />
+                <Slider Name="SimSignalASlider" Grid.Row="5" Grid.Column="1"
+                        VerticalAlignment="Center" Height="32"
+                        IsEnabled="{Binding AreSimulationClusterScalesEnabled}"
+                        Minimum="0" Maximum="2" TickFrequency="0.1" IsSnapToTickEnabled="True"
+                        Value="{Binding SimSignalAScale, Mode=TwoWay}" Orientation="Horizontal" />
+
+                <TextBlock Name="SimSignalBLabel" Grid.Row="6" Grid.Column="0"
+                           VerticalAlignment="Center" HorizontalAlignment="Center" FontWeight="Bold" Text="Signal B" />
+                <Slider Name="SimSignalBSlider" Grid.Row="6" Grid.Column="1"
+                        VerticalAlignment="Center" Height="32"
+                        IsEnabled="{Binding AreSimulationClusterScalesEnabled}"
+                        Minimum="0" Maximum="2" TickFrequency="0.1" IsSnapToTickEnabled="True"
+                        Value="{Binding SimSignalBScale, Mode=TwoWay}" Orientation="Horizontal" />
+
+                <TextBlock Name="SimSignalCLabel" Grid.Row="7" Grid.Column="0"
+                           VerticalAlignment="Center" HorizontalAlignment="Center" FontWeight="Bold" Text="Signal C" />
+                <Slider Name="SimSignalCSlider" Grid.Row="7" Grid.Column="1"
+                        VerticalAlignment="Center" Height="32"
+                        IsEnabled="{Binding AreSimulationClusterScalesEnabled}"
+                        Minimum="0" Maximum="2" TickFrequency="0.1" IsSnapToTickEnabled="True"
+                        Value="{Binding SimSignalCScale, Mode=TwoWay}" Orientation="Horizontal" />
               </Grid>
             </StackPanel>
           </Border>
