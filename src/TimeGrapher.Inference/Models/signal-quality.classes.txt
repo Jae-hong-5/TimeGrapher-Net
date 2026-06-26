@@ -1,0 +1,4 @@
+Noisy
+Good
+WeakSignal
+Unstable
