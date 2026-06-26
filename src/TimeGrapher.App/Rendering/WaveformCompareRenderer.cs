@@ -160,7 +160,10 @@ internal sealed class WaveformCompareRenderer
         Plot plot = _plot.Plot;
         plot.Clear();
         ApplyPlotTheme(plot);
-        plot.YLabel("past \u2003\u2003\u2003\u2003\u2003\u2003\u2003\u2003\u25c4\u2003\u2003\u2003\u2003\u2003\u2003\u2003\u2003 current");
+        // Direction axis (reads bottom-to-top): newest beat at the top, oldest at
+        // the bottom, joined by a continuous arrow shaft instead of a lone glyph
+        // adrift in blank space.
+        plot.YLabel("Past \u25c4\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 Current");
         plot.XLabel("(ms)");
         plot.Axes.Left.TickLabelStyle.IsVisible = false;
 
