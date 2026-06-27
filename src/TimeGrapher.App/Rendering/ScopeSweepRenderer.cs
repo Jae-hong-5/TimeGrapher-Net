@@ -389,11 +389,24 @@ internal sealed class ScopeSweepRenderer
             : windowMs;
         int nReps = Math.Clamp((int)Math.Round(windowMs / beatPeriodMs), 1, MaxSweepMultiple);
 
-        BeatSegment? latestTic = null, latestToc = null;
+        // Track the most recent tic and toc, and — separately — the most recent
+        // tic and toc whose C peak landed inside the window. The C peak is not
+        // detected on every beat, so binding the C markers to the single latest
+        // segment makes them blink on/off each beat; using the most recent C-valid
+        // segment in the ring holds them steady until the C is genuinely lost.
+        BeatSegment? latestTic = null, latestToc = null, latestCTic = null, latestCToc = null;
         foreach (BeatSegment seg in snapshot.Segments)
         {
-            if (seg.IsTic) latestTic = seg;
-            else latestToc = seg;
+            if (seg.IsTic)
+            {
+                latestTic = seg;
+                if (seg.CPeakValid) latestCTic = seg;
+            }
+            else
+            {
+                latestToc = seg;
+                if (seg.CPeakValid) latestCToc = seg;
+            }
         }
 
         double? aTicPhase = PhaseMs(latestTic, isC: false, windowMs);
@@ -407,10 +420,8 @@ internal sealed class ScopeSweepRenderer
             aTicPhase = ap - windowMs; // small negative → pre-roll range
         }
         double? aTocPhase = PhaseMs(latestToc, isC: false, windowMs);
-        double? cTicPhase = PhaseMs(
-            latestTic is { CPeakValid: true } ? latestTic : null, isC: true, windowMs);
-        double? cTocPhase = PhaseMs(
-            latestToc is { CPeakValid: true } ? latestToc : null, isC: true, windowMs);
+        double? cTicPhase = PhaseMs(latestCTic, isC: true, windowMs);
+        double? cTocPhase = PhaseMs(latestCToc, isC: true, windowMs);
 
         for (int k = 0; k < MaxSweepMultiple; k++)
         {

@@ -269,6 +269,49 @@ public sealed class ScopeSweepRendererThemeTests
         Assert.True(sweepPlot.Plot.Axes.GetLimits().Top > 5.5);
     }
 
+    [Fact]
+    public void CMarkersHoldSteadyWhenTheLatestBeatHasNoValidCPeak()
+    {
+        var sweepPlot = new AvaPlot();
+        var readoutValues = ScopeSweepReadout.Labels.Select(_ => new TextBlock()).ToArray();
+        var renderer = new ScopeSweepRenderer(sweepPlot, readoutValues);
+        renderer.CreateGraphs();
+        const uint red = 0xFFD22222;
+        renderer.ApplyTheme(Palette(0xFF404040, 0xFF2C9118, red, 0xFF0000FF));
+
+        // Ring (oldest first): an earlier tic/toc with a valid C, then the latest
+        // tic/toc whose C was not detected this beat. The C markers must stay on
+        // the last valid position rather than blinking off.
+        var frame = new AnalysisFrame
+        {
+            BeatSegments = new BeatSegmentsSnapshot
+            {
+                Version = 1,
+                Segments = new[]
+                {
+                    new BeatSegment { IsTic = true,  StartTimeS = 0, AOffsetMs = 5, CPeakValid = true,  CPeakOffsetMs = 100 },
+                    new BeatSegment { IsTic = false, StartTimeS = 0, AOffsetMs = 5, CPeakValid = true,  CPeakOffsetMs = 160 },
+                    new BeatSegment { IsTic = true,  StartTimeS = 0, AOffsetMs = 5, CPeakValid = false, CPeakOffsetMs = 0 },
+                    new BeatSegment { IsTic = false, StartTimeS = 0, AOffsetMs = 5, CPeakValid = false, CPeakOffsetMs = 0 },
+                },
+            },
+        };
+        AddScopeSeries(frame, new GraphSeriesFrame
+        {
+            Id = AnalysisGraphSeries.SweepTrace,
+            Replace = true,
+            X = new[] { 0.03125, 62.5, 125.0, 187.5, 249.96875 },
+            Y = new[] { 0.2, 3.0, 6.0, 3.0, 0.2 },
+        });
+
+        renderer.RenderFrame(frame, new AnalysisTabRenderContext(48000));
+
+        var visibleRed = sweepPlot.Plot.GetPlottables<VerticalLine>()
+            .Where(l => l.IsVisible && l.LineColor.Equals(Color.FromARGB(red)))
+            .ToList();
+        Assert.NotEmpty(visibleRed);
+    }
+
     private static void RenderPeak(ScopeSweepRenderer renderer, double peak)
     {
         var frame = new AnalysisFrame();
