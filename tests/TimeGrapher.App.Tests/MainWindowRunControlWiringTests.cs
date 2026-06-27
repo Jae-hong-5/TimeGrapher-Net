@@ -354,7 +354,7 @@ public sealed class MainWindowRunControlWiringTests
     }
 
     [Fact]
-    public void SimulationRealisticOptionUsesRightAlignedToggleSwitch()
+    public void SimulationRealisticOptionUsesCenteredLabelAndRightAlignedToggleSwitch()
     {
         XDocument document = XDocument.Load(FindSourceFile("src/TimeGrapher.App/Views/MainWindow.axaml"));
 
@@ -363,8 +363,11 @@ public sealed class MainWindowRunControlWiringTests
 
         Assert.Equal("TextBlock", label.Name.LocalName);
         Assert.Equal("Realistic", label.Attribute("Text")?.Value);
-        Assert.Equal("Left", label.Attribute("HorizontalAlignment")?.Value);
+        Assert.Equal("4", label.Attribute("Grid.Row")?.Value);
+        Assert.Equal("0", label.Attribute("Grid.Column")?.Value);
+        Assert.Equal("Center", label.Attribute("HorizontalAlignment")?.Value);
         Assert.Equal("ToggleSwitch", toggleSwitch.Name.LocalName);
+        Assert.Equal("4", toggleSwitch.Attribute("Grid.Row")?.Value);
         Assert.Equal("1", toggleSwitch.Attribute("Grid.Column")?.Value);
         Assert.Equal("Realistic", toggleSwitch.Attribute("AutomationProperties.Name")?.Value);
         Assert.Equal("Right", toggleSwitch.Attribute("HorizontalAlignment")?.Value);
@@ -375,6 +378,44 @@ public sealed class MainWindowRunControlWiringTests
         Assert.DoesNotContain(
             document.Descendants().Attributes("Name").Select(attribute => attribute.Value),
             name => name == "RealisticCheckBox");
+    }
+
+    [Fact]
+    public void SimulationRealisticOptionAlignsWithNeighboringControlColumns()
+    {
+        HeadlessPlatform.EnsureStarted();
+
+        var window = new MainWindow
+        {
+            Width = 1280,
+            Height = 750,
+        };
+        Control content = Assert.IsAssignableFrom<Control>(window.Content);
+        content.Measure(new Size(1280, 750));
+        content.Arrange(new Rect(0, 0, 1280, 750));
+
+        TextBlock simBphLabel = Assert.IsType<TextBlock>(window.FindControl<Control>("SimBphLabel"));
+        TextBlock beatErrorLabel = Assert.IsType<TextBlock>(window.FindControl<Control>("SimBeatErrorLabel"));
+        TextBlock realisticLabel = Assert.IsType<TextBlock>(window.FindControl<Control>("RealisticLabel"));
+        ComboBox simBph = Assert.IsType<ComboBox>(window.FindControl<Control>("SimBPHComboBox"));
+        NumericUpDown beatError = Assert.IsType<NumericUpDown>(window.FindControl<Control>("SimBeatErrorSpinBox"));
+        ToggleSwitch realisticToggle = Assert.IsType<ToggleSwitch>(
+            window.FindControl<Control>("RealisticToggleSwitch"));
+
+        Assert.Same(simBphLabel.Parent, realisticLabel.Parent);
+        Assert.Same(beatErrorLabel.Parent, realisticLabel.Parent);
+        Assert.Same(simBph.Parent, realisticToggle.Parent);
+        Assert.Same(beatError.Parent, realisticToggle.Parent);
+
+        double realisticLabelCenter = CenterX(realisticLabel.Bounds);
+        Assert.InRange(realisticLabelCenter, CenterX(simBphLabel.Bounds) - 0.5,
+            CenterX(simBphLabel.Bounds) + 0.5);
+        Assert.InRange(realisticLabelCenter, CenterX(beatErrorLabel.Bounds) - 0.5,
+            CenterX(beatErrorLabel.Bounds) + 0.5);
+
+        double realisticToggleRight = realisticToggle.Bounds.Right;
+        Assert.InRange(realisticToggleRight, simBph.Bounds.Right - 0.5, simBph.Bounds.Right + 0.5);
+        Assert.InRange(realisticToggleRight, beatError.Bounds.Right - 0.5, beatError.Bounds.Right + 0.5);
     }
 
     [Fact]
@@ -521,6 +562,8 @@ public sealed class MainWindowRunControlWiringTests
             ?? throw new InvalidOperationException("Control is not in the rendered content tree.");
         return new Rect(origin, control.Bounds.Size);
     }
+
+    private static double CenterX(Rect bounds) => bounds.X + bounds.Width / 2.0;
 
     private static void AssertDenseSliderTemplateResources(XElement grid)
     {

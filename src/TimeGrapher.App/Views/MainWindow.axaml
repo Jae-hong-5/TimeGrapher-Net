@@ -323,7 +323,7 @@
                                Minimum="-10" Maximum="10" Increment="0.1" />
 
                 <TextBlock Name="RealisticLabel" Grid.Row="4" Grid.Column="0"
-                           VerticalAlignment="Center" HorizontalAlignment="Left" FontWeight="Bold" Text="Realistic" />
+                           VerticalAlignment="Center" HorizontalAlignment="Center" FontWeight="Bold" Text="Realistic" />
                 <ToggleSwitch Name="RealisticToggleSwitch" Grid.Row="4" Grid.Column="1"
                               AutomationProperties.Name="Realistic"
                               HorizontalAlignment="Right"
