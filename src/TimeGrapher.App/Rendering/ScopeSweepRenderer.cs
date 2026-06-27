@@ -74,7 +74,7 @@ internal sealed class ScopeSweepRenderer
     private bool _followLive = true;
 
     // Canonical "initial output" view. Y ([_viewYMin, _viewYMax]) is captured on
-    // the first fit and on Reset/AutoScale only; live follow and 1x/2x/4x changes
+    // the first fit and on Reset/AutoScale only; live follow and cycle changes
     // keep it and re-fit just the X window ([XPreRollMs, _viewWindowMs]), so
     // toggling the multiple never rescales Y. SweepViewRule enforces these on
     // every render, so a mouse zoom acts on X only (Y is held) and zoom-out
@@ -193,13 +193,13 @@ internal sealed class ScopeSweepRenderer
     /// applies it: X pinned to [XPreRollMs, window] and Y to the data autoscale
     /// fit. <see cref="SweepViewRule"/> then holds Y locked and bounds X to this
     /// window, so zoom is X-only and cannot pass the full window, and Reset
-    /// restores exactly this. Returns false (view unchanged) before any sweep
-    /// data exists.
+    /// restores exactly this. Returns false (view unchanged) before any visible
+    /// sweep signal exists.
     /// </summary>
     private bool FitCanonicalView()
     {
         double windowMs = ScopeSweepReadout.WindowMs(_sweepX);
-        if (windowMs <= 0)
+        if (windowMs <= 0 || !HasVisibleSweepSignal())
         {
             return false;
         }
@@ -218,7 +218,7 @@ internal sealed class ScopeSweepRenderer
 
     /// <summary>
     /// Re-fits only the X window to the current data ([XPreRollMs, window]) while
-    /// keeping the already-captured Y, so live follow and a 1x/2x/4x change move
+    /// keeping the already-captured Y, so live follow and a cycle change move
     /// the X window without rescaling Y. Returns false before any sweep data
     /// exists.
     /// </summary>
@@ -245,7 +245,7 @@ internal sealed class ScopeSweepRenderer
             _lastSweepSeries = sweepSeries;
             _ticPhaseOffsetMs = sweepSeries!.TicPhaseOffsetMs;
 
-            // Re-arm live fitting when the window size changes (1x/2x/4x pressed)
+            // Re-arm live fitting when the window size changes.
             // so the X view snaps to the new window even if the user had panned.
             // Y is kept (FitXKeepY), so a multiple change does not rescale Y.
             double windowMs = ScopeSweepReadout.WindowMs(_sweepX);
@@ -276,7 +276,7 @@ internal sealed class ScopeSweepRenderer
         if (dataUpdated && _followLive)
         {
             // First fit captures the canonical Y (autoscale). After that, live
-            // follow and 1x/2x/4x changes only re-fit the X window and KEEP the
+            // follow and cycle changes only re-fit the X window and KEEP the
             // captured Y, so toggling the sweep multiple never rescales Y.
             if (_hasView)
             {
@@ -332,8 +332,7 @@ internal sealed class ScopeSweepRenderer
         // markers hold their pre-switch positions rather than jumping to the
         // phase-unaligned (offset = 0) coordinates the projector emits
         // immediately after the window reset.
-        bool hasSignal = _sweepY.Count > 0 && _sweepY.Max() > 0.0;
-        if (snapshot == null || snapshot.Segments.Count == 0 || windowMs <= 0 || !hasSignal)
+        if (snapshot == null || snapshot.Segments.Count == 0 || windowMs <= 0 || !HasVisibleSweepSignal())
         {
             return;
         }
@@ -410,6 +409,11 @@ internal sealed class ScopeSweepRenderer
         }
 
         line.IsVisible = false;
+    }
+
+    private bool HasVisibleSweepSignal()
+    {
+        return _sweepY.Count > 0 && _sweepY.Max() > 0.0;
     }
 
     /// <summary>Review-cursor contract: a vertical marker at the scrub time's sweep phase.</summary>

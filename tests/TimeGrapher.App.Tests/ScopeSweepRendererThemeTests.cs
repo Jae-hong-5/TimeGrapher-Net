@@ -3,6 +3,8 @@ using ScottPlot;
 using ScottPlot.Avalonia;
 using ScottPlot.Plottables;
 using TimeGrapher.App.Rendering;
+using TimeGrapher.App.Tabs;
+using TimeGrapher.Core.Shared;
 using Xunit;
 
 namespace TimeGrapher.App.Tests;
@@ -80,5 +82,71 @@ public sealed class ScopeSweepRendererThemeTests
         Assert.Equal(Alignment.LowerRight, sweepPlot.Plot.Legend.Alignment);
         Assert.Contains(legendEntries, scatter => scatter.LegendText == "A" && Equals(scatter.LinePattern, GraphLinePatterns.VerticalGuide) && scatter.LineWidth >= 2);
         Assert.Contains(legendEntries, scatter => scatter.LegendText == "C" && Equals(scatter.LinePattern, GraphLinePatterns.VerticalGuide) && scatter.LineWidth >= 2);
+    }
+
+    [Fact]
+    public void FirstSweepFrameFitsDataWithoutResetView()
+    {
+        var sweepPlot = new AvaPlot();
+        var readoutValues = ScopeSweepReadout.Labels.Select(_ => new TextBlock()).ToArray();
+        var renderer = new ScopeSweepRenderer(sweepPlot, readoutValues);
+        renderer.CreateGraphs();
+        var frame = new AnalysisFrame();
+        AddScopeSeries(frame, new GraphSeriesFrame
+        {
+            Id = AnalysisGraphSeries.SweepTrace,
+            Replace = true,
+            X = new[] { 0.03125, 62.5, 125.0, 187.5, 249.96875 },
+            Y = new[] { 0.2, 3.0, 6.0, 3.0, 0.2 },
+        });
+
+        renderer.RenderFrame(frame, new AnalysisTabRenderContext(48000));
+        AxisLimits limits = sweepPlot.Plot.Axes.GetLimits();
+
+        Assert.InRange(limits.Left, -10.1, -9.9);
+        Assert.InRange(limits.Right, 249.9, 250.1);
+        Assert.True(limits.Top > 5.5, $"expected first render to fit data Y, got top {limits.Top}");
+        Assert.True(limits.Bottom < 0.3, $"expected first render to fit data Y, got bottom {limits.Bottom}");
+    }
+
+    [Fact]
+    public void StartupZeroSweepDoesNotLockInvisibleYRange()
+    {
+        var sweepPlot = new AvaPlot();
+        var readoutValues = ScopeSweepReadout.Labels.Select(_ => new TextBlock()).ToArray();
+        var renderer = new ScopeSweepRenderer(sweepPlot, readoutValues);
+        renderer.CreateGraphs();
+        var zeroFrame = new AnalysisFrame();
+        AddScopeSeries(zeroFrame, new GraphSeriesFrame
+        {
+            Id = AnalysisGraphSeries.SweepTrace,
+            Replace = true,
+            X = new[] { 0.03125, 62.5, 125.0, 187.5, 249.96875 },
+            Y = new[] { 0.0, 0.0, 0.0, 0.0, 0.0 },
+        });
+        var signalFrame = new AnalysisFrame();
+        AddScopeSeries(signalFrame, new GraphSeriesFrame
+        {
+            Id = AnalysisGraphSeries.SweepTrace,
+            Replace = true,
+            X = new[] { 0.03125, 62.5, 125.0, 187.5, 249.96875 },
+            Y = new[] { 0.2, 3.0, 6.0, 3.0, 0.2 },
+        });
+
+        renderer.RenderFrame(zeroFrame, new AnalysisTabRenderContext(48000));
+        renderer.RenderFrame(signalFrame, new AnalysisTabRenderContext(48000));
+        AxisLimits limits = sweepPlot.Plot.Axes.GetLimits();
+
+        Assert.InRange(limits.Left, -10.1, -9.9);
+        Assert.InRange(limits.Right, 249.9, 250.1);
+        Assert.True(limits.Top > 5.5, $"expected post-startup render to fit data Y, got top {limits.Top}");
+        Assert.True(limits.Bottom < 0.3, $"expected post-startup render to fit data Y, got bottom {limits.Bottom}");
+    }
+
+    private static void AddScopeSeries(AnalysisFrame frame, GraphSeriesFrame series)
+    {
+        typeof(AnalysisFrame)
+            .GetMethod("AddScopeSeries", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+            .Invoke(frame, new object[] { series });
     }
 }
