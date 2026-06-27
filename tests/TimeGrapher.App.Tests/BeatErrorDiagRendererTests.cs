@@ -40,8 +40,8 @@ public sealed class BeatErrorDiagRendererTests
         AxisLimits firstLimits = tracePlot.Plot.Axes.GetLimits();
         Assert.Equal(0.0, firstLimits.Left);
         Assert.Equal(30.0, firstLimits.Right);
-        Assert.InRange(firstLimits.Bottom, -0.96, -0.94);
-        Assert.InRange(firstLimits.Top, 1.04, 1.06);
+        Assert.Equal(BeatErrorDiagRenderer.TraceYMinMs, firstLimits.Bottom);
+        Assert.Equal(BeatErrorDiagRenderer.TraceYMaxMs, firstLimits.Top);
 
         renderer.SetRateZoomFactor(8.0);
         AxisLimits zoomedLimits = tracePlot.Plot.Axes.GetLimits();
@@ -86,8 +86,8 @@ public sealed class BeatErrorDiagRendererTests
             tracePlot.Plot.GetPlottables<Text>().Where(t => t.IsVisible).Select(t => t.LabelText).ToArray());
 
         AxisLimits autoLimits = tracePlot.Plot.Axes.GetLimits();
-        Assert.InRange(autoLimits.Bottom, 0.19, 0.21);
-        Assert.InRange(autoLimits.Top, 2.19, 2.21);
+        Assert.Equal(BeatErrorDiagRenderer.TraceYMinMs, autoLimits.Bottom);
+        Assert.Equal(BeatErrorDiagRenderer.TraceYMaxMs, autoLimits.Top);
 
         tracePlot.Plot.Axes.SetLimitsX(0.0, RateScopeRenderer.RatePageWindowBeats / 2.0);
         tracePlot.Plot.Axes.SetLimitsY(100.0, 110.0);
@@ -95,8 +95,8 @@ public sealed class BeatErrorDiagRendererTests
         AxisLimits limits = tracePlot.Plot.Axes.GetLimits();
         Assert.Equal(0.0, limits.Left);
         Assert.Equal(RateScopeRenderer.RatePageWindowBeats / 2.0, limits.Right);
-        Assert.Equal(100.0, limits.Bottom);
-        Assert.Equal(110.0, limits.Top);
+        Assert.Equal(BeatErrorDiagRenderer.TraceYMinMs, limits.Bottom);
+        Assert.Equal(BeatErrorDiagRenderer.TraceYMaxMs, limits.Top);
     }
 
     private static void AddRateSeries(AnalysisFrame frame, GraphSeriesFrame series)

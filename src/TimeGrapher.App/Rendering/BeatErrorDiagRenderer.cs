@@ -23,7 +23,8 @@ internal sealed class BeatErrorDiagRenderer
     private const double RateAutoScalePaddingFraction = 0.08;
     private const double RateLiveMinWindowBeats = 30.0;
     private const double RateLiveMaxWindowBeats = RateScopeRenderer.RatePageWindowBeats;
-    private const double RateAutoScaleMinimumYSpanMs = 2.0;
+    internal const double TraceYMinMs = -10.0;
+    internal const double TraceYMaxMs = 10.0;
     private static readonly double[] RateZoomFactors = { 1.0, 2.0, 4.0, 8.0, 16.0 };
 
     private readonly AvaPlot _tracePlot;
@@ -40,7 +41,6 @@ internal sealed class BeatErrorDiagRenderer
     private PlotThemePalette _theme = PlotThemePalette.Current;
     private ulong _lastVersion;
     private BeatMetricsHistorySnapshot? _lastHistory;
-    private double _rateErrorYScale;
     private bool _rateFollowLive = true;
     private double _rateDataMinX;
     private double _rateDataMaxX;
@@ -141,7 +141,6 @@ internal sealed class BeatErrorDiagRenderer
 
     public void CreateGraphs(double rateErrorYScale, int rateDataPoints)
     {
-        _rateErrorYScale = rateErrorYScale;
         _rateFollowLive = true;
         _rateZoomIndex = 0;
         _rateZoomLabelChanged?.Invoke(RateZoomLabel);
@@ -158,7 +157,7 @@ internal sealed class BeatErrorDiagRenderer
         ApplyPlotTheme(trace);
         trace.YLabel("Error Rate (ms)");
         trace.XLabel("Beats");
-        trace.Axes.SetLimitsY(-rateErrorYScale, rateErrorYScale);
+        trace.Axes.SetLimitsY(TraceYMinMs, TraceYMaxMs);
         trace.Axes.SetLimitsX(0, RateLiveMinWindowBeats);
         trace.Axes.Bottom.TickLabelStyle.IsVisible = true;
         for (int i = 0; i < _rateSeries.Length; i++)
@@ -172,10 +171,11 @@ internal sealed class BeatErrorDiagRenderer
         trace.ShowLegend();
         _hasRateDataExtent = false;
         trace.Axes.Rules.Clear();
+        PlotAxisRules.LockYRange(trace, TraceYMinMs, TraceYMaxMs);
         _tracePlot.Refresh();
     }
 
-    /// <summary>Restores the trace plot: signed-rate Y and the current rate page.</summary>
+    /// <summary>Restores the trace plot: fixed signed-rate Y and the current rate page.</summary>
     public void ResetView()
     {
         _rateFollowLive = true;
@@ -222,7 +222,7 @@ internal sealed class BeatErrorDiagRenderer
                 }
                 else
                 {
-                    AutoScaleRateYForCurrentView();
+                    SetFixedTraceYRange();
                 }
 
                 UpdateAveragePeriodAnnotations(history);
@@ -335,13 +335,13 @@ internal sealed class BeatErrorDiagRenderer
         if (!_hasRateDataExtent)
         {
             _tracePlot.Plot.Axes.SetLimitsX(0, RateLiveMinWindowBeats);
-            _tracePlot.Plot.Axes.SetLimitsY(-_rateErrorYScale, _rateErrorYScale);
+            SetFixedTraceYRange();
             return;
         }
 
         (double left, double right) = RateLiveWindowFor(_rateDataMinX, _rateDataMaxX);
         _tracePlot.Plot.Axes.SetLimitsX(left, right);
-        AutoScaleRateY(left, right);
+        SetFixedTraceYRange();
     }
 
     private (double Left, double Right) RateLiveWindowFor(double min, double max)
@@ -363,61 +363,9 @@ internal sealed class BeatErrorDiagRenderer
         return (left, right);
     }
 
-    private void AutoScaleRateYForCurrentView()
+    private void SetFixedTraceYRange()
     {
-        AxisLimits limits = _tracePlot.Plot.Axes.GetLimits();
-        AutoScaleRateY(limits.Left, limits.Right);
-    }
-
-    private void AutoScaleRateY(double left, double right)
-    {
-        if (!TryRateYRange(left, right, out double min, out double max))
-        {
-            _tracePlot.Plot.Axes.SetLimitsY(-_rateErrorYScale, _rateErrorYScale);
-            return;
-        }
-
-        double center = (min + max) / 2.0;
-        double span = Math.Max((max - min) * (1.0 + RateAutoScalePaddingFraction * 2.0), RateAutoScaleMinimumYSpanMs);
-        _tracePlot.Plot.Axes.SetLimitsY(center - span / 2.0, center + span / 2.0);
-    }
-
-    private bool TryRateYRange(double left, double right, out double min, out double max)
-    {
-        min = double.MaxValue;
-        max = double.MinValue;
-        bool any = false;
-        for (int seriesIndex = 0; seriesIndex < _rateX.Length; seriesIndex++)
-        {
-            List<double> xs = _rateX[seriesIndex];
-            List<double> ys = _rateY[seriesIndex];
-            int count = Math.Min(xs.Count, ys.Count);
-            for (int i = 0; i < count; i++)
-            {
-                double x = xs[i];
-                if (x < left)
-                {
-                    continue;
-                }
-
-                if (x > right)
-                {
-                    break;
-                }
-
-                double y = ys[i];
-                if (!double.IsFinite(y))
-                {
-                    continue;
-                }
-
-                min = Math.Min(min, y);
-                max = Math.Max(max, y);
-                any = true;
-            }
-        }
-
-        return any;
+        _tracePlot.Plot.Axes.SetLimitsY(TraceYMinMs, TraceYMaxMs);
     }
 
     private void ScheduleRateAxisRefresh()
@@ -432,7 +380,7 @@ internal sealed class BeatErrorDiagRenderer
             () =>
             {
                 _rateAxisRefreshPending = false;
-                AutoScaleRateYForCurrentView();
+                SetFixedTraceYRange();
                 UpdateAveragePeriodAnnotations(_lastHistory);
                 _tracePlot.Refresh();
             },
