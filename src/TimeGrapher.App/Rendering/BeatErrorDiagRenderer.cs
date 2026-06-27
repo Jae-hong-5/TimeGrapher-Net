@@ -76,7 +76,7 @@ internal sealed class BeatErrorDiagRenderer
             _rateX[i] = new List<double>();
             _rateY[i] = new List<double>();
         }
-        _rateAverageAnnotations = new AveragePeriodRateAnnotations(textFontFamily);
+        _rateAverageAnnotations = new AveragePeriodRateAnnotations(textFontFamily, showLabels: false);
     }
 
     public void ApplyTheme(PlotThemePalette theme)

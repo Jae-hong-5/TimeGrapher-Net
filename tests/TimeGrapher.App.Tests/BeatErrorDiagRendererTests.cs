@@ -81,9 +81,10 @@ public sealed class BeatErrorDiagRendererTests
         renderer.RenderFrame(second, new AnalysisTabRenderContext(48000));
 
         Assert.Equal(new[] { 150.0, 151.0 }, RateX(renderer, AnalysisGraphSeries.RateTic));
+        Assert.DoesNotContain(tracePlot.Plot.GetPlottables<Text>(), t => t.IsVisible);
         Assert.Equal(
-            new[] { "-432.0 s/d\n250°  0.4 ms" },
-            tracePlot.Plot.GetPlottables<Text>().Where(t => t.IsVisible).Select(t => t.LabelText).ToArray());
+            new[] { 150.0, 151.0 },
+            tracePlot.Plot.GetPlottables<VerticalLine>().Where(line => line.IsVisible).Select(line => line.X).ToArray());
 
         AxisLimits autoLimits = tracePlot.Plot.Axes.GetLimits();
         Assert.Equal(BeatErrorDiagRenderer.TraceYMinMs, autoLimits.Bottom);
