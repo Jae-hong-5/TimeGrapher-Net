@@ -882,7 +882,7 @@ public sealed class InfoTabRegistryTests
     }
 
     [Fact]
-    public void BeatErrorDiagTabReservesAlertBannerSpaceBesideZoomButtons()
+    public void BeatErrorDiagTabReservesAlertBannerSpaceWithoutZoomButtons()
     {
         EnsureAvaloniaPlatform();
         Grid content = CreateBeatErrorDiagContent();
@@ -890,33 +890,18 @@ public sealed class InfoTabRegistryTests
             content.Children.Single(child => Grid.GetRow(child) == 0));
 
         Assert.Equal(3, content.RowDefinitions.Count);
-        Assert.Equal(2, headerStrip.ColumnDefinitions.Count);
-        Assert.True(headerStrip.ColumnDefinitions[0].Width.IsStar);
-        Assert.Equal(GridUnitType.Auto, headerStrip.ColumnDefinitions[1].Width.GridUnitType);
+        ColumnDefinition column = Assert.Single(headerStrip.ColumnDefinitions);
+        Assert.True(column.Width.IsStar);
+        Assert.Equal(TraceHeaderButtonMinHeightForTest, headerStrip.MinHeight);
 
         Border banner = headerStrip.Children.OfType<Border>().Single();
         Assert.Equal(0, Grid.GetColumn(banner));
         Assert.Equal(TraceHeaderButtonMinHeightForTest, banner.MinHeight);
         Assert.False(banner.IsVisible);
-        Assert.True(banner.Margin.Right > 0);
-
-        StackPanel controls = headerStrip.Children.OfType<StackPanel>().Single();
-        Assert.Equal(1, Grid.GetColumn(controls));
-        Assert.All(controls.Children.OfType<Button>(), button =>
-            Assert.Equal(TraceHeaderButtonMinHeightForTest, button.MinHeight));
-        Assert.DoesNotContain(controls.Children.OfType<Button>(), button => Equals(button.Content, "Reset View"));
-        string[] buttons = controls.Children
-            .OfType<Button>()
-            .Select(button => button.Content?.ToString() ?? string.Empty)
-            .ToArray();
-        Assert.Equal(new[] { "1x", "2x", "4x" }, buttons);
-        Button defaultZoom = controls.Children.OfType<Button>().Single(button => Equals(button.Content, "1x"));
-        Assert.Contains("PositionButton", defaultZoom.Classes);
-        Assert.Equal(TraceHeaderButtonFontSizeForTest, defaultZoom.FontSize);
-        Assert.Equal(TraceHeaderButtonMinHeightForTest, defaultZoom.MinHeight);
-        Assert.Contains("active", defaultZoom.Classes);
-        Assert.Equal(defaultZoom.MinHeight, banner.MinHeight);
-        AssertVisibleAlertBannerHeightMatchesButton(content, "1x");
+        Assert.Empty(headerStrip.Children.OfType<StackPanel>());
+        Assert.DoesNotContain(Descendants(headerStrip).OfType<Button>(), button => Equals(button.Content, "1x"));
+        Assert.DoesNotContain(Descendants(headerStrip).OfType<Button>(), button => Equals(button.Content, "2x"));
+        Assert.DoesNotContain(Descendants(headerStrip).OfType<Button>(), button => Equals(button.Content, "4x"));
 
         Assert.DoesNotContain(content.Children.OfType<Button>(), button => Grid.GetRow(button) == 2);
     }

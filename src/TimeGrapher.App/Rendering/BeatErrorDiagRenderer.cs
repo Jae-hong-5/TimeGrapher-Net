@@ -28,7 +28,6 @@ internal sealed class BeatErrorDiagRenderer
     internal const double TraceYMaxMs = 10.0;
     private const double TraceAnnotationBandFraction = 0.10;
     private const double AnnotationLabelTopPaddingFraction = 0.015;
-    private static readonly double[] RateZoomFactors = { 1.0, 2.0, 4.0 };
 
     private readonly AvaPlot _tracePlot;
     private readonly Border _alertBanner;
@@ -49,8 +48,6 @@ internal sealed class BeatErrorDiagRenderer
     private double _rateDataMaxX;
     private bool _hasRateDataExtent;
     private bool _rateAxisRefreshPending;
-    private int _rateZoomIndex;
-    private Action<string>? _rateZoomLabelChanged;
 
     public BeatErrorDiagRenderer(
         AvaPlot tracePlot,
@@ -107,49 +104,9 @@ internal sealed class BeatErrorDiagRenderer
         }
     }
 
-    public string RateZoomLabel => $"{RateZoomFactors[_rateZoomIndex]:0}x";
-
-    public void SetRateZoomLabelCallback(Action<string> callback)
-    {
-        _rateZoomLabelChanged = callback;
-        callback(RateZoomLabel);
-    }
-
-    public void ZoomRateIn() => SetRateZoomIndex(Math.Min(_rateZoomIndex + 1, RateZoomFactors.Length - 1));
-
-    public void ZoomRateOut() => SetRateZoomIndex(Math.Max(_rateZoomIndex - 1, 0));
-
-    public void SetRateZoomFactor(double factor)
-    {
-        int index = Array.IndexOf(RateZoomFactors, factor);
-        ArgumentOutOfRangeException.ThrowIfNegative(index);
-        SetRateZoomIndex(index);
-    }
-
-    private void SetRateZoomIndex(int index)
-    {
-        if (index == _rateZoomIndex)
-        {
-            return;
-        }
-
-        _rateZoomIndex = index;
-        _rateFollowLive = true;
-        _rateZoomLabelChanged?.Invoke(RateZoomLabel);
-        _hasRateDataExtent = RateDataExtent(out _rateDataMinX, out _rateDataMaxX);
-        AutoScaleRateAxesForLiveData();
-        if (_hasRateDataExtent)
-        {
-            UpdateAveragePeriodAnnotations(_lastHistory);
-        }
-        _tracePlot.Refresh();
-    }
-
     public void CreateGraphs(double rateErrorYScale, int rateDataPoints)
     {
         _rateFollowLive = true;
-        _rateZoomIndex = 0;
-        _rateZoomLabelChanged?.Invoke(RateZoomLabel);
         _lastVersion = 0;
         _lastHistory = null;
         _alertBanner.IsVisible = false;
@@ -183,8 +140,6 @@ internal sealed class BeatErrorDiagRenderer
     public void ResetView()
     {
         _rateFollowLive = true;
-        _rateZoomIndex = 0;
-        _rateZoomLabelChanged?.Invoke(RateZoomLabel);
         _hasRateDataExtent = RateDataExtent(out _rateDataMinX, out _rateDataMaxX);
         AutoScaleRateAxesForLiveData();
         if (_hasRateDataExtent)
@@ -383,8 +338,7 @@ internal sealed class BeatErrorDiagRenderer
     {
         double dataSpan = Math.Max(max - min, 0.0);
         double paddedSpan = dataSpan * (1.0 + RateAutoScalePaddingFraction * 2.0);
-        double zoom = RateZoomFactors[_rateZoomIndex];
-        double maxWindow = RateLiveMaxWindowBeats / zoom;
+        double maxWindow = RateLiveMaxWindowBeats;
         double minWindow = Math.Min(RateLiveMinWindowBeats, maxWindow);
         double span = Math.Clamp(paddedSpan, minWindow, maxWindow);
         double right = Math.Max(max, span);
@@ -400,18 +354,17 @@ internal sealed class BeatErrorDiagRenderer
 
     private void SetFixedTraceYRange()
     {
-        (double bottom, double dataTop, double plotTop) = TraceYRangeForZoom();
+        (double bottom, double dataTop, double plotTop) = TraceYRange();
         _tracePlot.Plot.Axes.SetLimitsY(bottom, plotTop);
         ApplyTraceYTicks(bottom, dataTop);
         _tracePlot.Plot.Axes.Rules.Clear();
         PlotAxisRules.LockYRange(_tracePlot.Plot, bottom, plotTop);
     }
 
-    private (double Bottom, double DataTop, double PlotTop) TraceYRangeForZoom()
+    private static (double Bottom, double DataTop, double PlotTop) TraceYRange()
     {
-        double zoom = RateZoomFactors[_rateZoomIndex];
-        double bottom = TraceYMinMs / zoom;
-        double dataTop = TraceYMaxMs / zoom;
+        double bottom = TraceYMinMs;
+        double dataTop = TraceYMaxMs;
         double bandHeight = (dataTop - bottom) * TraceAnnotationBandFraction;
         return (bottom, dataTop, dataTop + bandHeight);
     }
