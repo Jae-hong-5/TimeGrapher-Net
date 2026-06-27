@@ -860,7 +860,7 @@ internal sealed partial class InfoTabRegistry
             run.Bind(TextElement.ForegroundProperty, run.GetResourceObservable(brushKey));
             return run;
         }
-        var currentSwatch = Swatch("Black dashed", "TextPrimaryBrush");
+        var currentSwatch = Swatch("Black short dash", "TextPrimaryBrush");
         legend.Inlines = new InlineCollection
         {
             Swatch("Amber band", "VarioAcceptBandEdgeBrush"),

@@ -4,7 +4,7 @@ using ScottPlot.Plottables;
 namespace TimeGrapher.App.Rendering;
 
 /// <summary>
-/// Shared pause-and-review scrub cursor: a dotted vertical axis line at the
+/// Shared pause-and-review scrub cursor: a vertical guide line at the
 /// cursor position (in the owning plot's own x-domain). Implemented as a
 /// ScottPlot <see cref="VerticalLine"/> because an axis line spans the viewport
 /// at render time without contributing a Y extent to autoscaling — the previous
@@ -19,7 +19,7 @@ internal sealed class ReviewCursorLayer
     public ReviewCursorLayer(Plot plot)
     {
         _line = plot.Add.VerticalLine(0.0);
-        _line.LinePattern = LinePattern.Dotted;
+        _line.LinePattern = GraphLinePatterns.VerticalGuide;
         _line.LineWidth = 2;
         _line.IsVisible = false;
         _line.EnableAutoscale = false;

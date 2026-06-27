@@ -12,6 +12,11 @@ namespace TimeGrapher.App.Tests;
 
 public sealed class BeatNoiseScopeRendererTests
 {
+    public BeatNoiseScopeRendererTests()
+    {
+        HeadlessPlatform.EnsureStarted();
+    }
+
     [Fact]
     public void Scope1DefaultsToRawMinMaxInsteadOfMirroredEnvelope()
     {
@@ -256,7 +261,7 @@ public sealed class BeatNoiseScopeRendererTests
     }
 
     [Fact]
-    public void EnvelopeModeShowsRedDottedCMarkersOnMainAndStrip()
+    public void EnvelopeModeShowsRedGuideCMarkersOnMainAndStrip()
     {
         var mainPlot = new AvaPlot();
         var stripPlot = new AvaPlot();
@@ -287,12 +292,12 @@ public sealed class BeatNoiseScopeRendererTests
         renderer.RenderFrame(frame, new AnalysisTabRenderContext(SampleRate: 48000));
 
         VerticalLine mainCMarker = mainPlot.Plot.GetPlottables<VerticalLine>()
-            .Single(line => line.IsVisible && line.X == segment.CPeakOffsetMs && Equals(line.LinePattern, LinePattern.Dotted));
-        Assert.Equal(LinePattern.Dotted, mainCMarker.LinePattern);
+            .Single(line => line.IsVisible && line.X == segment.CPeakOffsetMs && IsCGuide(line));
+        Assert.Equal(GraphLinePatterns.VerticalGuide, mainCMarker.LinePattern);
 
         VerticalLine stripCMarker = stripPlot.Plot.GetPlottables<VerticalLine>()
-            .Single(line => line.IsVisible && line.X > 7.0 && line.X < 8.0 && Equals(line.LinePattern, LinePattern.Dotted));
-        Assert.Equal(LinePattern.Dotted, stripCMarker.LinePattern);
+            .Single(line => line.IsVisible && line.X > 7.0 && line.X < 8.0 && IsCGuide(line));
+        Assert.Equal(GraphLinePatterns.VerticalGuide, stripCMarker.LinePattern);
     }
 
     [Fact]
@@ -328,7 +333,7 @@ public sealed class BeatNoiseScopeRendererTests
         }, new AnalysisTabRenderContext(SampleRate: 48000));
 
         double[] cMarkerXs = mainPlot.Plot.GetPlottables<VerticalLine>()
-            .Where(line => line.IsVisible && Equals(line.LinePattern, LinePattern.Dotted))
+            .Where(line => line.IsVisible && IsCGuide(line))
             .Select(line => line.X)
             .ToArray();
 
@@ -367,7 +372,7 @@ public sealed class BeatNoiseScopeRendererTests
         }, new AnalysisTabRenderContext(SampleRate: 48000));
 
         double cMarkerX = mainPlot.Plot.GetPlottables<VerticalLine>()
-            .Single(line => line.IsVisible && Equals(line.LinePattern, LinePattern.Dotted))
+            .Single(line => line.IsVisible && IsCGuide(line))
             .X;
 
         Assert.Equal(12.0, cMarkerX, 9);
@@ -402,7 +407,7 @@ public sealed class BeatNoiseScopeRendererTests
         }, new AnalysisTabRenderContext(SampleRate: 48000));
 
         double cMarkerX = mainPlot.Plot.GetPlottables<VerticalLine>()
-            .Single(line => line.IsVisible && Equals(line.LinePattern, LinePattern.Dotted))
+            .Single(line => line.IsVisible && IsCGuide(line))
             .X;
 
         Assert.Equal(12.0, cMarkerX, 9);
@@ -449,7 +454,7 @@ public sealed class BeatNoiseScopeRendererTests
         renderer.SelectStripAtFraction(6.5 / BeatNoiseScopeLogic.StripCount);
 
         double[] cMarkerXs = mainPlot.Plot.GetPlottables<VerticalLine>()
-            .Where(line => line.IsVisible && Equals(line.LinePattern, LinePattern.Dotted))
+            .Where(line => line.IsVisible && IsCGuide(line))
             .Select(line => Math.Round(line.X, 3))
             .OrderBy(x => x)
             .ToArray();
@@ -491,7 +496,7 @@ public sealed class BeatNoiseScopeRendererTests
         }, new AnalysisTabRenderContext(SampleRate: 48000));
 
         double[] cMarkerXs = mainPlot.Plot.GetPlottables<VerticalLine>()
-            .Where(line => line.IsVisible && Equals(line.LinePattern, LinePattern.Dotted))
+            .Where(line => line.IsVisible && IsCGuide(line))
             .Select(line => Math.Round(line.X, 3))
             .OrderBy(x => x)
             .ToArray();
@@ -537,7 +542,7 @@ public sealed class BeatNoiseScopeRendererTests
         }, new AnalysisTabRenderContext(SampleRate: 48000));
 
         double[] cMarkerXs = mainPlot.Plot.GetPlottables<VerticalLine>()
-            .Where(line => line.IsVisible && Equals(line.LinePattern, LinePattern.Dotted))
+            .Where(line => line.IsVisible && IsCGuide(line))
             .Select(line => Math.Round(line.X, 3))
             .OrderBy(x => x)
             .ToArray();
@@ -578,13 +583,13 @@ public sealed class BeatNoiseScopeRendererTests
         }, new AnalysisTabRenderContext(SampleRate: 48000));
 
         double[] mainCMarkerXs = mainPlot.Plot.GetPlottables<VerticalLine>()
-            .Where(line => line.IsVisible && Equals(line.LinePattern, LinePattern.Dotted))
+            .Where(line => line.IsVisible && IsCGuide(line))
             .Select(line => line.X)
             .ToArray();
         Assert.Equal(new[] { 9.0 }, mainCMarkerXs);
 
         VerticalLine stripCMarker = stripPlot.Plot.GetPlottables<VerticalLine>()
-            .Single(line => line.IsVisible && Equals(line.LinePattern, LinePattern.Dotted));
+            .Single(line => line.IsVisible && IsCGuide(line));
         Assert.InRange(stripCMarker.X, 7.4, 7.5);
     }
 
@@ -618,7 +623,7 @@ public sealed class BeatNoiseScopeRendererTests
         renderer.SetUseCOnset(true);
 
         double cMarkerX = mainPlot.Plot.GetPlottables<VerticalLine>()
-            .Single(line => line.IsVisible && Equals(line.LinePattern, LinePattern.Dotted))
+            .Single(line => line.IsVisible && IsCGuide(line))
             .X;
 
         Assert.Equal(9.0, cMarkerX);
@@ -636,8 +641,8 @@ public sealed class BeatNoiseScopeRendererTests
         Scatter[] legendEntries = mainPlot.Plot.GetPlottables<Scatter>()
             .Where(scatter => !string.IsNullOrEmpty(scatter.LegendText))
             .ToArray();
-        Assert.Contains(legendEntries, scatter => scatter.LegendText == "A" && Equals(scatter.LinePattern, LinePattern.DenselyDashed) && scatter.LineWidth >= 2);
-        Assert.Contains(legendEntries, scatter => scatter.LegendText == "C" && Equals(scatter.LinePattern, LinePattern.Dotted) && scatter.LineWidth >= 2);
+        Assert.Contains(legendEntries, scatter => scatter.LegendText == "A" && Equals(scatter.LinePattern, GraphLinePatterns.VerticalGuide) && scatter.LineWidth >= 2);
+        Assert.Contains(legendEntries, scatter => scatter.LegendText == "C" && Equals(scatter.LinePattern, GraphLinePatterns.VerticalGuide) && scatter.LineWidth >= 2);
     }
 
     [Fact]
@@ -970,11 +975,11 @@ public sealed class BeatNoiseScopeRendererTests
         }, new AnalysisTabRenderContext(SampleRate: 48000));
 
         double[] secondHalfAMarkers = stripPlot.Plot.GetPlottables<VerticalLine>()
-            .Where(line => line.IsVisible && Equals(line.LinePattern, LinePattern.Dashed) && line.X > 7.0 && line.X < 8.0)
+            .Where(line => line.IsVisible && line.X > 7.0 && line.X < 8.0 && IsAGuide(line))
             .Select(line => Math.Round(line.X, 3))
             .ToArray();
         double[] secondHalfCMarkers = stripPlot.Plot.GetPlottables<VerticalLine>()
-            .Where(line => line.IsVisible && Equals(line.LinePattern, LinePattern.Dotted) && line.X > 7.0 && line.X < 8.0)
+            .Where(line => line.IsVisible && line.X > 7.0 && line.X < 8.0 && IsCGuide(line))
             .Select(line => Math.Round(line.X, 3))
             .ToArray();
 
@@ -1132,4 +1137,12 @@ public sealed class BeatNoiseScopeRendererTests
         Assert.Equal(1.7, Math.Round(lane1Milestones[0][0], 3));
         Assert.Equal(1.95, Math.Round(lane1Milestones[1][0], 3));
     }
+
+    private static bool IsAGuide(VerticalLine line) =>
+        Equals(line.LinePattern, GraphLinePatterns.VerticalGuide) &&
+        line.LineColor.Equals(Color.FromARGB(PlotThemePalette.Current.TraceTick));
+
+    private static bool IsCGuide(VerticalLine line) =>
+        Equals(line.LinePattern, GraphLinePatterns.VerticalGuide) &&
+        line.LineColor.Equals(Color.FromARGB(PlotThemePalette.Current.TraceTock));
 }

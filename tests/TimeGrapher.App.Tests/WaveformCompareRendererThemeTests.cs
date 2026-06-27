@@ -36,15 +36,17 @@ public sealed class WaveformCompareRendererThemeTests
             .Where(scatter => scatter.IsVisible)
             .ToList();
         var aGuides = plot.Plot.GetPlottables<VerticalLine>()
-            .Where(line => line.LinePattern.Equals(LinePattern.Dashed))
+            .Where(line => line.LineColor.Equals(Color.FromARGB(green)))
             .ToList();
         var cGuides = plot.Plot.GetPlottables<LinePlot>().ToList();
 
         Assert.Equal(WaveformCompareLogic.PairLanes * 2, visibleLaneScatters.Count);
         Assert.All(visibleLaneScatters, scatter => Assert.Equal(Color.FromARGB(traceWave), scatter.LineColor));
         Assert.Equal(2, aGuides.Count);
+        Assert.All(aGuides, guide => Assert.Equal(GraphLinePatterns.VerticalGuide, guide.LinePattern));
         Assert.All(aGuides, guide => Assert.Equal(Color.FromARGB(green), guide.LineColor));
         Assert.Equal(WaveformCompareLogic.PairLanes * 2, cGuides.Count);
+        Assert.All(cGuides, guide => Assert.Equal(GraphLinePatterns.VerticalGuide, guide.LinePattern));
         Assert.All(cGuides, guide => Assert.Equal(Color.FromARGB(red), guide.LineColor));
     }
 

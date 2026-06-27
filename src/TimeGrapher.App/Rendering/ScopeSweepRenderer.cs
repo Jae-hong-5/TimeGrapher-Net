@@ -35,7 +35,7 @@ internal sealed class ScopeSweepRenderer
     private Scatter? _preRollScatter;
     private ReviewCursorLayer? _reviewCursor;
 
-    // A/C beat markers: one dashed/dotted vertical line + label per tic/toc phase per sweep
+    // A/C beat markers: one vertical guide line + label per tic/toc phase per sweep
     // repetition. 1x shows one set; 2x/3x windows add a second/third copy spaced one beat period apart.
     private const int MaxSweepMultiple = 3;
     /// <summary>Pre-roll margin shown to the left of the A onset (ms).</summary>
@@ -140,13 +140,13 @@ internal sealed class ScopeSweepRenderer
 
         for (int k = 0; k < MaxSweepMultiple; k++)
         {
-            _aTicMarkers[k] = AddMarkerLine(sweep, LinePattern.Dashed);
+            _aTicMarkers[k] = AddMarkerLine(sweep, GraphLinePatterns.VerticalGuide);
             _aTicLabels[k]  = AddMarkerLabel(sweep);
-            _aTocMarkers[k] = AddMarkerLine(sweep, LinePattern.Dashed);
+            _aTocMarkers[k] = AddMarkerLine(sweep, GraphLinePatterns.VerticalGuide);
             _aTocLabels[k]  = AddMarkerLabel(sweep);
-            _cTicMarkers[k] = AddMarkerLine(sweep, LinePattern.Dotted);
+            _cTicMarkers[k] = AddMarkerLine(sweep, GraphLinePatterns.VerticalGuide);
             _cTicLabels[k]  = AddMarkerLabel(sweep);
-            _cTocMarkers[k] = AddMarkerLine(sweep, LinePattern.Dotted);
+            _cTocMarkers[k] = AddMarkerLine(sweep, GraphLinePatterns.VerticalGuide);
             _cTocLabels[k]  = AddMarkerLabel(sweep);
         }
 
@@ -306,7 +306,7 @@ internal sealed class ScopeSweepRenderer
     }
 
     /// <summary>
-    /// Places A (dashed) and C (dotted) vertical markers at each beat phase in
+    /// Places A and C vertical markers at each beat phase in
     /// the sweep window. In 1x mode one set of markers is placed; in 2x/3x mode
     /// additional copies are placed at each subsequent beat-period repetition so
     /// the markers remain visible across the full multi-period window.
@@ -431,7 +431,7 @@ internal sealed class ScopeSweepRenderer
         }
     }
 
-/// <summary>Review-cursor contract: a dotted marker at the scrub time's sweep phase.</summary>
+    /// <summary>Review-cursor contract: a vertical marker at the scrub time's sweep phase.</summary>
     private bool UpdateReviewCursor(double? reviewCursorTimeS)
     {
         if (_reviewCursor == null)

@@ -23,7 +23,7 @@ internal sealed record VarioReadoutControls(
 /// <summary>
 /// Vario display: per-position stability of rate and amplitude. Each gauge shows
 /// the acceptable band (amber), the measured min and max (blue lines), the
-/// average (red solid line) and the current reading (theme-colored dashed line) — opaque lines so they
+/// average (red solid line) and the current reading (theme-colored guide line) — opaque lines so they
 /// stay legible over the band rather than blending a translucent fill into it;
 /// short role labels are placed by <see cref="VarioGaugeLayout"/> in fixed lanes
 /// so close values remain readable. A SUMMARY bar carries the verdicts and elapsed time;
@@ -172,7 +172,7 @@ internal sealed class VarioRenderer
             gauge.MinLine = AddLine(plot, 3, LinePattern.Solid);
             gauge.MaxLine = AddLine(plot, 3, LinePattern.Solid);
             gauge.AvgLine = AddLine(plot, 4, LinePattern.Solid);
-            gauge.CurrentLine = AddLine(plot, 2, LinePattern.Dashed);
+            gauge.CurrentLine = AddLine(plot, 2, GraphLinePatterns.VerticalGuide);
             for (int i = 0; i < LabelPoolSize; i++)
             {
                 Text label = plot.Add.Text(string.Empty, 0.0, VarioGaugeLayout.CurrentLabelY);

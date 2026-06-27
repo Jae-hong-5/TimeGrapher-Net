@@ -81,7 +81,7 @@ internal sealed class LongTermPerfRenderer
         public Text? AcceptMaxLabel;
         public ReviewCursorLayer? Cursor;
 
-        // Dashed vertical lines (one per watch-position turn) labelled with the
+        // Vertical guide lines (one per watch-position turn) labelled with the
         // position name; rebuilt only when the change count grows.
         public readonly List<VerticalLine> PositionMarkers = new();
     }
@@ -711,7 +711,7 @@ internal sealed class LongTermPerfRenderer
     }
 
     /// <summary>
-    /// Reconciles the dashed position-change markers with the snapshot's change
+    /// Reconciles the position-change guide markers with the snapshot's change
     /// list. Position turns are manual (seconds apart) and the list only grows,
     /// so a rebuild on a changed count is cheap; the start entry (stamped at the
     /// first plotted point, not 0) gives every run a labelled marker even when
@@ -769,11 +769,10 @@ internal sealed class LongTermPerfRenderer
 
     private void StylePositionMarker(VerticalLine marker)
     {
-        // Dashed so it reads distinctly from the dotted review cursor; the
-        // markers must never participate in autoscale (the start line sits at the
+        // Position markers must never participate in autoscale (the start line sits at the
         // first plotted point and would otherwise drag the data window).
         Color color = Color.FromARGB(_theme.TextPrimary);
-        marker.LinePattern = LinePattern.Dashed;
+        marker.LinePattern = GraphLinePatterns.VerticalGuide;
         marker.LineWidth = 1;
         marker.LineColor = color;
         marker.EnableAutoscale = false;
@@ -782,7 +781,7 @@ internal sealed class LongTermPerfRenderer
         // pixels DOWN inside it (negative top padding: ScottPlot draws the
         // opposite-axis label at DataRect.Top - PixelPadding.Top). UpperLeft puts
         // the text's top-left at the anchor, so the name hangs below the top edge
-        // and sits to the RIGHT of the dashed line; LabelOffsetX adds a small gap.
+        // and sits to the RIGHT of the guide line; LabelOffsetX adds a small gap.
         // ManualLabelAlignment is required: RenderLast overwrites LabelAlignment.
         marker.LabelOppositeAxis = true;
         marker.ManualLabelAlignment = Alignment.UpperLeft;

@@ -1168,10 +1168,10 @@ public sealed class InfoTabRegistryTests
         var legend = Assert.IsType<TextBlock>(legendBox.Child);
         string legendText = string.Concat(legend.Inlines!.OfType<Run>().Select(run => run.Text));
         Run currentSwatch = legend.Inlines!.OfType<Run>()
-            .Single(run => run.Text == "Black dashed");
+            .Single(run => run.Text == "Black short dash");
 
         Assert.Equal(
-            "Amber band = acceptable band   Blue solid = measured min/max   Red solid = average   Black dashed = current",
+            "Amber band = acceptable band   Blue solid = measured min/max   Red solid = average   Black short dash = current",
             legendText);
         Assert.IsAssignableFrom<IBrush>(currentSwatch.GetValue(TextElement.ForegroundProperty));
         Assert.Equal(TextWrapping.NoWrap, legend.TextWrapping);

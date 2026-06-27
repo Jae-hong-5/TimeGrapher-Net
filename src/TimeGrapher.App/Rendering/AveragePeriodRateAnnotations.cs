@@ -101,7 +101,7 @@ internal sealed class AveragePeriodRateAnnotations
         {
             VerticalLine boundary = plot.Add.VerticalLine(0.0);
             boundary.LineWidth = BoundaryLineWidth;
-            boundary.LinePattern = LinePattern.Dashed;
+            boundary.LinePattern = GraphLinePatterns.VerticalGuide;
             boundary.IsVisible = false;
             boundary.EnableAutoscale = false;
             _boundaries.Add(boundary);

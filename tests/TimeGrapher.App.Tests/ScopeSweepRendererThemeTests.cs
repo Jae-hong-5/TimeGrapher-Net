@@ -38,15 +38,19 @@ public sealed class ScopeSweepRendererThemeTests
 
         var scatters = sweepPlot.Plot.GetPlottables<Scatter>().ToList();
         var lines = sweepPlot.Plot.GetPlottables<VerticalLine>().ToList();
-        var aMarkers = lines.Where(l => l.LinePattern.Equals(LinePattern.Dashed)).ToList();
+        var aMarkers = lines
+            .Where(l => l.LineColor.Equals(Color.FromARGB(green)))
+            .ToList();
         var cMarkers = lines
-            .Where(l => l.LinePattern.Equals(LinePattern.Dotted) && !l.LineColor.Equals(Color.FromARGB(cursor)))
+            .Where(l => l.LineColor.Equals(Color.FromARGB(red)))
             .ToList();
 
         Assert.Equal(2, scatters.Count);
         Assert.All(scatters, s => Assert.Equal(Color.FromARGB(traceWave), s.LineColor));
         Assert.NotEmpty(aMarkers);
         Assert.NotEmpty(cMarkers);
+        Assert.All(aMarkers, l => Assert.Equal(GraphLinePatterns.VerticalGuide, l.LinePattern));
+        Assert.All(cMarkers, l => Assert.Equal(GraphLinePatterns.VerticalGuide, l.LinePattern));
         Assert.All(aMarkers, l => Assert.Equal(Color.FromARGB(green), l.LineColor));
         Assert.All(cMarkers, l => Assert.Equal(Color.FromARGB(red), l.LineColor));
     }

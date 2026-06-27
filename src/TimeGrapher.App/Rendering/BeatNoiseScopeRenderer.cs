@@ -289,18 +289,18 @@ internal sealed class BeatNoiseScopeRenderer
         _mirrorScatter.IsVisible = !_showAbsoluteValue;
         _mainALegendScatter = main.Add.Scatter(_mainALegendX, _mainALegendY);
         _mainALegendScatter.LineWidth = MarkerLegendLineWidth;
-        _mainALegendScatter.LinePattern = LinePattern.DenselyDashed;
+        _mainALegendScatter.LinePattern = GraphLinePatterns.VerticalGuide;
         _mainALegendScatter.MarkerStyle.IsVisible = false;
         _mainALegendScatter.LegendText = "A";
         _mainCLegendScatter = main.Add.Scatter(_mainCLegendX, _mainCLegendY);
         _mainCLegendScatter.LineWidth = MarkerLegendLineWidth;
-        _mainCLegendScatter.LinePattern = LinePattern.Dotted;
+        _mainCLegendScatter.LinePattern = GraphLinePatterns.VerticalGuide;
         _mainCLegendScatter.MarkerStyle.IsVisible = false;
         _mainCLegendScatter.LegendText = "C";
         main.ShowLegend();
         _dynamicAMarkers.Clear();
         _dynamicCPeakMarkers.Clear();
-        _cOnsetMarker = AddMarker(main, LinePattern.Dotted);
+        _cOnsetMarker = AddMarker(main, GraphLinePatterns.VerticalGuide);
         _weakSignalLabel = AddWeakSignalLabel(main);
         _signalQualityOverlay.Reset();
         _reviewCursor = AddCursor(main);
@@ -1067,9 +1067,7 @@ internal sealed class BeatNoiseScopeRenderer
         List<VerticalLine> pool = kind == BeatNoiseMarkerKind.A
             ? _dynamicAMarkers
             : _dynamicCPeakMarkers;
-        LinePattern pattern = kind == BeatNoiseMarkerKind.A
-            ? LinePattern.Dashed
-            : LinePattern.Dotted;
+        LinePattern pattern = GraphLinePatterns.VerticalGuide;
         uint color = kind == BeatNoiseMarkerKind.A
             ? _theme.TraceTick
             : _theme.TraceTock;
@@ -1427,7 +1425,7 @@ internal sealed class BeatNoiseScopeRenderer
             double aInWindowMs = relativeAOffsetMs - windowStartMs;
             if (aInWindowMs >= 0.0 && aInWindowMs <= windowMs)
             {
-                AddStripMarker(_stripAMarkers, LinePattern.Dashed, _theme.TraceTick,
+                AddStripMarker(_stripAMarkers, GraphLinePatterns.VerticalGuide, _theme.TraceTick,
                     BeatNoiseScopeLogic.StripMarkerX(slot, aInWindowMs, windowMs));
             }
 
@@ -1438,7 +1436,7 @@ internal sealed class BeatNoiseScopeRenderer
                 double cInWindowMs = relativeCOffsetMs - windowStartMs;
                 if (cInWindowMs >= 0.0 && cInWindowMs <= windowMs)
                 {
-                    AddStripMarker(_stripCMarkers, LinePattern.Dotted, _theme.TraceTock,
+                    AddStripMarker(_stripCMarkers, GraphLinePatterns.VerticalGuide, _theme.TraceTock,
                         BeatNoiseScopeLogic.StripMarkerX(slot, cInWindowMs, windowMs));
                 }
             }
@@ -1452,7 +1450,7 @@ internal sealed class BeatNoiseScopeRenderer
         marker.IsVisible = true;
     }
 
-    /// <summary>Review-cursor contract: a dotted marker at the scrub time's in-window offset.</summary>
+    /// <summary>Review-cursor contract: a vertical marker at the scrub time's in-window offset.</summary>
     private bool UpdateReviewCursor(double? reviewCursorTimeS)
     {
         if (_reviewCursor == null)
