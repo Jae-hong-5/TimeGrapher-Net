@@ -25,7 +25,7 @@ namespace TimeGrapher.App.Rendering;
 /// span highlights the slot).
 ///
 /// Scope 2: the two phase-alternating averaged lanes on a fixed 0-20 ms axis,
-/// vertically offset and labeled tick/tock, with the per-lane
+/// vertically offset and labeled Tic/Toc, with the per-lane
 /// average signal level and Σ progress in the readout below.
 ///
 /// All plottables refill in place; re-renders only when the snapshot version
@@ -327,11 +327,11 @@ internal sealed class BeatNoiseScopeRenderer
         _lane1Scatter = average.Add.Scatter(_lane1X, _lane1Y);
         _lane1Scatter.LineWidth = 1;
         _lane1Scatter.MarkerStyle.IsVisible = false;
-        _lane1Scatter.LegendText = "tick";
+        _lane1Scatter.LegendText = "Tic";
         _lane2Scatter = average.Add.Scatter(_lane2X, _lane2Y);
         _lane2Scatter.LineWidth = 1;
         _lane2Scatter.MarkerStyle.IsVisible = false;
-        _lane2Scatter.LegendText = "tock";
+        _lane2Scatter.LegendText = "Toc";
         _lane1SignalLabel = AddAverageSignalLabel(average);
         _lane2SignalLabel = AddAverageSignalLabel(average);
         average.ShowLegend();
@@ -853,8 +853,8 @@ internal sealed class BeatNoiseScopeRenderer
 
     private void UpdateAverageSignalLabels(BeatNoiseAverageSnapshot average)
     {
-        SetAverageSignalLabel(_lane1SignalLabel, "tick", average.Lane1Count, average.Lane1MeanPeak, Lane1Baseline + 1.05);
-        SetAverageSignalLabel(_lane2SignalLabel, "tock", average.Lane2Count, average.Lane2MeanPeak, Lane2Baseline + 1.05);
+        SetAverageSignalLabel(_lane1SignalLabel, "Tic", average.Lane1Count, average.Lane1MeanPeak, Lane1Baseline + 1.05);
+        SetAverageSignalLabel(_lane2SignalLabel, "Toc", average.Lane2Count, average.Lane2MeanPeak, Lane2Baseline + 1.05);
     }
 
     private static void SetAverageSignalLabel(Text? label, string traceName, int count, double meanPeak, double y)
@@ -900,7 +900,7 @@ internal sealed class BeatNoiseScopeRenderer
             FillSelectedLane(_lane2X, _lane2Y, trace2, Lane2Baseline, max);
         }
 
-        _averageText.Text = "tick selected strip · tock selected strip";
+        _averageText.Text = "Tic selected strip · Toc selected strip";
         _averagePlot.Plot.Axes.SetLimits(0, BeatNoiseAverager.LaneWindowMs, -0.1, Lane1Baseline + 1.15);
     }
 
@@ -1396,7 +1396,7 @@ internal sealed class BeatNoiseScopeRenderer
             _mainCLegendScatter.LineColor = Color.FromARGB(_theme.TraceTock);
         }
 
-        // A = tick green, C = tock red: the same themed event color mapping the
+        // A = Tic green, C = Toc red: the same themed event color mapping the
         // scope markers use (RateScopeRenderer.ThemeColor).
         foreach (var marker in _dynamicAMarkers)
         {
@@ -1450,7 +1450,7 @@ internal sealed class BeatNoiseScopeRenderer
             _selectionSpan.LineStyle.Color = Color.FromARGB(_theme.TraceTick);
         }
 
-        // Lane colors follow the tick/tock phase labels.
+        // Lane colors follow the Tic/Toc phase labels.
         if (_lane1Scatter != null)
         {
             _lane1Scatter.LineColor = Color.FromARGB(_theme.TraceTick);

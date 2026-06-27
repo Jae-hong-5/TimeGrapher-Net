@@ -899,7 +899,7 @@ public sealed class BeatNoiseScopeRendererTests
         Scatter[] legendEntries = visibleScatters
             .Where(scatter => !string.IsNullOrEmpty(scatter.LegendText))
             .ToArray();
-        Assert.Equal(new[] { "tick", "tock" }, legendEntries.Select(scatter => scatter.LegendText));
+        Assert.Equal(new[] { "Tic", "Toc" }, legendEntries.Select(scatter => scatter.LegendText));
 
         var lane1Milestones = (List<double>[])typeof(BeatNoiseScopeRenderer)
             .GetField("_lane1MilestoneY", BindingFlags.Instance | BindingFlags.NonPublic)!
