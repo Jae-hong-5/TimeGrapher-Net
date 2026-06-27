@@ -57,7 +57,7 @@ public sealed class InfoTabRegistryTests
         InfoTabRegistry registry = InfoTabRegistry.FromCatalog(tabControl, positionStrip, "Arial");
         Button[] buttons = ResetViewButtons(registry);
 
-        Assert.Equal(5, buttons.Length);
+        Assert.Equal(4, buttons.Length);
         Assert.All(buttons, button => Assert.Equal("Reset all graph views", ToolTip.GetTip(button)));
     }
 
@@ -782,29 +782,15 @@ public sealed class InfoTabRegistryTests
     }
 
     [Fact]
-    public void FilterScopeTabUsesScopeSweepHeaderResetButton()
+    public void FilterScopeTabUsesCompactLaneGridWithoutResetButton()
     {
         Grid content = CreateMultiFilterScopeContent();
-        var headerStrip = Assert.IsType<Grid>(
-            content.Children.Single(child => Grid.GetRow(child) == 0));
+        Grid lanesGrid = Assert.IsType<Grid>(content.Children.OfType<Grid>().Single());
 
-        Assert.Equal(2, content.RowDefinitions.Count);
-        Assert.Equal(GridUnitType.Auto, content.RowDefinitions[0].Height.GridUnitType);
-        Assert.True(content.RowDefinitions[1].Height.IsStar);
-        Assert.Equal(2, headerStrip.ColumnDefinitions.Count);
-        Assert.True(headerStrip.ColumnDefinitions[0].Width.IsStar);
-        Assert.Equal(GridUnitType.Auto, headerStrip.ColumnDefinitions[1].Width.GridUnitType);
-        Assert.Equal(new Thickness(8, 1, 8, 2), headerStrip.Margin);
-
-        StackPanel controls = headerStrip.Children.OfType<StackPanel>().Single();
-        Assert.Equal(1, Grid.GetColumn(controls));
-        Button resetView = controls.Children.OfType<Button>().Single(button => Equals(button.Content, "Reset View"));
-        Assert.Equal("Reset View", resetView.Content);
-        Assert.Contains("PositionButton", resetView.Classes);
-        Assert.Equal(TraceHeaderButtonFontSizeForTest, resetView.FontSize);
-        Assert.Equal(TraceHeaderButtonMinHeightForTest, resetView.MinHeight);
-        Assert.Equal(new Thickness(10, 2, 10, 2), resetView.Padding);
-        Assert.Equal(VerticalAlignment.Center, resetView.VerticalAlignment);
+        Assert.Empty(content.RowDefinitions);
+        Assert.Equal(2, lanesGrid.ColumnDefinitions.Count);
+        Assert.Equal(4, lanesGrid.RowDefinitions.Count);
+        Assert.DoesNotContain(Descendants(content).OfType<Button>(), button => Equals(button.Content, "Reset View"));
     }
 
     [Fact]
@@ -817,7 +803,7 @@ public sealed class InfoTabRegistryTests
             .OfType<TextBlock>()
             .Single(text => text.Text == "Waiting for Tic/Toc sync…");
 
-        Assert.Equal(1, Grid.GetRow(overlay));
+        Assert.Equal(0, Grid.GetRow(overlay));
     }
 
     [Fact]

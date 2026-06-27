@@ -19,11 +19,13 @@ public sealed class MultiFilterScopeRendererTests
 
         renderer.CreateGraphs();
 
-        Assert.All(plots, plot =>
+        for (int i = 0; i < plots.Length; i++)
         {
-            Assert.Equal(PlotThemeHelper.CompactLeftAxisSizePx, plot.Plot.Axes.Left.MinimumSize);
-            Assert.Equal(PlotThemeHelper.CompactBottomAxisSizePx, plot.Plot.Axes.Bottom.MinimumSize);
-        });
+            float expectedLeft = i % 2 == 0 ? PlotThemeHelper.CompactLeftAxisSizePx : 44f;
+            float expectedBottom = i >= plots.Length - 2 ? PlotThemeHelper.CompactBottomAxisSizePx : 36f;
+            Assert.Equal(expectedLeft, plots[i].Plot.Axes.Left.MinimumSize);
+            Assert.Equal(expectedBottom, plots[i].Plot.Axes.Bottom.MinimumSize);
+        }
     }
 
     [Fact]
