@@ -58,10 +58,10 @@ internal sealed class EscapementAnalyzerRenderer
     private const double TicTocAConnectorLineFraction = -0.72;
     private const double TicTocAConnectorLabelFraction = -0.80;
 
-    private const double LeftViewPadFraction = 0.10;
-    private const double RightViewPadFraction = 0.20;
-    private const double LeftViewPadMs = 6.0;
-    private const double RightViewPadMs = 12.0;
+    private const double LeftViewPadFraction = 0.06;
+    private const double RightViewPadFraction = 0.25;
+    private const double LeftViewPadMs = 4.0;
+    private const double RightViewPadMs = 16.0;
     /// <summary>Smallest visible span (ms), so a very tight single-beat A→C still frames sensibly.</summary>
     private const double MinViewSpanMs = 18.0;
 
