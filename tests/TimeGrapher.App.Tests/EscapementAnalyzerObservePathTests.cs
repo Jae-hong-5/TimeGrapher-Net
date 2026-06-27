@@ -63,6 +63,6 @@ public sealed class EscapementAnalyzerObservePathTests
         // n=3 needs the two observe-only beats (a render-only feed of the
         // latest snapshot would read n=1), and the catch-up re-feed of the
         // same snapshot version inside RenderFrame must not double-count.
-        Assert.Equal("145.0 ±0.00 ms (n=3)", valueTexts[meanSigmaIndex].Text);
+        Assert.Equal("145.00 ±0.00 ms (n=3)", valueTexts[meanSigmaIndex].Text);
     }
 }

@@ -13,7 +13,6 @@ namespace TimeGrapher.App.Rendering;
 /// </summary>
 internal static class EscapementReadout
 {
-    private const string SignedTenthsMsFormat = "+0.0;-0.0;0.0";
     private const string SignedHundredthsMsFormat = "+0.00;-0.00;0.00";
 
     /// <summary>
@@ -31,10 +30,10 @@ internal static class EscapementReadout
     };
 
     public static string CPeakMarkerLabel(double aToCPeakMs) =>
-        "C peak " + aToCPeakMs.ToString(SignedTenthsMsFormat, CultureInfo.InvariantCulture) + " ms";
+        "C peak " + aToCPeakMs.ToString(SignedHundredthsMsFormat, CultureInfo.InvariantCulture) + " ms";
 
     public static string COnsetMarkerLabel(double aToCOnsetMs) =>
-        "C onset " + aToCOnsetMs.ToString(SignedTenthsMsFormat, CultureInfo.InvariantCulture) + " ms";
+        "C onset " + aToCOnsetMs.ToString(SignedHundredthsMsFormat, CultureInfo.InvariantCulture) + " ms";
 
     /// <summary>Formatted readings in <see cref="Labels"/> order (em dash when absent).</summary>
     public static string[] Values(BeatSegment? latest, EscapementTimingTracker tracker)
@@ -48,8 +47,8 @@ internal static class EscapementReadout
 
         return new[]
         {
-            VarioReadout.Format(peakMs, SignedTenthsMsFormat, " ms"),
-            VarioReadout.Format(onsetMs, SignedTenthsMsFormat, " ms"),
+            VarioReadout.Format(peakMs, SignedHundredthsMsFormat, " ms"),
+            VarioReadout.Format(onsetMs, SignedHundredthsMsFormat, " ms"),
             VarioReadout.Format(onsetMs - peakMs, SignedHundredthsMsFormat, " ms"),
             MeanSigma(tracker.PeakMeanMs, tracker.PeakSigmaMs, tracker.PeakCount),
             MeanSigma(tracker.OnsetMeanMs, tracker.OnsetSigmaMs, tracker.OnsetCount),
@@ -76,6 +75,6 @@ internal static class EscapementReadout
 
     private static string MeanSigma(double? meanMs, double? sigmaMs, int count) =>
         meanMs is double mean && sigmaMs is double sigma
-            ? string.Format(CultureInfo.InvariantCulture, "{0:0.0} ±{1:0.00} ms (n={2})", mean, sigma, count)
+            ? string.Format(CultureInfo.InvariantCulture, "{0:0.00} ±{1:0.00} ms (n={2})", mean, sigma, count)
             : VarioReadout.Missing;
 }

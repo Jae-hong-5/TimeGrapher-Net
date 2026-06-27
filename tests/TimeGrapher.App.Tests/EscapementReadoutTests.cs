@@ -27,8 +27,8 @@ public sealed class EscapementReadoutTests
     public void MarkerLabels_ReportTheElapsedMsFromA()
     {
         Assert.Equal("A", EscapementReadout.AMarkerLabel);
-        Assert.Equal("C peak +142.5 ms", EscapementReadout.CPeakMarkerLabel(142.5));
-        Assert.Equal("C onset +141.8 ms", EscapementReadout.COnsetMarkerLabel(141.8));
+        Assert.Equal("C peak +142.50 ms", EscapementReadout.CPeakMarkerLabel(142.5));
+        Assert.Equal("C onset +141.80 ms", EscapementReadout.COnsetMarkerLabel(141.8));
     }
 
     [Fact]
@@ -41,11 +41,11 @@ public sealed class EscapementReadoutTests
         string[] values = EscapementReadout.Values(latest, tracker);
 
         Assert.Equal(EscapementReadout.Labels.Length, values.Length);
-        Assert.Equal("+142.5 ms", values[0]);
-        Assert.Equal("+141.8 ms", values[1]);
+        Assert.Equal("+142.50 ms", values[0]);
+        Assert.Equal("+141.75 ms", values[1]);
         Assert.Equal("-0.75 ms", values[2]);
-        Assert.Equal("142.5 ±0.00 ms (n=1)", values[3]);
-        Assert.Equal("141.8 ±0.00 ms (n=1)", values[4]);
+        Assert.Equal("142.50 ±0.00 ms (n=1)", values[3]);
+        Assert.Equal("141.75 ±0.00 ms (n=1)", values[4]);
         Assert.Equal("—", values[5]);
     }
 
@@ -63,7 +63,7 @@ public sealed class EscapementReadoutTests
 
         // C peak without a located onset: the onset readings stay em dashes.
         string[] peakOnly = EscapementReadout.Values(Segment(5.0, cPeakMs: 150.0, cOnsetMs: null), tracker);
-        Assert.Equal("+145.0 ms", peakOnly[0]);
+        Assert.Equal("+145.00 ms", peakOnly[0]);
         Assert.Equal("—", peakOnly[1]);
         Assert.Equal("—", peakOnly[2]);
     }
