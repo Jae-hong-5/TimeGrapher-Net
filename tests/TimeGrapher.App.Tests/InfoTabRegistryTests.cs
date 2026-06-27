@@ -510,6 +510,7 @@ public sealed class InfoTabRegistryTests
     [Fact]
     public void TraceTabReservesAlertBannerSpaceBesideHeaderButtons()
     {
+        EnsureAvaloniaPlatform();
         Grid content = CreateTraceContent();
         var headerStrip = Assert.IsType<Grid>(
             content.Children.Single(child => Grid.GetRow(child) == 0));
@@ -530,16 +531,21 @@ public sealed class InfoTabRegistryTests
         Assert.Equal(new[] { "Smoothing" }, buttons);
         Button smoothing = buttonStrip.Children.OfType<Button>().Single();
         Assert.Contains("PositionButton", smoothing.Classes);
+        Assert.Equal(TraceHeaderButtonFontSizeForTest, smoothing.FontSize);
+        Assert.Equal(TraceHeaderButtonMinHeightForTest, smoothing.MinHeight);
         Assert.True(smoothing.IsVisible);
 
         Border banner = headerStrip.Children.OfType<Border>().Single();
         Assert.Equal(0, Grid.GetColumn(banner));
+        Assert.Equal(TraceHeaderButtonMinHeightForTest, banner.MinHeight);
+        Assert.Equal(smoothing.MinHeight, banner.MinHeight);
         // Hidden until the renderer sets a message; it occupies the reserved left
         // column rather than collapsing the whole strip.
         Assert.False(banner.IsVisible);
         // A gap is kept between the banner and the buttons so it never butts up
         // against Smoothing when shown.
         Assert.True(banner.Margin.Right > 0);
+        AssertVisibleAlertBannerHeightMatchesButton(content, "Smoothing");
     }
 
     [Fact]
@@ -784,6 +790,7 @@ public sealed class InfoTabRegistryTests
     [Fact]
     public void BeatErrorDiagTabReservesAlertBannerSpaceBesideResetView()
     {
+        EnsureAvaloniaPlatform();
         Grid content = CreateBeatErrorDiagContent();
         var headerStrip = Assert.IsType<Grid>(
             content.Children.Single(child => Grid.GetRow(child) == 0));
@@ -794,16 +801,21 @@ public sealed class InfoTabRegistryTests
 
         Border banner = headerStrip.Children.OfType<Border>().Single();
         Assert.Equal(0, Grid.GetColumn(banner));
+        Assert.Equal(TraceHeaderButtonMinHeightForTest, banner.MinHeight);
         Assert.False(banner.IsVisible);
         Assert.True(banner.Margin.Right > 0);
 
         StackPanel controls = headerStrip.Children.OfType<StackPanel>().Single();
         Assert.Equal(1, Grid.GetColumn(controls));
+        Assert.All(controls.Children.OfType<Button>(), button =>
+            Assert.Equal(TraceHeaderButtonMinHeightForTest, button.MinHeight));
         Button resetView = controls.Children.OfType<Button>().Single(button => Equals(button.Content, "Reset View"));
         Assert.Equal("Reset View", resetView.Content);
         Assert.Contains("PositionButton", resetView.Classes);
         Assert.Equal(TraceHeaderButtonFontSizeForTest, resetView.FontSize);
         Assert.Equal(TraceHeaderButtonMinHeightForTest, resetView.MinHeight);
+        Assert.Equal(resetView.MinHeight, banner.MinHeight);
+        AssertVisibleAlertBannerHeightMatchesButton(content, "Reset View");
 
         Assert.DoesNotContain(content.Children.OfType<Button>(), button => Grid.GetRow(button) == 2);
     }
@@ -1139,6 +1151,29 @@ public sealed class InfoTabRegistryTests
             .OfType<Button>()
             .Where(button => Equals(button.Content, "Reset View"))
             .ToArray();
+    }
+
+    private static void AssertVisibleAlertBannerHeightMatchesButton(Grid content, string buttonContent)
+    {
+        EnsureAvaloniaPlatform();
+        var headerStrip = Assert.IsType<Grid>(
+            content.Children.Single(child => Grid.GetRow(child) == 0));
+        Border banner = headerStrip.Children.OfType<Border>().Single();
+        var alertText = Assert.IsType<TextBlock>(banner.Child);
+        alertText.Text = "Tic/toc separation +0.90 ms exceeds the acceptable +-0.8 ms";
+        banner.IsVisible = true;
+
+        var contentSize = new Size(1280, 680);
+        content.Measure(contentSize);
+        content.Arrange(new Rect(contentSize));
+
+        Button button = headerStrip.Children
+            .OfType<StackPanel>()
+            .Single()
+            .Children
+            .OfType<Button>()
+            .First(button => Equals(button.Content, buttonContent));
+        Assert.Equal(button.Bounds.Height, banner.Bounds.Height, 3);
     }
 
     private static bool IsScopeSweepReferenceText(TextBlock text)

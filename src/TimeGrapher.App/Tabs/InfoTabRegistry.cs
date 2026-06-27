@@ -173,6 +173,7 @@ internal sealed partial class InfoTabRegistry
         };
         var banner = new Border
         {
+            MinHeight = TraceHeaderButtonMinHeight,
             Padding = new Thickness(8, 3),
             IsVisible = false,
             Child = text,
