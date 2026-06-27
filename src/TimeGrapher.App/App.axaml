@@ -288,22 +288,25 @@
       <Setter Property="Foreground" Value="{DynamicResource ChromeAccentBrush}" />
       <Setter Property="TextAlignment" Value="Center" />
     </Style>
-    <Style Selector="TextBlock.GraphWarningOverlay">
-      <Setter Property="FontFamily" Value="{StaticResource TitleFontFamily}" />
-      <Setter Property="FontSize" Value="13" />
+    <Style Selector="Border.StatusBar">
+      <Setter Property="Background" Value="{DynamicResource GlassPanelBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource GlassRimBrush}" />
+      <Setter Property="BorderThickness" Value="0,1,0,0" />
+    </Style>
+    <Style Selector="Border.StatusBar.status-warning">
+      <Setter Property="Background" Value="{DynamicResource ChromeAccentBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource ChromeAccentBrush}" />
+      <Setter Property="BorderThickness" Value="0,2,0,0" />
+    </Style>
+    <Style Selector="TextBlock.StatusBarReadout">
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}" />
+    </Style>
+    <Style Selector="TextBlock.StatusBarReadout.position">
+      <Setter Property="Foreground" Value="{DynamicResource ChromeAccentBrush}" />
+    </Style>
+    <Style Selector="Border.StatusBar.status-warning TextBlock.StatusBarReadout">
+      <Setter Property="Foreground" Value="White" />
       <Setter Property="FontWeight" Value="Bold" />
-      <Setter Property="Foreground" Value="{DynamicResource VarioBadBrush}" />
-      <Setter Property="Opacity" Value="1" />
-      <Style.Animations>
-        <Animation Duration="0:0:0.7" IterationCount="Infinite" PlaybackDirection="Alternate">
-          <KeyFrame Cue="0%">
-            <Setter Property="Opacity" Value="1" />
-          </KeyFrame>
-          <KeyFrame Cue="100%">
-            <Setter Property="Opacity" Value="0.35" />
-          </KeyFrame>
-        </Animation>
-      </Style.Animations>
     </Style>
     <Style Selector="Slider /template/ Thumb">
       <Setter Property="Width" Value="6" />

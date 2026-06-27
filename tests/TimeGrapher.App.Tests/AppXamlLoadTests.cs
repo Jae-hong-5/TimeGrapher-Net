@@ -219,6 +219,38 @@ public sealed class AppXamlLoadTests
     }
 
     [Fact]
+    public void StatusBarWarningStyleUsesChromeAccentBrushWithWhiteReadouts()
+    {
+        var app = new App();
+        app.Initialize();
+
+        Style statusBar = Assert.Single(app.Styles
+            .OfType<Style>(), style => style.Selector?.ToString() == "Border.StatusBar");
+        Assert.Contains(statusBar.Setters.OfType<Setter>(), setter =>
+            setter.Property == Border.BackgroundProperty &&
+            DynamicResourceKey(setter.Value) == "GlassPanelBrush");
+
+        Style warningBar = Assert.Single(app.Styles
+            .OfType<Style>(), style => style.Selector?.ToString() == "Border.StatusBar.status-warning");
+        Assert.Contains(warningBar.Setters.OfType<Setter>(), setter =>
+            setter.Property == Border.BackgroundProperty &&
+            DynamicResourceKey(setter.Value) == "ChromeAccentBrush");
+        Assert.Contains(warningBar.Setters.OfType<Setter>(), setter =>
+            setter.Property == Border.BorderThicknessProperty &&
+            Equals(setter.Value, new Thickness(0, 2, 0, 0)));
+
+        Style warningReadouts = Assert.Single(app.Styles
+            .OfType<Style>(), style => style.Selector?.ToString() == "Border.StatusBar.status-warning TextBlock.StatusBarReadout");
+        Assert.Contains(warningReadouts.Setters.OfType<Setter>(), setter =>
+            setter.Property == TextBlock.ForegroundProperty &&
+            SetterUsesWhite(setter.Value));
+        Assert.Contains(warningReadouts.Setters.OfType<Setter>(), setter =>
+            setter.Property == TextBlock.FontWeightProperty);
+        Assert.DoesNotContain(app.Styles.OfType<Style>(),
+            style => style.Selector?.ToString() == "TextBlock.GraphWarningOverlay");
+    }
+
+    [Fact]
     public void AppResourcesExposeSapphireCrystalGlassLayer()
     {
         // The glass redesign floats chrome surfaces on an ambient backdrop using a
@@ -275,5 +307,16 @@ public sealed class AppXamlLoadTests
     private static string? DynamicResourceKey(object? value)
     {
         return value?.GetType().GetProperty("ResourceKey")?.GetValue(value)?.ToString();
+    }
+
+    private static bool SetterUsesWhite(object? value)
+    {
+        return value switch
+        {
+            string text => text == "White",
+            Color color => color == Colors.White,
+            ISolidColorBrush brush => brush.Color == Colors.White,
+            _ => false,
+        };
     }
 }

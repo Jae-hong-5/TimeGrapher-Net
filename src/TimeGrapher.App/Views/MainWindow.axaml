@@ -116,18 +116,21 @@
     </Border>
 
     <DockPanel Grid.Row="1">
-    <Border DockPanel.Dock="Bottom" Height="24" Background="{DynamicResource GlassPanelBrush}" BorderBrush="{DynamicResource GlassRimBrush}" BorderThickness="0,1,0,0">
+    <Border Name="StatusBar"
+            DockPanel.Dock="Bottom"
+            Height="24"
+            Classes="StatusBar"
+            Classes.status-warning="{Binding IsStatusWarning}">
       <Grid ColumnDefinitions="*,Auto,Auto">
         <TextBlock Name="StatusBarText"
+                   Classes="StatusBarReadout"
                    Classes.status-warning="{Binding IsStatusWarning}"
                    VerticalAlignment="Center"
                    Margin="6,0,0,0"
                    Text="{Binding StatusText}"
-                   TextTrimming="CharacterEllipsis"
-                   Foreground="{DynamicResource TextPrimaryBrush}">
+                   TextTrimming="CharacterEllipsis">
           <TextBlock.Styles>
             <Style Selector="TextBlock.status-warning">
-              <Setter Property="Foreground" Value="{DynamicResource VarioBadBrush}" />
               <Setter Property="Opacity" Value="1" />
               <Style.Animations>
                 <Animation Duration="0:0:0.7" IterationCount="Infinite" PlaybackDirection="Alternate">
@@ -142,11 +145,10 @@
             </Style>
           </TextBlock.Styles>
         </TextBlock>
-        <TextBlock Name="PositionBarText" Grid.Column="1" VerticalAlignment="Center" Margin="12,0,0,0"
+        <TextBlock Name="PositionBarText" Grid.Column="1" Classes="StatusBarReadout position" VerticalAlignment="Center" Margin="12,0,0,0"
                    Text="{Binding PositionLabel}"
-                   Foreground="{DynamicResource ChromeAccentBrush}"
                    ToolTip.Tip="Active watch position (NIHS 95-10 / ISO 3158) - pick it with the position strip" />
-        <TextBlock Name="LatencyBarText" Grid.Column="2" VerticalAlignment="Center" Margin="12,0,6,0"
+        <TextBlock Name="LatencyBarText" Grid.Column="2" Classes="StatusBarReadout" VerticalAlignment="Center" Margin="12,0,6,0"
                    Text="{Binding LatencyText}"
                    ToolTip.Tip="End-to-end latency avg/worst (capture→processing + processing→display), dropped input samples / coalesced UI frames, missed beats, sync losses" />
       </Grid>
@@ -378,20 +380,6 @@
             </ItemsPanelTemplate>
           </TabControl.ItemsPanel>
         </TabControl>
-        <Border HorizontalAlignment="Stretch"
-                VerticalAlignment="Top"
-                Margin="12,42,14,0"
-                Padding="8,4"
-                IsHitTestVisible="False"
-                IsVisible="{Binding IsStatusWarning}"
-                Background="{DynamicResource GlassPanelBrush}"
-                BorderBrush="{DynamicResource VarioBadBrush}"
-                BorderThickness="1">
-          <TextBlock Classes="GraphWarningOverlay"
-                     Text="{Binding StatusText}"
-                     TextAlignment="Center"
-                     TextWrapping="NoWrap" />
-        </Border>
       </Grid>
     </Grid>
     </DockPanel>
