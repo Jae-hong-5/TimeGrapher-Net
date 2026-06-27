@@ -12,9 +12,12 @@ namespace TimeGrapher.App.Rendering;
 /// </summary>
 internal static class ScopeSweepReadout
 {
+    // Unified with the canonical readout terms (BeatErrorReadout / title bar):
+    // Error Rate · Amplitude · Beat Error · BPH. "A to C" is the sweep-specific
+    // A→C interval the other panels do not show.
     public static readonly string[] Labels =
     {
-        "Inst. Rate", "Inst. Amp", "Inst. Beat Err", "A to C", "Nominal BPH",
+        "Error Rate", "Amplitude", "Beat Error", "A to C", "BPH",
     };
 
     /// <summary>
