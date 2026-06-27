@@ -102,6 +102,7 @@ public sealed class BeatNoiseScopeRendererTests
             RawMin = new float[] { -0.25f },
             RawMax = new float[] { 0.25f },
             MsPerPoint = 0.25,
+            StartTimeS = 0.4,
         };
         renderer.RenderFrame(new AnalysisFrame
         {
@@ -152,6 +153,7 @@ public sealed class BeatNoiseScopeRendererTests
             RawMin = new float[] { -1.0f },
             RawMax = new float[] { 1.0f },
             MsPerPoint = 0.25,
+            StartTimeS = 0.4,
         };
         renderer.RenderFrame(new AnalysisFrame
         {
@@ -822,6 +824,120 @@ public sealed class BeatNoiseScopeRendererTests
     }
 
     [Fact]
+    public void MainScope400MsUpdatesOnlyWhenTheWindowBucketAdvances()
+    {
+        var renderer = new BeatNoiseScopeRenderer(
+            new AvaPlot(), new AvaPlot(), new AvaPlot(), new TextBlock());
+        renderer.CreateGraphs();
+
+        var firstBucketRepresentative = new BeatSegment
+        {
+            Samples = new float[] { 1.0f, 0.5f, 0.25f, 0.125f },
+            MsPerPoint = 100.0,
+            StartTimeS = 0.0,
+        };
+        var laterSameBucket = new BeatSegment
+        {
+            Samples = new float[] { 0.1f, 1.0f, 0.1f, 1.0f },
+            MsPerPoint = 100.0,
+            StartTimeS = 0.1,
+        };
+        var nextBucket = new BeatSegment
+        {
+            Samples = new float[] { 0.2f, 0.4f, 0.6f, 0.8f },
+            MsPerPoint = 100.0,
+            StartTimeS = 0.4,
+        };
+
+        renderer.RenderFrame(new AnalysisFrame
+        {
+            BeatSegments = new BeatSegmentsSnapshot
+            {
+                Version = 1,
+                Segments = new[] { firstBucketRepresentative },
+            },
+        }, new AnalysisTabRenderContext(SampleRate: 48000));
+        double[] firstWindow = MainValues(renderer);
+
+        renderer.RenderFrame(new AnalysisFrame
+        {
+            BeatSegments = new BeatSegmentsSnapshot
+            {
+                Version = 2,
+                Segments = new[] { firstBucketRepresentative, laterSameBucket },
+            },
+        }, new AnalysisTabRenderContext(SampleRate: 48000));
+        Assert.Equal(firstWindow, MainValues(renderer));
+
+        renderer.RenderFrame(new AnalysisFrame
+        {
+            BeatSegments = new BeatSegmentsSnapshot
+            {
+                Version = 3,
+                Segments = new[] { laterSameBucket, nextBucket },
+            },
+        }, new AnalysisTabRenderContext(SampleRate: 48000));
+
+        Assert.Equal(new[] { 0.2, 0.4, 0.6, 0.8 }, MainValues(renderer));
+    }
+
+    [Fact]
+    public void BeatScope400MsStripAccumulatesMarkersForLaterBeatInSameBucket()
+    {
+        var stripPlot = new AvaPlot();
+        var renderer = new BeatNoiseScopeRenderer(
+            new AvaPlot(), stripPlot, new AvaPlot(), new TextBlock());
+        renderer.CreateGraphs();
+
+        var firstBucketRepresentative = new BeatSegment
+        {
+            Samples = Enumerable.Repeat(0.5f, 1600).ToArray(),
+            MsPerPoint = 0.25,
+            StartTimeS = 0.0,
+            CPeakValid = true,
+            CPeakOffsetMs = 12.0,
+        };
+        var laterSameBucket = new BeatSegment
+        {
+            Samples = Enumerable.Repeat(0.5f, 1600).ToArray(),
+            MsPerPoint = 0.25,
+            StartTimeS = 0.25,
+            CPeakValid = true,
+            CPeakOffsetMs = 8.0,
+        };
+
+        renderer.RenderFrame(new AnalysisFrame
+        {
+            BeatSegments = new BeatSegmentsSnapshot
+            {
+                Version = 1,
+                Segments = new[] { firstBucketRepresentative },
+            },
+        }, new AnalysisTabRenderContext(SampleRate: 48000));
+
+        renderer.RenderFrame(new AnalysisFrame
+        {
+            BeatSegments = new BeatSegmentsSnapshot
+            {
+                Version = 2,
+                Segments = new[] { firstBucketRepresentative, laterSameBucket },
+            },
+        }, new AnalysisTabRenderContext(SampleRate: 48000));
+
+        double[] secondHalfAMarkers = stripPlot.Plot.GetPlottables<VerticalLine>()
+            .Where(line => line.IsVisible && Equals(line.LinePattern, LinePattern.Dashed) && line.X > 7.0 && line.X < 8.0)
+            .Select(line => Math.Round(line.X, 3))
+            .ToArray();
+        double[] secondHalfCMarkers = stripPlot.Plot.GetPlottables<VerticalLine>()
+            .Where(line => line.IsVisible && Equals(line.LinePattern, LinePattern.Dotted) && line.X > 7.0 && line.X < 8.0)
+            .Select(line => Math.Round(line.X, 3))
+            .ToArray();
+
+        Assert.Single(secondHalfAMarkers);
+        Assert.Single(secondHalfCMarkers);
+    }
+
+    [Fact]
     public void BeatScope200MsStripSelectionHighlightsOneSlot()
     {
         var stripPlot = new AvaPlot();
@@ -864,6 +980,14 @@ public sealed class BeatNoiseScopeRendererTests
             .GetField("_stripY", BindingFlags.Instance | BindingFlags.NonPublic)!
             .GetValue(renderer)!;
         return values[slot].Select(value => Math.Round(value, 3)).ToArray();
+    }
+
+    private static double[] MainValues(BeatNoiseScopeRenderer renderer)
+    {
+        var values = (List<double>)typeof(BeatNoiseScopeRenderer)
+            .GetField("_mainY", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .GetValue(renderer)!;
+        return values.Select(value => Math.Round(value, 3)).ToArray();
     }
 
     [Fact]
