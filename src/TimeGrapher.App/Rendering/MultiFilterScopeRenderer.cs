@@ -165,12 +165,10 @@ internal sealed class MultiFilterScopeRenderer
                 _plots[idx].Refresh();
             };
 
-            // The default right-click "Auto Scale" fits only the clicked lane,
-            // which breaks the shared timestamp window. Replace the menu with an
-            // all-lanes auto scale routed through ResetView so every lane fits
-            // together (matching the Reset View button).
-            _plots[idx].Menu?.Clear();
-            _plots[idx].Menu?.Add("Auto Scale (all lanes)", _ => ResetView());
+            // No right-click context menu on the filter scope: the lanes are
+            // read-only and beat-locked, so the menu's only item (auto scale) was
+            // unnecessary. Disable it entirely.
+            _plots[idx].Menu = null;
         }
     }
 
@@ -179,7 +177,7 @@ internal sealed class MultiFilterScopeRenderer
         _theme = theme;
         for (int i = 0; i < _plots.Length; i++)
         {
-            ApplyPlotTheme(_plots[i].Plot);
+            ApplyPlotTheme(_plots[i].Plot, i);
         }
 
         ApplySeriesTheme();
@@ -206,15 +204,14 @@ internal sealed class MultiFilterScopeRenderer
             _yMirror[i].Clear();
             _mirrorScatters[i] = null;
             _lastSeries[i] = null;
-            ApplyPlotTheme(plot);
+            ApplyPlotTheme(plot, i);
             plot.XLabel(i >= _plots.Length - 2 ? "Time (ms)" : string.Empty);
             plot.YLabel(i % 2 == 0 ? "Signal Level" : string.Empty);
             // Time ruler: ms ticks measured from the window's left edge (see
-            // ApplyTimeTicks). Same on every lane.
-            plot.Axes.Bottom.TickLabelStyle.IsVisible = true;
+            // ApplyTimeTicks). Tick-label visibility + per-position axis-panel sizes
+            // are set in ApplyPlotTheme so the 2x2 lanes don't waste panel space on
+            // titles/numbers they don't show.
             plot.Axes.Bottom.MajorTickStyle.Length = 6;
-            // Axis panel sizes (incl. the bottom title row) are the shared compact
-            // sizes applied in ApplyPlotTheme via PlotThemeHelper.ApplyCompactAxisPanels.
             // Start (and reset) each lane on a non-negative 0..MaxWindowMs ms axis
             // with 10 ms ticks, instead of ScottPlot's default +/- range, so the
             // stopped/initial view and a post-run reset read in ms from 0 rather
@@ -778,10 +775,27 @@ internal sealed class MultiFilterScopeRenderer
         }
     }
 
-    private void ApplyPlotTheme(Plot plot)
+    // Per-position axis-panel trims vs the shared 68/60 compact panels: the right
+    // column carries no Y title (tick numbers only), and the top row shows its ms
+    // tick numbers but no X title, so it needs room for numbers but not the title
+    // row. Trimming these shrinks the inter-graph whitespace cross while every lane
+    // still labels its own axes.
+    private const float NumbersOnlyLeftAxisPx = 44f;
+    private const float NumbersOnlyBottomAxisPx = 36f;
+
+    private void ApplyPlotTheme(Plot plot, int laneIndex)
     {
         PlotThemeHelper.Apply(plot, _theme);
         PlotThemeHelper.ApplyCompactAxisPanels(plot);
+
+        bool leftColumn = laneIndex % 2 == 0;
+        bool bottomRow = laneIndex >= _plots.Length - 2;
+        float leftSize = leftColumn ? PlotThemeHelper.CompactLeftAxisSizePx : NumbersOnlyLeftAxisPx;
+        plot.Axes.Left.MinimumSize = leftSize;
+        plot.Axes.Left.MaximumSize = leftSize;
+        float bottomSize = bottomRow ? PlotThemeHelper.CompactBottomAxisSizePx : NumbersOnlyBottomAxisPx;
+        plot.Axes.Bottom.MinimumSize = bottomSize;
+        plot.Axes.Bottom.MaximumSize = bottomSize;
     }
 
     private void RefreshAll()

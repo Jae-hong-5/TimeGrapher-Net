@@ -1142,11 +1142,11 @@ internal sealed partial class InfoTabRegistry
             var description = new TextBlock
             {
                 Text = lanes[i].Label,
-                FontSize = 16,
+                FontSize = 14,
                 FontWeight = FontWeight.SemiBold,
                 Opacity = 0.85,
                 HorizontalAlignment = HorizontalAlignment.Center,
-                Margin = new Thickness(8, 3, 8, 0),
+                Margin = new Thickness(8, 0, 8, 0),
             };
             plots[i] = new AvaPlot();
             Grid.SetColumn(description, col);
@@ -1158,41 +1158,18 @@ internal sealed partial class InfoTabRegistry
         }
 
         var renderer = new MultiFilterScopeRenderer(plots);
+        // Still registered so the global "Reset All Views" and the right-click
+        // "Auto Scale (all lanes)" menu work; the tab just drops the dedicated
+        // Reset View button (the lanes are read-only and beat-locked, so it added
+        // little) and lets the 2x2 lanes start at the very top.
         context.ResetViews.Register(renderer.ResetView);
 
-        var root = new Grid { RowDefinitions = new RowDefinitions("Auto,*") };
-        Grid.SetRow(grid, 1);
+        var root = new Grid();
         root.Children.Add(grid);
         if (CreateWaitingOverlay(context.ViewModel) is { } overlay)
         {
-            Grid.SetRow(overlay, 1);
             root.Children.Add(overlay);
         }
-
-        Button resetButton = CreateOverlayButton(
-            "Reset View", ResetAllGraphViewsTooltip, context.ResetViews.ResetAll);
-        resetButton.MinHeight = TraceHeaderButtonMinHeight;
-        resetButton.FontSize = TraceHeaderButtonFontSize;
-        resetButton.Padding = TraceHeaderButtonPadding;
-        resetButton.VerticalAlignment = VerticalAlignment.Center;
-        resetButton.Classes.Add("PositionButton");
-        var controls = new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            Spacing = 6,
-            HorizontalAlignment = HorizontalAlignment.Right,
-            VerticalAlignment = VerticalAlignment.Center,
-        };
-        controls.Children.Add(resetButton);
-        var headerStrip = new Grid
-        {
-            ColumnDefinitions = new ColumnDefinitions("*,Auto"),
-            Margin = new Thickness(8, 1, 8, 2),
-        };
-        Grid.SetColumn(controls, 1);
-        headerStrip.Children.Add(controls);
-        Grid.SetRow(headerStrip, 0);
-        root.Children.Add(headerStrip);
 
         var consumer = new MultiFilterScopeFrameConsumer(renderer);
         return new InfoTabRegistration(definition, CreateTabItem(definition, root), consumer);
