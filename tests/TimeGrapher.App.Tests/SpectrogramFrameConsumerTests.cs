@@ -16,7 +16,13 @@ public sealed class SpectrogramFrameConsumerTests
         new Image(),
         new[] { new TextBlock(), new TextBlock(), new TextBlock(), new TextBlock(), new TextBlock(), new TextBlock(), new TextBlock() },
         new[] { new TextBlock(), new TextBlock(), new TextBlock(), new TextBlock(), new TextBlock(), new TextBlock() },
+        new Border(),
+        new Border(),
         new TextBlock(),
+        new Border(),
+        new Canvas(),
+        System.Array.Empty<Avalonia.Controls.Shapes.Rectangle>(),
+        System.Array.Empty<TextBlock>(),
         new Border(),
         System.Array.Empty<Avalonia.Controls.Control>());
 

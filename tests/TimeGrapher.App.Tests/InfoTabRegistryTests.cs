@@ -706,7 +706,7 @@ public sealed class InfoTabRegistryTests
         var headerStrip = Assert.IsType<Grid>(
             content.Children.Single(child => Grid.GetRow(child) == 0));
 
-        Assert.Equal(5, content.RowDefinitions.Count);
+        Assert.Equal(6, content.RowDefinitions.Count); // 28677d6 added the beat-direction strip row
         Assert.Equal(GridUnitType.Auto, content.RowDefinitions[0].Height.GridUnitType);
         Assert.True(content.RowDefinitions[1].Height.IsStar);
         Assert.Equal(2, headerStrip.ColumnDefinitions.Count);
