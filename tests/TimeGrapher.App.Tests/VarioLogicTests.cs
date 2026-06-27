@@ -71,17 +71,19 @@ public sealed class VarioLogicTests
         var few = new StatsSummary(Valid: true, Min: 0, Max: 0, Mean: 0, Sigma: 0, Count: 5);
         Assert.Equal(VarioVerdict.Measuring, VarioVerdict.ForRate(few, -10, 10));
 
-        var stable = new StatsSummary(true, -2, 4, 1.0, 1.0, 200);
-        Assert.Equal(new VarioVerdict("Stable · Within Band", VarioVerdictLevel.Good), VarioVerdict.ForRate(stable, -10, 10));
+        var inBand = new StatsSummary(true, -2, 4, 1.0, 1.0, 200);
+        Assert.Equal(new VarioVerdict("Within Band", VarioVerdictLevel.Good), VarioVerdict.ForRate(inBand, -10, 10));
 
+        // A high within-band σ no longer flips the verdict: Vario shows σ in the readout
+        // but applies no single-position stability cutoff (no Witschi/standard basis).
         var jittery = new StatsSummary(true, -9, 9, 1.0, 5.0, 200);
-        Assert.Equal(new VarioVerdict("Within Band · unstable", VarioVerdictLevel.Warn), VarioVerdict.ForRate(jittery, -10, 10));
+        Assert.Equal(new VarioVerdict("Within Band", VarioVerdictLevel.Good), VarioVerdict.ForRate(jittery, -10, 10));
 
         var fast = new StatsSummary(true, 8, 20, 15.0, 2.0, 200);
-        Assert.Equal(new VarioVerdict("Fast · out of range", VarioVerdictLevel.Bad), VarioVerdict.ForRate(fast, -10, 10));
+        Assert.Equal(new VarioVerdict("Fast · out of range", VarioVerdictLevel.Bad, VarioFinding.RateFast), VarioVerdict.ForRate(fast, -10, 10));
 
         var slow = new StatsSummary(true, -20, -8, -15.0, 2.0, 200);
-        Assert.Equal(new VarioVerdict("Slow · out of range", VarioVerdictLevel.Bad), VarioVerdict.ForRate(slow, -10, 10));
+        Assert.Equal(new VarioVerdict("Slow · out of range", VarioVerdictLevel.Bad, VarioFinding.RateSlow), VarioVerdict.ForRate(slow, -10, 10));
     }
 
     [Fact]
@@ -91,32 +93,51 @@ public sealed class VarioLogicTests
         Assert.Equal(new VarioVerdict("Healthy", VarioVerdictLevel.Good), VarioVerdict.ForAmplitude(healthy, 270, 300));
 
         var slightlyLow = new StatsSummary(true, 240, 260, 250.0, 4.0, 200);
-        Assert.Equal(new VarioVerdict("Slightly low", VarioVerdictLevel.Warn), VarioVerdict.ForAmplitude(slightlyLow, 270, 300));
+        Assert.Equal(new VarioVerdict("Slightly low", VarioVerdictLevel.Warn, VarioFinding.AmplitudeSlightlyLow), VarioVerdict.ForAmplitude(slightlyLow, 270, 300));
 
         var high = new StatsSummary(true, 305, 315, 310.0, 4.0, 200);
-        Assert.Equal(new VarioVerdict("High", VarioVerdictLevel.Warn), VarioVerdict.ForAmplitude(high, 270, 300));
+        Assert.Equal(new VarioVerdict("High", VarioVerdictLevel.Warn, VarioFinding.AmplitudeHigh), VarioVerdict.ForAmplitude(high, 270, 300));
 
         var service = new StatsSummary(true, 190, 215, 200.0, 5.0, 200);
-        Assert.Equal(new VarioVerdict("Low · service", VarioVerdictLevel.Bad), VarioVerdict.ForAmplitude(service, 270, 300));
+        Assert.Equal(new VarioVerdict("Low · service", VarioVerdictLevel.Bad, VarioFinding.AmplitudeLow), VarioVerdict.ForAmplitude(service, 270, 300));
     }
 
     [Fact]
     public void Overall_TakesWorseSeverityAndStaysPendingUntilBothReady()
     {
-        var good = new VarioVerdict("Stable · Within Band", VarioVerdictLevel.Good);
-        var warn = new VarioVerdict("Slightly low", VarioVerdictLevel.Warn);
-        var bad = new VarioVerdict("Low · service", VarioVerdictLevel.Bad);
+        var good = new VarioVerdict("Within Band", VarioVerdictLevel.Good);
+        var warn = new VarioVerdict("Slightly low", VarioVerdictLevel.Warn, VarioFinding.AmplitudeSlightlyLow);
+        var bad = new VarioVerdict("Low · service", VarioVerdictLevel.Bad, VarioFinding.AmplitudeLow);
 
         Assert.Equal(VarioVerdictLevel.Good, VarioVerdict.Overall(good, good).Level);
         Assert.Equal(VarioVerdictLevel.Warn, VarioVerdict.Overall(good, warn).Level);
         Assert.Equal(VarioVerdictLevel.Bad, VarioVerdict.Overall(good, bad).Level);
 
-        VarioVerdict overall = VarioVerdict.Overall(good, bad);
-        Assert.Equal("Overall: ALERT - Service required before recording", overall.Text);
-        Assert.DoesNotContain("Stable · Within Band", overall.Text);
-        Assert.DoesNotContain("Low · service", overall.Text);
-
+        Assert.Equal("Overall: OK · Within band — ready to record", VarioVerdict.Overall(good, good).Text);
         Assert.Equal(VarioVerdictLevel.Pending, VarioVerdict.Overall(VarioVerdict.Measuring, good).Level);
+    }
+
+    [Fact]
+    public void Overall_NamesTheWitschiServiceActionForTheWorstFindings()
+    {
+        var rateFast = new VarioVerdict("Fast · out of range", VarioVerdictLevel.Bad, VarioFinding.RateFast);
+        var ampLow = new VarioVerdict("Low · service", VarioVerdictLevel.Bad, VarioFinding.AmplitudeLow);
+        var ampHigh = new VarioVerdict("High", VarioVerdictLevel.Warn, VarioFinding.AmplitudeHigh);
+        var withinBand = new VarioVerdict("Within Band", VarioVerdictLevel.Good);
+
+        // Worst severity drives the conclusion; both bad measures are listed.
+        Assert.Equal(
+            "Overall: ALERT · Running fast — regulate slower · Low amplitude — service (clean & lubricate) before recording",
+            VarioVerdict.Overall(rateFast, ampLow).Text);
+
+        // A healthy measure is omitted; only the faulty one carries the action.
+        Assert.Equal(
+            "Overall: ALERT · Low amplitude — service (clean & lubricate) before recording",
+            VarioVerdict.Overall(withinBand, ampLow).Text);
+
+        Assert.Equal(
+            "Overall: WATCH · High amplitude — check mainspring/escapement · keep measuring",
+            VarioVerdict.Overall(withinBand, ampHigh).Text);
     }
 
     // ---- Gauge label layout (lane placement / edge anchoring) stress tests ----
