@@ -65,6 +65,12 @@ internal sealed class BeatNoiseScopeRenderer
     private readonly List<double> _mainALegendY = new();
     private readonly List<double> _mainCLegendX = new();
     private readonly List<double> _mainCLegendY = new();
+    private readonly List<StableStripWindow> _stable400MsStripWindows = new();
+
+    private readonly record struct StableStripWindow(
+        long Bucket,
+        BeatSegment Segment,
+        IReadOnlyList<BeatSegment> MarkerSegments);
 
     private Scatter? _mainScatter;
     private Scatter? _mirrorScatter;
@@ -219,6 +225,7 @@ internal sealed class BeatNoiseScopeRenderer
         _lastCursorTimeS = null;
         _mainYLower = null;
         _mainYUpper = null;
+        _stable400MsStripWindows.Clear();
         ClearMilestoneLines();
         _averageText.Text = BeatNoiseScopeLogic.AverageLine(BeatNoiseAverageSnapshot.Empty);
 
@@ -713,9 +720,25 @@ internal sealed class BeatNoiseScopeRenderer
             x.Clear();
             y.Clear();
 
-            BeatSegment? segment = _viewMode == BeatNoiseScopeViewMode.EnvelopeAndStrip
-                ? WindowSegmentForSlot(snapshot, slot, _rangeMs)
-                : SegmentForSlot(snapshot, slot);
+            IReadOnlyList<BeatSegment> markerSegments = snapshot.Segments;
+            BeatSegment? segment;
+            if (_viewMode == BeatNoiseScopeViewMode.EnvelopeAndStrip)
+            {
+                if (WindowForSlot(snapshot, slot, _rangeMs) is StableStripWindow window)
+                {
+                    segment = window.Segment;
+                    markerSegments = window.MarkerSegments;
+                }
+                else
+                {
+                    segment = null;
+                }
+            }
+            else
+            {
+                segment = SegmentForSlot(snapshot, slot);
+            }
+
             if (segment == null)
             {
                 continue;
@@ -748,7 +771,7 @@ internal sealed class BeatNoiseScopeRenderer
             }
 
             double renderedWindowMs = Math.Max(0.0, sourceSpan.Length * segment.MsPerPoint);
-            RenderStripMarkers(slot, snapshot, segment, stripWindowStartMs, renderedWindowMs);
+            RenderStripMarkers(slot, markerSegments, segment, stripWindowStartMs, renderedWindowMs);
 
             // Compress each segment into its slot via the shared strip-lane
             // sampling policy (max-decimate + per-segment peak normalization).
@@ -775,7 +798,7 @@ internal sealed class BeatNoiseScopeRenderer
         int? selectedSlot = _selectedSlot;
         bool visible = selectedSlot.HasValue && (_viewMode == BeatNoiseScopeViewMode.AverageAndStrip
             ? SegmentForSlot(snapshot, selectedSlot.Value) != null || SegmentForSlot(snapshot, selectedSlot.Value + 1) != null
-            : WindowSegmentForSlot(snapshot, selectedSlot.Value, _rangeMs) != null);
+            : WindowForSlot(snapshot, selectedSlot.Value, _rangeMs) != null);
         _selectionSpan.IsVisible = visible;
         if (visible && selectedSlot.HasValue)
         {
@@ -987,82 +1010,83 @@ internal sealed class BeatNoiseScopeRenderer
         return index >= 0 ? snapshot.Segments[index] : null;
     }
 
-    private static BeatSegment? DisplayedSegment(BeatSegmentsSnapshot snapshot, int? selectedSlot, int rangeMs)
+    private BeatSegment? DisplayedSegment(BeatSegmentsSnapshot snapshot, int? selectedSlot, int rangeMs)
     {
         if (snapshot.Segments.Count == 0)
         {
             return null;
         }
 
-        if (selectedSlot is int slot && WindowSegmentForSlot(snapshot, slot, rangeMs) is { } segment)
+        if (selectedSlot is int slot && WindowForSlot(snapshot, slot, rangeMs)?.Segment is { } segment)
         {
             return segment;
         }
 
-        IReadOnlyList<BeatSegment> windows = WindowSegments(snapshot, rangeMs);
-        return windows.Count > 0 ? windows[^1] : snapshot.Segments[^1];
+        return snapshot.Segments[^1];
     }
 
-    private static BeatSegment? WindowSegmentForSlot(BeatSegmentsSnapshot snapshot, int slot, int rangeMs)
+    private StableStripWindow? WindowForSlot(BeatSegmentsSnapshot snapshot, int slot, int rangeMs)
     {
         if (slot < 0 || slot >= BeatNoiseScopeLogic.StripCount)
         {
             return null;
         }
 
-        IReadOnlyList<BeatSegment> windows = WindowSegments(snapshot, rangeMs);
-        int effectiveSlot = rangeMs == DefaultRangeMs ? slot / 2 : slot;
-        int stripWindowCount = rangeMs == DefaultRangeMs ? BeatNoiseScopeLogic.StripCount / 2 : BeatNoiseScopeLogic.StripCount;
-        int index = effectiveSlot - (stripWindowCount - windows.Count);
-        return index >= 0 && index < windows.Count ? windows[index] : null;
-    }
-
-    private static int? LatestWindowSlot(BeatSegmentsSnapshot snapshot, int rangeMs)
-    {
-        IReadOnlyList<BeatSegment> windows = WindowSegments(snapshot, rangeMs);
-        return windows.Count > 0 ? BeatNoiseScopeLogic.StripCount - 1 : null;
-    }
-
-    private static IReadOnlyList<BeatSegment> WindowSegments(BeatSegmentsSnapshot snapshot, int rangeMs)
-    {
-        if (rangeMs == DefaultRangeMs)
+        if (rangeMs != DefaultRangeMs)
         {
-            return NonOverlappingWindowSegments(snapshot, rangeMs);
+            int count = Math.Min(snapshot.Segments.Count, BeatNoiseScopeLogic.StripCount);
+            int index = slot - (BeatNoiseScopeLogic.StripCount - count);
+            if (index < 0 || index >= count)
+            {
+                return null;
+            }
+
+            BeatSegment segment = snapshot.Segments[snapshot.Segments.Count - count + index];
+            return new StableStripWindow(WindowBucket(segment, rangeMs), segment, snapshot.Segments);
         }
 
-        if (snapshot.Segments.Count <= BeatNoiseScopeLogic.StripCount)
-        {
-            return snapshot.Segments;
-        }
-
-        return snapshot.Segments
-            .Skip(snapshot.Segments.Count - BeatNoiseScopeLogic.StripCount)
-            .ToArray();
+        IReadOnlyList<StableStripWindow> windows = StableNonOverlappingWindowSegments(snapshot, rangeMs);
+        int effectiveSlot = slot / 2;
+        int stripWindowCount = BeatNoiseScopeLogic.StripCount / 2;
+        int windowIndex = effectiveSlot - (stripWindowCount - windows.Count);
+        return windowIndex >= 0 && windowIndex < windows.Count ? windows[windowIndex] : null;
     }
 
-    private static IReadOnlyList<BeatSegment> NonOverlappingWindowSegments(BeatSegmentsSnapshot snapshot, int rangeMs)
+    private IReadOnlyList<StableStripWindow> StableNonOverlappingWindowSegments(BeatSegmentsSnapshot snapshot, int rangeMs)
     {
-        var windows = new List<BeatSegment>(BeatNoiseScopeLogic.StripCount / 2);
-        long? lastBucket = null;
+        if (snapshot.Segments.Count == 0)
+        {
+            _stable400MsStripWindows.Clear();
+            return _stable400MsStripWindows;
+        }
+
+        int maxWindows = BeatNoiseScopeLogic.StripCount / 2;
+        long newestBucket = WindowBucket(snapshot.Segments[^1], rangeMs);
+        long oldestVisibleBucket = newestBucket - maxWindows + 1;
+        _stable400MsStripWindows.RemoveAll(window =>
+            window.Bucket < oldestVisibleBucket || window.Bucket > newestBucket);
+
         foreach (BeatSegment segment in snapshot.Segments)
         {
             long bucket = WindowBucket(segment, rangeMs);
-            if (bucket == lastBucket)
+            if (bucket < oldestVisibleBucket || bucket > newestBucket)
             {
                 continue;
             }
 
-            windows.Add(segment);
-            lastBucket = bucket;
+            if (_stable400MsStripWindows.Any(window => window.Bucket == bucket))
+            {
+                continue;
+            }
+
+            _stable400MsStripWindows.Add(new StableStripWindow(
+                bucket,
+                segment,
+                snapshot.Segments.ToArray()));
         }
 
-        int maxWindows = BeatNoiseScopeLogic.StripCount / 2;
-        if (windows.Count <= maxWindows)
-        {
-            return windows;
-        }
-
-        return windows.GetRange(windows.Count - maxWindows, maxWindows);
+        _stable400MsStripWindows.Sort((left, right) => left.Bucket.CompareTo(right.Bucket));
+        return _stable400MsStripWindows;
     }
 
     private static long WindowBucket(BeatSegment segment, int rangeMs)
@@ -1192,7 +1216,7 @@ internal sealed class BeatNoiseScopeRenderer
         return currentSlot == clickedSlot ? null : clickedSlot;
     }
 
-    private static int? NextBeatScopeSelection(
+    private int? NextBeatScopeSelection(
         int? currentSlot,
         BeatSegmentsSnapshot snapshot,
         int clickedSlot,
@@ -1201,13 +1225,13 @@ internal sealed class BeatNoiseScopeRenderer
         return NextWindowSelection(currentSlot, snapshot, clickedSlot, rangeMs);
     }
 
-    private static int? NextWindowSelection(
+    private int? NextWindowSelection(
         int? currentSlot,
         BeatSegmentsSnapshot snapshot,
         int clickedSlot,
         int rangeMs)
     {
-        if (WindowSegmentForSlot(snapshot, clickedSlot, rangeMs) == null)
+        if (WindowForSlot(snapshot, clickedSlot, rangeMs) == null)
         {
             return null;
         }
@@ -1243,7 +1267,7 @@ internal sealed class BeatNoiseScopeRenderer
 
     private void RenderStripMarkers(
         int slot,
-        BeatSegmentsSnapshot snapshot,
+        IReadOnlyList<BeatSegment> markerSegments,
         BeatSegment segment,
         double windowStartMs,
         double windowMs)
@@ -1253,7 +1277,7 @@ internal sealed class BeatNoiseScopeRenderer
             return;
         }
 
-        foreach (BeatSegment other in snapshot.Segments)
+        foreach (BeatSegment other in markerSegments)
         {
             double relativeAOffsetMs = (other.StartTimeS + other.AOffsetMs / 1000.0 - segment.StartTimeS) * 1000.0;
             double aInWindowMs = relativeAOffsetMs - windowStartMs;

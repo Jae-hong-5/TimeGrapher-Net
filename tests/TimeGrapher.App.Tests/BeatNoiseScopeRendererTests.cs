@@ -774,6 +774,54 @@ public sealed class BeatNoiseScopeRendererTests
     }
 
     [Fact]
+    public void BeatScope400MsStripKeepsStableBucketRepresentative()
+    {
+        var renderer = new BeatNoiseScopeRenderer(
+            new AvaPlot(), new AvaPlot(), new AvaPlot(), new TextBlock());
+        renderer.CreateGraphs();
+
+        var firstBucketRepresentative = new BeatSegment
+        {
+            Samples = new float[] { 1.0f, 0.5f, 0.25f, 0.125f },
+            MsPerPoint = 100.0,
+            StartTimeS = 0.0,
+        };
+        var laterSameBucket = new BeatSegment
+        {
+            Samples = new float[] { 0.1f, 1.0f, 0.1f, 1.0f },
+            MsPerPoint = 100.0,
+            StartTimeS = 0.1,
+        };
+        var nextBucket = new BeatSegment
+        {
+            Samples = new float[] { 0.2f, 0.4f, 0.6f, 0.8f },
+            MsPerPoint = 100.0,
+            StartTimeS = 0.4,
+        };
+
+        renderer.RenderFrame(new AnalysisFrame
+        {
+            BeatSegments = new BeatSegmentsSnapshot
+            {
+                Version = 1,
+                Segments = new[] { firstBucketRepresentative, laterSameBucket, nextBucket },
+            },
+        }, new AnalysisTabRenderContext(SampleRate: 48000));
+        double[] before = StripValues(renderer, slot: 4);
+
+        renderer.RenderFrame(new AnalysisFrame
+        {
+            BeatSegments = new BeatSegmentsSnapshot
+            {
+                Version = 2,
+                Segments = new[] { laterSameBucket, nextBucket },
+            },
+        }, new AnalysisTabRenderContext(SampleRate: 48000));
+
+        Assert.Equal(before, StripValues(renderer, slot: 4));
+    }
+
+    [Fact]
     public void BeatScope200MsStripSelectionHighlightsOneSlot()
     {
         var stripPlot = new AvaPlot();
@@ -808,6 +856,14 @@ public sealed class BeatNoiseScopeRendererTests
             .GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic)!
             .GetValue(renderer)!;
         return values.Select(value => Math.Round(value, 3)).ToArray();
+    }
+
+    private static double[] StripValues(BeatNoiseScopeRenderer renderer, int slot)
+    {
+        var values = (List<double>[])typeof(BeatNoiseScopeRenderer)
+            .GetField("_stripY", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .GetValue(renderer)!;
+        return values[slot].Select(value => Math.Round(value, 3)).ToArray();
     }
 
     [Fact]
