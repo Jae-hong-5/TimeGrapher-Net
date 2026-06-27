@@ -1,10 +1,14 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:views="using:TimeGrapher.App.Views"
         x:Class="TimeGrapher.App.Views.MainWindow"
         Title="TimeGrapher"
         Icon="/Assets/App/AppIcon-256.png"
         Width="1280" Height="750"
         MinWidth="900" MinHeight="560">
+  <Window.Resources>
+    <views:NumericDefaultConverter x:Key="NumericDefault" />
+  </Window.Resources>
   <Border BorderBrush="{DynamicResource ChromeAccentBrush}" BorderThickness="1">
   <Grid RowDefinitions="36,*" Background="{DynamicResource AmbientBackdropBrush}">
     <Border Grid.Row="0"
@@ -272,8 +276,9 @@
                 <TextBlock Name="LiftAngleLabel" Grid.Row="1" Grid.Column="0"
                            VerticalAlignment="Center" HorizontalAlignment="Center" FontWeight="Bold" Text="Lift Angle" />
                 <NumericUpDown Name="LiftAngleSpinBox" Grid.Row="1" Grid.Column="1"
+                               views:NumericInputGuard.Enabled="True"
                                IsEnabled="{Binding AreRunParametersEnabled}"
-                               Value="{Binding LiftAngle, Mode=TwoWay}"
+                               Value="{Binding LiftAngle, Mode=TwoWay, Converter={StaticResource NumericDefault}}"
                                FontWeight="Bold" FormatString="0'°'"
                                Minimum="30" Maximum="70" Increment="1" />
               </Grid>
@@ -303,24 +308,27 @@
                 <TextBlock Name="SimErrorRateLabel" Grid.Row="1" Grid.Column="0"
                            VerticalAlignment="Center" HorizontalAlignment="Center" FontWeight="Bold" Text="Error Rate" />
                 <NumericUpDown Name="SimErrorRateSpinBox" Grid.Row="1" Grid.Column="1"
+                               views:NumericInputGuard.Enabled="True"
                                IsEnabled="{Binding AreLiveSimulationParametersEnabled}"
-                               Value="{Binding SimErrorRate, Mode=TwoWay}"
+                               Value="{Binding SimErrorRate, Mode=TwoWay, Converter={StaticResource NumericDefault}}"
                                FontWeight="Bold" FormatString="0' s/d'"
                                Minimum="-999" Maximum="999" Increment="1" />
 
                 <TextBlock Name="SimAmpLabel" Grid.Row="2" Grid.Column="0"
                            VerticalAlignment="Center" HorizontalAlignment="Center" FontWeight="Bold" Text="Amplitude" />
                 <NumericUpDown Name="SimAmplitudeSpinBox" Grid.Row="2" Grid.Column="1"
+                               views:NumericInputGuard.Enabled="True"
                                IsEnabled="{Binding AreLiveSimulationParametersEnabled}"
-                               Value="{Binding SimAmplitude, Mode=TwoWay}"
+                               Value="{Binding SimAmplitude, Mode=TwoWay, Converter={StaticResource NumericDefault}}"
                                FontWeight="Bold" FormatString="0'°'"
                                Minimum="100" Maximum="360" Increment="1" />
 
                 <TextBlock Name="SimBeatErrorLabel" Grid.Row="3" Grid.Column="0"
                            VerticalAlignment="Center" HorizontalAlignment="Center" FontWeight="Bold" Text="Beat Error" />
                 <NumericUpDown Name="SimBeatErrorSpinBox" Grid.Row="3" Grid.Column="1"
+                               views:NumericInputGuard.Enabled="True"
                                IsEnabled="{Binding AreLiveSimulationParametersEnabled}"
-                               Value="{Binding SimBeatError, Mode=TwoWay}"
+                               Value="{Binding SimBeatError, Mode=TwoWay, Converter={StaticResource NumericDefault}}"
                                FontWeight="Bold" FormatString="0.0' ms'"
                                Minimum="-10" Maximum="10" Increment="0.1" />
 
