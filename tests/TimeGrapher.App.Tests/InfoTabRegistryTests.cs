@@ -22,6 +22,7 @@ public sealed class InfoTabRegistryTests
     private const double PositionHeroMetricLabelFontSizeForTest = 15.0;
     private const double TraceHeaderButtonMinHeightForTest = 30.0;
     private const double TraceHeaderButtonFontSizeForTest = 12.0;
+    private const double WaveformDirectionAxisWidthForTest = 58.0;
 
     public InfoTabRegistryTests() => EnsureAvaloniaPlatform();
 
@@ -79,6 +80,42 @@ public sealed class InfoTabRegistryTests
             sentinelCalls = 0;
             button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Assert.Equal(1, sentinelCalls);
+        }
+    }
+
+    [Fact]
+    public void WaveformCompareDirectionAxisIsCompactDownArrowUsingPastColor()
+    {
+        Grid content = CreateWaveformCompareContent();
+        var window = new Window { Content = content };
+        window.Show();
+
+        try
+        {
+            Grid axis = Assert.IsType<Grid>(content.Children.Single(child =>
+                Grid.GetRow(child) == 1 && Grid.GetColumn(child) == 0));
+            TextBlock past = Assert.Single(axis.Children.OfType<TextBlock>(), text => text.Text == "Past");
+            Grid arrow = Assert.IsType<Grid>(axis.Children.Single(child => Grid.GetRow(child) == 1));
+            var head = Assert.Single(arrow.Children.OfType<Avalonia.Controls.Shapes.Path>());
+            var shaft = Assert.Single(arrow.Children.OfType<Avalonia.Controls.Shapes.Rectangle>());
+            ISolidColorBrush pastBrush = Assert.IsAssignableFrom<ISolidColorBrush>(past.Foreground);
+            ISolidColorBrush headBrush = Assert.IsAssignableFrom<ISolidColorBrush>(head.Fill);
+            ISolidColorBrush shaftBrush = Assert.IsAssignableFrom<ISolidColorBrush>(shaft.Fill);
+
+            Assert.Equal(WaveformDirectionAxisWidthForTest, axis.Width);
+            Assert.Equal(new Thickness(2, 12, 2, 28), axis.Margin);
+            Assert.Equal(0, Grid.GetRow(shaft));
+            Assert.Equal(1, Grid.GetRow(head));
+            Geometry headGeometry = Assert.IsAssignableFrom<Geometry>(head.Data);
+            Assert.True(headGeometry.FillContains(new Point(2, 2)));
+            Assert.False(headGeometry.FillContains(new Point(2, 11)));
+            Assert.Equal(past.Opacity, arrow.Opacity);
+            Assert.Equal(pastBrush.Color, headBrush.Color);
+            Assert.Equal(pastBrush.Color, shaftBrush.Color);
+        }
+        finally
+        {
+            window.Close();
         }
     }
 
@@ -1228,6 +1265,14 @@ public sealed class InfoTabRegistryTests
         InfoTabRegistry registry = InfoTabRegistry.FromCatalog(tabControl, new Grid(), "Arial", viewModel);
         return Assert.IsType<Grid>(registry.Registrations.Single(
             registration => registration.Definition.Id == InfoTabCatalog.BeatNoiseScopeTabId).TabItem.Content);
+    }
+
+    private static Grid CreateWaveformCompareContent()
+    {
+        var tabControl = new TabControl();
+        InfoTabRegistry registry = InfoTabRegistry.FromCatalog(tabControl, new Grid(), "Arial");
+        return Assert.IsType<Grid>(registry.Registrations.Single(
+            registration => registration.Definition.Id == InfoTabCatalog.WaveformCompareTabId).TabItem.Content);
     }
 
     private static Grid CreateMultiFilterScopeContent(MainWindowViewModel? viewModel = null)
