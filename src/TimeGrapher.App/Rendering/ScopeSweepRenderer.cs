@@ -44,7 +44,6 @@ internal sealed class ScopeSweepRenderer
     private const int MaxSweepMultiple = 3;
     /// <summary>Pre-roll margin shown to the left of the A onset (ms).</summary>
     private const double XPreRollMs = -10.0;
-    private const double MarkerLineLeftGuardMs = 0.75;
     /// <summary>Extra Y kept above the fitted signal when the locked view grows,
     /// so the ordinary beat-to-beat variation (and the startup ramp) settles
     /// instead of re-zooming the view on every frame.</summary>
@@ -409,19 +408,23 @@ internal sealed class ScopeSweepRenderer
             }
         }
 
-        double? aTicPhase = PhaseMs(latestTic, isC: false, windowMs);
-        // The projector aligns the tic onset to near bin 0. Floating-point
-        // residuals can push the modulo to just below windowMs instead of
-        // just above 0; folding such a value back makes the marker appear at
-        // the correct leftmost position (or in the pre-roll region near x=0)
-        // rather than at the right edge of the sweep.
-        if (aTicPhase is double ap && ap > windowMs * 0.75)
-        {
-            aTicPhase = ap - windowMs; // small negative → pre-roll range
-        }
-        double? aTocPhase = PhaseMs(latestToc, isC: false, windowMs);
-        double? cTicPhase = PhaseMs(latestCTic, isC: true, windowMs);
-        double? cTocPhase = PhaseMs(latestCToc, isC: true, windowMs);
+        // Anchor each C marker on its A marker plus the A→C peak interval — the
+        // escapement/comparison approach — instead of folding the C's own
+        // absolute phase. The interval is a small, stable quantity, so the C
+        // line holds its place relative to A; when the latest beat had no valid
+        // C the interval falls back to the most recent C-valid beat so the line
+        // does not blink off. Raw phases first, then FoldToDisplay maps a
+        // near-window-end value into the pre-roll so an edge beat is drawn there
+        // continuously rather than vanishing at the boundary.
+        double? aTicRaw = PhaseMs(latestTic, isC: false, windowMs);
+        double? aTocRaw = PhaseMs(latestToc, isC: false, windowMs);
+        double? cTicRaw = AnchoredCPhase(aTicRaw, latestTic, latestCTic);
+        double? cTocRaw = AnchoredCPhase(aTocRaw, latestToc, latestCToc);
+
+        double? aTicPhase = FoldToDisplay(aTicRaw, windowMs);
+        double? aTocPhase = FoldToDisplay(aTocRaw, windowMs);
+        double? cTicPhase = FoldToDisplay(cTicRaw, windowMs);
+        double? cTocPhase = FoldToDisplay(cTocRaw, windowMs);
 
         for (int k = 0; k < MaxSweepMultiple; k++)
         {
@@ -453,10 +456,37 @@ internal sealed class ScopeSweepRenderer
         return phase < 0.0 ? phase + windowMs : phase;
     }
 
+    /// <summary>
+    /// C-marker phase: the A phase plus the A→C peak interval. Prefers the beat's
+    /// own C when valid, otherwise the most recent C-valid beat's interval, so the
+    /// C line holds steady instead of blinking off on the beats with no in-window C.
+    /// </summary>
+    private static double? AnchoredCPhase(double? aPhase, BeatSegment? own, BeatSegment? fallback)
+    {
+        if (aPhase is not double a) return null;
+        BeatSegment? src = own is { CPeakValid: true } ? own : fallback;
+        return src == null ? null : a + (src.CPeakOffsetMs - src.AOffsetMs);
+    }
+
+    /// <summary>
+    /// Maps a raw phase into the displayed sweep range: modulo the window, then
+    /// fold a near-window-end value into the negative pre-roll so a beat at the
+    /// window boundary is drawn there continuously rather than hidden.
+    /// </summary>
+    private static double? FoldToDisplay(double? phase, double windowMs)
+    {
+        if (phase is not double p) return null;
+        p %= windowMs;
+        if (p < 0.0) p += windowMs;
+        return p > windowMs * 0.75 ? p - windowMs : p;
+    }
+
     private static void SetMarkerLine(VerticalLine? line, double? x)
     {
         if (line == null) return;
-        if (x is double value && value >= MarkerLineLeftGuardMs)
+        // Allow the pre-roll region so a beat that has drifted to the window edge
+        // is drawn there continuously instead of blinking off near x = 0.
+        if (x is double value && value >= XPreRollMs)
         {
             line.IsVisible = true;
             line.X = value;

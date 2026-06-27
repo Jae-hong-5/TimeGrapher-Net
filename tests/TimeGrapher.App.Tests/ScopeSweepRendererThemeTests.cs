@@ -312,6 +312,45 @@ public sealed class ScopeSweepRendererThemeTests
         Assert.NotEmpty(visibleRed);
     }
 
+    [Fact]
+    public void EdgeBeatMarkerShowsInPreRollInsteadOfBlinkingOff()
+    {
+        var sweepPlot = new AvaPlot();
+        var readoutValues = ScopeSweepReadout.Labels.Select(_ => new TextBlock()).ToArray();
+        var renderer = new ScopeSweepRenderer(sweepPlot, readoutValues);
+        renderer.CreateGraphs();
+        const uint green = 0xFF2C9118;
+        renderer.ApplyTheme(Palette(0xFF404040, green, 0xFFD22222, 0xFF0000FF));
+
+        // A tic whose A onset has drifted to the very end of the 250 ms window:
+        // it must be drawn in the pre-roll (x < 0), not hidden (which is the blink).
+        var frame = new AnalysisFrame
+        {
+            BeatSegments = new BeatSegmentsSnapshot
+            {
+                Version = 1,
+                Segments = new[]
+                {
+                    new BeatSegment { IsTic = true, StartTimeS = 0, AOffsetMs = 249.0, CPeakValid = false },
+                },
+            },
+        };
+        AddScopeSeries(frame, new GraphSeriesFrame
+        {
+            Id = AnalysisGraphSeries.SweepTrace,
+            Replace = true,
+            X = new[] { 0.03125, 62.5, 125.0, 187.5, 249.96875 },
+            Y = new[] { 0.2, 3.0, 6.0, 3.0, 0.2 },
+        });
+
+        renderer.RenderFrame(frame, new AnalysisTabRenderContext(48000));
+
+        var greenLines = sweepPlot.Plot.GetPlottables<VerticalLine>()
+            .Where(l => l.IsVisible && l.LineColor.Equals(Color.FromARGB(green)))
+            .ToList();
+        Assert.Contains(greenLines, l => l.X < 0.0);
+    }
+
     private static void RenderPeak(ScopeSweepRenderer renderer, double peak)
     {
         var frame = new AnalysisFrame();
