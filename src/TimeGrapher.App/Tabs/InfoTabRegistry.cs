@@ -25,7 +25,6 @@ internal sealed partial class InfoTabRegistry
     private const double PositionMinimumFontSize = 14.0;
     private const double PositionHeroDiagramSize = 160.0;
     private const double PositionHeroMetricLabelFontSize = 15.0;
-    private const double SweepReferenceRowHeight = 22.0;
     private const string ResetAllGraphViewsTooltip = "Reset all graph views";
     private const string ActiveButtonClass = "active";
 
@@ -511,25 +510,52 @@ internal sealed partial class InfoTabRegistry
     {
         var sweepPlot = new AvaPlot();
 
-        var referenceText = new TextBlock
+        var referenceValueTexts = new TextBlock[ScopeSweepReadout.Labels.Length];
+        var referenceGrid = new Grid
         {
-            FontSize = 14,
-            Margin = new Thickness(8, 0, 8, 4),
-            HorizontalAlignment = HorizontalAlignment.Stretch,
-            VerticalAlignment = VerticalAlignment.Center,
-            TextWrapping = TextWrapping.NoWrap,
-            TextTrimming = TextTrimming.CharacterEllipsis,
-            ClipToBounds = true,
+            ColumnDefinitions = new ColumnDefinitions("*,*,*,*,*"),
+            Margin = new Thickness(8, 4, 8, 2),
         };
+        for (int i = 0; i < ScopeSweepReadout.Labels.Length; i++)
+        {
+            var label = new TextBlock
+            {
+                Text = ScopeSweepReadout.Labels[i],
+                FontSize = 14,
+                FontWeight = FontWeight.Bold,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                TextAlignment = TextAlignment.Center,
+            };
+            label.Bind(TextBlock.ForegroundProperty, label.GetResourceObservable("ChromeAccentBrush"));
+            var value = new TextBlock
+            {
+                Text = VarioReadout.Missing,
+                FontSize = 16,
+                FontWeight = FontWeight.Bold,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                TextAlignment = TextAlignment.Center,
+            };
+            referenceValueTexts[i] = value;
+
+            var cell = new StackPanel
+            {
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Margin = new Thickness(8, 2, 8, 2),
+            };
+            cell.Children.Add(label);
+            cell.Children.Add(value);
+            Grid.SetColumn(cell, i);
+            referenceGrid.Children.Add(cell);
+        }
 
         var grid = new Grid
         {
-            RowDefinitions = new RowDefinitions($"Auto,*,{SweepReferenceRowHeight}"),
+            RowDefinitions = new RowDefinitions("Auto,*,Auto"),
         };
         Grid.SetRow(sweepPlot, 1);
-        Grid.SetRow(referenceText, 2);
+        Grid.SetRow(referenceGrid, 2);
         grid.Children.Add(sweepPlot);
-        grid.Children.Add(referenceText);
+        grid.Children.Add(referenceGrid);
 
         if (CreateWaitingOverlay(context.ViewModel) is { } overlay)
         {
@@ -587,7 +613,7 @@ internal sealed partial class InfoTabRegistry
             UpdateButtonStates();
         }
 
-        var renderer = new ScopeSweepRenderer(sweepPlot, referenceText, context.TextFontFamily);
+        var renderer = new ScopeSweepRenderer(sweepPlot, referenceValueTexts, context.TextFontFamily);
         context.ResetViews.Register(renderer.ResetView);
         buttonRow.Children.Add(SweepHeaderButton(
             "Reset View", ResetAllGraphViewsTooltip, context.ResetViews.ResetAll));

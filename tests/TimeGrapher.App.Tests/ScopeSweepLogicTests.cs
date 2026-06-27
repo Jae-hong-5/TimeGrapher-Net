@@ -33,6 +33,33 @@ public sealed class ScopeSweepLogicTests
     }
 
     [Fact]
+    public void Values_FormatCurrentReadingsForFooterCells()
+    {
+        var snapshot = new BeatMetricsHistorySnapshot
+        {
+            RateValid = true,
+            RateSPerDay = -3.2,
+            AmplitudeValid = true,
+            AmplitudeDeg = 281.6,
+            BeatErrorValid = true,
+            BeatErrorSignedMs = 0.456,
+            Bph = 28800,
+        };
+        var segments = new BeatSegmentsSnapshot
+        {
+            Version = 1,
+            Segments = new[]
+            {
+                new BeatSegment { CPeakValid = true, AOffsetMs = 10.0, CPeakOffsetMs = 70.0 },
+            },
+        };
+
+        string[] values = ScopeSweepReadout.Values(snapshot, segments);
+
+        Assert.Equal(new[] { "-3.2 s/d", "282°", "+0.46 ms", "+60.0 ms", "28800" }, values);
+    }
+
+    [Fact]
     public void ReferenceLine_ShowsDashesWhileReadingsAreAbsent()
     {
         string empty = ScopeSweepReadout.ReferenceLine(null);

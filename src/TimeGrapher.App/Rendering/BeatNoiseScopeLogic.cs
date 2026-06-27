@@ -113,8 +113,8 @@ internal static class BeatNoiseScopeLogic
 
     /// <summary>
     /// Scope 2 readout: per-lane average signal level (mean of per-interval
-    /// envelope peaks) plus the Σ cycle progress. The lanes are presented as
-    /// Tic/Toc to match the visible phase labels.
+    /// envelope peaks) plus the Σ cycle progress. Lane 1 is presented as Tic and
+    /// lane 2 is presented as Toc.
     /// </summary>
     public static string AverageLine(BeatNoiseAverageSnapshot average)
     {

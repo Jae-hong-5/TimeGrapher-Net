@@ -33,6 +33,7 @@ public sealed class EscapementAnalyzerRendererTests
 
         Assert.Equal(PlotThemeHelper.CompactLeftAxisSizePx, plot.Plot.Axes.Left.MinimumSize);
         Assert.Equal(PlotThemeHelper.CompactBottomAxisSizePx, plot.Plot.Axes.Bottom.MinimumSize);
+        Assert.Equal("Time (ms)", plot.Plot.Axes.Bottom.Label.Text);
     }
 
     [Fact]

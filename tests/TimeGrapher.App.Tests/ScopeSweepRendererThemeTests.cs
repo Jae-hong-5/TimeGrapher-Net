@@ -23,7 +23,8 @@ public sealed class ScopeSweepRendererThemeTests
     public void ApplyTheme_UsesEscapementColorContract()
     {
         var sweepPlot = new AvaPlot();
-        var renderer = new ScopeSweepRenderer(sweepPlot, new TextBlock(), "Arial");
+        var readoutValues = ScopeSweepReadout.Labels.Select(_ => new TextBlock()).ToArray();
+        var renderer = new ScopeSweepRenderer(sweepPlot, readoutValues, "Arial");
         renderer.CreateGraphs();
 
         Assert.Equal(PlotThemeHelper.CompactLeftAxisSizePx, sweepPlot.Plot.Axes.Left.MinimumSize);

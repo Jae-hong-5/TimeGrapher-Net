@@ -631,8 +631,7 @@ public sealed class InfoTabRegistryTests
         Assert.Equal(3, content.RowDefinitions.Count);
         Assert.Equal(GridUnitType.Auto, content.RowDefinitions[0].Height.GridUnitType);
         Assert.True(content.RowDefinitions[1].Height.IsStar);
-        Assert.Equal(GridUnitType.Pixel, content.RowDefinitions[2].Height.GridUnitType);
-        Assert.Equal(22.0, content.RowDefinitions[2].Height.Value, 3);
+        Assert.Equal(GridUnitType.Auto, content.RowDefinitions[2].Height.GridUnitType);
         Assert.Equal(2, headerStrip.ColumnDefinitions.Count);
         Assert.True(headerStrip.ColumnDefinitions[0].Width.IsStar);
         Assert.Equal(GridUnitType.Auto, headerStrip.ColumnDefinitions[1].Width.GridUnitType);
@@ -658,12 +657,9 @@ public sealed class InfoTabRegistryTests
         Assert.DoesNotContain("active", buttonStrip.Children.OfType<Button>().Single(button => Equals(button.Content, "3x")).Classes);
 
         Assert.DoesNotContain(content.Children.OfType<Button>(), button => Grid.GetRow(button) == 1);
-        TextBlock referenceText = content.Children.OfType<TextBlock>().Single(IsScopeSweepReferenceText);
-        Assert.Equal(14, referenceText.FontSize);
-        Assert.Equal(VerticalAlignment.Center, referenceText.VerticalAlignment);
-        Assert.Equal(TextWrapping.NoWrap, referenceText.TextWrapping);
-        Assert.Equal(TextTrimming.CharacterEllipsis, referenceText.TextTrimming);
-        Assert.True(referenceText.ClipToBounds);
+        var readoutGrid = Assert.IsType<Grid>(
+            content.Children.Single(child => child is Grid && Grid.GetRow(child) == 2));
+        Assert.Equal(ScopeSweepReadout.Labels.Length, readoutGrid.Children.OfType<StackPanel>().Count());
     }
 
     [Fact]
@@ -825,23 +821,74 @@ public sealed class InfoTabRegistryTests
     }
 
     [Fact]
-    public void ScopeSweepReferenceTextDoesNotResizePlotRow()
+    public void ScopeSweepReferenceValuesUseEscapementReadoutLayout()
+    {
+        Grid content = CreateScopeSweepContent(new MainWindowViewModel());
+        var readoutGrid = Assert.IsType<Grid>(
+            content.Children.Single(child => child is Grid && Grid.GetRow(child) == 2));
+        StackPanel[] cells = readoutGrid.Children.OfType<StackPanel>().ToArray();
+        TextBlock[] titles = cells
+            .Select(cell => Assert.IsType<TextBlock>(cell.Children[0]))
+            .ToArray();
+        TextBlock[] values = cells
+            .Select(cell => Assert.IsType<TextBlock>(cell.Children[1]))
+            .ToArray();
+
+        Assert.Equal(5, readoutGrid.ColumnDefinitions.Count);
+        Assert.All(readoutGrid.ColumnDefinitions, column =>
+            Assert.True(column.Width.IsStar && column.Width.Value == 1.0));
+        Assert.Equal(ScopeSweepReadout.Labels, titles.Select(title => title.Text).ToArray());
+        Assert.All(cells, cell =>
+        {
+            Assert.Equal(Orientation.Vertical, cell.Orientation);
+            Assert.Equal(HorizontalAlignment.Center, cell.HorizontalAlignment);
+            Assert.Equal(new Thickness(8, 2, 8, 2), cell.Margin);
+        });
+        Assert.All(titles, title =>
+        {
+            Assert.Equal(14, title.FontSize);
+            Assert.Equal(FontWeight.Bold, title.FontWeight);
+            Assert.Equal(HorizontalAlignment.Center, title.HorizontalAlignment);
+            Assert.Equal(TextAlignment.Center, title.TextAlignment);
+            Assert.True(title.IsSet(TextBlock.ForegroundProperty));
+        });
+        Assert.All(values, value =>
+        {
+            Assert.Equal(VarioReadout.Missing, value.Text);
+            Assert.Equal(16, value.FontSize);
+            Assert.Equal(FontWeight.Bold, value.FontWeight);
+            Assert.Equal(HorizontalAlignment.Center, value.HorizontalAlignment);
+            Assert.Equal(TextAlignment.Center, value.TextAlignment);
+        });
+    }
+
+    [Fact]
+    public void ScopeSweepReferenceValuesDoNotResizePlotRow()
     {
         EnsureAvaloniaPlatform();
         Grid content = CreateScopeSweepContent(new MainWindowViewModel());
         var contentSize = new Size(1280, 680);
         var sweepPlot = Assert.IsType<AvaPlot>(content.Children.Single(child =>
             child is AvaPlot && Grid.GetRow(child) == 1));
-        TextBlock referenceText = content.Children.OfType<TextBlock>().Single(IsScopeSweepReferenceText);
+        var readoutGrid = Assert.IsType<Grid>(
+            content.Children.Single(child => child is Grid && Grid.GetRow(child) == 2));
+        TextBlock[] values = readoutGrid.Children
+            .OfType<StackPanel>()
+            .Select(cell => Assert.IsType<TextBlock>(cell.Children[1]))
+            .ToArray();
 
-        referenceText.Text = "short";
+        foreach (TextBlock value in values)
+        {
+            value.Text = "short";
+        }
         content.Measure(contentSize);
         content.Arrange(new Rect(contentSize));
         Rect shortBounds = sweepPlot.Bounds;
 
-        referenceText.Text = string.Join(
-            "   |   ",
-            Enumerable.Repeat("Inst. Rate +1234.5 s/d", 20));
+        foreach (TextBlock value in values)
+        {
+            value.Text = "+1234.5 s/d";
+        }
         content.Measure(contentSize);
         content.Arrange(new Rect(contentSize));
 
@@ -1268,13 +1315,6 @@ public sealed class InfoTabRegistryTests
             .OfType<Button>()
             .First(button => Equals(button.Content, buttonContent));
         Assert.Equal(button.Bounds.Height, banner.Bounds.Height, 3);
-    }
-
-    private static bool IsScopeSweepReferenceText(TextBlock text)
-    {
-        return Grid.GetRow(text) == 2 &&
-            text.VerticalAlignment == VerticalAlignment.Center &&
-            text.TextTrimming == TextTrimming.CharacterEllipsis;
     }
 
     private static MetricsHistorySeries Series(double[] x, double[] y) => new()

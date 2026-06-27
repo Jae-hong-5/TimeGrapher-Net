@@ -994,7 +994,7 @@ internal sealed class BeatNoiseScopeRenderer
             FillSelectedLane(_lane2X, _lane2Y, trace2, Lane2Baseline, max);
         }
 
-        _averageText.Text = "Tic selected strip · Toc selected strip";
+        _averageText.Text = "Tic selected · Toc selected";
         _averagePlot.Plot.Axes.SetLimits(0, BeatNoiseAverager.LaneWindowMs, -0.1, Lane1Baseline + 1.15);
     }
 

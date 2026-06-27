@@ -12,6 +12,11 @@ namespace TimeGrapher.App.Rendering;
 /// </summary>
 internal static class ScopeSweepReadout
 {
+    public static readonly string[] Labels =
+    {
+        "Inst. Rate", "Inst. Amp", "Inst. Beat Err", "A to C", "Nominal BPH",
+    };
+
     /// <summary>
     /// Reference line of current error rate / amplitude / beat error / A→C /
     /// period (em dash when absent). <paramref name="segments"/> supplies the
@@ -19,16 +24,31 @@ internal static class ScopeSweepReadout
     /// BPH.
     /// </summary>
     public static string ReferenceLine(BeatMetricsHistorySnapshot? snapshot,
-        BeatSegmentsSnapshot? segments = null) =>
-        "Inst. Rate " + VarioReadout.Format(
-            snapshot is { RateValid: true } ? snapshot.RateSPerDay : null, "+0.0;-0.0;0.0", " s/d")
-        + "   |   Inst. Amp " + VarioReadout.Format(
-            snapshot is { AmplitudeValid: true } ? snapshot.AmplitudeDeg : null, "0", "°")
-        + "   |   Inst. Beat Err " + VarioReadout.Format(
-            snapshot is { BeatErrorValid: true } ? snapshot.BeatErrorSignedMs : null, "+0.00;-0.00;0.00", " ms")
-        + "   |   A to C " + FormatAtoC(segments)
-        + "   |   Nominal BPH " + VarioReadout.Format(
-            snapshot is { Bph: > 0 } ? snapshot.Bph : (int?)null, "0", "");
+        BeatSegmentsSnapshot? segments = null)
+    {
+        string[] values = Values(snapshot, segments);
+        var parts = new string[Labels.Length];
+        for (int i = 0; i < parts.Length; i++)
+        {
+            parts[i] = Labels[i] + " " + values[i];
+        }
+
+        return string.Join("   |   ", parts);
+    }
+
+    public static string[] Values(BeatMetricsHistorySnapshot? snapshot,
+        BeatSegmentsSnapshot? segments = null) => new[]
+    {
+        VarioReadout.Format(
+            snapshot is { RateValid: true } ? snapshot.RateSPerDay : null, "+0.0;-0.0;0.0", " s/d"),
+        VarioReadout.Format(
+            snapshot is { AmplitudeValid: true } ? snapshot.AmplitudeDeg : null, "0", "°"),
+        VarioReadout.Format(
+            snapshot is { BeatErrorValid: true } ? snapshot.BeatErrorSignedMs : null, "+0.00;-0.00;0.00", " ms"),
+        FormatAtoC(segments),
+        VarioReadout.Format(
+            snapshot is { Bph: > 0 } ? snapshot.Bph : (int?)null, "0", ""),
+    };
 
     /// <summary>A→C interval from the most recent segment that has a valid C peak.</summary>
     internal static string FormatAtoC(BeatSegmentsSnapshot? segments)
