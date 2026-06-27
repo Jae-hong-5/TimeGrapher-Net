@@ -477,7 +477,11 @@ internal sealed class MultiFilterScopeRenderer
         }
         else
         {
-            _plots[lane].Plot.Axes.SetLimitsY(0.0, half);
+            // One-sided lane (F3): drop the floor below 0 so the baseline sits ~25%
+            // up from the bottom instead of hugging the very edge, where the trace is
+            // hard to read. With a floor of -half/3 the range is half*4/3, putting 0
+            // at (half/3)/(half*4/3) = 25% of the height.
+            _plots[lane].Plot.Axes.SetLimitsY(-half / 3.0, half);
         }
     }
 
