@@ -217,12 +217,16 @@ internal sealed class ScopeSweepRenderer
     }
 
     /// <summary>
-    /// Re-fits only the X window to the current data ([XPreRollMs, window]) while
-    /// keeping the already-captured Y, so live follow and a cycle change move
-    /// the X window without rescaling Y. Returns false before any sweep data
-    /// exists.
+    /// Re-fits the X window to the current data ([XPreRollMs, window]) and grows
+    /// the captured Y to include the current signal, but never shrinks it. The
+    /// startup signal ramps up from a faint first beat, and a sweep-multiple
+    /// toggle briefly clears the bins; shrinking Y back to that partial data
+    /// would lock a too-small range (the trace then clips off the top until
+    /// Reset View) or make Y jump on a multiple change. Growing-only lets the
+    /// view reach the real steady-state signal while keeping Y stable across
+    /// multiple toggles. Returns false before any sweep data exists.
     /// </summary>
-    private bool FitXKeepY()
+    private bool FitXGrowY()
     {
         double windowMs = ScopeSweepReadout.WindowMs(_sweepX);
         if (windowMs <= 0)
@@ -230,7 +234,12 @@ internal sealed class ScopeSweepRenderer
             return false;
         }
 
+        // Read the data's autoscale extent, then grow (never shrink) the locked Y.
+        _sweepPlot.Plot.Axes.AutoScale();
+        AxisLimits limits = _sweepPlot.Plot.Axes.GetLimits();
         _viewWindowMs = windowMs;
+        _viewYMin = Math.Min(_viewYMin, limits.Bottom);
+        _viewYMax = Math.Max(_viewYMax, limits.Top);
         _sweepPlot.Plot.Axes.SetLimits(XPreRollMs, windowMs, _viewYMin, _viewYMax);
         return true;
     }
@@ -276,11 +285,13 @@ internal sealed class ScopeSweepRenderer
         if (dataUpdated && _followLive)
         {
             // First fit captures the canonical Y (autoscale). After that, live
-            // follow and cycle changes only re-fit the X window and KEEP the
-            // captured Y, so toggling the sweep multiple never rescales Y.
+            // follow and cycle changes re-fit the X window and GROW the captured
+            // Y to the current signal without ever shrinking it, so the startup
+            // signal can ramp up into view (no clip until Reset View) while a
+            // sweep-multiple toggle never rescales Y back down.
             if (_hasView)
             {
-                FitXKeepY();
+                FitXGrowY();
             }
             else
             {

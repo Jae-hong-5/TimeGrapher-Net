@@ -143,6 +143,80 @@ public sealed class ScopeSweepRendererThemeTests
         Assert.True(limits.Bottom < 0.3, $"expected post-startup render to fit data Y, got bottom {limits.Bottom}");
     }
 
+    [Fact]
+    public void LiveFollowGrowsLockedYToFitRampingSignal()
+    {
+        var sweepPlot = new AvaPlot();
+        var readoutValues = ScopeSweepReadout.Labels.Select(_ => new TextBlock()).ToArray();
+        var renderer = new ScopeSweepRenderer(sweepPlot, readoutValues);
+        renderer.CreateGraphs();
+
+        // A faint first beat captures (and locks) the canonical Y at a small range.
+        var faintFrame = new AnalysisFrame();
+        AddScopeSeries(faintFrame, new GraphSeriesFrame
+        {
+            Id = AnalysisGraphSeries.SweepTrace,
+            Replace = true,
+            X = new[] { 0.03125, 62.5, 125.0, 187.5, 249.96875 },
+            Y = new[] { 0.05, 0.4, 0.8, 0.4, 0.05 },
+        });
+        renderer.RenderFrame(faintFrame, new AnalysisTabRenderContext(48000));
+        AxisLimits afterFaint = sweepPlot.Plot.Axes.GetLimits();
+        Assert.True(afterFaint.Top < 1.5, $"faint capture should fit the 0.8 peak, got top {afterFaint.Top}");
+
+        // The signal then ramps to its steady-state amplitude. Live follow must
+        // grow the locked Y so the trace is not clipped off the top (the "weird
+        // graph until Reset View" symptom).
+        var fullFrame = new AnalysisFrame();
+        AddScopeSeries(fullFrame, new GraphSeriesFrame
+        {
+            Id = AnalysisGraphSeries.SweepTrace,
+            Replace = true,
+            X = new[] { 0.03125, 62.5, 125.0, 187.5, 249.96875 },
+            Y = new[] { 0.2, 3.0, 6.0, 3.0, 0.2 },
+        });
+        renderer.RenderFrame(fullFrame, new AnalysisTabRenderContext(48000));
+        AxisLimits afterFull = sweepPlot.Plot.Axes.GetLimits();
+
+        Assert.InRange(afterFull.Left, -10.1, -9.9);
+        Assert.InRange(afterFull.Right, 249.9, 250.1);
+        Assert.True(afterFull.Top > 5.5, $"expected live follow to grow Y to fit the 6.0 peak, got top {afterFull.Top}");
+    }
+
+    [Fact]
+    public void LiveFollowDoesNotShrinkLockedYWhenSignalDrops()
+    {
+        var sweepPlot = new AvaPlot();
+        var readoutValues = ScopeSweepReadout.Labels.Select(_ => new TextBlock()).ToArray();
+        var renderer = new ScopeSweepRenderer(sweepPlot, readoutValues);
+        renderer.CreateGraphs();
+
+        var fullFrame = new AnalysisFrame();
+        AddScopeSeries(fullFrame, new GraphSeriesFrame
+        {
+            Id = AnalysisGraphSeries.SweepTrace,
+            Replace = true,
+            X = new[] { 0.03125, 62.5, 125.0, 187.5, 249.96875 },
+            Y = new[] { 0.2, 3.0, 6.0, 3.0, 0.2 },
+        });
+        renderer.RenderFrame(fullFrame, new AnalysisTabRenderContext(48000));
+
+        // A sweep-multiple toggle briefly clears the bins (small/partial signal).
+        // Y must not shrink back down, so toggling never rescales Y.
+        var partialFrame = new AnalysisFrame();
+        AddScopeSeries(partialFrame, new GraphSeriesFrame
+        {
+            Id = AnalysisGraphSeries.SweepTrace,
+            Replace = true,
+            X = new[] { 0.03125, 62.5, 125.0, 187.5, 249.96875 },
+            Y = new[] { 0.05, 0.4, 0.8, 0.4, 0.05 },
+        });
+        renderer.RenderFrame(partialFrame, new AnalysisTabRenderContext(48000));
+        AxisLimits limits = sweepPlot.Plot.Axes.GetLimits();
+
+        Assert.True(limits.Top > 5.5, $"expected Y to stay fitted to the 6.0 peak, got top {limits.Top}");
+    }
+
     private static void AddScopeSeries(AnalysisFrame frame, GraphSeriesFrame series)
     {
         typeof(AnalysisFrame)
