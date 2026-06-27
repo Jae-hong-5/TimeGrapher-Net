@@ -223,7 +223,7 @@ public sealed class BeatNoiseScopeRendererTests
         Assert.Equal(Enumerable.Range(1, BeatNoiseScopeLogic.StripCount - 1).Select(i => (double)i), dividers.Select(line => line.X));
         Assert.All(dividers, line => Assert.True(line.LineWidth >= 2));
         Assert.All(dividers, line => Assert.True(line.LineColor.Alpha > 0.5));
-        Assert.Equal(string.Empty, stripPlot.Plot.Axes.Bottom.Label.Text);
+        Assert.Equal("Oldest -> Newest", stripPlot.Plot.Axes.Bottom.Label.Text);
     }
 
     [Fact]
@@ -687,6 +687,42 @@ public sealed class BeatNoiseScopeRendererTests
         Assert.InRange(averagePlot.Plot.Axes.GetLimits().Top, 2.34, 2.36);
         Assert.Empty(LaneValues(renderer, "_lane1Y"));
         Assert.Empty(LaneValues(renderer, "_lane2Y"));
+    }
+
+    [Fact]
+    public void AverageModeStripLabelsVisibleSlotsByTicTocPhase()
+    {
+        var stripPlot = new AvaPlot();
+        var renderer = new BeatNoiseScopeRenderer(
+            new AvaPlot(), stripPlot, new AvaPlot(), new TextBlock());
+        renderer.CreateGraphs();
+
+        var frame = new AnalysisFrame
+        {
+            BeatSegments = new BeatSegmentsSnapshot
+            {
+                Version = 1,
+                Segments = new[]
+                {
+                    new BeatSegment { Samples = new float[] { 0.25f }, MsPerPoint = 0.25, IsTic = true },
+                    new BeatSegment { Samples = new float[] { 0.50f }, MsPerPoint = 0.25, IsTic = false },
+                    new BeatSegment { Samples = new float[] { 0.75f }, MsPerPoint = 0.25, IsTic = true },
+                    new BeatSegment { Samples = new float[] { 1.00f }, MsPerPoint = 0.25, IsTic = false },
+                },
+            },
+        };
+
+        renderer.RenderFrame(frame, new AnalysisTabRenderContext(SampleRate: 48000));
+        Assert.DoesNotContain(stripPlot.Plot.GetPlottables<Text>(), text => text.IsVisible);
+
+        renderer.SetViewMode(BeatNoiseScopeViewMode.AverageAndStrip);
+
+        Text[] labels = stripPlot.Plot.GetPlottables<Text>()
+            .Where(text => text.IsVisible)
+            .OrderBy(text => text.Location.X)
+            .ToArray();
+
+        Assert.Equal(new[] { "Tic", "Toc", "Tic", "Toc" }, labels.Select(text => text.LabelText));
     }
 
     [Fact]

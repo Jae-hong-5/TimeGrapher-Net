@@ -44,6 +44,7 @@ internal sealed class BeatNoiseScopeRenderer
     internal const float StripLeftAxisSizePx = 68.0f;
     private const float MarkerLegendLineWidth = 2.0f;
     private const byte StripDividerAlpha = 140;
+    private const double StripSlotLabelY = 0.97;
     private const double Lane2Baseline = 0.0;
     private const double Lane1Baseline = 1.2;
     private const byte SelectionFillAlpha = 48;
@@ -119,6 +120,7 @@ internal sealed class BeatNoiseScopeRenderer
     private ReviewCursorLayer? _reviewCursor;
     private readonly Scatter?[] _stripScatters;
     private readonly VerticalLine?[] _stripDividers;
+    private readonly Text?[] _stripSlotLabels;
     private readonly List<VerticalLine> _stripAMarkers = new();
     private readonly List<VerticalLine> _stripCMarkers = new();
     private HorizontalSpan? _selectionSpan;
@@ -162,6 +164,7 @@ internal sealed class BeatNoiseScopeRenderer
         _stripY = new List<double>[BeatNoiseScopeLogic.StripCount];
         _stripScatters = new Scatter?[BeatNoiseScopeLogic.StripCount];
         _stripDividers = new VerticalLine?[BeatNoiseScopeLogic.StripCount - 1];
+        _stripSlotLabels = new Text?[BeatNoiseScopeLogic.StripCount];
         for (int i = 0; i < BeatNoiseScopeLogic.StripCount; i++)
         {
             _stripX[i] = new List<double>();
@@ -323,7 +326,7 @@ internal sealed class BeatNoiseScopeRenderer
         _stripAMarkers.Clear();
         _stripCMarkers.Clear();
         ApplyPlotTheme(strip);
-        strip.XLabel(string.Empty);
+        strip.XLabel("Oldest -> Newest");
         strip.Grid.IsVisible = false;
         strip.Axes.Bottom.TickLabelStyle.IsVisible = false;
         strip.Axes.Left.TickLabelStyle.IsVisible = false;
@@ -348,6 +351,10 @@ internal sealed class BeatNoiseScopeRenderer
             _stripScatters[i] = strip.Add.Scatter(_stripX[i], _stripY[i]);
             _stripScatters[i]!.LineWidth = 1;
             _stripScatters[i]!.MarkerStyle.IsVisible = false;
+        }
+        for (int i = 0; i < BeatNoiseScopeLogic.StripCount; i++)
+        {
+            _stripSlotLabels[i] = AddStripSlotLabel(strip);
         }
 
         Plot average = _averagePlot.Plot;
@@ -750,6 +757,7 @@ internal sealed class BeatNoiseScopeRenderer
     {
         foreach (VerticalLine marker in _stripAMarkers) marker.IsVisible = false;
         foreach (VerticalLine marker in _stripCMarkers) marker.IsVisible = false;
+        HideStripSlotLabels();
 
         for (int slot = 0; slot < BeatNoiseScopeLogic.StripCount; slot++)
         {
@@ -810,6 +818,7 @@ internal sealed class BeatNoiseScopeRenderer
 
             double renderedWindowMs = Math.Max(0.0, sourceSpan.Length * segment.MsPerPoint);
             RenderStripMarkers(slot, markerSegments, segment, stripWindowStartMs, renderedWindowMs);
+            UpdateStripSlotLabel(slot, segment);
 
             // Compress each segment into its slot via the shared strip-lane
             // sampling policy (max-decimate + per-segment peak normalization).
@@ -824,6 +833,43 @@ internal sealed class BeatNoiseScopeRenderer
         }
 
         UpdateSelectionSpan(snapshot);
+    }
+
+    private static Text AddStripSlotLabel(Plot plot)
+    {
+        Text label = plot.Add.Text(string.Empty, 0.0, 0.0);
+        label.LabelFontSize = PlotThemeHelper.GraphLabelFontSize;
+        label.LabelBold = true;
+        label.Alignment = Alignment.UpperCenter;
+        label.LabelBorderColor = Colors.Transparent;
+        label.LabelShadowColor = Colors.Transparent;
+        label.IsVisible = false;
+        return label;
+    }
+
+    private void HideStripSlotLabels()
+    {
+        foreach (Text? label in _stripSlotLabels)
+        {
+            if (label != null)
+            {
+                label.IsVisible = false;
+            }
+        }
+    }
+
+    private void UpdateStripSlotLabel(int slot, BeatSegment segment)
+    {
+        if (_viewMode != BeatNoiseScopeViewMode.AverageAndStrip
+            || _stripSlotLabels[slot] is not { } label)
+        {
+            return;
+        }
+
+        label.IsVisible = true;
+        label.LabelText = segment.IsTic ? "Tic" : "Toc";
+        label.LabelFontColor = Color.FromARGB(segment.IsTic ? _theme.TraceTick : _theme.TraceTock);
+        label.Location = new Coordinates(slot + 0.5, StripSlotLabelY);
     }
 
     private void UpdateSelectionSpan(BeatSegmentsSnapshot snapshot)
@@ -1564,6 +1610,19 @@ internal sealed class BeatNoiseScopeRenderer
         foreach (VerticalLine marker in _stripCMarkers)
         {
             marker.LineColor = Color.FromARGB(_theme.TraceTock);
+        }
+
+        foreach (Text? label in _stripSlotLabels)
+        {
+            if (label == null)
+            {
+                continue;
+            }
+
+            label.LabelFontColor = Color.FromARGB(label.LabelText == "Toc" ? _theme.TraceTock : _theme.TraceTick);
+            label.LabelBackgroundColor = Color.FromARGB(_theme.ScopeBg).WithAlpha(210);
+            label.LabelBorderColor = Colors.Transparent;
+            label.LabelShadowColor = Colors.Transparent;
         }
 
         if (_selectionSpan != null)
