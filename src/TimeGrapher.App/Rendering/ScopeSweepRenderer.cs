@@ -45,6 +45,10 @@ internal sealed class ScopeSweepRenderer
     /// <summary>Pre-roll margin shown to the left of the A onset (ms).</summary>
     private const double XPreRollMs = -10.0;
     private const double MarkerLineLeftGuardMs = 0.75;
+    /// <summary>Extra Y kept above the fitted signal when the locked view grows,
+    /// so the ordinary beat-to-beat variation (and the startup ramp) settles
+    /// instead of re-zooming the view on every frame.</summary>
+    private const double YGrowHeadroomFraction = 0.15;
     private readonly VerticalLine?[] _aTicMarkers = new VerticalLine?[MaxSweepMultiple];
     private readonly VerticalLine?[] _aTocMarkers = new VerticalLine?[MaxSweepMultiple];
     private readonly VerticalLine?[] _cTicMarkers = new VerticalLine?[MaxSweepMultiple];
@@ -218,13 +222,15 @@ internal sealed class ScopeSweepRenderer
 
     /// <summary>
     /// Re-fits the X window to the current data ([XPreRollMs, window]) and grows
-    /// the captured Y to include the current signal, but never shrinks it. The
-    /// startup signal ramps up from a faint first beat, and a sweep-multiple
-    /// toggle briefly clears the bins; shrinking Y back to that partial data
-    /// would lock a too-small range (the trace then clips off the top until
-    /// Reset View) or make Y jump on a multiple change. Growing-only lets the
-    /// view reach the real steady-state signal while keeping Y stable across
-    /// multiple toggles. Returns false before any sweep data exists.
+    /// the captured Y only when the current signal would clip it, never shrinking
+    /// it. The startup signal ramps up from a faint first beat, and a
+    /// sweep-multiple toggle briefly clears the bins; shrinking Y back to that
+    /// partial data would lock a too-small range (the trace then clips off the
+    /// top until Reset View) or make Y jump on a multiple change. Each grow
+    /// overshoots by <see cref="YGrowHeadroomFraction"/> so the ordinary
+    /// beat-to-beat variation does not re-zoom the view every frame; the view
+    /// settles once it covers the steady-state signal. Returns false before any
+    /// sweep data exists.
     /// </summary>
     private bool FitXGrowY()
     {
@@ -234,12 +240,23 @@ internal sealed class ScopeSweepRenderer
             return false;
         }
 
-        // Read the data's autoscale extent, then grow (never shrink) the locked Y.
-        _sweepPlot.Plot.Axes.AutoScale();
-        AxisLimits limits = _sweepPlot.Plot.Axes.GetLimits();
         _viewWindowMs = windowMs;
-        _viewYMin = Math.Min(_viewYMin, limits.Bottom);
-        _viewYMax = Math.Max(_viewYMax, limits.Top);
+
+        // Read the data's autoscale extent, then grow (never shrink) the locked
+        // Y, but only when the signal would otherwise clip — and overshoot by a
+        // headroom margin so a slightly louder beat does not re-zoom next frame.
+        _sweepPlot.Plot.Axes.AutoScale();
+        AxisLimits fit = _sweepPlot.Plot.Axes.GetLimits();
+        if (fit.Bottom < _viewYMin)
+        {
+            _viewYMin = fit.Bottom;
+        }
+
+        if (fit.Top > _viewYMax)
+        {
+            _viewYMax = fit.Top + (fit.Top - _viewYMin) * YGrowHeadroomFraction;
+        }
+
         _sweepPlot.Plot.Axes.SetLimits(XPreRollMs, windowMs, _viewYMin, _viewYMax);
         return true;
     }

@@ -217,6 +217,42 @@ public sealed class ScopeSweepRendererThemeTests
         Assert.True(limits.Top > 5.5, $"expected Y to stay fitted to the 6.0 peak, got top {limits.Top}");
     }
 
+    [Fact]
+    public void LiveFollowDoesNotReZoomForSignalVariationWithinHeadroom()
+    {
+        var sweepPlot = new AvaPlot();
+        var readoutValues = ScopeSweepReadout.Labels.Select(_ => new TextBlock()).ToArray();
+        var renderer = new ScopeSweepRenderer(sweepPlot, readoutValues);
+        renderer.CreateGraphs();
+
+        // First fit captures the canonical Y tight to a 5.0 peak.
+        RenderPeak(renderer, 5.0);
+
+        // A louder beat (6.0) grows the locked Y with headroom above the peak.
+        RenderPeak(renderer, 6.0);
+        double topAfterGrow = sweepPlot.Plot.Axes.GetLimits().Top;
+        Assert.True(topAfterGrow > 6.0, $"expected headroom above the 6.0 peak, got top {topAfterGrow}");
+
+        // A slightly louder beat (6.5) that still fits under the headroom must
+        // NOT re-zoom the view (the "graph keeps re-zooming" symptom).
+        RenderPeak(renderer, 6.5);
+        double topAfterVariation = sweepPlot.Plot.Axes.GetLimits().Top;
+        Assert.Equal(topAfterGrow, topAfterVariation, 6);
+    }
+
+    private static void RenderPeak(ScopeSweepRenderer renderer, double peak)
+    {
+        var frame = new AnalysisFrame();
+        AddScopeSeries(frame, new GraphSeriesFrame
+        {
+            Id = AnalysisGraphSeries.SweepTrace,
+            Replace = true,
+            X = new[] { 0.03125, 62.5, 125.0, 187.5, 249.96875 },
+            Y = new[] { 0.2, peak / 2.0, peak, peak / 2.0, 0.2 },
+        });
+        renderer.RenderFrame(frame, new AnalysisTabRenderContext(48000));
+    }
+
     private static void AddScopeSeries(AnalysisFrame frame, GraphSeriesFrame series)
     {
         typeof(AnalysisFrame)
