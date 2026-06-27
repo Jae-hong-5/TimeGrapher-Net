@@ -240,6 +240,35 @@ public sealed class ScopeSweepRendererThemeTests
         Assert.Equal(topAfterGrow, topAfterVariation, 6);
     }
 
+    [Fact]
+    public void SweepIsNotDrawnUntilBeatSyncedThenStaysThroughDropout()
+    {
+        var sweepPlot = new AvaPlot();
+        var readoutValues = ScopeSweepReadout.Labels.Select(_ => new TextBlock()).ToArray();
+        var renderer = new ScopeSweepRenderer(sweepPlot, readoutValues);
+        renderer.CreateGraphs();
+        double[] x = { 0.03125, 62.5, 125.0, 187.5, 249.96875 };
+        double[] y = { 0.2, 3.0, 6.0, 3.0, 0.2 };
+
+        // Signal present but the beat is not locked yet: nothing is drawn/fitted.
+        var unsynced = new AnalysisFrame();
+        AddScopeSeries(unsynced, new GraphSeriesFrame { Id = AnalysisGraphSeries.SweepTrace, Replace = true, X = x, Y = y }, beatSynced: false);
+        renderer.RenderFrame(unsynced, new AnalysisTabRenderContext(48000));
+        Assert.False(sweepPlot.Plot.Axes.GetLimits().Top > 5.5);
+
+        // The beat locks: the trace is drawn and the view fits it.
+        var synced = new AnalysisFrame();
+        AddScopeSeries(synced, new GraphSeriesFrame { Id = AnalysisGraphSeries.SweepTrace, Replace = true, X = x, Y = y }, beatSynced: true);
+        renderer.RenderFrame(synced, new AnalysisTabRenderContext(48000));
+        Assert.True(sweepPlot.Plot.Axes.GetLimits().Top > 5.5);
+
+        // A later sync dropout must keep the latched trace, not blank it.
+        var dropout = new AnalysisFrame();
+        AddScopeSeries(dropout, new GraphSeriesFrame { Id = AnalysisGraphSeries.SweepTrace, Replace = true, X = x, Y = y }, beatSynced: false);
+        renderer.RenderFrame(dropout, new AnalysisTabRenderContext(48000));
+        Assert.True(sweepPlot.Plot.Axes.GetLimits().Top > 5.5);
+    }
+
     private static void RenderPeak(ScopeSweepRenderer renderer, double peak)
     {
         var frame = new AnalysisFrame();
@@ -253,8 +282,9 @@ public sealed class ScopeSweepRendererThemeTests
         renderer.RenderFrame(frame, new AnalysisTabRenderContext(48000));
     }
 
-    private static void AddScopeSeries(AnalysisFrame frame, GraphSeriesFrame series)
+    private static void AddScopeSeries(AnalysisFrame frame, GraphSeriesFrame series, bool beatSynced = true)
     {
+        frame.BeatSynced = beatSynced;
         typeof(AnalysisFrame)
             .GetMethod("AddScopeSeries", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
             .Invoke(frame, new object[] { series });

@@ -77,6 +77,13 @@ internal sealed class ScopeSweepRenderer
     private ulong _lastReadoutSegmentVersion;
     private bool _followLive = true;
 
+    // Latched once the detector first locks onto the tick/tock beat. The sweep
+    // draws nothing before this, so the pre-lock fold (fallback window, unaligned
+    // phase) never paints a meaningless trace. Latched, not live, so a later sync
+    // dropout keeps the accumulated pattern instead of blanking it (the sweep is
+    // designed to survive dropouts).
+    private bool _beatSynced;
+
     // Canonical "initial output" view. Y ([_viewYMin, _viewYMax]) is captured on
     // the first fit and on Reset/AutoScale only; live follow and cycle changes
     // keep it and re-fit just the X window ([XPreRollMs, _viewWindowMs]), so
@@ -111,6 +118,7 @@ internal sealed class ScopeSweepRenderer
         _lastReadoutSegmentVersion = 0;
         _lastSegmentVersion = 0;
         _followLive = true;
+        _beatSynced = false;
         _ticPhaseOffsetMs = 0.0;
         _lastWindowMs = 0.0;
         _viewWindowMs = 0.0;
@@ -263,7 +271,15 @@ internal sealed class ScopeSweepRenderer
 
     public void RenderFrame(AnalysisFrame frame, AnalysisTabRenderContext context)
     {
-        GraphSeriesFrame? sweepSeries = SeriesDataReducer.FindSeries(frame.ScopeSeries, AnalysisGraphSeries.SweepTrace);
+        // Draw nothing until the detector locks onto the tick/tock beat: before
+        // the lock the fold uses a fallback window and an unaligned phase, so it
+        // would paint a meaningless, re-zooming trace. Once latched it stays on,
+        // so a later dropout keeps the trace rather than blanking it.
+        _beatSynced |= frame.BeatSynced;
+
+        GraphSeriesFrame? sweepSeries = _beatSynced
+            ? SeriesDataReducer.FindSeries(frame.ScopeSeries, AnalysisGraphSeries.SweepTrace)
+            : null;
         bool dataUpdated = !ReferenceEquals(sweepSeries, _lastSweepSeries) &&
             SeriesDataReducer.TryReplaceSeriesData(sweepSeries, _sweepX, _sweepY, SweepFrameProjector.SweepBinBudget);
         if (dataUpdated)
