@@ -38,6 +38,7 @@ namespace TimeGrapher.App.Rendering;
 internal sealed class BeatNoiseScopeRenderer
 {
     public const int DefaultRangeMs = 400;
+    public const int InitialRangeMs = 20;
 
     private const int StripPointBudget = 200;
     internal const float StripLeftAxisSizePx = 68.0f;
@@ -134,7 +135,7 @@ internal sealed class BeatNoiseScopeRenderer
 
     private PlotThemePalette _theme = PlotThemePalette.Current;
     private ulong _lastVersion;
-    private int _rangeMs = DefaultRangeMs;
+    private int _rangeMs = InitialRangeMs;
     private bool _showAbsoluteValue;
     private bool _useCOnset;
     private int? _selectedSlot;
@@ -832,10 +833,8 @@ internal sealed class BeatNoiseScopeRenderer
             return;
         }
 
-        int? selectedSlot = _selectedSlot;
-        bool visible = selectedSlot.HasValue && (_viewMode == BeatNoiseScopeViewMode.AverageAndStrip
-            ? SegmentForSlot(snapshot, selectedSlot.Value) != null || SegmentForSlot(snapshot, selectedSlot.Value + 1) != null
-            : WindowForSlot(snapshot, selectedSlot.Value, _rangeMs) != null);
+        int? selectedSlot = SelectedOrDisplayedSlot(snapshot);
+        bool visible = selectedSlot.HasValue;
         _selectionSpan.IsVisible = visible;
         if (visible && selectedSlot.HasValue)
         {
@@ -850,6 +849,41 @@ internal sealed class BeatNoiseScopeRenderer
                     ? Math.Min(spanStart + 2, BeatNoiseScopeLogic.StripCount)
                     : slot + 1;
         }
+    }
+
+    private int? SelectedOrDisplayedSlot(BeatSegmentsSnapshot snapshot)
+    {
+        if (_selectedSlot is int selectedSlot)
+        {
+            bool selectedSlotValid = _viewMode == BeatNoiseScopeViewMode.AverageAndStrip
+                ? SegmentForSlot(snapshot, selectedSlot) != null || SegmentForSlot(snapshot, selectedSlot + 1) != null
+                : WindowForSlot(snapshot, selectedSlot, _rangeMs) != null;
+            if (selectedSlotValid)
+            {
+                return selectedSlot;
+            }
+        }
+
+        return DisplayedStripSlot(snapshot);
+    }
+
+    private int? DisplayedStripSlot(BeatSegmentsSnapshot snapshot)
+    {
+        if (_viewMode == BeatNoiseScopeViewMode.AverageAndStrip
+            || snapshot.Segments.Count == 0)
+        {
+            return null;
+        }
+
+        if (_rangeMs == DefaultRangeMs)
+        {
+            return StableNonOverlappingWindowSegments(snapshot, _rangeMs).Count > 0
+                ? BeatNoiseScopeLogic.StripCount - 2
+                : null;
+        }
+
+        int count = Math.Min(snapshot.Segments.Count, BeatNoiseScopeLogic.StripCount);
+        return count > 0 ? BeatNoiseScopeLogic.StripCount - 1 : null;
     }
 
     private void RenderAverageView(BeatSegmentsSnapshot snapshot)

@@ -729,7 +729,8 @@ public sealed class InfoTabRegistryTests
             Assert.Equal(VerticalAlignment.Center, button.VerticalAlignment);
         });
         Assert.Contains("active", modeButtonStrip.Children.OfType<Button>().Single(button => Equals(button.Content, "Scope")).Classes);
-        Assert.Contains("active", controlButtonStrip.Children.OfType<Button>().Single(button => Equals(button.Content, "400 ms")).Classes);
+        Assert.Contains("active", controlButtonStrip.Children.OfType<Button>().Single(button => Equals(button.Content, "20 ms")).Classes);
+        Assert.DoesNotContain("active", controlButtonStrip.Children.OfType<Button>().Single(button => Equals(button.Content, "400 ms")).Classes);
         Assert.DoesNotContain("active", modeButtonStrip.Children.OfType<Button>().Single(button => Equals(button.Content, "Avg Envelope")).Classes);
         Assert.DoesNotContain(buttonStrips.SelectMany(strip => strip.Children.OfType<TextBlock>()), text => text.Text?.Contains("LIFT") == true);
     }

@@ -291,7 +291,7 @@ public sealed class BeatNoiseScopeRendererTests
         Assert.Equal(LinePattern.Dotted, mainCMarker.LinePattern);
 
         VerticalLine stripCMarker = stripPlot.Plot.GetPlottables<VerticalLine>()
-            .Single(line => line.IsVisible && line.X > 6.0 && line.X < 7.0 && Equals(line.LinePattern, LinePattern.Dotted));
+            .Single(line => line.IsVisible && line.X > 7.0 && line.X < 8.0 && Equals(line.LinePattern, LinePattern.Dotted));
         Assert.Equal(LinePattern.Dotted, stripCMarker.LinePattern);
     }
 
@@ -302,6 +302,7 @@ public sealed class BeatNoiseScopeRendererTests
         var renderer = new BeatNoiseScopeRenderer(
             mainPlot, new AvaPlot(), new AvaPlot(), new TextBlock(), useCOnset: false);
         renderer.CreateGraphs();
+        renderer.SetRangeMs(BeatNoiseScopeRenderer.DefaultRangeMs);
 
         var segment = new BeatSegment
         {
@@ -341,6 +342,7 @@ public sealed class BeatNoiseScopeRendererTests
         var renderer = new BeatNoiseScopeRenderer(
             mainPlot, new AvaPlot(), new AvaPlot(), new TextBlock(), useCOnset: false);
         renderer.CreateGraphs();
+        renderer.SetRangeMs(BeatNoiseScopeRenderer.DefaultRangeMs);
 
         var segment = new BeatSegment
         {
@@ -413,6 +415,7 @@ public sealed class BeatNoiseScopeRendererTests
         var renderer = new BeatNoiseScopeRenderer(
             mainPlot, new AvaPlot(), new AvaPlot(), new TextBlock(), useCOnset: false);
         renderer.CreateGraphs();
+        renderer.SetRangeMs(BeatNoiseScopeRenderer.DefaultRangeMs);
 
         var first = new BeatSegment
         {
@@ -461,6 +464,7 @@ public sealed class BeatNoiseScopeRendererTests
         var renderer = new BeatNoiseScopeRenderer(
             mainPlot, new AvaPlot(), new AvaPlot(), new TextBlock(), useCOnset: false);
         renderer.CreateGraphs();
+        renderer.SetRangeMs(BeatNoiseScopeRenderer.DefaultRangeMs);
 
         var segment = new BeatSegment
         {
@@ -581,7 +585,7 @@ public sealed class BeatNoiseScopeRendererTests
 
         VerticalLine stripCMarker = stripPlot.Plot.GetPlottables<VerticalLine>()
             .Single(line => line.IsVisible && Equals(line.LinePattern, LinePattern.Dotted));
-        Assert.InRange(stripCMarker.X, 6.4, 6.5);
+        Assert.InRange(stripCMarker.X, 7.4, 7.5);
     }
 
     [Fact]
@@ -751,7 +755,7 @@ public sealed class BeatNoiseScopeRendererTests
     }
 
     [Fact]
-    public void BeatScopeStripDoesNotAutoHighlightLatestWindow()
+    public void BeatScopeStripHighlightsCurrentWindowByDefault()
     {
         var stripPlot = new AvaPlot();
         var renderer = new BeatNoiseScopeRenderer(
@@ -772,7 +776,9 @@ public sealed class BeatNoiseScopeRendererTests
         }, new AnalysisTabRenderContext(SampleRate: 48000));
 
         HorizontalSpan selection = stripPlot.Plot.GetPlottables<HorizontalSpan>().Single();
-        Assert.False(selection.IsVisible);
+        Assert.True(selection.IsVisible);
+        Assert.Equal(7.0, selection.X1);
+        Assert.Equal(8.0, selection.X2);
     }
 
     [Fact]
@@ -781,6 +787,7 @@ public sealed class BeatNoiseScopeRendererTests
         var renderer = new BeatNoiseScopeRenderer(
             new AvaPlot(), new AvaPlot(), new AvaPlot(), new TextBlock());
         renderer.CreateGraphs();
+        renderer.SetRangeMs(BeatNoiseScopeRenderer.DefaultRangeMs);
 
         var firstBucketRepresentative = new BeatSegment
         {
@@ -829,6 +836,7 @@ public sealed class BeatNoiseScopeRendererTests
         var renderer = new BeatNoiseScopeRenderer(
             new AvaPlot(), new AvaPlot(), new AvaPlot(), new TextBlock());
         renderer.CreateGraphs();
+        renderer.SetRangeMs(BeatNoiseScopeRenderer.DefaultRangeMs);
 
         var firstBucketRepresentative = new BeatSegment
         {
@@ -888,6 +896,7 @@ public sealed class BeatNoiseScopeRendererTests
         var renderer = new BeatNoiseScopeRenderer(
             new AvaPlot(), stripPlot, new AvaPlot(), new TextBlock());
         renderer.CreateGraphs();
+        renderer.SetRangeMs(BeatNoiseScopeRenderer.DefaultRangeMs);
 
         var firstBucketRepresentative = new BeatSegment
         {
