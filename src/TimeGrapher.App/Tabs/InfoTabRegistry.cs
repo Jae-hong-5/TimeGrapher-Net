@@ -25,6 +25,8 @@ internal sealed partial class InfoTabRegistry
     private const double PositionMinimumFontSize = 14.0;
     private const double PositionHeroDiagramSize = 160.0;
     private const double PositionHeroMetricLabelFontSize = 15.0;
+    private const double WaveformDirectionAxisWidth = 58.0;
+    private const double WaveformDirectionPastOpacity = 0.6;
     private const string ResetAllGraphViewsTooltip = "Reset all graph views";
     private const string ActiveButtonClass = "active";
 
@@ -598,9 +600,11 @@ internal sealed partial class InfoTabRegistry
             for (int i = 0; i < multiples.Length; i++)
             {
                 int multiple = multiples[i];
+                string cycleLabel = $"{multiple}-cycle";
+                string cycleWord = multiple == 1 ? "cycle" : "cycles";
                 Button button = SweepHeaderButton(
-                    multiple + "x",
-                    $"Sweep window = {multiple}x the tick-tick interval",
+                    cycleLabel,
+                    $"Sweep window = {multiple} {cycleWord} of the tick-tick interval",
                     () =>
                 {
                     viewModel.SweepMultiple = multiple;
@@ -613,7 +617,7 @@ internal sealed partial class InfoTabRegistry
             UpdateButtonStates();
         }
 
-        var renderer = new ScopeSweepRenderer(sweepPlot, referenceValueTexts, context.TextFontFamily);
+        var renderer = new ScopeSweepRenderer(sweepPlot, referenceValueTexts);
         context.ResetViews.Register(renderer.ResetView);
         buttonRow.Children.Add(SweepHeaderButton(
             "Reset View", ResetAllGraphViewsTooltip, context.ResetViews.ResetAll));
@@ -860,7 +864,7 @@ internal sealed partial class InfoTabRegistry
             run.Bind(TextElement.ForegroundProperty, run.GetResourceObservable(brushKey));
             return run;
         }
-        var currentSwatch = Swatch("Black dashed", "TextPrimaryBrush");
+        var currentSwatch = Swatch("Black short dash", "TextPrimaryBrush");
         legend.Inlines = new InlineCollection
         {
             Swatch("Amber band", "VarioAcceptBandEdgeBrush"),
@@ -1754,11 +1758,6 @@ internal sealed partial class InfoTabRegistry
         return new InfoTabRegistration(definition, CreateTabItem(definition, grid), consumer);
     }
 
-    /// <summary>
-    /// Vertical direction indicator for the Waveforms tab: a real up-arrow graphic
-    /// (shaft + head) with "Current" (newest, top, accent) and "Past" (oldest,
-    /// bottom), shown beside the plot in place of a rotated text label.
-    /// </summary>
     private static Control CreateWaveformDirectionAxis()
     {
         var current = new TextBlock
@@ -1775,42 +1774,43 @@ internal sealed partial class InfoTabRegistry
         {
             Text = "Past",
             FontSize = 14,
-            Opacity = 0.6,
+            Opacity = WaveformDirectionPastOpacity,
             HorizontalAlignment = HorizontalAlignment.Center,
             Margin = new Thickness(0, 6, 0, 0),
         };
 
         var head = new Avalonia.Controls.Shapes.Path
         {
-            Data = Avalonia.Media.Geometry.Parse("M 7,0 L 0,13 L 14,13 Z"),
+            Data = Avalonia.Media.Geometry.Parse("M 7,13 L 0,0 L 14,0 Z"),
             HorizontalAlignment = HorizontalAlignment.Center,
         };
-        head.Bind(Avalonia.Controls.Shapes.Shape.FillProperty, head.GetResourceObservable("ChromeAccentBrush"));
+        head.Bind(Avalonia.Controls.Shapes.Shape.FillProperty, head.GetResourceObservable("TextPrimaryBrush"));
 
         var shaft = new Avalonia.Controls.Shapes.Rectangle
         {
             Width = 2,
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Stretch,
-            Margin = new Thickness(0, -1, 0, 0),
+            Margin = new Thickness(0, 0, 0, -1),
         };
-        shaft.Bind(Avalonia.Controls.Shapes.Shape.FillProperty, shaft.GetResourceObservable("ChromeAccentBrush"));
+        shaft.Bind(Avalonia.Controls.Shapes.Shape.FillProperty, shaft.GetResourceObservable("TextPrimaryBrush"));
 
         var arrow = new Grid
         {
-            RowDefinitions = new RowDefinitions("Auto,*"),
+            RowDefinitions = new RowDefinitions("*,Auto"),
             HorizontalAlignment = HorizontalAlignment.Center,
+            Opacity = WaveformDirectionPastOpacity,
         };
-        Grid.SetRow(head, 0);
-        Grid.SetRow(shaft, 1);
-        arrow.Children.Add(head);
+        Grid.SetRow(shaft, 0);
+        Grid.SetRow(head, 1);
         arrow.Children.Add(shaft);
+        arrow.Children.Add(head);
 
         var grid = new Grid
         {
             RowDefinitions = new RowDefinitions("Auto,*,Auto"),
-            Width = 66,
-            Margin = new Thickness(6, 12, 2, 28),
+            Width = WaveformDirectionAxisWidth,
+            Margin = new Thickness(2, 12, 2, 28),
         };
         Grid.SetRow(current, 0);
         Grid.SetRow(arrow, 1);

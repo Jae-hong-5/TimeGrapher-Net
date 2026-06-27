@@ -156,7 +156,7 @@ public sealed class VarioRendererThemeTests
     {
         Text label = plot.GetPlottables<Text>().Single(text => text.LabelText == "current");
         LinePlot line = plot.GetPlottables<LinePlot>()
-            .Single(line => line.LinePattern.Equals(LinePattern.Dashed));
+            .Single(line => line.LinePattern.Equals(GraphLinePatterns.VerticalGuide));
 
         Assert.Equal(PlotColor.FromARGB(expected), label.LabelFontColor);
         Assert.Equal(PlotColor.FromARGB(expected), line.LineColor);

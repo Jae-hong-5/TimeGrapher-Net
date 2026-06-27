@@ -367,7 +367,7 @@ internal sealed class RateScopeRenderer
         }
     }
 
-    /// <summary>Review-cursor contract: a dotted marker at the scrub time on the waveform pane.</summary>
+    /// <summary>Review-cursor contract: a vertical marker at the scrub time on the waveform pane.</summary>
     private bool UpdateReviewCursor(AnalysisTabRenderContext context)
     {
         if (_scopeReviewCursor == null)
@@ -1210,7 +1210,7 @@ internal sealed class RateScopeRenderer
         line.Line = new CoordinateLine(x, 0.0, x, height);
         line.LineColor = Color.FromARGB(ThemeColor(color));
         line.LineWidth = 2;
-        line.LinePattern = LinePattern.Dashed;
+        line.LinePattern = GraphLinePatterns.VerticalGuide;
     }
 
     private void AddText(double x, double height, string text, uint color, MarkerTextAlignment alignment)

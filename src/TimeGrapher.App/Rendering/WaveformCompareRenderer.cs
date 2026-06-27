@@ -551,7 +551,7 @@ internal sealed class WaveformCompareRenderer
             ? YHeadroom
             : (WaveformCompareLogic.PairLanes - 1) * WaveformCompareLogic.LaneSpacing + YHeadroom;
 
-    /// <summary>Review-cursor contract: a dotted marker at the scrub time's A-relative offset.</summary>
+    /// <summary>Review-cursor contract: a vertical marker at the scrub time's A-relative offset.</summary>
     private bool UpdateReviewCursor(double? reviewCursorTimeS)
     {
         if (_reviewCursor == null)
@@ -663,7 +663,7 @@ internal sealed class WaveformCompareRenderer
     {
         VerticalLine guide = plot.Add.VerticalLine(0.0);
         guide.LineWidth = 1;
-        guide.LinePattern = LinePattern.Dashed;
+        guide.LinePattern = GraphLinePatterns.VerticalGuide;
         guide.IsVisible = false;
         guide.EnableAutoscale = false;
         return guide;
@@ -684,7 +684,7 @@ internal sealed class WaveformCompareRenderer
         LinePlot guide = plot.Add.Line(0.0, 0.0, 0.0, 1.0);
         guide.MarkerStyle.IsVisible = false;
         guide.LineWidth = 1;
-        guide.LinePattern = LinePattern.Dashed;
+        guide.LinePattern = GraphLinePatterns.VerticalGuide;
         guide.IsVisible = false;
         return guide;
     }

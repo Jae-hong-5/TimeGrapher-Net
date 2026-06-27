@@ -95,7 +95,7 @@ public sealed class ScottPlotAutoScaleBehaviorTests
     }
 
     [Fact]
-    public void ReviewCursorLayer_UsesRedBoldDottedStyle()
+    public void ReviewCursorLayer_UsesRedBoldVerticalGuideStyle()
     {
         var plot = new Plot();
         var layer = new ReviewCursorLayer(plot);
@@ -112,7 +112,7 @@ public sealed class ScottPlotAutoScaleBehaviorTests
         layer.ApplyTheme(palette);
 
         VerticalLine line = plot.GetPlottables<VerticalLine>().Single();
-        Assert.Equal(LinePattern.Dotted, line.LinePattern);
+        Assert.Equal(GraphLinePatterns.VerticalGuide, line.LinePattern);
         Assert.Equal(2, line.LineWidth);
         Assert.Equal(Color.FromARGB(palette.VarioBad), line.Color);
     }

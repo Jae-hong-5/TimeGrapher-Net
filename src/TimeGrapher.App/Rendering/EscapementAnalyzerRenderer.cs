@@ -21,8 +21,8 @@ namespace TimeGrapher.App.Rendering;
 /// the tic segment's own window, which is long enough (400 ms) to span the toc
 /// that follows ~half a beat later, so the two noise groups sit at their true
 /// spacing on one continuous trace. Over it sit pooled vertical timing markers
-/// and millisecond labels for each beat's escapement-cycle events: A (green
-/// dashed), C peak (red dashed) and C onset (red dotted, only when the detector
+/// and millisecond labels for each beat's escapement-cycle events: A, C peak
+/// and C onset (only when the detector
 /// located the cluster's rising edge). The numeric panel below reads the latest
 /// beat's A→C interval per reference, the onset-vs-peak delta, and — via
 /// EscapementTimingTracker fed here on each snapshot-version change — the
@@ -155,11 +155,9 @@ internal sealed class EscapementAnalyzerRenderer
         _ticTocAConnector = AddConnector(plot);
         _ticTocAConnectorLabel = AddLabel(plot);
         _ticTocAConnectorLabel.Alignment = Alignment.LowerCenter;
-        // Two beats' worth of markers: A and C peak dashed, C onset dotted.
         for (int i = 0; i < MarkerCount; i++)
         {
-            bool onset = i == MarkerTicCOnset || i == MarkerTocCOnset;
-            _markers[i] = AddMarker(plot, onset ? LinePattern.Dotted : LinePattern.Dashed);
+            _markers[i] = AddMarker(plot, GraphLinePatterns.VerticalGuide);
             _labels[i] = AddLabel(plot);
         }
         _signalQualityLabel = AddSignalQualityLabel(plot);

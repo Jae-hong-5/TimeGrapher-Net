@@ -738,7 +738,7 @@ internal sealed class MultiFilterScopeRenderer
         }
     }
 
-    /// <summary>Review-cursor contract: a dotted marker at the scrub time on every lane.</summary>
+    /// <summary>Review-cursor contract: a vertical marker at the scrub time on every lane.</summary>
     private bool UpdateReviewCursor(int lane, AnalysisTabRenderContext context)
     {
         // The lanes are drawn re-based to the locked window's left edge, so map the

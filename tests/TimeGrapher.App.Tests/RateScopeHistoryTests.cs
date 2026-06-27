@@ -83,7 +83,7 @@ public sealed class RateScopeHistoryTests
         Assert.Equal(new[] { 0.0, 4.0, 8.0 }, boundaries.Select(line => line.X).ToArray());
         Assert.All(boundaries, line =>
         {
-            Assert.Equal(LinePattern.Dashed, line.LinePattern);
+            Assert.Equal(GraphLinePatterns.VerticalGuide, line.LinePattern);
             Assert.False(line.EnableAutoscale);
         });
         Text[] labels = ratePlot.Plot.GetPlottables<Text>().Where(t => t.IsVisible).ToArray();

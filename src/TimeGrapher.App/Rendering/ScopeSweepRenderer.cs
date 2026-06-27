@@ -22,7 +22,6 @@ internal sealed class ScopeSweepRenderer
 {
     private readonly AvaPlot _sweepPlot;
     private readonly TextBlock[] _referenceValueTexts;
-    private readonly string _textFontFamily;
 
     private readonly List<double> _sweepX = new();
     private readonly List<double> _sweepY = new();
@@ -30,26 +29,26 @@ internal sealed class ScopeSweepRenderer
     // left by windowMs so the pre-onset region appears at negative X values.
     private readonly List<double> _preRollX = new();
     private readonly List<double> _preRollY = new();
+    private readonly List<double> _aLegendX = new();
+    private readonly List<double> _aLegendY = new();
+    private readonly List<double> _cLegendX = new();
+    private readonly List<double> _cLegendY = new();
 
     private Scatter? _sweepScatter;
     private Scatter? _preRollScatter;
+    private Scatter? _aLegendScatter;
+    private Scatter? _cLegendScatter;
     private ReviewCursorLayer? _reviewCursor;
 
-    // A/C beat markers: one dashed/dotted vertical line + label per tic/toc phase per sweep
-    // repetition. 1x shows one set; 2x/3x windows add a second/third copy spaced one beat period apart.
+    private const float MarkerLegendLineWidth = 2.0f;
     private const int MaxSweepMultiple = 3;
     /// <summary>Pre-roll margin shown to the left of the A onset (ms).</summary>
     private const double XPreRollMs = -10.0;
     private const double MarkerLineLeftGuardMs = 0.75;
-    private const double MarkerLabelEdgeGuardMs = 9.0;
     private readonly VerticalLine?[] _aTicMarkers = new VerticalLine?[MaxSweepMultiple];
-    private readonly Text?[]         _aTicLabels  = new Text?[MaxSweepMultiple];
     private readonly VerticalLine?[] _aTocMarkers = new VerticalLine?[MaxSweepMultiple];
-    private readonly Text?[]         _aTocLabels  = new Text?[MaxSweepMultiple];
     private readonly VerticalLine?[] _cTicMarkers = new VerticalLine?[MaxSweepMultiple];
-    private readonly Text?[]         _cTicLabels  = new Text?[MaxSweepMultiple];
     private readonly VerticalLine?[] _cTocMarkers = new VerticalLine?[MaxSweepMultiple];
-    private readonly Text?[]         _cTocLabels  = new Text?[MaxSweepMultiple];
 
     // Identity gate on the projector's shared-instance pattern: between
     // publish-floor rebuilds (and on every paused-scrub re-route) frames
@@ -75,7 +74,7 @@ internal sealed class ScopeSweepRenderer
     private bool _followLive = true;
 
     // Canonical "initial output" view. Y ([_viewYMin, _viewYMax]) is captured on
-    // the first fit and on Reset/AutoScale only; live follow and 1x/2x/4x changes
+    // the first fit and on Reset/AutoScale only; live follow and cycle changes
     // keep it and re-fit just the X window ([XPreRollMs, _viewWindowMs]), so
     // toggling the multiple never rescales Y. SweepViewRule enforces these on
     // every render, so a mouse zoom acts on X only (Y is held) and zoom-out
@@ -85,11 +84,10 @@ internal sealed class ScopeSweepRenderer
     private double _viewYMax;
     private bool _hasView;
 
-    public ScopeSweepRenderer(AvaPlot sweepPlot, TextBlock[] referenceValueTexts, string textFontFamily)
+    public ScopeSweepRenderer(AvaPlot sweepPlot, TextBlock[] referenceValueTexts)
     {
         _sweepPlot = sweepPlot;
         _referenceValueTexts = referenceValueTexts;
-        _textFontFamily = textFontFamily;
 
         _sweepPlot.PointerWheelChanged += (_, _) => _followLive = false;
         _sweepPlot.PointerPressed += (_, _) => _followLive = false;
@@ -127,6 +125,10 @@ internal sealed class ScopeSweepRenderer
         _sweepY.Clear();
         _preRollX.Clear();
         _preRollY.Clear();
+        _aLegendX.Clear();
+        _aLegendY.Clear();
+        _cLegendX.Clear();
+        _cLegendY.Clear();
         _lastSweepSeries = null;
         ApplyPlotTheme(sweep);
         sweep.YLabel("Signal Level");
@@ -137,17 +139,24 @@ internal sealed class ScopeSweepRenderer
         _preRollScatter = sweep.Add.Scatter(_preRollX, _preRollY);
         _preRollScatter.LineWidth = 1;
         _preRollScatter.MarkerStyle.IsVisible = false;
+        _aLegendScatter = sweep.Add.Scatter(_aLegendX, _aLegendY);
+        _aLegendScatter.LineWidth = MarkerLegendLineWidth;
+        _aLegendScatter.LinePattern = GraphLinePatterns.VerticalGuide;
+        _aLegendScatter.MarkerStyle.IsVisible = false;
+        _aLegendScatter.LegendText = "A";
+        _cLegendScatter = sweep.Add.Scatter(_cLegendX, _cLegendY);
+        _cLegendScatter.LineWidth = MarkerLegendLineWidth;
+        _cLegendScatter.LinePattern = GraphLinePatterns.VerticalGuide;
+        _cLegendScatter.MarkerStyle.IsVisible = false;
+        _cLegendScatter.LegendText = "C";
+        sweep.ShowLegend(Alignment.LowerRight);
 
         for (int k = 0; k < MaxSweepMultiple; k++)
         {
-            _aTicMarkers[k] = AddMarkerLine(sweep, LinePattern.Dashed);
-            _aTicLabels[k]  = AddMarkerLabel(sweep);
-            _aTocMarkers[k] = AddMarkerLine(sweep, LinePattern.Dashed);
-            _aTocLabels[k]  = AddMarkerLabel(sweep);
-            _cTicMarkers[k] = AddMarkerLine(sweep, LinePattern.Dotted);
-            _cTicLabels[k]  = AddMarkerLabel(sweep);
-            _cTocMarkers[k] = AddMarkerLine(sweep, LinePattern.Dotted);
-            _cTocLabels[k]  = AddMarkerLabel(sweep);
+            _aTicMarkers[k] = AddMarkerLine(sweep, GraphLinePatterns.VerticalGuide);
+            _aTocMarkers[k] = AddMarkerLine(sweep, GraphLinePatterns.VerticalGuide);
+            _cTicMarkers[k] = AddMarkerLine(sweep, GraphLinePatterns.VerticalGuide);
+            _cTocMarkers[k] = AddMarkerLine(sweep, GraphLinePatterns.VerticalGuide);
         }
 
         _reviewCursor = AddCursor(sweep);
@@ -184,13 +193,13 @@ internal sealed class ScopeSweepRenderer
     /// applies it: X pinned to [XPreRollMs, window] and Y to the data autoscale
     /// fit. <see cref="SweepViewRule"/> then holds Y locked and bounds X to this
     /// window, so zoom is X-only and cannot pass the full window, and Reset
-    /// restores exactly this. Returns false (view unchanged) before any sweep
-    /// data exists.
+    /// restores exactly this. Returns false (view unchanged) before any visible
+    /// sweep signal exists.
     /// </summary>
     private bool FitCanonicalView()
     {
         double windowMs = ScopeSweepReadout.WindowMs(_sweepX);
-        if (windowMs <= 0)
+        if (windowMs <= 0 || !HasVisibleSweepSignal())
         {
             return false;
         }
@@ -209,7 +218,7 @@ internal sealed class ScopeSweepRenderer
 
     /// <summary>
     /// Re-fits only the X window to the current data ([XPreRollMs, window]) while
-    /// keeping the already-captured Y, so live follow and a 1x/2x/4x change move
+    /// keeping the already-captured Y, so live follow and a cycle change move
     /// the X window without rescaling Y. Returns false before any sweep data
     /// exists.
     /// </summary>
@@ -236,7 +245,7 @@ internal sealed class ScopeSweepRenderer
             _lastSweepSeries = sweepSeries;
             _ticPhaseOffsetMs = sweepSeries!.TicPhaseOffsetMs;
 
-            // Re-arm live fitting when the window size changes (1x/2x/4x pressed)
+            // Re-arm live fitting when the window size changes.
             // so the X view snaps to the new window even if the user had panned.
             // Y is kept (FitXKeepY), so a multiple change does not rescale Y.
             double windowMs = ScopeSweepReadout.WindowMs(_sweepX);
@@ -267,7 +276,7 @@ internal sealed class ScopeSweepRenderer
         if (dataUpdated && _followLive)
         {
             // First fit captures the canonical Y (autoscale). After that, live
-            // follow and 1x/2x/4x changes only re-fit the X window and KEEP the
+            // follow and cycle changes only re-fit the X window and KEEP the
             // captured Y, so toggling the sweep multiple never rescales Y.
             if (_hasView)
             {
@@ -306,12 +315,10 @@ internal sealed class ScopeSweepRenderer
     }
 
     /// <summary>
-    /// Places A (dashed) and C (dotted) vertical markers at each beat phase in
+    /// Places A and C vertical markers at each beat phase in
     /// the sweep window. In 1x mode one set of markers is placed; in 2x/3x mode
     /// additional copies are placed at each subsequent beat-period repetition so
     /// the markers remain visible across the full multi-period window.
-    /// Both X and Y positions are recomputed on every sweep data refresh so that
-    /// a window-size change or phase re-alignment is reflected immediately.
     /// </summary>
     private void UpdateSweepMarkerPositions(BeatSegmentsSnapshot? snapshot,
         BeatMetricsHistorySnapshot? history)
@@ -325,8 +332,7 @@ internal sealed class ScopeSweepRenderer
         // markers hold their pre-switch positions rather than jumping to the
         // phase-unaligned (offset = 0) coordinates the projector emits
         // immediately after the window reset.
-        double yTop = _sweepY.Count > 0 ? _sweepY.Max() : 0.0;
-        if (snapshot == null || snapshot.Segments.Count == 0 || windowMs <= 0 || yTop <= 0)
+        if (snapshot == null || snapshot.Segments.Count == 0 || windowMs <= 0 || !HasVisibleSweepSignal())
         {
             return;
         }
@@ -370,18 +376,6 @@ internal sealed class ScopeSweepRenderer
             SetMarkerLine(_cTicMarkers[k], active ? RepeatPhase(cTicPhase, k, beatPeriodMs, windowMs) : null);
             SetMarkerLine(_cTocMarkers[k], active ? RepeatPhase(cTocPhase, k, beatPeriodMs, windowMs) : null);
         }
-
-        // Anchor labels to the signal peak (yTop was computed above the early return).
-        if (yTop > 0)
-        {
-            for (int k = 0; k < MaxSweepMultiple; k++)
-            {
-                UpdateMarkerLabel(_aTicLabels[k], _aTicMarkers[k], yTop, "A", windowMs);
-                UpdateMarkerLabel(_aTocLabels[k], _aTocMarkers[k], yTop, "A", windowMs);
-                UpdateMarkerLabel(_cTicLabels[k], _cTicMarkers[k], yTop, "C", windowMs);
-                UpdateMarkerLabel(_cTocLabels[k], _cTocMarkers[k], yTop, "C", windowMs);
-            }
-        }
     }
 
     /// <summary>
@@ -417,21 +411,12 @@ internal sealed class ScopeSweepRenderer
         line.IsVisible = false;
     }
 
-    private static void UpdateMarkerLabel(Text? label, VerticalLine? line, double yTop, string text, double windowMs)
+    private bool HasVisibleSweepSignal()
     {
-        if (label == null || line == null) return;
-        bool visible = line.IsVisible
-            && line.X >= MarkerLabelEdgeGuardMs
-            && line.X <= windowMs - MarkerLabelEdgeGuardMs;
-        label.IsVisible = visible;
-        if (visible)
-        {
-            label.LabelText = text;
-            label.Location = new Coordinates(line.X + 1.5, yTop);
-        }
+        return _sweepY.Count > 0 && _sweepY.Max() > 0.0;
     }
 
-/// <summary>Review-cursor contract: a dotted marker at the scrub time's sweep phase.</summary>
+    /// <summary>Review-cursor contract: a vertical marker at the scrub time's sweep phase.</summary>
     private bool UpdateReviewCursor(double? reviewCursorTimeS)
     {
         if (_reviewCursor == null)
@@ -459,16 +444,6 @@ internal sealed class ScopeSweepRenderer
         line.IsVisible = false;
         line.EnableAutoscale = false;
         return line;
-    }
-
-    private Text AddMarkerLabel(Plot plot)
-    {
-        Text label = plot.Add.Text("", 0.0, 0.0);
-        label.LabelFontName = _textFontFamily;
-        label.LabelFontSize = PlotThemeHelper.GraphLabelFontSize;
-        label.Alignment = Alignment.UpperLeft;
-        label.IsVisible = false;
-        return label;
     }
 
     /// <summary>
@@ -510,16 +485,22 @@ internal sealed class ScopeSweepRenderer
 
         Color aColor = Color.FromARGB(_theme.TraceTick);
         Color cColor = Color.FromARGB(_theme.TraceTock);
+        if (_aLegendScatter != null)
+        {
+            _aLegendScatter.LineColor = aColor;
+        }
+
+        if (_cLegendScatter != null)
+        {
+            _cLegendScatter.LineColor = cColor;
+        }
+
         for (int k = 0; k < MaxSweepMultiple; k++)
         {
             if (_aTicMarkers[k] != null) _aTicMarkers[k]!.LineColor     = aColor;
-            if (_aTicLabels[k]  != null) _aTicLabels[k]!.LabelFontColor = aColor;
             if (_aTocMarkers[k] != null) _aTocMarkers[k]!.LineColor     = aColor;
-            if (_aTocLabels[k]  != null) _aTocLabels[k]!.LabelFontColor = aColor;
             if (_cTicMarkers[k] != null) _cTicMarkers[k]!.LineColor     = cColor;
-            if (_cTicLabels[k]  != null) _cTicLabels[k]!.LabelFontColor = cColor;
             if (_cTocMarkers[k] != null) _cTocMarkers[k]!.LineColor     = cColor;
-            if (_cTocLabels[k]  != null) _cTocLabels[k]!.LabelFontColor = cColor;
         }
 
         _reviewCursor?.ApplyTheme(_theme);
@@ -529,6 +510,9 @@ internal sealed class ScopeSweepRenderer
     {
         PlotThemeHelper.Apply(plot, _theme);
         PlotThemeHelper.ApplyCompactAxisPanels(plot);
+        plot.Legend.BackgroundColor = Color.FromARGB(_theme.ScopeBg);
+        plot.Legend.FontColor = Color.FromARGB(_theme.TextPrimary);
+        plot.Legend.OutlineColor = Color.FromARGB(_theme.ScopeGrid);
     }
 
     /// <summary>
