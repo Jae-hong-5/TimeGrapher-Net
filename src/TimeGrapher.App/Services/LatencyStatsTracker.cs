@@ -28,6 +28,7 @@ internal sealed class LatencyStatsTracker
     private ulong _coalescedFrames;
     private ulong _missedBeats;
     private uint _syncLosses;
+    private int _deadlineLevel;
     private bool _sawLowerBoundCapture;
     private long _lastStatusTicks;
 
@@ -64,6 +65,7 @@ internal sealed class LatencyStatsTracker
         _coalescedFrames = 0;
         _missedBeats = 0;
         _syncLosses = 0;
+        _deadlineLevel = 0;
         _sawLowerBoundCapture = false;
         _lastStatusTicks = 0;
     }
@@ -87,6 +89,7 @@ internal sealed class LatencyStatsTracker
         _coalescedFrames += coalescedFrames;
         _missedBeats = frame.MissedBeats;
         _syncLosses = frame.SyncLossCount;
+        _deadlineLevel = frame.DeadlineDegradationLevel;
     }
 
     /// <summary>
@@ -111,9 +114,10 @@ internal sealed class LatencyStatsTracker
 
     public string FormatStatus() => string.Format(
         CultureInfo.InvariantCulture,
-        "E2E {4}{0:F0} ms | drop {1} smp | miss {2} | sync−loss {3} | {5} frm",
+        "E2E {4}{0:F0} ms | drop {1} smp | miss {2} | sync−loss {3} | deg {6} | {5} frm",
         EndToEndAvgMs,
         _droppedSamples, _missedBeats, _syncLosses,
         _sawLowerBoundCapture ? "≥" : "",
-        _coalescedFrames);
+        _coalescedFrames,
+        _deadlineLevel);
 }
