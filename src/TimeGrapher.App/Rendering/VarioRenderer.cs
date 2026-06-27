@@ -13,16 +13,13 @@ internal sealed record VarioSummaryControls(
     TextBlock Elapsed,
     TextBlock OverallText);
 
-internal sealed record VarioBandBadgeControls(
-    Control RateBadge, TextBlock RateText, Control AmplitudeBadge, TextBlock AmplitudeText);
-
 internal sealed record VarioReadoutControls(
     IReadOnlyList<TextBlock> RateCells,
     IReadOnlyList<TextBlock> AmplitudeCells);
 
 /// <summary>
 /// Vario display: per-position stability of rate and amplitude. Each gauge shows
-/// the acceptable band (amber), the measured min and max (blue lines), the
+/// the acceptable band (green span), the measured min and max (blue lines), the
 /// average (red solid line) and the current reading (theme-colored guide line) — opaque lines so they
 /// stay legible over the band rather than blending a translucent fill into it;
 /// short role labels are placed by <see cref="VarioGaugeLayout"/> in fixed lanes
@@ -54,11 +51,6 @@ internal sealed class VarioRenderer
         public required AvaPlot Plot { get; init; }
         public required IReadOnlyList<TextBlock> Cells { get; init; }
         public required TextBlock StatusText { get; init; }
-        public required Control AcceptBandBadge { get; init; }
-
-        // The badge's inner label, so ApplyAcceptBands can rewrite its text to the
-        // current band (it is otherwise built once with a literal string).
-        public TextBlock? AcceptBandText { get; init; }
         public required Func<StatsSummary, VarioVerdict> Assess { get; init; }
 
         // Settable so ApplyAcceptBands can re-read the shared limits without
@@ -68,6 +60,7 @@ internal sealed class VarioRenderer
         public required string Unit { get; init; }
         public required string NumericFormat { get; init; }
         public required string RangeFormat { get; init; }
+        public required string AxisLabel { get; init; }
 
         public HorizontalSpan? AcceptBand;
         public LinePlot? MinLine;
@@ -80,7 +73,6 @@ internal sealed class VarioRenderer
     private readonly Gauge _rate;
     private readonly Gauge _amplitude;
     private readonly VarioSummaryControls _summary;
-    private readonly VarioBandBadgeControls _bandBadges;
     private readonly string _textFontFamily;
     private PlotThemePalette _theme = PlotThemePalette.Current;
     private ulong _lastVersion;
@@ -89,11 +81,9 @@ internal sealed class VarioRenderer
 
     public VarioRenderer(
         AvaPlot ratePlot, AvaPlot amplitudePlot,
-        VarioSummaryControls summary, VarioBandBadgeControls bandBadges,
-        VarioReadoutControls readouts, string textFontFamily)
+        VarioSummaryControls summary, VarioReadoutControls readouts, string textFontFamily)
     {
         _summary = summary;
-        _bandBadges = bandBadges;
         _textFontFamily = textFontFamily;
 
         _rate = new Gauge
@@ -101,28 +91,26 @@ internal sealed class VarioRenderer
             Plot = ratePlot,
             Cells = readouts.RateCells,
             StatusText = summary.RateStatus,
-            AcceptBandBadge = bandBadges.RateBadge,
-            AcceptBandText = bandBadges.RateText,
             Assess = s => VarioVerdict.ForRate(s, VarioGaugePolicy.RateAcceptMinSPerDay, VarioGaugePolicy.RateAcceptMaxSPerDay),
             AcceptMin = VarioGaugePolicy.RateAcceptMinSPerDay,
             AcceptMax = VarioGaugePolicy.RateAcceptMaxSPerDay,
             Unit = " s/d",
             NumericFormat = "+0.0;-0.0;0.0",
             RangeFormat = "0.0",
+            AxisLabel = "Error Rate (s/d)",
         };
         _amplitude = new Gauge
         {
             Plot = amplitudePlot,
             Cells = readouts.AmplitudeCells,
             StatusText = summary.AmpStatus,
-            AcceptBandBadge = bandBadges.AmplitudeBadge,
-            AcceptBandText = bandBadges.AmplitudeText,
             Assess = s => VarioVerdict.ForAmplitude(s, VarioGaugePolicy.AmplitudeAcceptMinDeg, VarioGaugePolicy.AmplitudeAcceptMaxDeg),
             AcceptMin = VarioGaugePolicy.AmplitudeAcceptMinDeg,
             AcceptMax = VarioGaugePolicy.AmplitudeAcceptMaxDeg,
             Unit = "°",
             NumericFormat = "0",
             RangeFormat = "0",
+            AxisLabel = "Amplitude (°)",
         };
 
         // A value gauge is not pannable/zoomable: lock it to the derived X-window
@@ -148,14 +136,14 @@ internal sealed class VarioRenderer
         _lastVersion = 0;
         _lastCursor = null;
         _lastHistory = null;
-        _bandBadges.RateBadge.IsVisible = false;
-        _bandBadges.AmplitudeBadge.IsVisible = false;
         foreach (Gauge gauge in new[] { _rate, _amplitude })
         {
             Plot plot = gauge.Plot.Plot;
             plot.Clear();
             gauge.Labels.Clear();
             ApplyPlotTheme(plot);
+            plot.Axes.Bottom.Label.Text = gauge.AxisLabel;
+            plot.Axes.Bottom.Label.FontName = _textFontFamily;
 
             // The X axis is the measured-value scale; the Y axis carries no data
             // (every marker is a full-height line), so its ticks and horizontal
@@ -187,24 +175,10 @@ internal sealed class VarioRenderer
             (double lo, double hi) = VarioGaugePolicy.GaugeRange(gauge.AcceptMin, gauge.AcceptMax, default, null);
             SetGaugeAxisLimits(plot, lo, hi);
             plot.Axes.SetLimitsY(0.0, YMax);
-            UpdateBandBadgeText(gauge);
             gauge.Plot.Refresh();
         }
 
         SetPlaceholderSummary();
-    }
-
-    // Rewrites a gauge's "Acceptable band …" badge from its current limits so the
-    // badge text, the amber span and the verdict all state the same (possibly
-    // edited, possibly asymmetric) band — the single-source consistency driver.
-    private static void UpdateBandBadgeText(Gauge gauge)
-    {
-        if (gauge.AcceptBandText != null)
-        {
-            gauge.AcceptBandText.Text = string.Format(
-                System.Globalization.CultureInfo.InvariantCulture,
-                "Acceptable band {0:0} to {1:0}{2}", gauge.AcceptMin, gauge.AcceptMax, gauge.Unit);
-        }
     }
 
     public void Reset()
@@ -266,8 +240,6 @@ internal sealed class VarioRenderer
                 gauge.AcceptBand.X1 = gauge.AcceptMin;
                 gauge.AcceptBand.X2 = gauge.AcceptMax;
             }
-
-            UpdateBandBadgeText(gauge);
         }
 
         if (_lastHistory != null)
@@ -297,7 +269,6 @@ internal sealed class VarioRenderer
         plot.Axes.SetLimitsY(0.0, YMax);
 
         bool showAcceptBand = VarioGaugePolicy.ShouldShowAcceptBand(stats, current);
-        gauge.AcceptBandBadge.IsVisible = showAcceptBand;
         if (gauge.AcceptBand != null)
         {
             gauge.AcceptBand.IsVisible = showAcceptBand;

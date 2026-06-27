@@ -40,6 +40,23 @@ public sealed class AppXamlLoadTests
     }
 
     [Fact]
+    public void VarioAcceptBandPaletteUsesGreenInBothThemes()
+    {
+        var app = new App();
+        app.Initialize();
+
+        Assert.True(app.TryGetResource("VarioAcceptBandColor", ThemeVariant.Light, out object? lightValue));
+        Assert.Equal(Color.FromRgb(0x2C, 0x91, 0x18), Assert.IsType<Color>(lightValue));
+        Assert.True(app.TryGetResource("VarioAcceptBandEdgeColor", ThemeVariant.Light, out object? lightEdgeValue));
+        Assert.Equal(Color.FromRgb(0x2C, 0x91, 0x18), Assert.IsType<Color>(lightEdgeValue));
+
+        Assert.True(app.TryGetResource("VarioAcceptBandColor", ThemeVariant.Dark, out object? darkValue));
+        Assert.Equal(Color.FromRgb(0x5F, 0xDD, 0x45), Assert.IsType<Color>(darkValue));
+        Assert.True(app.TryGetResource("VarioAcceptBandEdgeColor", ThemeVariant.Dark, out object? darkEdgeValue));
+        Assert.Equal(Color.FromRgb(0x5F, 0xDD, 0x45), Assert.IsType<Color>(darkEdgeValue));
+    }
+
+    [Fact]
     public void AppResourcesUseChromeBorderForSharedPendingGray()
     {
         var app = new App();

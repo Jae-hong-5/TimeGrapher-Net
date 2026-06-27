@@ -1,6 +1,5 @@
 using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Controls.Documents;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
@@ -482,7 +481,7 @@ public sealed class InfoTabRegistryTests
         Grid content = CreateVarioContent();
         Border[] readouts = content.Children
             .OfType<Border>()
-            .Where(child => Grid.GetRow(child) is 2 or 5)
+            .Where(child => Grid.GetRow(child) is 1 or 3)
             .ToArray();
         TextBlock[] headers = readouts
             .Select(readout => Assert.IsType<Grid>(readout.Child))
@@ -521,20 +520,25 @@ public sealed class InfoTabRegistryTests
     }
 
     [Fact]
-    public void VarioGaugeHeadersUseBlankSpaceForAcceptBandBadges()
+    public void VarioUsesAxisLabelsInsteadOfGaugeHeaders()
     {
-        Grid content = CreateVarioContent();
-        Grid rateHeader = Assert.IsType<Grid>(
-            content.Children.Single(child => Grid.GetRow(child) == 1));
-        Grid amplitudeHeader = Assert.IsType<Grid>(
+        InfoTabRegistration registration = CreateVarioRegistration();
+        Grid content = Assert.IsType<Grid>(registration.TabItem.Content);
+
+        registration.Consumer.Initialize(new AnalysisTabResetContext(48000, 10, 250));
+
+        var ratePlot = Assert.IsType<AvaPlot>(
+            content.Children.Single(child => Grid.GetRow(child) == 2));
+        var amplitudePlot = Assert.IsType<AvaPlot>(
             content.Children.Single(child => Grid.GetRow(child) == 4));
 
-        Assert.Contains(
-            Descendants(rateHeader).OfType<TextBlock>(),
-            text => text.Text == "Acceptable band -4 to +6 s/d");
-        Assert.Contains(
-            Descendants(amplitudeHeader).OfType<TextBlock>(),
-            text => text.Text == "Acceptable band 270 to 300°");
+        Assert.Equal(5, content.RowDefinitions.Count);
+        Assert.Equal("Error Rate (s/d)", ratePlot.Plot.Axes.Bottom.Label.Text);
+        Assert.Equal("Amplitude (°)", amplitudePlot.Plot.Axes.Bottom.Label.Text);
+        Assert.DoesNotContain(Descendants(content).OfType<TextBlock>(), text => text.Text == "Error Rate (s/d)");
+        Assert.DoesNotContain(Descendants(content).OfType<TextBlock>(), text => text.Text == "Amplitude (°)");
+        Assert.DoesNotContain(Descendants(content).OfType<TextBlock>(), text =>
+            text.Text?.StartsWith("Acceptable band", StringComparison.Ordinal) == true);
     }
 
     [Fact]
@@ -1130,20 +1134,19 @@ public sealed class InfoTabRegistryTests
     }
 
     [Fact]
-    public void VarioAcceptableBandBadgesAppearOnlyAfterMeasurementStarts()
+    public void VarioAcceptBandSpansAppearOnlyAfterMeasurementStartsWithoutTextBadges()
     {
         InfoTabRegistration registration = CreateVarioRegistration();
         Grid content = Assert.IsType<Grid>(registration.TabItem.Content);
-        Border rateBadge = AcceptBandBadge(content, "Acceptable band -4 to +6 s/d");
-        Border amplitudeBadge = AcceptBandBadge(content, "Acceptable band 270 to 300°");
 
-        Assert.False(rateBadge.IsVisible);
-        Assert.False(amplitudeBadge.IsVisible);
+        Assert.DoesNotContain(Descendants(content).OfType<TextBlock>(), text =>
+            text.Text?.StartsWith("Acceptable band", StringComparison.Ordinal) == true);
 
         registration.Consumer.Initialize(new AnalysisTabResetContext(48000, 10, 250));
 
-        Assert.False(rateBadge.IsVisible);
-        Assert.False(amplitudeBadge.IsVisible);
+        HorizontalSpan[] spans = VarioAcceptBands(content);
+        Assert.Equal(2, spans.Length);
+        Assert.All(spans, span => Assert.False(span.IsVisible));
 
         registration.Consumer.RenderFrame(
             new AnalysisFrame
@@ -1161,8 +1164,9 @@ public sealed class InfoTabRegistryTests
             },
             new AnalysisTabRenderContext(48000));
 
-        Assert.True(rateBadge.IsVisible);
-        Assert.True(amplitudeBadge.IsVisible);
+        Assert.All(spans, span => Assert.True(span.IsVisible));
+        Assert.DoesNotContain(Descendants(content).OfType<TextBlock>(), text =>
+            text.Text?.StartsWith("Acceptable band", StringComparison.Ordinal) == true);
     }
 
     [Fact]
@@ -1190,30 +1194,23 @@ public sealed class InfoTabRegistryTests
 
         Assert.Equal(
             new[] { "-8.1 s/d", "+4.2 s/d", "+6.3 s/d", "1.65 s/d", "+2.7 s/d", "14.4 s/d" },
-            ReadoutValues(content, row: 2));
+            ReadoutValues(content, row: 1));
         Assert.Equal(
             new[] { "192°", "203°", "216°", "5.20°", "208°", "24°" },
-            ReadoutValues(content, row: 5));
+            ReadoutValues(content, row: 3));
     }
 
     [Fact]
-    public void VarioLegendNamesLineStylesForMarkers()
+    public void VarioOmitsManualLegendBelowPlots()
     {
         Grid content = CreateVarioContent();
-        var legendBox = Assert.IsType<Viewbox>(
-            content.Children.Single(child => Grid.GetRow(child) == 7));
-        // The legend scales down only when too narrow, so every glyph stays visible.
-        Assert.Equal(StretchDirection.DownOnly, legendBox.StretchDirection);
-        var legend = Assert.IsType<TextBlock>(legendBox.Child);
-        string legendText = string.Concat(legend.Inlines!.OfType<Run>().Select(run => run.Text));
-        Run currentSwatch = legend.Inlines!.OfType<Run>()
-            .Single(run => run.Text == "Black short dash");
 
-        Assert.Equal(
-            "Amber band = acceptable band   Blue solid = measured min/max   Red solid = average   Black short dash = current",
-            legendText);
-        Assert.IsAssignableFrom<IBrush>(currentSwatch.GetValue(TextElement.ForegroundProperty));
-        Assert.Equal(TextWrapping.NoWrap, legend.TextWrapping);
+        Assert.Equal(5, content.RowDefinitions.Count);
+        Assert.DoesNotContain(Descendants(content).OfType<TextBlock>(), text =>
+            text.Text is "Blue solid" or "Red solid" or "Black short dash" ||
+            text.Text?.Contains("= min/max", StringComparison.Ordinal) == true ||
+            text.Text?.Contains("= average", StringComparison.Ordinal) == true ||
+            text.Text?.Contains("= current", StringComparison.Ordinal) == true);
     }
 
     private static Grid CreateVarioContent()
@@ -1311,11 +1308,12 @@ public sealed class InfoTabRegistryTests
             registration => registration.Definition.Id == InfoTabCatalog.VarioTabId);
     }
 
-    private static Border AcceptBandBadge(Control content, string text)
+    private static HorizontalSpan[] VarioAcceptBands(Control content)
     {
         return Descendants(content)
-            .OfType<Border>()
-            .Single(border => border.Child is TextBlock { Text: var value } && value == text);
+            .OfType<AvaPlot>()
+            .SelectMany(plot => plot.Plot.GetPlottables<HorizontalSpan>())
+            .ToArray();
     }
 
     private static Button[] ResetViewButtons(InfoTabRegistry registry)

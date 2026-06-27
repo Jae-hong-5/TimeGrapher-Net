@@ -34,9 +34,8 @@ public sealed class VarioRendererThemeTests
         var amplitudePlot = new AvaPlot();
         var summary = new VarioSummaryControls(
             new TextBlock(), new TextBlock(), new TextBlock(), new TextBlock());
-        var bandBadges = new VarioBandBadgeControls(new Border(), new TextBlock(), new Border(), new TextBlock());
         var readouts = new VarioReadoutControls(BuildCells(), BuildCells());
-        var renderer = new VarioRenderer(ratePlot, amplitudePlot, summary, bandBadges, readouts, "Arial");
+        var renderer = new VarioRenderer(ratePlot, amplitudePlot, summary, readouts, "Arial");
         renderer.CreateGraphs();
         renderer.RenderFrame(SampleFrame(), new AnalysisTabRenderContext(48000));
 
@@ -54,21 +53,22 @@ public sealed class VarioRendererThemeTests
     }
 
     [Fact]
-    public void ApplyAcceptBands_RewritesBandBadgeTextFromCurrent()
+    public void ApplyAcceptBands_RepositionsAcceptBandSpansFromCurrent()
     {
         var ratePlot = new AvaPlot();
         var amplitudePlot = new AvaPlot();
-        var rateText = new TextBlock();
-        var amplitudeText = new TextBlock();
         var summary = new VarioSummaryControls(
             new TextBlock(), new TextBlock(), new TextBlock(), new TextBlock());
-        var bandBadges = new VarioBandBadgeControls(new Border(), rateText, new Border(), amplitudeText);
         var readouts = new VarioReadoutControls(BuildCells(), BuildCells());
-        var renderer = new VarioRenderer(ratePlot, amplitudePlot, summary, bandBadges, readouts, "Arial");
+        var renderer = new VarioRenderer(ratePlot, amplitudePlot, summary, readouts, "Arial");
 
         renderer.CreateGraphs();
-        Assert.Equal("Acceptable band -4 to 6 s/d", rateText.Text);
-        Assert.Equal("Acceptable band 270 to 300°", amplitudeText.Text);
+        HorizontalSpan rateBand = ratePlot.Plot.GetPlottables<HorizontalSpan>().Single();
+        HorizontalSpan amplitudeBand = amplitudePlot.Plot.GetPlottables<HorizontalSpan>().Single();
+        Assert.Equal(-4.0, rateBand.X1);
+        Assert.Equal(6.0, rateBand.X2);
+        Assert.Equal(270.0, amplitudeBand.X1);
+        Assert.Equal(300.0, amplitudeBand.X2);
 
         AcceptBandSettings original = AcceptBandSettings.Current;
         try
@@ -76,10 +76,10 @@ public sealed class VarioRendererThemeTests
             AcceptBandSettings.Current = new AcceptBandSettings(-8.0, 6.0, 250.0, 310.0, 0.6);
             renderer.ApplyAcceptBands();
 
-            // The badge text tracks the edited (asymmetric) band — the gauge no longer
-            // advertises a default range while judging against a different one.
-            Assert.Equal("Acceptable band -8 to 6 s/d", rateText.Text);
-            Assert.Equal("Acceptable band 250 to 310°", amplitudeText.Text);
+            Assert.Equal(-8.0, rateBand.X1);
+            Assert.Equal(6.0, rateBand.X2);
+            Assert.Equal(250.0, amplitudeBand.X1);
+            Assert.Equal(310.0, amplitudeBand.X2);
         }
         finally
         {
@@ -94,9 +94,8 @@ public sealed class VarioRendererThemeTests
         var amplitudePlot = new AvaPlot();
         var summary = new VarioSummaryControls(
             new TextBlock(), new TextBlock(), new TextBlock(), new TextBlock());
-        var bandBadges = new VarioBandBadgeControls(new Border(), new TextBlock(), new Border(), new TextBlock());
         var readouts = new VarioReadoutControls(BuildCells(), BuildCells());
-        var renderer = new VarioRenderer(ratePlot, amplitudePlot, summary, bandBadges, readouts, "Arial");
+        var renderer = new VarioRenderer(ratePlot, amplitudePlot, summary, readouts, "Arial");
         PlotThemePalette dark = Palette(
             text: 0xFFC2C8CE,
             varioAverage: 0xFFFF6B6B,

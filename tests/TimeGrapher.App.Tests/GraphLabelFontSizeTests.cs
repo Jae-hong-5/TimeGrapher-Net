@@ -147,17 +147,11 @@ public sealed class GraphLabelFontSizeTests
             new TextBlock(),
             new TextBlock(),
             new TextBlock());
-        var bandBadges = new VarioBandBadgeControls(
-            new Border(),
-            new TextBlock(),
-            new Border(),
-            new TextBlock());
         var readouts = new VarioReadoutControls(BuildCells(), BuildCells());
         var renderer = new VarioRenderer(
             ratePlot,
             amplitudePlot,
             summary,
-            bandBadges,
             readouts,
             "Arial");
 

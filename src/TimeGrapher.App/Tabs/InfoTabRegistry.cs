@@ -642,46 +642,6 @@ internal sealed partial class InfoTabRegistry
     {
         var font = new FontFamily(context.TextFontFamily);
 
-        Grid GaugeHeader(string text, string bandText, out Border bandBadge, out TextBlock badgeLabel)
-        {
-            var header = new Grid
-            {
-                ColumnDefinitions = new ColumnDefinitions("Auto,Auto,*"),
-                Margin = new Thickness(8, 2, 8, 0),
-            };
-            var title = new TextBlock
-            {
-                Text = text,
-                FontSize = VarioMinimumFontSize,
-                FontWeight = FontWeight.Bold,
-                VerticalAlignment = VerticalAlignment.Center,
-            };
-            // The renderer rewrites this label from the live band on CreateGraphs /
-            // ApplyAcceptBands; the literal here is only a pre-init placeholder.
-            badgeLabel = new TextBlock
-            {
-                Text = bandText,
-                FontSize = VarioMinimumFontSize,
-                FontWeight = FontWeight.SemiBold,
-                VerticalAlignment = VerticalAlignment.Center,
-            };
-            bandBadge = new Border
-            {
-                BorderThickness = new Thickness(1),
-                IsVisible = false,
-                Padding = new Thickness(6, 1, 6, 1),
-                Margin = new Thickness(10, 0, 0, 0),
-                Child = badgeLabel,
-            };
-            bandBadge.Bind(Border.BackgroundProperty, bandBadge.GetResourceObservable("VarioAcceptBandBadgeBrush"));
-            bandBadge.Bind(Border.BorderBrushProperty, bandBadge.GetResourceObservable("VarioAcceptBandEdgeBrush"));
-            Grid.SetColumn(title, 0);
-            Grid.SetColumn(bandBadge, 1);
-            header.Children.Add(title);
-            header.Children.Add(bandBadge);
-            return header;
-        }
-
         var ratePlot = new AvaPlot();
         var amplitudePlot = new AvaPlot();
 
@@ -849,61 +809,18 @@ internal sealed partial class InfoTabRegistry
             return border;
         }
 
-        // --- Legend (colour words match the gauge markers) ---
-        var legend = new TextBlock
-        {
-            FontSize = VarioMinimumFontSize,
-            Opacity = 1.0,
-            FontWeight = FontWeight.SemiBold,
-            Margin = new Thickness(0),
-            TextWrapping = TextWrapping.NoWrap,
-        };
-        Run Swatch(string text, string brushKey)
-        {
-            var run = new Run(text) { FontWeight = FontWeight.Bold };
-            run.Bind(TextElement.ForegroundProperty, run.GetResourceObservable(brushKey));
-            return run;
-        }
-        var currentSwatch = Swatch("Black short dash", "TextPrimaryBrush");
-        legend.Inlines = new InlineCollection
-        {
-            Swatch("Amber band", "VarioAcceptBandEdgeBrush"),
-            new Run(" = acceptable band   "),
-            Swatch("Blue solid", "VarioMinMaxBrush"),
-            new Run(" = measured min/max   "),
-            Swatch("Red solid", "VarioAverageBrush"),
-            new Run(" = average   "),
-            currentSwatch,
-            new Run(" = current"),
-        };
-
-        // Scale the one-line legend down only when the window is too narrow to
-        // show every word, so all glyphs stay visible at any width while keeping
-        // the minimum font size whenever there is room.
-        var legendBox = new Viewbox
-        {
-            Child = legend,
-            Stretch = Stretch.Uniform,
-            StretchDirection = StretchDirection.DownOnly,
-            HorizontalAlignment = HorizontalAlignment.Left,
-            Margin = new Thickness(0, 0, 0, 6),
-        };
-
-        Grid rateHeader = GaugeHeader("Error Rate (s/d)", "Acceptable band -4 to +6 s/d", out Border rateBandBadge, out TextBlock rateBandText);
-        Grid amplitudeHeader = GaugeHeader("Amplitude (°)", "Acceptable band 270 to 300°", out Border amplitudeBandBadge, out TextBlock amplitudeBandText);
         Border rateReadout = BuildReadoutStrip(rateCells);
         Border amplitudeReadout = BuildReadoutStrip(amplitudeCells);
 
         var grid = new Grid
         {
-            RowDefinitions = new RowDefinitions("Auto,Auto,Auto,*,Auto,Auto,*,Auto"),
+            RowDefinitions = new RowDefinitions("Auto,Auto,*,Auto,*"),
         };
         Control[] rows =
         {
             summaryCard,
-            rateHeader, rateReadout, ratePlot,
-            amplitudeHeader, amplitudeReadout, amplitudePlot,
-            legendBox,
+            rateReadout, ratePlot,
+            amplitudeReadout, amplitudePlot,
         };
         for (int i = 0; i < rows.Length; i++)
         {
@@ -913,7 +830,7 @@ internal sealed partial class InfoTabRegistry
 
         if (CreateWaitingOverlay(context.ViewModel) is { } overlay)
         {
-            Grid.SetRow(overlay, 3);
+            Grid.SetRow(overlay, 2);
             grid.Children.Add(overlay);
         }
 
@@ -921,7 +838,6 @@ internal sealed partial class InfoTabRegistry
             rateStatus, amplitudeStatus, elapsedValue, overallText);
         var renderer = new VarioRenderer(
             ratePlot, amplitudePlot, summary,
-            new VarioBandBadgeControls(rateBandBadge, rateBandText, amplitudeBandBadge, amplitudeBandText),
             new VarioReadoutControls(rateCells, amplitudeCells), context.TextFontFamily);
         var consumer = new VarioFrameConsumer(renderer);
         return new InfoTabRegistration(definition, CreateTabItem(definition, grid), consumer);
