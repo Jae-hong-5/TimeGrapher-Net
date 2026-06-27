@@ -21,7 +21,7 @@ internal sealed record InfoTabRegistration(
 
 internal sealed partial class InfoTabRegistry
 {
-    private const double VarioMinimumFontSize = 16.0;
+    private const double VarioMinimumFontSize = 14.0;
     private const double PositionMinimumFontSize = 14.0;
     private const double PositionHeroDiagramSize = 160.0;
     private const double PositionHeroMetricLabelFontSize = 15.0;
@@ -645,9 +645,8 @@ internal sealed partial class InfoTabRegistry
         var ratePlot = new AvaPlot();
         var amplitudePlot = new AvaPlot();
 
-        var rateStatus = new TextBlock { FontSize = 20, FontWeight = FontWeight.Bold };
-        var amplitudeStatus = new TextBlock { FontSize = 20, FontWeight = FontWeight.Bold };
-        var elapsedValue = new TextBlock { FontSize = 20, FontWeight = FontWeight.Bold, FontFamily = font };
+        var rateStatus = new TextBlock { FontSize = VarioMinimumFontSize, FontWeight = FontWeight.Bold };
+        var amplitudeStatus = new TextBlock { FontSize = VarioMinimumFontSize, FontWeight = FontWeight.Bold };
 
         StackPanel SummaryColumn(string caption, TextBlock status)
         {
@@ -656,14 +655,6 @@ internal sealed partial class InfoTabRegistry
             sp.Children.Add(status);
             return sp;
         }
-
-        var elapsedColumn = new StackPanel
-        {
-            HorizontalAlignment = HorizontalAlignment.Left,
-            Margin = new Thickness(12, 0, 12, 2),
-        };
-        elapsedColumn.Children.Add(new TextBlock { Text = "Elapsed", FontSize = VarioMinimumFontSize, Opacity = 0.9, FontWeight = FontWeight.SemiBold });
-        elapsedColumn.Children.Add(elapsedValue);
 
         var criteriaFlyout = new Flyout
         {
@@ -686,12 +677,11 @@ internal sealed partial class InfoTabRegistry
             Flyout = criteriaFlyout,
         };
 
-        var summaryColumns = new Grid { ColumnDefinitions = new ColumnDefinitions("*,*,120,Auto") };
+        var summaryColumns = new Grid { ColumnDefinitions = new ColumnDefinitions("*,*,Auto") };
         Control[] summaryCells =
         {
             SummaryColumn("Error Rate", rateStatus),
             SummaryColumn("Amplitude", amplitudeStatus),
-            elapsedColumn,
             criteriaButton,
         };
         for (int c = 0; c < summaryCells.Length; c++)
@@ -724,7 +714,7 @@ internal sealed partial class InfoTabRegistry
         summaryCard.Bind(Border.BackgroundProperty, summaryCard.GetResourceObservable("PanelBgBrush"));
         summaryCard.Bind(Border.BorderBrushProperty, summaryCard.GetResourceObservable("ChromeBorderBrush"));
 
-        string[] columnHeaders = { "Min", "Max", "Max−Min", "Average", "Std Dev (σ)", "Cur." };
+        string[] columnHeaders = { "Min", "Max", "Max−Min", "Average", "Std Dev (σ)", "Current" };
         string?[] columnBrushKeys =
         {
             "VarioMinMaxBrush", "VarioMinMaxBrush", null,
@@ -871,7 +861,7 @@ internal sealed partial class InfoTabRegistry
         }
 
         var summary = new VarioSummaryControls(
-            rateStatus, amplitudeStatus, elapsedValue, overallText);
+            rateStatus, amplitudeStatus, overallText);
         var renderer = new VarioRenderer(
             ratePlot, amplitudePlot, summary,
             new VarioReadoutControls(rateCells, amplitudeCells), context.TextFontFamily);
@@ -890,7 +880,6 @@ internal sealed partial class InfoTabRegistry
         double amplitudeMin = VarioGaugePolicy.AmplitudeAcceptMinDeg;
         double amplitudeMax = VarioGaugePolicy.AmplitudeAcceptMaxDeg;
         double service = VarioVerdict.AmplitudeServiceDeg;
-        double sigma = VarioVerdict.RateUnstableSigma;
 
         TextBlock Title(string t) => new() { Text = t, FontWeight = FontWeight.Bold, FontSize = VarioMinimumFontSize, Margin = new Thickness(0, 6, 0, 2) };
         TextBlock Rule(string t, string brushKey)
@@ -919,8 +908,7 @@ internal sealed partial class InfoTabRegistry
             Margin = new Thickness(0, 2, 0, 0),
         });
         panel.Children.Add(Title("Error Rate (s/d)"));
-        panel.Children.Add(Rule($"Stable · Within Band: average within {rateMin:0} to {rateMax:0} s/d and σ ≤ {sigma:0}", "VarioGoodBrush"));
-        panel.Children.Add(Rule($"Within Band · unstable: average within {rateMin:0} to {rateMax:0} s/d but σ > {sigma:0}", "VarioWarnBrush"));
+        panel.Children.Add(Rule($"Within Band: average within {rateMin:0} to {rateMax:0} s/d", "VarioGoodBrush"));
         panel.Children.Add(Rule($"Fast / Slow · out of range: average outside {rateMin:0} to {rateMax:0} s/d", "VarioBadBrush"));
         panel.Children.Add(Title("Amplitude (°)"));
         panel.Children.Add(Rule($"Healthy: average {amplitudeMin:0}–{amplitudeMax:0}°", "VarioGoodBrush"));

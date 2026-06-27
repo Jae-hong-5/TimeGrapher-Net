@@ -52,7 +52,6 @@
           <SolidColorBrush x:Key="ToggleSwitchStrokeOn" Color="{DynamicResource ChromeAccentColor}" />
           <SolidColorBrush x:Key="ToggleSwitchStrokeOnPointerOver" Color="{DynamicResource ChromeAccentColor}" />
           <SolidColorBrush x:Key="ToggleSwitchStrokeOnPressed" Color="{DynamicResource ChromeAccentColor}" />
-          <SolidColorBrush x:Key="VarioAcceptBandEdgeBrush" Color="{DynamicResource VarioAcceptBandEdgeColor}" />
           <SolidColorBrush x:Key="VarioMinMaxBrush" Color="{DynamicResource VarioMinMaxColor}" />
           <SolidColorBrush x:Key="VarioAverageBrush" Color="{DynamicResource VarioAverageColor}" />
           <SolidColorBrush x:Key="VarioGoodBrush" Color="{DynamicResource VarioGoodColor}" />
@@ -126,7 +125,6 @@
           <SolidColorBrush x:Key="ToggleSwitchStrokeOn" Color="{DynamicResource ChromeAccentColor}" />
           <SolidColorBrush x:Key="ToggleSwitchStrokeOnPointerOver" Color="{DynamicResource ChromeAccentColor}" />
           <SolidColorBrush x:Key="ToggleSwitchStrokeOnPressed" Color="{DynamicResource ChromeAccentColor}" />
-          <SolidColorBrush x:Key="VarioAcceptBandEdgeBrush" Color="{DynamicResource VarioAcceptBandEdgeColor}" />
           <SolidColorBrush x:Key="VarioMinMaxBrush" Color="{DynamicResource VarioMinMaxColor}" />
           <SolidColorBrush x:Key="VarioAverageBrush" Color="{DynamicResource VarioAverageColor}" />
           <SolidColorBrush x:Key="VarioGoodBrush" Color="{DynamicResource VarioGoodColor}" />

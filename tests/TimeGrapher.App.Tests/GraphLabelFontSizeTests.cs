@@ -145,7 +145,6 @@ public sealed class GraphLabelFontSizeTests
         var summary = new VarioSummaryControls(
             new TextBlock(),
             new TextBlock(),
-            new TextBlock(),
             new TextBlock());
         var readouts = new VarioReadoutControls(BuildCells(), BuildCells());
         var renderer = new VarioRenderer(

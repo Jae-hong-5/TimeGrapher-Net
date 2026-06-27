@@ -33,7 +33,7 @@ public sealed class VarioRendererThemeTests
         var ratePlot = new AvaPlot();
         var amplitudePlot = new AvaPlot();
         var summary = new VarioSummaryControls(
-            new TextBlock(), new TextBlock(), new TextBlock(), new TextBlock());
+            new TextBlock(), new TextBlock(), new TextBlock());
         var readouts = new VarioReadoutControls(BuildCells(), BuildCells());
         var renderer = new VarioRenderer(ratePlot, amplitudePlot, summary, readouts, "Arial");
         renderer.CreateGraphs();
@@ -58,7 +58,7 @@ public sealed class VarioRendererThemeTests
         var ratePlot = new AvaPlot();
         var amplitudePlot = new AvaPlot();
         var summary = new VarioSummaryControls(
-            new TextBlock(), new TextBlock(), new TextBlock(), new TextBlock());
+            new TextBlock(), new TextBlock(), new TextBlock());
         var readouts = new VarioReadoutControls(BuildCells(), BuildCells());
         var renderer = new VarioRenderer(ratePlot, amplitudePlot, summary, readouts, "Arial");
 
@@ -93,7 +93,7 @@ public sealed class VarioRendererThemeTests
         var ratePlot = new AvaPlot();
         var amplitudePlot = new AvaPlot();
         var summary = new VarioSummaryControls(
-            new TextBlock(), new TextBlock(), new TextBlock(), new TextBlock());
+            new TextBlock(), new TextBlock(), new TextBlock());
         var readouts = new VarioReadoutControls(BuildCells(), BuildCells());
         var renderer = new VarioRenderer(ratePlot, amplitudePlot, summary, readouts, "Arial");
         PlotThemePalette dark = Palette(

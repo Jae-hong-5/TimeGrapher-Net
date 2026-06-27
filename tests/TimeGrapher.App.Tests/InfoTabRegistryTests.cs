@@ -16,7 +16,7 @@ namespace TimeGrapher.App.Tests;
 
 public sealed class InfoTabRegistryTests
 {
-    private const double VarioCapturedMinimumFontSize = 16.0;
+    private const double VarioCapturedMinimumFontSize = 14.0;
     private const double PositionHeroDiagramSizeForTest = 160.0;
     private const double PositionHeroMetricLabelFontSizeForTest = 15.0;
     private const double TraceHeaderButtonMinHeightForTest = 30.0;
@@ -397,7 +397,7 @@ public sealed class InfoTabRegistryTests
         Assert.False(overallText.IsVisible);
         Assert.All(
             measureColumns.Select(column => Assert.IsType<TextBlock>(column.Children[1])),
-            status => Assert.True(status.FontSize >= 20));
+            status => Assert.Equal(VarioCapturedMinimumFontSize, status.FontSize));
         Assert.Equal(string.Empty, overallText.Text);
         Assert.True(summaryCard.Padding.Bottom <= 4);
         Assert.DoesNotContain(
@@ -434,15 +434,14 @@ public sealed class InfoTabRegistryTests
         TextBlock[] rules = panel.Children
             .OfType<TextBlock>()
             .Where(text => text.Text is { } value &&
-                (value.StartsWith("Stable · Within Band:", StringComparison.Ordinal) ||
-                 value.StartsWith("Within Band · unstable:", StringComparison.Ordinal) ||
+                (value.StartsWith("Within Band:", StringComparison.Ordinal) ||
                  value.StartsWith("Fast / Slow · out of range:", StringComparison.Ordinal) ||
                  value.StartsWith("Healthy:", StringComparison.Ordinal) ||
                  value.StartsWith("Slightly low / High:", StringComparison.Ordinal) ||
                  value.StartsWith("Low · service:", StringComparison.Ordinal)))
             .ToArray();
 
-        Assert.Equal(6, rules.Length);
+        Assert.Equal(5, rules.Length);
         Assert.All(rules, rule =>
         {
             Assert.Equal(TextWrapping.Wrap, rule.TextWrapping);
@@ -451,7 +450,7 @@ public sealed class InfoTabRegistryTests
     }
 
     [Fact]
-    public void VarioCriteriaGuideSitsBesideElapsedReadout()
+    public void VarioCriteriaGuideSitsInSummaryWithoutElapsedReadout()
     {
         Grid content = CreateVarioContent();
         var summaryCard = Assert.IsType<Border>(
@@ -459,8 +458,6 @@ public sealed class InfoTabRegistryTests
         var summaryStack = Assert.IsType<StackPanel>(summaryCard.Child);
         var summaryColumns = Assert.IsType<Grid>(summaryStack.Children[1]);
         Button criteriaButton = Assert.IsType<Button>(
-            summaryColumns.Children.Single(child => Grid.GetColumn(child) == 3));
-        StackPanel elapsedColumn = Assert.IsType<StackPanel>(
             summaryColumns.Children.Single(child => Grid.GetColumn(child) == 2));
 
         Assert.Equal("Criteria ▾", criteriaButton.Content);
@@ -469,10 +466,8 @@ public sealed class InfoTabRegistryTests
         Assert.True(criteriaButton.MinHeight >= 30);
         Assert.Equal(HorizontalAlignment.Left, criteriaButton.HorizontalAlignment);
         Assert.Equal(VerticalAlignment.Center, criteriaButton.VerticalAlignment);
-        Assert.Equal(120, summaryColumns.ColumnDefinitions[2].Width.Value);
-        Assert.Equal(HorizontalAlignment.Left, elapsedColumn.HorizontalAlignment);
-        Assert.Contains(
-            elapsedColumn.Children.OfType<TextBlock>(),
+        Assert.DoesNotContain(
+            Descendants(content).OfType<TextBlock>(),
             text => text.Text == "Elapsed");
     }
 

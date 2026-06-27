@@ -7,10 +7,9 @@ using TimeGrapher.Core.Shared;
 
 namespace TimeGrapher.App.Rendering;
 
-/// <summary>Status chips, elapsed and the Overall conclusion the renderer drives.</summary>
+/// <summary>Status chips and the Overall conclusion the renderer drives.</summary>
 internal sealed record VarioSummaryControls(
     TextBlock RateStatus, TextBlock AmpStatus,
-    TextBlock Elapsed,
     TextBlock OverallText);
 
 internal sealed record VarioReadoutControls(
@@ -19,11 +18,12 @@ internal sealed record VarioReadoutControls(
 
 /// <summary>
 /// Vario display: per-position stability of rate and amplitude. Each gauge shows
-/// the acceptable band (green span), the measured min and max (blue lines), the
+/// the acceptable band (green, shared with the Positions rate-range lane), the measured
+/// min and max (blue lines), the
 /// average (red solid line) and the current reading (theme-colored guide line) — opaque lines so they
 /// stay legible over the band rather than blending a translucent fill into it;
 /// short role labels are placed by <see cref="VarioGaugeLayout"/> in fixed lanes
-/// so close values remain readable. A SUMMARY bar carries the verdicts and elapsed time;
+/// so close values remain readable. A SUMMARY bar carries the verdicts;
 /// the per-gauge readout strips hold the exact numbers. Gauges are non-interactive (no Vario zoom
 /// requirement; QAS-5 wants the readings legible without scroll/zoom), so their
 /// X-window stays locked to the derived range.
@@ -217,13 +217,12 @@ internal sealed class VarioRenderer
         VarioVerdict rateVerdict = UpdateGauge(_rate, history.RateStats, rateCurrent);
         VarioVerdict amplitudeVerdict = UpdateGauge(_amplitude, history.AmplitudeStats, amplitudeCurrent);
 
-        _summary.Elapsed.Text = VarioReadout.FormatElapsed(history.StatsElapsedS);
         UpdateOverall(rateVerdict, amplitudeVerdict);
     }
 
     /// <summary>
     /// Re-reads the shared accept-band limits into both gauges and repositions the
-    /// amber band, then re-renders the last reading so the X-window, labels and
+    /// accept band, then re-renders the last reading so the X-window, labels and
     /// verdict track the new band immediately — even while playback is stopped.
     /// </summary>
     public void ApplyAcceptBands()
@@ -362,7 +361,6 @@ internal sealed class VarioRenderer
             }
         }
 
-        _summary.Elapsed.Text = "00:00";
         _summary.OverallText.Text = string.Empty;
         _summary.OverallText.IsVisible = false;
         _summary.OverallText.Foreground = LevelBrush(VarioVerdictLevel.Pending);
@@ -426,8 +424,10 @@ internal sealed class VarioRenderer
         if (gauge.AcceptBand != null)
         {
             // Shaded normal-range fill only; no edge line (borderless, like the
-            // Trace/Long-Term accept bands).
-            gauge.AcceptBand.FillStyle.Color = Color.FromARGB(_theme.VarioAcceptBand).WithAlpha(AcceptBandAlpha);
+            // Trace/Long-Term accept bands). Uses the same green source as the
+            // Positions rate-range lane (TraceTick) so the accept band reads the
+            // same across screens.
+            gauge.AcceptBand.FillStyle.Color = Color.FromARGB(_theme.TraceTick).WithAlpha(AcceptBandAlpha);
             gauge.AcceptBand.LineStyle.Width = 0;
         }
 
