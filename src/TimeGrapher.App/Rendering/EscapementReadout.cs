@@ -35,6 +35,9 @@ internal static class EscapementReadout
     public static string COnsetMarkerLabel(double aToCOnsetMs) =>
         "C onset " + aToCOnsetMs.ToString(SignedHundredthsMsFormat, CultureInfo.InvariantCulture) + " ms";
 
+    public static string TicTocAIntervalLabel(double ticToTocAMs) =>
+        "tic A-toc A " + ticToTocAMs.ToString("0.00", CultureInfo.InvariantCulture) + " ms";
+
     /// <summary>Formatted readings in <see cref="Labels"/> order (em dash when absent).</summary>
     public static string[] Values(BeatSegment? latest, EscapementTimingTracker tracker)
     {

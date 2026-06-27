@@ -126,6 +126,10 @@ public sealed class EscapementAnalyzerRendererTests
         Assert.Equal(2, markerXs.Length);
         Assert.InRange(markerXs[0], -0.01, 0.01);
         Assert.InRange(markerXs[1], 6.79, 6.81);
+
+        Assert.DoesNotContain(
+            plot.Plot.GetPlottables<Text>().Where(text => text.IsVisible),
+            text => text.LabelText.StartsWith("tic A-toc A", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -177,11 +181,8 @@ public sealed class EscapementAnalyzerRendererTests
         renderer.RenderFrame(frame, new AnalysisTabRenderContext(SampleRate: 48000));
 
         AxisLimits limits = plot.Plot.Axes.GetLimits();
-        // tic A at axis 0; the toc is framed to the right at its real spacing
-        // (tocBase 115 + toc A 5 = 120 ms; toc C 126.9 ms). Content runs
-        // -5..126.9 ms (span 131.9), padded left by 10% and right by 16%.
         Assert.InRange(limits.Left, -18.20, -18.18);
-        Assert.InRange(limits.Right, 147.99, 148.01);
+        Assert.InRange(limits.Right, 153.27, 153.29);
         Assert.True(limits.Right > 120.0);  // the toc beat is on screen, not just the tic
 
         double[] markerXs = plot.Plot.GetPlottables()
@@ -196,6 +197,14 @@ public sealed class EscapementAnalyzerRendererTests
         Assert.InRange(markerXs[1], 6.79, 6.81);
         Assert.InRange(markerXs[2], 119.99, 120.01);
         Assert.InRange(markerXs[3], 126.89, 126.91);
+
+        LinePlot connector = plot.Plot.GetPlottables<LinePlot>().Single();
+        Assert.True(connector.IsVisible);
+
+        Text connectorLabel = plot.Plot.GetPlottables<Text>()
+            .Single(text => text.LabelText.StartsWith("tic A-toc A", StringComparison.Ordinal));
+        Assert.True(connectorLabel.IsVisible);
+        Assert.Equal("tic A-toc A 120.00 ms", connectorLabel.LabelText);
     }
 
     [Fact]
@@ -239,5 +248,9 @@ public sealed class EscapementAnalyzerRendererTests
         Assert.Equal(4, markerXs.Length);
         Assert.InRange(markerXs[0], -0.01, 0.01);     // tic A (beat 0)
         Assert.InRange(markerXs[2], 119.99, 120.01);  // toc A (beat 1), not the newest tic
+
+        Text connectorLabel = plot.Plot.GetPlottables<Text>()
+            .Single(text => text.LabelText.StartsWith("tic A-toc A", StringComparison.Ordinal));
+        Assert.Equal("tic A-toc A 120.00 ms", connectorLabel.LabelText);
     }
 }

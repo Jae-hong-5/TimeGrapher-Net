@@ -55,9 +55,11 @@ internal sealed class EscapementAnalyzerRenderer
     private const double TopLabelFraction = 1.06;
     /// <summary>Second label row (C onset, which sits close to C peak), kept below the top row.</summary>
     private const double SecondLabelFraction = 0.97;
+    private const double TicTocAConnectorLineFraction = -0.72;
+    private const double TicTocAConnectorLabelFraction = -0.80;
 
     private const double LeftViewPadFraction = 0.10;
-    private const double RightViewPadFraction = 0.16;
+    private const double RightViewPadFraction = 0.20;
     private const double LeftViewPadMs = 6.0;
     private const double RightViewPadMs = 12.0;
     /// <summary>Smallest visible span (ms), so a very tight single-beat A→C still frames sensibly.</summary>
@@ -86,6 +88,8 @@ internal sealed class EscapementAnalyzerRenderer
     private Scatter? _envelopeScatter;
     private Scatter? _rawMinScatter;
     private HorizontalLine? _zeroLine;
+    private LinePlot? _ticTocAConnector;
+    private Text? _ticTocAConnectorLabel;
     private readonly VerticalLine?[] _markers = new VerticalLine?[MarkerCount];
     private readonly Text?[] _labels = new Text?[MarkerCount];
     private Text? _signalQualityLabel;
@@ -148,6 +152,9 @@ internal sealed class EscapementAnalyzerRenderer
         _zeroLine = plot.Add.HorizontalLine(0.0);
         _zeroLine.LineWidth = 1;
         _zeroLine.EnableAutoscale = false;
+        _ticTocAConnector = AddConnector(plot);
+        _ticTocAConnectorLabel = AddLabel(plot);
+        _ticTocAConnectorLabel.Alignment = Alignment.LowerCenter;
         // Two beats' worth of markers: A and C peak dashed, C onset dotted.
         for (int i = 0; i < MarkerCount; i++)
         {
@@ -431,6 +438,7 @@ internal sealed class EscapementAnalyzerRenderer
                 SetMarker(i, null, "");
             }
 
+            SetTicTocAConnector(null, traceExtent);
             return;
         }
 
@@ -455,12 +463,14 @@ internal sealed class EscapementAnalyzerRenderer
             SetMarker(MarkerTocA, null, "");
             SetMarker(MarkerTocCPeak, null, "");
             SetMarker(MarkerTocCOnset, null, "");
+            SetTicTocAConnector(null, traceExtent);
             return;
         }
 
         double tocBaseMs = TocBaseMs(tic, toc);
         double tocAMs = toc.AOffsetMs;
-        SetMarker(MarkerTocA, tocBaseMs + tocAMs, EscapementReadout.AMarkerLabel, topLabelY);
+        double ticToTocAMs = tocBaseMs + tocAMs;
+        SetMarker(MarkerTocA, ticToTocAMs, EscapementReadout.AMarkerLabel, topLabelY);
         SetMarker(
             MarkerTocCPeak,
             toc.CPeakValid ? tocBaseMs + toc.CPeakOffsetMs : null,
@@ -471,6 +481,7 @@ internal sealed class EscapementAnalyzerRenderer
             toc.COnsetValid ? tocBaseMs + toc.COnsetOffsetMs : null,
             EscapementReadout.COnsetMarkerLabel(toc.COnsetOffsetMs - tocAMs),
             secondLabelY);
+        SetTicTocAConnector(ticToTocAMs, traceExtent);
     }
 
     private void UpdateReadout(BeatSegment? latest)
@@ -490,6 +501,16 @@ internal sealed class EscapementAnalyzerRenderer
         marker.IsVisible = false;
         marker.EnableAutoscale = false;
         return marker;
+    }
+
+    private static LinePlot AddConnector(Plot plot)
+    {
+        LinePlot line = plot.Add.Line(0.0, 0.0, 0.0, 0.0);
+        line.LineWidth = 1;
+        line.LinePattern = LinePattern.Solid;
+        line.MarkerStyle.IsVisible = false;
+        line.IsVisible = false;
+        return line;
     }
 
     private Text AddLabel(Plot plot)
@@ -520,6 +541,28 @@ internal sealed class EscapementAnalyzerRenderer
             label.LabelText = text;
             label.Location = new Coordinates(position, labelY);
         }
+    }
+
+    private void SetTicTocAConnector(double? ticToTocAMs, double traceExtent)
+    {
+        if (_ticTocAConnector == null || _ticTocAConnectorLabel == null)
+        {
+            return;
+        }
+
+        bool visible = ticToTocAMs is > 0.0;
+        _ticTocAConnector.IsVisible = visible;
+        _ticTocAConnectorLabel.IsVisible = visible;
+        if (ticToTocAMs is not double distanceMs || !visible)
+        {
+            return;
+        }
+
+        double lineY = TicTocAConnectorLineFraction * traceExtent;
+        double labelY = TicTocAConnectorLabelFraction * traceExtent;
+        _ticTocAConnector.Line = new CoordinateLine(0.0, lineY, distanceMs, lineY);
+        _ticTocAConnectorLabel.LabelText = EscapementReadout.TicTocAIntervalLabel(distanceMs);
+        _ticTocAConnectorLabel.Location = new Coordinates(distanceMs / 2.0, labelY);
     }
 
     private Text AddSignalQualityLabel(Plot plot)
@@ -556,6 +599,16 @@ internal sealed class EscapementAnalyzerRenderer
         if (_zeroLine != null)
         {
             _zeroLine.LineColor = Color.FromARGB(_theme.ScopeGrid);
+        }
+
+        if (_ticTocAConnector != null)
+        {
+            _ticTocAConnector.LineColor = Color.FromARGB(_theme.TraceTick);
+        }
+
+        if (_ticTocAConnectorLabel != null)
+        {
+            _ticTocAConnectorLabel.LabelFontColor = Color.FromARGB(_theme.TraceTick);
         }
 
         // Color by event type, not beat: A = tick green, C = tock red — the same

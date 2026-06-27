@@ -29,6 +29,7 @@ public sealed class EscapementReadoutTests
         Assert.Equal("A", EscapementReadout.AMarkerLabel);
         Assert.Equal("C peak +142.50 ms", EscapementReadout.CPeakMarkerLabel(142.5));
         Assert.Equal("C onset +141.80 ms", EscapementReadout.COnsetMarkerLabel(141.8));
+        Assert.Equal("tic A-toc A 120.00 ms", EscapementReadout.TicTocAIntervalLabel(120.0));
     }
 
     [Fact]
