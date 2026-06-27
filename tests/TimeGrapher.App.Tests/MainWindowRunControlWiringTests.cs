@@ -383,12 +383,20 @@ public sealed class MainWindowRunControlWiringTests
             .Single(element => element.Name.LocalName == "StackPanel")).ToArray();
 
         Assert.Equal(3, cards.Length);
-        Assert.All(cards, card => Assert.Equal("8,2", card.Attribute("Padding")?.Value));
+        Assert.All(cards, card => Assert.Equal("8,4", card.Attribute("Padding")?.Value));
         Assert.All(cardStacks, stack => Assert.Equal("3", stack.Attribute("Spacing")?.Value));
 
-        Assert.Equal("1", FindNamedElement(document, "MicrophoneHorizontalSlider").Parent?.Attribute("RowSpacing")?.Value);
-        Assert.Equal("1", FindNamedElement(document, "BPHComboBox").Parent?.Attribute("RowSpacing")?.Value);
-        Assert.Equal("1", FindNamedElement(document, "SimBPHComboBox").Parent?.Attribute("RowSpacing")?.Value);
+        const string denseGridRowSpacing = "2";
+
+        Assert.Equal(
+            denseGridRowSpacing,
+            FindNamedElement(document, "MicrophoneHorizontalSlider").Parent?.Attribute("RowSpacing")?.Value);
+        Assert.Equal(
+            denseGridRowSpacing,
+            FindNamedElement(document, "BPHComboBox").Parent?.Attribute("RowSpacing")?.Value);
+        Assert.Equal(
+            denseGridRowSpacing,
+            FindNamedElement(document, "SimBPHComboBox").Parent?.Attribute("RowSpacing")?.Value);
 
         string[] denseSliderNames =
         {
@@ -399,7 +407,7 @@ public sealed class MainWindowRunControlWiringTests
         };
         Assert.All(
             denseSliderNames.Select(name => FindNamedElement(document, name)),
-            slider => Assert.Equal("0,-10,0,0", slider.Attribute("Margin")?.Value));
+            slider => Assert.Equal("0,-14,0,0", slider.Attribute("Margin")?.Value));
     }
 
     [Fact]
