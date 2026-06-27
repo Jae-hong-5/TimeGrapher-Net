@@ -43,13 +43,13 @@ public sealed class BeatErrorDiagRendererTests
         Assert.Equal(BeatErrorDiagRenderer.TraceYMinMs, firstLimits.Bottom);
         Assert.Equal(12.0, firstLimits.Top);
 
-        renderer.SetRateZoomFactor(16.0);
+        renderer.SetRateZoomFactor(4.0);
         AxisLimits zoomedLimits = tracePlot.Plot.Axes.GetLimits();
         Assert.Equal(0.0, zoomedLimits.Left);
-        Assert.Equal(RateScopeRenderer.RatePageWindowBeats / 16.0, zoomedLimits.Right);
-        Assert.Equal(-0.625, zoomedLimits.Bottom, 6);
-        Assert.Equal(0.75, zoomedLimits.Top, 6);
-        Assert.Equal("16x", renderer.RateZoomLabel);
+        Assert.Equal(30.0, zoomedLimits.Right);
+        Assert.Equal(-2.5, zoomedLimits.Bottom, 6);
+        Assert.Equal(3.0, zoomedLimits.Top, 6);
+        Assert.Equal("4x", renderer.RateZoomLabel);
 
         renderer.ResetView();
         AxisLimits resetLimits = tracePlot.Plot.Axes.GetLimits();

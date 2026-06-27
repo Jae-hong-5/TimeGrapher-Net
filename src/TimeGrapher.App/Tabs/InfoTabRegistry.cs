@@ -1012,8 +1012,8 @@ internal sealed partial class InfoTabRegistry
         }
 
         Button zoom1xButton = ZoomButton("1x", 1.0);
+        Button zoom2xButton = ZoomButton("2x", 2.0);
         Button zoom4xButton = ZoomButton("4x", 4.0);
-        Button zoom16xButton = ZoomButton("16x", 16.0);
         foreach (Button button in zoomButtons.Select(item => item.Button))
         {
             button.MinHeight = TraceHeaderButtonMinHeight;
@@ -1030,8 +1030,8 @@ internal sealed partial class InfoTabRegistry
             VerticalAlignment = VerticalAlignment.Center,
         };
         controls.Children.Add(zoom1xButton);
+        controls.Children.Add(zoom2xButton);
         controls.Children.Add(zoom4xButton);
-        controls.Children.Add(zoom16xButton);
 
         alertBanner.VerticalAlignment = VerticalAlignment.Center;
         alertBanner.Margin = new Thickness(0, 0, 8, 0);

@@ -909,7 +909,7 @@ public sealed class InfoTabRegistryTests
             .OfType<Button>()
             .Select(button => button.Content?.ToString() ?? string.Empty)
             .ToArray();
-        Assert.Equal(new[] { "1x", "4x", "16x" }, buttons);
+        Assert.Equal(new[] { "1x", "2x", "4x" }, buttons);
         Button defaultZoom = controls.Children.OfType<Button>().Single(button => Equals(button.Content, "1x"));
         Assert.Contains("PositionButton", defaultZoom.Classes);
         Assert.Equal(TraceHeaderButtonFontSizeForTest, defaultZoom.FontSize);

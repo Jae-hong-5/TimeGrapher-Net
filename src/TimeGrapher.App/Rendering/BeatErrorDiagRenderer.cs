@@ -28,7 +28,7 @@ internal sealed class BeatErrorDiagRenderer
     internal const double TraceYMaxMs = 10.0;
     private const double TraceAnnotationBandFraction = 0.10;
     private const double AnnotationLabelTopPaddingFraction = 0.015;
-    private static readonly double[] RateZoomFactors = { 1.0, 4.0, 16.0 };
+    private static readonly double[] RateZoomFactors = { 1.0, 2.0, 4.0 };
 
     private readonly AvaPlot _tracePlot;
     private readonly Border _alertBanner;
