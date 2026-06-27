@@ -85,6 +85,7 @@ internal sealed class EscapementAnalyzerRenderer
 
     private Scatter? _envelopeScatter;
     private Scatter? _rawMinScatter;
+    private HorizontalLine? _zeroLine;
     private readonly VerticalLine?[] _markers = new VerticalLine?[MarkerCount];
     private readonly Text?[] _labels = new Text?[MarkerCount];
     private Text? _signalQualityLabel;
@@ -144,6 +145,9 @@ internal sealed class EscapementAnalyzerRenderer
         _rawMinScatter.LineWidth = 1;
         _rawMinScatter.MarkerStyle.IsVisible = false;
         _rawMinScatter.IsVisible = false;
+        _zeroLine = plot.Add.HorizontalLine(0.0);
+        _zeroLine.LineWidth = 1;
+        _zeroLine.EnableAutoscale = false;
         // Two beats' worth of markers: A and C peak dashed, C onset dotted.
         for (int i = 0; i < MarkerCount; i++)
         {
@@ -374,7 +378,7 @@ internal sealed class EscapementAnalyzerRenderer
         _lastViewRight = endRel;
         _lastViewTop = YHeadroom * extent;
         _plot.Plot.Axes.SetLimitsX(startRel, endRel);
-        _plot.Plot.Axes.SetLimitsY(0.0, _lastViewTop);
+        _plot.Plot.Axes.SetLimitsY(-_lastViewTop, _lastViewTop);
         return extent;
     }
 
@@ -408,7 +412,7 @@ internal sealed class EscapementAnalyzerRenderer
         _lastViewRight = endRel;
         _lastViewTop = YHeadroom * max;
         _plot.Plot.Axes.SetLimitsX(startRel, endRel);
-        _plot.Plot.Axes.SetLimitsY(0.0, _lastViewTop);
+        _plot.Plot.Axes.SetLimitsY(-_lastViewTop, _lastViewTop);
         return max;
     }
 
@@ -547,6 +551,11 @@ internal sealed class EscapementAnalyzerRenderer
         if (_rawMinScatter != null)
         {
             _rawMinScatter.LineColor = Color.FromARGB(_theme.TraceWave);
+        }
+
+        if (_zeroLine != null)
+        {
+            _zeroLine.LineColor = Color.FromARGB(_theme.ScopeGrid);
         }
 
         // Color by event type, not beat: A = tick green, C = tock red — the same
