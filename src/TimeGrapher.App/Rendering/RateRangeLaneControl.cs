@@ -17,6 +17,7 @@ internal sealed class RateRangeLaneControl : Control
 {
     private const double AxisPaddingFraction = 0.08;
     private const double MinAxisSpan = 1.0;
+    private const byte AcceptBandFillAlpha = 42;
 
     private readonly bool _hasValue;
     private readonly double _min;
@@ -49,13 +50,13 @@ internal sealed class RateRangeLaneControl : Control
         (double axisMin, double axisMax) = AxisRange(_hasValue, _min, _mean, _max);
 
         // Track.
-        context.DrawRectangle(Solid(0xFFE9EBEC), null, new RoundedRect(new Rect(0, cy - laneH / 2, w, laneH), 4));
+        context.DrawRectangle(Solid(TrackFillArgb(palette)), null, new Rect(0, cy - laneH / 2, w, laneH));
 
         // Accept band (shared single source).
         double bandLo = X(VarioGaugePolicy.RateAcceptMinSPerDay, w, axisMin, axisMax);
         double bandHi = X(VarioGaugePolicy.RateAcceptMaxSPerDay, w, axisMin, axisMax);
         context.DrawRectangle(
-            Solid(WithAlpha(palette.VarioAcceptBand, 64)), null,
+            Solid(AcceptBandFillArgb(palette)), null,
             new Rect(bandLo, cy - laneH / 2 - 2, Math.Max(1.0, bandHi - bandLo), laneH + 4));
 
         // Zero line.
@@ -75,7 +76,7 @@ internal sealed class RateRangeLaneControl : Control
         double hi = X(_max, w, axisMin, axisMax);
         context.DrawRectangle(
             Solid(palette.VarioMinMax), null,
-            new RoundedRect(new Rect(lo, cy - laneH / 2, Math.Max(2.0, hi - lo), laneH), 4));
+            new Rect(lo, cy - laneH / 2, Math.Max(2.0, hi - lo), laneH));
 
         // Mean dot — red only when the mean is out of the accept band.
         bool outOfBand = _mean < VarioGaugePolicy.RateAcceptMinSPerDay ||
@@ -103,6 +104,11 @@ internal sealed class RateRangeLaneControl : Control
 
     private static double X(double value, double width, double axisMin, double axisMax) =>
         (Math.Clamp(value, axisMin, axisMax) - axisMin) / (axisMax - axisMin) * width;
+
+    internal static uint AcceptBandFillArgb(PlotThemePalette palette) =>
+        WithAlpha(palette.TraceTick, AcceptBandFillAlpha);
+
+    internal static uint TrackFillArgb(PlotThemePalette palette) => palette.ChromeBorder;
 
     private static IBrush Solid(uint argb) => new SolidColorBrush(Color.FromUInt32(argb));
 

@@ -23,6 +23,8 @@ internal sealed partial class InfoTabRegistry
 {
     private const double VarioMinimumFontSize = 16.0;
     private const double PositionMinimumFontSize = 14.0;
+    private const double PositionHeroDiagramSize = 160.0;
+    private const double PositionHeroMetricLabelFontSize = 15.0;
     private const double SweepReferenceRowHeight = 22.0;
     private const string ResetAllGraphViewsTooltip = "Reset all graph views";
     private const string ActiveButtonClass = "active";
@@ -1046,8 +1048,8 @@ internal sealed partial class InfoTabRegistry
             {
                 Text = BeatErrorReadout.Labels[i],
                 FontSize = 14,
-                Opacity = 0.65,
             };
+            label.Bind(TextBlock.ForegroundProperty, label.GetResourceObservable("ChromeAccentBrush"));
             var value = new TextBlock
             {
                 Text = VarioReadout.Missing,
@@ -1404,23 +1406,20 @@ internal sealed partial class InfoTabRegistry
         };
 
         Border hero = CreatePositionHero(diagram, out PositionSequenceDashboardControls dashboardControls);
-        Border legend = BuildPositionAcquisitionLegend();
 
         var sequenceGrid = new Grid
         {
-            RowDefinitions = new RowDefinitions("Auto,Auto,*"),
+            RowDefinitions = new RowDefinitions("Auto,*"),
             Margin = new Thickness(4, 4, 8, 4),
         };
         Grid.SetRow(hero, 0);
-        Grid.SetRow(legend, 1);
-        Grid.SetRow(tableGrid, 2);
+        Grid.SetRow(tableGrid, 1);
         sequenceGrid.Children.Add(hero);
-        sequenceGrid.Children.Add(legend);
         sequenceGrid.Children.Add(tableGrid);
 
         if (CreateWaitingOverlay(context.ViewModel) is { } overlay)
         {
-            Grid.SetRow(overlay, 2);
+            Grid.SetRow(overlay, 1);
             sequenceGrid.Children.Add(overlay);
         }
 
@@ -1447,16 +1446,12 @@ internal sealed partial class InfoTabRegistry
         return new InfoTabRegistration(definition, CreateTabItem(definition, sequenceGrid), consumer);
     }
 
-    // The ACTIVE hero: the current position's orientation diagram + live readout
-    // (rate / amplitude / beat error / beats) + collection progress, alongside the
-    // sequence reference KPIs. The position name is shown by the rail and the
-    // diagram, so the hero carries no position-name label (just "current position").
     private static Border CreatePositionHero(
         WatchModelView diagram,
         out PositionSequenceDashboardControls dashboard)
     {
-        diagram.Width = 92;
-        diagram.Height = 92;
+        diagram.Width = PositionHeroDiagramSize;
+        diagram.Height = PositionHeroDiagramSize;
         diagram.HorizontalAlignment = HorizontalAlignment.Center;
         diagram.VerticalAlignment = VerticalAlignment.Center;
         diagram.Margin = new Thickness(0);
@@ -1466,13 +1461,29 @@ internal sealed partial class InfoTabRegistry
             FontSize = size,
             FontWeight = FontWeight.Bold,
             FontFamily = new FontFamily("Consolas, monospace"),
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            TextAlignment = TextAlignment.Center,
         };
+
+        TextBlock Label(string text)
+        {
+            var label = new TextBlock
+            {
+                Text = text,
+                FontSize = PositionHeroMetricLabelFontSize,
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                TextAlignment = TextAlignment.Center,
+            };
+            label.Bind(TextBlock.ForegroundProperty, label.GetResourceObservable("ChromeAccentBrush"));
+            return label;
+        }
 
         StackPanel Readout(string label, TextBlock value) => new()
         {
+            HorizontalAlignment = HorizontalAlignment.Stretch,
             Children =
             {
-                new TextBlock { Text = label, FontSize = 14, Opacity = 0.55 },
+                Label(label),
                 value,
             },
         };
@@ -1482,173 +1493,50 @@ internal sealed partial class InfoTabRegistry
         var liveBeatError = Value(22);
         var liveBeats = Value(22);
 
-        var liveRow = new StackPanel
+        var liveRow = new Grid
         {
-            Orientation = Orientation.Horizontal,
-            Spacing = 26,
+            ColumnDefinitions = new ColumnDefinitions("*,*,*,*"),
+            HorizontalAlignment = HorizontalAlignment.Stretch,
             Margin = new Thickness(0, 4, 0, 0),
         };
-        liveRow.Children.Add(Readout("Error Rate", liveRate));
-        liveRow.Children.Add(Readout("Amplitude", liveAmplitude));
-        liveRow.Children.Add(Readout("Beat Error", liveBeatError));
-        liveRow.Children.Add(Readout("Beats", liveBeats));
+        void AddReadout(int column, string label, TextBlock value)
+        {
+            StackPanel readout = Readout(label, value);
+            Grid.SetColumn(readout, column);
+            liveRow.Children.Add(readout);
+        }
 
-        var collectionFill = new Border { CornerRadius = new CornerRadius(4), IsVisible = false };
-        var collectionBar = new Grid { Height = 8, ColumnDefinitions = new ColumnDefinitions("0*,1*") };
-        Grid.SetColumn(collectionFill, 0);
-        collectionBar.Children.Add(collectionFill);
-        var collectionTrack = new Border { Height = 8, CornerRadius = new CornerRadius(4), Child = collectionBar };
-        collectionTrack.Bind(Border.BackgroundProperty, collectionTrack.GetResourceObservable("ChromeBorderBrush"));
-        var collectionLabel = new TextBlock { Text = "not measured", FontSize = 14, Opacity = 0.7, Margin = new Thickness(0, 4, 0, 0) };
-        var collectionStack = new StackPanel { Margin = new Thickness(0, 8, 0, 0), Children = { collectionTrack, collectionLabel } };
+        AddReadout(0, "Error Rate", liveRate);
+        AddReadout(1, "Amplitude", liveAmplitude);
+        AddReadout(2, "Beat Error", liveBeatError);
+        AddReadout(3, "Beats", liveBeats);
 
-        var center = new StackPanel
+        var center = new Grid
         {
             VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(18, 0, 18, 0),
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            Margin = new Thickness(24, 0, 18, 0),
             Children =
             {
-                new TextBlock { Text = "Cur. Position", FontSize = 14, Opacity = 0.6 },
                 liveRow,
-                collectionStack,
             },
         };
 
-        var seqRate = Value(18);
-        var seqAmplitude = Value(18);
-        var positionsMeasured = Value(18);
-        var totalBeats = Value(18);
-
-        Border Kpi(string label, TextBlock value)
-        {
-            var stack = new StackPanel
-            {
-                Children = { new TextBlock { Text = label, FontSize = 14, Opacity = 0.55 }, value },
-            };
-            var card = new Border
-            {
-                CornerRadius = new CornerRadius(6),
-                BorderThickness = new Thickness(1),
-                Padding = new Thickness(11, 7),
-                Margin = new Thickness(6, 3, 0, 3),
-                MinWidth = 116,
-                Child = stack,
-            };
-            card.Bind(Border.BorderBrushProperty, card.GetResourceObservable("ChromeBorderBrush"));
-            return card;
-        }
-
-        var kpis = new Grid
-        {
-            ColumnDefinitions = new ColumnDefinitions("Auto,Auto"),
-            RowDefinitions = new RowDefinitions("Auto,Auto"),
-            VerticalAlignment = VerticalAlignment.Center,
-        };
-        void AddKpi(int row, int column, string label, TextBlock value)
-        {
-            Border card = Kpi(label, value);
-            Grid.SetRow(card, row);
-            Grid.SetColumn(card, column);
-            kpis.Children.Add(card);
-        }
-
-        AddKpi(0, 0, "Avg. Error Rate", seqRate);
-        AddKpi(0, 1, "Avg. Amplitude", seqAmplitude);
-        AddKpi(1, 0, "Positions", positionsMeasured);
-        AddKpi(1, 1, "Total Beats", totalBeats);
-
-        var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto") };
+        var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*") };
         Grid.SetColumn(diagram, 0);
         Grid.SetColumn(center, 1);
-        Grid.SetColumn(kpis, 2);
         grid.Children.Add(diagram);
         grid.Children.Add(center);
-        grid.Children.Add(kpis);
 
         dashboard = new PositionSequenceDashboardControls(
-            liveRate, liveAmplitude, liveBeatError, liveBeats,
-            collectionBar, collectionFill, collectionLabel,
-            seqRate, seqAmplitude, positionsMeasured, totalBeats);
+            liveRate, liveAmplitude, liveBeatError, liveBeats);
 
         return new Border
         {
             Classes = { "PositionPanel" },
             Padding = new Thickness(14, 8),
-            Margin = new Thickness(4, 0, 8, 6),
+            Margin = new Thickness(4, 0, 8, 12),
             Child = grid,
-        };
-    }
-
-    // Legend for the acquisition (RATE RANGE) column: explains the mean dot, the
-    // min–max range bar, the accept band, and the collection-bar colours. Swatches
-    // bind to the shared theme brushes so they match the lane and the App.axaml theme.
-    private static Border BuildPositionAcquisitionLegend()
-    {
-        StackPanel Chip(Control swatch, string text)
-        {
-            var label = new TextBlock
-            {
-                Text = text,
-                FontSize = 14,
-                Opacity = 0.72,
-                VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(5, 0, 0, 0),
-            };
-            return new StackPanel
-            {
-                Orientation = Orientation.Horizontal,
-                VerticalAlignment = VerticalAlignment.Center,
-                Children = { swatch, label },
-            };
-        }
-
-        Border Dot(string brushKey)
-        {
-            var dot = new Border
-            {
-                Width = 11,
-                Height = 11,
-                CornerRadius = new CornerRadius(6),
-                BorderThickness = new Thickness(2),
-                VerticalAlignment = VerticalAlignment.Center,
-            };
-            dot.Bind(Border.BackgroundProperty, dot.GetResourceObservable(brushKey));
-            dot.Bind(Border.BorderBrushProperty, dot.GetResourceObservable("PanelBgBrush"));
-            return dot;
-        }
-
-        Border Bar(string brushKey, double width, double height)
-        {
-            var bar = new Border
-            {
-                Width = width,
-                Height = height,
-                CornerRadius = new CornerRadius(4),
-                VerticalAlignment = VerticalAlignment.Center,
-            };
-            bar.Bind(Border.BackgroundProperty, bar.GetResourceObservable(brushKey));
-            return bar;
-        }
-
-        var row = new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            Spacing = 16,
-            Margin = new Thickness(10, 2, 0, 2),
-        };
-        row.Children.Add(Chip(Dot("TextPrimaryBrush"), "Mean"));
-        row.Children.Add(Chip(Bar("VarioMinMaxBrush", 22, 9), "Range"));
-        row.Children.Add(Chip(Bar("VarioAcceptBandBadgeBrush", 22, 14), "Band"));
-        row.Children.Add(Chip(Dot("VarioBadBrush"), "Mean Out"));
-        row.Children.Add(Chip(Bar("VarioGoodBrush", 18, 8), "30+ Beats"));
-        row.Children.Add(Chip(Bar("VarioWarnBrush", 18, 8), "Collecting"));
-
-        return new Border
-        {
-            Classes = { "PositionPanel" },
-            Padding = new Thickness(8, 4),
-            Margin = new Thickness(4, 0, 8, 4),
-            Child = row,
         };
     }
 

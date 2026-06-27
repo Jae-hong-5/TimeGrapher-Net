@@ -1,6 +1,9 @@
 using System;
 using System.Linq;
+using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Layout;
+using Avalonia.Media;
 using TimeGrapher.App.Rendering;
 using TimeGrapher.App.Tabs;
 using TimeGrapher.Core.Shared;
@@ -10,6 +13,8 @@ namespace TimeGrapher.App.Tests;
 
 public sealed class MultiPositionSeqRendererTests
 {
+    private const double TableFontSizeForTest = 15.0;
+
     [Fact]
     public void RenderFrame_MarksBeatErrorAgainstCurrentAcceptBand()
     {
@@ -65,19 +70,111 @@ public sealed class MultiPositionSeqRendererTests
     }
 
     [Fact]
+    public void RateRangeLaneAcceptBandUsesLongTermBeatErrorGreen()
+    {
+        var palette = new PlotThemePalette(
+            SurfaceBg: 0,
+            ScopeBg: 0,
+            ScopeGrid: 0,
+            TextPrimary: 0,
+            TraceWave: 0,
+            TraceTick: 0xFF2C9118,
+            TraceTock: 0);
+
+        Assert.Equal(0x2A2C9118u, RateRangeLaneControl.AcceptBandFillArgb(palette));
+    }
+
+    [Fact]
+    public void RateRangeLaneTrackUsesCollectionDefaultGray()
+    {
+        var palette = new PlotThemePalette(
+            SurfaceBg: 0,
+            ScopeBg: 0,
+            ScopeGrid: 0,
+            TextPrimary: 0,
+            TraceWave: 0,
+            TraceTick: 0,
+            TraceTock: 0,
+            ChromeBorder: 0xFFCFCFCF);
+
+        Assert.Equal(palette.ChromeBorder, RateRangeLaneControl.TrackFillArgb(palette));
+    }
+
+    [Fact]
+    public void RebuildTable_CentersHeadersValuesAndRenamesRateRangeColumn()
+    {
+        var grid = new Grid();
+        var renderer = new MultiPositionSeqRenderer(grid, Dashboard(), WatchPosition.CH);
+
+        renderer.RenderFrame(Frame(
+            1,
+            WatchPosition.CH,
+            Position(WatchPosition.CH, rate: 1.2, amplitude: 280.0, beatError: 0.03)));
+
+        Border[] headerCells = grid.Children
+            .OfType<Border>()
+            .Where(cell => Grid.GetRow(cell) == 0)
+            .ToArray();
+        TextBlock[] headers = headerCells
+            .Select(cell => Assert.IsType<TextBlock>(cell.Child))
+            .ToArray();
+
+        Assert.Equal(7, headerCells.Length);
+        Assert.All(headerCells, header =>
+        {
+            Assert.Equal(new Thickness(0, 0, 0, 4), header.Margin);
+            Assert.Equal(new Thickness(8, 2, 8, 2), header.Padding);
+            Assert.True(header.IsSet(Border.BackgroundProperty));
+        });
+
+        Assert.All(headers, header =>
+        {
+            Assert.Equal(HorizontalAlignment.Stretch, header.HorizontalAlignment);
+            Assert.Equal(TextAlignment.Center, header.TextAlignment);
+            Assert.Equal(TableFontSizeForTest, header.FontSize);
+            Assert.True(header.IsSet(TextBlock.ForegroundProperty));
+        });
+        Assert.Contains(headers, header => header.Text == "Pos.");
+        Assert.DoesNotContain(headers, header => header.Text == "Position");
+        Assert.Contains(headers, header => header.Text == "Rate Range");
+        Assert.DoesNotContain(headers, header => header.Text == "Error Rate vs Band");
+
+        TextBlock[] valueCells = grid.Children
+            .OfType<TextBlock>()
+            .Where(cell => Grid.GetRow(cell) > 0 && Grid.GetColumn(cell) <= 4)
+            .ToArray();
+        Assert.NotEmpty(valueCells);
+        Assert.All(valueCells, cell =>
+        {
+            Assert.Equal(HorizontalAlignment.Stretch, cell.HorizontalAlignment);
+            Assert.Equal(TextAlignment.Center, cell.TextAlignment);
+            Assert.Equal(TableFontSizeForTest, cell.FontSize);
+        });
+    }
+
+    [Fact]
+    public void RebuildTable_CollectionCellsShowOnlySquareBars()
+    {
+        var grid = new Grid();
+        var renderer = new MultiPositionSeqRenderer(grid, Dashboard(), WatchPosition.CH);
+
+        renderer.RenderFrame(Frame(1, WatchPosition.CH, Position(WatchPosition.CH, rate: 1.0)));
+
+        var collectionBar = Assert.Single(grid.Children.OfType<Border>(),
+            child => Grid.GetRow(child) == 1 && Grid.GetColumn(child) == 6);
+        Assert.Equal(new CornerRadius(0), collectionBar.CornerRadius);
+        Assert.IsType<Grid>(collectionBar.Child);
+        Assert.DoesNotContain(grid.Children.OfType<TextBlock>(),
+            text => Grid.GetRow(text) > 0 && Grid.GetColumn(text) == 6);
+    }
+
+    [Fact]
     public void WatchPositionsFrameConsumerReceivesAcceptBandUpdates()
     {
         Assert.True(typeof(IAcceptBandConsumer).IsAssignableFrom(typeof(WatchPositionsFrameConsumer)));
     }
 
     private static PositionSequenceDashboardControls Dashboard() => new(
-        new TextBlock(),
-        new TextBlock(),
-        new TextBlock(),
-        new TextBlock(),
-        new Grid(),
-        new Border(),
-        new TextBlock(),
         new TextBlock(),
         new TextBlock(),
         new TextBlock(),

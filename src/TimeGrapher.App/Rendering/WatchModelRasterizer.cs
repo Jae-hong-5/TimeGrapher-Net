@@ -24,6 +24,7 @@ internal sealed class WatchModelRasterizer
     private const float CameraElevationDegrees = 16f;
     private const float CameraAzimuthDegrees = 0f;
     private const float FitMargin = 1.0f; // fraction of the limiting half-view the model sphere fills
+    internal const float ModelScale = 1.0f;
     private const float Ambient = 0.34f;
 
     private static readonly Vector3 LightDirection =
@@ -51,7 +52,7 @@ internal sealed class WatchModelRasterizer
         float azimuth = CameraAzimuthDegrees * (MathF.PI / 180f);
         float aspect = width / (float)height;
         float fovY = FieldOfViewDegrees * (MathF.PI / 180f);
-        float distance = CameraDistance(mesh.BoundingRadius, fovY, aspect);
+        float distance = CameraDistance(mesh.BoundingRadius * ModelScale, fovY, aspect);
         var eye = new Vector3(
             distance * MathF.Sin(azimuth) * MathF.Cos(elevation),
             distance * MathF.Sin(elevation),
@@ -64,7 +65,7 @@ internal sealed class WatchModelRasterizer
         Vector3[] positions = mesh.Positions;
         for (int i = 0; i < positions.Length; i++)
         {
-            var world = new Vector4(Vector3.Transform(positions[i], rotation), 1f);
+            var world = new Vector4(Vector3.Transform(positions[i] * ModelScale, rotation), 1f);
             Vector4 clip = Vector4.Transform(world, viewProjection);
             if (clip.W <= 1e-6f)
             {
@@ -96,10 +97,12 @@ internal sealed class WatchModelRasterizer
             }
 
             Vector3 worldCentroid = Vector3.Transform(
-                (positions[i0] + positions[i1] + positions[i2]) / 3f, rotation);
+                (positions[i0] + positions[i1] + positions[i2]) * (ModelScale / 3f), rotation);
             Vector3 n = Vector3.Cross(
-                Vector3.Transform(positions[i1], rotation) - Vector3.Transform(positions[i0], rotation),
-                Vector3.Transform(positions[i2], rotation) - Vector3.Transform(positions[i0], rotation));
+                Vector3.Transform(positions[i1] * ModelScale, rotation) -
+                Vector3.Transform(positions[i0] * ModelScale, rotation),
+                Vector3.Transform(positions[i2] * ModelScale, rotation) -
+                Vector3.Transform(positions[i0] * ModelScale, rotation));
             float nLength = n.Length();
             if (nLength <= 1e-12f)
             {
