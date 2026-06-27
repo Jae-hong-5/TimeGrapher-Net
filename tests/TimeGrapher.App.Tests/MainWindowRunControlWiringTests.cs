@@ -366,6 +366,43 @@ public sealed class MainWindowRunControlWiringTests
     }
 
     [Fact]
+    public void LeftPanelCardsUseDenseVerticalSpacing()
+    {
+        XDocument document = XDocument.Load(FindSourceFile("src/TimeGrapher.App/Views/MainWindow.axaml"));
+
+        XElement leftPanelStack = document.Descendants()
+            .Single(element => element.Name.LocalName == "ScrollViewer" &&
+                element.Attribute("Grid.Column")?.Value == "0")
+            .Elements()
+            .Single(element => element.Name.LocalName == "StackPanel");
+        XElement[] cards = leftPanelStack.Elements()
+            .Where(element => element.Name.LocalName == "Border" &&
+                element.Attribute("Classes")?.Value == "GlassCard")
+            .ToArray();
+        XElement[] cardStacks = cards.Select(card => card.Elements()
+            .Single(element => element.Name.LocalName == "StackPanel")).ToArray();
+
+        Assert.Equal(3, cards.Length);
+        Assert.All(cards, card => Assert.Equal("8,2", card.Attribute("Padding")?.Value));
+        Assert.All(cardStacks, stack => Assert.Equal("3", stack.Attribute("Spacing")?.Value));
+
+        Assert.Equal("1", FindNamedElement(document, "MicrophoneHorizontalSlider").Parent?.Attribute("RowSpacing")?.Value);
+        Assert.Equal("1", FindNamedElement(document, "BPHComboBox").Parent?.Attribute("RowSpacing")?.Value);
+        Assert.Equal("1", FindNamedElement(document, "SimBPHComboBox").Parent?.Attribute("RowSpacing")?.Value);
+
+        string[] denseSliderNames =
+        {
+            "MicrophoneHorizontalSlider",
+            "SimSignalASlider",
+            "SimSignalBSlider",
+            "SimSignalCSlider",
+        };
+        Assert.All(
+            denseSliderNames.Select(name => FindNamedElement(document, name)),
+            slider => Assert.Equal("0,-6,0,0", slider.Attribute("Margin")?.Value));
+    }
+
+    [Fact]
     public void PositionAutoPauseGateRequiresTheSettingAndRunningState()
     {
         var vm = new MainWindowViewModel();

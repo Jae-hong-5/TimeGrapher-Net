@@ -158,8 +158,8 @@
                     VerticalScrollBarVisibility="Auto"
                     Background="Transparent">
         <StackPanel Margin="8" Spacing="9">
-          <Border Classes="GlassCard" Padding="8,6">
-            <StackPanel Spacing="7">
+          <Border Classes="GlassCard" Padding="8,2">
+            <StackPanel Spacing="3">
               <TextBlock Name="RunParamLabel"
                          Classes="SectionHeader"
                          Text="Run Parameters" />
@@ -183,7 +183,7 @@
                 </ComboBox>
               </Grid>
 
-              <Grid ColumnDefinitions="98,*" RowDefinitions="32,32,32" RowSpacing="3" ColumnSpacing="8">
+              <Grid ColumnDefinitions="98,*" RowDefinitions="32,32,32" RowSpacing="1" ColumnSpacing="8">
                 <TextBlock Name="SampleRateLabel" Grid.Row="0" Grid.Column="0"
                            VerticalAlignment="Center" HorizontalAlignment="Center" FontWeight="Bold" Text="Sample Rate" />
                 <Grid Grid.Row="0" Grid.Column="1" ColumnDefinitions="*">
@@ -201,7 +201,7 @@
                 <Slider Name="MicrophoneHorizontalSlider" Grid.Row="1" Grid.Column="1"
                         VerticalAlignment="Center"
                         Height="28"
-                        Margin="0,-6,0,6"
+                        Margin="0,-6,0,0"
                         IsEnabled="{Binding IsGainEnabled}"
                         Minimum="0" Maximum="1000" Value="{Binding Gain, Mode=TwoWay}" Orientation="Horizontal" />
 
@@ -248,12 +248,12 @@
             </StackPanel>
           </Border>
 
-          <Border Classes="GlassCard" Padding="8,6">
-            <StackPanel Spacing="7">
+          <Border Classes="GlassCard" Padding="8,2">
+            <StackPanel Spacing="3">
               <TextBlock Name="WatchParamLabel"
                          Classes="SectionHeader"
                          Text="Watch Parameters" />
-              <Grid ColumnDefinitions="106,*" RowDefinitions="Auto,Auto" RowSpacing="6" ColumnSpacing="8">
+              <Grid ColumnDefinitions="106,*" RowDefinitions="Auto,Auto" RowSpacing="1" ColumnSpacing="8">
                 <TextBlock Name="WatchBphLabel" Grid.Row="0" Grid.Column="0"
                            VerticalAlignment="Center" HorizontalAlignment="Center" FontWeight="Bold" Text="BPH" />
                 <ComboBox Name="BPHComboBox" Grid.Row="0" Grid.Column="1"
@@ -274,12 +274,12 @@
             </StackPanel>
           </Border>
 
-          <Border Classes="GlassCard" Padding="8,6">
-            <StackPanel Spacing="7">
+          <Border Classes="GlassCard" Padding="8,2">
+            <StackPanel Spacing="3">
               <TextBlock Name="SimParamLabel"
                          Classes="SectionHeader"
                          Text="Simulation Parameters" />
-              <Grid ColumnDefinitions="106,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="6" ColumnSpacing="8">
+              <Grid ColumnDefinitions="106,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="1" ColumnSpacing="8">
                 <TextBlock Name="SimBphLabel" Grid.Row="0" Grid.Column="0"
                            VerticalAlignment="Center" HorizontalAlignment="Center" FontWeight="Bold" Text="BPH" />
                 <ComboBox Name="SimBPHComboBox" Grid.Row="0" Grid.Column="1"
@@ -327,7 +327,7 @@
                            VerticalAlignment="Center" HorizontalAlignment="Center" FontWeight="Bold" Text="Signal A" />
                 <Slider Name="SimSignalASlider" Grid.Row="5" Grid.Column="1"
                         VerticalAlignment="Center" Height="28"
-                        Margin="0,-6,0,6"
+                        Margin="0,-6,0,0"
                         IsEnabled="{Binding AreSimulationClusterScalesEnabled}"
                         Minimum="0" Maximum="2" TickFrequency="0.1" IsSnapToTickEnabled="True"
                         Value="{Binding SimSignalAScale, Mode=TwoWay}" Orientation="Horizontal" />
@@ -336,7 +336,7 @@
                            VerticalAlignment="Center" HorizontalAlignment="Center" FontWeight="Bold" Text="Signal B" />
                 <Slider Name="SimSignalBSlider" Grid.Row="6" Grid.Column="1"
                         VerticalAlignment="Center" Height="28"
-                        Margin="0,-6,0,6"
+                        Margin="0,-6,0,0"
                         IsEnabled="{Binding AreSimulationClusterScalesEnabled}"
                         Minimum="0" Maximum="2" TickFrequency="0.1" IsSnapToTickEnabled="True"
                         Value="{Binding SimSignalBScale, Mode=TwoWay}" Orientation="Horizontal" />
@@ -345,7 +345,7 @@
                            VerticalAlignment="Center" HorizontalAlignment="Center" FontWeight="Bold" Text="Signal C" />
                 <Slider Name="SimSignalCSlider" Grid.Row="7" Grid.Column="1"
                         VerticalAlignment="Center" Height="28"
-                        Margin="0,-6,0,6"
+                        Margin="0,-6,0,0"
                         IsEnabled="{Binding AreSimulationClusterScalesEnabled}"
                         Minimum="0" Maximum="2" TickFrequency="0.1" IsSnapToTickEnabled="True"
                         Value="{Binding SimSignalCScale, Mode=TwoWay}" Orientation="Horizontal" />

@@ -87,6 +87,7 @@ Spacing follows a 4px base where possible.
 
 - **Structure**: `Border.GlassCard` with square corners, translucent panel fill, rim brush, and glass shadow.
 - **Spacing**: compact 8px panel padding.
+- **Dense left panel**: left control-panel cards preserve 8px horizontal padding but use tight 2px vertical padding, 3px internal stack spacing, and 1px row gaps to keep run controls visible with minimal internal margin.
 - **States**: passive chrome surface; no hover state.
 
 ### Position button
