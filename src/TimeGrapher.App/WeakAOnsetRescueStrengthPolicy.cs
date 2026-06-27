@@ -10,5 +10,7 @@ internal static class WeakAOnsetRescueStrengthPolicy
 
     public static bool IsValidStep(int step) => step >= MinStep && step <= MaxStep;
 
-    public static double ScaleFromStep(int step) => SaferScale - step * StepScaleDelta;
+    public static int NormalizeStep(int step) => Math.Clamp(step, MinStep, MaxStep);
+
+    public static double ScaleFromStep(int step) => SaferScale - NormalizeStep(step) * StepScaleDelta;
 }

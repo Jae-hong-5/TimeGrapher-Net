@@ -48,6 +48,18 @@ public sealed class MainWindowRunControlWiringTests
     }
 
     [Fact]
+    public void BuildRunSettingsNormalizesWeakAOnsetRescueStrengthStep()
+    {
+        string source = File.ReadAllText(FindSourceFile("src/TimeGrapher.App/Views/MainWindow.axaml.cs"));
+        string normalized = source.Replace("\r\n", " ", StringComparison.Ordinal)
+            .Replace("\n", " ", StringComparison.Ordinal);
+
+        Assert.Contains(
+            "WeakAOnsetRescueStrengthPolicy.NormalizeStep(mViewModel.WeakAOnsetRescueStrengthStep)",
+            normalized);
+    }
+
+    [Fact]
     public void RunControlSurfaceDoesNotExposeLegacyResetControls()
     {
         XDocument document = XDocument.Load(FindSourceFile("src/TimeGrapher.App/Views/MainWindow.axaml"));

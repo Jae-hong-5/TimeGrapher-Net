@@ -62,6 +62,17 @@ public sealed class AnalysisRunSettingsTests
         Assert.Equal(expected, config.PhaseGuideOnsetRescueScale, precision: 12);
     }
 
+    [Theory]
+    [InlineData(-1, 1.25)]
+    [InlineData(11, 0.75)]
+    public void WeakAOnsetRescueStrengthStep_ClampsAtTheDetectorBoundary(int step, double expected)
+    {
+        AnalysisWorker.Config config = NewSettings(weakAOnsetRescueStrengthStep: step)
+            .ToWorkerConfig(sessionId: 1, sampleWriter: null);
+
+        Assert.Equal(expected, config.PhaseGuideOnsetRescueScale, precision: 12);
+    }
+
     [Fact]
     public void Default_WiresTheAcquisitionGate()
     {
