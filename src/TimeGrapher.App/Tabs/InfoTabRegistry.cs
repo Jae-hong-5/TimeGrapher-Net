@@ -1684,12 +1684,19 @@ internal sealed partial class InfoTabRegistry
             };
         }
 
-        var buttonRow = new StackPanel
+        var modeButtonRow = new StackPanel
         {
             Orientation = Orientation.Horizontal,
             Spacing = 6,
             Margin = new Thickness(BeatNoiseScopeRenderer.StripLeftAxisSizePx, 0, 0, 0),
             HorizontalAlignment = HorizontalAlignment.Left,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        var controlButtonRow = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 6,
+            HorizontalAlignment = HorizontalAlignment.Right,
             VerticalAlignment = VerticalAlignment.Center,
         };
 
@@ -1732,16 +1739,16 @@ internal sealed partial class InfoTabRegistry
         Button envelopeModeButton = BeatNoiseHeaderButton(
             "Scope",
             "Show beat-noise waveform + Strip mode (absolute-value display controlled separately)");
-        buttonRow.Children.Add(envelopeModeButton);
+        modeButtonRow.Children.Add(envelopeModeButton);
 
         Button averageModeButton = BeatNoiseHeaderButton(
             "Avg Envelope",
             "Show Average Envelope + Strip mode");
-        buttonRow.Children.Add(averageModeButton);
+        modeButtonRow.Children.Add(averageModeButton);
 
         var headerStrip = new Grid
         {
-            ColumnDefinitions = new ColumnDefinitions("Auto,*"),
+            ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto"),
             Margin = new Thickness(8, 1, 8, 2),
         };
 
@@ -1768,7 +1775,7 @@ internal sealed partial class InfoTabRegistry
                 UpdateRangeButtonStates();
             };
             rangeButtons[i] = button;
-            buttonRow.Children.Add(button);
+            controlButtonRow.Children.Add(button);
         }
 
         UpdateRangeButtonStates();
@@ -1777,7 +1784,7 @@ internal sealed partial class InfoTabRegistry
             "ABS",
             "On: show rectified absolute-value envelope. Off: show real bipolar waveform (min/max).");
         absoluteToggle.IsCheckedChanged += (_, _) => renderer.SetAbsoluteValue(absoluteToggle.IsChecked == true);
-        buttonRow.Children.Add(absoluteToggle);
+        controlButtonRow.Children.Add(absoluteToggle);
 
         // Σ writes the shared SigmaAveraging view-model property; MainWindow
         // forwards the change to the running analysis worker (the
@@ -1794,10 +1801,12 @@ internal sealed partial class InfoTabRegistry
                 viewModel.SigmaAveraging = sigmaToggle.IsChecked == true;
             }
         };
-        buttonRow.Children.Add(sigmaToggle);
+        controlButtonRow.Children.Add(sigmaToggle);
 
-        Grid.SetColumn(buttonRow, 0);
-        headerStrip.Children.Add(buttonRow);
+        Grid.SetColumn(modeButtonRow, 0);
+        Grid.SetColumn(controlButtonRow, 2);
+        headerStrip.Children.Add(modeButtonRow);
+        headerStrip.Children.Add(controlButtonRow);
 
         // Strip-lane hit test maps the pointer through the aligned data area,
         // excluding the reserved left axis width used to match the top plot.

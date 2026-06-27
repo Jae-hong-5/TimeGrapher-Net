@@ -678,6 +678,7 @@ public sealed class InfoTabRegistryTests
     [Fact]
     public void BeatNoiseTabUsesScopeSweepHeaderButtonGroup()
     {
+        EnsureAvaloniaPlatform();
         Grid content = CreateBeatNoiseContent(new MainWindowViewModel());
         var headerStrip = Assert.IsType<Grid>(
             content.Children.Single(child => Grid.GetRow(child) == 0));
@@ -685,25 +686,38 @@ public sealed class InfoTabRegistryTests
         Assert.Equal(4, content.RowDefinitions.Count);
         Assert.Equal(GridUnitType.Auto, content.RowDefinitions[0].Height.GridUnitType);
         Assert.True(content.RowDefinitions[1].Height.IsStar);
-        Assert.Equal(2, headerStrip.ColumnDefinitions.Count);
+        Assert.Equal(3, headerStrip.ColumnDefinitions.Count);
         Assert.Equal(GridUnitType.Auto, headerStrip.ColumnDefinitions[0].Width.GridUnitType);
         Assert.True(headerStrip.ColumnDefinitions[1].Width.IsStar);
+        Assert.Equal(GridUnitType.Auto, headerStrip.ColumnDefinitions[2].Width.GridUnitType);
         Assert.Equal(new Thickness(8, 1, 8, 2), headerStrip.Margin);
 
-        var buttonStrip = headerStrip.Children.OfType<StackPanel>().Single();
-        Assert.Equal(0, Grid.GetColumn(buttonStrip));
-        Assert.Equal(Orientation.Horizontal, buttonStrip.Orientation);
-        Assert.Equal(6, buttonStrip.Spacing);
-        Assert.Equal(new Thickness(BeatNoiseScopeRenderer.StripLeftAxisSizePx, 0, 0, 0), buttonStrip.Margin);
-        Assert.Equal(HorizontalAlignment.Left, buttonStrip.HorizontalAlignment);
-        Assert.Equal(VerticalAlignment.Center, buttonStrip.VerticalAlignment);
-        string[] buttons = buttonStrip.Children
+        var buttonStrips = headerStrip.Children.OfType<StackPanel>().ToArray();
+        Assert.Equal(2, buttonStrips.Length);
+        StackPanel modeButtonStrip = buttonStrips.Single(strip => Grid.GetColumn(strip) == 0);
+        StackPanel controlButtonStrip = buttonStrips.Single(strip => Grid.GetColumn(strip) == 2);
+        Assert.Equal(Orientation.Horizontal, modeButtonStrip.Orientation);
+        Assert.Equal(Orientation.Horizontal, controlButtonStrip.Orientation);
+        Assert.Equal(6, modeButtonStrip.Spacing);
+        Assert.Equal(6, controlButtonStrip.Spacing);
+        Assert.Equal(new Thickness(BeatNoiseScopeRenderer.StripLeftAxisSizePx, 0, 0, 0), modeButtonStrip.Margin);
+        Assert.Equal(new Thickness(), controlButtonStrip.Margin);
+        Assert.Equal(HorizontalAlignment.Left, modeButtonStrip.HorizontalAlignment);
+        Assert.Equal(HorizontalAlignment.Right, controlButtonStrip.HorizontalAlignment);
+        Assert.Equal(VerticalAlignment.Center, modeButtonStrip.VerticalAlignment);
+        Assert.Equal(VerticalAlignment.Center, controlButtonStrip.VerticalAlignment);
+        string[] modeButtons = modeButtonStrip.Children
             .OfType<Button>()
             .Select(button => button.Content?.ToString() ?? string.Empty)
             .ToArray();
-        Assert.Equal(new[] { "Scope", "Avg Envelope", "20 ms", "200 ms", "400 ms", "ABS", "Σ" }, buttons);
+        string[] controlButtons = controlButtonStrip.Children
+            .OfType<Button>()
+            .Select(button => button.Content?.ToString() ?? string.Empty)
+            .ToArray();
+        Assert.Equal(new[] { "Scope", "Avg Envelope" }, modeButtons);
+        Assert.Equal(new[] { "20 ms", "200 ms", "400 ms", "ABS", "Σ" }, controlButtons);
 
-        Assert.All(buttonStrip.Children.OfType<Button>(), button =>
+        Assert.All(buttonStrips.SelectMany(strip => strip.Children.OfType<Button>()), button =>
         {
             Assert.Contains("PositionButton", button.Classes);
             Assert.Equal(TraceHeaderButtonFontSizeForTest, button.FontSize);
@@ -714,10 +728,10 @@ public sealed class InfoTabRegistryTests
             Assert.Equal(VerticalAlignment.Center, button.VerticalContentAlignment);
             Assert.Equal(VerticalAlignment.Center, button.VerticalAlignment);
         });
-        Assert.Contains("active", buttonStrip.Children.OfType<Button>().Single(button => Equals(button.Content, "Scope")).Classes);
-        Assert.Contains("active", buttonStrip.Children.OfType<Button>().Single(button => Equals(button.Content, "400 ms")).Classes);
-        Assert.DoesNotContain("active", buttonStrip.Children.OfType<Button>().Single(button => Equals(button.Content, "Avg Envelope")).Classes);
-        Assert.DoesNotContain(buttonStrip.Children.OfType<TextBlock>(), text => text.Text?.Contains("LIFT") == true);
+        Assert.Contains("active", modeButtonStrip.Children.OfType<Button>().Single(button => Equals(button.Content, "Scope")).Classes);
+        Assert.Contains("active", controlButtonStrip.Children.OfType<Button>().Single(button => Equals(button.Content, "400 ms")).Classes);
+        Assert.DoesNotContain("active", modeButtonStrip.Children.OfType<Button>().Single(button => Equals(button.Content, "Avg Envelope")).Classes);
+        Assert.DoesNotContain(buttonStrips.SelectMany(strip => strip.Children.OfType<TextBlock>()), text => text.Text?.Contains("LIFT") == true);
     }
 
     [Fact]
