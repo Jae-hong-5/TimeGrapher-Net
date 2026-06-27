@@ -114,7 +114,7 @@ internal static class BeatNoiseScopeLogic
     /// <summary>
     /// Scope 2 readout: per-lane average signal level (mean of per-interval
     /// envelope peaks) plus the Σ cycle progress. The lanes are presented as
-    /// trace 1/2 — never tic/toc — matching the snapshot contract.
+    /// tick/tock to match the visible phase labels.
     /// </summary>
     public static string AverageLine(BeatNoiseAverageSnapshot average)
     {
@@ -122,8 +122,8 @@ internal static class BeatNoiseScopeLogic
             ? meanPeak.ToString("0.000", CultureInfo.InvariantCulture)
             : "—";
 
-        return "TRACE 1 (top) Signal Level (a.u.) " + SignalLevel(average.Lane1Count, average.Lane1MeanPeak)
-            + " · TRACE 2 Signal Level (a.u.) " + SignalLevel(average.Lane2Count, average.Lane2MeanPeak)
+        return "tick (top) Signal Level (a.u.) " + SignalLevel(average.Lane1Count, average.Lane1MeanPeak)
+            + " · tock Signal Level (a.u.) " + SignalLevel(average.Lane2Count, average.Lane2MeanPeak)
             + "   |   " + ProgressText(average);
     }
 

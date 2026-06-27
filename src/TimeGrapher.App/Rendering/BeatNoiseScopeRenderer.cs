@@ -25,7 +25,7 @@ namespace TimeGrapher.App.Rendering;
 /// span highlights the slot).
 ///
 /// Scope 2: the two phase-alternating averaged lanes on a fixed 0-20 ms axis,
-/// vertically offset and labeled trace 1/2 (never tic/toc), with the per-lane
+/// vertically offset and labeled tick/tock, with the per-lane
 /// average signal level and Σ progress in the readout below.
 ///
 /// All plottables refill in place; re-renders only when the snapshot version
@@ -40,7 +40,8 @@ internal sealed class BeatNoiseScopeRenderer
     public const int DefaultRangeMs = 400;
 
     private const int StripPointBudget = 200;
-    private const float StripLeftAxisSizePx = 68.0f;
+    internal const float StripLeftAxisSizePx = 68.0f;
+    private const float MarkerLegendLineWidth = 2.0f;
     private const byte StripDividerAlpha = 140;
     private const double Lane2Baseline = 0.0;
     private const double Lane1Baseline = 1.2;
@@ -242,15 +243,15 @@ internal sealed class BeatNoiseScopeRenderer
         _mirrorScatter.MarkerStyle.IsVisible = false;
         _mirrorScatter.IsVisible = !_showAbsoluteValue;
         _mainALegendScatter = main.Add.Scatter(_mainALegendX, _mainALegendY);
-        _mainALegendScatter.LineWidth = 1;
+        _mainALegendScatter.LineWidth = MarkerLegendLineWidth;
         _mainALegendScatter.LinePattern = LinePattern.Dashed;
         _mainALegendScatter.MarkerStyle.IsVisible = false;
-        _mainALegendScatter.LegendText = "A marker";
+        _mainALegendScatter.LegendText = "A";
         _mainCLegendScatter = main.Add.Scatter(_mainCLegendX, _mainCLegendY);
-        _mainCLegendScatter.LineWidth = 1;
+        _mainCLegendScatter.LineWidth = MarkerLegendLineWidth;
         _mainCLegendScatter.LinePattern = LinePattern.Dotted;
         _mainCLegendScatter.MarkerStyle.IsVisible = false;
-        _mainCLegendScatter.LegendText = "C marker";
+        _mainCLegendScatter.LegendText = "C";
         main.ShowLegend();
         _dynamicAMarkers.Clear();
         _dynamicCPeakMarkers.Clear();
@@ -280,7 +281,7 @@ internal sealed class BeatNoiseScopeRenderer
         _stripAMarkers.Clear();
         _stripCMarkers.Clear();
         ApplyPlotTheme(strip);
-        strip.XLabel("ms");
+        strip.XLabel(string.Empty);
         strip.Grid.IsVisible = false;
         strip.Axes.Bottom.TickLabelStyle.IsVisible = false;
         strip.Axes.Left.TickLabelStyle.IsVisible = false;
@@ -326,11 +327,11 @@ internal sealed class BeatNoiseScopeRenderer
         _lane1Scatter = average.Add.Scatter(_lane1X, _lane1Y);
         _lane1Scatter.LineWidth = 1;
         _lane1Scatter.MarkerStyle.IsVisible = false;
-        _lane1Scatter.LegendText = "Trace 1";
+        _lane1Scatter.LegendText = "tick";
         _lane2Scatter = average.Add.Scatter(_lane2X, _lane2Y);
         _lane2Scatter.LineWidth = 1;
         _lane2Scatter.MarkerStyle.IsVisible = false;
-        _lane2Scatter.LegendText = "Trace 2";
+        _lane2Scatter.LegendText = "tock";
         _lane1SignalLabel = AddAverageSignalLabel(average);
         _lane2SignalLabel = AddAverageSignalLabel(average);
         average.ShowLegend();
@@ -771,9 +772,7 @@ internal sealed class BeatNoiseScopeRenderer
             return;
         }
 
-        int? selectedSlot = _viewMode == BeatNoiseScopeViewMode.AverageAndStrip
-            ? _selectedSlot
-            : _selectedSlot ?? LatestWindowSlot(snapshot, _rangeMs);
+        int? selectedSlot = _selectedSlot;
         bool visible = selectedSlot.HasValue && (_viewMode == BeatNoiseScopeViewMode.AverageAndStrip
             ? SegmentForSlot(snapshot, selectedSlot.Value) != null || SegmentForSlot(snapshot, selectedSlot.Value + 1) != null
             : WindowSegmentForSlot(snapshot, selectedSlot.Value, _rangeMs) != null);
@@ -854,8 +853,8 @@ internal sealed class BeatNoiseScopeRenderer
 
     private void UpdateAverageSignalLabels(BeatNoiseAverageSnapshot average)
     {
-        SetAverageSignalLabel(_lane1SignalLabel, "Trace 1", average.Lane1Count, average.Lane1MeanPeak, Lane1Baseline + 1.05);
-        SetAverageSignalLabel(_lane2SignalLabel, "Trace 2", average.Lane2Count, average.Lane2MeanPeak, Lane2Baseline + 1.05);
+        SetAverageSignalLabel(_lane1SignalLabel, "tick", average.Lane1Count, average.Lane1MeanPeak, Lane1Baseline + 1.05);
+        SetAverageSignalLabel(_lane2SignalLabel, "tock", average.Lane2Count, average.Lane2MeanPeak, Lane2Baseline + 1.05);
     }
 
     private static void SetAverageSignalLabel(Text? label, string traceName, int count, double meanPeak, double y)
@@ -901,7 +900,7 @@ internal sealed class BeatNoiseScopeRenderer
             FillSelectedLane(_lane2X, _lane2Y, trace2, Lane2Baseline, max);
         }
 
-        _averageText.Text = "TRACE 1 selected odd strip · TRACE 2 selected even strip";
+        _averageText.Text = "tick selected strip · tock selected strip";
         _averagePlot.Plot.Axes.SetLimits(0, BeatNoiseAverager.LaneWindowMs, -0.1, Lane1Baseline + 1.15);
     }
 
@@ -1451,7 +1450,7 @@ internal sealed class BeatNoiseScopeRenderer
             _selectionSpan.LineStyle.Color = Color.FromARGB(_theme.TraceTick);
         }
 
-        // Lane colors only distinguish the two traces; the labels stay 1/2.
+        // Lane colors follow the tick/tock phase labels.
         if (_lane1Scatter != null)
         {
             _lane1Scatter.LineColor = Color.FromARGB(_theme.TraceTick);

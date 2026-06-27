@@ -686,15 +686,16 @@ public sealed class InfoTabRegistryTests
         Assert.Equal(GridUnitType.Auto, content.RowDefinitions[0].Height.GridUnitType);
         Assert.True(content.RowDefinitions[1].Height.IsStar);
         Assert.Equal(2, headerStrip.ColumnDefinitions.Count);
-        Assert.True(headerStrip.ColumnDefinitions[0].Width.IsStar);
-        Assert.Equal(GridUnitType.Auto, headerStrip.ColumnDefinitions[1].Width.GridUnitType);
+        Assert.Equal(GridUnitType.Auto, headerStrip.ColumnDefinitions[0].Width.GridUnitType);
+        Assert.True(headerStrip.ColumnDefinitions[1].Width.IsStar);
         Assert.Equal(new Thickness(8, 1, 8, 2), headerStrip.Margin);
 
         var buttonStrip = headerStrip.Children.OfType<StackPanel>().Single();
-        Assert.Equal(1, Grid.GetColumn(buttonStrip));
+        Assert.Equal(0, Grid.GetColumn(buttonStrip));
         Assert.Equal(Orientation.Horizontal, buttonStrip.Orientation);
         Assert.Equal(6, buttonStrip.Spacing);
-        Assert.Equal(HorizontalAlignment.Right, buttonStrip.HorizontalAlignment);
+        Assert.Equal(new Thickness(BeatNoiseScopeRenderer.StripLeftAxisSizePx, 0, 0, 0), buttonStrip.Margin);
+        Assert.Equal(HorizontalAlignment.Left, buttonStrip.HorizontalAlignment);
         Assert.Equal(VerticalAlignment.Center, buttonStrip.VerticalAlignment);
         string[] buttons = buttonStrip.Children
             .OfType<Button>()

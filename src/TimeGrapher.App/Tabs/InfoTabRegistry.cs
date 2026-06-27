@@ -1692,7 +1692,8 @@ internal sealed partial class InfoTabRegistry
         {
             Orientation = Orientation.Horizontal,
             Spacing = 6,
-            HorizontalAlignment = HorizontalAlignment.Right,
+            Margin = new Thickness(BeatNoiseScopeRenderer.StripLeftAxisSizePx, 0, 0, 0),
+            HorizontalAlignment = HorizontalAlignment.Left,
             VerticalAlignment = VerticalAlignment.Center,
         };
 
@@ -1744,7 +1745,7 @@ internal sealed partial class InfoTabRegistry
 
         var headerStrip = new Grid
         {
-            ColumnDefinitions = new ColumnDefinitions("*,Auto"),
+            ColumnDefinitions = new ColumnDefinitions("Auto,*"),
             Margin = new Thickness(8, 1, 8, 2),
         };
 
@@ -1799,7 +1800,7 @@ internal sealed partial class InfoTabRegistry
         };
         buttonRow.Children.Add(sigmaToggle);
 
-        Grid.SetColumn(buttonRow, 1);
+        Grid.SetColumn(buttonRow, 0);
         headerStrip.Children.Add(buttonRow);
 
         // Strip-lane hit test maps the pointer through the aligned data area,

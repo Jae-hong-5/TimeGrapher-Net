@@ -221,6 +221,7 @@ public sealed class BeatNoiseScopeRendererTests
         Assert.Equal(Enumerable.Range(1, BeatNoiseScopeLogic.StripCount - 1).Select(i => (double)i), dividers.Select(line => line.X));
         Assert.All(dividers, line => Assert.True(line.LineWidth >= 2));
         Assert.All(dividers, line => Assert.True(line.LineColor.Alpha > 0.5));
+        Assert.Equal(string.Empty, stripPlot.Plot.Axes.Bottom.Label.Text);
     }
 
     [Fact]
@@ -618,7 +619,7 @@ public sealed class BeatNoiseScopeRendererTests
     }
 
     [Fact]
-    public void MainScopeLegendNamesAAndCMarkerStyles()
+    public void MainScopeLegendNamesAAndCWithReadableMarkerStyles()
     {
         var mainPlot = new AvaPlot();
         var renderer = new BeatNoiseScopeRenderer(
@@ -629,8 +630,8 @@ public sealed class BeatNoiseScopeRendererTests
         Scatter[] legendEntries = mainPlot.Plot.GetPlottables<Scatter>()
             .Where(scatter => !string.IsNullOrEmpty(scatter.LegendText))
             .ToArray();
-        Assert.Contains(legendEntries, scatter => scatter.LegendText == "A marker" && Equals(scatter.LinePattern, LinePattern.Dashed));
-        Assert.Contains(legendEntries, scatter => scatter.LegendText == "C marker" && Equals(scatter.LinePattern, LinePattern.Dotted));
+        Assert.Contains(legendEntries, scatter => scatter.LegendText == "A" && Equals(scatter.LinePattern, LinePattern.Dashed) && scatter.LineWidth >= 2);
+        Assert.Contains(legendEntries, scatter => scatter.LegendText == "C" && Equals(scatter.LinePattern, LinePattern.Dotted) && scatter.LineWidth >= 2);
     }
 
     [Fact]
@@ -745,6 +746,31 @@ public sealed class BeatNoiseScopeRendererTests
         Assert.True(selection.IsVisible);
         Assert.Equal(6.0, selection.X1);
         Assert.Equal(8.0, selection.X2);
+    }
+
+    [Fact]
+    public void BeatScopeStripDoesNotAutoHighlightLatestWindow()
+    {
+        var stripPlot = new AvaPlot();
+        var renderer = new BeatNoiseScopeRenderer(
+            new AvaPlot(), stripPlot, new AvaPlot(), new TextBlock());
+        renderer.CreateGraphs();
+
+        renderer.RenderFrame(new AnalysisFrame
+        {
+            BeatSegments = new BeatSegmentsSnapshot
+            {
+                Version = 1,
+                Segments = new[]
+                {
+                    new BeatSegment { Samples = new float[] { 0.25f }, MsPerPoint = 0.25, IsTic = true },
+                    new BeatSegment { Samples = new float[] { 0.5f }, MsPerPoint = 0.25, IsTic = false },
+                },
+            },
+        }, new AnalysisTabRenderContext(SampleRate: 48000));
+
+        HorizontalSpan selection = stripPlot.Plot.GetPlottables<HorizontalSpan>().Single();
+        Assert.False(selection.IsVisible);
     }
 
     [Fact]
@@ -873,7 +899,7 @@ public sealed class BeatNoiseScopeRendererTests
         Scatter[] legendEntries = visibleScatters
             .Where(scatter => !string.IsNullOrEmpty(scatter.LegendText))
             .ToArray();
-        Assert.Equal(new[] { "Trace 1", "Trace 2" }, legendEntries.Select(scatter => scatter.LegendText));
+        Assert.Equal(new[] { "tick", "tock" }, legendEntries.Select(scatter => scatter.LegendText));
 
         var lane1Milestones = (List<double>[])typeof(BeatNoiseScopeRenderer)
             .GetField("_lane1MilestoneY", BindingFlags.Instance | BindingFlags.NonPublic)!
