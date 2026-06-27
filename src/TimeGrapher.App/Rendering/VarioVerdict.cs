@@ -116,7 +116,7 @@ internal readonly record struct VarioVerdict(string Text, VarioVerdictLevel Leve
         var level = (VarioVerdictLevel)Math.Max((int)rate.Level, (int)amplitude.Level);
         if (level == VarioVerdictLevel.Good)
         {
-            return new VarioVerdict("Overall: OK · Within band — ready to record", level);
+            return new VarioVerdict("Overall: OK · Within band — no service needed", level);
         }
 
         // List only the measure(s) at the worst severity (the others are already shown
@@ -132,7 +132,7 @@ internal readonly record struct VarioVerdict(string Text, VarioVerdictLevel Leve
 
         string faults = string.Join(" · ", clauses);
         return level == VarioVerdictLevel.Bad
-            ? new VarioVerdict($"Overall: ALERT · {faults} before recording", level)
+            ? new VarioVerdict($"Overall: ALERT · {faults} · service required", level)
             : new VarioVerdict($"Overall: WATCH · {faults} · keep measuring", level);
     }
 
@@ -141,7 +141,7 @@ internal readonly record struct VarioVerdict(string Text, VarioVerdictLevel Leve
     {
         VarioFinding.RateFast => "Running fast — regulate slower",
         VarioFinding.RateSlow => "Running slow — regulate faster",
-        VarioFinding.AmplitudeLow => "Low amplitude — service (clean & lubricate)",
+        VarioFinding.AmplitudeLow => "Low amplitude — clean & lubricate",
         VarioFinding.AmplitudeSlightlyLow => "Amplitude low — service soon",
         VarioFinding.AmplitudeHigh => "High amplitude — check mainspring/escapement",
         _ => string.Empty,
