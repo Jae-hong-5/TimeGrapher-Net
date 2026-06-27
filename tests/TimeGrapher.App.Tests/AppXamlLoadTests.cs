@@ -187,6 +187,21 @@ public sealed class AppXamlLoadTests
     }
 
     [Fact]
+    public void WarningStatusStylesStayStatic()
+    {
+        var app = new App();
+        app.Initialize();
+
+        Style graphWarning = Assert.Single(app.Styles
+            .OfType<Style>(), style => style.Selector?.ToString() == "TextBlock.GraphWarningOverlay");
+        Assert.Empty(graphWarning.Animations);
+
+        string mainWindowXaml = File.ReadAllText(SourcePath("src", "TimeGrapher.App", "Views", "MainWindow.axaml"));
+        Assert.DoesNotContain("Animation Duration=\"0:0:0.7\"", mainWindowXaml);
+        Assert.DoesNotContain("Opacity\" Value=\"0.35\"", mainWindowXaml);
+    }
+
+    [Fact]
     public void TitleBarIconButtonsUseSquareWindowControlSize()
     {
         var app = new App();
@@ -275,5 +290,22 @@ public sealed class AppXamlLoadTests
     private static string? DynamicResourceKey(object? value)
     {
         return value?.GetType().GetProperty("ResourceKey")?.GetValue(value)?.ToString();
+    }
+
+    private static string SourcePath(params string[] segments)
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory != null)
+        {
+            string candidate = Path.Combine(new[] { directory.FullName }.Concat(segments).ToArray());
+            if (File.Exists(candidate))
+            {
+                return candidate;
+            }
+
+            directory = directory.Parent;
+        }
+
+        throw new FileNotFoundException("Could not locate source file.", Path.Combine(segments));
     }
 }
