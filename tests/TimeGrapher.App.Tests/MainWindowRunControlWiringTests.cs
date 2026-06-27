@@ -399,7 +399,7 @@ public sealed class MainWindowRunControlWiringTests
         };
         Assert.All(
             denseSliderNames.Select(name => FindNamedElement(document, name)),
-            slider => Assert.Equal("0,-6,0,0", slider.Attribute("Margin")?.Value));
+            slider => Assert.Equal("0,-10,0,0", slider.Attribute("Margin")?.Value));
     }
 
     [Fact]
