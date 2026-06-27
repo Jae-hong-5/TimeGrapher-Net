@@ -16,16 +16,13 @@ public sealed class BeatErrorDiagRendererTests
     public void RenderFrame_UpdatesRatePointsAfterUserDropsRateFollow()
     {
         var tracePlot = new AvaPlot();
-        var averageSegmentText = new TextBlock();
         var renderer = new BeatErrorDiagRenderer(
             tracePlot,
             new Border(),
             new TextBlock(),
             BeatErrorReadout.Labels.Select(_ => new TextBlock()).ToArray(),
-            averageSegmentText,
             "Arial");
         renderer.CreateGraphs(rateErrorYScale: 10.0, rateDataPoints: 600);
-        Assert.Equal(BeatErrorDiagRenderer.AverageSegmentMissing, averageSegmentText.Text);
         Assert.Equal(PlotThemeHelper.CompactLeftAxisSizePx, tracePlot.Plot.Axes.Left.MinimumSize);
         Assert.Equal(PlotThemeHelper.CompactBottomAxisSizePx, tracePlot.Plot.Axes.Bottom.MinimumSize);
         AssertAllowsMousePanOnly(tracePlot);
@@ -44,18 +41,22 @@ public sealed class BeatErrorDiagRendererTests
         Assert.Equal(0.0, firstLimits.Left);
         Assert.Equal(30.0, firstLimits.Right);
         Assert.Equal(BeatErrorDiagRenderer.TraceYMinMs, firstLimits.Bottom);
-        Assert.Equal(BeatErrorDiagRenderer.TraceYMaxMs, firstLimits.Top);
+        Assert.Equal(12.0, firstLimits.Top);
 
         renderer.SetRateZoomFactor(16.0);
         AxisLimits zoomedLimits = tracePlot.Plot.Axes.GetLimits();
         Assert.Equal(0.0, zoomedLimits.Left);
         Assert.Equal(RateScopeRenderer.RatePageWindowBeats / 16.0, zoomedLimits.Right);
+        Assert.Equal(-0.625, zoomedLimits.Bottom, 6);
+        Assert.Equal(0.75, zoomedLimits.Top, 6);
         Assert.Equal("16x", renderer.RateZoomLabel);
 
         renderer.ResetView();
         AxisLimits resetLimits = tracePlot.Plot.Axes.GetLimits();
         Assert.Equal(0.0, resetLimits.Left);
         Assert.Equal(30.0, resetLimits.Right);
+        Assert.Equal(BeatErrorDiagRenderer.TraceYMinMs, resetLimits.Bottom);
+        Assert.Equal(12.0, resetLimits.Top);
         Assert.Equal("1x", renderer.RateZoomLabel);
 
         SetPrivateField(renderer, "_rateFollowLive", false);
@@ -85,17 +86,16 @@ public sealed class BeatErrorDiagRendererTests
         renderer.RenderFrame(second, new AnalysisTabRenderContext(48000));
 
         Assert.Equal(new[] { 150.0, 151.0 }, RateX(renderer, AnalysisGraphSeries.RateTic));
-        Assert.DoesNotContain(tracePlot.Plot.GetPlottables<Text>(), t => t.IsVisible);
         Assert.Equal(
             new[] { 150.0, 151.0 },
             tracePlot.Plot.GetPlottables<VerticalLine>().Where(line => line.IsVisible).Select(line => line.X).ToArray());
-        Assert.Equal(
-            BeatErrorDiagRenderer.FormatAverageSegmentSummary(averageInterval),
-            averageSegmentText.Text);
+        Text label = Assert.Single(tracePlot.Plot.GetPlottables<Text>(), t => t.IsVisible);
+        Assert.Equal(BeatErrorDiagRenderer.FormatAverageSegmentPlotLabel(averageInterval), label.LabelText);
+        Assert.InRange(label.Location.Y, BeatErrorDiagRenderer.TraceYMaxMs, 12.0);
 
         AxisLimits autoLimits = tracePlot.Plot.Axes.GetLimits();
         Assert.Equal(BeatErrorDiagRenderer.TraceYMinMs, autoLimits.Bottom);
-        Assert.Equal(BeatErrorDiagRenderer.TraceYMaxMs, autoLimits.Top);
+        Assert.Equal(12.0, autoLimits.Top);
 
         tracePlot.Plot.Axes.SetLimitsX(0.0, RateScopeRenderer.RatePageWindowBeats / 2.0);
         tracePlot.Plot.Axes.SetLimitsY(100.0, 110.0);
@@ -104,7 +104,7 @@ public sealed class BeatErrorDiagRendererTests
         Assert.Equal(0.0, limits.Left);
         Assert.Equal(RateScopeRenderer.RatePageWindowBeats / 2.0, limits.Right);
         Assert.Equal(BeatErrorDiagRenderer.TraceYMinMs, limits.Bottom);
-        Assert.Equal(BeatErrorDiagRenderer.TraceYMaxMs, limits.Top);
+        Assert.Equal(12.0, limits.Top);
     }
 
     private static void AddRateSeries(AnalysisFrame frame, GraphSeriesFrame series)

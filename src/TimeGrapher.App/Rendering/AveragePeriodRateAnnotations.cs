@@ -12,14 +12,22 @@ internal sealed class AveragePeriodRateAnnotations
 
     private readonly string _fontFamily;
     private readonly bool _showLabels;
+    private readonly double _labelTopPaddingFraction;
+    private readonly Func<AveragePeriodRateInterval, string> _labelFormatter;
     private readonly List<VerticalLine> _boundaries = new();
     private readonly List<Text> _labels = new();
     private PlotThemePalette _theme = PlotThemePalette.Current;
 
-    public AveragePeriodRateAnnotations(string fontFamily, bool showLabels = true)
+    public AveragePeriodRateAnnotations(
+        string fontFamily,
+        bool showLabels = true,
+        double labelTopPaddingFraction = LabelTopPaddingFraction,
+        Func<AveragePeriodRateInterval, string>? labelFormatter = null)
     {
         _fontFamily = fontFamily;
         _showLabels = showLabels;
+        _labelTopPaddingFraction = labelTopPaddingFraction;
+        _labelFormatter = labelFormatter ?? FormatLabel;
     }
 
     public void Reset()
@@ -50,7 +58,7 @@ internal sealed class AveragePeriodRateAnnotations
         int labelsUsed = 0;
         int intervalIndex = 0;
         AxisLimits limits = plot.Axes.GetLimits();
-        double labelY = limits.Top - (limits.Top - limits.Bottom) * LabelTopPaddingFraction;
+        double labelY = limits.Top - (limits.Top - limits.Bottom) * _labelTopPaddingFraction;
         double previousBoundary = double.NaN;
 
         foreach (AveragePeriodRateInterval interval in intervals)
@@ -82,7 +90,7 @@ internal sealed class AveragePeriodRateAnnotations
             if (_showLabels)
             {
                 Text label = EnsureLabel(plot, labelsUsed);
-                label.LabelText = FormatLabel(interval);
+                label.LabelText = _labelFormatter(interval);
                 label.Location = new Coordinates((start + end) * 0.5, labelY);
                 label.IsVisible = true;
                 ApplyLabelTheme(label);

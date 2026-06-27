@@ -26,14 +26,14 @@ internal sealed class BeatErrorDiagRenderer
     private const double RateLiveMaxWindowBeats = RateScopeRenderer.RatePageWindowBeats;
     internal const double TraceYMinMs = -10.0;
     internal const double TraceYMaxMs = 10.0;
-    internal const string AverageSegmentMissing = "Average Segment  --";
+    private const double TraceAnnotationBandFraction = 0.10;
+    private const double AnnotationLabelTopPaddingFraction = 0.015;
     private static readonly double[] RateZoomFactors = { 1.0, 4.0, 16.0 };
 
     private readonly AvaPlot _tracePlot;
     private readonly Border _alertBanner;
     private readonly TextBlock _alertText;
     private readonly TextBlock[] _valueTexts;
-    private readonly TextBlock _averageSegmentText;
 
     private readonly GraphSeriesDefinition[] _rateSeries;
     private readonly List<double>[] _rateX;
@@ -57,14 +57,12 @@ internal sealed class BeatErrorDiagRenderer
         Border alertBanner,
         TextBlock alertText,
         TextBlock[] valueTexts,
-        TextBlock averageSegmentText,
         string textFontFamily)
     {
         _tracePlot = tracePlot;
         _alertBanner = alertBanner;
         _alertText = alertText;
         _valueTexts = valueTexts;
-        _averageSegmentText = averageSegmentText;
 
         RateScopeRenderer.LockRatePlotInputToX(_tracePlot);
         RateScopeRenderer.WireLiveFollowPan(
@@ -81,7 +79,10 @@ internal sealed class BeatErrorDiagRenderer
             _rateX[i] = new List<double>();
             _rateY[i] = new List<double>();
         }
-        _rateAverageAnnotations = new AveragePeriodRateAnnotations(textFontFamily, showLabels: false);
+        _rateAverageAnnotations = new AveragePeriodRateAnnotations(
+            textFontFamily,
+            labelTopPaddingFraction: AnnotationLabelTopPaddingFraction,
+            labelFormatter: FormatAverageSegmentPlotLabel);
     }
 
     public void ApplyTheme(PlotThemePalette theme)
@@ -156,15 +157,14 @@ internal sealed class BeatErrorDiagRenderer
         {
             value.Text = VarioReadout.Missing;
         }
-        _averageSegmentText.Text = AverageSegmentMissing;
 
         Plot trace = _tracePlot.Plot;
         trace.Clear();
         ApplyPlotTheme(trace);
         trace.YLabel("Error Rate (ms)");
         trace.XLabel("Beats");
-        trace.Axes.SetLimitsY(TraceYMinMs, TraceYMaxMs);
         trace.Axes.SetLimitsX(0, RateLiveMinWindowBeats);
+        SetFixedTraceYRange();
         trace.Axes.Bottom.TickLabelStyle.IsVisible = true;
         for (int i = 0; i < _rateSeries.Length; i++)
         {
@@ -176,8 +176,6 @@ internal sealed class BeatErrorDiagRenderer
         AddTracePlottables();
         trace.ShowLegend();
         _hasRateDataExtent = false;
-        trace.Axes.Rules.Clear();
-        PlotAxisRules.LockYRange(trace, TraceYMinMs, TraceYMaxMs);
         _tracePlot.Refresh();
     }
 
@@ -214,7 +212,6 @@ internal sealed class BeatErrorDiagRenderer
                 _lastVersion = history.Version;
                 UpdateReadout(history);
                 UpdateDiagnosis(history);
-                UpdateAverageSegmentSummary(history);
             }
         }
 
@@ -299,65 +296,13 @@ internal sealed class BeatErrorDiagRenderer
         IReadOnlyList<AveragePeriodRateInterval> intervals =
             history?.AveragePeriodRateIntervals ?? Array.Empty<AveragePeriodRateInterval>();
         _rateAverageAnnotations.Update(_tracePlot.Plot, intervals);
-        UpdateAverageSegmentSummary(intervals);
     }
 
-    private void UpdateAverageSegmentSummary(BeatMetricsHistorySnapshot? history)
+    internal static string FormatAverageSegmentPlotLabel(AveragePeriodRateInterval interval)
     {
-        UpdateAverageSegmentSummary(
-            history?.AveragePeriodRateIntervals ?? Array.Empty<AveragePeriodRateInterval>());
-    }
-
-    private void UpdateAverageSegmentSummary(IReadOnlyList<AveragePeriodRateInterval> intervals)
-    {
-        AveragePeriodRateInterval? interval = LatestVisibleAverageInterval(intervals);
-        _averageSegmentText.Text = interval.HasValue
-            ? FormatAverageSegmentSummary(interval.Value)
-            : AverageSegmentMissing;
-    }
-
-    private AveragePeriodRateInterval? LatestVisibleAverageInterval(
-        IReadOnlyList<AveragePeriodRateInterval> intervals)
-    {
-        AxisLimits limits = _tracePlot.Plot.Axes.GetLimits();
-        bool hasVisibleRange =
-            double.IsFinite(limits.Left) &&
-            double.IsFinite(limits.Right) &&
-            limits.Right > limits.Left;
-
-        for (int i = intervals.Count - 1; i >= 0; i--)
-        {
-            AveragePeriodRateInterval interval = intervals[i];
-            if (!IsValidAverageInterval(interval))
-            {
-                continue;
-            }
-
-            if (!hasVisibleRange || IntervalOverlaps(interval, limits.Left, limits.Right))
-            {
-                return interval;
-            }
-        }
-
-        return null;
-    }
-
-    internal static string FormatAverageSegmentSummary(AveragePeriodRateInterval interval)
-    {
-        return "Average Segment  Beats " + FormatBeatRange(interval) +
-               "   Rate " + FormatRate(interval.RateSPerDay) +
-               "   Amp " + FormatAmplitude(interval) +
-               "   Beat Error " + FormatBeatError(interval);
-    }
-
-    private static string FormatBeatRange(AveragePeriodRateInterval interval)
-    {
-        return FormatBeatIndex(interval.StartBeatIndex) + "-" + FormatBeatIndex(interval.EndBeatIndex);
-    }
-
-    private static string FormatBeatIndex(double beatIndex)
-    {
-        return beatIndex.ToString("0.#", CultureInfo.InvariantCulture);
+        return FormatRate(interval.RateSPerDay) + "  " +
+               FormatAmplitude(interval) + "  " +
+               FormatBeatError(interval);
     }
 
     private static string FormatRate(double rateSPerDay)
@@ -383,14 +328,6 @@ internal sealed class BeatErrorDiagRenderer
             ? interval.BeatErrorMs.ToString("F1", CultureInfo.InvariantCulture) + " ms"
             : "---- ms";
     }
-
-    private static bool IsValidAverageInterval(AveragePeriodRateInterval interval) =>
-        double.IsFinite(interval.StartBeatIndex) &&
-        double.IsFinite(interval.EndBeatIndex) &&
-        interval.EndBeatIndex > interval.StartBeatIndex;
-
-    private static bool IntervalOverlaps(AveragePeriodRateInterval interval, double left, double right) =>
-        interval.EndBeatIndex >= left && interval.StartBeatIndex <= right;
 
     private bool RateDataExtent(out double min, out double max)
     {
@@ -463,7 +400,39 @@ internal sealed class BeatErrorDiagRenderer
 
     private void SetFixedTraceYRange()
     {
-        _tracePlot.Plot.Axes.SetLimitsY(TraceYMinMs, TraceYMaxMs);
+        (double bottom, double dataTop, double plotTop) = TraceYRangeForZoom();
+        _tracePlot.Plot.Axes.SetLimitsY(bottom, plotTop);
+        ApplyTraceYTicks(bottom, dataTop);
+        _tracePlot.Plot.Axes.Rules.Clear();
+        PlotAxisRules.LockYRange(_tracePlot.Plot, bottom, plotTop);
+    }
+
+    private (double Bottom, double DataTop, double PlotTop) TraceYRangeForZoom()
+    {
+        double zoom = RateZoomFactors[_rateZoomIndex];
+        double bottom = TraceYMinMs / zoom;
+        double dataTop = TraceYMaxMs / zoom;
+        double bandHeight = (dataTop - bottom) * TraceAnnotationBandFraction;
+        return (bottom, dataTop, dataTop + bandHeight);
+    }
+
+    private void ApplyTraceYTicks(double bottom, double dataTop)
+    {
+        double mid = (bottom + dataTop) * 0.5;
+        double lowerMid = (bottom + mid) * 0.5;
+        double upperMid = (mid + dataTop) * 0.5;
+        var ticks = new ScottPlot.TickGenerators.NumericManual();
+        ticks.AddMajor(bottom, FormatAxisTick(bottom));
+        ticks.AddMajor(lowerMid, FormatAxisTick(lowerMid));
+        ticks.AddMajor(mid, FormatAxisTick(mid));
+        ticks.AddMajor(upperMid, FormatAxisTick(upperMid));
+        ticks.AddMajor(dataTop, FormatAxisTick(dataTop));
+        _tracePlot.Plot.Axes.Left.TickGenerator = ticks;
+    }
+
+    private static string FormatAxisTick(double value)
+    {
+        return value.ToString("0.###", CultureInfo.InvariantCulture);
     }
 
     private void ScheduleRateAxisRefresh()
