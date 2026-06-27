@@ -413,39 +413,41 @@ internal sealed class ScopeSweepRenderer
         // absolute phase. The interval is a small, stable quantity, so the C
         // line holds its place relative to A; when the latest beat had no valid
         // C the interval falls back to the most recent C-valid beat so the line
-        // does not blink off. Raw phases first, then FoldToDisplay maps a
-        // near-window-end value into the pre-roll so an edge beat is drawn there
-        // continuously rather than vanishing at the boundary.
+        // does not blink off.
         double? aTicRaw = PhaseMs(latestTic, isC: false, windowMs);
         double? aTocRaw = PhaseMs(latestToc, isC: false, windowMs);
         double? cTicRaw = AnchoredCPhase(aTicRaw, latestTic, latestCTic);
         double? cTocRaw = AnchoredCPhase(aTocRaw, latestToc, latestCToc);
 
-        double? aTicPhase = FoldToDisplay(aTicRaw, windowMs);
-        double? aTocPhase = FoldToDisplay(aTocRaw, windowMs);
-        double? cTicPhase = FoldToDisplay(cTicRaw, windowMs);
-        double? cTocPhase = FoldToDisplay(cTocRaw, windowMs);
-
+        // Tile each marker across the nReps oscillations with a step that divides
+        // the window exactly, so the repeated copies in 2x/3x always fill the
+        // window and none flips on/off at the boundary as the beat drifts (the
+        // 2x/3x blink). TiledPhase wraps every copy into the window; only the
+        // trailing pre-roll margin folds to negative x.
+        double step = windowMs / nReps;
         for (int k = 0; k < MaxSweepMultiple; k++)
         {
             bool active = k < nReps;
-            SetMarkerLine(_aTicMarkers[k], active ? RepeatPhase(aTicPhase, k, beatPeriodMs, windowMs) : null);
-            SetMarkerLine(_aTocMarkers[k], active ? RepeatPhase(aTocPhase, k, beatPeriodMs, windowMs) : null);
-            SetMarkerLine(_cTicMarkers[k], active ? RepeatPhase(cTicPhase, k, beatPeriodMs, windowMs) : null);
-            SetMarkerLine(_cTocMarkers[k], active ? RepeatPhase(cTocPhase, k, beatPeriodMs, windowMs) : null);
+            SetMarkerLine(_aTicMarkers[k], active ? TiledPhase(aTicRaw, k, step, windowMs) : null);
+            SetMarkerLine(_aTocMarkers[k], active ? TiledPhase(aTocRaw, k, step, windowMs) : null);
+            SetMarkerLine(_cTicMarkers[k], active ? TiledPhase(cTicRaw, k, step, windowMs) : null);
+            SetMarkerLine(_cTocMarkers[k], active ? TiledPhase(cTocRaw, k, step, windowMs) : null);
         }
     }
 
     /// <summary>
-    /// Returns the X position of the k-th repetition of a marker phase within
-    /// the sweep window (phase shifted by k beat periods). Returns null when the
-    /// base phase is absent or the repeated position falls outside the window.
+    /// X position of the k-th tiled copy of a marker phase: the raw phase shifted
+    /// by k steps and wrapped into the window, so every copy across the nReps
+    /// oscillations is shown (no boundary null that would blink the last copy in
+    /// 2x/3x). Only the trailing pre-roll margin (the last |XPreRollMs| ms) folds
+    /// into the negative pre-roll region. Returns null when the phase is absent.
     /// </summary>
-    private static double? RepeatPhase(double? phase, int k, double beatPeriodMs, double windowMs)
+    private static double? TiledPhase(double? rawPhase, int k, double step, double windowMs)
     {
-        if (phase is not double p) return null;
-        double x = p + k * beatPeriodMs;
-        return x < windowMs ? x : null;
+        if (rawPhase is not double p) return null;
+        double x = (p + k * step) % windowMs;
+        if (x < 0.0) x += windowMs;
+        return x > windowMs + XPreRollMs ? x - windowMs : x;
     }
 
     private double? PhaseMs(BeatSegment? seg, bool isC, double windowMs)
@@ -466,19 +468,6 @@ internal sealed class ScopeSweepRenderer
         if (aPhase is not double a) return null;
         BeatSegment? src = own is { CPeakValid: true } ? own : fallback;
         return src == null ? null : a + (src.CPeakOffsetMs - src.AOffsetMs);
-    }
-
-    /// <summary>
-    /// Maps a raw phase into the displayed sweep range: modulo the window, then
-    /// fold a near-window-end value into the negative pre-roll so a beat at the
-    /// window boundary is drawn there continuously rather than hidden.
-    /// </summary>
-    private static double? FoldToDisplay(double? phase, double windowMs)
-    {
-        if (phase is not double p) return null;
-        p %= windowMs;
-        if (p < 0.0) p += windowMs;
-        return p > windowMs * 0.75 ? p - windowMs : p;
     }
 
     private static void SetMarkerLine(VerticalLine? line, double? x)

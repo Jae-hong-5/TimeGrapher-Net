@@ -351,6 +351,48 @@ public sealed class ScopeSweepRendererThemeTests
         Assert.Contains(greenLines, l => l.X < 0.0);
     }
 
+    [Fact]
+    public void RepeatedMarkersTileEveryCycleWithoutBoundaryGaps()
+    {
+        var sweepPlot = new AvaPlot();
+        var readoutValues = ScopeSweepReadout.Labels.Select(_ => new TextBlock()).ToArray();
+        var renderer = new ScopeSweepRenderer(sweepPlot, readoutValues);
+        renderer.CreateGraphs();
+        const uint green = 0xFF2C9118;
+        renderer.ApplyTheme(Palette(0xFF404040, green, 0xFFD22222, 0xFF0000FF));
+
+        // 2x window (500 ms) at a 28800-BPH beat period (250 ms) -> two oscillations.
+        // A lone tic sitting in the SECOND oscillation must still place BOTH tic
+        // copies; the old boundary check dropped the wrapped copy (the 2x/3x blink).
+        var frame = new AnalysisFrame
+        {
+            BeatSegments = new BeatSegmentsSnapshot
+            {
+                Version = 1,
+                Segments = new[]
+                {
+                    new BeatSegment { IsTic = true, StartTimeS = 0, AOffsetMs = 300.0, CPeakValid = false },
+                },
+            },
+            MetricsHistory = new BeatMetricsHistorySnapshot { Bph = 28800 },
+        };
+        AddScopeSeries(frame, new GraphSeriesFrame
+        {
+            Id = AnalysisGraphSeries.SweepTrace,
+            Replace = true,
+            X = new[] { 0.0625, 125.0, 250.0, 375.0, 499.9375 },
+            Y = new[] { 0.2, 3.0, 6.0, 3.0, 0.2 },
+        });
+
+        renderer.RenderFrame(frame, new AnalysisTabRenderContext(48000));
+
+        // Only the A (green) tic copies are placed (no toc, no valid C); both show.
+        var visibleGreen = sweepPlot.Plot.GetPlottables<VerticalLine>()
+            .Where(l => l.IsVisible && l.LineColor.Equals(Color.FromARGB(green)))
+            .ToList();
+        Assert.Equal(2, visibleGreen.Count);
+    }
+
     private static void RenderPeak(ScopeSweepRenderer renderer, double peak)
     {
         var frame = new AnalysisFrame();
