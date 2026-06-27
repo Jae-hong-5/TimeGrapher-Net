@@ -115,7 +115,7 @@ public sealed class GraphLabelFontSizeTests
     {
         var plot = new AvaPlot();
         var readoutValues = ScopeSweepReadout.Labels.Select(_ => new TextBlock()).ToArray();
-        var renderer = new ScopeSweepRenderer(plot, readoutValues, "Arial");
+        var renderer = new ScopeSweepRenderer(plot, readoutValues);
 
         renderer.CreateGraphs();
 

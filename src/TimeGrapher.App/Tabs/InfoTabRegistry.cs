@@ -600,9 +600,11 @@ internal sealed partial class InfoTabRegistry
             for (int i = 0; i < multiples.Length; i++)
             {
                 int multiple = multiples[i];
+                string cycleLabel = $"{multiple}-cycle";
+                string cycleWord = multiple == 1 ? "cycle" : "cycles";
                 Button button = SweepHeaderButton(
-                    multiple + "x",
-                    $"Sweep window = {multiple}x the tick-tick interval",
+                    cycleLabel,
+                    $"Sweep window = {multiple} {cycleWord} of the tick-tick interval",
                     () =>
                 {
                     viewModel.SweepMultiple = multiple;
@@ -615,7 +617,7 @@ internal sealed partial class InfoTabRegistry
             UpdateButtonStates();
         }
 
-        var renderer = new ScopeSweepRenderer(sweepPlot, referenceValueTexts, context.TextFontFamily);
+        var renderer = new ScopeSweepRenderer(sweepPlot, referenceValueTexts);
         context.ResetViews.Register(renderer.ResetView);
         buttonRow.Children.Add(SweepHeaderButton(
             "Reset View", ResetAllGraphViewsTooltip, context.ResetViews.ResetAll));

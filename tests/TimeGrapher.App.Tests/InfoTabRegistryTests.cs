@@ -679,7 +679,7 @@ public sealed class InfoTabRegistryTests
             .OfType<Button>()
             .Select(button => button.Content?.ToString() ?? string.Empty)
             .ToArray();
-        Assert.Equal(new[] { "1x", "2x", "3x", "Reset View" }, buttons);
+        Assert.Equal(new[] { "1-cycle", "2-cycle", "3-cycle", "Reset View" }, buttons);
 
         Button resetView = buttonStrip.Children.OfType<Button>().Single(button => Equals(button.Content, "Reset View"));
         Assert.All(buttonStrip.Children.OfType<Button>(), button =>
@@ -689,9 +689,9 @@ public sealed class InfoTabRegistryTests
             Assert.Equal(resetView.MinHeight, button.MinHeight);
             Assert.Equal(resetView.Padding, button.Padding);
         });
-        Assert.Contains("active", buttonStrip.Children.OfType<Button>().Single(button => Equals(button.Content, "1x")).Classes);
-        Assert.DoesNotContain("active", buttonStrip.Children.OfType<Button>().Single(button => Equals(button.Content, "2x")).Classes);
-        Assert.DoesNotContain("active", buttonStrip.Children.OfType<Button>().Single(button => Equals(button.Content, "3x")).Classes);
+        Assert.Contains("active", buttonStrip.Children.OfType<Button>().Single(button => Equals(button.Content, "1-cycle")).Classes);
+        Assert.DoesNotContain("active", buttonStrip.Children.OfType<Button>().Single(button => Equals(button.Content, "2-cycle")).Classes);
+        Assert.DoesNotContain("active", buttonStrip.Children.OfType<Button>().Single(button => Equals(button.Content, "3-cycle")).Classes);
 
         Assert.DoesNotContain(content.Children.OfType<Button>(), button => Grid.GetRow(button) == 1);
         var readoutGrid = Assert.IsType<Grid>(
