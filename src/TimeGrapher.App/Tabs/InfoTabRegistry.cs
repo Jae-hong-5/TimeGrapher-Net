@@ -1864,18 +1864,12 @@ internal sealed partial class InfoTabRegistry
         InfoTabDefinition definition,
         InfoTabFactoryContext context)
     {
-        // One large plot of the latest beat's envelope with the A / C marker
-        // lines and millisecond labels, above the numeric repeatability panel:
-        // label/value cells (the BeatErrorDiag pattern) for the current A→C
-        // readings per reference, the onset-vs-peak delta, the windowed
-        // mean±sigma of both references and the more-repeatable verdict.
         var markerPlot = new AvaPlot();
 
         var valueTexts = new TextBlock[EscapementReadout.Labels.Length];
         var readoutGrid = new Grid
         {
-            ColumnDefinitions = new ColumnDefinitions("*,*,*"),
-            RowDefinitions = new RowDefinitions("Auto,Auto"),
+            ColumnDefinitions = new ColumnDefinitions("*,*,*,*"),
             Margin = new Thickness(8, 4, 8, 2),
         };
         for (int i = 0; i < EscapementReadout.Labels.Length; i++)
@@ -1884,20 +1878,29 @@ internal sealed partial class InfoTabRegistry
             {
                 Text = EscapementReadout.Labels[i],
                 FontSize = 14,
-                Opacity = 0.65,
+                FontWeight = FontWeight.Bold,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                TextAlignment = TextAlignment.Center,
             };
+            label.Bind(TextBlock.ForegroundProperty, label.GetResourceObservable("ChromeAccentBrush"));
             var value = new TextBlock
             {
                 Text = VarioReadout.Missing,
                 FontSize = 16,
+                FontWeight = FontWeight.Bold,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                TextAlignment = TextAlignment.Center,
             };
             valueTexts[i] = value;
 
-            var cell = new StackPanel { Margin = new Thickness(0, 2, 12, 2) };
+            var cell = new StackPanel
+            {
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Margin = new Thickness(8, 2, 8, 2),
+            };
             cell.Children.Add(label);
             cell.Children.Add(value);
-            Grid.SetRow(cell, i / 3);
-            Grid.SetColumn(cell, i % 3);
+            Grid.SetColumn(cell, i);
             readoutGrid.Children.Add(cell);
         }
 

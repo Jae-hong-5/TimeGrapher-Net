@@ -6,10 +6,8 @@ namespace TimeGrapher.App.Rendering;
 /// <summary>
 /// Pure formatting behind the Escapement Analyzer marker labels and numeric
 /// panel, kept out of the renderer so it is unit-testable without a live
-/// control tree: the current beat's A→C readings per timing reference, the
-/// onset-vs-peak delta, the windowed mean±sigma of both references and the
-/// repeatability verdict (the plan's "which reference point produces the most
-/// stable timing results").
+/// control tree: graph marker labels, the onset-vs-peak delta, the windowed
+/// mean±sigma of both references and the repeatability verdict.
 /// </summary>
 internal static class EscapementReadout
 {
@@ -22,11 +20,9 @@ internal static class EscapementReadout
     /// </summary>
     public const string AMarkerLabel = "A";
 
-    /// <summary>Panel labels; <see cref="Values"/> returns matching positions.</summary>
     public static readonly string[] Labels =
     {
-        "A→C Peak", "A→C Onset", "Onset-Peak",
-        "Peak Mean ±σ", "Onset Mean ±σ", "More Repeatable",
+        "Onset-Peak", "Peak Mean ±σ", "Onset Mean ±σ", "More Repeatable",
     };
 
     public static string CPeakMarkerLabel(double aToCPeakMs) =>
@@ -50,8 +46,6 @@ internal static class EscapementReadout
 
         return new[]
         {
-            VarioReadout.Format(peakMs, SignedHundredthsMsFormat, " ms"),
-            VarioReadout.Format(onsetMs, SignedHundredthsMsFormat, " ms"),
             VarioReadout.Format(onsetMs - peakMs, SignedHundredthsMsFormat, " ms"),
             MeanSigma(tracker.PeakMeanMs, tracker.PeakSigmaMs, tracker.PeakCount),
             MeanSigma(tracker.OnsetMeanMs, tracker.OnsetSigmaMs, tracker.OnsetCount),

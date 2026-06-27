@@ -42,12 +42,11 @@ public sealed class EscapementReadoutTests
         string[] values = EscapementReadout.Values(latest, tracker);
 
         Assert.Equal(EscapementReadout.Labels.Length, values.Length);
-        Assert.Equal("+142.50 ms", values[0]);
-        Assert.Equal("+141.75 ms", values[1]);
-        Assert.Equal("-0.75 ms", values[2]);
-        Assert.Equal("142.50 ±0.00 ms (n=1)", values[3]);
-        Assert.Equal("141.75 ±0.00 ms (n=1)", values[4]);
-        Assert.Equal("—", values[5]);
+        Assert.Equal(new[] { "Onset-Peak", "Peak Mean ±σ", "Onset Mean ±σ", "More Repeatable" }, EscapementReadout.Labels);
+        Assert.Equal("-0.75 ms", values[0]);
+        Assert.Equal("142.50 ±0.00 ms (n=1)", values[1]);
+        Assert.Equal("141.75 ±0.00 ms (n=1)", values[2]);
+        Assert.Equal("—", values[3]);
     }
 
     [Fact]
@@ -62,11 +61,8 @@ public sealed class EscapementReadoutTests
         string[] noC = EscapementReadout.Values(Segment(5.0, cPeakMs: null, cOnsetMs: null), tracker);
         Assert.All(noC, value => Assert.Equal("—", value));
 
-        // C peak without a located onset: the onset readings stay em dashes.
         string[] peakOnly = EscapementReadout.Values(Segment(5.0, cPeakMs: 150.0, cOnsetMs: null), tracker);
-        Assert.Equal("+145.00 ms", peakOnly[0]);
-        Assert.Equal("—", peakOnly[1]);
-        Assert.Equal("—", peakOnly[2]);
+        Assert.All(peakOnly, value => Assert.Equal("—", value));
     }
 
     [Fact]

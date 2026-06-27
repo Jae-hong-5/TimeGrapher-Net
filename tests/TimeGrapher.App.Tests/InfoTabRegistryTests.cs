@@ -832,6 +832,44 @@ public sealed class InfoTabRegistryTests
     }
 
     [Fact]
+    public void EscapementReadoutShowsFourCenteredStackedValues()
+    {
+        Grid content = CreateEscapementContent();
+        var readoutGrid = Assert.IsType<Grid>(
+            content.Children.Single(child => Grid.GetRow(child) == 1));
+        StackPanel[] cells = readoutGrid.Children.OfType<StackPanel>().ToArray();
+        TextBlock[] titles = cells
+            .Select(cell => Assert.IsType<TextBlock>(cell.Children[0]))
+            .ToArray();
+        TextBlock[] values = cells
+            .Select(cell => Assert.IsType<TextBlock>(cell.Children[1]))
+            .ToArray();
+
+        Assert.Equal(4, readoutGrid.ColumnDefinitions.Count);
+        Assert.Equal(4, cells.Length);
+        Assert.Equal(EscapementReadout.Labels, titles.Select(title => title.Text).ToArray());
+        Assert.DoesNotContain(titles, title => title.Text == "A→C Peak" || title.Text == "A→C Onset");
+        Assert.All(cells, cell =>
+        {
+            Assert.Equal(Orientation.Vertical, cell.Orientation);
+            Assert.Equal(HorizontalAlignment.Center, cell.HorizontalAlignment);
+        });
+        Assert.All(titles, title =>
+        {
+            Assert.Equal(FontWeight.Bold, title.FontWeight);
+            Assert.Equal(14, title.FontSize);
+            Assert.Equal(HorizontalAlignment.Center, title.HorizontalAlignment);
+            Assert.IsAssignableFrom<IBrush>(title.GetValue(TextBlock.ForegroundProperty));
+        });
+        Assert.All(values, value =>
+        {
+            Assert.Equal(16, value.FontSize);
+            Assert.Equal(HorizontalAlignment.Center, value.HorizontalAlignment);
+            Assert.Equal(VarioReadout.Missing, value.Text);
+        });
+    }
+
+    [Fact]
     public void TraceTabSmoothingButtonTogglesSplineOnBothPlots()
     {
         var tabControl = new TabControl();
@@ -1067,6 +1105,15 @@ public sealed class InfoTabRegistryTests
         InfoTabRegistry registry = InfoTabRegistry.FromCatalog(tabControl, new Grid(), "Arial");
         return Assert.IsType<Grid>(registry.Registrations.Single(
             registration => registration.Definition.Id == InfoTabCatalog.BeatErrorDiagTabId).TabItem.Content);
+    }
+
+    private static Grid CreateEscapementContent()
+    {
+        EnsureAvaloniaPlatform();
+        var tabControl = new TabControl();
+        InfoTabRegistry registry = InfoTabRegistry.FromCatalog(tabControl, new Grid(), "Arial");
+        return Assert.IsType<Grid>(registry.Registrations.Single(
+            registration => registration.Definition.Id == InfoTabCatalog.EscapementAnalyzerTabId).TabItem.Content);
     }
 
     private static InfoTabRegistration CreateVarioRegistration()
