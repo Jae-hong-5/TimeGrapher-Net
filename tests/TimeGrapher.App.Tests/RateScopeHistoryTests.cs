@@ -172,12 +172,15 @@ public sealed class RateScopeHistoryTests
             new[] { "-432.0 s/d\n250°  0.4 ms" },
             ratePlot.Plot.GetPlottables<Text>().Where(t => t.IsVisible).Select(t => t.LabelText).ToArray());
 
+        // Panning toward the empty past is clamped to the oldest retained beat: with
+        // data only at [150, 151] the view cannot step before beat 150, so it lands on
+        // the page that holds the data ([150, 300]) instead of the empty [0, 150] page.
         ratePlot.Plot.Axes.SetLimitsX(0.0, RateScopeRenderer.RatePageWindowBeats / 2.0);
         ratePlot.Plot.Axes.SetLimitsY(100.0, 110.0);
         ratePlot.Plot.RenderInMemory(900, 240);
         AxisLimits limits = ratePlot.Plot.Axes.GetLimits();
-        Assert.Equal(0.0, limits.Left);
-        Assert.Equal(RateScopeRenderer.RatePageWindowBeats, limits.Right);
+        Assert.Equal(RateScopeRenderer.RatePageWindowBeats, limits.Left);
+        Assert.Equal(2.0 * RateScopeRenderer.RatePageWindowBeats, limits.Right);
         Assert.Equal(-10.0, limits.Bottom);
         Assert.Equal(10.0, limits.Top);
     }
