@@ -16,13 +16,16 @@ public sealed class BeatErrorDiagRendererTests
     public void RenderFrame_UpdatesRatePointsAfterUserDropsRateFollow()
     {
         var tracePlot = new AvaPlot();
+        var averageSegmentText = new TextBlock();
         var renderer = new BeatErrorDiagRenderer(
             tracePlot,
             new Border(),
             new TextBlock(),
             BeatErrorReadout.Labels.Select(_ => new TextBlock()).ToArray(),
+            averageSegmentText,
             "Arial");
         renderer.CreateGraphs(rateErrorYScale: 10.0, rateDataPoints: 600);
+        Assert.Equal(BeatErrorDiagRenderer.AverageSegmentMissing, averageSegmentText.Text);
         Assert.Equal(PlotThemeHelper.CompactLeftAxisSizePx, tracePlot.Plot.Axes.Left.MinimumSize);
         Assert.Equal(PlotThemeHelper.CompactBottomAxisSizePx, tracePlot.Plot.Axes.Bottom.MinimumSize);
         AssertAllowsMousePanOnly(tracePlot);
@@ -58,16 +61,17 @@ public sealed class BeatErrorDiagRendererTests
         SetPrivateField(renderer, "_rateFollowLive", false);
         tracePlot.Plot.Axes.SetLimitsX(0.0, RateScopeRenderer.RatePageWindowBeats);
 
+        var averageInterval = new AveragePeriodRateInterval(
+            150.0, 151.0, 150.0, 151.0, -432.0,
+            AmplitudeValid: true, AmplitudeDeg: 250.0,
+            BeatErrorValid: true, BeatErrorMs: 0.4);
         var second = new AnalysisFrame
         {
             MetricsHistory = new BeatMetricsHistorySnapshot
             {
                 AveragePeriodRateIntervals = new[]
                 {
-                    new AveragePeriodRateInterval(
-                        150.0, 151.0, 150.0, 151.0, -432.0,
-                        AmplitudeValid: true, AmplitudeDeg: 250.0,
-                        BeatErrorValid: true, BeatErrorMs: 0.4),
+                    averageInterval,
                 },
             },
         };
@@ -81,9 +85,13 @@ public sealed class BeatErrorDiagRendererTests
         renderer.RenderFrame(second, new AnalysisTabRenderContext(48000));
 
         Assert.Equal(new[] { 150.0, 151.0 }, RateX(renderer, AnalysisGraphSeries.RateTic));
+        Assert.DoesNotContain(tracePlot.Plot.GetPlottables<Text>(), t => t.IsVisible);
         Assert.Equal(
-            new[] { "-432.0 s/d\n250°  0.4 ms" },
-            tracePlot.Plot.GetPlottables<Text>().Where(t => t.IsVisible).Select(t => t.LabelText).ToArray());
+            new[] { 150.0, 151.0 },
+            tracePlot.Plot.GetPlottables<VerticalLine>().Where(line => line.IsVisible).Select(line => line.X).ToArray());
+        Assert.Equal(
+            BeatErrorDiagRenderer.FormatAverageSegmentSummary(averageInterval),
+            averageSegmentText.Text);
 
         AxisLimits autoLimits = tracePlot.Plot.Axes.GetLimits();
         Assert.Equal(BeatErrorDiagRenderer.TraceYMinMs, autoLimits.Bottom);

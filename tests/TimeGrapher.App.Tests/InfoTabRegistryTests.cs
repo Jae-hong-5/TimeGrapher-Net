@@ -889,6 +889,7 @@ public sealed class InfoTabRegistryTests
         var headerStrip = Assert.IsType<Grid>(
             content.Children.Single(child => Grid.GetRow(child) == 0));
 
+        Assert.Equal(4, content.RowDefinitions.Count);
         Assert.Equal(2, headerStrip.ColumnDefinitions.Count);
         Assert.True(headerStrip.ColumnDefinitions[0].Width.IsStar);
         Assert.Equal(GridUnitType.Auto, headerStrip.ColumnDefinitions[1].Width.GridUnitType);
@@ -917,6 +918,11 @@ public sealed class InfoTabRegistryTests
         Assert.Equal(defaultZoom.MinHeight, banner.MinHeight);
         AssertVisibleAlertBannerHeightMatchesButton(content, "1x");
 
+        TextBlock averageSegmentText = Assert.IsType<TextBlock>(
+            content.Children.Single(child => Grid.GetRow(child) == 2));
+        Assert.Equal(BeatErrorDiagRenderer.AverageSegmentMissing, averageSegmentText.Text);
+        Assert.True(averageSegmentText.IsSet(TextBlock.ForegroundProperty));
+
         Assert.DoesNotContain(content.Children.OfType<Button>(), button => Grid.GetRow(button) == 2);
     }
 
@@ -926,7 +932,7 @@ public sealed class InfoTabRegistryTests
         EnsureAvaloniaPlatform();
         Grid content = CreateBeatErrorDiagContent();
         var contentSize = new Size(1280, 680);
-        var tracePlot = Assert.IsType<AvaPlot>(content.Children.Single(child => Grid.GetRow(child) == 2));
+        var tracePlot = Assert.IsType<AvaPlot>(content.Children.Single(child => Grid.GetRow(child) == 3));
         var headerStrip = Assert.IsType<Grid>(content.Children.Single(child => Grid.GetRow(child) == 0));
         Border banner = headerStrip.Children.OfType<Border>().Single();
         var alertText = Assert.IsType<TextBlock>(banner.Child);

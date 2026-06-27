@@ -1078,20 +1078,33 @@ internal sealed partial class InfoTabRegistry
             readoutGrid.Children.Add(cell);
         }
 
+        var averageSegmentText = new TextBlock
+        {
+            Text = BeatErrorDiagRenderer.AverageSegmentMissing,
+            FontSize = 13,
+            Margin = new Thickness(8, 0, 8, 4),
+            TextTrimming = TextTrimming.CharacterEllipsis,
+        };
+        averageSegmentText.Bind(
+            TextBlock.ForegroundProperty,
+            averageSegmentText.GetResourceObservable("TextSecondaryBrush"));
+
         var grid = new Grid
         {
-            RowDefinitions = new RowDefinitions("Auto,Auto,*"),
+            RowDefinitions = new RowDefinitions("Auto,Auto,Auto,*"),
         };
         Grid.SetRow(headerStrip, 0);
         Grid.SetRow(readoutGrid, 1);
-        Grid.SetRow(tracePlot, 2);
+        Grid.SetRow(averageSegmentText, 2);
+        Grid.SetRow(tracePlot, 3);
         grid.Children.Add(headerStrip);
         grid.Children.Add(readoutGrid);
+        grid.Children.Add(averageSegmentText);
         grid.Children.Add(tracePlot);
 
         if (CreateWaitingOverlay(context.ViewModel) is { } overlay)
         {
-            Grid.SetRow(overlay, 2);
+            Grid.SetRow(overlay, 3);
             grid.Children.Add(overlay);
         }
 
@@ -1100,6 +1113,7 @@ internal sealed partial class InfoTabRegistry
             alertBanner,
             alertText,
             valueTexts,
+            averageSegmentText,
             context.TextFontFamily);
         renderer.SetRateZoomLabelCallback(UpdateZoomButtons);
         foreach ((Button button, double factor) in zoomButtons)

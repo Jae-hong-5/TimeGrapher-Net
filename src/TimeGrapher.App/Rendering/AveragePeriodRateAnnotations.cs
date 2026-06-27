@@ -11,13 +11,15 @@ internal sealed class AveragePeriodRateAnnotations
     private const float BoundaryLineWidth = 1.0f;
 
     private readonly string _fontFamily;
+    private readonly bool _showLabels;
     private readonly List<VerticalLine> _boundaries = new();
     private readonly List<Text> _labels = new();
     private PlotThemePalette _theme = PlotThemePalette.Current;
 
-    public AveragePeriodRateAnnotations(string fontFamily)
+    public AveragePeriodRateAnnotations(string fontFamily, bool showLabels = true)
     {
         _fontFamily = fontFamily;
+        _showLabels = showLabels;
     }
 
     public void Reset()
@@ -46,6 +48,7 @@ internal sealed class AveragePeriodRateAnnotations
     {
         int boundariesUsed = 0;
         int labelsUsed = 0;
+        int intervalIndex = 0;
         AxisLimits limits = plot.Axes.GetLimits();
         double labelY = limits.Top - (limits.Top - limits.Bottom) * LabelTopPaddingFraction;
         double previousBoundary = double.NaN;
@@ -64,7 +67,7 @@ internal sealed class AveragePeriodRateAnnotations
                 VerticalLine startBoundary = EnsureBoundary(plot, boundariesUsed);
                 startBoundary.X = start;
                 startBoundary.IsVisible = true;
-                ApplyBoundaryTheme(startBoundary, labelsUsed);
+                ApplyBoundaryTheme(startBoundary, intervalIndex);
                 boundariesUsed++;
                 previousBoundary = start;
             }
@@ -72,16 +75,21 @@ internal sealed class AveragePeriodRateAnnotations
             VerticalLine endBoundary = EnsureBoundary(plot, boundariesUsed);
             endBoundary.X = end;
             endBoundary.IsVisible = true;
-            ApplyBoundaryTheme(endBoundary, labelsUsed);
+            ApplyBoundaryTheme(endBoundary, intervalIndex);
             boundariesUsed++;
             previousBoundary = end;
 
-            Text label = EnsureLabel(plot, labelsUsed);
-            label.LabelText = FormatLabel(interval);
-            label.Location = new Coordinates((start + end) * 0.5, labelY);
-            label.IsVisible = true;
-            ApplyLabelTheme(label);
-            labelsUsed++;
+            if (_showLabels)
+            {
+                Text label = EnsureLabel(plot, labelsUsed);
+                label.LabelText = FormatLabel(interval);
+                label.Location = new Coordinates((start + end) * 0.5, labelY);
+                label.IsVisible = true;
+                ApplyLabelTheme(label);
+                labelsUsed++;
+            }
+
+            intervalIndex++;
         }
 
         for (int i = boundariesUsed; i < _boundaries.Count; i++)

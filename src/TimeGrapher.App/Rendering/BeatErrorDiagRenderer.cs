@@ -1,3 +1,4 @@
+using System.Globalization;
 using Avalonia.Controls;
 using Avalonia.Threading;
 using ScottPlot;
@@ -25,12 +26,14 @@ internal sealed class BeatErrorDiagRenderer
     private const double RateLiveMaxWindowBeats = RateScopeRenderer.RatePageWindowBeats;
     internal const double TraceYMinMs = -10.0;
     internal const double TraceYMaxMs = 10.0;
+    internal const string AverageSegmentMissing = "Average Segment  --";
     private static readonly double[] RateZoomFactors = { 1.0, 4.0, 16.0 };
 
     private readonly AvaPlot _tracePlot;
     private readonly Border _alertBanner;
     private readonly TextBlock _alertText;
     private readonly TextBlock[] _valueTexts;
+    private readonly TextBlock _averageSegmentText;
 
     private readonly GraphSeriesDefinition[] _rateSeries;
     private readonly List<double>[] _rateX;
@@ -54,12 +57,14 @@ internal sealed class BeatErrorDiagRenderer
         Border alertBanner,
         TextBlock alertText,
         TextBlock[] valueTexts,
+        TextBlock averageSegmentText,
         string textFontFamily)
     {
         _tracePlot = tracePlot;
         _alertBanner = alertBanner;
         _alertText = alertText;
         _valueTexts = valueTexts;
+        _averageSegmentText = averageSegmentText;
 
         RateScopeRenderer.LockRatePlotInputToX(_tracePlot);
         RateScopeRenderer.WireLiveFollowPan(
@@ -76,7 +81,7 @@ internal sealed class BeatErrorDiagRenderer
             _rateX[i] = new List<double>();
             _rateY[i] = new List<double>();
         }
-        _rateAverageAnnotations = new AveragePeriodRateAnnotations(textFontFamily);
+        _rateAverageAnnotations = new AveragePeriodRateAnnotations(textFontFamily, showLabels: false);
     }
 
     public void ApplyTheme(PlotThemePalette theme)
@@ -151,6 +156,7 @@ internal sealed class BeatErrorDiagRenderer
         {
             value.Text = VarioReadout.Missing;
         }
+        _averageSegmentText.Text = AverageSegmentMissing;
 
         Plot trace = _tracePlot.Plot;
         trace.Clear();
@@ -208,6 +214,7 @@ internal sealed class BeatErrorDiagRenderer
                 _lastVersion = history.Version;
                 UpdateReadout(history);
                 UpdateDiagnosis(history);
+                UpdateAverageSegmentSummary(history);
             }
         }
 
@@ -289,10 +296,101 @@ internal sealed class BeatErrorDiagRenderer
 
     private void UpdateAveragePeriodAnnotations(BeatMetricsHistorySnapshot? history)
     {
-        _rateAverageAnnotations.Update(
-            _tracePlot.Plot,
+        IReadOnlyList<AveragePeriodRateInterval> intervals =
+            history?.AveragePeriodRateIntervals ?? Array.Empty<AveragePeriodRateInterval>();
+        _rateAverageAnnotations.Update(_tracePlot.Plot, intervals);
+        UpdateAverageSegmentSummary(intervals);
+    }
+
+    private void UpdateAverageSegmentSummary(BeatMetricsHistorySnapshot? history)
+    {
+        UpdateAverageSegmentSummary(
             history?.AveragePeriodRateIntervals ?? Array.Empty<AveragePeriodRateInterval>());
     }
+
+    private void UpdateAverageSegmentSummary(IReadOnlyList<AveragePeriodRateInterval> intervals)
+    {
+        AveragePeriodRateInterval? interval = LatestVisibleAverageInterval(intervals);
+        _averageSegmentText.Text = interval.HasValue
+            ? FormatAverageSegmentSummary(interval.Value)
+            : AverageSegmentMissing;
+    }
+
+    private AveragePeriodRateInterval? LatestVisibleAverageInterval(
+        IReadOnlyList<AveragePeriodRateInterval> intervals)
+    {
+        AxisLimits limits = _tracePlot.Plot.Axes.GetLimits();
+        bool hasVisibleRange =
+            double.IsFinite(limits.Left) &&
+            double.IsFinite(limits.Right) &&
+            limits.Right > limits.Left;
+
+        for (int i = intervals.Count - 1; i >= 0; i--)
+        {
+            AveragePeriodRateInterval interval = intervals[i];
+            if (!IsValidAverageInterval(interval))
+            {
+                continue;
+            }
+
+            if (!hasVisibleRange || IntervalOverlaps(interval, limits.Left, limits.Right))
+            {
+                return interval;
+            }
+        }
+
+        return null;
+    }
+
+    internal static string FormatAverageSegmentSummary(AveragePeriodRateInterval interval)
+    {
+        return "Average Segment  Beats " + FormatBeatRange(interval) +
+               "   Rate " + FormatRate(interval.RateSPerDay) +
+               "   Amp " + FormatAmplitude(interval) +
+               "   Beat Error " + FormatBeatError(interval);
+    }
+
+    private static string FormatBeatRange(AveragePeriodRateInterval interval)
+    {
+        return FormatBeatIndex(interval.StartBeatIndex) + "-" + FormatBeatIndex(interval.EndBeatIndex);
+    }
+
+    private static string FormatBeatIndex(double beatIndex)
+    {
+        return beatIndex.ToString("0.#", CultureInfo.InvariantCulture);
+    }
+
+    private static string FormatRate(double rateSPerDay)
+    {
+        string sign = rateSPerDay < 0.0 ? "-" : "+";
+        return sign + Math.Abs(rateSPerDay).ToString("F1", CultureInfo.InvariantCulture) + " s/d";
+    }
+
+    private static string FormatAmplitude(AveragePeriodRateInterval interval)
+    {
+        if (!interval.AmplitudeValid)
+        {
+            return "---°";
+        }
+
+        long rounded = (long)Math.Round(interval.AmplitudeDeg, MidpointRounding.AwayFromZero);
+        return rounded.ToString(CultureInfo.InvariantCulture) + "°";
+    }
+
+    private static string FormatBeatError(AveragePeriodRateInterval interval)
+    {
+        return interval.BeatErrorValid
+            ? interval.BeatErrorMs.ToString("F1", CultureInfo.InvariantCulture) + " ms"
+            : "---- ms";
+    }
+
+    private static bool IsValidAverageInterval(AveragePeriodRateInterval interval) =>
+        double.IsFinite(interval.StartBeatIndex) &&
+        double.IsFinite(interval.EndBeatIndex) &&
+        interval.EndBeatIndex > interval.StartBeatIndex;
+
+    private static bool IntervalOverlaps(AveragePeriodRateInterval interval, double left, double right) =>
+        interval.EndBeatIndex >= left && interval.StartBeatIndex <= right;
 
     private bool RateDataExtent(out double min, out double max)
     {
