@@ -560,11 +560,12 @@ public sealed class InfoTabRegistryTests
             !Equals(button.Content, "Reset View") && button.Classes.Contains("active"));
         Assert.DoesNotContain(Descendants(header).OfType<TextBlock>(), text => text.Text?.Contains("Elapsed", StringComparison.Ordinal) == true);
         Assert.Empty(header.RowDefinitions);
-        Assert.Equal(4, content.RowDefinitions.Count);
+        Assert.Equal(5, content.RowDefinitions.Count);
         // Beat-error row (3) is enlarged to offset its visible time-axis so all three
         // data areas match; a revert to '*' would silently break equal heights.
         Assert.True(content.RowDefinitions[3].Height.IsStar);
         Assert.Equal(1.22, content.RowDefinitions[3].Height.Value, 3);
+        Assert.Equal(GridUnitType.Auto, content.RowDefinitions[4].Height.GridUnitType);
         Assert.Equal(1.0, content.RowDefinitions[1].Height.Value, 3);
         Assert.Equal(new Thickness(0, 0, 0, -8), Assert.IsType<AvaPlot>(
             content.Children.Single(child => Grid.GetRow(child) == 1)).Margin);
@@ -1067,18 +1068,33 @@ public sealed class InfoTabRegistryTests
     }
 
     [Fact]
-    public void LongTermTabOmitsReviewBarControls()
+    public void LongTermTabOwnsReviewBarControls()
     {
         var vm = new MainWindowViewModel();
         Grid content = CreateLongTermContent(vm);
         content.DataContext = vm;
 
-        Assert.Equal(4, content.RowDefinitions.Count);
-        Assert.DoesNotContain(content.Children.OfType<Border>(), border => border.Name == "ReviewBar");
-        Assert.DoesNotContain(Descendants(content).OfType<Button>(), button => Equals(button.Content, "-1s"));
-        Assert.DoesNotContain(Descendants(content).OfType<Button>(), button => Equals(button.Content, "+1s"));
-        Assert.DoesNotContain(Descendants(content).OfType<Button>(), button => Equals(button.Content, "Live"));
-        Assert.DoesNotContain(Descendants(content).OfType<Slider>(), slider => slider.Name == "ReviewSlider");
+        Assert.Equal(5, content.RowDefinitions.Count);
+        Border reviewBar = Assert.Single(content.Children.OfType<Border>(), border => border.Name == "ReviewBar");
+        Assert.Equal(4, Grid.GetRow(reviewBar));
+        Assert.True(reviewBar.IsVisible);
+        Assert.False(reviewBar.IsEnabled);
+
+        vm.SetPaused();
+        Assert.True(vm.IsReviewBarEnabled);
+        Assert.True(reviewBar.IsEnabled);
+
+        string[] buttons = Descendants(reviewBar)
+            .OfType<Button>()
+            .Select(button => button.Content?.ToString() ?? string.Empty)
+            .ToArray();
+        Assert.Equal(new[] { "-1s", "+1s", "Live" }, buttons);
+        Slider reviewSlider = Descendants(reviewBar).OfType<Slider>().Single(slider => slider.Name == "ReviewSlider");
+        Assert.Equal(18.0, Assert.IsType<double>(reviewSlider.Resources["SliderHorizontalHeight"]));
+        Assert.Equal(new GridLength(0), Assert.IsType<GridLength>(reviewSlider.Resources["SliderPreContentMargin"]));
+        Assert.Equal(new GridLength(0), Assert.IsType<GridLength>(reviewSlider.Resources["SliderPostContentMargin"]));
+        Assert.Contains(Descendants(reviewBar).OfType<TextBlock>(), text => text.Name == "ReviewReadoutLabel");
+        Assert.Contains(Descendants(reviewBar).OfType<TextBlock>(), text => text.Name == "ReviewMetricsLabel");
     }
 
     [Fact]

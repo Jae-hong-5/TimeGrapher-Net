@@ -1257,9 +1257,10 @@ internal sealed partial class InfoTabRegistry
         // design size; a large window resize drifts it by a few px.
         var grid = new Grid
         {
-            RowDefinitions = new RowDefinitions("Auto,*,*,1.22*"),
+            RowDefinitions = new RowDefinitions("Auto,*,*,1.22*,Auto"),
         };
-        Control[] rows = { headerGrid, ratePlot, amplitudePlot, beatErrorPlot };
+        Border reviewBar = CreateLongTermReviewBar();
+        Control[] rows = { headerGrid, ratePlot, amplitudePlot, beatErrorPlot, reviewBar };
         for (int i = 0; i < rows.Length; i++)
         {
             Grid.SetRow(rows[i], i);
