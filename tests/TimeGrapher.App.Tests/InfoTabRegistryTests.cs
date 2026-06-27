@@ -21,6 +21,11 @@ public sealed class InfoTabRegistryTests
     private const double TraceHeaderButtonMinHeightForTest = 30.0;
     private const double TraceHeaderButtonFontSizeForTest = 12.0;
 
+    public InfoTabRegistryTests()
+    {
+        EnsureAvaloniaPlatform();
+    }
+
     [Fact]
     public void RegistryCreatesCatalogTabsAndConsumers()
     {
@@ -764,11 +769,12 @@ public sealed class InfoTabRegistryTests
     [Fact]
     public void FilterScopeTabShowsWaitingOverlayBeforeBeatSync()
     {
+        EnsureAvaloniaPlatform();
         Grid content = CreateMultiFilterScopeContent(new MainWindowViewModel());
 
         TextBlock overlay = Descendants(content)
             .OfType<TextBlock>()
-            .Single(text => text.Text == "Waiting for tick-tock sync…");
+            .Single(text => text.Text == "Waiting for Tic/Toc sync…");
 
         Assert.Equal(1, Grid.GetRow(overlay));
     }

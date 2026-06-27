@@ -2059,7 +2059,7 @@ internal sealed partial class InfoTabRegistry
 
         var overlay = new TextBlock
         {
-            Text = "Waiting for tick-tock sync…",
+            Text = "Waiting for Tic/Toc sync…",
             FontSize = 16,
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center,
