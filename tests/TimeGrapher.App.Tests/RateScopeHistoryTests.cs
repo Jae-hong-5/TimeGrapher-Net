@@ -49,20 +49,22 @@ public sealed class RateScopeHistoryTests
             AveragePeriodAnnotation: 0xFF9A9A9A,
             AveragePeriodAnnotationAlternate: 0xFFC4C4C4));
 
+        var firstInterval = new AveragePeriodRateInterval(
+            0.0, 4.0, 0.0, 3.0, 1728.0,
+            AmplitudeValid: true, AmplitudeDeg: 280.0,
+            BeatErrorValid: true, BeatErrorMs: 0.2);
+        var secondInterval = new AveragePeriodRateInterval(
+            4.0, 8.0, 3.0, 6.0, -864.0,
+            AmplitudeValid: false, AmplitudeDeg: 0.0,
+            BeatErrorValid: false, BeatErrorMs: 0.0);
         var frame = new AnalysisFrame
         {
             MetricsHistory = new BeatMetricsHistorySnapshot
             {
                 AveragePeriodRateIntervals = new[]
                 {
-                    new AveragePeriodRateInterval(
-                        0.0, 4.0, 0.0, 3.0, 1728.0,
-                        AmplitudeValid: true, AmplitudeDeg: 280.0,
-                        BeatErrorValid: true, BeatErrorMs: 0.2),
-                    new AveragePeriodRateInterval(
-                        4.0, 8.0, 3.0, 6.0, -864.0,
-                        AmplitudeValid: false, AmplitudeDeg: 0.0,
-                        BeatErrorValid: false, BeatErrorMs: 0.0),
+                    firstInterval,
+                    secondInterval,
                 },
             },
         };
@@ -88,10 +90,14 @@ public sealed class RateScopeHistoryTests
         Assert.Equal(
             new[]
             {
-                "+1728.0 s/d\n280°  0.2 ms",
-                "-864.0 s/d\n---°  ---- ms",
+                BeatErrorDiagRenderer.FormatAverageSegmentPlotLabel(firstInterval),
+                BeatErrorDiagRenderer.FormatAverageSegmentPlotLabel(secondInterval),
             },
             labels.Select(t => t.LabelText).ToArray());
+        Assert.All(labels, label => Assert.InRange(label.Location.Y, 10.0, 12.0));
+        AxisLimits limits = ratePlot.Plot.Axes.GetLimits();
+        Assert.Equal(-10.0, limits.Bottom);
+        Assert.Equal(12.0, limits.Top);
     }
 
     [Fact]
@@ -145,16 +151,17 @@ public sealed class RateScopeHistoryTests
         SetPrivateField(renderer, "_rateFollowLive", false);
         ratePlot.Plot.Axes.SetLimitsX(0.0, RateScopeRenderer.RatePageWindowBeats);
 
+        var averageInterval = new AveragePeriodRateInterval(
+            150.0, 151.0, 150.0, 151.0, -432.0,
+            AmplitudeValid: true, AmplitudeDeg: 250.0,
+            BeatErrorValid: true, BeatErrorMs: 0.4);
         var second = new AnalysisFrame
         {
             MetricsHistory = new BeatMetricsHistorySnapshot
             {
                 AveragePeriodRateIntervals = new[]
                 {
-                    new AveragePeriodRateInterval(
-                        150.0, 151.0, 150.0, 151.0, -432.0,
-                        AmplitudeValid: true, AmplitudeDeg: 250.0,
-                        BeatErrorValid: true, BeatErrorMs: 0.4),
+                    averageInterval,
                 },
             },
         };
@@ -169,7 +176,7 @@ public sealed class RateScopeHistoryTests
 
         Assert.Equal(new[] { 150.0, 151.0 }, RateX(renderer, AnalysisGraphSeries.RateTic));
         Assert.Equal(
-            new[] { "-432.0 s/d\n250°  0.4 ms" },
+            new[] { BeatErrorDiagRenderer.FormatAverageSegmentPlotLabel(averageInterval) },
             ratePlot.Plot.GetPlottables<Text>().Where(t => t.IsVisible).Select(t => t.LabelText).ToArray());
 
         // Panning toward the empty past is clamped to the oldest retained beat: with
@@ -182,7 +189,7 @@ public sealed class RateScopeHistoryTests
         Assert.Equal(RateScopeRenderer.RatePageWindowBeats, limits.Left);
         Assert.Equal(2.0 * RateScopeRenderer.RatePageWindowBeats, limits.Right);
         Assert.Equal(-10.0, limits.Bottom);
-        Assert.Equal(10.0, limits.Top);
+        Assert.Equal(12.0, limits.Top);
     }
 
     private static void AddRateSeries(AnalysisFrame frame, GraphSeriesFrame series)

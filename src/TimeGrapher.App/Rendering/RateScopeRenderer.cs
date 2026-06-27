@@ -1,3 +1,4 @@
+using System.Globalization;
 using Avalonia.Threading;
 using ScottPlot;
 using ScottPlot.Avalonia;
@@ -74,6 +75,8 @@ internal sealed class RateScopeRenderer
     private bool _rateAxisRefreshPending;
 
     internal const double RatePageWindowBeats = 150.0;
+    private const double RateAnnotationBandFraction = 0.10;
+    private const double RateAnnotationLabelTopPaddingFraction = 0.015;
 
     // Default live scope window shown on screen (500 ms) and the maximum span the
     // user may zoom out to (2 s), enforced by ScopeXViewBoundsRule. The Core retains
@@ -136,7 +139,10 @@ internal sealed class RateScopeRenderer
         _lastScopeSeries = new GraphSeriesFrame?[_scopeSeries.Length];
         _rateX = CreateSeriesLists(_rateSeries.Length);
         _rateY = CreateSeriesLists(_rateSeries.Length);
-        _rateAverageAnnotations = new AveragePeriodRateAnnotations(_textFontFamily);
+        _rateAverageAnnotations = new AveragePeriodRateAnnotations(
+            _textFontFamily,
+            labelTopPaddingFraction: RateAnnotationLabelTopPaddingFraction,
+            labelFormatter: BeatErrorDiagRenderer.FormatAverageSegmentPlotLabel);
     }
 
     /// <summary>
@@ -229,7 +235,7 @@ internal sealed class RateScopeRenderer
         ApplyPlotTheme(rate);
         rate.YLabel("Error Rate (ms)");
         rate.XLabel("Beats");
-        rate.Axes.SetLimitsY(-rateErrorYScale, rateErrorYScale);
+        SetRatePlotYRange(rate);
         rate.Axes.SetLimitsX(0, RatePageWindowBeats);
         ClearSeriesData(_rateX, _rateY);
         _rateAverageAnnotations.Reset();
@@ -238,7 +244,7 @@ internal sealed class RateScopeRenderer
         _hasRateDataExtent = false;
         rate.Axes.Rules.Clear();
         rate.Axes.Rules.Add(new RateXViewBoundsRule(this, rate.Axes.Bottom));
-        PlotAxisRules.LockYRange(rate, -rateErrorYScale, rateErrorYScale);
+        LockRatePlotYRange(rate);
 
         _scopePlot.Refresh();
         _ratePlot.Refresh();
@@ -267,7 +273,7 @@ internal sealed class RateScopeRenderer
         Plot rate = _ratePlot.Plot;
         rate.Clear();
         ApplyPlotTheme(rate);
-        rate.Axes.SetLimitsY(-rateErrorYScale, rateErrorYScale);
+        SetRatePlotYRange(rate);
         rate.Axes.SetLimitsX(0, RatePageWindowBeats);
         ClearSeriesData(_rateX, _rateY);
         _rateAverageAnnotations.Reset();
@@ -275,7 +281,7 @@ internal sealed class RateScopeRenderer
         _hasRateDataExtent = false;
         rate.Axes.Rules.Clear();
         rate.Axes.Rules.Add(new RateXViewBoundsRule(this, rate.Axes.Bottom));
-        PlotAxisRules.LockYRange(rate, -rateErrorYScale, rateErrorYScale);
+        LockRatePlotYRange(rate);
         _ratePlot.Refresh();
     }
 
@@ -383,7 +389,7 @@ internal sealed class RateScopeRenderer
     public void ResetRateView()
     {
         _rateFollowLive = true;
-        _ratePlot.Plot.Axes.SetLimitsY(-_rateErrorYScale, _rateErrorYScale);
+        SetRatePlotYRange(_ratePlot.Plot);
         _hasRateDataExtent = RateDataExtent(out _rateDataMinX, out _rateDataMaxX);
         _ratePlot.Plot.Axes.SetLimitsX(
             _hasRateDataExtent ? RatePageWindowFor(_rateDataMaxX).Left : 0,
@@ -448,6 +454,46 @@ internal sealed class RateScopeRenderer
         double page = Math.Max(0.0, Math.Floor(maxBeat / RatePageWindowBeats));
         double left = page * RatePageWindowBeats;
         return (left, left + RatePageWindowBeats);
+    }
+
+    private void SetRatePlotYRange(Plot rate)
+    {
+        (double bottom, double dataTop, double plotTop) = RatePlotYRange();
+        rate.Axes.SetLimitsY(bottom, plotTop);
+        ApplyRateYTicks(rate, bottom, dataTop);
+    }
+
+    private void LockRatePlotYRange(Plot rate)
+    {
+        (double bottom, _, double plotTop) = RatePlotYRange();
+        PlotAxisRules.LockYRange(rate, bottom, plotTop);
+    }
+
+    private (double Bottom, double DataTop, double PlotTop) RatePlotYRange()
+    {
+        double bottom = -_rateErrorYScale;
+        double dataTop = _rateErrorYScale;
+        double bandHeight = (dataTop - bottom) * RateAnnotationBandFraction;
+        return (bottom, dataTop, dataTop + bandHeight);
+    }
+
+    private static void ApplyRateYTicks(Plot rate, double bottom, double dataTop)
+    {
+        double mid = (bottom + dataTop) * 0.5;
+        double lowerMid = (bottom + mid) * 0.5;
+        double upperMid = (mid + dataTop) * 0.5;
+        var ticks = new ScottPlot.TickGenerators.NumericManual();
+        ticks.AddMajor(bottom, FormatRateAxisTick(bottom));
+        ticks.AddMajor(lowerMid, FormatRateAxisTick(lowerMid));
+        ticks.AddMajor(mid, FormatRateAxisTick(mid));
+        ticks.AddMajor(upperMid, FormatRateAxisTick(upperMid));
+        ticks.AddMajor(dataTop, FormatRateAxisTick(dataTop));
+        rate.Axes.Left.TickGenerator = ticks;
+    }
+
+    private static string FormatRateAxisTick(double value)
+    {
+        return value.ToString("0.###", CultureInfo.InvariantCulture);
     }
 
     /// <summary>
