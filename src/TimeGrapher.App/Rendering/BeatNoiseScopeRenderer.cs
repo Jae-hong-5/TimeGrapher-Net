@@ -244,7 +244,7 @@ internal sealed class BeatNoiseScopeRenderer
         _mirrorScatter.IsVisible = !_showAbsoluteValue;
         _mainALegendScatter = main.Add.Scatter(_mainALegendX, _mainALegendY);
         _mainALegendScatter.LineWidth = MarkerLegendLineWidth;
-        _mainALegendScatter.LinePattern = LinePattern.Dashed;
+        _mainALegendScatter.LinePattern = LinePattern.DenselyDashed;
         _mainALegendScatter.MarkerStyle.IsVisible = false;
         _mainALegendScatter.LegendText = "A";
         _mainCLegendScatter = main.Add.Scatter(_mainCLegendX, _mainCLegendY);

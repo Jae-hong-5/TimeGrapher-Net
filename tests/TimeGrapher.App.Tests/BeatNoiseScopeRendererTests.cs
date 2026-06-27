@@ -630,7 +630,7 @@ public sealed class BeatNoiseScopeRendererTests
         Scatter[] legendEntries = mainPlot.Plot.GetPlottables<Scatter>()
             .Where(scatter => !string.IsNullOrEmpty(scatter.LegendText))
             .ToArray();
-        Assert.Contains(legendEntries, scatter => scatter.LegendText == "A" && Equals(scatter.LinePattern, LinePattern.Dashed) && scatter.LineWidth >= 2);
+        Assert.Contains(legendEntries, scatter => scatter.LegendText == "A" && Equals(scatter.LinePattern, LinePattern.DenselyDashed) && scatter.LineWidth >= 2);
         Assert.Contains(legendEntries, scatter => scatter.LegendText == "C" && Equals(scatter.LinePattern, LinePattern.Dotted) && scatter.LineWidth >= 2);
     }
 
