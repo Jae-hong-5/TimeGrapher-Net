@@ -31,6 +31,9 @@ public sealed class InfoTabCatalogTests
 
         Assert.True(tab.UsesGraphSnapshots);
         Assert.All(requiredIds, id => Assert.Contains(id, seriesIds));
+        Assert.Equal(
+            new[] { "Rectified", "Trigger", "Tic", "Toc" },
+            tab.GraphSeries.Select(series => series.Name).ToArray());
         Assert.All(tab.GraphSeries, series => Assert.InRange(series.TargetPointBudget, 1, int.MaxValue));
     }
 
@@ -74,6 +77,9 @@ public sealed class InfoTabCatalogTests
         Assert.Equal(
             new[] { AnalysisGraphSeries.RateTic, AnalysisGraphSeries.RateToc },
             tab.GraphSeries.Select(series => series.Id).ToArray());
+        Assert.Equal(
+            new[] { "Tic", "Toc" },
+            tab.GraphSeries.Select(series => series.Name).ToArray());
         Assert.All(tab.GraphSeries, series =>
             Assert.Equal(GraphSeriesRenderMode.Points, series.RenderMode));
     }

@@ -629,8 +629,8 @@ public sealed class BeatNoiseScopeRendererTests
         Scatter[] legendEntries = mainPlot.Plot.GetPlottables<Scatter>()
             .Where(scatter => !string.IsNullOrEmpty(scatter.LegendText))
             .ToArray();
-        Assert.Contains(legendEntries, scatter => scatter.LegendText == "A marker" && Equals(scatter.LinePattern, LinePattern.Dashed));
-        Assert.Contains(legendEntries, scatter => scatter.LegendText == "C marker" && Equals(scatter.LinePattern, LinePattern.Dotted));
+        Assert.Contains(legendEntries, scatter => scatter.LegendText == "A" && Equals(scatter.LinePattern, LinePattern.Dashed));
+        Assert.Contains(legendEntries, scatter => scatter.LegendText == "C" && Equals(scatter.LinePattern, LinePattern.Dotted));
     }
 
     [Fact]
@@ -873,7 +873,7 @@ public sealed class BeatNoiseScopeRendererTests
         Scatter[] legendEntries = visibleScatters
             .Where(scatter => !string.IsNullOrEmpty(scatter.LegendText))
             .ToArray();
-        Assert.Equal(new[] { "Trace 1", "Trace 2" }, legendEntries.Select(scatter => scatter.LegendText));
+        Assert.Equal(new[] { "Tic", "Toc" }, legendEntries.Select(scatter => scatter.LegendText));
 
         var lane1Milestones = (List<double>[])typeof(BeatNoiseScopeRenderer)
             .GetField("_lane1MilestoneY", BindingFlags.Instance | BindingFlags.NonPublic)!

@@ -6,7 +6,7 @@ namespace TimeGrapher.App.Tests;
 
 /// <summary>
 /// Pure logic behind the Beat Noise tab: right-aligned strip slot math,
-/// slot-based selection toggling, the Scope 2 readout (trace 1/2 wording, Σ
+/// slot-based selection toggling, the Scope 2 readout (Tic/Toc wording, Σ
 /// progress) and the review-cursor mapping onto the displayed segment window.
 /// </summary>
 public sealed class BeatNoiseScopeLogicTests
@@ -149,7 +149,7 @@ public sealed class BeatNoiseScopeLogicTests
     }
 
     [Fact]
-    public void AverageLine_LabelsLanesAsTracesNeverTicToc()
+    public void AverageLine_LabelsLanesAsTicToc()
     {
         var average = new BeatNoiseAverageSnapshot
         {
@@ -162,7 +162,7 @@ public sealed class BeatNoiseScopeLogicTests
         };
 
         string line = BeatNoiseScopeLogic.AverageLine(average);
-        Assert.Equal("TRACE 1 (top) Signal Level 0.382 · TRACE 2 Signal Level 0.391   |   Σ 23/50 · 22/50", line);
+        Assert.Equal("Tic (top) Signal Level 0.382 · Toc Signal Level 0.391   |   Σ 23/50 · 22/50", line);
     }
 
     [Fact]
