@@ -639,7 +639,7 @@ internal sealed class TraceDisplayRenderer
 
         var culture = System.Globalization.CultureInfo.InvariantCulture;
         label.LabelText = string.Format(
-            culture, "avg {0}{1}  σ {2}",
+            culture, "avg {0}{1}\nσ {2}",
             stats.Mean.ToString(valueFormat, culture), unit, stats.Sigma.ToString("0.0", culture));
 
         label.IsVisible = true;

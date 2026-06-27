@@ -235,11 +235,9 @@ public sealed class TraceDisplayRendererTests
 
         // The label on the line reads the average value and the deviation.
         string rateAvg = AvgLabelText(ratePlot);
-        Assert.Contains("avg +2.0 s/d", rateAvg);
-        Assert.Contains("σ 1.5", rateAvg);
+        Assert.Equal("avg +2.0 s/d\nσ 1.5", rateAvg);
         string amplitudeAvg = AvgLabelText(amplitudePlot);
-        Assert.Contains("avg 285°", amplitudeAvg);
-        Assert.Contains("σ 4.0", amplitudeAvg);
+        Assert.Equal("avg 285°\nσ 4.0", amplitudeAvg);
 
         foreach (Annotation avgLabel in new[] { AvgLabel(ratePlot), AvgLabel(amplitudePlot) })
         {
