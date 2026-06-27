@@ -409,6 +409,8 @@ public sealed class MainWindowRunControlWiringTests
         Assert.Equal(
             denseGridRowSpacing,
             FindNamedElement(document, "SimBPHComboBox").Parent?.Attribute("RowSpacing")?.Value);
+        AssertDenseSliderTemplateResources(FindNamedElement(document, "MicrophoneHorizontalSlider").Parent!);
+        AssertDenseSliderTemplateResources(FindNamedElement(document, "SimSignalASlider").Parent!);
 
         string[] denseSliderNames =
         {
@@ -419,7 +421,7 @@ public sealed class MainWindowRunControlWiringTests
         };
         Assert.All(
             denseSliderNames.Select(name => FindNamedElement(document, name)),
-            slider => Assert.Equal("0,-14,0,0", slider.Attribute("Margin")?.Value));
+            slider => Assert.Null(slider.Attribute("Margin")));
     }
 
     [Fact]
@@ -518,6 +520,23 @@ public sealed class MainWindowRunControlWiringTests
         Point origin = control.TranslatePoint(new Point(0, 0), content)
             ?? throw new InvalidOperationException("Control is not in the rendered content tree.");
         return new Rect(origin, control.Bounds.Size);
+    }
+
+    private static void AssertDenseSliderTemplateResources(XElement grid)
+    {
+        XElement resources = grid.Elements()
+            .Single(element => element.Name.LocalName == "Grid.Resources");
+        Assert.Equal("0", ResourceValue(resources, "SliderPreContentMargin"));
+        Assert.Equal("0", ResourceValue(resources, "SliderPostContentMargin"));
+        Assert.Equal("18", ResourceValue(resources, "SliderHorizontalHeight"));
+    }
+
+    private static string ResourceValue(XElement resources, string key)
+    {
+        XName keyName = XName.Get("Key", "http://schemas.microsoft.com/winfx/2006/xaml");
+        XElement resource = resources.Elements()
+            .Single(element => element.Attribute(keyName)?.Value == key);
+        return resource.Value;
     }
 
     private static int CountOpaquePixels(RenderTargetBitmap bitmap, int width, int height)
