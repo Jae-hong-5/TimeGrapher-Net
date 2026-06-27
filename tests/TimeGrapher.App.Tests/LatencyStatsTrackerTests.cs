@@ -14,7 +14,7 @@ public sealed class LatencyStatsTrackerTests
     private static LatencyStatsTracker NewTracker() => new(ticksPerMs: 1000.0);
 
     private static AnalysisFrame Frame(long captureTicks, long processedTicks, ulong dropped = 0,
-        ulong missedBeats = 0, uint syncLosses = 0, int deadlineLevel = 0)
+        ulong missedBeats = 0, uint syncLosses = 0)
     {
         return new AnalysisFrame
         {
@@ -23,7 +23,6 @@ public sealed class LatencyStatsTrackerTests
             InputSamplesDropped = dropped,
             MissedBeats = missedBeats,
             SyncLossCount = syncLosses,
-            DeadlineDegradationLevel = deadlineLevel,
         };
     }
 
@@ -79,7 +78,7 @@ public sealed class LatencyStatsTrackerTests
 
         tracker.Observe(Frame(1_000, 11_000), 0, 16_000);
         string? first = tracker.TryFormatStatus(20_000);
-        Assert.Equal("E2E 15 ms | drop 0 smp | miss 0 | sync−loss 0 | deg 0 | 0 frm", first);
+        Assert.Equal("E2E 15 ms | drop 0 smp | miss 0 | sync−loss 0 | 0 frm", first);
 
         // 100 ms later: throttled.
         Assert.Null(tracker.TryFormatStatus(120_000));
@@ -91,10 +90,10 @@ public sealed class LatencyStatsTrackerTests
     public void FormatStatus_ReportsAllMandatedCounters()
     {
         LatencyStatsTracker tracker = NewTracker();
-        tracker.Observe(Frame(1_000, 11_000, dropped: 64, missedBeats: 2, syncLosses: 1, deadlineLevel: 2), 3, 16_000);
+        tracker.Observe(Frame(1_000, 11_000, dropped: 64, missedBeats: 2, syncLosses: 1), 3, 16_000);
 
         string text = tracker.FormatStatus();
-        Assert.Equal("E2E 15 ms | drop 64 smp | miss 2 | sync−loss 1 | deg 2 | 3 frm", text);
+        Assert.Equal("E2E 15 ms | drop 64 smp | miss 2 | sync−loss 1 | 3 frm", text);
     }
 
     [Fact]
@@ -111,7 +110,7 @@ public sealed class LatencyStatsTrackerTests
 
         Assert.True(tracker.WorstCaseIsLowerBound);
         string text = tracker.FormatStatus();
-        Assert.Equal("E2E ≥15 ms | drop 0 smp | miss 0 | sync−loss 0 | deg 0 | 0 frm", text);
+        Assert.Equal("E2E ≥15 ms | drop 0 smp | miss 0 | sync−loss 0 | 0 frm", text);
     }
 
     [Fact]
