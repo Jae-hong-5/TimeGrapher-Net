@@ -208,7 +208,7 @@ internal sealed class MultiFilterScopeRenderer
             _lastSeries[i] = null;
             ApplyPlotTheme(plot);
             plot.XLabel(i >= _plots.Length - 2 ? "Time (ms)" : string.Empty);
-            plot.YLabel(i % 2 == 0 ? "Signal Level (a.u.)" : string.Empty);
+            plot.YLabel(i % 2 == 0 ? "Signal Level" : string.Empty);
             // Time ruler: ms ticks measured from the window's left edge (see
             // ApplyTimeTicks). Same on every lane.
             plot.Axes.Bottom.TickLabelStyle.IsVisible = true;
