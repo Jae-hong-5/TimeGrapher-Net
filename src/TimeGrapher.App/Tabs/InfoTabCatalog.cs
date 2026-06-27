@@ -137,7 +137,7 @@ internal static class InfoTabCatalog
             // BeatSegmentsSnapshot in A-aligned, peak-normalized lanes with the
             // A / mean-C timing guides; it declares no per-frame graph-series
             // contract.
-            new(WaveformCompareTabId, "Waveforms", InfoTabKind.WaveformCompare, DefaultUiRefreshIntervalMs, UsesGraphSnapshots: false, Array.Empty<GraphSeriesDefinition>()),
+            new(WaveformCompareTabId, "Comparison", InfoTabKind.WaveformCompare, DefaultUiRefreshIntervalMs, UsesGraphSnapshots: false, Array.Empty<GraphSeriesDefinition>()),
             // Filter Scope refills its four stacked plots from the
             // Core-decimated filter.f0..f3 replace series; the per-series point
             // budget lives Core-side (MultiFilterFrameProjector), so no per-frame
