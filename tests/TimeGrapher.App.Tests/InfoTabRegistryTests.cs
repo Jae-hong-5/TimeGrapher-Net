@@ -785,6 +785,7 @@ public sealed class InfoTabRegistryTests
     [Fact]
     public void BeatErrorDiagTabReservesAlertBannerSpaceBesideResetView()
     {
+        EnsureAvaloniaPlatform();
         Grid content = CreateBeatErrorDiagContent();
         var headerStrip = Assert.IsType<Grid>(
             content.Children.Single(child => Grid.GetRow(child) == 0));
@@ -805,6 +806,12 @@ public sealed class InfoTabRegistryTests
         Assert.Contains("PositionButton", resetView.Classes);
         Assert.Equal(TraceHeaderButtonFontSizeForTest, resetView.FontSize);
         Assert.Equal(TraceHeaderButtonMinHeightForTest, resetView.MinHeight);
+        string[] buttons = controls.Children
+            .OfType<Button>()
+            .Select(button => button.Content?.ToString() ?? string.Empty)
+            .ToArray();
+        Assert.Equal(new[] { "1x", "4x", "16x", "Reset View" }, buttons);
+        Assert.Contains("active", controls.Children.OfType<Button>().Single(button => Equals(button.Content, "1x")).Classes);
 
         Assert.DoesNotContain(content.Children.OfType<Button>(), button => Grid.GetRow(button) == 2);
     }

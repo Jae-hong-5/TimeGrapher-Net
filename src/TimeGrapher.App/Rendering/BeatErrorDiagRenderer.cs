@@ -25,7 +25,7 @@ internal sealed class BeatErrorDiagRenderer
     private const double RateLiveMaxWindowBeats = RateScopeRenderer.RatePageWindowBeats;
     internal const double TraceYMinMs = -10.0;
     internal const double TraceYMaxMs = 10.0;
-    private static readonly double[] RateZoomFactors = { 1.0, 2.0, 4.0, 8.0, 16.0 };
+    private static readonly double[] RateZoomFactors = { 1.0, 4.0, 16.0 };
 
     private readonly AvaPlot _tracePlot;
     private readonly Border _alertBanner;
