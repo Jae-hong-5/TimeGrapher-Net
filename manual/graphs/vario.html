@@ -35,7 +35,7 @@
       <ul>
         <li><span class="ko"><b>Error Rate 게이지</b> — 가로축 Error Rate(s/d) −10~+10. 음영 띠 = 허용 범위, 파란 선 = 최소·최대, 빨간 선 = 평균, 점선 = 현재값. 곁에 <code>min / max / avg / current</code> 라벨.</span><span class="en"><b>Error Rate gauge</b> — axis = Error Rate (s/d) −10…+10. Shaded band = acceptable range; blue lines = min/max; red line = mean; dashed = current. Labels <code>min / max / avg / current</code>.</span></li>
         <li><span class="ko"><b>진폭 게이지</b> — 같은 구성, 건강범위 270–300°.</span><span class="en"><b>Amplitude gauge</b> — same layout, healthy band 270–300°.</span></li>
-        <li><span class="ko"><b>상단 요약</b> — 상태 칩(녹/황/적) + 경과시간 + 종합 판정 텍스트(예: "Overall: OK - Stable enough to record").</span><span class="en"><b>Top summary</b> — status chips (green/yellow/red) + elapsed time + overall verdict (e.g. "Overall: OK - Stable enough to record").</span></li>
+        <li><span class="ko"><b>상단 요약</b> — 상태 칩(녹/황/적) + 종합 판정·조치 텍스트(예: "Overall: OK · Within band — no service needed", "Overall: ALERT · Low amplitude — clean &amp; lubricate · service required").</span><span class="en"><b>Top summary</b> — status chips (green/yellow/red) + overall verdict with action (e.g. "Overall: OK · Within band — no service needed", "Overall: ALERT · Low amplitude — clean &amp; lubricate · service required").</span></li>
         <li><span class="ko"><b>통계표</b> — 각 게이지 아래 <code>Min · Max · Spread · Average · Sigma · Current</code>.</span><span class="en"><b>Stats grid</b> — under each gauge: <code>Min · Max · Spread · Average · Sigma · Current</code>.</span></li>
       </ul>
 
@@ -44,9 +44,8 @@
         <thead><tr><th><span class="ko">판정</span><span class="sep"> · </span><span class="en">Verdict</span></th><th><span class="ko">의미</span><span class="sep"> · </span><span class="en">Meaning</span></th></tr></thead>
         <tbody>
           <tr><td><span class="pill warn">Measuring…</span></td><td><span class="ko">아직 비트가 부족(약 30비트 전). 기다리세요.</span><span class="en">Not enough beats yet (~&lt;30). Wait.</span></td></tr>
-          <tr><td><span class="pill good">Stable · in range</span></td><td><span class="ko">허용 범위 안 + 변동 작음 = 최상.</span><span class="en">In band + low variation = best.</span></td></tr>
-          <tr><td><span class="pill warn">In range · unstable</span></td><td><span class="ko">범위 안이지만 sigma &gt; 3.0 s/d로 출렁임.</span><span class="en">In band but jittery (sigma &gt; 3.0 s/d).</span></td></tr>
-          <tr><td><span class="pill bad">Fast / Slow · out of range</span></td><td><span class="ko">±10 s/d를 벗어남.</span><span class="en">Outside ±10 s/d.</span></td></tr>
+          <tr><td><span class="pill good">Within Band</span></td><td><span class="ko">평균이 허용 범위 안. 변동 정도는 Sigma/Spread 값으로 직접 확인.</span><span class="en">Mean within the acceptable band. Judge variation from the Sigma/Spread readout.</span></td></tr>
+          <tr><td><span class="pill bad">Fast / Slow · out of range</span></td><td><span class="ko">평균이 허용 범위를 벗어남.</span><span class="en">Mean outside the acceptable band.</span></td></tr>
         </tbody>
       </table>
       <p class="ko"><b>진폭</b>: <span class="pill good">Healthy</span> 270–300°, <span class="pill warn">Slightly low</span> 270° 미만, <span class="pill bad">Low · service</span> 220° 미만.</p>
