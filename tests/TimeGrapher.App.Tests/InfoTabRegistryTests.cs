@@ -857,7 +857,7 @@ public sealed class InfoTabRegistryTests
             .Select(cell => Assert.IsType<TextBlock>(cell.Children[1]))
             .ToArray();
 
-        Assert.Equal(5, readoutGrid.ColumnDefinitions.Count);
+        Assert.Equal(4, readoutGrid.ColumnDefinitions.Count);
         Assert.All(readoutGrid.ColumnDefinitions, column =>
             Assert.True(column.Width.IsStar && column.Width.Value == 1.0));
         Assert.Equal(ScopeSweepReadout.Labels, titles.Select(title => title.Text).ToArray());

@@ -515,7 +515,7 @@ internal sealed partial class InfoTabRegistry
         var referenceValueTexts = new TextBlock[ScopeSweepReadout.Labels.Length];
         var referenceGrid = new Grid
         {
-            ColumnDefinitions = new ColumnDefinitions("*,*,*,*,*"),
+            ColumnDefinitions = new ColumnDefinitions("*,*,*,*"),
             Margin = new Thickness(8, 4, 8, 2),
         };
         for (int i = 0; i < ScopeSweepReadout.Labels.Length; i++)

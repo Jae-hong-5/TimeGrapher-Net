@@ -13,18 +13,17 @@ namespace TimeGrapher.App.Rendering;
 internal static class ScopeSweepReadout
 {
     // Unified with the canonical readout terms (BeatErrorReadout / title bar):
-    // Error Rate · Amplitude · Beat Error · BPH. "A to C" is the sweep-specific
-    // A→C interval the other panels do not show.
+    // Error Rate · Amplitude · Beat Error. "A to C" is the sweep-specific A→C
+    // interval the other panels do not show.
     public static readonly string[] Labels =
     {
-        "Error Rate", "Amplitude", "Beat Error", "A to C", "BPH",
+        "Error Rate", "Amplitude", "Beat Error", "A to C",
     };
 
     /// <summary>
-    /// Reference line of current error rate / amplitude / beat error / A→C /
-    /// period (em dash when absent). <paramref name="segments"/> supplies the
-    /// latest A→C interval; <paramref name="snapshot"/> supplies the period via
-    /// BPH.
+    /// Reference line of current error rate / amplitude / beat error / A→C
+    /// (em dash when absent). <paramref name="segments"/> supplies the latest
+    /// A→C interval.
     /// </summary>
     public static string ReferenceLine(BeatMetricsHistorySnapshot? snapshot,
         BeatSegmentsSnapshot? segments = null)
@@ -49,8 +48,6 @@ internal static class ScopeSweepReadout
         VarioReadout.Format(
             snapshot is { BeatErrorValid: true } ? snapshot.BeatErrorSignedMs : null, "+0.00;-0.00;0.00", " ms"),
         FormatAtoC(segments),
-        VarioReadout.Format(
-            snapshot is { Bph: > 0 } ? snapshot.Bph : (int?)null, "0", ""),
     };
 
     /// <summary>A→C interval from the most recent segment that has a valid C peak.</summary>
