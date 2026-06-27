@@ -21,7 +21,7 @@ namespace TimeGrapher.App.Rendering;
 internal sealed class ScopeSweepRenderer
 {
     private readonly AvaPlot _sweepPlot;
-    private readonly TextBlock _referenceText;
+    private readonly TextBlock[] _referenceValueTexts;
     private readonly string _textFontFamily;
 
     private readonly List<double> _sweepX = new();
@@ -85,10 +85,10 @@ internal sealed class ScopeSweepRenderer
     private double _viewYMax;
     private bool _hasView;
 
-    public ScopeSweepRenderer(AvaPlot sweepPlot, TextBlock referenceText, string textFontFamily)
+    public ScopeSweepRenderer(AvaPlot sweepPlot, TextBlock[] referenceValueTexts, string textFontFamily)
     {
         _sweepPlot = sweepPlot;
-        _referenceText = referenceText;
+        _referenceValueTexts = referenceValueTexts;
         _textFontFamily = textFontFamily;
 
         _sweepPlot.PointerWheelChanged += (_, _) => _followLive = false;
@@ -115,7 +115,11 @@ internal sealed class ScopeSweepRenderer
         _viewYMin = 0.0;
         _viewYMax = 0.0;
         _hasView = false;
-        _referenceText.Text = ScopeSweepReadout.ReferenceLine(null);
+        string[] initialValues = ScopeSweepReadout.Values(null);
+        for (int i = 0; i < _referenceValueTexts.Length && i < initialValues.Length; i++)
+        {
+            _referenceValueTexts[i].Text = initialValues[i];
+        }
 
         Plot sweep = _sweepPlot.Plot;
         sweep.Clear();
@@ -294,7 +298,11 @@ internal sealed class ScopeSweepRenderer
 
         _lastReadoutVersion = hv;
         _lastReadoutSegmentVersion = sv;
-        _referenceText.Text = ScopeSweepReadout.ReferenceLine(history, segments);
+        string[] values = ScopeSweepReadout.Values(history, segments);
+        for (int i = 0; i < _referenceValueTexts.Length && i < values.Length; i++)
+        {
+            _referenceValueTexts[i].Text = values[i];
+        }
     }
 
     /// <summary>
