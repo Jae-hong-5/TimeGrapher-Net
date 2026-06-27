@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Shapes;
 using TimeGrapher.Core.Analysis;
 using TimeGrapher.Core.Shared;
 
@@ -42,6 +43,15 @@ internal sealed class SpectrogramRenderer
     private readonly TextBlock[] _freqLabels;
     private readonly TextBlock[] _timeLabels;
     private readonly TextBlock _timeCaption;
+    // Full-width "Past ◄──── Current" arrow shown only in Compare Beats mode.
+    private readonly Control _beatDirectionStrip;
+    // The fixed six-tick time grid (used by Last Beat / Seconds); hidden in Beats
+    // mode in favour of the per-beat 0-based ruler drawn on the overlay canvas.
+    private readonly Control _timeTickStrip;
+    private readonly Control _timeLabelGrid;
+    private readonly Canvas _beatRulerCanvas;
+    private readonly Rectangle[] _beatRulerTicks;
+    private readonly TextBlock[] _beatRulerLabels;
 
     // Overlay marking the sweep head — the column where live data is being
     // written right now — positioned over the image on each render.
@@ -116,7 +126,13 @@ internal sealed class SpectrogramRenderer
         Image legendImage,
         TextBlock[] freqLabels,
         TextBlock[] timeLabels,
+        Control timeTickStrip,
+        Control timeLabelGrid,
         TextBlock timeCaption,
+        Control beatDirectionStrip,
+        Canvas beatRulerCanvas,
+        Rectangle[] beatRulerTicks,
+        TextBlock[] beatRulerLabels,
         Control currentLine,
         IReadOnlyList<Control> beatDividers)
     {
@@ -124,7 +140,13 @@ internal sealed class SpectrogramRenderer
         _legendImage = legendImage;
         _freqLabels = freqLabels;
         _timeLabels = timeLabels;
+        _timeTickStrip = timeTickStrip;
+        _timeLabelGrid = timeLabelGrid;
         _timeCaption = timeCaption;
+        _beatDirectionStrip = beatDirectionStrip;
+        _beatRulerCanvas = beatRulerCanvas;
+        _beatRulerTicks = beatRulerTicks;
+        _beatRulerLabels = beatRulerLabels;
         _currentLine = currentLine;
         _beatDividers = beatDividers;
         UpdateTimeAxis(CurrentWindowSeconds());
@@ -527,6 +549,29 @@ internal sealed class SpectrogramRenderer
         bool beatBased = _viewMode != SpectrogramViewMode.Seconds;
         double span = beatBased ? windowSeconds * 1000.0 : windowSeconds;
         int last = _timeLabels.Length - 1;
+
+        if (_viewMode == SpectrogramViewMode.Beats && _viewBeats > 0)
+        {
+            // Compare Beats: the fixed six-tick grid can't put 0 on each beat's left
+            // edge (its ticks fall at fractions of the whole strip), so hide it and
+            // draw a per-beat 0-based ruler on the overlay canvas instead. The
+            // caption just names the unit; the past -> current arrow has its own strip.
+            double beatMs = span / _viewBeats;
+            _timeTickStrip.IsVisible = false;
+            _timeLabelGrid.IsVisible = false;
+            _beatRulerCanvas.IsVisible = true;
+            UpdateBeatTimeRuler(beatMs);
+
+            _timeCaption.TextAlignment = Avalonia.Media.TextAlignment.Center;
+            _timeCaption.Text = "Time (ms)";
+            _beatDirectionStrip.IsVisible = true;
+            return;
+        }
+
+        _timeTickStrip.IsVisible = true;
+        _timeLabelGrid.IsVisible = true;
+        _beatRulerCanvas.IsVisible = false;
+        _beatDirectionStrip.IsVisible = false;
         for (int i = 0; i < _timeLabels.Length; i++)
         {
             double value = span * i / last;
@@ -535,9 +580,100 @@ internal sealed class SpectrogramRenderer
 
         _timeCaption.Text = _viewMode switch
         {
-            SpectrogramViewMode.LastBeat => "Time (ms) · last beat",
-            SpectrogramViewMode.Beats => $"Time (ms) · last {_viewBeats} beats",
+            SpectrogramViewMode.LastBeat => "Time (ms)",
             _ => $"Time (s) · {windowSeconds:0.#} s window",
         };
+    }
+
+    // The "nice" 0-based tick ladder for the Compare Beats ruler, matching the
+    // Filter Scope's steps so the axis reads in familiar 1/5/10/25/50/100 ms units.
+    private static readonly double[] BeatRulerSteps = { 1, 5, 10, 25, 50, 100, 250, 500, 1000 };
+
+    // Draws the per-beat 0-based time ruler onto the overlay canvas: each lane counts
+    // from 0 at its own left edge up in a nice step (~beat/4, coarsened so labels
+    // never collide in narrow lanes). The full beat-period max is labelled once at
+    // the far right, where there is no next-lane 0 to clash with. Positions follow
+    // the live image width, the same source the lane dividers use.
+    private void UpdateBeatTimeRuler(double periodMs)
+    {
+        double width = _spectrogramImage.Bounds.Width;
+        int beats = _viewBeats;
+        if (width <= 0.0 || beats <= 0 || periodMs <= 0.0)
+        {
+            HideBeatRulerFrom(0);
+            return;
+        }
+
+        double laneWidth = width / beats;
+        int maxLabels = Math.Max(2, (int)(laneWidth / 24.0));
+        double target = periodMs / 4.0;
+        int idx = 0;
+        for (int i = 0; i < BeatRulerSteps.Length; i++)
+        {
+            if (BeatRulerSteps[i] <= target)
+            {
+                idx = i;
+            }
+        }
+        // Coarsen until the per-lane label count fits the lane's pixel budget.
+        while (idx < BeatRulerSteps.Length - 1 &&
+               (int)Math.Floor(periodMs / BeatRulerSteps[idx]) + 1 > maxLabels)
+        {
+            idx++;
+        }
+        double step = BeatRulerSteps[idx];
+
+        int p = 0;
+        for (int lane = 0; lane < beats && p < _beatRulerTicks.Length; lane++)
+        {
+            double laneLeft = lane * laneWidth;
+            for (double ms = 0.0; p < _beatRulerTicks.Length; ms += step)
+            {
+                double frac = ms / periodMs;
+                if (frac > 0.88) // keep clear of the right edge / the next lane's 0
+                {
+                    break;
+                }
+
+                double x = laneLeft + frac * laneWidth;
+                // The 0 marks the beat's start (under the left edge / divider), so
+                // left-align it there; interior ticks centre on their position.
+                bool atStart = ms == 0.0;
+                double labelLeft = atStart ? x : x - _beatRulerLabels[p].Width / 2.0;
+                PlaceBeatTick(p++, x, labelLeft, ms,
+                    atStart ? Avalonia.Media.TextAlignment.Left : Avalonia.Media.TextAlignment.Center);
+            }
+        }
+
+        if (p < _beatRulerTicks.Length)
+        {
+            double endLabelLeft = width - _beatRulerLabels[p].Width;
+            PlaceBeatTick(p, width, endLabelLeft, periodMs, Avalonia.Media.TextAlignment.Right);
+            p++;
+        }
+
+        HideBeatRulerFrom(p);
+    }
+
+    private void PlaceBeatTick(int i, double tickX, double labelLeft, double ms, Avalonia.Media.TextAlignment align)
+    {
+        Rectangle tick = _beatRulerTicks[i];
+        Canvas.SetLeft(tick, tickX - tick.Width / 2.0);
+        tick.IsVisible = true;
+
+        TextBlock label = _beatRulerLabels[i];
+        label.Text = $"{ms:0}";
+        label.TextAlignment = align;
+        Canvas.SetLeft(label, labelLeft);
+        label.IsVisible = true;
+    }
+
+    private void HideBeatRulerFrom(int start)
+    {
+        for (int i = start; i < _beatRulerTicks.Length; i++)
+        {
+            _beatRulerTicks[i].IsVisible = false;
+            _beatRulerLabels[i].IsVisible = false;
+        }
     }
 }

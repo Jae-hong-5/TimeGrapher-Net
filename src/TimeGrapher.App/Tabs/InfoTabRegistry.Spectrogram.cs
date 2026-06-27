@@ -163,6 +163,32 @@ internal sealed partial class InfoTabRegistry
             timeLabels[i] = label;
             timeLabelGrid.Children.Add(label);
         }
+
+        // Compare Beats needs each beat to read 0 at its own left edge, which the
+        // fixed six-tick grid above cannot express (its ticks fall at fractions of
+        // the whole strip, not on the beat boundaries). Beats mode therefore hides
+        // that grid and draws ticks/labels onto this overlay canvas instead, placing
+        // a nice-step 0-based ruler per lane from the live beat width. The pool is
+        // sized for the densest case (8 beats × several ticks each, plus the max).
+        const int beatRulerCapacity = 72;
+        var beatRulerCanvas = new Canvas { Height = 22, IsVisible = false, ClipToBounds = true };
+        var beatRulerTicks = new Rectangle[beatRulerCapacity];
+        var beatRulerLabels = new TextBlock[beatRulerCapacity];
+        for (int i = 0; i < beatRulerCapacity; i++)
+        {
+            Rectangle tick = Tick(1, 6, HorizontalAlignment.Left, VerticalAlignment.Top);
+            tick.IsVisible = false;
+            Canvas.SetTop(tick, 0);
+            beatRulerTicks[i] = tick;
+            beatRulerCanvas.Children.Add(tick);
+
+            TextBlock label = Label(string.Empty);
+            label.Width = 34;
+            label.IsVisible = false;
+            Canvas.SetTop(label, 7);
+            beatRulerLabels[i] = label;
+            beatRulerCanvas.Children.Add(label);
+        }
         var timeAxisCaption = new TextBlock
         {
             FontSize = 11,
@@ -170,6 +196,62 @@ internal sealed partial class InfoTabRegistry
             HorizontalAlignment = HorizontalAlignment.Center,
             Margin = new Thickness(8, 0, 8, 4),
         };
+
+        // Edge-to-edge direction indicator for Compare Beats, mirroring the
+        // Comparison tab's full-length arrow: "Past" pinned to the left (oldest beat)
+        // and "Current" to the right (newest beat) with a stretched accent arrow
+        // spanning the whole time axis between them. The renderer shows it only in
+        // Beats mode.
+        var beatDirectionStrip = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto"),
+            Margin = new Thickness(8, 0, 8, 4),
+            IsVisible = false,
+        };
+        var beatDirPast = new TextBlock
+        {
+            Text = "Past",
+            FontSize = 11,
+            Opacity = 0.65,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        // A drawn arrow (triangular head + shaft) reads cleaner than a glyph: the
+        // head is a left-pointing triangle pinned to the left, the shaft a thin
+        // rounded bar stretching to the right edge. Both share the accent fill and
+        // the same vertical centre so they join seamlessly.
+        var beatDirArrow = new Grid { Margin = new Thickness(6, 0, 6, 0), MinHeight = 10 };
+        var beatDirLine = new Rectangle
+        {
+            Height = 2,
+            RadiusX = 1,
+            RadiusY = 1,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(9, 0, 0, 0),
+        };
+        beatDirLine.Bind(Shape.FillProperty, beatDirLine.GetResourceObservable("ChromeAccentBrush"));
+        var beatDirHead = new Avalonia.Controls.Shapes.Path
+        {
+            Data = Avalonia.Media.Geometry.Parse("M 0,5 L 10,0 L 10,10 Z"),
+            HorizontalAlignment = HorizontalAlignment.Left,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        beatDirHead.Bind(Shape.FillProperty, beatDirHead.GetResourceObservable("ChromeAccentBrush"));
+        beatDirArrow.Children.Add(beatDirLine);
+        beatDirArrow.Children.Add(beatDirHead);
+        var beatDirCurrent = new TextBlock
+        {
+            Text = "Current",
+            FontSize = 11,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        beatDirCurrent.Bind(TextBlock.ForegroundProperty, beatDirCurrent.GetResourceObservable("ChromeAccentBrush"));
+        Grid.SetColumn(beatDirPast, 0);
+        Grid.SetColumn(beatDirArrow, 1);
+        Grid.SetColumn(beatDirCurrent, 2);
+        beatDirectionStrip.Children.Add(beatDirPast);
+        beatDirectionStrip.Children.Add(beatDirArrow);
+        beatDirectionStrip.Children.Add(beatDirCurrent);
 
         // Live-head marker: a thin red vertical line the renderer slides to the
         // sweep head, showing where data is being written right now. It overlays
@@ -210,7 +292,7 @@ internal sealed partial class InfoTabRegistry
             beatDividers[i] = divider;
         }
 
-        var renderer = new SpectrogramRenderer(image, legendImage, freqLabels, timeLabels, timeAxisCaption, currentLine, beatDividers);
+        var renderer = new SpectrogramRenderer(image, legendImage, freqLabels, timeLabels, timeTickStrip, timeLabelGrid, timeAxisCaption, beatDirectionStrip, beatRulerCanvas, beatRulerTicks, beatRulerLabels, currentLine, beatDividers);
 
         double[] secondsLadder = { 0.5, 1.0, 2.0, 5.0, 10.0 };
         int secondsIndex = 1; // 1.0 s, matching the SpectrogramRenderer default
@@ -357,7 +439,7 @@ internal sealed partial class InfoTabRegistry
         var grid = new Grid
         {
             ColumnDefinitions = new ColumnDefinitions("Auto,Auto,*,Auto"),
-            RowDefinitions = new RowDefinitions("Auto,*,Auto,Auto,Auto"),
+            RowDefinitions = new RowDefinitions("Auto,*,Auto,Auto,Auto,Auto"),
         };
         var headerStrip = new Grid
         {
@@ -385,6 +467,11 @@ internal sealed partial class InfoTabRegistry
         Grid.SetColumn(timeLabelGrid, 2);
         Grid.SetRow(timeAxisCaption, 4);
         Grid.SetColumn(timeAxisCaption, 2);
+        Grid.SetRow(beatRulerCanvas, 2);
+        Grid.SetRowSpan(beatRulerCanvas, 2);
+        Grid.SetColumn(beatRulerCanvas, 2);
+        Grid.SetRow(beatDirectionStrip, 5);
+        Grid.SetColumn(beatDirectionStrip, 2);
         grid.Children.Add(headerStrip);
         grid.Children.Add(axisGrid);
         grid.Children.Add(freqTickStrip);
@@ -400,6 +487,8 @@ internal sealed partial class InfoTabRegistry
         grid.Children.Add(timeTickStrip);
         grid.Children.Add(timeLabelGrid);
         grid.Children.Add(timeAxisCaption);
+        grid.Children.Add(beatRulerCanvas); // overlays the time-axis rows in Beats mode
+        grid.Children.Add(beatDirectionStrip);
         var consumer = new SpectrogramFrameConsumer(renderer);
         return new InfoTabRegistration(definition, CreateTabItem(definition, grid), consumer);
     }
