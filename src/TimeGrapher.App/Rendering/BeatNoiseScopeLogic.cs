@@ -122,8 +122,8 @@ internal static class BeatNoiseScopeLogic
             ? meanPeak.ToString("0.000", CultureInfo.InvariantCulture)
             : "—";
 
-        return "Tic (top) Signal Level (a.u.) " + SignalLevel(average.Lane1Count, average.Lane1MeanPeak)
-            + " · Toc Signal Level (a.u.) " + SignalLevel(average.Lane2Count, average.Lane2MeanPeak)
+        return "Tic (top) Signal Level " + SignalLevel(average.Lane1Count, average.Lane1MeanPeak)
+            + " · Toc Signal Level " + SignalLevel(average.Lane2Count, average.Lane2MeanPeak)
             + "   |   " + ProgressText(average);
     }
 

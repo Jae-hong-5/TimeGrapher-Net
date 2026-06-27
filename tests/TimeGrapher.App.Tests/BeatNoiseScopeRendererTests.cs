@@ -54,7 +54,7 @@ public sealed class BeatNoiseScopeRendererTests
 
         renderer.CreateGraphs();
 
-        Assert.Equal("Signal Level (a.u.)", mainPlot.Plot.Axes.Left.Label.Text);
+        Assert.Equal("Signal Level", mainPlot.Plot.Axes.Left.Label.Text);
     }
 
     [Fact]

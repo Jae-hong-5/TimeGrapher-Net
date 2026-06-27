@@ -275,7 +275,7 @@ internal sealed class BeatNoiseScopeRenderer
         _mainCLegendY.Clear();
         ApplyPlotTheme(main);
         main.Axes.Left.TickLabelStyle.IsVisible = false;
-        main.YLabel("Signal Level (a.u.)");
+        main.YLabel("Signal Level");
         main.XLabel("ms");
         _mainScatter = main.Add.Scatter(_mainX, _mainY);
         _mainScatter.LineWidth = 1;

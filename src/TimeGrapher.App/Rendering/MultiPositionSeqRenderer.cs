@@ -21,9 +21,10 @@ namespace TimeGrapher.App.Rendering;
 internal sealed class MultiPositionSeqRenderer
 {
     private const string ActiveRowClass = "SeqActiveRow";
+    private const double TableFontSize = 15.0;
 
     private static readonly string[] Headers =
-        { "Position", "Error Rate", "Amplitude", "Beat Error", "Beats", "Error Rate vs Band", "Collection" };
+        { "Pos.", "Error Rate", "Amplitude", "Beat Error", "Beats", "Rate Range", "Collection" };
 
     private readonly Grid _tableGrid;
     private readonly PositionSequenceDashboardControls _dashboard;
@@ -102,41 +103,6 @@ internal sealed class MultiPositionSeqRenderer
         _dashboard.LiveAmplitude.Text = VarioReadout.Format(amp.Valid ? amp.Mean : (double?)null, "0", "°");
         _dashboard.LiveBeatError.Text = VarioReadout.Format(beat.Valid ? beat.Mean : (double?)null, "+0.00;-0.00; 0.00", " ms");
         _dashboard.LiveBeats.Text = beats.ToString(CultureInfo.InvariantCulture);
-
-        long threshold = VarioVerdict.MinSamples;
-        bool measured = beats > 0;
-        bool qualified = beats >= threshold;
-        double fraction = threshold <= 0 ? 0.0 : Math.Clamp(beats / (double)threshold, 0.0, 1.0);
-        _dashboard.CollectionBar.ColumnDefinitions = new ColumnDefinitions(string.Format(
-            CultureInfo.InvariantCulture, "{0:0.###}*,{1:0.###}*", fraction, 1.0 - fraction));
-        _dashboard.CollectionFill.IsVisible = measured;
-        if (measured)
-        {
-            _dashboard.CollectionFill.Bind(Border.BackgroundProperty,
-                _dashboard.CollectionFill.GetResourceObservable(qualified ? "VarioGoodBrush" : "VarioWarnBrush"));
-        }
-
-        _dashboard.CollectionLabel.Text = measured ? $"{beats} / {threshold} beats" : "not measured";
-
-        SequenceSummary sequence = SequenceSummary.Compute(positions);
-        _dashboard.SeqRate.Text = VarioReadout.Format(sequence.RateMeanSPerDay, "+0.0;-0.0;0.0", " s/d");
-        _dashboard.SeqAmplitude.Text = VarioReadout.Format(sequence.AmplitudeMeanDeg, "0", "°");
-
-        int measuredCount = 0;
-        long totalBeats = 0;
-        foreach (PositionSummary position in positions)
-        {
-            long b = Math.Max(position.Rate.Count, Math.Max(position.Amplitude.Count, position.BeatError.Count));
-            if (b > 0)
-            {
-                measuredCount++;
-            }
-
-            totalBeats += b;
-        }
-
-        _dashboard.PositionsMeasured.Text = $"{measuredCount} / {WatchPositions.All.Count}";
-        _dashboard.TotalBeats.Text = totalBeats.ToString(CultureInfo.InvariantCulture);
     }
 
     private void RebuildTable(IReadOnlyList<PositionSummary> positions, WatchPosition? activePosition)
@@ -205,14 +171,25 @@ internal sealed class MultiPositionSeqRenderer
 
     private void AddHeader(string text, int column)
     {
-        var cell = new TextBlock
+        var label = new TextBlock
         {
             Text = text,
-            FontSize = 14,
+            FontSize = TableFontSize,
             FontWeight = FontWeight.Bold,
-            Opacity = 0.55,
-            Margin = new Thickness(8, 0, 8, 4),
+            HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Stretch,
+            VerticalAlignment = VerticalAlignment.Center,
+            TextAlignment = TextAlignment.Center,
         };
+        label.Bind(TextBlock.ForegroundProperty, label.GetResourceObservable("ChromeAccentBrush"));
+
+        var cell = new Border
+        {
+            Padding = new Thickness(8, 2, 8, 2),
+            Margin = new Thickness(0, 0, 0, 4),
+            Child = label,
+        };
+        cell.Bind(Border.BackgroundProperty, cell.GetResourceObservable("ChromeBorderBrush"));
+
         Grid.SetRow(cell, 0);
         Grid.SetColumn(cell, column);
         _tableGrid.Children.Add(cell);
@@ -223,11 +200,12 @@ internal sealed class MultiPositionSeqRenderer
         var cell = new TextBlock
         {
             Text = text,
-            FontSize = 14,
+            FontSize = TableFontSize,
             FontWeight = bold ? FontWeight.Bold : FontWeight.Normal,
             Margin = new Thickness(8, 4, 8, 4),
+            HorizontalAlignment = HorizontalAlignment.Stretch,
             VerticalAlignment = VerticalAlignment.Center,
-            TextAlignment = TextAlignment.Left,
+            TextAlignment = TextAlignment.Center,
         };
         if (outOfBand)
         {
@@ -246,7 +224,7 @@ internal sealed class MultiPositionSeqRenderer
         bool qualified = beats >= threshold;
         double fraction = threshold <= 0 ? 0.0 : Math.Clamp(beats / (double)threshold, 0.0, 1.0);
 
-        var fill = new Border { CornerRadius = new CornerRadius(4) };
+        var fill = new Border();
         if (measured)
         {
             fill.Bind(Border.BackgroundProperty,
@@ -262,22 +240,15 @@ internal sealed class MultiPositionSeqRenderer
         Grid.SetColumn(fill, 0);
         bar.Children.Add(fill);
 
-        var track = new Border { Height = 8, CornerRadius = new CornerRadius(4), Child = bar };
-        track.Bind(Border.BackgroundProperty, track.GetResourceObservable("ChromeBorderBrush"));
-
-        var label = new TextBlock
+        var track = new Border
         {
-            Text = !measured ? "not measured" : qualified ? $"{threshold}+ beats" : $"{beats} / {threshold} beats",
-            FontSize = 14,
-            Opacity = 0.7,
-            Margin = new Thickness(0, 3, 0, 0),
-        };
-
-        return new StackPanel
-        {
+            Height = 8,
             Margin = new Thickness(8, 4, 12, 4),
             VerticalAlignment = VerticalAlignment.Center,
-            Children = { track, label },
+            Child = bar,
         };
+        track.Bind(Border.BackgroundProperty, track.GetResourceObservable("ChromeBorderBrush"));
+
+        return track;
     }
 }

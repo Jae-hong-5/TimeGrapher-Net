@@ -162,7 +162,7 @@ public sealed class BeatNoiseScopeLogicTests
         };
 
         string line = BeatNoiseScopeLogic.AverageLine(average);
-        Assert.Equal("Tic (top) Signal Level (a.u.) 0.382 · Toc Signal Level (a.u.) 0.391   |   Σ 23/50 · 22/50", line);
+        Assert.Equal("Tic (top) Signal Level 0.382 · Toc Signal Level 0.391   |   Σ 23/50 · 22/50", line);
     }
 
     [Fact]

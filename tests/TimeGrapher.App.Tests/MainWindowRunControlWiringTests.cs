@@ -75,6 +75,39 @@ public sealed class MainWindowRunControlWiringTests
     }
 
     [Fact]
+    public void StatusBarWarningClassPromotesTheWholeBottomBar()
+    {
+        XDocument mainWindow = XDocument.Load(FindSourceFile("src/TimeGrapher.App/Views/MainWindow.axaml"));
+        XDocument app = XDocument.Load(FindSourceFile("src/TimeGrapher.App/App.axaml"));
+
+        XElement statusBar = FindNamedElement(mainWindow, "StatusBar");
+        XElement statusText = FindNamedElement(mainWindow, "StatusBarText");
+        XElement positionText = FindNamedElement(mainWindow, "PositionBarText");
+        XElement latencyText = FindNamedElement(mainWindow, "LatencyBarText");
+
+        Assert.Equal("StatusBar", statusBar.Attribute("Classes")?.Value);
+        Assert.Equal("{Binding IsStatusWarning}", statusBar.Attribute("Classes.status-warning")?.Value);
+        Assert.Equal("StatusBarReadout", statusText.Attribute("Classes")?.Value);
+        Assert.Equal("StatusBarReadout position", positionText.Attribute("Classes")?.Value);
+        Assert.Equal("StatusBarReadout", latencyText.Attribute("Classes")?.Value);
+        Assert.DoesNotContain(mainWindow.Descendants(), element =>
+            element.Attribute("IsVisible")?.Value == "{Binding IsStatusWarning}");
+        Assert.DoesNotContain(mainWindow.Descendants().Attributes("Classes"),
+            attribute => attribute.Value == "GraphWarningOverlay");
+
+        Assert.Contains(app.Descendants(), element =>
+            element.Attribute("Selector")?.Value == "Border.StatusBar.status-warning" &&
+            element.Descendants().Any(setter =>
+                setter.Attribute("Property")?.Value == "Background" &&
+                setter.Attribute("Value")?.Value == "{DynamicResource ChromeAccentBrush}"));
+        Assert.Contains(app.Descendants(), element =>
+            element.Attribute("Selector")?.Value == "Border.StatusBar.status-warning TextBlock.StatusBarReadout" &&
+            element.Descendants().Any(setter =>
+                setter.Attribute("Property")?.Value == "Foreground" &&
+                setter.Attribute("Value")?.Value == "White"));
+    }
+
+    [Fact]
     public void ResetOperationResetsGraphDataAndViews()
     {
         string source = File.ReadAllText(FindSourceFile("src/TimeGrapher.App/Views/MainWindow.axaml.cs"));

@@ -197,7 +197,7 @@ internal sealed class RateScopeRenderer
         Plot scope = _scopePlot.Plot;
         scope.Clear();
         ApplyPlotTheme(scope);
-        scope.YLabel("Signal Level (a.u.)");
+        scope.YLabel("Signal Level");
         scope.XLabel("Time (s)");
         scope.Axes.SetLimitsY(0, 0.1);
         // Fixed-interval time ruler (matches the Filter Scope): a minor tick
@@ -475,8 +475,9 @@ internal sealed class RateScopeRenderer
 
     /// <summary>
     /// Confines the rate plot's X view to fixed 150-beat pages. Live-follow stays on
-    /// the newest data extent; after a user pan/zoom, the older pages remain reachable
-    /// while incoming points continue to refresh.
+    /// the newest data extent; after a user pan/zoom the view can step back through the
+    /// older pages, but never past the oldest retained beat (<see cref="_rateDataMinX"/>)
+    /// — there are no points before it, mirroring the scope's 10 s retention limit.
     /// </summary>
     private sealed class RateXViewBoundsRule : IAxisRule
     {
@@ -496,10 +497,13 @@ internal sealed class RateScopeRenderer
                 return;
             }
 
+            // Floor the view at the oldest retained beat in every state so a pan can
+            // never reach pages before the data (the rate buffer keeps only the latest
+            // MaxRateDataPoints beats). While following, the current page left also
+            // anchors the live window.
             (double pageLeft, double pageRight) = RatePageWindowFor(_owner._rateDataMaxX);
-            double minLeft = _owner._rateFollowLive ? _owner._rateDataMinX : 0.0;
-            double firstPageLeft = _owner._rateFollowLive ? pageLeft : 0.0;
-            ClampViewToPagedExtent(_xAxis, minLeft, pageRight, firstPageLeft, RatePageWindowBeats);
+            double firstPageLeft = _owner._rateFollowLive ? pageLeft : _owner._rateDataMinX;
+            ClampViewToPagedExtent(_xAxis, _owner._rateDataMinX, pageRight, firstPageLeft, RatePageWindowBeats);
         }
     }
 

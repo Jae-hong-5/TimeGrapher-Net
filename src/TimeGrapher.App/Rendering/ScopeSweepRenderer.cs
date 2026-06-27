@@ -125,7 +125,7 @@ internal sealed class ScopeSweepRenderer
         _preRollY.Clear();
         _lastSweepSeries = null;
         ApplyPlotTheme(sweep);
-        sweep.YLabel("Signal Level (a.u.)");
+        sweep.YLabel("Signal Level");
         sweep.XLabel("Sweep (ms)");
         _sweepScatter = sweep.Add.Scatter(_sweepX, _sweepY);
         _sweepScatter.LineWidth = 1;

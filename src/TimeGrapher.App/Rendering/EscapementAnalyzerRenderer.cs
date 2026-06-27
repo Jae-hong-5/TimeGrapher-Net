@@ -140,7 +140,7 @@ internal sealed class EscapementAnalyzerRenderer
         _envelopeY.Clear();
         _rawMinY.Clear();
         ApplyPlotTheme(plot);
-        plot.YLabel("Signal Level (a.u.)");
+        plot.YLabel("Signal Level");
         plot.XLabel("ms from A");
         _envelopeScatter = plot.Add.Scatter(_envelopeX, _envelopeY);
         _envelopeScatter.LineWidth = 1;

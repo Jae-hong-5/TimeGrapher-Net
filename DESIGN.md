@@ -37,6 +37,7 @@ TimeGrapher-Net is a dense watch-diagnostics workstation: compact, precise, and 
 | Level | Size | Weight | Line Height | Tracking | Usage |
 |-------|------|--------|-------------|----------|-------|
 | Title | 16px | Bold | Default | 0 | App title and section headers |
+| Table | 15px | Bold/Regular | Default | 0 | Positions table headers/values and hero metric labels |
 | Body | 14px | Bold | Default | 0 | Default UI text and tab headers |
 | Dense | 13px | Bold | Default | 0 | Compact table values only when 14px cannot fit |
 | Control/sm | 12px | Bold | Default | 0 | Small toolbar controls |
@@ -67,6 +68,7 @@ Spacing follows a 4px base where possible.
 | Default | 12px | Graph overlays and grouped controls |
 | Standard | 16px | Major inner spacing |
 | Large | 24px | Status bars and panel separation |
+| Position hero diagram | 160px | Active watch orientation model in the Positions tab hero |
 
 ### Grid
 

@@ -1,10 +1,14 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:views="using:TimeGrapher.App.Views"
         x:Class="TimeGrapher.App.Views.MainWindow"
         Title="TimeGrapher"
         Icon="/Assets/App/AppIcon-256.png"
         Width="1280" Height="750"
         MinWidth="900" MinHeight="560">
+  <Window.Resources>
+    <views:NumericDefaultConverter x:Key="NumericDefault" />
+  </Window.Resources>
   <Border BorderBrush="{DynamicResource ChromeAccentBrush}" BorderThickness="1">
   <Grid RowDefinitions="36,*" Background="{DynamicResource AmbientBackdropBrush}">
     <Border Grid.Row="0"
@@ -116,27 +120,29 @@
     </Border>
 
     <DockPanel Grid.Row="1">
-    <Border DockPanel.Dock="Bottom" Height="24" Background="{DynamicResource GlassPanelBrush}" BorderBrush="{DynamicResource GlassRimBrush}" BorderThickness="0,1,0,0">
+    <Border Name="StatusBar"
+            DockPanel.Dock="Bottom"
+            Height="24"
+            Classes="StatusBar"
+            Classes.status-warning="{Binding IsStatusWarning}">
       <Grid ColumnDefinitions="*,Auto,Auto">
         <TextBlock Name="StatusBarText"
+                   Classes="StatusBarReadout"
                    Classes.status-warning="{Binding IsStatusWarning}"
                    VerticalAlignment="Center"
                    Margin="6,0,0,0"
                    Text="{Binding StatusText}"
-                   TextTrimming="CharacterEllipsis"
-                   Foreground="{DynamicResource TextPrimaryBrush}">
+                   TextTrimming="CharacterEllipsis">
           <TextBlock.Styles>
             <Style Selector="TextBlock.status-warning">
-              <Setter Property="Foreground" Value="{DynamicResource VarioBadBrush}" />
               <Setter Property="Opacity" Value="1" />
             </Style>
           </TextBlock.Styles>
         </TextBlock>
-        <TextBlock Name="PositionBarText" Grid.Column="1" VerticalAlignment="Center" Margin="12,0,0,0"
+        <TextBlock Name="PositionBarText" Grid.Column="1" Classes="StatusBarReadout position" VerticalAlignment="Center" Margin="12,0,0,0"
                    Text="{Binding PositionLabel}"
-                   Foreground="{DynamicResource ChromeAccentBrush}"
                    ToolTip.Tip="Active watch position (NIHS 95-10 / ISO 3158) - pick it with the position strip" />
-        <TextBlock Name="LatencyBarText" Grid.Column="2" VerticalAlignment="Center" Margin="12,0,6,0"
+        <TextBlock Name="LatencyBarText" Grid.Column="2" Classes="StatusBarReadout" VerticalAlignment="Center" Margin="12,0,6,0"
                    Text="{Binding LatencyText}"
                    ToolTip.Tip="End-to-end latency avg/worst (capture→processing + processing→display), dropped input samples / coalesced UI frames, missed beats, sync losses" />
       </Grid>
@@ -260,8 +266,9 @@
                 <TextBlock Name="LiftAngleLabel" Grid.Row="1" Grid.Column="0"
                            VerticalAlignment="Center" HorizontalAlignment="Center" FontWeight="Bold" Text="Lift Angle" />
                 <NumericUpDown Name="LiftAngleSpinBox" Grid.Row="1" Grid.Column="1"
+                               views:NumericInputGuard.Enabled="True"
                                IsEnabled="{Binding AreRunParametersEnabled}"
-                               Value="{Binding LiftAngle, Mode=TwoWay}"
+                               Value="{Binding LiftAngle, Mode=TwoWay, Converter={StaticResource NumericDefault}}"
                                FontWeight="Bold" FormatString="0'°'"
                                Minimum="30" Maximum="70" Increment="1" />
               </Grid>
@@ -291,24 +298,27 @@
                 <TextBlock Name="SimErrorRateLabel" Grid.Row="1" Grid.Column="0"
                            VerticalAlignment="Center" HorizontalAlignment="Center" FontWeight="Bold" Text="Error Rate" />
                 <NumericUpDown Name="SimErrorRateSpinBox" Grid.Row="1" Grid.Column="1"
+                               views:NumericInputGuard.Enabled="True"
                                IsEnabled="{Binding AreLiveSimulationParametersEnabled}"
-                               Value="{Binding SimErrorRate, Mode=TwoWay}"
+                               Value="{Binding SimErrorRate, Mode=TwoWay, Converter={StaticResource NumericDefault}}"
                                FontWeight="Bold" FormatString="0' s/d'"
                                Minimum="-999" Maximum="999" Increment="1" />
 
                 <TextBlock Name="SimAmpLabel" Grid.Row="2" Grid.Column="0"
                            VerticalAlignment="Center" HorizontalAlignment="Center" FontWeight="Bold" Text="Amplitude" />
                 <NumericUpDown Name="SimAmplitudeSpinBox" Grid.Row="2" Grid.Column="1"
+                               views:NumericInputGuard.Enabled="True"
                                IsEnabled="{Binding AreLiveSimulationParametersEnabled}"
-                               Value="{Binding SimAmplitude, Mode=TwoWay}"
+                               Value="{Binding SimAmplitude, Mode=TwoWay, Converter={StaticResource NumericDefault}}"
                                FontWeight="Bold" FormatString="0'°'"
                                Minimum="100" Maximum="360" Increment="1" />
 
                 <TextBlock Name="SimBeatErrorLabel" Grid.Row="3" Grid.Column="0"
                            VerticalAlignment="Center" HorizontalAlignment="Center" FontWeight="Bold" Text="Beat Error" />
                 <NumericUpDown Name="SimBeatErrorSpinBox" Grid.Row="3" Grid.Column="1"
+                               views:NumericInputGuard.Enabled="True"
                                IsEnabled="{Binding AreLiveSimulationParametersEnabled}"
-                               Value="{Binding SimBeatError, Mode=TwoWay}"
+                               Value="{Binding SimBeatError, Mode=TwoWay, Converter={StaticResource NumericDefault}}"
                                FontWeight="Bold" FormatString="0.0' ms'"
                                Minimum="-10" Maximum="10" Increment="0.1" />
 
@@ -368,20 +378,6 @@
             </ItemsPanelTemplate>
           </TabControl.ItemsPanel>
         </TabControl>
-        <Border HorizontalAlignment="Stretch"
-                VerticalAlignment="Top"
-                Margin="12,42,14,0"
-                Padding="8,4"
-                IsHitTestVisible="False"
-                IsVisible="{Binding IsStatusWarning}"
-                Background="{DynamicResource GlassPanelBrush}"
-                BorderBrush="{DynamicResource VarioBadBrush}"
-                BorderThickness="1">
-          <TextBlock Classes="GraphWarningOverlay"
-                     Text="{Binding StatusText}"
-                     TextAlignment="Center"
-                     TextWrapping="NoWrap" />
-        </Border>
       </Grid>
     </Grid>
     </DockPanel>

@@ -90,6 +90,15 @@ public sealed class InfoTabCatalogTests
     }
 
     [Fact]
+    public void WaveformCompareTabUsesComparisonTitle()
+    {
+        InfoTabDefinition tab = InfoTabCatalog.Get(InfoTabCatalog.WaveformCompareTabId);
+
+        Assert.Equal(InfoTabKind.WaveformCompare, tab.Kind);
+        Assert.Equal("Comparison", tab.Title);
+    }
+
+    [Fact]
     public void SpectrogramTabRendersFromFrameImageNotGraphSeries()
     {
         InfoTabDefinition tab = InfoTabCatalog.Get(InfoTabCatalog.SpectrogramTabId);

@@ -192,9 +192,8 @@ public sealed class AppXamlLoadTests
         var app = new App();
         app.Initialize();
 
-        Style graphWarning = Assert.Single(app.Styles
-            .OfType<Style>(), style => style.Selector?.ToString() == "TextBlock.GraphWarningOverlay");
-        Assert.Empty(graphWarning.Animations);
+        Assert.DoesNotContain(app.Styles.OfType<Style>(),
+            style => style.Selector?.ToString() == "TextBlock.GraphWarningOverlay");
 
         string mainWindowXaml = File.ReadAllText(SourcePath("src", "TimeGrapher.App", "Views", "MainWindow.axaml"));
         Assert.DoesNotContain("Animation Duration=\"0:0:0.7\"", mainWindowXaml);
@@ -231,6 +230,38 @@ public sealed class AppXamlLoadTests
 
         Assert.Contains(style.Setters.OfType<Setter>(),
             setter => setter.Property == TextBlock.ForegroundProperty);
+    }
+
+    [Fact]
+    public void StatusBarWarningStyleUsesChromeAccentBrushWithWhiteReadouts()
+    {
+        var app = new App();
+        app.Initialize();
+
+        Style statusBar = Assert.Single(app.Styles
+            .OfType<Style>(), style => style.Selector?.ToString() == "Border.StatusBar");
+        Assert.Contains(statusBar.Setters.OfType<Setter>(), setter =>
+            setter.Property == Border.BackgroundProperty &&
+            DynamicResourceKey(setter.Value) == "GlassPanelBrush");
+
+        Style warningBar = Assert.Single(app.Styles
+            .OfType<Style>(), style => style.Selector?.ToString() == "Border.StatusBar.status-warning");
+        Assert.Contains(warningBar.Setters.OfType<Setter>(), setter =>
+            setter.Property == Border.BackgroundProperty &&
+            DynamicResourceKey(setter.Value) == "ChromeAccentBrush");
+        Assert.Contains(warningBar.Setters.OfType<Setter>(), setter =>
+            setter.Property == Border.BorderThicknessProperty &&
+            Equals(setter.Value, new Thickness(0, 2, 0, 0)));
+
+        Style warningReadouts = Assert.Single(app.Styles
+            .OfType<Style>(), style => style.Selector?.ToString() == "Border.StatusBar.status-warning TextBlock.StatusBarReadout");
+        Assert.Contains(warningReadouts.Setters.OfType<Setter>(), setter =>
+            setter.Property == TextBlock.ForegroundProperty &&
+            SetterUsesWhite(setter.Value));
+        Assert.Contains(warningReadouts.Setters.OfType<Setter>(), setter =>
+            setter.Property == TextBlock.FontWeightProperty);
+        Assert.DoesNotContain(app.Styles.OfType<Style>(),
+            style => style.Selector?.ToString() == "TextBlock.GraphWarningOverlay");
     }
 
     [Fact]
@@ -307,5 +338,16 @@ public sealed class AppXamlLoadTests
         }
 
         throw new FileNotFoundException("Could not locate source file.", Path.Combine(segments));
+    }
+
+    private static bool SetterUsesWhite(object? value)
+    {
+        return value switch
+        {
+            string text => text == "White",
+            Color color => color == Colors.White,
+            ISolidColorBrush brush => brush.Color == Colors.White,
+            _ => false,
+        };
     }
 }
