@@ -57,7 +57,7 @@ public sealed class InfoTabRegistryTests
         InfoTabRegistry registry = InfoTabRegistry.FromCatalog(tabControl, positionStrip, "Arial");
         Button[] buttons = ResetViewButtons(registry);
 
-        Assert.Equal(4, buttons.Length);
+        Assert.Equal(3, buttons.Length);
         Assert.All(buttons, button => Assert.Equal("Reset all graph views", ToolTip.GetTip(button)));
     }
 
@@ -882,7 +882,7 @@ public sealed class InfoTabRegistryTests
     }
 
     [Fact]
-    public void BeatErrorDiagTabReservesAlertBannerSpaceBesideResetView()
+    public void BeatErrorDiagTabReservesAlertBannerSpaceBesideZoomButtons()
     {
         EnsureAvaloniaPlatform();
         Grid content = CreateBeatErrorDiagContent();
@@ -903,19 +903,19 @@ public sealed class InfoTabRegistryTests
         Assert.Equal(1, Grid.GetColumn(controls));
         Assert.All(controls.Children.OfType<Button>(), button =>
             Assert.Equal(TraceHeaderButtonMinHeightForTest, button.MinHeight));
-        Button resetView = controls.Children.OfType<Button>().Single(button => Equals(button.Content, "Reset View"));
-        Assert.Equal("Reset View", resetView.Content);
-        Assert.Contains("PositionButton", resetView.Classes);
-        Assert.Equal(TraceHeaderButtonFontSizeForTest, resetView.FontSize);
-        Assert.Equal(TraceHeaderButtonMinHeightForTest, resetView.MinHeight);
+        Assert.DoesNotContain(controls.Children.OfType<Button>(), button => Equals(button.Content, "Reset View"));
         string[] buttons = controls.Children
             .OfType<Button>()
             .Select(button => button.Content?.ToString() ?? string.Empty)
             .ToArray();
-        Assert.Equal(new[] { "1x", "4x", "16x", "Reset View" }, buttons);
-        Assert.Contains("active", controls.Children.OfType<Button>().Single(button => Equals(button.Content, "1x")).Classes);
-        Assert.Equal(resetView.MinHeight, banner.MinHeight);
-        AssertVisibleAlertBannerHeightMatchesButton(content, "Reset View");
+        Assert.Equal(new[] { "1x", "4x", "16x" }, buttons);
+        Button defaultZoom = controls.Children.OfType<Button>().Single(button => Equals(button.Content, "1x"));
+        Assert.Contains("PositionButton", defaultZoom.Classes);
+        Assert.Equal(TraceHeaderButtonFontSizeForTest, defaultZoom.FontSize);
+        Assert.Equal(TraceHeaderButtonMinHeightForTest, defaultZoom.MinHeight);
+        Assert.Contains("active", defaultZoom.Classes);
+        Assert.Equal(defaultZoom.MinHeight, banner.MinHeight);
+        AssertVisibleAlertBannerHeightMatchesButton(content, "1x");
 
         Assert.DoesNotContain(content.Children.OfType<Button>(), button => Grid.GetRow(button) == 2);
     }

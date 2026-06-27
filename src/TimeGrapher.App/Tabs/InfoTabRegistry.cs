@@ -980,14 +980,6 @@ internal sealed partial class InfoTabRegistry
         var tracePlot = new AvaPlot();
 
         Border alertBanner = CreateAlertBanner(out TextBlock alertText);
-        Button resetViewButton = CreateOverlayButton(
-            "Reset View", ResetAllGraphViewsTooltip, context.ResetViews.ResetAll);
-        resetViewButton.MinHeight = TraceHeaderButtonMinHeight;
-        resetViewButton.FontSize = TraceHeaderButtonFontSize;
-        resetViewButton.Padding = TraceHeaderButtonPadding;
-        resetViewButton.VerticalAlignment = VerticalAlignment.Center;
-        resetViewButton.Classes.Add("PositionButton");
-
         const string zoomActiveClass = "active";
         var zoomButtons = new List<(Button Button, double Factor)>();
 
@@ -1040,7 +1032,6 @@ internal sealed partial class InfoTabRegistry
         controls.Children.Add(zoom1xButton);
         controls.Children.Add(zoom4xButton);
         controls.Children.Add(zoom16xButton);
-        controls.Children.Add(resetViewButton);
 
         alertBanner.VerticalAlignment = VerticalAlignment.Center;
         alertBanner.Margin = new Thickness(0, 0, 8, 0);
