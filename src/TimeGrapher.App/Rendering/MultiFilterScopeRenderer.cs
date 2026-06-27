@@ -49,17 +49,21 @@ internal sealed class MultiFilterScopeRenderer
     private double _dataMaxX;
     private bool _hasDataExtent;
 
+    // The lanes are drawn re-based to the locked beat: every refilled lane's X is
+    // shifted by the locked window's absolute left edge, so the beat sits at a
+    // fixed [0, width] window and the axis (and ms ruler) never moves with the
+    // beat — only the trace content updates, at the beat rate. _windowLeft is the
+    // last applied shift (for mapping the review cursor); _hasBeatWindow latches
+    // the last lock across the in-between non-data frames.
+    private double _windowLeft;
+    private bool _hasBeatWindow;
+
     // Sticky rightmost ms tick (hysteresis): the beat window width jitters by a
     // fraction of a ms each beat, which would otherwise toggle the last tick
     // label on and off at a tick boundary. The window's right edge is held to
     // this value (with a half-step deadband) so a shown label stays until the
     // span genuinely moves to the next/previous tick. Reset per run.
     private double _stickyMaxTickMs;
-
-    // Absolute onset tick of the beat the window is currently locked onto. Held
-    // across frames so the view stops jumping to the newest beat every period;
-    // NaN until the first lock and whenever the run resets.
-    private double _lockedOnsetTick = double.NaN;
 
     // Sample rate of the current run (X is in absolute sample ticks), used to
     // label the bottom axis in milliseconds from the window's left edge.
@@ -186,10 +190,11 @@ internal sealed class MultiFilterScopeRenderer
     {
         _followLive = true;
         _hasDataExtent = false;
+        _hasBeatWindow = false;
+        _windowLeft = 0.0;
         _dataMinX = 0.0;
         _dataMaxX = 0.0;
         _stickyMaxTickMs = 0.0;
-        _lockedOnsetTick = double.NaN;
         Array.Clear(_lanePeakMax);
         Array.Clear(_appliedHalf);
         for (int i = 0; i < _plots.Length; i++)
@@ -262,7 +267,6 @@ internal sealed class MultiFilterScopeRenderer
     public void ResetView()
     {
         _followLive = true;
-        _lockedOnsetTick = double.NaN;
         Array.Clear(_appliedHalf);
         for (int i = 0; i < _plots.Length; i++)
         {
@@ -401,28 +405,19 @@ internal sealed class MultiFilterScopeRenderer
             return false;
         }
 
-        // Hold the currently locked beat while it still fits the retained buffer,
-        // instead of re-selecting the newest onset every frame. Re-locking to the
-        // newest beat each period jumped the window — and the beat impulse — sideways
-        // ~8x/s, which read as the X axis trembling. Holding keeps the same beat (and
-        // ms ruler) stationary until it scrolls out, then re-locks to the newest.
+        // Lock to the newest A onset that fits, every frame, so the displayed beat
+        // refreshes at the beat rate instead of freezing on one beat until it
+        // scrolls out. The ms ruler is labeled relative to the window's left edge
+        // and the window width is quantized (see ApplyTimeTicks / StableWindowRight),
+        // so re-locking each beat no longer trembles the tick labels.
         double chosen = double.NaN;
-        if (!double.IsNaN(_lockedOnsetTick) && _lockedOnsetTick >= minOnset && _lockedOnsetTick <= maxOnset)
+        for (int i = segments.Count - 1; i >= 0; i--)
         {
-            chosen = _lockedOnsetTick;
-        }
-        else
-        {
-            // First lock, or the held beat scrolled out: take the newest fitting
-            // onset (it has the most buffer headroom, so it holds the longest).
-            for (int i = segments.Count - 1; i >= 0; i--)
+            double onset = OnsetTick(i);
+            if (onset >= minOnset && onset <= maxOnset)
             {
-                double onset = OnsetTick(i);
-                if (onset >= minOnset && onset <= maxOnset)
-                {
-                    chosen = onset;
-                    break;
-                }
+                chosen = onset;
+                break;
             }
         }
 
@@ -431,7 +426,6 @@ internal sealed class MultiFilterScopeRenderer
             return false;
         }
 
-        _lockedOnsetTick = chosen;
         min = chosen - preroll;
         max = chosen - preroll + width;
         return true;
@@ -607,45 +601,67 @@ internal sealed class MultiFilterScopeRenderer
             }
         }
 
-        bool hasBeatWindow = false;
         bool windowChanged = false;
-        if (_x[0].Count > 0)
+        if (updated[0] && _followLive && _x[0].Count > 0)
         {
-            if (_followLive)
+            // The just-refilled lanes are in absolute sample ticks; read the extent
+            // and pick the locked beat in that space, then re-base below.
+            double absNewest = _x[0][^1];
+            double absOldest = _x[0][0];
+            if (TryBeatWindow(frame, absOldest, absNewest, out double beatMin, out double beatMax))
             {
-                double newest = _x[0][^1];
-                double oldest = _x[0][0];
-                hasBeatWindow = TryBeatWindow(frame, oldest, newest, out double beatMin, out double beatMax);
-                if (hasBeatWindow)
+                double windowLeft = beatMin;          // absolute window left edge
+                double width = beatMax - beatMin;     // quantized in TryBeatWindow
+                double candidateMax = StableWindowRight(0.0, width); // re-based right
+
+                // The axis is FIXED at [0, candidateMax] in the re-based frame and
+                // only re-commits when the width changes past the deadband, so the
+                // ms ruler holds steady while the beat re-locks under it each frame.
+                double deadband = WindowDeadbandMs * Math.Max(_sampleRate / 1000.0, 1.0);
+                if (_dataMaxX <= _dataMinX || Math.Abs(candidateMax - _dataMaxX) > deadband)
                 {
-                    double candidateMin = beatMin;
-                    double candidateMax = StableWindowRight(beatMin, beatMax);
-                    // Only re-commit the window when an edge moves past the
-                    // deadband, so per-frame beat-period jitter no longer re-scales
-                    // the axis (which trembled the ticks). A real beat re-lock jumps
-                    // by ~one period and clears the band, so the lock still advances.
-                    double deadband = WindowDeadbandMs * Math.Max(_sampleRate / 1000.0, 1.0);
-                    if (_dataMaxX <= _dataMinX
-                        || Math.Abs(candidateMin - _dataMinX) > deadband
-                        || Math.Abs(candidateMax - _dataMaxX) > deadband)
+                    _dataMinX = 0.0;
+                    _dataMaxX = candidateMax;
+                    windowChanged = true;
+                }
+
+                // Re-base every refilled lane to the locked onset's window-left, so
+                // the beat impulse is pinned and the axis never moves with the beat.
+                _windowLeft = windowLeft;
+                for (int i = 0; i < _plots.Length; i++)
+                {
+                    if (updated[i])
                     {
-                        _dataMinX = candidateMin;
-                        _dataMaxX = candidateMax;
-                        windowChanged = true;
+                        List<double> xs = _x[i];
+                        for (int j = 0; j < xs.Count; j++)
+                        {
+                            xs[j] -= windowLeft;
+                        }
                     }
                 }
-            }
 
-            _hasDataExtent = true;
+                _hasBeatWindow = true;
+                _hasDataExtent = true;
+            }
+            else
+            {
+                _hasBeatWindow = false;
+                _hasDataExtent = false;
+            }
         }
-        else
+        else if (_x[0].Count == 0)
         {
+            _hasBeatWindow = false;
             _hasDataExtent = false;
         }
 
-        if (!hasBeatWindow)
+        if (!_hasBeatWindow)
         {
-            ClearDisplay();
+            if (updated[0])
+            {
+                ClearDisplay();
+            }
+
             return;
         }
 
@@ -656,11 +672,9 @@ internal sealed class MultiFilterScopeRenderer
             if (updated[i] && _x[i].Count > 0)
             {
                 // Y always auto-fits to 1.2x the running peak so the waveform never
-                // clips and the scale stays steady — independent of X interaction.
-                // The X window only follows the beat-tracked extent while following
-                // live, and only when it actually moved (the deadband), so the axis
-                // limits and ms ruler are left untouched on the in-between frames.
-                if (_followLive && windowChanged)
+                // clips. The X axis is the fixed re-based window; it is only set
+                // when its width actually changed (rare), not on every beat re-lock.
+                if (windowChanged)
                 {
                     _plots[i].Plot.Axes.SetLimitsX(_dataMinX, _dataMaxX);
                 }
@@ -670,10 +684,9 @@ internal sealed class MultiFilterScopeRenderer
 
             if (updated[i] || cursorMoved)
             {
-                // Re-lay the ms ruler only when the window moved. Rebuilding the
-                // tick generator every frame (even with identical positions) was
-                // what trembled the bottom axis; with the deadband holding the
-                // window steady, the ticks now stay put between beat re-locks.
+                // Re-lay the ms ruler only when the re-based window width changed;
+                // the fixed axis means it normally stays put between re-locks, so
+                // the ticks no longer flicker.
                 if (windowChanged)
                 {
                     AxisLimits limits = _plots[i].Plot.Axes.GetLimits();
@@ -689,10 +702,11 @@ internal sealed class MultiFilterScopeRenderer
     {
         bool changed = _hasDataExtent;
         _hasDataExtent = false;
+        _hasBeatWindow = false;
+        _windowLeft = 0.0;
         _dataMinX = 0.0;
         _dataMaxX = 0.0;
         _stickyMaxTickMs = 0.0;
-        _lockedOnsetTick = double.NaN;
         Array.Clear(_lanePeakMax);
         Array.Clear(_appliedHalf);
         for (int i = 0; i < _plots.Length; i++)
@@ -730,8 +744,9 @@ internal sealed class MultiFilterScopeRenderer
     /// <summary>Review-cursor contract: a dotted marker at the scrub time on every lane.</summary>
     private bool UpdateReviewCursor(int lane, AnalysisTabRenderContext context)
     {
-        // The lanes plot absolute sample ticks; map the stream time onto them.
-        return _cursors[lane]?.Update(context.ReviewCursorTimeS * context.SampleRate) ?? false;
+        // The lanes are drawn re-based to the locked window's left edge, so map the
+        // stream time onto that frame too (absolute tick minus the applied shift).
+        return _cursors[lane]?.Update(context.ReviewCursorTimeS * context.SampleRate - _windowLeft) ?? false;
     }
 
     private ReviewCursorLayer AddCursor(Plot plot)
