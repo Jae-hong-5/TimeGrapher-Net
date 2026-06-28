@@ -5,8 +5,6 @@ Date: 2026-06-28
 
 Implementation guide: `docs/for-ai/GEMINI_BACKEND_SETUP_GUIDE.md`
 
-Shared prompt contract: `docs/for-ai/GEMINI_PROMPT_CONTRACT.md`
-
 ## Goal
 
 Provide Gemini-powered app features without distributing the project-owned Gemini API key in the TimeGrapher client.
@@ -18,7 +16,7 @@ Provide Gemini-powered app features without distributing the project-owned Gemin
    - No bundled config file.
    - No README or public repository exposure.
 
-2. The default demo mode uses a private backend server.
+2. The only supported AI access mode uses a private backend server.
 
    ```text
    TimeGrapher App -> Private Backend Server -> Gemini API
@@ -26,7 +24,7 @@ Provide Gemini-powered app features without distributing the project-owned Gemin
 
    - The Gemini API key is stored only on the backend, preferably as an environment variable or secret.
    - The app sends requests to the backend and receives only the generated result.
-   - The app does not know the Gemini API key or direct Gemini service details in this mode.
+   - The app does not know the Gemini API key or direct Gemini service details.
 
 3. Grader credentials are provided separately, not embedded in the app.
    - The app contains only the login/input UI.
@@ -43,7 +41,7 @@ Provide Gemini-powered app features without distributing the project-owned Gemin
    Recommended endpoint style:
 
    ```text
-   POST /api/watch/explain-measurement
+   POST /api/watch/explain-measurement-log
    ```
 
    Avoid:
@@ -52,22 +50,18 @@ Provide Gemini-powered app features without distributing the project-owned Gemin
    POST /api/gemini-proxy
    ```
 
-5. Optional BYOK mode can be supported.
+5. Direct client Gemini access is out of scope.
 
    ```text
-   TimeGrapher App -> Gemini API
+   TimeGrapher App -> Private Backend Server -> Gemini API
    ```
 
-   - BYOK means "bring your own key".
-   - The user may enter their own Gemini API key.
-   - In BYOK mode, the app calls Gemini directly and does not route through the project backend.
-   - The user's key must not be sent to the project backend.
-   - If persisted, the key should be stored through the operating system credential store rather than a plain text config file.
-   - BYOK mode must use an app-local prompt template because the backend is not involved.
-   - The prompt template is not treated as a secret in BYOK mode; the user's own API key and quota carry the cost risk.
-   - Do not implement BYOK by sending the user's Gemini API key to the project backend just to reuse the server prompt.
+   - The app must not accept, store, or use a Gemini API key.
+   - The app must not call Gemini directly.
+   - All Gemini-powered explanations must go through the private backend.
+   - The backend remains responsible for prompt ownership, model selection, token limits, quota, logging policy, and abuse controls.
 
-6. Demo-mode log upload is allowed only with explicit user consent.
+6. Server-mode log upload is allowed only with explicit user consent.
 
    - The app may send a small analysis log file to the backend when the user requests AI explanation.
    - The UI must make clear that the log will be sent to the private backend for AI analysis.
@@ -98,19 +92,15 @@ Avoid claiming that the system has "no security risk". The correct claim is that
 ## Architecture boundary
 
 - `TimeGrapher.Core` must not depend on Gemini, HTTP clients, UI, or platform-specific credential APIs.
-- App-level services may coordinate the selected AI access mode.
-- Platform or adapter code should own OS credential-store integration if BYOK persistence is implemented.
+- App-level services may coordinate the server-backed AI explanation flow.
 - Backend-server integration should remain behind an app-facing service boundary so UI code does not know backend or Gemini protocol details.
-- BYOK direct-call mode should use an app-local prompt builder that mirrors the server prompt intent without depending on the backend.
 
 ## Korean summary
 
 - 개발자 소유 Gemini API 키는 앱에 포함하지 않는다.
-- 기본 데모 모드는 개인 서버를 경유한다.
+- AI 기능은 개인 서버 경유 방식만 지원한다.
+- 앱은 Gemini API 키 입력, 저장, 직접 호출 기능을 제공하지 않는다.
 - 채점자용 ID/PW는 앱에 넣지 않고 별도로 제공한다.
 - 서버는 인증, rate limit, quota, 입력 크기 제한, 토큰 제한을 적용한다.
 - 범용 Gemini 프록시가 아니라 기능별 API만 제공한다.
-- 선택적으로 사용자가 본인 Gemini API 키를 입력하는 BYOK 모드를 제공할 수 있다.
-- BYOK 모드에서는 사용자 키를 개인 서버로 보내지 않고 앱이 Gemini를 직접 호출한다.
 - 사용자의 명시적 동의를 받은 경우, 앱은 AI 설명을 위해 작은 분석 로그 파일을 서버로 보낼 수 있다.
-- BYOK 모드에서는 서버를 거치지 않으므로 앱 로컬 프롬프트 템플릿을 사용하며, 사용자 Gemini 키를 서버에 보내서 서버 프롬프트를 재사용하지 않는다.

@@ -6,11 +6,12 @@ Date: 2026-06-28
 This document is written so a separate server-side coding agent can implement and deploy the private backend used by TimeGrapher's Gemini-powered explanation feature.
 
 Related decision document: `docs/for-ai/GEMINI_AI_ACCESS_SECURITY.md`.
-Related prompt contract: `docs/for-ai/GEMINI_PROMPT_CONTRACT.md`.
 
 ## 1. Backend purpose
 
 The backend exists to keep the project-owned Gemini API key out of the distributed TimeGrapher client.
+
+The backend is the only supported path for Gemini-powered explanations; the app must not call Gemini directly.
 
 Target flow:
 
@@ -439,15 +440,14 @@ Do not paste real credentials into public screenshots, logs, README files, or is
 The app-side implementation should assume this backend contract:
 
 - The app stores only the backend base URL, not the Gemini API key.
+- The app must not provide UI for entering or storing a Gemini API key.
 - The app prompts the grader/user for demo username and password.
 - The app asks for explicit consent before uploading the analysis log.
 - The app sends `consentGranted=true` only after the user consents.
 - The app sends a small log and optional structured measurement summary.
+- The app always calls `POST /api/watch/explain-measurement-log` for Gemini-powered explanations.
 - The app displays the returned `explanation`.
-- The app does not call this backend in BYOK mode.
-- In BYOK mode, the user's own Gemini key is used locally and is not sent to this backend.
-- BYOK mode is outside this backend contract: the app builds its own local prompt and calls Gemini directly with the user's key.
-- The app must not send a user's BYOK Gemini key to this backend to reuse the server-side prompt.
+- The app does not call Gemini directly.
 
 ## 17. Server-agent acceptance checklist
 
