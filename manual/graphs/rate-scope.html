@@ -20,40 +20,44 @@
       <h1>1. Rate/Scope</h1>
       <p class="lede ko">실시간 파형과 비트별 박자 오차를 함께 보여 주는 가장 기본 탭. "시계가 돌고 있고, 매 박자가 제시간에 오는가?"</p>
       <p class="lede en">The fundamental tab: live waveform plus per-beat Error Rate. "Is the watch running, and is each beat on time?"</p>
+      <p class="lede pt">A aba fundamental: forma de onda ao vivo mais o Error Rate por batida. "O relógio está funcionando e cada batida chega no tempo certo?"</p>
 
       <figure>
         <img data-shot src="../img/tab-rate-scope.png" alt="Rate/Scope tab">
         <figcaption class="ko">그림 1. 위 = 레이트 오차 산점도, 아래 = 정류 파형 스코프.</figcaption>
         <figcaption class="en">Fig 1. Top = Error Rate scatter; bottom = rectified-waveform scope.</figcaption>
+        <figcaption class="pt">Fig 1. Em cima = dispersão do Error Rate; embaixo = scope da forma de onda retificada.</figcaption>
       </figure>
 
-      <h2><span class="ko">용도</span><span class="sep"> · </span><span class="en">Purpose</span></h2>
+      <h2><span class="ko">용도</span><span class="sep"> · </span><span class="en">Purpose</span><span class="sep"> · </span><span class="pt">Finalidade</span></h2>
       <p class="ko">신호가 제대로 검출되는지(스코프)와, 검출된 똑·딱이 얼마나 정확한 박자인지(레이트)를 동시에 확인합니다. 측정을 시작하면 가장 먼저 보는 화면입니다.</p>
       <p class="en">Confirms that the signal is being detected (scope) and how accurately the detected tics/tocs are timed (rate) — the first screen you check when a run starts.</p>
+      <p class="pt">Confirma que o sinal está sendo detectado (scope) e com que precisão os tic/toc detectados são temporizados (rate) — a primeira tela que você verifica quando uma medição começa.</p>
 
-      <h2><span class="ko">무엇이 보이나</span><span class="sep"> · </span><span class="en">What's shown</span></h2>
+      <h2><span class="ko">무엇이 보이나</span><span class="sep"> · </span><span class="en">What's shown</span><span class="sep"> · </span><span class="pt">O que é exibido</span></h2>
       <table>
-        <thead><tr><th></th><th><span class="ko">X축</span><span class="sep"> · </span><span class="en">X</span></th><th><span class="ko">Y축</span><span class="sep"> · </span><span class="en">Y</span></th><th><span class="ko">계열</span><span class="sep"> · </span><span class="en">Series</span></th></tr></thead>
+        <thead><tr><th></th><th><span class="ko">X축</span><span class="sep"> · </span><span class="en">X</span><span class="sep"> · </span><span class="pt">X</span></th><th><span class="ko">Y축</span><span class="sep"> · </span><span class="en">Y</span><span class="sep"> · </span><span class="pt">Y</span></th><th><span class="ko">계열</span><span class="sep"> · </span><span class="en">Series</span><span class="sep"> · </span><span class="pt">Séries</span></th></tr></thead>
         <tbody>
-          <tr><td><b><span class="ko">Error Rate (위)</span><span class="en">Error Rate (top)</span></b></td><td><span class="ko">비트 인덱스</span><span class="en">beat index</span></td><td>Error Rate (ms), 0 중심 대칭</td><td><span class="pill tic">Tic Error Rate</span> 초록 점 · <span class="pill toc">Toc Error Rate</span> 빨강 점</td></tr>
-          <tr><td><b><span class="ko">스코프 (아래)</span><span class="en">Scope (bottom)</span></b></td><td>Time (자동 스크롤)</td><td>Signal Level (0–0.1)</td><td>파란 선 <code>Rectified</code> 정류 파형 · 빨간 선 <code>Trigger</code> 검출 임계값 · 똑/딱 검출 마커</td></tr>
+          <tr><td><b><span class="ko">Error Rate (위)</span><span class="en">Error Rate (top)</span><span class="pt">Error Rate (em cima)</span></b></td><td><span class="ko">비트 인덱스</span><span class="en">beat index</span><span class="pt">índice da batida</span></td><td>Error Rate (ms), 0 중심 대칭</td><td><span class="pill tic">Tic Error Rate</span> 초록 점 · <span class="pill toc">Toc Error Rate</span> 빨강 점</td></tr>
+          <tr><td><b><span class="ko">스코프 (아래)</span><span class="en">Scope (bottom)</span><span class="pt">Scope (embaixo)</span></b></td><td>Time (자동 스크롤)</td><td>Signal Level (0–0.1)</td><td>파란 선 <code>Rectified</code> 정류 파형 · 빨간 선 <code>Trigger</code> 검출 임계값 · 똑/딱 검출 마커</td></tr>
         </tbody>
       </table>
 
-      <h2><span class="ko">읽는 법</span><span class="sep"> · </span><span class="en">How to read</span></h2>
+      <h2><span class="ko">읽는 법</span><span class="sep"> · </span><span class="en">How to read</span><span class="sep"> · </span><span class="pt">Como ler</span></h2>
       <ul>
-        <li><span class="ko"><b>스코프</b> — 주기적인 봉우리가 빨간 <code>Trigger</code> 선을 또렷이 넘으면 검출이 잘 되는 상태입니다. 봉우리가 트리거에 못 미치면 <a href="../controls.html#run">Gain</a>을 올리세요.</span><span class="en"><b>Scope</b> — periodic peaks should clearly cross the red <code>Trigger</code> line for reliable detection. If they don't, raise the <a href="../controls.html#run">Gain</a>.</span></li>
-        <li><span class="ko"><b>Error Rate</b> — 초록·빨강 점이 0 근처에 모이면 정시·안정. 위/아래로 흩어지면 불안정, 한쪽으로 치우치면 빠르거나 느린 상태입니다.</span><span class="en"><b>Error Rate</b> — green/red dots clustered near 0 = on-time and stable. Wide scatter = unstable; a consistent offset = running fast or slow.</span></li>
+        <li><span class="ko"><b>스코프</b> — 주기적인 봉우리가 빨간 <code>Trigger</code> 선을 또렷이 넘으면 검출이 잘 되는 상태입니다. 봉우리가 트리거에 못 미치면 <a href="../controls.html#run">Gain</a>을 올리세요.</span><span class="en"><b>Scope</b> — periodic peaks should clearly cross the red <code>Trigger</code> line for reliable detection. If they don't, raise the <a href="../controls.html#run">Gain</a>.</span><span class="pt"><b>Scope</b> — os picos periódicos devem cruzar nitidamente a linha vermelha <code>Trigger</code> para uma detecção confiável. Se não cruzarem, aumente o <a href="../controls.html#run">Gain</a>.</span></li>
+        <li><span class="ko"><b>Error Rate</b> — 초록·빨강 점이 0 근처에 모이면 정시·안정. 위/아래로 흩어지면 불안정, 한쪽으로 치우치면 빠르거나 느린 상태입니다.</span><span class="en"><b>Error Rate</b> — green/red dots clustered near 0 = on-time and stable. Wide scatter = unstable; a consistent offset = running fast or slow.</span><span class="pt"><b>Error Rate</b> — pontos verdes/vermelhos agrupados perto de 0 = no tempo e estável. Dispersão ampla = instável; um desvio constante = adiantando ou atrasando.</span></li>
       </ul>
       <div class="tip">
         <p class="ko"><b>좋은 예</b>: 트리거를 넘는 규칙적 봉우리 + 0선에 붙은 점들. <b>나쁜 예</b>: 약한 파형(검출 누락) 또는 크게 퍼진 점들.</p>
         <p class="en"><b>Good</b>: regular peaks over the trigger + dots hugging the 0 line. <b>Bad</b>: weak waveform (missed detection) or widely scattered dots.</p>
+        <p class="pt"><b>Bom</b>: picos regulares acima do trigger + pontos colados na linha do 0. <b>Ruim</b>: forma de onda fraca (detecção perdida) ou pontos muito espalhados.</p>
       </div>
 
-      <h2><span class="ko">옵션</span><span class="sep"> · </span><span class="en">Options &amp; tips</span></h2>
+      <h2><span class="ko">옵션</span><span class="sep"> · </span><span class="en">Options &amp; tips</span><span class="sep"> · </span><span class="pt">Opções e dicas</span></h2>
       <ul>
-        <li><span class="ko">스코프를 세로로 팬/줌하면 라이브 추적이 멈춥니다. 다시 따라가려면 뷰를 리셋(전체로 줌아웃)하세요.</span><span class="en">Panning/zooming the scope vertically freezes live-follow; reset the view (zoom fully out) to re-arm it.</span></li>
-        <li><span class="ko">파형이 작으면 <a href="../controls.html#misc">Scope Scale</a>로 키워 볼 수 있습니다(검출에는 영향 없음).</span><span class="en">Use <a href="../controls.html#misc">Scope Scale</a> to magnify a small waveform (display only).</span></li>
+        <li><span class="ko">스코프를 세로로 팬/줌하면 라이브 추적이 멈춥니다. 다시 따라가려면 뷰를 리셋(전체로 줌아웃)하세요.</span><span class="en">Panning/zooming the scope vertically freezes live-follow; reset the view (zoom fully out) to re-arm it.</span><span class="pt">Deslocar/dar zoom no scope verticalmente congela o acompanhamento ao vivo; redefina a visualização (zoom totalmente para fora) para reativá-lo.</span></li>
+        <li><span class="ko">파형이 작으면 <a href="../controls.html#misc">Scope Scale</a>로 키워 볼 수 있습니다(검출에는 영향 없음).</span><span class="en">Use <a href="../controls.html#misc">Scope Scale</a> to magnify a small waveform (display only).</span><span class="pt">Use o <a href="../controls.html#misc">Scope Scale</a> para ampliar uma forma de onda pequena (apenas exibição).</span></li>
       </ul>
 
       <div class="pager">

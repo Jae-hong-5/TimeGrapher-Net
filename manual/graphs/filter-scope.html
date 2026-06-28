@@ -20,41 +20,45 @@
       <h1>7. Filter Scope</h1>
       <p class="lede ko">같은 파형을 4단계 필터로 동시에 보여 줍니다. 어떤 필터에서 어떤 탈진기 충격이 가장 잘 보이는지 비교합니다.</p>
       <p class="lede en">Shows the same waveform through four filter stages at once, so you can compare which filter reveals which escapement event.</p>
+      <p class="lede pt">Mostra a mesma forma de onda através de quatro estágios de filtro ao mesmo tempo, para que você possa comparar qual filtro revela qual evento do escapo.</p>
 
       <figure>
         <img data-shot src="../img/tab-filter-scope.png" alt="Filter Scope tab">
         <figcaption class="ko">그림 1. 위에서부터 F0~F3, 공유 시간축. 초록=tic, 빨강=toc.</figcaption>
         <figcaption class="en">Fig 1. F0–F3 stacked, sharing one time axis. Green=tic, red=toc.</figcaption>
+        <figcaption class="pt">Fig 1. F0–F3 empilhados, compartilhando um único eixo de tempo. Verde=tic, vermelho=toc.</figcaption>
       </figure>
 
-      <h2><span class="ko">용도</span><span class="sep"> · </span><span class="en">Purpose</span></h2>
+      <h2><span class="ko">용도</span><span class="sep"> · </span><span class="en">Purpose</span><span class="sep"> · </span><span class="pt">Finalidade</span></h2>
       <p class="ko">원신호부터 점점 강하게 가공한 네 가지 보기를 나란히 두어, 잡음에 묻힌 충격 타이밍을 가장 잘 드러내는 단계를 찾습니다.</p>
       <p class="en">Places four progressively processed views side by side to find the stage that best exposes impulse timing hidden in noise.</p>
+      <p class="pt">Coloca quatro visualizações progressivamente processadas lado a lado para encontrar o estágio que melhor expõe o tempo do impulso escondido no ruído.</p>
 
-      <h2><span class="ko">무엇이 보이나</span><span class="sep"> · </span><span class="en">What's shown</span></h2>
+      <h2><span class="ko">무엇이 보이나</span><span class="sep"> · </span><span class="en">What's shown</span><span class="sep"> · </span><span class="pt">O que é exibido</span></h2>
       <table>
-        <thead><tr><th><span class="ko">레인</span><span class="sep"> · </span><span class="en">Lane</span></th><th><span class="ko">내용</span><span class="sep"> · </span><span class="en">Content</span></th></tr></thead>
+        <thead><tr><th><span class="ko">레인</span><span class="sep"> · </span><span class="en">Lane</span><span class="sep"> · </span><span class="pt">Faixa</span></th><th><span class="ko">내용</span><span class="sep"> · </span><span class="en">Content</span><span class="sep"> · </span><span class="pt">Conteúdo</span></th></tr></thead>
         <tbody>
-          <tr><td><b>F0</b></td><td><span class="ko">원신호(평균 기준 미러). 가공 거의 없음.</span><span class="en">Raw signal, mirrored about its average — closest to unfiltered.</span></td></tr>
-          <tr><td><b>F1</b></td><td><span class="ko">F0의 이동평균(미러). 더 매끈하고 잡음이 적음.</span><span class="en">Moving average of F0 (mirrored) — smoother, less noise.</span></td></tr>
-          <tr><td><b>F2</b></td><td><span class="ko">F1에서 상승 기울기를 강조 — T3·T2 타이밍 사건이 드러남.</span><span class="en">F1 with rising slopes emphasised — reveals T3/T2 events.</span></td></tr>
-          <tr><td><b>F3</b></td><td><span class="ko">상단 엔벨로프(단측) + 상승엣지 강조 — T1·T3 식별에 도움.</span><span class="en">Upper envelope (one-sided) with rising-edge emphasis — helps spot T1/T3.</span></td></tr>
+          <tr><td><b>F0</b></td><td><span class="ko">원신호(평균 기준 미러). 가공 거의 없음.</span><span class="en">Raw signal, mirrored about its average — closest to unfiltered.</span><span class="pt">Sinal bruto, espelhado em torno de sua média — o mais próximo do não filtrado.</span></td></tr>
+          <tr><td><b>F1</b></td><td><span class="ko">F0의 이동평균(미러). 더 매끈하고 잡음이 적음.</span><span class="en">Moving average of F0 (mirrored) — smoother, less noise.</span><span class="pt">Média móvel de F0 (espelhada) — mais suave, menos ruído.</span></td></tr>
+          <tr><td><b>F2</b></td><td><span class="ko">F1에서 상승 기울기를 강조 — T3·T2 타이밍 사건이 드러남.</span><span class="en">F1 with rising slopes emphasised — reveals T3/T2 events.</span><span class="pt">F1 com inclinações ascendentes enfatizadas — revela eventos T3/T2.</span></td></tr>
+          <tr><td><b>F3</b></td><td><span class="ko">상단 엔벨로프(단측) + 상승엣지 강조 — T1·T3 식별에 도움.</span><span class="en">Upper envelope (one-sided) with rising-edge emphasis — helps spot T1/T3.</span><span class="pt">Envelope superior (unilateral) com ênfase na borda ascendente — ajuda a identificar T1/T3.</span></td></tr>
         </tbody>
       </table>
       <p class="ko">네 레인은 가로(시간) 축을 공유하며 기본적으로 최근 약 2초를 자동 추적합니다. 똑/딱은 색으로 구분됩니다(초록=tic, 빨강=toc).</p>
       <p class="en">All four share the horizontal (time) axis and auto-follow the last ~2 seconds by default. Tics/tocs are colour-coded (green=tic, red=toc).</p>
+      <p class="pt">As quatro faixas compartilham o eixo horizontal (tempo) e, por padrão, acompanham automaticamente os últimos ~2 segundos. Os tics/tocs são codificados por cor (verde=tic, vermelho=toc).</p>
 
-      <h2><span class="ko">읽는 법</span><span class="sep"> · </span><span class="en">How to read</span></h2>
+      <h2><span class="ko">읽는 법</span><span class="sep"> · </span><span class="en">How to read</span><span class="sep"> · </span><span class="pt">Como ler</span></h2>
       <ul>
-        <li><span class="ko">레인을 위아래로 비교해, 검출하려는 충격이 또렷하게 솟는 단계를 고릅니다.</span><span class="en">Compare lanes vertically to pick the stage where the impulse you care about stands out clearly.</span></li>
-        <li><span class="ko">한 비트 안에서 여러 충격 성분(세로 구조)이 보이면 탈진기 동작 단계를 구분할 수 있습니다.</span><span class="en">Multiple impulse components (vertical structure) within a beat let you separate escapement action phases.</span></li>
+        <li><span class="ko">레인을 위아래로 비교해, 검출하려는 충격이 또렷하게 솟는 단계를 고릅니다.</span><span class="en">Compare lanes vertically to pick the stage where the impulse you care about stands out clearly.</span><span class="pt">Compare as faixas verticalmente para escolher o estágio em que o impulso de seu interesse se destaca claramente.</span></li>
+        <li><span class="ko">한 비트 안에서 여러 충격 성분(세로 구조)이 보이면 탈진기 동작 단계를 구분할 수 있습니다.</span><span class="en">Multiple impulse components (vertical structure) within a beat let you separate escapement action phases.</span><span class="pt">Vários componentes de impulso (estrutura vertical) dentro de uma batida permitem separar as fases de ação do escapo.</span></li>
       </ul>
 
-      <h2><span class="ko">옵션</span><span class="sep"> · </span><span class="en">Options</span></h2>
+      <h2><span class="ko">옵션</span><span class="sep"> · </span><span class="en">Options</span><span class="sep"> · </span><span class="pt">Opções</span></h2>
       <ul>
-        <li><span class="ko"><b>Y 줌</b> — 마우스 휠(네 레인 공통).</span><span class="en"><b>Y zoom</b> — mouse wheel (shared across lanes).</span></li>
-        <li><span class="ko"><b>Y 팬</b> — 세로 드래그(공통).</span><span class="en"><b>Y pan</b> — vertical drag (shared).</span></li>
-        <li><span class="ko"><b>X 줌/팬</b> — 한 레인에서 조작하면 네 레인이 함께 움직입니다. 전체로 줌아웃하면 라이브 추적이 다시 켜집니다.</span><span class="en"><b>X zoom/pan</b> — adjusting one lane moves all four; zooming fully out re-arms live follow.</span></li>
+        <li><span class="ko"><b>Y 줌</b> — 마우스 휠(네 레인 공통).</span><span class="en"><b>Y zoom</b> — mouse wheel (shared across lanes).</span><span class="pt"><b>Zoom Y</b> — roda do mouse (compartilhado entre as faixas).</span></li>
+        <li><span class="ko"><b>Y 팬</b> — 세로 드래그(공통).</span><span class="en"><b>Y pan</b> — vertical drag (shared).</span><span class="pt"><b>Pan Y</b> — arraste vertical (compartilhado).</span></li>
+        <li><span class="ko"><b>X 줌/팬</b> — 한 레인에서 조작하면 네 레인이 함께 움직입니다. 전체로 줌아웃하면 라이브 추적이 다시 켜집니다.</span><span class="en"><b>X zoom/pan</b> — adjusting one lane moves all four; zooming fully out re-arms live follow.</span><span class="pt"><b>Zoom/Pan X</b> — ajustar uma faixa move todas as quatro; ao reduzir o zoom totalmente, o acompanhamento ao vivo é reativado.</span></li>
       </ul>
 
       <div class="pager">

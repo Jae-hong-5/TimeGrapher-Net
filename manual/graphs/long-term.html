@@ -20,40 +20,47 @@
       <h1>8. Long-Term</h1>
       <p class="lede ko">레이트·진폭·비트 오차의 장시간(수십 분~수 시간) 추세를 한 화면에 쌓아 봅니다. 노화나 온도 드리프트를 잡습니다.</p>
       <p class="lede en">Stacks the long-run (tens of minutes to hours) trend of rate, amplitude and beat error — catches aging or thermal drift.</p>
+      <p class="lede pt">Empilha a tendência de longo prazo (de dezenas de minutos a horas) de rate, Amplitude e erro de batida — captura envelhecimento ou deriva térmica.</p>
 
       <figure>
         <img data-shot src="../img/tab-long-term.png" alt="Long-Term tab">
         <figcaption class="ko">그림 1. 위→아래 레이트·진폭·비트오차. 선=구간 평균, 띠=구간 min–max, 점선=전체 평균.</figcaption>
         <figcaption class="en">Fig 1. Rate / amplitude / beat error stacked. Line = bucket average, band = bucket min–max, dashed = overall average.</figcaption>
+        <figcaption class="pt">Fig 1. Rate / Amplitude / erro de batida empilhados. Linha = média do intervalo, faixa = mín–máx do intervalo, tracejado = média geral.</figcaption>
       </figure>
 
-      <h2><span class="ko">용도</span><span class="sep"> · </span><span class="en">Purpose</span></h2>
+      <h2><span class="ko">용도</span><span class="sep"> · </span><span class="en">Purpose</span><span class="sep"> · </span><span class="pt">Finalidade</span></h2>
       <p class="ko">짧게는 안 보이는 느린 변화 — 태엽이 풀리며 진폭이 처지거나, 온도에 따라 레이트가 흐르는 현상 — 을 긴 시간축에서 확인합니다.</p>
       <p class="en">Reveals slow changes invisible at short range — amplitude sagging as the mainspring unwinds, or rate drifting with temperature — over a long time axis.</p>
+      <p class="pt">Revela mudanças lentas invisíveis em curto prazo — a Amplitude cedendo conforme a mola real se desenrola, ou a rate derivando com a temperatura — ao longo de um eixo de tempo extenso.</p>
 
-      <h2><span class="ko">무엇이 보이나</span><span class="sep"> · </span><span class="en">What's shown</span></h2>
+      <h2><span class="ko">무엇이 보이나</span><span class="sep"> · </span><span class="en">What's shown</span><span class="sep"> · </span><span class="pt">O que é exibido</span></h2>
       <p class="ko">세 개의 플롯이 가로축 <code>Elapsed (s)</code>를 공유합니다.</p>
       <p class="en">Three plots share the <code>Elapsed (s)</code> horizontal axis.</p>
+      <p class="pt">Três plotagens compartilham o eixo horizontal <code>Elapsed (s)</code>.</p>
       <table>
-        <thead><tr><th><span class="ko">플롯</span><span class="sep"> · </span><span class="en">Plot</span></th><th><span class="ko">Y축</span><span class="sep"> · </span><span class="en">Y</span></th></tr></thead>
+        <thead><tr><th><span class="ko">플롯</span><span class="sep"> · </span><span class="en">Plot</span><span class="sep"> · </span><span class="pt">Plotagem</span></th><th><span class="ko">Y축</span><span class="sep"> · </span><span class="en">Y</span><span class="sep"> · </span><span class="pt">Y</span></th></tr></thead>
         <tbody>
-          <tr><td><span class="ko">Error Rate (위)</span><span class="en">Error Rate (top)</span></td><td>Error Rate (s/d)</td></tr>
-          <tr><td><span class="ko">진폭 (중간)</span><span class="en">Amplitude (mid)</span></td><td>Amplitude(°)</td></tr>
-          <tr><td><span class="ko">비트 오차 (아래)</span><span class="en">Beat error (bottom)</span></td><td>Beat error (ms)</td></tr>
+          <tr><td><span class="ko">Error Rate (위)</span><span class="en">Error Rate (top)</span><span class="pt">Error Rate (topo)</span></td><td>Error Rate (s/d)</td></tr>
+          <tr><td><span class="ko">진폭 (중간)</span><span class="en">Amplitude (mid)</span><span class="pt">Amplitude (meio)</span></td><td>Amplitude(°)</td></tr>
+          <tr><td><span class="ko">비트 오차 (아래)</span><span class="en">Beat error (bottom)</span><span class="pt">Beat error (base)</span></td><td>Beat error (ms)</td></tr>
         </tbody>
       </table>
       <p class="ko">각 플롯에는 <b>구간 평균선</b>, <b>min–max 음영 띠</b>(구간 내 변동 폭), <b>점선 전체 평균</b>이 함께 그려집니다. 시간이 길어지면 점 간격이 자동으로 넓어지며(해상도 병합) 푸터에 <code>1 pt ≈ N s</code>로 현재 해상도를 알려 줍니다.</p>
       <p class="en">Each plot draws a <b>bucket-average line</b>, a <b>min–max band</b> (variation within the bucket), and a <b>dashed overall average</b>. As time grows, points merge (resolution halves) and the footer reports the current resolution as <code>1 pt ≈ N s</code>.</p>
+      <p class="pt">Cada plotagem desenha uma <b>linha de média do intervalo</b>, uma <b>faixa mín–máx</b> (variação dentro do intervalo) e uma <b>média geral tracejada</b>. Conforme o tempo aumenta, os pontos se fundem (a resolução cai pela metade) e o rodapé informa a resolução atual como <code>1 pt ≈ N s</code>.</p>
       <p class="ko"><b>푸터</b>: <code>AVG Error Rate … AVG Amplitude … AVG BEAT ERROR … ELAPSED hh:mm:ss … 1 pt ≈ W s</code>.</p>
       <p class="en"><b>Footer</b>: <code>AVG Error Rate … AVG Amplitude … AVG BEAT ERROR … ELAPSED hh:mm:ss … 1 pt ≈ W s</code>.</p>
+      <p class="pt"><b>Rodapé</b>: <code>AVG Error Rate … AVG Amplitude … AVG BEAT ERROR … ELAPSED hh:mm:ss … 1 pt ≈ W s</code>.</p>
       <p class="ko"><b>리뷰 바</b>: 탭 아래에 항상 보이며 실행 중에는 비활성화됩니다. ⏸로 일시정지하면 슬라이더와 <kbd>−1 s</kbd>/<kbd>+1 s</kbd>/<kbd>LIVE</kbd> 버튼이 활성화되어 Long-Term 기록의 특정 시점으로 이동합니다.</p>
       <p class="en"><b>Review bar</b>: always visible at the bottom of this tab and disabled while the run is live. Pause (⏸) to enable the slider and <kbd>−1 s</kbd>/<kbd>+1 s</kbd>/<kbd>LIVE</kbd> buttons for jumping to a specific point in the Long-Term recording.</p>
+      <p class="pt"><b>Barra de revisão</b>: sempre visível na parte inferior desta aba e desativada enquanto a execução está ao vivo. Pause (⏸) para ativar o controle deslizante e os botões <kbd>−1 s</kbd>/<kbd>+1 s</kbd>/<kbd>LIVE</kbd> e saltar para um ponto específico na gravação do Long-Term.</p>
 
-      <h2><span class="ko">읽는 법</span><span class="sep"> · </span><span class="en">How to read</span></h2>
+      <h2><span class="ko">읽는 법</span><span class="sep"> · </span><span class="en">How to read</span><span class="sep"> · </span><span class="pt">Como ler</span></h2>
       <ul>
-        <li><span class="ko"><b>평평한 선</b> = 안정. 시간이 가도 값이 유지됨.</span><span class="en"><b>Flat lines</b> = stable; values hold over time.</span></li>
-        <li><span class="ko"><b>기울어진 선</b> = 드리프트(노화·온도·파워리저브 변화).</span><span class="en"><b>Sloping lines</b> = drift (aging, temperature, power-reserve change).</span></li>
-        <li><span class="ko"><b>띠 폭</b> = 그 구간의 변동량. 넓으면 불안정.</span><span class="en"><b>Band width</b> = variation in that bucket; wider = less stable.</span></li>
+        <li><span class="ko"><b>평평한 선</b> = 안정. 시간이 가도 값이 유지됨.</span><span class="en"><b>Flat lines</b> = stable; values hold over time.</span><span class="pt"><b>Linhas planas</b> = estável; os valores se mantêm ao longo do tempo.</span></li>
+        <li><span class="ko"><b>기울어진 선</b> = 드리프트(노화·온도·파워리저브 변화).</span><span class="en"><b>Sloping lines</b> = drift (aging, temperature, power-reserve change).</span><span class="pt"><b>Linhas inclinadas</b> = deriva (envelhecimento, temperatura, variação da reserva de marcha).</span></li>
+        <li><span class="ko"><b>띠 폭</b> = 그 구간의 변동량. 넓으면 불안정.</span><span class="en"><b>Band width</b> = variation in that bucket; wider = less stable.</span><span class="pt"><b>Largura da faixa</b> = variação naquele intervalo; mais larga = menos estável.</span></li>
       </ul>
 
       <div class="pager">

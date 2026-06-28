@@ -20,36 +20,41 @@
       <h1>12. Escapement</h1>
       <p class="lede ko">비트 내부의 미세 타이밍을 분석해, 조정 기준으로 <b>C 피크</b>와 <b>C 온셋</b> 중 어느 쪽이 더 반복적인지 알려 줍니다.</p>
       <p class="lede en">Analyzes fine intra-beat timing to tell which reference — <b>C peak</b> or <b>C onset</b> — is more repeatable for regulation.</p>
+      <p class="lede pt">Analisa a temporização fina dentro da batida para indicar qual referência — <b>C peak</b> ou <b>C onset</b> — é mais repetível para a regulagem.</p>
 
       <figure>
         <img data-shot src="../img/tab-escapement.png" alt="Escapement tab">
         <figcaption class="ko">그림 1. 최신 tic→toc 한 진동(두 비트) 파형 + 각 비트의 A·C 마커, 아래 A→C 간격 통계와 "더 반복적인" 기준 판정.</figcaption>
         <figcaption class="en">Fig 1. Latest tic→toc oscillation (two beats) + each beat's A/C markers; A→C interval stats and the "more repeatable" verdict below.</figcaption>
+        <figcaption class="pt">Fig 1. Oscilação tic→toc mais recente (duas batidas) + marcadores A/C de cada batida; estatísticas do intervalo A→C e o veredito "mais repetível" abaixo.</figcaption>
       </figure>
 
-      <h2><span class="ko">용도</span><span class="sep"> · </span><span class="en">Purpose</span></h2>
+      <h2><span class="ko">용도</span><span class="sep"> · </span><span class="en">Purpose</span><span class="sep"> · </span><span class="pt">Finalidade</span></h2>
       <p class="ko">시계를 조정할 때 기준으로 삼을 타이밍 포인트를 정합니다. 흔들림(표준편차)이 더 작은 기준을 쓰면 더 정밀하게 맞출 수 있습니다.</p>
       <p class="en">Picks the timing point to regulate against — using the reference with smaller jitter (std dev) lets you set the watch more precisely.</p>
+      <p class="pt">Escolhe o ponto de temporização que servirá de referência para a regulagem — usar a referência com menor jitter (desvio padrão) permite ajustar o relógio com mais precisão.</p>
 
-      <h2><span class="ko">무엇이 보이나</span><span class="sep"> · </span><span class="en">What's shown</span></h2>
+      <h2><span class="ko">무엇이 보이나</span><span class="sep"> · </span><span class="en">What's shown</span><span class="sep"> · </span><span class="pt">O que é exibido</span></h2>
       <dl class="kv">
-        <dt><span class="ko">X축</span><span class="en">X axis</span></dt><dd>ms — <span class="ko">tic A 기준(tic A=0)으로 tic→toc 한 진동을 실제 간격대로 확대(항상 tic이 먼저).</span><span class="en">tic-A-relative (tic A = 0), zoomed to one tic→toc oscillation at its real spacing (tic always first).</span></dd>
-        <dt><span class="ko">Y축</span><span class="en">Y axis</span></dt><dd>Signal Level — <span class="ko">최신 비트의 양극 파형(가능할 때) 또는 정류 엔벨로프.</span><span class="en">the latest beat's bipolar waveform (when available) or rectified envelope.</span></dd>
-        <dt><span class="ko">마커</span><span class="en">Markers</span></dt><dd><span class="ko">A(초록 점선), C 피크(빨강 점선), C 온셋(빨강 점). 라벨 <code>C peak A→C: X.X ms</code> 등.</span><span class="en">A (green dashed), C peak (red dashed), C onset (red dotted). Labels like <code>C peak A→C: X.X ms</code>.</span></dd>
+        <dt><span class="ko">X축</span><span class="en">X axis</span><span class="pt">Eixo X</span></dt><dd>ms — <span class="ko">tic A 기준(tic A=0)으로 tic→toc 한 진동을 실제 간격대로 확대(항상 tic이 먼저).</span><span class="en">tic-A-relative (tic A = 0), zoomed to one tic→toc oscillation at its real spacing (tic always first).</span><span class="pt">relativo ao tic A (tic A = 0), ampliado para uma oscilação tic→toc no seu espaçamento real (o tic sempre vem primeiro).</span></dd>
+        <dt><span class="ko">Y축</span><span class="en">Y axis</span><span class="pt">Eixo Y</span></dt><dd>Signal Level — <span class="ko">최신 비트의 양극 파형(가능할 때) 또는 정류 엔벨로프.</span><span class="en">the latest beat's bipolar waveform (when available) or rectified envelope.</span><span class="pt">a forma de onda bipolar da batida mais recente (quando disponível) ou o envelope retificado.</span></dd>
+        <dt><span class="ko">마커</span><span class="en">Markers</span><span class="pt">Marcadores</span></dt><dd><span class="ko">A(초록 점선), C 피크(빨강 점선), C 온셋(빨강 점). 라벨 <code>C peak A→C: X.X ms</code> 등.</span><span class="en">A (green dashed), C peak (red dashed), C onset (red dotted). Labels like <code>C peak A→C: X.X ms</code>.</span><span class="pt">A (verde tracejado), pico de C (vermelho tracejado), onset de C (vermelho pontilhado). Rótulos como <code>C peak A→C: X.X ms</code>.</span></dd>
       </dl>
       <p class="ko"><b>수치판</b> — <code>A→C PEAK</code>, <code>A→C ONSET</code>(현재 비트 간격), <code>ONSET-PEAK</code>(둘의 차이), <code>PEAK MEAN±σ</code>, <code>ONSET MEAN±σ</code>(최근 32비트 평균±표준편차), <code>MORE REPEATABLE</code>(판정: <code>ONSET</code> / <code>PEAK</code> / <code>—</code>).</p>
       <p class="en"><b>Readout</b> — <code>A→C PEAK</code>, <code>A→C ONSET</code> (current beat), <code>ONSET-PEAK</code> (their delta), <code>PEAK MEAN±σ</code>, <code>ONSET MEAN±σ</code> (mean±std over last 32 beats), <code>MORE REPEATABLE</code> (verdict: <code>ONSET</code> / <code>PEAK</code> / <code>—</code>).</p>
+      <p class="pt"><b>Painel de leitura</b> — <code>A→C PEAK</code>, <code>A→C ONSET</code> (batida atual), <code>ONSET-PEAK</code> (a diferença entre eles), <code>PEAK MEAN±σ</code>, <code>ONSET MEAN±σ</code> (média±desvio padrão sobre as últimas 32 batidas), <code>MORE REPEATABLE</code> (veredito: <code>ONSET</code> / <code>PEAK</code> / <code>—</code>).</p>
 
-      <h2><span class="ko">읽는 법</span><span class="sep"> · </span><span class="en">How to read</span></h2>
+      <h2><span class="ko">읽는 법</span><span class="sep"> · </span><span class="en">How to read</span><span class="sep"> · </span><span class="pt">Como ler</span></h2>
       <ul>
-        <li><span class="ko"><b>PEAK MEAN±σ</b>와 <b>ONSET MEAN±σ</b>를 비교 — <b>σ가 더 작은</b> 쪽이 더 반복적입니다.</span><span class="en">Compare <b>PEAK MEAN±σ</b> vs <b>ONSET MEAN±σ</b> — the one with the <b>smaller σ</b> is more repeatable.</span></li>
-        <li><span class="ko"><b>MORE REPEATABLE</b> 판정은 양쪽 모두 8샘플 이상 모이면 더 안정적인 기준을 표시합니다. 그 기준으로 조정하세요.</span><span class="en"><b>MORE REPEATABLE</b> shows the steadier reference once both have ≥8 samples — regulate against that one.</span></li>
-        <li><span class="ko">ONSET이 더 안정적이면 피크 대신 C 클러스터의 시작 가장자리로 시계를 맞출 수 있습니다.</span><span class="en">If ONSET is steadier, set the watch by the C-cluster's leading edge instead of its peak.</span></li>
+        <li><span class="ko"><b>PEAK MEAN±σ</b>와 <b>ONSET MEAN±σ</b>를 비교 — <b>σ가 더 작은</b> 쪽이 더 반복적입니다.</span><span class="en">Compare <b>PEAK MEAN±σ</b> vs <b>ONSET MEAN±σ</b> — the one with the <b>smaller σ</b> is more repeatable.</span><span class="pt">Compare <b>PEAK MEAN±σ</b> com <b>ONSET MEAN±σ</b> — o que tiver o <b>menor σ</b> é mais repetível.</span></li>
+        <li><span class="ko"><b>MORE REPEATABLE</b> 판정은 양쪽 모두 8샘플 이상 모이면 더 안정적인 기준을 표시합니다. 그 기준으로 조정하세요.</span><span class="en"><b>MORE REPEATABLE</b> shows the steadier reference once both have ≥8 samples — regulate against that one.</span><span class="pt"><b>MORE REPEATABLE</b> mostra a referência mais estável quando ambas têm ≥8 amostras — regule com base nela.</span></li>
+        <li><span class="ko">ONSET이 더 안정적이면 피크 대신 C 클러스터의 시작 가장자리로 시계를 맞출 수 있습니다.</span><span class="en">If ONSET is steadier, set the watch by the C-cluster's leading edge instead of its peak.</span><span class="pt">Se o ONSET for mais estável, ajuste o relógio pela borda inicial do cluster de C em vez do seu pico.</span></li>
       </ul>
 
       <div class="note">
         <p class="ko">Amplitude 계산에 C 온셋 시각을 쓰려면 <a href="../controls.html#misc">Misc → Use C-onset timing</a>을 켜세요.</p>
         <p class="en">To use C-onset timing for Amplitude, enable <a href="../controls.html#misc">Misc → Use C-onset timing</a>.</p>
+        <p class="pt">Para usar a temporização de C-onset no Amplitude, ative <a href="../controls.html#misc">Misc → Use C-onset timing</a>.</p>
       </div>
 
       <div class="pager">

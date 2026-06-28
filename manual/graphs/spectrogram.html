@@ -20,38 +20,41 @@
       <h1>14. Spectrogram</h1>
       <p class="lede ko">소리를 시간-주파수 이미지로 펼쳐, 시계가 어떤 주파수 성분을 내는지 실시간으로 봅니다.</p>
       <p class="lede en">Spreads the sound into a time–frequency image to see, in real time, which frequency components the watch produces.</p>
+      <p class="lede pt">Expande o som em uma imagem tempo–frequência para ver, em tempo real, quais componentes de frequência o relógio produz.</p>
 
       <figure>
         <img data-shot src="../img/tab-spectrogram.png" alt="Spectrogram tab">
         <figcaption class="ko">그림 1. 가로 = 시간(스윕), 세로 = 주파수, 색 = dB 세기. 오른쪽 dB 컬러바, 위 모드 선택기.</figcaption>
         <figcaption class="en">Fig 1. Horizontal = time (sweep), vertical = frequency, colour = dB level. dB colourbar (right), mode selector (top).</figcaption>
+        <figcaption class="pt">Fig 1. Horizontal = tempo (sweep), vertical = frequência, cor = nível em dB. Barra de cores dB (à direita), seletor de modo (no topo).</figcaption>
       </figure>
 
-      <h2><span class="ko">용도</span><span class="sep"> · </span><span class="en">Purpose</span></h2>
+      <h2><span class="ko">용도</span><span class="sep"> · </span><span class="en">Purpose</span><span class="sep"> · </span><span class="pt">Finalidade</span></h2>
       <p class="ko">충격음의 주파수 구성을 봅니다. 박자의 기본 주파수와 배음이 또렷한지, 잡음이 어디에 퍼져 있는지 파악할 수 있습니다.</p>
       <p class="en">Reveals the frequency makeup of the impulses — whether the beat's fundamental and harmonics are crisp, and where noise spreads.</p>
+      <p class="pt">Revela a composição de frequência dos impulsos — se a fundamental e os harmônicos da batida estão nítidos e onde o ruído se espalha.</p>
 
-      <h2><span class="ko">무엇이 보이나</span><span class="sep"> · </span><span class="en">What's shown</span></h2>
+      <h2><span class="ko">무엇이 보이나</span><span class="sep"> · </span><span class="en">What's shown</span><span class="sep"> · </span><span class="pt">O que é exibido</span></h2>
       <dl class="kv">
-        <dt><span class="ko">가로(X)</span><span class="en">Horizontal</span></dt><dd><span class="ko">시간 창. 오실로스코프처럼 왼→오로 쓸어가며 갱신.</span><span class="en">A time window, painted left→right like an oscilloscope sweep.</span></dd>
-        <dt><span class="ko">세로(Y)</span><span class="en">Vertical</span></dt><dd><span class="ko">주파수(STFT 빈, 위가 높은 주파수).</span><span class="en">Frequency (STFT bins, higher at the top).</span></dd>
-        <dt><span class="ko">색</span><span class="en">Colour</span></dt><dd><span class="ko">dB 세기. 오른쪽 컬러바가 위=강, 아래=바닥.</span><span class="en">dB level; the right colourbar runs peak (top) to floor (bottom).</span></dd>
-        <dt><span class="ko">빨간 세로선</span><span class="en">Red line</span></dt><dd><span class="ko">현재 스윕 위치(Seconds 모드에서만).</span><span class="en">Live sweep head (Seconds mode only).</span></dd>
+        <dt><span class="ko">가로(X)</span><span class="en">Horizontal</span><span class="pt">Horizontal</span></dt><dd><span class="ko">시간 창. 오실로스코프처럼 왼→오로 쓸어가며 갱신.</span><span class="en">A time window, painted left→right like an oscilloscope sweep.</span><span class="pt">Uma janela de tempo, pintada da esquerda para a direita como uma varredura de osciloscópio.</span></dd>
+        <dt><span class="ko">세로(Y)</span><span class="en">Vertical</span><span class="pt">Vertical</span></dt><dd><span class="ko">주파수(STFT 빈, 위가 높은 주파수).</span><span class="en">Frequency (STFT bins, higher at the top).</span><span class="pt">Frequência (bins STFT, mais alta no topo).</span></dd>
+        <dt><span class="ko">색</span><span class="en">Colour</span><span class="pt">Cor</span></dt><dd><span class="ko">dB 세기. 오른쪽 컬러바가 위=강, 아래=바닥.</span><span class="en">dB level; the right colourbar runs peak (top) to floor (bottom).</span><span class="pt">Nível em dB; a barra de cores à direita vai do pico (topo) ao piso (base).</span></dd>
+        <dt><span class="ko">빨간 세로선</span><span class="en">Red line</span><span class="pt">Linha vermelha</span></dt><dd><span class="ko">현재 스윕 위치(Seconds 모드에서만).</span><span class="en">Live sweep head (Seconds mode only).</span><span class="pt">Cabeça da varredura ao vivo (somente no modo Seconds).</span></dd>
       </dl>
 
-      <h2><span class="ko">옵션</span><span class="sep"> · </span><span class="en">Options</span></h2>
+      <h2><span class="ko">옵션</span><span class="sep"> · </span><span class="en">Options</span><span class="sep"> · </span><span class="pt">Opções</span></h2>
       <ul>
-        <li><span class="ko"><b>Last Beat</b> — 창을 한 비트 길이로 고정(BPH 기준, 모르면 0.125초). A 온셋에 위상 고정되어 비트가 가운데 머뭅니다.</span><span class="en"><b>Last Beat</b> — fixes the window to one beat period (from BPH, else 0.125 s), phase-locked to the latest A onset so the beat stays centred.</span></li>
-        <li><span class="ko"><b>Compare Beats</b> — 최근 여러 비트(2·4·8개)를 위상 정렬해 각 비트를 자기 칸 가운데에 놓고, 칸 사이마다 구분선을 그립니다. 2개면 한 비트를 다음 비트와 직접 비교하고, 더 늘리면 같은 주파수 대역에서 반복되는 에너지 구조가 칸마다 되풀이되는 것을 봅니다. −/+ 또는 휠로 개수를 바꿉니다.</span><span class="en"><b>Compare Beats</b> — lays the last few beats (2 · 4 · 8) side by side, phase-aligned with each beat centred in its own cell and a divider between cells. Two beats compare one beat directly with the next; more beats reveal the recurring energy structure repeating cell to cell at the same frequency bands. Step the count with −/+ or the wheel.</span></li>
-        <li><span class="ko"><b>Seconds</b> — 창을 고정 초(0.1–10초)로. 위상 고정 없이 라이브 스윕이 흐릅니다.</span><span class="en"><b>Seconds</b> — a fixed number of seconds (0.1–10 s); no phase lock, live sweep flows.</span></li>
-        <li><span class="ko">아래 시간축 라벨과 캡션(<code>Time (s) · 1.0 s window</code> 또는 <code>Time (ms) · last beat</code>)이 현재 창을 알려 줍니다.</span><span class="en">The time-axis labels and caption (<code>Time (s) · 1.0 s window</code> or <code>Time (ms) · last beat</code>) report the current window.</span></li>
+        <li><span class="ko"><b>Last Beat</b> — 창을 한 비트 길이로 고정(BPH 기준, 모르면 0.125초). A 온셋에 위상 고정되어 비트가 가운데 머뭅니다.</span><span class="en"><b>Last Beat</b> — fixes the window to one beat period (from BPH, else 0.125 s), phase-locked to the latest A onset so the beat stays centred.</span><span class="pt"><b>Last Beat</b> — fixa a janela em um período de batida (a partir do BPH, senão 0,125 s), com fase travada no onset A mais recente para que a batida permaneça centralizada.</span></li>
+        <li><span class="ko"><b>Compare Beats</b> — 최근 여러 비트(2·4·8개)를 위상 정렬해 각 비트를 자기 칸 가운데에 놓고, 칸 사이마다 구분선을 그립니다. 2개면 한 비트를 다음 비트와 직접 비교하고, 더 늘리면 같은 주파수 대역에서 반복되는 에너지 구조가 칸마다 되풀이되는 것을 봅니다. −/+ 또는 휠로 개수를 바꿉니다.</span><span class="en"><b>Compare Beats</b> — lays the last few beats (2 · 4 · 8) side by side, phase-aligned with each beat centred in its own cell and a divider between cells. Two beats compare one beat directly with the next; more beats reveal the recurring energy structure repeating cell to cell at the same frequency bands. Step the count with −/+ or the wheel.</span><span class="pt"><b>Compare Beats</b> — dispõe as últimas batidas (2 · 4 · 8) lado a lado, alinhadas em fase, com cada batida centralizada em sua própria célula e um divisor entre as células. Duas batidas comparam uma batida diretamente com a seguinte; mais batidas revelam a estrutura de energia recorrente que se repete de célula em célula nas mesmas bandas de frequência. Ajuste a quantidade com −/+ ou com a roda do mouse.</span></li>
+        <li><span class="ko"><b>Seconds</b> — 창을 고정 초(0.1–10초)로. 위상 고정 없이 라이브 스윕이 흐릅니다.</span><span class="en"><b>Seconds</b> — a fixed number of seconds (0.1–10 s); no phase lock, live sweep flows.</span><span class="pt"><b>Seconds</b> — um número fixo de segundos (0,1–10 s); sem trava de fase, a varredura flui ao vivo.</span></li>
+        <li><span class="ko">아래 시간축 라벨과 캡션(<code>Time (s) · 1.0 s window</code> 또는 <code>Time (ms) · last beat</code>)이 현재 창을 알려 줍니다.</span><span class="en">The time-axis labels and caption (<code>Time (s) · 1.0 s window</code> or <code>Time (ms) · last beat</code>) report the current window.</span><span class="pt">Os rótulos do eixo de tempo e a legenda (<code>Time (s) · 1.0 s window</code> ou <code>Time (ms) · last beat</code>) informam a janela atual.</span></li>
       </ul>
 
-      <h2><span class="ko">읽는 법</span><span class="sep"> · </span><span class="en">How to read</span></h2>
+      <h2><span class="ko">읽는 법</span><span class="sep"> · </span><span class="en">How to read</span><span class="sep"> · </span><span class="pt">Como ler</span></h2>
       <ul>
-        <li><span class="ko"><b>밝은 세로 띠</b> = 그 시점의 주된 주파수(박자 기본음 + 배음).</span><span class="en"><b>Bright vertical bands</b> = dominant frequencies at that instant (beat fundamental + harmonics).</span></li>
-        <li><span class="ko"><b>흐릿한 저-dB 영역</b> = 잡음 바닥. 넓게 밝으면 잡음이 많은 환경.</span><span class="en"><b>Diffuse low-dB area</b> = noise floor; broadly bright = a noisy environment.</span></li>
-        <li><span class="ko">Last Beat로 한 비트의 충격 구조를 보고, Compare Beats로 비트끼리 나란히 비교하며, Seconds로 흐름을 봅니다.</span><span class="en">Use Last Beat to freeze one impulse, Compare Beats to compare beats side by side, and Seconds to watch the flow.</span></li>
+        <li><span class="ko"><b>밝은 세로 띠</b> = 그 시점의 주된 주파수(박자 기본음 + 배음).</span><span class="en"><b>Bright vertical bands</b> = dominant frequencies at that instant (beat fundamental + harmonics).</span><span class="pt"><b>Bandas verticais brilhantes</b> = frequências dominantes naquele instante (fundamental da batida + harmônicos).</span></li>
+        <li><span class="ko"><b>흐릿한 저-dB 영역</b> = 잡음 바닥. 넓게 밝으면 잡음이 많은 환경.</span><span class="en"><b>Diffuse low-dB area</b> = noise floor; broadly bright = a noisy environment.</span><span class="pt"><b>Área difusa de baixo dB</b> = piso de ruído; amplamente brilhante = um ambiente ruidoso.</span></li>
+        <li><span class="ko">Last Beat로 한 비트의 충격 구조를 보고, Compare Beats로 비트끼리 나란히 비교하며, Seconds로 흐름을 봅니다.</span><span class="en">Use Last Beat to freeze one impulse, Compare Beats to compare beats side by side, and Seconds to watch the flow.</span><span class="pt">Use Last Beat para congelar um impulso, Compare Beats para comparar batidas lado a lado e Seconds para observar o fluxo.</span></li>
       </ul>
 
       <div class="pager">

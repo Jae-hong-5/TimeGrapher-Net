@@ -20,34 +20,38 @@
       <h1>2. Sound Print</h1>
       <p class="lede ko">시계 소리의 시각적 "지문". 신호가 규칙적이고 건강한지 패턴으로 한눈에 봅니다.</p>
       <p class="lede en">A visual "fingerprint" of the watch's sound — see at a glance whether the signal is regular and healthy.</p>
+      <p class="lede pt">Uma "impressão digital" visual do som do relógio — veja num relance se o sinal é regular e saudável.</p>
 
       <figure>
         <img data-shot src="../img/tab-sound-print.png" alt="Sound Print tab">
         <figcaption class="ko">그림 1. 소리에서 생성된 이미지(축 없음). 약 100 ms마다 갱신.</figcaption>
         <figcaption class="en">Fig 1. An image built from the sound (no axes); refreshes ~every 100 ms.</figcaption>
+        <figcaption class="pt">Fig 1. Uma imagem construída a partir do som (sem eixos); atualiza a cada ~100 ms.</figcaption>
       </figure>
 
-      <h2><span class="ko">용도</span><span class="sep"> · </span><span class="en">Purpose</span></h2>
+      <h2><span class="ko">용도</span><span class="sep"> · </span><span class="en">Purpose</span><span class="sep"> · </span><span class="pt">Finalidade</span></h2>
       <p class="ko">검출이나 숫자가 아니라, 들어온 소리 자체를 이미지로 펼쳐 신호의 결을 봅니다. 규칙적인 똑딱은 규칙적인 무늬로, 잡음은 흐릿한 얼룩으로 나타납니다.</p>
       <p class="en">Rather than numbers or detections, it spreads the raw sound into an image so you can see the texture of the signal: a regular tick makes a regular pattern; noise smears into haze.</p>
+      <p class="pt">Em vez de números ou detecções, ela espalha o som bruto em uma imagem para que você veja a textura do sinal: uma batida regular cria um padrão regular; o ruído se borra em uma névoa.</p>
 
-      <h2><span class="ko">무엇이 보이나</span><span class="sep"> · </span><span class="en">What's shown</span></h2>
+      <h2><span class="ko">무엇이 보이나</span><span class="sep"> · </span><span class="en">What's shown</span><span class="sep"> · </span><span class="pt">O que é exibido</span></h2>
       <dl class="kv">
-        <dt><span class="ko">가로</span><span class="en">Horizontal</span></dt><dd><span class="ko">최근 시간 구간(픽셀 열로 흐름).</span><span class="en">A recent time window (flowing as pixel columns).</span></dd>
-        <dt><span class="ko">세로</span><span class="en">Vertical</span></dt><dd><span class="ko">주파수/신호 성분.</span><span class="en">Frequency / signal content.</span></dd>
-        <dt><span class="ko">밝기·색</span><span class="en">Brightness</span></dt><dd><span class="ko">해당 지점의 신호 세기. 빈 영역은 테마 배경색(테마 전환 시 함께 바뀜).</span><span class="en">Signal strength at that point. Empty areas use the theme background (remaps on theme toggle).</span></dd>
+        <dt><span class="ko">가로</span><span class="en">Horizontal</span><span class="pt">Horizontal</span></dt><dd><span class="ko">최근 시간 구간(픽셀 열로 흐름).</span><span class="en">A recent time window (flowing as pixel columns).</span><span class="pt">Uma janela de tempo recente (fluindo como colunas de pixels).</span></dd>
+        <dt><span class="ko">세로</span><span class="en">Vertical</span><span class="pt">Vertical</span></dt><dd><span class="ko">주파수/신호 성분.</span><span class="en">Frequency / signal content.</span><span class="pt">Frequência / conteúdo do sinal.</span></dd>
+        <dt><span class="ko">밝기·색</span><span class="en">Brightness</span><span class="pt">Brilho</span></dt><dd><span class="ko">해당 지점의 신호 세기. 빈 영역은 테마 배경색(테마 전환 시 함께 바뀜).</span><span class="en">Signal strength at that point. Empty areas use the theme background (remaps on theme toggle).</span><span class="pt">Intensidade do sinal naquele ponto. Áreas vazias usam o fundo do tema (remapeadas ao alternar o tema).</span></dd>
       </dl>
 
-      <h2><span class="ko">읽는 법</span><span class="sep"> · </span><span class="en">How to read</span></h2>
+      <h2><span class="ko">읽는 법</span><span class="sep"> · </span><span class="en">How to read</span><span class="sep"> · </span><span class="pt">Como ler</span></h2>
       <ul>
-        <li><span class="ko"><b>건강한 시계</b> — 같은 무늬가 일정 간격으로 또렷이 반복됩니다(주기적 신호).</span><span class="en"><b>Healthy watch</b> — the same pattern repeats crisply at a steady spacing (periodic signal).</span></li>
-        <li><span class="ko"><b>문제 신호</b> — 무늬가 흐릿하거나 불규칙하면 잡음이 많거나 신호가 약한 것입니다.</span><span class="en"><b>Trouble</b> — diffuse or irregular patterns mean noise or a weak signal.</span></li>
-        <li><span class="ko">⏸로 일시정지하면 이미지가 멈춰 자세히 살펴볼 수 있습니다.</span><span class="en">Pause (⏸) to freeze the image for closer inspection.</span></li>
+        <li><span class="ko"><b>건강한 시계</b> — 같은 무늬가 일정 간격으로 또렷이 반복됩니다(주기적 신호).</span><span class="en"><b>Healthy watch</b> — the same pattern repeats crisply at a steady spacing (periodic signal).</span><span class="pt"><b>Relógio saudável</b> — o mesmo padrão se repete nitidamente em um espaçamento constante (sinal periódico).</span></li>
+        <li><span class="ko"><b>문제 신호</b> — 무늬가 흐릿하거나 불규칙하면 잡음이 많거나 신호가 약한 것입니다.</span><span class="en"><b>Trouble</b> — diffuse or irregular patterns mean noise or a weak signal.</span><span class="pt"><b>Problema</b> — padrões difusos ou irregulares indicam ruído ou um sinal fraco.</span></li>
+        <li><span class="ko">⏸로 일시정지하면 이미지가 멈춰 자세히 살펴볼 수 있습니다.</span><span class="en">Pause (⏸) to freeze the image for closer inspection.</span><span class="pt">Pause (⏸) para congelar a imagem e inspecioná-la de perto.</span></li>
       </ul>
 
       <div class="note">
         <p class="ko">이 탭은 보기 전용이라 별도 옵션이 없습니다. 숫자 진단은 <a href="rate-scope.html">Rate/Scope</a>·<a href="beat-error.html">Beat Error</a>에서, 주파수 분석은 <a href="spectrogram.html">Spectrogram</a>에서 보세요.</p>
         <p class="en">This tab is view-only (no options). For numeric diagnosis use <a href="rate-scope.html">Rate/Scope</a> / <a href="beat-error.html">Beat Error</a>; for frequency analysis see <a href="spectrogram.html">Spectrogram</a>.</p>
+        <p class="pt">Esta aba é apenas de visualização (sem opções). Para diagnóstico numérico use <a href="rate-scope.html">Rate/Scope</a> / <a href="beat-error.html">Beat Error</a>; para análise de frequência veja <a href="spectrogram.html">Spectrogram</a>.</p>
       </div>
 
       <div class="pager">

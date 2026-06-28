@@ -20,40 +20,46 @@
       <h1>3. Trace</h1>
       <p class="lede ko">측정이 진행되는 동안 레이트와 진폭이 흔들리지 않고 유지되는지 시간축으로 추적합니다.</p>
       <p class="lede en">Tracks whether rate and amplitude hold steady over the elapsed run — the "is it keeping its settings?" view.</p>
+      <p class="lede pt">Acompanha se a rate e a Amplitude se mantêm estáveis ao longo da medição — a visualização "ele está mantendo seus ajustes?".</p>
 
       <figure>
         <img data-shot src="../img/tab-trace.png" alt="Trace tab">
         <figcaption class="ko">그림 1. 위 = 레이트(s/d), 아래 = 진폭(°)·건강범위 음영. 이탈 시 ⚠ 경고 배너.</figcaption>
         <figcaption class="en">Fig 1. Top = Error Rate (s/d); bottom = amplitude (°) with the healthy band shaded. A ⚠ banner shows on out-of-spec.</figcaption>
+        <figcaption class="pt">Fig 1. Em cima = Error Rate (s/d); embaixo = Amplitude (°) com a faixa saudável sombreada. Um banner ⚠ aparece quando está fora da especificação.</figcaption>
       </figure>
 
-      <h2><span class="ko">용도</span><span class="sep"> · </span><span class="en">Purpose</span></h2>
+      <h2><span class="ko">용도</span><span class="sep"> · </span><span class="en">Purpose</span><span class="sep"> · </span><span class="pt">Finalidade</span></h2>
       <p class="ko">한 자세에서 시계를 일정 시간 두고, 시간이 가도 정확도와 진폭이 일정한지(또는 점점 처지는지) 봅니다.</p>
       <p class="en">Leave the watch in one position for a while and see if accuracy and amplitude stay flat (or sag over time).</p>
+      <p class="pt">Deixe o relógio em uma posição por um tempo e veja se a precisão e a Amplitude se mantêm planas (ou caem ao longo do tempo).</p>
 
-      <h2><span class="ko">무엇이 보이나</span><span class="sep"> · </span><span class="en">What's shown</span></h2>
+      <h2><span class="ko">무엇이 보이나</span><span class="sep"> · </span><span class="en">What's shown</span><span class="sep"> · </span><span class="pt">O que é exibido</span></h2>
       <table>
-        <thead><tr><th></th><th><span class="ko">X축</span><span class="sep"> · </span><span class="en">X</span></th><th><span class="ko">Y축</span><span class="sep"> · </span><span class="en">Y</span></th><th><span class="ko">표시</span><span class="sep"> · </span><span class="en">Shown</span></th></tr></thead>
+        <thead><tr><th></th><th><span class="ko">X축</span><span class="sep"> · </span><span class="en">X</span><span class="sep"> · </span><span class="pt">X</span></th><th><span class="ko">Y축</span><span class="sep"> · </span><span class="en">Y</span><span class="sep"> · </span><span class="pt">Y</span></th><th><span class="ko">표시</span><span class="sep"> · </span><span class="en">Shown</span><span class="sep"> · </span><span class="pt">Exibido</span></th></tr></thead>
         <tbody>
-          <tr><td><b>Error Rate (위)</b></td><td>Elapsed (s)</td><td>Error Rate (s/d)</td><td><span class="ko">초록 선(누적 기록).</span><span class="en">Green line (cumulative).</span></td></tr>
-          <tr><td><b>진폭 (아래)</b></td><td>Elapsed (s)</td><td>Amplitude(°)</td><td><span class="ko">선 + <b>270–300°</b> 건강범위 음영 띠.</span><span class="en">Line + shaded <b>270–300°</b> healthy band.</span></td></tr>
+          <tr><td><b>Error Rate (위)</b></td><td>Elapsed (s)</td><td>Error Rate (s/d)</td><td><span class="ko">초록 선(누적 기록).</span><span class="en">Green line (cumulative).</span><span class="pt">Linha verde (acumulada).</span></td></tr>
+          <tr><td><b>진폭 (아래)</b></td><td>Elapsed (s)</td><td>Amplitude(°)</td><td><span class="ko">선 + <b>270–300°</b> 건강범위 음영 띠.</span><span class="en">Line + shaded <b>270–300°</b> healthy band.</span><span class="pt">Linha + faixa saudável sombreada de <b>270–300°</b>.</span></td></tr>
         </tbody>
       </table>
       <p class="ko"><b>경고 배너</b>(위) — 레이트가 −1 s/d보다 느리거나 진폭이 270–300°를 벗어나면 ⚠와 함께 "Watch is running late (X s/d)" 또는 "Amplitude X° outside normal range 270–300°"가 표시됩니다.</p>
       <p class="en"><b>Alert banner</b> (top) — if rate runs slower than −1 s/d, or amplitude leaves 270–300°, a ⚠ shows "Watch is running late (X s/d)" or "Amplitude X° outside normal range 270–300°".</p>
+      <p class="pt"><b>Banner de alerta</b> (em cima) — se a rate ficar mais lenta que −1 s/d, ou a Amplitude sair de 270–300°, um ⚠ exibe "Watch is running late (X s/d)" ou "Amplitude X° outside normal range 270–300°".</p>
       <p class="ko"><b>요약 푸터</b> — "Error Rate avg X s/d / last 60.0s Y s/d | Amplitude avg Z° / last 60.0s W°"(전체 평균과 최근 60초 평균).</p>
       <p class="en"><b>Summary footer</b> — "Error Rate avg / last 60.0s … | Amplitude avg / last 60.0s …" (since-start vs. last-60s average).</p>
+      <p class="pt"><b>Rodapé de resumo</b> — "Error Rate avg / last 60.0s … | Amplitude avg / last 60.0s …" (média desde o início vs. média dos últimos 60 s).</p>
 
-      <h2><span class="ko">읽는 법</span><span class="sep"> · </span><span class="en">How to read</span></h2>
+      <h2><span class="ko">읽는 법</span><span class="sep"> · </span><span class="en">How to read</span><span class="sep"> · </span><span class="pt">Como ler</span></h2>
       <ul>
-        <li><span class="ko"><b>좋음</b>: 두 선이 평평하게 유지 — 레이트는 0 근처, 진폭은 음영 띠 안.</span><span class="en"><b>Good</b>: both lines stay flat — rate near 0, amplitude inside the shaded band.</span></li>
-        <li><span class="ko"><b>주의</b>: 진폭이 시간이 갈수록 처지면 윤활/파워리저브 문제 신호일 수 있습니다.</span><span class="en"><b>Watch out</b>: amplitude drifting down over time can signal lubrication / power-reserve issues.</span></li>
-        <li><span class="ko">⚠ 배너가 뜨면 사양을 벗어난 것 — 일시정지 후 원인을 살피세요.</span><span class="en">A ⚠ banner means out of spec — pause and investigate.</span></li>
+        <li><span class="ko"><b>좋음</b>: 두 선이 평평하게 유지 — 레이트는 0 근처, 진폭은 음영 띠 안.</span><span class="en"><b>Good</b>: both lines stay flat — rate near 0, amplitude inside the shaded band.</span><span class="pt"><b>Bom</b>: ambas as linhas permanecem planas — rate perto de 0, Amplitude dentro da faixa sombreada.</span></li>
+        <li><span class="ko"><b>주의</b>: 진폭이 시간이 갈수록 처지면 윤활/파워리저브 문제 신호일 수 있습니다.</span><span class="en"><b>Watch out</b>: amplitude drifting down over time can signal lubrication / power-reserve issues.</span><span class="pt"><b>Atenção</b>: a Amplitude derivando para baixo ao longo do tempo pode indicar problemas de lubrificação / reserva de marcha.</span></li>
+        <li><span class="ko">⚠ 배너가 뜨면 사양을 벗어난 것 — 일시정지 후 원인을 살피세요.</span><span class="en">A ⚠ banner means out of spec — pause and investigate.</span><span class="pt">Um banner ⚠ significa fora da especificação — pause e investigue.</span></li>
       </ul>
 
       <div class="note">
         <p class="ko">짧은 시간의 안정도 판정은 <a href="vario.html">Vario</a>, 몇 시간 단위의 장기 추세는 <a href="long-term.html">Long-Term</a>이 더 적합합니다.</p>
         <p class="en">For a short-window stability verdict use <a href="vario.html">Vario</a>; for multi-hour trends use <a href="long-term.html">Long-Term</a>.</p>
+        <p class="pt">Para um veredito de estabilidade em janela curta use <a href="vario.html">Vario</a>; para tendências de várias horas use <a href="long-term.html">Long-Term</a>.</p>
       </div>
 
       <div class="pager">

@@ -20,34 +20,38 @@
       <h1>4. Sweep</h1>
       <p class="lede ko">여러 비트를 하나로 "접어" 한 비트 분량의 엔벨로프로 보여 줍니다. 오실로스코프의 스윕 화면과 비슷합니다.</p>
       <p class="lede en">Folds many beats into a single beat-length envelope — like an oscilloscope's swept trace.</p>
+      <p class="lede pt">Dobra várias batidas em um único envelope com a duração de uma batida — como o traço varrido de um osciloscópio.</p>
 
       <figure>
         <img data-shot src="../img/tab-sweep.png" alt="Sweep tab">
         <figcaption class="ko">그림 1. 한 비트 창으로 접은 파형. 아래 참조줄에 현재 Error Rate / Amplitude / BEAT ERROR.</figcaption>
         <figcaption class="en">Fig 1. The waveform folded into one beat window; a reference line shows current Error Rate / Amplitude / BEAT ERROR.</figcaption>
+        <figcaption class="pt">Fig 1. A forma de onda dobrada em uma janela de uma batida; uma linha de referência mostra os valores atuais de Error Rate / Amplitude / BEAT ERROR.</figcaption>
       </figure>
 
-      <h2><span class="ko">용도</span><span class="sep"> · </span><span class="en">Purpose</span></h2>
+      <h2><span class="ko">용도</span><span class="sep"> · </span><span class="en">Purpose</span><span class="sep"> · </span><span class="pt">Finalidade</span></h2>
       <p class="ko">탈진기의 한 비트 움직임이 매번 같은 모양으로 반복되는지 봅니다. 모양이 안정적이면 동작이 일정하다는 뜻입니다.</p>
       <p class="en">Shows whether the escapement's single-beat motion repeats with the same shape each time — a stable shape means consistent action.</p>
+      <p class="pt">Mostra se o movimento de uma batida do escapo se repete com a mesma forma a cada vez — uma forma estável significa ação consistente.</p>
 
-      <h2><span class="ko">무엇이 보이나</span><span class="sep"> · </span><span class="en">What's shown</span></h2>
+      <h2><span class="ko">무엇이 보이나</span><span class="sep"> · </span><span class="en">What's shown</span><span class="sep"> · </span><span class="pt">O que é exibido</span></h2>
       <dl class="kv">
-        <dt><span class="ko">X축</span><span class="en">X axis</span></dt><dd>Sweep (ms) — <span class="ko">0부터 창 길이까지(데이터 폭에 맞춰 자동 스케일).</span><span class="en">0 to the window length (auto-scales to the data width).</span></dd>
-        <dt><span class="ko">Y축</span><span class="en">Y axis</span></dt><dd>Signal Level — <span class="ko">접은 엔벨로프 한 줄.</span><span class="en">One folded-envelope trace.</span></dd>
-        <dt><span class="ko">참조줄</span><span class="en">Reference line</span></dt><dd><code>Error Rate X s/d | Amplitude Y° | BEAT ERROR Z ms</code> <span class="ko">— 현재 측정값.</span><span class="en">— current readings.</span></dd>
+        <dt><span class="ko">X축</span><span class="en">X axis</span><span class="pt">Eixo X</span></dt><dd>Sweep (ms) — <span class="ko">0부터 창 길이까지(데이터 폭에 맞춰 자동 스케일).</span><span class="en">0 to the window length (auto-scales to the data width).</span><span class="pt">de 0 até a duração da janela (escala automática conforme a largura dos dados).</span></dd>
+        <dt><span class="ko">Y축</span><span class="en">Y axis</span><span class="pt">Eixo Y</span></dt><dd>Signal Level — <span class="ko">접은 엔벨로프 한 줄.</span><span class="en">One folded-envelope trace.</span><span class="pt">um único traço do envelope dobrado.</span></dd>
+        <dt><span class="ko">참조줄</span><span class="en">Reference line</span><span class="pt">Linha de referência</span></dt><dd><code>Error Rate X s/d | Amplitude Y° | BEAT ERROR Z ms</code> <span class="ko">— 현재 측정값.</span><span class="en">— current readings.</span><span class="pt">— valores atuais.</span></dd>
       </dl>
 
-      <h2><span class="ko">읽는 법</span><span class="sep"> · </span><span class="en">How to read</span></h2>
+      <h2><span class="ko">읽는 법</span><span class="sep"> · </span><span class="en">How to read</span><span class="sep"> · </span><span class="pt">Como ler</span></h2>
       <ul>
-        <li><span class="ko"><b>안정</b>: 프레임이 바뀌어도 같은 자리에 같은 모양 — 반복성이 좋은 탈진기.</span><span class="en"><b>Stable</b>: the same shape stays in the same place frame to frame — a repeatable escapement.</span></li>
-        <li><span class="ko"><b>불안정</b>: 모양이 좌우로 흔들리거나 번지면 타이밍 지터가 있는 것.</span><span class="en"><b>Unstable</b>: a shape that wobbles or smears indicates timing jitter.</span></li>
-        <li><span class="ko">⏸로 멈추면 한 비트의 프로파일을 정밀하게 살펴볼 수 있습니다.</span><span class="en">Pause to inspect a single beat's profile in detail.</span></li>
+        <li><span class="ko"><b>안정</b>: 프레임이 바뀌어도 같은 자리에 같은 모양 — 반복성이 좋은 탈진기.</span><span class="en"><b>Stable</b>: the same shape stays in the same place frame to frame — a repeatable escapement.</span><span class="pt"><b>Estável</b>: a mesma forma permanece no mesmo lugar de quadro a quadro — um escapo repetível.</span></li>
+        <li><span class="ko"><b>불안정</b>: 모양이 좌우로 흔들리거나 번지면 타이밍 지터가 있는 것.</span><span class="en"><b>Unstable</b>: a shape that wobbles or smears indicates timing jitter.</span><span class="pt"><b>Instável</b>: uma forma que oscila ou borra indica jitter de temporização.</span></li>
+        <li><span class="ko">⏸로 멈추면 한 비트의 프로파일을 정밀하게 살펴볼 수 있습니다.</span><span class="en">Pause to inspect a single beat's profile in detail.</span><span class="pt">Pause para inspecionar em detalhe o perfil de uma única batida.</span></li>
       </ul>
 
       <div class="note">
         <p class="ko">한 비트 안의 A·C 충격 위치를 자세히 보려면 <a href="beat-noise.html">Beat Noise</a>·<a href="escapement.html">Escapement</a>를 함께 보세요.</p>
         <p class="en">To examine A/C impulse positions within a beat, pair this with <a href="beat-noise.html">Beat Noise</a> / <a href="escapement.html">Escapement</a>.</p>
+        <p class="pt">Para examinar as posições dos impulsos A/C dentro de uma batida, combine com <a href="beat-noise.html">Beat Noise</a> / <a href="escapement.html">Escapement</a>.</p>
       </div>
 
       <div class="pager">

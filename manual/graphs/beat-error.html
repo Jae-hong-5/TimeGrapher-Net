@@ -20,37 +20,42 @@
       <h1>6. Beat Error</h1>
       <p class="lede ko">똑과 딱의 박자 비대칭(비트 오차)과 레이트가 점점 빨라지/느려지는 드리프트를 진단합니다.</p>
       <p class="lede en">Diagnoses tic/toc asymmetry (beat error) and whether the rate is drifting faster/slower over time.</p>
+      <p class="lede pt">Diagnostica a assimetria tic/toc (erro de batida) e se a taxa está derivando para mais rápida/mais lenta ao longo do tempo.</p>
 
       <figure>
         <img data-shot src="../img/tab-beat-error.png" alt="Beat Error tab">
         <figcaption class="ko">그림 1. 초록(Tic)·빨강(Toc) 점의 간격 = 비트 오차, 기울기 = 드리프트. 아래 진단 수치판.</figcaption>
         <figcaption class="en">Fig 1. Gap between green (Tic) and red (Toc) = beat error; slope = drift. Numeric panel below.</figcaption>
+        <figcaption class="pt">Fig 1. Distância entre os pontos verdes (Tic) e vermelhos (Toc) = erro de batida; inclinação = deriva. Painel numérico abaixo.</figcaption>
       </figure>
 
-      <h2><span class="ko">용도</span><span class="sep"> · </span><span class="en">Purpose</span></h2>
+      <h2><span class="ko">용도</span><span class="sep"> · </span><span class="en">Purpose</span><span class="sep"> · </span><span class="pt">Finalidade</span></h2>
       <p class="ko">탈진기가 좌우 대칭으로 동작하는지(비트 오차), 그리고 레이트가 일정한지 가속·감속하는지를 봅니다. 비트 오차가 크면 진동의 좌우 균형이 안 맞는 것입니다.</p>
       <p class="en">Checks whether the escapement is left/right symmetric (beat error) and whether the rate holds steady or accelerates. Large beat error means the oscillation isn't centred.</p>
+      <p class="pt">Verifica se o escapo é simétrico esquerda/direita (erro de batida) e se a taxa se mantém estável ou acelera. Um erro de batida grande significa que a oscilação não está centrada.</p>
 
-      <h2><span class="ko">무엇이 보이나</span><span class="sep"> · </span><span class="en">What's shown</span></h2>
+      <h2><span class="ko">무엇이 보이나</span><span class="sep"> · </span><span class="en">What's shown</span><span class="sep"> · </span><span class="pt">O que é exibido</span></h2>
       <dl class="kv">
-        <dt><span class="ko">X축</span><span class="en">X axis</span></dt><dd>Beat — <span class="ko">비트 인덱스.</span><span class="en">beat index.</span></dd>
-        <dt><span class="ko">Y축</span><span class="en">Y axis</span></dt><dd>Error Rate (ms)</dd>
-        <dt><span class="ko">계열</span><span class="en">Series</span></dt><dd><span class="pill tic">Tic</span> <span class="ko">초록 점</span><span class="en">green dots</span> · <span class="pill toc">Toc</span> <span class="ko">빨강 점</span><span class="en">red dots</span></dd>
-        <dt><span class="ko">수치판</span><span class="en">Readout</span></dt><dd><code>Error Rate · Amplitude · BEAT ERROR · BPH · DIFF TIC-TAC · DIFF PERIOD · AVG PERIOD</code></dd>
+        <dt><span class="ko">X축</span><span class="en">X axis</span><span class="pt">Eixo X</span></dt><dd>Beat — <span class="ko">비트 인덱스.</span><span class="en">beat index.</span><span class="pt">índice da batida.</span></dd>
+        <dt><span class="ko">Y축</span><span class="en">Y axis</span><span class="pt">Eixo Y</span></dt><dd>Error Rate (ms)</dd>
+        <dt><span class="ko">계열</span><span class="en">Series</span><span class="pt">Séries</span></dt><dd><span class="pill tic">Tic</span> <span class="ko">초록 점</span><span class="en">green dots</span><span class="pt">pontos verdes</span> · <span class="pill toc">Toc</span> <span class="ko">빨강 점</span><span class="en">red dots</span><span class="pt">pontos vermelhos</span></dd>
+        <dt><span class="ko">수치판</span><span class="en">Readout</span><span class="pt">Leitura</span></dt><dd><code>Error Rate · Amplitude · BEAT ERROR · BPH · DIFF TIC-TAC · DIFF PERIOD · AVG PERIOD</code></dd>
       </dl>
       <p class="ko"><b>경고 배너</b> — |비트 오차| &gt; 0.6 ms이면 "Tic/toc separation X ms exceeds the acceptable ±0.6 ms", 기울기가 1.0 ms/beat(45°)를 넘으면 "MAJOR FAULT: trace slope … exceeds the 45° limit"가 표시됩니다.</p>
       <p class="en"><b>Alert banner</b> — if |beat error| &gt; 0.6 ms: "Tic/toc separation … exceeds the acceptable ±0.6 ms"; if slope &gt; 1.0 ms/beat (45°): "MAJOR FAULT: trace slope … exceeds the 45° limit".</p>
+      <p class="pt"><b>Banner de alerta</b> — se |erro de batida| &gt; 0.6 ms: "Tic/toc separation … exceeds the acceptable ±0.6 ms"; se inclinação &gt; 1.0 ms/beat (45°): "MAJOR FAULT: trace slope … exceeds the 45° limit".</p>
 
-      <h2><span class="ko">읽는 법</span><span class="sep"> · </span><span class="en">How to read</span></h2>
+      <h2><span class="ko">읽는 법</span><span class="sep"> · </span><span class="en">How to read</span><span class="sep"> · </span><span class="pt">Como ler</span></h2>
       <ul>
-        <li><span class="ko"><b>대칭·안정</b>: 초록·빨강 점이 서로 겹쳐 붙어 있고 기울기가 없음.</span><span class="en"><b>Symmetric & stable</b>: green and red dots overlap with no slope.</span></li>
-        <li><span class="ko"><b>비대칭</b>: 초록과 빨강이 위아래로 벌어짐 = 비트 오차 큼.</span><span class="en"><b>Asymmetric</b>: green and red split apart = large beat error.</span></li>
-        <li><span class="ko"><b>드리프트</b>: 점들이 한쪽으로 비스듬히 기울면 가속/감속(중대 결함).</span><span class="en"><b>Drift</b>: dots sloping up/down = accelerating/decelerating (major fault).</span></li>
+        <li><span class="ko"><b>대칭·안정</b>: 초록·빨강 점이 서로 겹쳐 붙어 있고 기울기가 없음.</span><span class="en"><b>Symmetric & stable</b>: green and red dots overlap with no slope.</span><span class="pt"><b>Simétrico e estável</b>: os pontos verdes e vermelhos se sobrepõem sem inclinação.</span></li>
+        <li><span class="ko"><b>비대칭</b>: 초록과 빨강이 위아래로 벌어짐 = 비트 오차 큼.</span><span class="en"><b>Asymmetric</b>: green and red split apart = large beat error.</span><span class="pt"><b>Assimétrico</b>: verde e vermelho se separam = erro de batida grande.</span></li>
+        <li><span class="ko"><b>드리프트</b>: 점들이 한쪽으로 비스듬히 기울면 가속/감속(중대 결함).</span><span class="en"><b>Drift</b>: dots sloping up/down = accelerating/decelerating (major fault).</span><span class="pt"><b>Deriva</b>: pontos inclinando para cima/baixo = acelerando/desacelerando (falha grave).</span></li>
       </ul>
 
       <div class="tip">
         <p class="ko">비트 오차는 흔히 헤어스프링/롤러 조정으로 줄입니다. 0에 가까울수록 좋고, 보통 0.5 ms 이하를 목표로 합니다.</p>
         <p class="en">Beat error is usually reduced by hairspring/roller adjustment. Closer to 0 is better — typically aim for under ~0.5 ms.</p>
+        <p class="pt">O erro de batida normalmente é reduzido com ajuste da espiral/rolete. Quanto mais próximo de 0, melhor — em geral mire em menos de ~0,5 ms.</p>
       </div>
 
       <div class="pager">

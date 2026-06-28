@@ -20,30 +20,33 @@
       <h1>13. Waveforms</h1>
       <p class="lede ko">똑(tic)과 딱(toc) 비트를 쌍으로 나란히 겹쳐, 좌우 타이밍이 대칭이고 안정적인지 비교합니다.</p>
       <p class="lede en">Overlays tic and toc beats as pairs to compare whether their timing is symmetric and stable.</p>
+      <p class="lede pt">Sobrepõe as batidas tic e toc em pares para comparar se o tempo delas é simétrico e estável.</p>
 
       <figure>
         <img data-shot src="../img/tab-waveforms.png" alt="Waveforms tab">
         <figcaption class="ko">그림 1. 최신 쌍이 위. 왼쪽 절반 = tic(초록), 오른쪽 절반 = toc(빨강). 점선 = A·평균 C 가이드.</figcaption>
         <figcaption class="en">Fig 1. Newest pair on top; left half = tic (green), right half = toc (red). Dashed = A / mean-C guides.</figcaption>
+        <figcaption class="pt">Fig 1. Par mais recente no topo; metade esquerda = tic (verde), metade direita = toc (vermelho). Tracejado = guias A / média C.</figcaption>
       </figure>
 
-      <h2><span class="ko">용도</span><span class="sep"> · </span><span class="en">Purpose</span></h2>
+      <h2><span class="ko">용도</span><span class="sep"> · </span><span class="en">Purpose</span><span class="sep"> · </span><span class="pt">Finalidade</span></h2>
       <p class="ko">똑과 딱이 같은 모양·같은 간격으로 오는지(대칭성)와, 최근 비트들에 걸쳐 타이밍이 일정한지 봅니다. 비트 오차를 시각적으로 확인하는 탭입니다.</p>
       <p class="en">Shows whether tic and toc arrive with the same shape and spacing (symmetry) and whether timing holds across recent beats — a visual take on beat error.</p>
+      <p class="pt">Mostra se o tic e o toc chegam com a mesma forma e o mesmo espaçamento (simetria) e se o tempo se mantém ao longo das batidas recentes — uma leitura visual do erro de batida.</p>
 
-      <h2><span class="ko">무엇이 보이나</span><span class="sep"> · </span><span class="en">What's shown</span></h2>
+      <h2><span class="ko">무엇이 보이나</span><span class="sep"> · </span><span class="en">What's shown</span><span class="sep"> · </span><span class="pt">O que é exibido</span></h2>
       <ul>
-        <li><span class="ko"><b>레인 스택</b> — 최대 6개 똑/딱 쌍을 세로로 쌓습니다(최신이 맨 위). 한 레인 = 한 쌍.</span><span class="en"><b>Lane stack</b> — up to 6 tic/toc pairs stacked vertically (newest on top). One lane = one pair.</span></li>
-        <li><span class="ko">각 레인에서 <b>왼쪽 절반</b>은 tic(초록), <b>오른쪽 절반</b>은 toc(빨강). 둘 다 A 기준으로 정렬되고 진폭은 1로 정규화.</span><span class="en">In each lane the <b>left half</b> is the tic (green), the <b>right half</b> is the toc (red), both A-aligned and peak-normalized.</span></li>
-        <li><span class="ko">X축: <code>tic ← | → toc (ms)</code>. 가이드선: 양쪽 A(초록 점선)·평균 C(빨강 점선).</span><span class="en">X axis: <code>tic ← | → toc (ms)</code>. Guides: A (green dashed) and mean-C (red dashed) on each side.</span></li>
-        <li><span class="ko">레인 라벨: <code>A to C: X ms</code>, <code>Amplitude: Y°</code>. 위 헤더: <code>Error Rate … | BEAT ERROR … | BPH …</code>.</span><span class="en">Lane labels: <code>A to C: X ms</code>, <code>Amplitude: Y°</code>. Header: <code>Error Rate … | BEAT ERROR … | BPH …</code>.</span></li>
+        <li><span class="ko"><b>레인 스택</b> — 최대 6개 똑/딱 쌍을 세로로 쌓습니다(최신이 맨 위). 한 레인 = 한 쌍.</span><span class="en"><b>Lane stack</b> — up to 6 tic/toc pairs stacked vertically (newest on top). One lane = one pair.</span><span class="pt"><b>Pilha de faixas</b> — até 6 pares tic/toc empilhados verticalmente (o mais recente no topo). Uma faixa = um par.</span></li>
+        <li><span class="ko">각 레인에서 <b>왼쪽 절반</b>은 tic(초록), <b>오른쪽 절반</b>은 toc(빨강). 둘 다 A 기준으로 정렬되고 진폭은 1로 정규화.</span><span class="en">In each lane the <b>left half</b> is the tic (green), the <b>right half</b> is the toc (red), both A-aligned and peak-normalized.</span><span class="pt">Em cada faixa, a <b>metade esquerda</b> é o tic (verde) e a <b>metade direita</b> é o toc (vermelho), ambos alinhados por A e normalizados pelo pico.</span></li>
+        <li><span class="ko">X축: <code>tic ← | → toc (ms)</code>. 가이드선: 양쪽 A(초록 점선)·평균 C(빨강 점선).</span><span class="en">X axis: <code>tic ← | → toc (ms)</code>. Guides: A (green dashed) and mean-C (red dashed) on each side.</span><span class="pt">Eixo X: <code>tic ← | → toc (ms)</code>. Guias: A (verde tracejado) e média C (vermelho tracejado) em cada lado.</span></li>
+        <li><span class="ko">레인 라벨: <code>A to C: X ms</code>, <code>Amplitude: Y°</code>. 위 헤더: <code>Error Rate … | BEAT ERROR … | BPH …</code>.</span><span class="en">Lane labels: <code>A to C: X ms</code>, <code>Amplitude: Y°</code>. Header: <code>Error Rate … | BEAT ERROR … | BPH …</code>.</span><span class="pt">Rótulos da faixa: <code>A to C: X ms</code>, <code>Amplitude: Y°</code>. Cabeçalho: <code>Error Rate … | BEAT ERROR … | BPH …</code>.</span></li>
       </ul>
 
-      <h2><span class="ko">읽는 법</span><span class="sep"> · </span><span class="en">How to read</span></h2>
+      <h2><span class="ko">읽는 법</span><span class="sep"> · </span><span class="en">How to read</span><span class="sep"> · </span><span class="pt">Como ler</span></h2>
       <ul>
-        <li><span class="ko">tic·toc 트레이스가 거의 겹치면 좌우 대칭이 좋은 것입니다.</span><span class="en">When the tic and toc traces nearly overlap, left/right symmetry is good.</span></li>
-        <li><span class="ko">양쪽의 초록 A 가이드와 빨강 C 가이드의 <b>가로 간격</b>이 곧 비트 오차의 시각적 크기 — 작을수록 좋습니다.</span><span class="en">The <b>horizontal gap</b> between the green A guide and red C guide on each side is the visual size of the beat error — smaller is better.</span></li>
-        <li><span class="ko">여러 레인의 모양이 일정하면 최근 비트들의 타이밍 반복성이 높습니다.</span><span class="en">Consistent shapes down the lanes mean high timing repeatability over recent beats.</span></li>
+        <li><span class="ko">tic·toc 트레이스가 거의 겹치면 좌우 대칭이 좋은 것입니다.</span><span class="en">When the tic and toc traces nearly overlap, left/right symmetry is good.</span><span class="pt">Quando os traços do tic e do toc quase se sobrepõem, a simetria esquerda/direita é boa.</span></li>
+        <li><span class="ko">양쪽의 초록 A 가이드와 빨강 C 가이드의 <b>가로 간격</b>이 곧 비트 오차의 시각적 크기 — 작을수록 좋습니다.</span><span class="en">The <b>horizontal gap</b> between the green A guide and red C guide on each side is the visual size of the beat error — smaller is better.</span><span class="pt">O <b>espaçamento horizontal</b> entre a guia A verde e a guia C vermelha de cada lado é o tamanho visual do erro de batida — quanto menor, melhor.</span></li>
+        <li><span class="ko">여러 레인의 모양이 일정하면 최근 비트들의 타이밍 반복성이 높습니다.</span><span class="en">Consistent shapes down the lanes mean high timing repeatability over recent beats.</span><span class="pt">Formas consistentes ao longo das faixas indicam alta repetibilidade de tempo nas batidas recentes.</span></li>
       </ul>
 
       <div class="pager">
