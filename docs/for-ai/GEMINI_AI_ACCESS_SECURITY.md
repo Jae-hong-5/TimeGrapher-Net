@@ -61,6 +61,9 @@ Provide Gemini-powered app features without distributing the project-owned Gemin
    - In BYOK mode, the app calls Gemini directly and does not route through the project backend.
    - The user's key must not be sent to the project backend.
    - If persisted, the key should be stored through the operating system credential store rather than a plain text config file.
+   - BYOK mode must use an app-local prompt template because the backend is not involved.
+   - The prompt template is not treated as a secret in BYOK mode; the user's own API key and quota carry the cost risk.
+   - Do not implement BYOK by sending the user's Gemini API key to the project backend just to reuse the server prompt.
 
 6. Demo-mode log upload is allowed only with explicit user consent.
 
@@ -96,6 +99,7 @@ Avoid claiming that the system has "no security risk". The correct claim is that
 - App-level services may coordinate the selected AI access mode.
 - Platform or adapter code should own OS credential-store integration if BYOK persistence is implemented.
 - Backend-server integration should remain behind an app-facing service boundary so UI code does not know backend or Gemini protocol details.
+- BYOK direct-call mode should use an app-local prompt builder that mirrors the server prompt intent without depending on the backend.
 
 ## Korean summary
 
@@ -107,3 +111,4 @@ Avoid claiming that the system has "no security risk". The correct claim is that
 - 선택적으로 사용자가 본인 Gemini API 키를 입력하는 BYOK 모드를 제공할 수 있다.
 - BYOK 모드에서는 사용자 키를 개인 서버로 보내지 않고 앱이 Gemini를 직접 호출한다.
 - 사용자의 명시적 동의를 받은 경우, 앱은 AI 설명을 위해 작은 분석 로그 파일을 서버로 보낼 수 있다.
+- BYOK 모드에서는 서버를 거치지 않으므로 앱 로컬 프롬프트 템플릿을 사용하며, 사용자 Gemini 키를 서버에 보내서 서버 프롬프트를 재사용하지 않는다.

@@ -445,6 +445,8 @@ The app-side implementation should assume this backend contract:
 - The app displays the returned `explanation`.
 - The app does not call this backend in BYOK mode.
 - In BYOK mode, the user's own Gemini key is used locally and is not sent to this backend.
+- BYOK mode is outside this backend contract: the app builds its own local prompt and calls Gemini directly with the user's key.
+- The app must not send a user's BYOK Gemini key to this backend to reuse the server-side prompt.
 
 ## 17. Server-agent acceptance checklist
 
