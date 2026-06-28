@@ -197,6 +197,7 @@ public sealed class MainWindowBootstrapperTests : IDisposable
                 PauseOnPositionChange = true,
                 HighPassCutoffText = "180",
                 MeasurementLogEnabled = true,
+                VerdictMinimumBeats = 45,
             },
         };
         MainWindowViewModel vm = MainWindowBootstrapper.CreateViewModel();
@@ -217,6 +218,7 @@ public sealed class MainWindowBootstrapperTests : IDisposable
         Assert.True(vm.PauseOnPositionChange);
         Assert.Equal("180", vm.HighPassCutoffText);
         Assert.True(vm.IsMeasurementLogEnabled);
+        Assert.Equal(45m, vm.VerdictMinimumBeats);
     }
 
     [Fact]

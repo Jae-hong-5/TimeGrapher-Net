@@ -41,6 +41,33 @@ public sealed class SettingsToggleBindingTests
     }
 
     [Fact]
+    public void VerdictMinimumBeatsInput_DisablesWhileRunIsActive()
+    {
+        HeadlessPlatform.EnsureStarted();
+
+        var vm = new MainWindowViewModel();
+        var window = new SettingsWindow
+        {
+            DataContext = vm,
+            Width = 760,
+            Height = 600,
+        };
+
+        Control content = Assert.IsAssignableFrom<Control>(window.Content);
+        content.Measure(new Size(760, 600));
+        content.Arrange(new Rect(0, 0, 760, 600));
+
+        NumericUpDown verdictBeats = Assert.IsType<NumericUpDown>(
+            window.FindControl<Control>("VerdictMinimumBeatsSpinBox"));
+
+        Assert.True(verdictBeats.IsEnabled);
+        vm.SetRunning();
+        Assert.False(verdictBeats.IsEnabled);
+        vm.SetStopped();
+        Assert.True(verdictBeats.IsEnabled);
+    }
+
+    [Fact]
     public void ResetSettingsButton_IsLeftOfCloseButtonAndUsesViewModelCommand()
     {
         HeadlessPlatform.EnsureStarted();

@@ -312,6 +312,28 @@
         <Border Height="1"
                 Background="{DynamicResource ChromeBorderBrush}"
                 Margin="0,2" />
+        <TextBlock Text="Assessment"
+                   Classes="SectionHeader"
+                   HorizontalAlignment="Left" />
+        <Grid ColumnDefinitions="Auto,*"
+              RowDefinitions="Auto"
+              HorizontalAlignment="Stretch">
+          <TextBlock Grid.Row="0" Grid.Column="0" Text="Verdict Beats"
+                     VerticalAlignment="Center" FontWeight="Bold" />
+          <NumericUpDown Name="VerdictMinimumBeatsSpinBox" Grid.Row="0" Grid.Column="1"
+                         Margin="6,3"
+                         Height="32"
+                         AutomationProperties.Name="Verdict minimum beats"
+                         Value="{Binding VerdictMinimumBeats, Mode=TwoWay}"
+                         IsEnabled="{Binding AreRunParametersEnabled}"
+                         FontWeight="Bold" FormatString="0' beats'"
+                         Minimum="1" Maximum="999" Increment="1"
+                         ClipValueToMinMax="True"
+                         ToolTip.Tip="Minimum collected beats before Vario, Positions, and Health verdicts leave Measuring. Applies on the next run." />
+        </Grid>
+        <Border Height="1"
+                Background="{DynamicResource ChromeBorderBrush}"
+                Margin="0,2" />
         <TextBlock Text="Logging"
                    Classes="SectionHeader"
                    HorizontalAlignment="Left" />

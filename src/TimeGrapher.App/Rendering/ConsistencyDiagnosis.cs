@@ -32,7 +32,7 @@ internal sealed record ConsistencyDiagnosis(
     double? VerticalHorizontalRateDeltaSPerDay)
 {
     /// <summary>Beats a position needs before it counts toward a verdict.</summary>
-    public const long MinPositionBeatsForVerdict = VarioVerdict.MinSamples;
+    public static long MinPositionBeatsForVerdict => VarioVerdict.MinSamples;
 
     /// <summary>Qualified positions needed before the spread verdict is offered.</summary>
     public const int MinQualifiedPositionsForVerdict = 3;

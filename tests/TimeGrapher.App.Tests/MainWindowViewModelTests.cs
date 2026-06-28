@@ -255,6 +255,7 @@ public sealed class MainWindowViewModelTests
         Assert.Equal((decimal)AcceptBandSettings.Default.RateMinSPerDay, vm.RateAcceptMin);
         Assert.Equal((decimal)AcceptBandSettings.Default.RateMaxSPerDay, vm.RateAcceptMax);
         Assert.Equal((decimal)AcceptBandSettings.Default.BeatErrorMagnitudeMs, vm.BeatErrorAcceptMag);
+        Assert.Equal(VerdictBeatPolicy.DefaultMinimumBeats, (int)vm.VerdictMinimumBeats);
     }
 
     [Fact]
@@ -319,6 +320,7 @@ public sealed class MainWindowViewModelTests
         vm.LiftAngle = 53m;
         vm.PauseOnPositionChange = true;
         vm.IsMeasurementLogEnabled = true;
+        vm.VerdictMinimumBeats = 45m;
 
         Assert.Contains(nameof(MainWindowViewModel.SelectedInputDeviceIndex), changed);
         Assert.Contains(nameof(MainWindowViewModel.SelectedSampleRateIndex), changed);
@@ -327,6 +329,22 @@ public sealed class MainWindowViewModelTests
         Assert.Contains(nameof(MainWindowViewModel.LiftAngle), changed);
         Assert.Contains(nameof(MainWindowViewModel.PauseOnPositionChange), changed);
         Assert.Contains(nameof(MainWindowViewModel.IsMeasurementLogEnabled), changed);
+        Assert.Contains(nameof(MainWindowViewModel.VerdictMinimumBeats), changed);
+    }
+
+    [Fact]
+    public void VerdictMinimumBeatsNormalizesToSupportedRange()
+    {
+        var vm = CreateViewModel();
+
+        vm.VerdictMinimumBeats = 0m;
+        Assert.Equal(1m, vm.VerdictMinimumBeats);
+
+        vm.VerdictMinimumBeats = 1000m;
+        Assert.Equal(999m, vm.VerdictMinimumBeats);
+
+        vm.VerdictMinimumBeats = 42.5m;
+        Assert.Equal(43m, vm.VerdictMinimumBeats);
     }
 
     [Fact]

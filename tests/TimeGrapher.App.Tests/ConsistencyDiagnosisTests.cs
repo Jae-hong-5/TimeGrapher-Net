@@ -1,3 +1,4 @@
+using TimeGrapher.App;
 using TimeGrapher.App.Rendering;
 using TimeGrapher.Core.Shared;
 using Xunit;
@@ -40,6 +41,35 @@ public sealed class ConsistencyDiagnosisTests
         Assert.Equal(VarioVerdictLevel.Pending, d.Level);
         Assert.Equal("COLLECTING", d.VerdictText);
         Assert.Equal(ConsistencyStatus.Collecting, d.SpreadStatus);
+    }
+
+    [Fact]
+    public void Compute_UsesConfiguredVerdictBeatCount()
+    {
+        AppSettings original = AppSettings.Current;
+        try
+        {
+            AppSettings.Current = AppSettings.Default with
+            {
+                SettingsWindow = AppSettings.Default.SettingsWindow with { VerdictMinimumBeats = 12 },
+            };
+
+            ConsistencyDiagnosis collecting = Diagnose(
+                WatchPosition.CH,
+                Position(WatchPosition.CH, rate: 0.0, count: 11));
+            Assert.Equal("Measuring CH: 11/12 beats.", collecting.DetailText);
+
+            ConsistencyDiagnosis ready = Diagnose(
+                WatchPosition.CH,
+                Position(WatchPosition.CH, rate: 0.0, count: 12),
+                Position(WatchPosition.P3H, rate: 0.0, count: 12),
+                Position(WatchPosition.P9H, rate: 5.0, count: 12));
+            Assert.Equal(VarioVerdictLevel.Good, ready.Level);
+        }
+        finally
+        {
+            AppSettings.Current = original;
+        }
     }
 
     [Fact]

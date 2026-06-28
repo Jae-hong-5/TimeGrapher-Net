@@ -106,12 +106,14 @@ public sealed class AppSettingsControllerTests : IDisposable
             SettingsWindow = AppSettings.Default.SettingsWindow with
             {
                 WeakAOnsetRescueStrengthStep = 8,
+                VerdictMinimumBeats = 45,
             },
         };
 
         AppSettingsController.SeedViewModel(viewModel, settings, measurementLogEnabled: false);
 
         Assert.Equal(8, viewModel.WeakAOnsetRescueStrengthStep);
+        Assert.Equal(45m, viewModel.VerdictMinimumBeats);
     }
 
     [Fact]
@@ -171,6 +173,24 @@ public sealed class AppSettingsControllerTests : IDisposable
     }
 
     [Fact]
+    public void SettingsWindowEdit_PersistsVerdictMinimumBeats()
+    {
+        var viewModel = new MainWindowViewModel();
+        var persisted = new List<AppSettings>();
+        AppSettings.Current = AppSettings.Default;
+        _ = new AppSettingsController(
+            viewModel,
+            () => new AppSettingsSelection(null, 48000, 0, 28800),
+            persisted.Add);
+
+        viewModel.VerdictMinimumBeats = 45m;
+
+        AppSettings saved = Assert.Single(persisted);
+        Assert.Equal(45, saved.SettingsWindow.VerdictMinimumBeats);
+        Assert.Equal(saved, AppSettings.Current);
+    }
+
+    [Fact]
     public void ResetSettingsWindow_RestoresOnlySettingsWindowControls()
     {
         var viewModel = new MainWindowViewModel
@@ -198,6 +218,7 @@ public sealed class AppSettingsControllerTests : IDisposable
             AmplitudeAcceptMin = 10m,
             AmplitudeAcceptMax = 20m,
             BeatErrorAcceptMag = 2m,
+            VerdictMinimumBeats = 45m,
             IsMeasurementLogEnabled = true,
         };
 
@@ -231,6 +252,7 @@ public sealed class AppSettingsControllerTests : IDisposable
         Assert.Equal((decimal)AcceptBandSettings.Default.AmplitudeMinDeg, viewModel.AmplitudeAcceptMin);
         Assert.Equal((decimal)AcceptBandSettings.Default.AmplitudeMaxDeg, viewModel.AmplitudeAcceptMax);
         Assert.Equal((decimal)AcceptBandSettings.Default.BeatErrorMagnitudeMs, viewModel.BeatErrorAcceptMag);
+        Assert.Equal(SettingsWindowSettings.Default.VerdictMinimumBeats, (int)viewModel.VerdictMinimumBeats);
         Assert.False(viewModel.IsMeasurementLogEnabled);
     }
 

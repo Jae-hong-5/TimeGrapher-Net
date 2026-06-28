@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using TimeGrapher.App;
 using TimeGrapher.App.Rendering;
 using TimeGrapher.Core.Shared;
 using Xunit;
@@ -100,6 +101,31 @@ public sealed class VarioLogicTests
 
         var service = new StatsSummary(true, 190, 215, 200.0, 5.0, 200);
         Assert.Equal(new VarioVerdict("Low · service", VarioVerdictLevel.Bad, VarioFinding.AmplitudeLow), VarioVerdict.ForAmplitude(service, 270, 300));
+    }
+
+    [Fact]
+    public void VerdictWarmupUsesConfiguredMinimumBeatCount()
+    {
+        AppSettings original = AppSettings.Current;
+        try
+        {
+            AppSettings.Current = AppSettings.Default with
+            {
+                SettingsWindow = AppSettings.Default.SettingsWindow with { VerdictMinimumBeats = 12 },
+            };
+            var tooFew = new StatsSummary(true, 0, 0, 0.0, 0.0, 11);
+            var readyRate = new StatsSummary(true, 0, 0, 0.0, 0.0, 12);
+            var readyAmplitude = new StatsSummary(true, 285, 285, 285.0, 0.0, 12);
+
+            Assert.Equal(VarioVerdictLevel.Pending, VarioVerdict.ForRate(tooFew, -10, 10).Level);
+            Assert.Equal(VarioVerdictLevel.Good, VarioVerdict.ForRate(readyRate, -10, 10).Level);
+            Assert.Equal(VarioVerdictLevel.Pending, VarioVerdict.ForAmplitude(tooFew, 270, 300).Level);
+            Assert.Equal(VarioVerdictLevel.Good, VarioVerdict.ForAmplitude(readyAmplitude, 270, 300).Level);
+        }
+        finally
+        {
+            AppSettings.Current = original;
+        }
     }
 
     [Fact]

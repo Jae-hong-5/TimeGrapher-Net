@@ -31,7 +31,7 @@ internal enum VarioFinding
 internal readonly record struct VarioVerdict(string Text, VarioVerdictLevel Level, VarioFinding Finding = VarioFinding.None)
 {
     /// <summary>Beats required before a verdict is offered; fewer reads as "measuring".</summary>
-    public const long MinSamples = 30;
+    public static long MinSamples => VerdictBeatPolicy.MinimumBeats;
 
     public const double AmplitudeServiceDeg = 220.0;
 

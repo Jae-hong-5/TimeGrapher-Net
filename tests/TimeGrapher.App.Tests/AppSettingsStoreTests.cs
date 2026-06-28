@@ -48,7 +48,8 @@ public sealed class AppSettingsStoreTests : IDisposable
                 true,
                 "180",
                 true,
-                7));
+                7,
+                45));
 
         AppSettingsStore.SaveTo(path, saved);
 
@@ -94,6 +95,22 @@ public sealed class AppSettingsStoreTests : IDisposable
             SettingsWindow = AppSettings.Default.SettingsWindow with
             {
                 WeakAOnsetRescueStrengthStep = WeakAOnsetRescueStrengthPolicy.MaxStep + 1,
+            },
+        });
+
+        Assert.Equal(AppSettings.Default, AppSettingsStore.LoadFrom(path));
+    }
+
+    [Fact]
+    public void LoadFrom_InvalidVerdictMinimumBeats_ReturnsDefault()
+    {
+        string path = Path.Combine(_directory, "settings.json");
+        Directory.CreateDirectory(_directory);
+        AppSettingsStore.SaveTo(path, AppSettings.Default with
+        {
+            SettingsWindow = AppSettings.Default.SettingsWindow with
+            {
+                VerdictMinimumBeats = VerdictBeatPolicy.MinimumBeatsCeiling + 1,
             },
         });
 
@@ -197,6 +214,7 @@ public sealed class AppSettingsStoreTests : IDisposable
         Assert.Equal(1.0, loaded.LeftPanel.SimulationSignalBScale);
         Assert.Equal(1.0, loaded.LeftPanel.SimulationSignalCScale);
         Assert.Equal(WeakAOnsetRescueStrengthPolicy.StandardStep, loaded.SettingsWindow.WeakAOnsetRescueStrengthStep);
+        Assert.Equal(VerdictBeatPolicy.DefaultMinimumBeats, loaded.SettingsWindow.VerdictMinimumBeats);
     }
 
     [Fact]

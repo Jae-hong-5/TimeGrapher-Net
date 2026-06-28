@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Windows.Input;
 using TimeGrapher.App;
+using TimeGrapher.App.Rendering;
 using TimeGrapher.Core.Analysis;
 using TimeGrapher.Core.Shared;
 
@@ -84,6 +85,7 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     private decimal _amplitudeAcceptMin = 270m;
     private decimal _amplitudeAcceptMax = 300m;
     private decimal _beatErrorAcceptMag = 0.8m;
+    private decimal _verdictMinimumBeats = VerdictBeatPolicy.DefaultMinimumBeats;
     private double? _reviewCursorTimeS;
     private double _reviewMaximumS;
     private double _reviewMinimumS;
@@ -466,6 +468,12 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     {
         get => _beatErrorAcceptMag;
         set => SetProperty(ref _beatErrorAcceptMag, value);
+    }
+
+    public decimal VerdictMinimumBeats
+    {
+        get => _verdictMinimumBeats;
+        set => SetProperty(ref _verdictMinimumBeats, VerdictBeatPolicy.NormalizeMinimumBeats(value));
     }
 
     /// <summary>Analysis block size in samples (the detector input window); read at run start, so a run restart applies a change.</summary>

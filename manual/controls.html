@@ -104,6 +104,8 @@
         <dd><span class="ko">하이패스 필터의 차단 주파수. 이 값 아래의 낮은 주파수(손 떨림·취급 잡음·배경 진동 등)를 걸러 냅니다. 저주파 잡음이 검출을 방해하면 올리고, 신호가 약해지면 내립니다.</span><span class="en">High-pass cut-off frequency. Removes low-frequency content below it (handling noise, background rumble). Raise it if low rumble disturbs detection; lower it if the signal weakens.</span></dd>
         <dt>Scope Scale</dt>
         <dd><span class="ko">스코프류 그래프의 세로 확대 배율(1–8). 파형이 작으면 키워서 봅니다. <b>실행 중에도 변경</b>됩니다(검출에는 영향 없음, 보기 전용).</span><span class="en">Vertical zoom for scope-style graphs (1–8). Magnify a small waveform. Changeable <b>during a run</b> (display-only, doesn't affect detection).</span></dd>
+        <dt>Verdict Beats</dt>
+        <dd><span class="ko">Vario, Positions, Health 판정이 <b>Measuring…</b>에서 벗어나기 전에 요구하는 최소 beat 수입니다. 기본값은 30이며, 짧게 하면 판정이 빨리 뜨고 길게 하면 평균이 더 안정된 뒤 판정합니다. 실행 중에는 같은 세션의 기준이 바뀌지 않도록 잠깁니다.</span><span class="en">Minimum beats required before Vario, Positions, and Health leave <b>Measuring…</b>. Default is 30; lower values answer sooner, higher values wait for a steadier average. It is locked during a run so one session keeps one verdict threshold.</span></dd>
         <dt>Use C-onset timing</dt>
         <dd><span class="ko">진폭을 계산할 때 C 충격의 <b>피크 시각</b> 대신 <b>온셋(시작 가장자리) 시각</b>을 쓰도록 바꿉니다. 일부 무브먼트에서 Amplitude가 더 안정적으로 잡힙니다. (<a href="graphs/escapement.html">Escapement</a> 참고.)</span><span class="en">Use the C impulse's <b>onset timing</b> instead of its <b>peak timing</b> when computing Amplitude. Can be steadier on some movements. (See <a href="graphs/escapement.html">Escapement</a>.)</span></dd>
         <dt>PLL Event Veto<br><small>(impulse rejection)</small></dt>

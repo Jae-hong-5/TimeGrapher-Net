@@ -184,12 +184,15 @@ public sealed class MainWindowRunControlWiringTests
             window.FindControl<Control>("HighLineEdit"));
         Slider rescueStrength = Assert.IsType<Slider>(
             window.FindControl<Control>("WeakAOnsetRescueStrengthSlider"));
+        NumericUpDown verdictBeats = Assert.IsType<NumericUpDown>(
+            window.FindControl<Control>("VerdictMinimumBeatsSpinBox"));
 
         Rect averagingPeriodBounds = BoundsInContent(averagingPeriod, content);
         Rect blockSizeBounds = BoundsInContent(blockSize, content);
         Rect captureBufferBounds = BoundsInContent(captureBuffer, content);
         Rect rescueStrengthBounds = BoundsInContent(rescueStrength, content);
         Rect highPassBounds = BoundsInContent(highPass, content);
+        Rect verdictBeatsBounds = BoundsInContent(verdictBeats, content);
 
         Assert.True(averagingPeriodBounds.Width > 0);
         Assert.True(blockSizeBounds.Width > 0);
@@ -198,6 +201,8 @@ public sealed class MainWindowRunControlWiringTests
         Assert.True(rescueStrengthBounds.Bottom <= 600);
         Assert.True(highPassBounds.Width > 0);
         Assert.True(highPassBounds.Bottom <= 600);
+        Assert.True(verdictBeatsBounds.Width > 0);
+        Assert.True(verdictBeatsBounds.Bottom <= 600);
 
         var target = new RenderTargetBitmap(new PixelSize(760, 600), new Vector(96, 96));
         target.Render(content);
@@ -311,6 +316,7 @@ public sealed class MainWindowRunControlWiringTests
                 "Run Settings",
                 "Run Parameters",
                 "Acceptable Bands",
+                "Assessment",
                 "Logging",
             },
             document.Descendants()
@@ -379,6 +385,15 @@ public sealed class MainWindowRunControlWiringTests
         Assert.Equal("BottomRight", rescueStrengthSlider.Attribute("TickPlacement")?.Value);
         Assert.Equal("{Binding WeakAOnsetRescueStrengthStep, Mode=TwoWay}", rescueStrengthSlider.Attribute("Value")?.Value);
         Assert.Equal("{Binding IsWeakAOnsetRescueStrengthEnabled}", rescueStrengthSlider.Parent?.Attribute("IsEnabled")?.Value);
+        XElement verdictBeatsInput = FindNamedElement(document, "VerdictMinimumBeatsSpinBox");
+        Assert.Equal("NumericUpDown", verdictBeatsInput.Name.LocalName);
+        Assert.Equal("Verdict minimum beats", verdictBeatsInput.Attribute("AutomationProperties.Name")?.Value);
+        Assert.Equal("{Binding VerdictMinimumBeats, Mode=TwoWay}", verdictBeatsInput.Attribute("Value")?.Value);
+        Assert.Equal("1", verdictBeatsInput.Attribute("Minimum")?.Value);
+        Assert.Equal("999", verdictBeatsInput.Attribute("Maximum")?.Value);
+        Assert.Equal("1", verdictBeatsInput.Attribute("Increment")?.Value);
+        Assert.Equal("True", verdictBeatsInput.Attribute("ClipValueToMinMax")?.Value);
+        Assert.Equal("{Binding AreRunParametersEnabled}", verdictBeatsInput.Attribute("IsEnabled")?.Value);
         Assert.DoesNotContain(
             document.Descendants().Attributes("Name").Select(attribute => attribute.Value),
             name => name.Contains("MeasurementLogPath", StringComparison.Ordinal) ||

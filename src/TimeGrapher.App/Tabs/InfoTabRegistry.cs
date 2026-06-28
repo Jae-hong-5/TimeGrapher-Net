@@ -868,10 +868,6 @@ internal sealed partial class InfoTabRegistry
         return new InfoTabRegistration(definition, CreateTabItem(definition, grid), consumer);
     }
 
-    /// <summary>
-    /// The Vario "Criteria" flyout: the verdict thresholds, built from the same
-    /// constants the evaluator uses so the popup cannot drift from the live rules.
-    /// </summary>
     private static Control BuildVarioCriteria()
     {
         double rateMin = VarioGaugePolicy.RateAcceptMinSPerDay;
@@ -899,7 +895,7 @@ internal sealed partial class InfoTabRegistry
         panel.Children.Add(new TextBlock { Text = "Assessment Criteria", FontWeight = FontWeight.Bold, FontSize = VarioMinimumFontSize });
         panel.Children.Add(new TextBlock
         {
-            Text = $"Shown after {VarioVerdict.MinSamples} beats, classified from the average, for the current watch position.",
+            Text = $"Shown after the configured verdict beat count (default {VerdictBeatPolicy.DefaultMinimumBeats}), classified from the average, for the current watch position.",
             FontSize = VarioMinimumFontSize,
             Opacity = 0.7,
             TextWrapping = TextWrapping.Wrap,

@@ -52,6 +52,7 @@ internal sealed class AppSettingsController : ISettingsWindowResetRunner
         viewModel.SpuriousBeatRejection = window.SpuriousBeatRejection;
         viewModel.PauseOnPositionChange = window.PauseOnPositionChange;
         viewModel.HighPassCutoffText = window.HighPassCutoffText;
+        viewModel.VerdictMinimumBeats = window.VerdictMinimumBeats;
         viewModel.IsMeasurementLogEnabled = measurementLogEnabled;
     }
 
@@ -72,6 +73,7 @@ internal sealed class AppSettingsController : ISettingsWindowResetRunner
             _viewModel.AnalysisBlockSize = sampling.AnalysisBlockSize;
             _viewModel.CaptureBufferMs = sampling.CaptureBufferMs;
             _viewModel.HighPassCutoffText = window.HighPassCutoffText;
+            _viewModel.VerdictMinimumBeats = window.VerdictMinimumBeats;
             ResetAcceptBands(_viewModel, bands);
             _viewModel.IsMeasurementLogEnabled = window.MeasurementLogEnabled;
         });
@@ -115,6 +117,7 @@ internal sealed class AppSettingsController : ISettingsWindowResetRunner
             nameof(MainWindowViewModel.SpuriousBeatRejection) or
             nameof(MainWindowViewModel.PauseOnPositionChange) or
             nameof(MainWindowViewModel.HighPassCutoffText) or
+            nameof(MainWindowViewModel.VerdictMinimumBeats) or
             nameof(MainWindowViewModel.IsMeasurementLogEnabled)))
         {
             return;
@@ -130,7 +133,8 @@ internal sealed class AppSettingsController : ISettingsWindowResetRunner
                 _viewModel.PauseOnPositionChange,
                 _viewModel.HighPassCutoffText,
                 _viewModel.IsMeasurementLogEnabled,
-                _viewModel.WeakAOnsetRescueStrengthStep));
+                _viewModel.WeakAOnsetRescueStrengthStep,
+                VerdictBeatPolicy.NormalizeMinimumBeats(_viewModel.VerdictMinimumBeats)));
 
         if (!next.IsValid || next == AppSettings.Current)
         {
