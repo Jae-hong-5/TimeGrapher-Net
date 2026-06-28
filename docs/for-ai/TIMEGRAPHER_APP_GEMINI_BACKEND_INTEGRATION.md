@@ -1,6 +1,6 @@
 # TimeGrapher App Gemini Backend Integration Guide
 
-Status: ready for app-side implementation.
+Status: implementable; backend contract is ready and app-side credential-store/log-source seams still need coding.
 Backend base URL: `https://tg-ai.jaehongoh.com`
 
 This document is for the coding agent implementing the TimeGrapher app-side
@@ -128,9 +128,20 @@ Do not log credentials.
 Do not include credentials in screenshots, telemetry, crash reports, or support
 logs.
 
-For the first implementation, keeping credentials in memory for the current app
-session is enough. If persistence is later required, use the operating system
-credential store. Do not save credentials in a plain text config file.
+The app should support a "remember login" / auto-login option, but only through
+the operating system credential store. Keeping credentials in memory is
+acceptable when the user does not opt in to saving them or when the credential
+store probe fails. Do not save credentials in `AppSettings`, plain text config
+files, logs, screenshots, crash reports, or bundled assets.
+
+Persistent-login targets for the first implementation:
+
+- Windows: use the OS credential store.
+- Raspberry Pi/Linux: use a Secret Service-compatible keyring such as GNOME
+  Keyring or KWallet.
+- Enable persistence only after a store/read/delete probe succeeds.
+- If the probe fails, keep the app usable with in-memory credentials only and
+  disable the remember-login option.
 
 Basic Auth construction:
 
@@ -188,6 +199,12 @@ inside a fixed server-side prompt. The backend prompt instructs Gemini to:
 - output in Korean
 
 The app should not duplicate this prompt and should not send prompt text.
+For the first app implementation, the log source must be explicit and
+testable. Either read a user-selected CSV/log file or expose a narrow
+`MeasurementLogController`/service seam for the latest completed measurement
+log. Do not read a file that the logger is still writing unless the sink has
+been closed or flushed. If no completed log is available, show a friendly
+message instead of calling the backend.
 
 ## 6. Size and Rate Limits
 
@@ -266,6 +283,13 @@ Suggested service responsibilities:
 - avoid logging sensitive values
 
 `TimeGrapher.Core` should not depend on HTTP clients, Gemini, credentials, or UI.
+
+For the current app architecture, place protocol code under
+`src/TimeGrapher.App/Services` and keep Avalonia dialogs/views under
+`src/TimeGrapher.App/Views`. The `MainWindowBootstrapper` composition root
+should construct the AI service and credential adapter, while
+`MainWindowViewModel` owns user-visible command state. This preserves the
+existing MVVM boundary documented in `docs/for-ai/MODULE_USES_VIEW.md`.
 
 ## 9. C#-Style DTO Sketch
 
@@ -355,6 +379,8 @@ Add or update UI for:
 - backend-powered AI explanation action
 - consent confirmation before upload
 - demo username/password input
+- remember-login checkbox backed only by the OS credential store
+- disabled remember-login UI when the credential-store probe fails
 - loading state while waiting for the backend
 - cancellation support if the app already supports cancellable operations
 - success display for Korean explanation text
@@ -375,6 +401,9 @@ Before considering the app-side task done, verify:
 - App sends log data as `logText`, not as prompt instructions.
 - App handles `401`, `413`, `429`, `502`, and `503`.
 - App does not log Basic Auth headers, passwords, or full uploaded logs.
+- App stores saved demo credentials only in the OS credential store.
+- App disables credential persistence when the store/read/delete probe fails.
+- App does not put credentials into `AppSettings` or any plain text file.
 - App displays the backend `explanation` on success.
 
 ## 13. Manual Test Cases
@@ -385,10 +414,12 @@ Use these after implementing the app integration:
 2. AI explanation without credentials fails with `401`.
 3. AI explanation with wrong credentials fails with `401`.
 4. Declining consent results in no backend request.
-5. Empty log is blocked by the app or returns `400`.
-6. Normal CSV log returns `200` and displays Korean explanation.
-7. Oversized log shows a friendly too-large message.
-8. Repeated rapid requests eventually show a retry-later message.
+5. Credential-store probe failure disables remember-login and still allows an in-memory login.
+6. Successful credential-store probe can save, load, and delete demo credentials without touching `AppSettings`.
+7. Empty log is blocked by the app or returns `400`.
+8. Normal CSV log returns `200` and displays Korean explanation.
+9. Oversized log shows a friendly too-large message.
+10. Repeated rapid requests eventually show a retry-later message.
 
 The backend has already been smoke-tested successfully with real Gemini:
 
