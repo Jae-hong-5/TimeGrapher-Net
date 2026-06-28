@@ -31,8 +31,10 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     private readonly RelayCommand _reviewStepForwardCommand;
     private readonly RelayCommand _reviewLiveCommand;
     private readonly RelayCommand _resetSettingsWindowCommand;
+    private readonly RelayCommand _toggleThemeCommand;
     private IRunCommandRunner? _runner;
     private ISettingsWindowResetRunner? _settingsWindowResetRunner;
+    private IThemeToggleRunner? _themeToggleRunner;
     private RunUiState _runState = RunUiState.Stopped;
     private bool _modeAllowsSampleRate = true;
     private bool _modeAllowsGain = true;
@@ -104,6 +106,7 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
         _reviewStepForwardCommand = new RelayCommand(() => StepReviewCursor(ReviewStepS), () => IsReviewBarEnabled);
         _reviewLiveCommand = new RelayCommand(() => ReviewCursorTimeS = null, () => IsReviewBarEnabled);
         _resetSettingsWindowCommand = new RelayCommand(ExecuteResetSettingsWindow, () => AreRunParametersEnabled);
+        _toggleThemeCommand = new RelayCommand(ExecuteToggleTheme);
     }
 
     /// <summary>
@@ -114,6 +117,8 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     public void AttachRunCommandRunner(IRunCommandRunner runner) => _runner = runner;
 
     public void AttachSettingsWindowResetRunner(ISettingsWindowResetRunner runner) => _settingsWindowResetRunner = runner;
+
+    public void AttachThemeToggleRunner(IThemeToggleRunner runner) => _themeToggleRunner = runner;
 
     // The play/pause button is one control: a stopped run starts, an active run toggles
     // pause/resume. The runner's state machine decides what each call actually does.
@@ -135,6 +140,8 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
 
     private void ExecuteResetSettingsWindow() => _settingsWindowResetRunner?.ResetSettingsWindow();
 
+    private void ExecuteToggleTheme() => _themeToggleRunner?.ToggleTheme();
+
     public event PropertyChangedEventHandler? PropertyChanged;
 
     public ICommand PlayPauseCommand => _playPauseCommand;
@@ -144,6 +151,8 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     public ICommand ReviewStepForwardCommand => _reviewStepForwardCommand;
     public ICommand ReviewLiveCommand => _reviewLiveCommand;
     public ICommand ResetSettingsWindowCommand => _resetSettingsWindowCommand;
+
+    public ICommand ToggleThemeCommand => _toggleThemeCommand;
 
     public bool IsSettingsWindowResetInProgress => _settingsWindowResetDepth > 0;
 

@@ -41,7 +41,7 @@
         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="0">
           <Button Name="ThemeToggleButton"
                   Classes="TitleBarIconButton"
-                  Click="OnThemeToggleButtonClick"
+                  Command="{Binding ToggleThemeCommand}"
                   ToolTip.Tip="Toggle theme">
             <Viewbox Width="18" Height="18">
               <Grid Width="16" Height="16">

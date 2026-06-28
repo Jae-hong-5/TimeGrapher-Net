@@ -24,7 +24,7 @@ using TimeGrapher.Inference;
 
 namespace TimeGrapher.App.Views;
 
-public partial class MainWindow : Window
+public partial class MainWindow : Window, IThemeToggleRunner
 {
     private const int ERROR_RATE_Y_SCALE = 10;
     private const int ERROR_RATE_X_DATA_POINTS = 250;
@@ -211,6 +211,7 @@ public partial class MainWindow : Window
             mSamplingSettingsController.SyncAppliedSnapshot,
             ResetLeftPanelSelections);
         mViewModel.AttachSettingsWindowResetRunner(mAppSettingsController);
+        mViewModel.AttachThemeToggleRunner(this);
 
         Closed += OnWindowClosed;
     }
@@ -265,7 +266,7 @@ public partial class MainWindow : Window
         WindowState = WindowState.Minimized;
     }
 
-    private void OnThemeToggleButtonClick(object? sender, RoutedEventArgs e)
+    public void ToggleTheme()
     {
         Avalonia.Application? application = Avalonia.Application.Current;
         if (application == null)
