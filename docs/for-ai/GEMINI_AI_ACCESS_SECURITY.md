@@ -31,11 +31,13 @@ Provide Gemini-powered app features without distributing the project-owned Gemin
    - The demo ID/password are delivered through a private grading channel, such as LMS, email, or live presentation.
    - The backend verifies the credentials before calling Gemini.
    - If "remember login" or auto-login is implemented, store the credentials only in the operating system credential store.
+   - The intended persistent-login targets are Windows through the OS credential store and the tested Raspberry Pi Desktop target through Secret Service/GNOME Keyring.
    - On Linux/Raspberry Pi, this means a Secret Service-compatible keyring such as GNOME Keyring or KWallet; if no such keyring is available, do not persist credentials.
    - Treat a successful store/read/delete probe against the credential store as the availability check; a desktop session alone is not enough.
    - SSH sessions may report `XDG_SESSION_TYPE=tty`; this does not prove the desktop keyring is unavailable. Run the credential-store probe from the graphical desktop session, or fail closed to in-memory credentials only.
    - The tested Raspberry Pi Desktop target reports `labwc:wlroots`, `rpd-labwc`, and `wayland`; `secret-tool store` opening a keyring password dialog is expected during GNOME Keyring creation or unlock.
    - On that target, enable persistent login only after the full `secret-tool store`, `lookup`, and `clear` probe succeeds.
+   - This confirms the target environment can support credential-backed auto-login; the app implementation must still use the credential-store adapter and fail closed if the probe fails.
    - Do not store the password in app config, plain text files, screenshots, logs, crash reports, or bundled assets.
    - Keeping credentials only in memory is still acceptable when the user does not opt in to saving them.
 
@@ -110,11 +112,13 @@ Avoid claiming that the system has "no security risk". The correct claim is that
 - 앱은 Gemini API 키 입력, 저장, 직접 호출 기능을 제공하지 않는다.
 - 채점자용 ID/PW는 앱에 넣지 않고 별도로 제공한다.
 - 자동 로그인이나 로그인 정보 저장을 지원하는 경우, ID/PW는 운영체제 credential store에만 저장하고 평문 설정 파일에는 저장하지 않는다.
+- 자동 로그인 저장 대상은 Windows의 OS credential store와 확인된 라즈베리파이 Desktop의 Secret Service/GNOME Keyring을 기준으로 한다.
 - 라즈베리파이/리눅스에서는 GNOME Keyring, KWallet 등 Secret Service 호환 keyring이 있는 경우에만 저장하고, 없으면 자동 로그인 저장을 제공하지 않는다.
 - Desktop 환경인지보다 credential store에 실제 저장/조회/삭제가 되는지가 기준이다.
 - SSH 세션의 `XDG_SESSION_TYPE=tty` 출력은 데스크톱 keyring 부재를 증명하지 않으므로, 그래픽 데스크톱 터미널에서 probe를 실행하거나 실패 시 메모리 저장만 사용한다.
 - 확인한 라즈베리파이 Desktop 대상은 `labwc:wlroots`, `rpd-labwc`, `wayland` 세션이며, `secret-tool store` 실행 시 keyring 비밀번호 창이 뜨는 것은 GNOME Keyring 생성/해제 과정으로 정상이다.
 - 해당 대상에서도 `secret-tool store`, `lookup`, `clear` 전체 probe가 성공한 경우에만 자동 로그인 저장을 활성화한다.
+- 이 확인은 대상 환경이 credential 기반 자동 로그인을 지원할 수 있음을 의미하며, 앱 구현은 여전히 credential-store adapter를 사용하고 probe 실패 시 저장을 비활성화해야 한다.
 - 서버는 인증, rate limit, quota, 입력 크기 제한, 토큰 제한을 적용한다.
 - 범용 Gemini 프록시가 아니라 기능별 API만 제공한다.
 - 사용자의 명시적 동의를 받은 경우, 앱은 AI 설명을 위해 작은 분석 로그 파일을 서버로 보낼 수 있다.
