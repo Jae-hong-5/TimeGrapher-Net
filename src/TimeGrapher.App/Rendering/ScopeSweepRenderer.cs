@@ -286,9 +286,10 @@ internal sealed class ScopeSweepRenderer
             _lastSweepSeries = sweepSeries;
             _ticPhaseOffsetMs = sweepSeries!.TicPhaseOffsetMs;
 
-            // Re-arm live fitting when the window size changes.
-            // so the X view snaps to the new window even if the user had panned.
-            // Y is kept (FitXKeepY), so a multiple change does not rescale Y.
+            // Re-arm live fitting when the window size changes, so the X view
+            // snaps to the new window even if the user had panned. Y only grows
+            // to fit (FitXGrowY) and is never shrunk, so a multiple change does
+            // not rescale the Y view downward.
             double windowMs = ScopeSweepReadout.WindowMs(_sweepX);
             if (Math.Abs(windowMs - _lastWindowMs) > 0.001)
             {

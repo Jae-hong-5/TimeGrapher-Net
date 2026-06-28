@@ -1029,10 +1029,10 @@ internal sealed partial class InfoTabRegistry
         }
 
         var renderer = new MultiFilterScopeRenderer(plots);
-        // Still registered so the global "Reset All Views" and the right-click
-        // "Auto Scale (all lanes)" menu work; the tab just drops the dedicated
-        // Reset View button (the lanes are read-only and beat-locked, so it added
-        // little) and lets the 2x2 lanes start at the very top.
+        // Still registered so the global "Reset All Views" works; the tab drops
+        // the dedicated Reset View button (the lanes are read-only and
+        // beat-locked, so it added little) and the per-plot right-click menu
+        // (disabled in the renderer), and lets the 2x2 lanes start at the very top.
         context.ResetViews.Register(renderer.ResetView);
 
         var root = new Grid();
