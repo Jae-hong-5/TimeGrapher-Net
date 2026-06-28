@@ -5,14 +5,14 @@ using Xunit;
 namespace TimeGrapher.App.Tests;
 
 /// <summary>
-/// Pure logic behind the Scope Sweep tab: the reference line of current
-/// readings, window-length recovery from the published bin centers, and the
-/// review-cursor mapping from stream time onto the sweep window phase.
+/// Pure logic behind the Scope Sweep tab: the per-cell current readings,
+/// window-length recovery from the published bin centers, and the review-cursor
+/// mapping from stream time onto the sweep window phase.
 /// </summary>
 public sealed class ScopeSweepLogicTests
 {
     [Fact]
-    public void ReferenceLine_FormatsCurrentReadings()
+    public void Values_FormatCurrentReadingsWithoutSegments()
     {
         var snapshot = new BeatMetricsHistorySnapshot
         {
@@ -24,12 +24,10 @@ public sealed class ScopeSweepLogicTests
             BeatErrorSignedMs = 0.456,
         };
 
-        string line = ScopeSweepReadout.ReferenceLine(snapshot);
+        string[] values = ScopeSweepReadout.Values(snapshot);
 
-        Assert.Equal(
-            "Error Rate -3.2 s/d   |   Amplitude 282°   |   Beat Error +0.46 ms" +
-            "   |   A to C —",
-            line);
+        // No segments -> A to C cell is the em dash.
+        Assert.Equal(new[] { "-3.2 s/d", "282°", "+0.46 ms", "—" }, values);
     }
 
     [Fact]
@@ -60,21 +58,19 @@ public sealed class ScopeSweepLogicTests
     }
 
     [Fact]
-    public void ReferenceLine_ShowsDashesWhileReadingsAreAbsent()
+    public void Values_ShowDashesWhileReadingsAreAbsent()
     {
-        string empty = ScopeSweepReadout.ReferenceLine(null);
-        string invalid = ScopeSweepReadout.ReferenceLine(new BeatMetricsHistorySnapshot());
+        string[] empty = ScopeSweepReadout.Values(null);
+        string[] invalid = ScopeSweepReadout.Values(new BeatMetricsHistorySnapshot());
 
-        foreach (string line in new[] { empty, invalid })
+        foreach (string[] values in new[] { empty, invalid })
         {
-            Assert.Equal(
-                "Error Rate —   |   Amplitude —   |   Beat Error —   |   A to C —",
-                line);
+            Assert.Equal(new[] { "—", "—", "—", "—" }, values);
         }
     }
 
     [Fact]
-    public void ReferenceLine_IncludesAtoCWhenAvailable()
+    public void Values_IncludeAtoCWhenAvailable()
     {
         var snapshot = new BeatMetricsHistorySnapshot
         {
@@ -92,14 +88,12 @@ public sealed class ScopeSweepLogicTests
             },
         };
 
-        string line = ScopeSweepReadout.ReferenceLine(snapshot, segments);
-
-        // A→C = 60.0 ms
-        Assert.Contains("A to C +60.0 ms", line);
+        // A→C = 60.0 ms (cell index 3)
+        Assert.Equal("+60.0 ms", ScopeSweepReadout.Values(snapshot, segments)[3]);
     }
 
     [Fact]
-    public void ReferenceLine_AtoCUsesMostRecentSegmentWithValidCPeak()
+    public void Values_AtoCUsesMostRecentSegmentWithValidCPeak()
     {
         // Both segments have a valid C peak with DIFFERENT A->C, so "most recent"
         // (newest/last) and "first" diverge: the readout must pick the newest (80 ms),
@@ -114,13 +108,11 @@ public sealed class ScopeSweepLogicTests
             },
         };
 
-        string line = ScopeSweepReadout.ReferenceLine(null, segments);
-
-        Assert.Contains("A to C +80.0 ms", line);
+        Assert.Equal("+80.0 ms", ScopeSweepReadout.Values(null, segments)[3]);
     }
 
     [Fact]
-    public void ReferenceLine_AtoCFallsBackToOlderSegmentWhenNewestCPeakInvalid()
+    public void Values_AtoCFallsBackToOlderSegmentWhenNewestCPeakInvalid()
     {
         var segments = new BeatSegmentsSnapshot
         {
@@ -132,10 +124,8 @@ public sealed class ScopeSweepLogicTests
             },
         };
 
-        string line = ScopeSweepReadout.ReferenceLine(null, segments);
-
         // Newest segment has no valid C peak; fall back to the older one: 65 - 5 = 60 ms.
-        Assert.Contains("A to C +60.0 ms", line);
+        Assert.Equal("+60.0 ms", ScopeSweepReadout.Values(null, segments)[3]);
     }
 
     [Fact]

@@ -5,10 +5,9 @@ namespace TimeGrapher.App.Rendering;
 
 /// <summary>
 /// Pure logic behind the Scope Sweep tab, kept out of the renderer so it is
-/// unit-testable without a live plot control: the compact reference line of
-/// current readings (the plan's "compare the live waveform against the most
-/// recent measurements") and the review-cursor mapping from stream time onto
-/// the sweep window phase.
+/// unit-testable without a live plot control: the per-cell current readings
+/// (the plan's "compare the live waveform against the most recent measurements")
+/// and the review-cursor mapping from stream time onto the sweep window phase.
 /// </summary>
 internal static class ScopeSweepReadout
 {
@@ -21,23 +20,10 @@ internal static class ScopeSweepReadout
     };
 
     /// <summary>
-    /// Reference line of current error rate / amplitude / beat error / A→C
-    /// (em dash when absent). <paramref name="segments"/> supplies the latest
-    /// A→C interval.
+    /// Per-cell current error rate / amplitude / beat error / A→C (em dash when
+    /// absent), aligned with <see cref="Labels"/>. <paramref name="segments"/>
+    /// supplies the latest A→C interval.
     /// </summary>
-    public static string ReferenceLine(BeatMetricsHistorySnapshot? snapshot,
-        BeatSegmentsSnapshot? segments = null)
-    {
-        string[] values = Values(snapshot, segments);
-        var parts = new string[Labels.Length];
-        for (int i = 0; i < parts.Length; i++)
-        {
-            parts[i] = Labels[i] + " " + values[i];
-        }
-
-        return string.Join("   |   ", parts);
-    }
-
     public static string[] Values(BeatMetricsHistorySnapshot? snapshot,
         BeatSegmentsSnapshot? segments = null) => new[]
     {
