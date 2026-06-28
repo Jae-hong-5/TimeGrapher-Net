@@ -71,7 +71,7 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     private string _highPassCutoffText = "200";
     private bool _useCOnset;
     private bool _weakAOnsetRescue = true;
-    private int _weakAOnsetRescueStrengthStep = WeakAOnsetRescueStrengthPolicy.StandardStep;
+    private int _weakAOnsetRescueStrengthStep = WeakAOnsetRescueStrengthPolicy.MinStep;
     private bool _spuriousBeatRejection = true;
     private bool _pauseOnPositionChange;
     private int _sweepMultiple = SweepFrameProjector.DefaultSweepMultiple;

@@ -213,7 +213,7 @@ public sealed class AppSettingsStoreTests : IDisposable
         Assert.Equal(1.0, loaded.LeftPanel.SimulationSignalAScale);
         Assert.Equal(1.0, loaded.LeftPanel.SimulationSignalBScale);
         Assert.Equal(1.0, loaded.LeftPanel.SimulationSignalCScale);
-        Assert.Equal(WeakAOnsetRescueStrengthPolicy.StandardStep, loaded.SettingsWindow.WeakAOnsetRescueStrengthStep);
+        Assert.Equal(WeakAOnsetRescueStrengthPolicy.MinStep, loaded.SettingsWindow.WeakAOnsetRescueStrengthStep);
         Assert.Equal(VerdictBeatPolicy.DefaultMinimumBeats, loaded.SettingsWindow.VerdictMinimumBeats);
     }
 

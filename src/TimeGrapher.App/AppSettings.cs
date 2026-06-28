@@ -99,7 +99,7 @@ internal sealed record SettingsWindowSettings(
     bool PauseOnPositionChange,
     string HighPassCutoffText,
     bool MeasurementLogEnabled,
-    int WeakAOnsetRescueStrengthStep = WeakAOnsetRescueStrengthPolicy.StandardStep,
+    int WeakAOnsetRescueStrengthStep = WeakAOnsetRescueStrengthPolicy.MinStep,
     int VerdictMinimumBeats = VerdictBeatPolicy.DefaultMinimumBeats)
 {
     public static SettingsWindowSettings Default { get; } = new(
@@ -109,7 +109,7 @@ internal sealed record SettingsWindowSettings(
         PauseOnPositionChange: false,
         HighPassCutoffText: "200",
         MeasurementLogEnabled: false,
-        WeakAOnsetRescueStrengthStep: WeakAOnsetRescueStrengthPolicy.StandardStep,
+        WeakAOnsetRescueStrengthStep: WeakAOnsetRescueStrengthPolicy.MinStep,
         VerdictMinimumBeats: VerdictBeatPolicy.DefaultMinimumBeats);
 
     [JsonIgnore]

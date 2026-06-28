@@ -241,8 +241,8 @@ public sealed class MainWindowViewModelTests
         Assert.Equal("200", vm.HighPassCutoffText);
         Assert.False(vm.UseCOnset);
         Assert.True(vm.WeakAOnsetRescue);
-        Assert.Equal(WeakAOnsetRescueStrengthPolicy.StandardStep, vm.WeakAOnsetRescueStrengthStep);
-        Assert.Equal("Standard", vm.WeakAOnsetRescueStrengthText);
+        Assert.Equal(WeakAOnsetRescueStrengthPolicy.MinStep, vm.WeakAOnsetRescueStrengthStep);
+        Assert.Equal("Safer", vm.WeakAOnsetRescueStrengthText);
         Assert.True(vm.IsWeakAOnsetRescueStrengthEnabled);
         Assert.True(vm.SpuriousBeatRejection);
         Assert.False(vm.PauseOnPositionChange);

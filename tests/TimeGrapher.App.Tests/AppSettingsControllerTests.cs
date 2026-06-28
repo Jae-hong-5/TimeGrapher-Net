@@ -258,7 +258,7 @@ public sealed class AppSettingsControllerTests : IDisposable
         Assert.Equal((decimal)LeftPanelSettings.Default.SimulationSignalCScale, viewModel.SimSignalCScale);
         Assert.False(viewModel.UseCOnset);
         Assert.True(viewModel.WeakAOnsetRescue);
-        Assert.Equal(WeakAOnsetRescueStrengthPolicy.StandardStep, viewModel.WeakAOnsetRescueStrengthStep);
+        Assert.Equal(WeakAOnsetRescueStrengthPolicy.MinStep, viewModel.WeakAOnsetRescueStrengthStep);
         Assert.True(viewModel.SpuriousBeatRejection);
         Assert.False(viewModel.PauseOnPositionChange);
         Assert.Equal(SamplingSettings.Default.AveragingPeriod, (int)viewModel.AveragingPeriod);
