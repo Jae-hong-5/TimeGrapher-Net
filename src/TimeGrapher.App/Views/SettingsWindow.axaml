@@ -149,13 +149,13 @@
         <Grid ColumnDefinitions="*,Auto"
               HorizontalAlignment="Stretch"
               IsEnabled="{Binding AreRunParametersEnabled}">
-          <TextBlock Text="Spurious beat rejection"
+          <TextBlock Text="Enhanced Auto BPH"
                      FontWeight="Bold"
                      HorizontalAlignment="Left"
                      VerticalAlignment="Center" />
           <ToggleSwitch Name="SpuriousBeatRejectionToggleSwitch"
                         Grid.Column="1"
-                        AutomationProperties.Name="Spurious beat rejection"
+                        AutomationProperties.Name="Enhanced Auto BPH"
                         OffContent=""
                         OnContent=""
                         FontWeight="Bold"

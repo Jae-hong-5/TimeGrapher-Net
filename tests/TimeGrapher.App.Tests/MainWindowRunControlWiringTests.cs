@@ -336,7 +336,7 @@ public sealed class MainWindowRunControlWiringTests
         {
             "Use C-onset timing",
             "Weak-A onset rescue",
-            "Spurious beat rejection",
+            "Enhanced Auto BPH",
             "Pause on position change",
             "Save measurement CSV log",
         };
