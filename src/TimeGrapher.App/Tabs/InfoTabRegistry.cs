@@ -645,13 +645,13 @@ internal sealed partial class InfoTabRegistry
         var ratePlot = new AvaPlot();
         var amplitudePlot = new AvaPlot();
 
-        var rateStatus = new TextBlock { FontSize = 24, FontWeight = FontWeight.Bold };
-        var amplitudeStatus = new TextBlock { FontSize = 24, FontWeight = FontWeight.Bold };
-        var elapsedValue = new TextBlock { FontSize = 24, FontWeight = FontWeight.Bold, FontFamily = font };
+        var rateStatus = new TextBlock { FontSize = 20, FontWeight = FontWeight.Bold };
+        var amplitudeStatus = new TextBlock { FontSize = 20, FontWeight = FontWeight.Bold };
+        var elapsedValue = new TextBlock { FontSize = 20, FontWeight = FontWeight.Bold, FontFamily = font };
 
         StackPanel SummaryColumn(string caption, TextBlock status)
         {
-            var sp = new StackPanel { Margin = new Thickness(12, 0, 12, 2) };
+            var sp = new StackPanel { Margin = new Thickness(8, 0, 8, 0) };
             sp.Children.Add(new TextBlock { Text = caption, FontSize = VarioMinimumFontSize, Opacity = 0.9, FontWeight = FontWeight.SemiBold });
             sp.Children.Add(status);
             return sp;
@@ -675,18 +675,18 @@ internal sealed partial class InfoTabRegistry
         criteriaFlyout.Opening += (_, _) => criteriaFlyout.Content = BuildVarioCriteria();
         var criteriaButton = new Button
         {
-            Content = "View criteria ▾",
+            Content = "Criteria ▾",
             FontSize = VarioMinimumFontSize,
-            MinWidth = 168,
-            MinHeight = 36,
-            Padding = new Thickness(12, 4, 12, 4),
+            MinWidth = 128,
+            MinHeight = 30,
+            Padding = new Thickness(10, 2, 10, 2),
             HorizontalAlignment = HorizontalAlignment.Left,
             VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(8, 0, 8, 2),
+            Margin = new Thickness(8, 0, 0, 0),
             Flyout = criteriaFlyout,
         };
 
-        var summaryColumns = new Grid { ColumnDefinitions = new ColumnDefinitions("*,*,150,Auto") };
+        var summaryColumns = new Grid { ColumnDefinitions = new ColumnDefinitions("*,*,120,Auto") };
         Control[] summaryCells =
         {
             SummaryColumn("Error Rate", rateStatus),
@@ -705,9 +705,10 @@ internal sealed partial class InfoTabRegistry
             FontSize = VarioMinimumFontSize,
             FontWeight = FontWeight.Bold,
             TextWrapping = TextWrapping.Wrap,
-            MinHeight = 22,
-            Margin = new Thickness(12, 5, 12, 0),
-            Text = " ",
+            MinHeight = 0,
+            Margin = new Thickness(8, 0, 8, 4),
+            Text = string.Empty,
+            IsVisible = false,
         };
 
         var summaryStack = new StackPanel();
@@ -717,8 +718,8 @@ internal sealed partial class InfoTabRegistry
         {
             Child = summaryStack,
             BorderThickness = new Thickness(1),
-            Margin = new Thickness(0, 6, 0, 3),
-            Padding = new Thickness(0, 0, 0, 4),
+            Margin = new Thickness(0, 4, 0, 4),
+            Padding = new Thickness(8, 4),
         };
         summaryCard.Bind(Border.BackgroundProperty, summaryCard.GetResourceObservable("PanelBgBrush"));
         summaryCard.Bind(Border.BorderBrushProperty, summaryCard.GetResourceObservable("ChromeBorderBrush"));
@@ -768,59 +769,94 @@ internal sealed partial class InfoTabRegistry
         TextBlock[] rateCells = BuildCells();
         TextBlock[] amplitudeCells = BuildCells();
 
-        Border BuildReadoutStrip(TextBlock[] cells)
+        Border BuildStatsTable(TextBlock[] rateCells, TextBlock[] amplitudeCells)
         {
-            var strip = new Grid
+            var table = new Grid
             {
-                ColumnDefinitions = new ColumnDefinitions("*,*,*,*,*,*"),
-                RowDefinitions = new RowDefinitions("Auto,Auto"),
+                ColumnDefinitions = new ColumnDefinitions("74,*,*,*,*,*,*"),
+                RowDefinitions = new RowDefinitions("Auto,Auto,Auto"),
             };
+
+            TextBlock Header(string text) => new()
+            {
+                Text = text,
+                FontSize = VarioMinimumFontSize,
+                Opacity = 0.82,
+                FontWeight = FontWeight.SemiBold,
+                Margin = new Thickness(0, 0, 10, 0),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                TextAlignment = TextAlignment.Center,
+                TextTrimming = TextTrimming.CharacterEllipsis,
+            };
+
+            TextBlock RowLabel(string text)
+            {
+                var label = new TextBlock
+                {
+                    Text = text,
+                    FontSize = VarioMinimumFontSize,
+                    FontWeight = FontWeight.SemiBold,
+                    Margin = new Thickness(0, 0, 12, 0),
+                    HorizontalAlignment = HorizontalAlignment.Right,
+                    TextAlignment = TextAlignment.Right,
+                };
+                label.Bind(TextBlock.ForegroundProperty, label.GetResourceObservable("ChromeAccentBrush"));
+                return label;
+            }
+
             for (int displayColumn = 0; displayColumn < stripOrder.Length; displayColumn++)
             {
                 int cellIndex = stripOrder[displayColumn];
-                var header = new TextBlock
-                {
-                    Text = columnHeaders[cellIndex],
-                    FontSize = VarioMinimumFontSize,
-                    Opacity = 0.82,
-                    FontWeight = FontWeight.SemiBold,
-                    Margin = new Thickness(0, 0, 10, 0),
-                    HorizontalAlignment = HorizontalAlignment.Center,
-                    TextAlignment = TextAlignment.Center,
-                    TextTrimming = TextTrimming.CharacterEllipsis,
-                };
-                cells[cellIndex].Margin = new Thickness(0, 0, 10, 0);
+                TextBlock header = Header(columnHeaders[cellIndex]);
                 Grid.SetRow(header, 0);
-                Grid.SetColumn(header, displayColumn);
-                Grid.SetRow(cells[cellIndex], 1);
-                Grid.SetColumn(cells[cellIndex], displayColumn);
-                strip.Children.Add(header);
-                strip.Children.Add(cells[cellIndex]);
+                Grid.SetColumn(header, displayColumn + 1);
+                table.Children.Add(header);
+
+                rateCells[cellIndex].Margin = new Thickness(0, 0, 10, 0);
+                Grid.SetRow(rateCells[cellIndex], 1);
+                Grid.SetColumn(rateCells[cellIndex], displayColumn + 1);
+                table.Children.Add(rateCells[cellIndex]);
+
+                amplitudeCells[cellIndex].Margin = new Thickness(0, 0, 10, 0);
+                Grid.SetRow(amplitudeCells[cellIndex], 2);
+                Grid.SetColumn(amplitudeCells[cellIndex], displayColumn + 1);
+                table.Children.Add(amplitudeCells[cellIndex]);
             }
+
+            TextBlock rateLabel = RowLabel("Rate");
+            Grid.SetRow(rateLabel, 1);
+            Grid.SetColumn(rateLabel, 0);
+            table.Children.Add(rateLabel);
+
+            TextBlock amplitudeLabel = RowLabel("Amp");
+            Grid.SetRow(amplitudeLabel, 2);
+            Grid.SetColumn(amplitudeLabel, 0);
+            table.Children.Add(amplitudeLabel);
+
             var border = new Border
             {
-                Child = strip,
+                Child = table,
                 BorderThickness = new Thickness(1),
-                Margin = new Thickness(0, 0, 0, 2),
-                Padding = new Thickness(8, 3, 8, 3),
+                Margin = new Thickness(0, 0, 0, 4),
+                Padding = new Thickness(8, 3),
             };
             border.Bind(Border.BackgroundProperty, border.GetResourceObservable("PanelBgBrush"));
             border.Bind(Border.BorderBrushProperty, border.GetResourceObservable("ChromeBorderBrush"));
             return border;
         }
 
-        Border rateReadout = BuildReadoutStrip(rateCells);
-        Border amplitudeReadout = BuildReadoutStrip(amplitudeCells);
+        Border statsTable = BuildStatsTable(rateCells, amplitudeCells);
 
         var grid = new Grid
         {
-            RowDefinitions = new RowDefinitions("Auto,Auto,*,Auto,*"),
+            RowDefinitions = new RowDefinitions("Auto,Auto,*,*"),
         };
         Control[] rows =
         {
             summaryCard,
-            rateReadout, ratePlot,
-            amplitudeReadout, amplitudePlot,
+            statsTable,
+            ratePlot,
+            amplitudePlot,
         };
         for (int i = 0; i < rows.Length; i++)
         {

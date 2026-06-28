@@ -393,11 +393,12 @@ public sealed class InfoTabRegistryTests
 
         Assert.Equal(2, measureColumns.Length);
         Assert.All(measureColumns, column => Assert.Equal(2, column.Children.Count));
-        Assert.True(overallText.MinHeight >= 22);
+        Assert.Equal(0, overallText.MinHeight);
+        Assert.False(overallText.IsVisible);
         Assert.All(
             measureColumns.Select(column => Assert.IsType<TextBlock>(column.Children[1])),
-            status => Assert.True(status.FontSize >= 24));
-        Assert.Equal(" ", overallText.Text);
+            status => Assert.True(status.FontSize >= 20));
+        Assert.Equal(string.Empty, overallText.Text);
         Assert.True(summaryCard.Padding.Bottom <= 4);
         Assert.DoesNotContain(
             Descendants(summaryCard).OfType<TextBlock>(),
@@ -425,7 +426,7 @@ public sealed class InfoTabRegistryTests
         Grid content = CreateVarioContent();
         Button criteriaButton = Descendants(content)
             .OfType<Button>()
-            .Single(button => Equals(button.Content, "View criteria ▾"));
+            .Single(button => Equals(button.Content, "Criteria ▾"));
         var flyout = Assert.IsType<Flyout>(criteriaButton.Flyout);
         Assert.Equal(PlacementMode.BottomEdgeAlignedRight, flyout.Placement);
         var panel = Assert.IsType<StackPanel>(flyout.Content);
@@ -462,13 +463,13 @@ public sealed class InfoTabRegistryTests
         StackPanel elapsedColumn = Assert.IsType<StackPanel>(
             summaryColumns.Children.Single(child => Grid.GetColumn(child) == 2));
 
-        Assert.Equal("View criteria ▾", criteriaButton.Content);
+        Assert.Equal("Criteria ▾", criteriaButton.Content);
         Assert.True(criteriaButton.FontSize >= VarioCapturedMinimumFontSize);
-        Assert.True(criteriaButton.MinWidth >= 168);
-        Assert.True(criteriaButton.MinHeight >= 36);
+        Assert.True(criteriaButton.MinWidth >= 128);
+        Assert.True(criteriaButton.MinHeight >= 30);
         Assert.Equal(HorizontalAlignment.Left, criteriaButton.HorizontalAlignment);
         Assert.Equal(VerticalAlignment.Center, criteriaButton.VerticalAlignment);
-        Assert.Equal(150, summaryColumns.ColumnDefinitions[2].Width.Value);
+        Assert.Equal(120, summaryColumns.ColumnDefinitions[2].Width.Value);
         Assert.Equal(HorizontalAlignment.Left, elapsedColumn.HorizontalAlignment);
         Assert.Contains(
             elapsedColumn.Children.OfType<TextBlock>(),
@@ -476,22 +477,23 @@ public sealed class InfoTabRegistryTests
     }
 
     [Fact]
-    public void VarioReadoutStripHeadersAreHighContrast()
+    public void VarioStatsTableHeadersAreHighContrast()
     {
         Grid content = CreateVarioContent();
-        Border[] readouts = content.Children
-            .OfType<Border>()
-            .Where(child => Grid.GetRow(child) is 1 or 3)
-            .ToArray();
-        TextBlock[] headers = readouts
-            .Select(readout => Assert.IsType<Grid>(readout.Child))
-            .SelectMany(strip => strip.Children
+        Border statsBorder = Assert.IsType<Border>(
+            content.Children.Single(child => Grid.GetRow(child) == 1));
+        var statsTable = Assert.IsType<Grid>(statsBorder.Child);
+        TextBlock[] headers = statsTable.Children
             .OfType<TextBlock>()
-            .Where(text => Grid.GetRow(text) == 0))
+            .Where(text => Grid.GetRow(text) == 0)
+            .ToArray();
+        TextBlock[] rowLabels = statsTable.Children
+            .OfType<TextBlock>()
+            .Where(text => Grid.GetColumn(text) == 0 && Grid.GetRow(text) is 1 or 2)
             .ToArray();
 
-        Assert.Equal(2, readouts.Length);
-        Assert.Equal(12, headers.Length);
+        Assert.Equal(6, headers.Length);
+        Assert.Equal(new[] { "Rate", "Amp" }, rowLabels.Select(label => label.Text).ToArray());
         Assert.All(headers, header =>
         {
             Assert.True(header.Opacity >= 0.8);
@@ -506,7 +508,7 @@ public sealed class InfoTabRegistryTests
         Grid content = CreateVarioContent();
         Button criteriaButton = Descendants(content)
             .OfType<Button>()
-            .Single(button => Equals(button.Content, "View criteria ▾"));
+            .Single(button => Equals(button.Content, "Criteria ▾"));
         var flyout = Assert.IsType<Flyout>(criteriaButton.Flyout);
         var criteriaPanel = Assert.IsType<StackPanel>(flyout.Content);
 
@@ -530,9 +532,9 @@ public sealed class InfoTabRegistryTests
         var ratePlot = Assert.IsType<AvaPlot>(
             content.Children.Single(child => Grid.GetRow(child) == 2));
         var amplitudePlot = Assert.IsType<AvaPlot>(
-            content.Children.Single(child => Grid.GetRow(child) == 4));
+            content.Children.Single(child => Grid.GetRow(child) == 3));
 
-        Assert.Equal(5, content.RowDefinitions.Count);
+        Assert.Equal(4, content.RowDefinitions.Count);
         Assert.Equal("Error Rate (s/d)", ratePlot.Plot.Axes.Bottom.Label.Text);
         Assert.Equal("Amplitude (°)", amplitudePlot.Plot.Axes.Bottom.Label.Text);
         Assert.DoesNotContain(Descendants(content).OfType<TextBlock>(), text => text.Text == "Error Rate (s/d)");
@@ -1170,7 +1172,7 @@ public sealed class InfoTabRegistryTests
     }
 
     [Fact]
-    public void VarioReadoutStripsShowRenderedStatsNearEachGauge()
+    public void VarioStatsTableShowsRenderedStatsAboveTheGraphs()
     {
         InfoTabRegistration registration = CreateVarioRegistration();
         Grid content = Assert.IsType<Grid>(registration.TabItem.Content);
@@ -1194,10 +1196,10 @@ public sealed class InfoTabRegistryTests
 
         Assert.Equal(
             new[] { "-8.1 s/d", "+4.2 s/d", "+6.3 s/d", "1.65 s/d", "+2.7 s/d", "14.4 s/d" },
-            ReadoutValues(content, row: 1));
+            StatsRowValues(content, row: 1));
         Assert.Equal(
             new[] { "192°", "203°", "216°", "5.20°", "208°", "24°" },
-            ReadoutValues(content, row: 3));
+            StatsRowValues(content, row: 2));
     }
 
     [Fact]
@@ -1205,7 +1207,7 @@ public sealed class InfoTabRegistryTests
     {
         Grid content = CreateVarioContent();
 
-        Assert.Equal(5, content.RowDefinitions.Count);
+        Assert.Equal(4, content.RowDefinitions.Count);
         Assert.DoesNotContain(Descendants(content).OfType<TextBlock>(), text =>
             text.Text is "Blue solid" or "Red solid" or "Black short dash" ||
             text.Text?.Contains("= min/max", StringComparison.Ordinal) == true ||
@@ -1356,14 +1358,14 @@ public sealed class InfoTabRegistryTests
         YMax = y,
     };
 
-    private static string[] ReadoutValues(Grid content, int row)
+    private static string[] StatsRowValues(Grid content, int row)
     {
-        var readout = Assert.IsType<Border>(
-            content.Children.Single(child => Grid.GetRow(child) == row));
-        var strip = Assert.IsType<Grid>(readout.Child);
-        return strip.Children
+        var statsBorder = Assert.IsType<Border>(
+            content.Children.Single(child => Grid.GetRow(child) == 1));
+        var statsTable = Assert.IsType<Grid>(statsBorder.Child);
+        return statsTable.Children
             .OfType<TextBlock>()
-            .Where(text => Grid.GetRow(text) == 1)
+            .Where(text => Grid.GetRow(text) == row && Grid.GetColumn(text) > 0)
             .OrderBy(Grid.GetColumn)
             .Select(text => text.Text ?? string.Empty)
             .ToArray();
