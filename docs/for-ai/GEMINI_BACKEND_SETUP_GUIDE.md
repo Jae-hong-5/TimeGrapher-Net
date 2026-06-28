@@ -40,6 +40,7 @@ The server implementation must follow these rules:
 8. Keep the Gemini model, temperature, and maximum output tokens fixed on the server.
 9. Apply request size limits, rate limits, and daily quotas.
 10. Do not log raw credentials, API keys, or full uploaded logs by default.
+11. Do not treat CORS, `User-Agent`, app version, or a shared client-side token as authentication.
 
 ## 3. Recommended stack
 
@@ -178,6 +179,8 @@ Server requirements:
 
 The app will ask the grader/user to type the provided credentials.
 
+Do not rely on client-origin signals such as `User-Agent`, app version, CORS headers, or a bundled shared token. A desktop client request can be replayed by external tools, so the server must rely on HTTPS, demo credentials, quotas, and rate limits.
+
 ## 7. Rate limit and quota policy
 
 Minimum policy:
@@ -260,10 +263,16 @@ Server requirements:
 
 The server may use the official Google/Gemini SDK for its stack, or call the REST API directly.
 
-REST shape to verify against the current Gemini API documentation at implementation time:
+Reference the official Gemini documentation at implementation time:
+
+- Gemini API reference: https://ai.google.dev/api
+- API-key authentication guide: https://ai.google.dev/gemini-api/docs/generate-content/api-key
+
+REST shape to verify against the current Gemini API documentation at implementation time. Prefer the API-key header form so the key is not placed in the URL query string:
 
 ```http
-POST https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent?key={GEMINI_API_KEY}
+POST https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent
+x-goog-api-key: {GEMINI_API_KEY}
 Content-Type: application/json
 ```
 
@@ -297,6 +306,8 @@ Response handling requirements:
 2. Return a safe error if the response contains no usable text.
 3. Do not return raw upstream error bodies to the app if they may include sensitive details.
 4. Log only safe diagnostics: request ID, status code, upstream latency, and error category.
+5. Configure a short upstream timeout so one slow Gemini call does not hold server resources indefinitely.
+6. Do not automatically retry paid Gemini requests unless the retry policy is explicitly bounded and excludes client/input errors.
 
 ## 11. Privacy and logging
 
