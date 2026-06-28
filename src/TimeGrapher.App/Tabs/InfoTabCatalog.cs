@@ -61,7 +61,7 @@ internal static class InfoTabCatalog
     public const string WaveformCompareTabId = "waveform-compare";
     public const string SpectrogramTabId = "spectrogram";
 
-    public const int DefaultUiRefreshIntervalMs = 16;
+    public const int DefaultUiRefreshIntervalMs = 33;
     public const int SoundPrintRefreshIntervalMs = 100;
     // Scope point budget, used both as the Core decimation budget over the 2 s
     // stride-reference window (ScopeRateFrameProjector) and as the renderer's
