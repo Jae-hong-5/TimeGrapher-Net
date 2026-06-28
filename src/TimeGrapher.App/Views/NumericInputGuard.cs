@@ -1,3 +1,5 @@
+using System.Globalization;
+
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -9,9 +11,11 @@ namespace TimeGrapher.App.Views;
 /// Input guard for the left-panel numeric fields (a view adapter for UI-only
 /// behavior). Two things:
 /// <list type="bullet">
-/// <item>Blocks non-numeric typed input — only digits, a sign and a decimal
-/// separator pass; backspace / enter / tab / arrows are keys, not text input, so
-/// they keep working.</item>
+/// <item>Blocks non-numeric typed input — only digits, the active culture's
+/// negative sign and its decimal separator pass; backspace / enter / tab /
+/// arrows are keys, not text input, so they keep working. Using the culture's
+/// own separator (instead of accepting both '.' and ',') stops a group separator
+/// from slipping in and being reparsed into a different value.</item>
 /// <item>Restores the last valid value when the field loses focus while empty,
 /// so backspacing a field clear and tabbing out reverts to the previous valid
 /// value rather than leaving it blank.</item>
@@ -59,13 +63,27 @@ internal static class NumericInputGuard
 
     private static void OnTextInput(object? sender, TextInputEventArgs e)
     {
+        if (sender is not NumericUpDown nud)
+        {
+            return;
+        }
+
+        // Allow only what the control's own culture treats as a number: digits,
+        // its decimal separator and its negative sign. Accepting a comma in a
+        // dot-decimal culture (or vice versa) would let a group separator through
+        // that the control then reparses (e.g. "1,5" -> 15).
+        NumberFormatInfo format = nud.NumberFormat ?? CultureInfo.CurrentCulture.NumberFormat;
+        string decimalSeparator = format.NumberDecimalSeparator;
+        string negativeSign = format.NegativeSign;
         foreach (char c in e.Text ?? string.Empty)
         {
-            if (!char.IsDigit(c) && c != '-' && c != '.' && c != ',')
+            if (char.IsDigit(c) || decimalSeparator.IndexOf(c) >= 0 || negativeSign.IndexOf(c) >= 0)
             {
-                e.Handled = true; // ignore non-numeric typed input
-                return;
+                continue;
             }
+
+            e.Handled = true; // ignore non-numeric typed input
+            return;
         }
     }
 
