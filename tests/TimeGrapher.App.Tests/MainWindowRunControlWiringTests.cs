@@ -47,17 +47,10 @@ public sealed class MainWindowRunControlWiringTests
         Assert.Contains("SpuriousBeatRejection: mViewModel.SpuriousBeatRejection", source);
     }
 
-    [Fact]
-    public void BuildRunSettingsNormalizesWeakAOnsetRescueStrengthStep()
-    {
-        string source = File.ReadAllText(FindSourceFile("src/TimeGrapher.App/Views/MainWindow.axaml.cs"));
-        string normalized = source.Replace("\r\n", " ", StringComparison.Ordinal)
-            .Replace("\n", " ", StringComparison.Ordinal);
-
-        Assert.Contains(
-            "WeakAOnsetRescueStrengthPolicy.NormalizeStep(mViewModel.WeakAOnsetRescueStrengthStep)",
-            normalized);
-    }
+    // The rescue-strength step normalization is covered behaviorally by
+    // AnalysisRunSettingsTests.WeakAOnsetRescueStrengthStep_ClampsAtTheDetectorBoundary
+    // (which drives ToWorkerConfig); a brittle source-text grep for the call string
+    // added no protection beyond that, so it was removed.
 
     [Fact]
     public void RunControlSurfaceDoesNotExposeLegacyResetControls()

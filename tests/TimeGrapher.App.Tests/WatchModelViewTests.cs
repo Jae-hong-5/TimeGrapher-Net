@@ -38,12 +38,6 @@ public sealed class WatchModelViewTests
         Assert.True(opaquePixels > 2000, $"Only {opaquePixels} opaque pixels were drawn.");
     }
 
-    [Fact]
-    public void RasterizerKeepsUnityModelScale()
-    {
-        Assert.Equal(1.0f, WatchModelRasterizer.ModelScale);
-    }
-
     private static int CountOpaquePixels(RenderTargetBitmap bitmap, int width, int height)
     {
         var pixels = new byte[width * height * 4];

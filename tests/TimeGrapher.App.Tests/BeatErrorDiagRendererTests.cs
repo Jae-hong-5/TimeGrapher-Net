@@ -81,7 +81,9 @@ public sealed class BeatErrorDiagRendererTests
             new[] { 150.0, 151.0 },
             tracePlot.Plot.GetPlottables<VerticalLine>().Where(line => line.IsVisible).Select(line => line.X).ToArray());
         Text label = Assert.Single(tracePlot.Plot.GetPlottables<Text>(), t => t.IsVisible);
-        Assert.Equal(BeatErrorDiagRenderer.FormatAverageSegmentPlotLabel(averageInterval), label.LabelText);
+        // Independent literal (not the production formatter) so a sign/unit/precision
+        // regression in the label format is actually caught.
+        Assert.Equal("-432.0 s/d  250°  0.4 ms", label.LabelText);
         Assert.InRange(label.Location.Y, BeatErrorDiagRenderer.TraceYMaxMs, 12.0);
 
         AxisLimits autoLimits = tracePlot.Plot.Axes.GetLimits();

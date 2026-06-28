@@ -87,12 +87,10 @@ public sealed class RateScopeHistoryTests
             Assert.False(line.EnableAutoscale);
         });
         Text[] labels = ratePlot.Plot.GetPlottables<Text>().Where(t => t.IsVisible).ToArray();
+        // Independent literals (not the production formatter) so a label-format
+        // regression is caught; the second interval has invalid amplitude/beat error.
         Assert.Equal(
-            new[]
-            {
-                BeatErrorDiagRenderer.FormatAverageSegmentPlotLabel(firstInterval),
-                BeatErrorDiagRenderer.FormatAverageSegmentPlotLabel(secondInterval),
-            },
+            new[] { "+1728.0 s/d  280°  0.2 ms", "-864.0 s/d  ---°  ---- ms" },
             labels.Select(t => t.LabelText).ToArray());
         Assert.All(labels, label => Assert.InRange(label.Location.Y, 10.0, 12.0));
         AxisLimits limits = ratePlot.Plot.Axes.GetLimits();
@@ -176,7 +174,7 @@ public sealed class RateScopeHistoryTests
 
         Assert.Equal(new[] { 150.0, 151.0 }, RateX(renderer, AnalysisGraphSeries.RateTic));
         Assert.Equal(
-            new[] { BeatErrorDiagRenderer.FormatAverageSegmentPlotLabel(averageInterval) },
+            new[] { "-432.0 s/d  250°  0.4 ms" },
             ratePlot.Plot.GetPlottables<Text>().Where(t => t.IsVisible).Select(t => t.LabelText).ToArray());
 
         // Panning toward the empty past is clamped to the oldest retained beat: with
