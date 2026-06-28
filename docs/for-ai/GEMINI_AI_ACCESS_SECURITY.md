@@ -60,6 +60,24 @@ Provide Gemini-powered app features without distributing the project-owned Gemin
    - The user's key must not be sent to the project backend.
    - If persisted, the key should be stored through the operating system credential store rather than a plain text config file.
 
+6. Demo-mode log upload is allowed only with explicit user consent.
+
+   - The app may send a small analysis log file to the backend when the user requests AI explanation.
+   - The UI must make clear that the log will be sent to the private backend for AI analysis.
+   - The backend still owns the prompt template and combines the uploaded log with the server-side prompt before calling Gemini.
+   - The backend must keep request size limits even if current logs are expected to be small.
+   - The log-upload endpoint remains feature-specific and must not accept arbitrary prompts.
+
+   Example flow:
+
+   ```text
+   User consent + AI explanation button
+   -> App uploads measurement log
+   -> Backend builds fixed prompt with the log
+   -> Backend calls Gemini
+   -> App displays the explanation
+   ```
+
 ## Security rationale
 
 This design treats the distributed client as outside the trusted boundary. Client-side secrets can be extracted, so the project-owned Gemini API key is isolated on the backend. Authentication, rate limiting, quota control, input limits, and narrow feature-specific endpoints reduce unauthorized use and cost-abuse risk.
@@ -86,3 +104,4 @@ Avoid claiming that the system has "no security risk". The correct claim is that
 - 범용 Gemini 프록시가 아니라 기능별 API만 제공한다.
 - 선택적으로 사용자가 본인 Gemini API 키를 입력하는 BYOK 모드를 제공할 수 있다.
 - BYOK 모드에서는 사용자 키를 개인 서버로 보내지 않고 앱이 Gemini를 직접 호출한다.
+- 사용자의 명시적 동의를 받은 경우, 앱은 AI 설명을 위해 작은 분석 로그 파일을 서버로 보낼 수 있다.
