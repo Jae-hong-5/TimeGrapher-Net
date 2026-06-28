@@ -48,6 +48,7 @@ internal sealed class BeatErrorDiagRenderer
     private double _rateDataMaxX;
     private bool _hasRateDataExtent;
     private bool _rateAxisRefreshPending;
+    private bool _fixedTraceYInstalled;
 
     public BeatErrorDiagRenderer(
         AvaPlot tracePlot,
@@ -121,6 +122,7 @@ internal sealed class BeatErrorDiagRenderer
         trace.YLabel("Error Rate (ms)");
         trace.XLabel("Beats");
         trace.Axes.SetLimitsX(0, RateLiveMinWindowBeats);
+        _fixedTraceYInstalled = false; // fresh plot: reinstall the locked Y range below
         SetFixedTraceYRange();
         trace.Axes.Bottom.TickLabelStyle.IsVisible = true;
         for (int i = 0; i < _rateSeries.Length; i++)
@@ -354,11 +356,21 @@ internal sealed class BeatErrorDiagRenderer
 
     private void SetFixedTraceYRange()
     {
+        // The signed-rate Y range and its ticks are constant for the run, and the
+        // locked-Y rule keeps them fixed across the live X panning. Install once
+        // per plot instead of rebuilding the tick generator and axis rule on every
+        // rate update.
+        if (_fixedTraceYInstalled)
+        {
+            return;
+        }
+
         (double bottom, double dataTop, double plotTop) = TraceYRange();
         _tracePlot.Plot.Axes.SetLimitsY(bottom, plotTop);
         ApplyTraceYTicks(bottom, dataTop);
         _tracePlot.Plot.Axes.Rules.Clear();
         PlotAxisRules.LockYRange(_tracePlot.Plot, bottom, plotTop);
+        _fixedTraceYInstalled = true;
     }
 
     private static (double Bottom, double DataTop, double PlotTop) TraceYRange()
