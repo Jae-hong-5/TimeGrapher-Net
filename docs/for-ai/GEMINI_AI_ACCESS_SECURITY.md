@@ -3,6 +3,8 @@
 Status: decided; implementation pending.
 Date: 2026-06-28
 
+Implementation guide: `docs/for-ai/GEMINI_BACKEND_SETUP_GUIDE.md`
+
 ## Goal
 
 Provide Gemini-powered app features without distributing the project-owned Gemini API key in the TimeGrapher client.
