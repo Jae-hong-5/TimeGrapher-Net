@@ -338,8 +338,8 @@ internal sealed class VarioRenderer
         VarioVerdict overall = VarioVerdict.Overall(rate, amplitude);
         if (overall.Level == VarioVerdictLevel.Pending)
         {
-            _summary.OverallText.Text = string.Empty;
-            _summary.OverallText.IsVisible = false;
+            _summary.OverallText.Text = " ";
+            _summary.OverallText.IsVisible = true;
             _summary.OverallText.Foreground = LevelBrush(VarioVerdictLevel.Pending);
             return;
         }
@@ -361,8 +361,8 @@ internal sealed class VarioRenderer
             }
         }
 
-        _summary.OverallText.Text = string.Empty;
-        _summary.OverallText.IsVisible = false;
+        _summary.OverallText.Text = " ";
+        _summary.OverallText.IsVisible = true;
         _summary.OverallText.Foreground = LevelBrush(VarioVerdictLevel.Pending);
     }
 

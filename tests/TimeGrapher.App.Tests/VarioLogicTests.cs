@@ -113,30 +113,31 @@ public sealed class VarioLogicTests
         Assert.Equal(VarioVerdictLevel.Warn, VarioVerdict.Overall(good, warn).Level);
         Assert.Equal(VarioVerdictLevel.Bad, VarioVerdict.Overall(good, bad).Level);
 
-        Assert.Equal("Overall: OK · Within band — no service needed", VarioVerdict.Overall(good, good).Text);
+        Assert.Equal("Overall: OK · No service indicated", VarioVerdict.Overall(good, good).Text);
         Assert.Equal(VarioVerdictLevel.Pending, VarioVerdict.Overall(VarioVerdict.Measuring, good).Level);
     }
 
     [Fact]
-    public void Overall_NamesTheWitschiServiceActionForTheWorstFindings()
+    public void Overall_GivesGuidanceWithoutRepeatingGraphVisibleFindings()
     {
         var rateFast = new VarioVerdict("Fast · out of range", VarioVerdictLevel.Bad, VarioFinding.RateFast);
         var ampLow = new VarioVerdict("Low · service", VarioVerdictLevel.Bad, VarioFinding.AmplitudeLow);
         var ampHigh = new VarioVerdict("High", VarioVerdictLevel.Warn, VarioFinding.AmplitudeHigh);
         var withinBand = new VarioVerdict("Within Band", VarioVerdictLevel.Good);
 
-        // Worst severity drives the conclusion; both bad measures are listed.
-        Assert.Equal(
-            "Overall: ALERT · Running fast — regulate slower · Low amplitude — clean & lubricate · service required",
-            VarioVerdict.Overall(rateFast, ampLow).Text);
+        VarioVerdict badOverall = VarioVerdict.Overall(rateFast, ampLow);
+        Assert.Equal("Overall: ALERT · Service diagnosis indicated", badOverall.Text);
+        Assert.DoesNotContain("Running fast", badOverall.Text);
+        Assert.DoesNotContain("Low amplitude", badOverall.Text);
+        Assert.DoesNotContain("clean", badOverall.Text);
+        Assert.DoesNotContain("regulate", badOverall.Text);
 
-        // A healthy measure is omitted; only the faulty one carries the action.
         Assert.Equal(
-            "Overall: ALERT · Low amplitude — clean & lubricate · service required",
+            "Overall: ALERT · Service diagnosis indicated",
             VarioVerdict.Overall(withinBand, ampLow).Text);
 
         Assert.Equal(
-            "Overall: WATCH · High amplitude — check mainspring/escapement · keep measuring",
+            "Overall: WATCH · Keep measuring",
             VarioVerdict.Overall(withinBand, ampHigh).Text);
     }
 

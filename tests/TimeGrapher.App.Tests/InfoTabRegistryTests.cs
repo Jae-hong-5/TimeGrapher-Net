@@ -393,12 +393,12 @@ public sealed class InfoTabRegistryTests
 
         Assert.Equal(2, measureColumns.Length);
         Assert.All(measureColumns, column => Assert.Equal(2, column.Children.Count));
-        Assert.Equal(0, overallText.MinHeight);
-        Assert.False(overallText.IsVisible);
+        Assert.True(overallText.MinHeight >= 22);
+        Assert.True(overallText.IsVisible);
         Assert.All(
             measureColumns.Select(column => Assert.IsType<TextBlock>(column.Children[1])),
             status => Assert.Equal(VarioCapturedMinimumFontSize, status.FontSize));
-        Assert.Equal(string.Empty, overallText.Text);
+        Assert.Equal(" ", overallText.Text);
         Assert.True(summaryCard.Padding.Bottom <= 4);
         Assert.DoesNotContain(
             Descendants(summaryCard).OfType<TextBlock>(),
@@ -488,7 +488,8 @@ public sealed class InfoTabRegistryTests
             .ToArray();
 
         Assert.Equal(6, headers.Length);
-        Assert.Equal(new[] { "Rate", "Amp" }, rowLabels.Select(label => label.Text).ToArray());
+        Assert.Equal(new[] { "Error Rate", "Amplitude" }, rowLabels.Select(label => label.Text).ToArray());
+        Assert.True(statsTable.ColumnDefinitions[0].Width.Value >= 104);
         Assert.All(headers, header =>
         {
             Assert.True(header.Opacity >= 0.8);

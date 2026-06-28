@@ -11,11 +11,6 @@ internal enum VarioVerdictLevel
     Bad,
 }
 
-/// <summary>
-/// The specific condition behind a verdict, so <see cref="VarioVerdict.Overall"/> can
-/// name the fault and the matching Witschi service step instead of only its severity.
-/// In-band / healthy / measuring readings carry <see cref="None"/>.
-/// </summary>
 internal enum VarioFinding
 {
     None,
@@ -38,12 +33,6 @@ internal readonly record struct VarioVerdict(string Text, VarioVerdictLevel Leve
     /// <summary>Beats required before a verdict is offered; fewer reads as "measuring".</summary>
     public const long MinSamples = 30;
 
-    /// <summary>
-    /// Mean amplitude (deg) below which low amplitude is flagged for service. Anchored to
-    /// the Witschi training course, which lists vertical-position acceptable amplitude as
-    /// 220–270°: below 220° the watch is sub-nominal in every position, so it is flagged
-    /// for service (clean &amp; lubricate / overhaul). Amplitude also declines with oil aging.
-    /// </summary>
     public const double AmplitudeServiceDeg = 220.0;
 
     public static readonly VarioVerdict Measuring = new("Measuring…", VarioVerdictLevel.Pending);
@@ -101,11 +90,6 @@ internal readonly record struct VarioVerdict(string Text, VarioVerdictLevel Leve
         return new VarioVerdict("Healthy", VarioVerdictLevel.Good);
     }
 
-    /// <summary>
-    /// Combined one-line conclusion across both measures: it takes the worse severity
-    /// and, for that severity, names the specific fault(s) and the matching Witschi
-    /// service step — so the conclusion says what to do, not just how serious it is.
-    /// </summary>
     public static VarioVerdict Overall(VarioVerdict rate, VarioVerdict amplitude)
     {
         if (rate.Level == VarioVerdictLevel.Pending || amplitude.Level == VarioVerdictLevel.Pending)
@@ -116,34 +100,11 @@ internal readonly record struct VarioVerdict(string Text, VarioVerdictLevel Leve
         var level = (VarioVerdictLevel)Math.Max((int)rate.Level, (int)amplitude.Level);
         if (level == VarioVerdictLevel.Good)
         {
-            return new VarioVerdict("Overall: OK · Within band — no service needed", level);
+            return new VarioVerdict("Overall: OK · No service indicated", level);
         }
 
-        // List only the measure(s) at the worst severity (the others are already shown
-        // in their own chips), each with its repair-oriented action.
-        var clauses = new List<string>(2);
-        foreach (VarioVerdict measure in new[] { rate, amplitude })
-        {
-            if (measure.Level == level && ActionFor(measure.Finding) is { Length: > 0 } clause)
-            {
-                clauses.Add(clause);
-            }
-        }
-
-        string faults = string.Join(" · ", clauses);
         return level == VarioVerdictLevel.Bad
-            ? new VarioVerdict($"Overall: ALERT · {faults} · service required", level)
-            : new VarioVerdict($"Overall: WATCH · {faults} · keep measuring", level);
+            ? new VarioVerdict("Overall: ALERT · Service diagnosis indicated", level)
+            : new VarioVerdict("Overall: WATCH · Keep measuring", level);
     }
-
-    /// <summary>The Witschi-grounded repair step for a fault, used to build the conclusion.</summary>
-    private static string ActionFor(VarioFinding finding) => finding switch
-    {
-        VarioFinding.RateFast => "Running fast — regulate slower",
-        VarioFinding.RateSlow => "Running slow — regulate faster",
-        VarioFinding.AmplitudeLow => "Low amplitude — clean & lubricate",
-        VarioFinding.AmplitudeSlightlyLow => "Amplitude low — service soon",
-        VarioFinding.AmplitudeHigh => "High amplitude — check mainspring/escapement",
-        _ => string.Empty,
-    };
 }

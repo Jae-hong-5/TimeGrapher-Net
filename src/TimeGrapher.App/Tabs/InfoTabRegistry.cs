@@ -695,10 +695,9 @@ internal sealed partial class InfoTabRegistry
             FontSize = VarioMinimumFontSize,
             FontWeight = FontWeight.Bold,
             TextWrapping = TextWrapping.Wrap,
-            MinHeight = 0,
+            MinHeight = 22,
             Margin = new Thickness(8, 0, 8, 4),
-            Text = string.Empty,
-            IsVisible = false,
+            Text = " ",
         };
 
         var summaryStack = new StackPanel();
@@ -763,7 +762,7 @@ internal sealed partial class InfoTabRegistry
         {
             var table = new Grid
             {
-                ColumnDefinitions = new ColumnDefinitions("74,*,*,*,*,*,*"),
+                ColumnDefinitions = new ColumnDefinitions("104,*,*,*,*,*,*"),
                 RowDefinitions = new RowDefinitions("Auto,Auto,Auto"),
             };
 
@@ -813,12 +812,12 @@ internal sealed partial class InfoTabRegistry
                 table.Children.Add(amplitudeCells[cellIndex]);
             }
 
-            TextBlock rateLabel = RowLabel("Rate");
+            TextBlock rateLabel = RowLabel("Error Rate");
             Grid.SetRow(rateLabel, 1);
             Grid.SetColumn(rateLabel, 0);
             table.Children.Add(rateLabel);
 
-            TextBlock amplitudeLabel = RowLabel("Amp");
+            TextBlock amplitudeLabel = RowLabel("Amplitude");
             Grid.SetRow(amplitudeLabel, 2);
             Grid.SetColumn(amplitudeLabel, 0);
             table.Children.Add(amplitudeLabel);
