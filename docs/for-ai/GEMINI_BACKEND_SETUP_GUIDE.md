@@ -442,6 +442,8 @@ The app-side implementation should assume this backend contract:
 - The app stores only the backend base URL, not the Gemini API key.
 - The app must not provide UI for entering or storing a Gemini API key.
 - The app prompts the grader/user for demo username and password.
+- If the app supports "remember login" or auto-login, credentials are stored only in the operating system credential store.
+- The app never saves demo passwords in plain text config files, logs, screenshots, crash reports, or bundled assets.
 - The app asks for explicit consent before uploading the analysis log.
 - The app sends `consentGranted=true` only after the user consents.
 - The app sends a small log and optional structured measurement summary.
