@@ -6,6 +6,7 @@ Date: 2026-06-28
 This document is written so a separate server-side coding agent can implement and deploy the private backend used by TimeGrapher's Gemini-powered explanation feature.
 
 Related decision document: `docs/for-ai/GEMINI_AI_ACCESS_SECURITY.md`.
+Related prompt contract: `docs/for-ai/GEMINI_PROMPT_CONTRACT.md`.
 
 ## 1. Backend purpose
 
