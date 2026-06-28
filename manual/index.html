@@ -17,102 +17,110 @@
     </div>
     <div class="content-inner">
 
-      <h1><span class="ko">TimeGrapher 사용자 매뉴얼</span><span class="sep"> · </span><span class="en">TimeGrapher User Manual</span></h1>
+      <h1><span class="ko">TimeGrapher 사용자 매뉴얼</span><span class="sep"> · </span><span class="en">TimeGrapher User Manual</span><span class="sep"> · </span><span class="pt">Manual do Usuário do TimeGrapher</span></h1>
       <p class="lede ko">기계식 시계의 똑딱 소리를 마이크로 듣고, 얼마나 정확한지 실시간으로 분석해 14가지 그래프로 보여 주는 데스크톱 앱입니다.</p>
       <p class="lede en">A desktop app that listens to a mechanical watch's tick through a microphone and analyzes, in real time, how accurate it is — shown as 14 diagnostic graphs.</p>
+      <p class="lede pt">Um aplicativo de desktop que escuta o tique-taque de um relógio mecânico pelo microfone e analisa, em tempo real, o quão preciso ele é — exibido em 14 gráficos de diagnóstico.</p>
 
       <div class="note">
-        <p class="ko"><b>이 매뉴얼 보는 법</b> — 오른쪽 위 <b>둘 다 / 한국어 / EN</b> 버튼으로 표시 언어를 바꿀 수 있습니다. 왼쪽 메뉴 설명은 <a href="controls.html">왼쪽 메뉴 · Controls</a>, 각 그래프 설명은 아래 <a href="#graphs">그래프 목록</a>에서 확인하세요.</p>
-        <p class="en"><b>How to use this manual</b> — Switch the display language with the <b>둘 다 / 한국어 / EN</b> buttons at the top right. Left-panel controls are in <a href="controls.html">Controls</a>; each graph is documented from the <a href="#graphs">graph list</a> below.</p>
+        <p class="ko"><b>이 매뉴얼 보는 법</b> — 오른쪽 위 <b>전체 / 한국어 / EN / PT</b> 버튼으로 표시 언어를 바꿀 수 있습니다. 왼쪽 메뉴 설명은 <a href="controls.html">왼쪽 메뉴 · Controls</a>, 각 그래프 설명은 아래 <a href="#graphs">그래프 목록</a>에서 확인하세요.</p>
+        <p class="en"><b>How to use this manual</b> — Switch the display language with the <b>전체 / 한국어 / EN / PT</b> buttons at the top right. Left-panel controls are in <a href="controls.html">Controls</a>; each graph is documented from the <a href="#graphs">graph list</a> below.</p>
+        <p class="pt"><b>Como usar este manual</b> — Alterne o idioma exibido com os botões <b>전체 / 한국어 / EN / PT</b> no canto superior direito. Os controles do painel esquerdo estão em <a href="controls.html">Controls</a>; cada gráfico está documentado na <a href="#graphs">lista de gráficos</a> abaixo.</p>
       </div>
 
       <figure>
         <img data-shot src="img/overview.png" alt="TimeGrapher main window">
         <figcaption class="ko">그림 1. 메인 화면 — 왼쪽 파라미터 패널, 가운데 포지션 선택 스트립, 오른쪽 그래프 탭 영역.</figcaption>
         <figcaption class="en">Fig 1. Main window — parameter panel (left), position-select strip (centre), graph tabs (right).</figcaption>
+        <figcaption class="pt">Fig 1. Janela principal — painel de parâmetros (esquerda), faixa de seleção de posição (centro), abas de gráficos (direita).</figcaption>
       </figure>
 
-      <h2 id="what"><span class="ko">이 앱이 하는 일</span><span class="sep"> · </span><span class="en">What it does</span></h2>
+      <h2 id="what"><span class="ko">이 앱이 하는 일</span><span class="sep"> · </span><span class="en">What it does</span><span class="sep"> · </span><span class="pt">O que ele faz</span></h2>
       <p class="ko">마이크(또는 녹음 파일·합성 신호)로 들어온 소리에서 탈진기(escapement)의 <b>똑(tic)</b>·<b>딱(toc)</b> 충격음을 검출하고, 그 간격으로 시계의 정확도(하루에 몇 초 빠르거나 느린지), 진폭(amplitude), 비트 오차(beat error) 등을 계산합니다. 결과는 여러 관점의 실시간 그래프로 동시에 표시됩니다.</p>
       <p class="en">From the incoming sound (mic, recorded file, or synthetic signal) the app detects the escapement's <b>tic</b> and <b>toc</b> impulses, and from their spacing computes the watch's rate (seconds gained/lost per day), amplitude, beat error and more. Results are plotted live from several viewpoints at once.</p>
+      <p class="pt">A partir do som recebido (microfone, arquivo gravado ou sinal sintético), o aplicativo detecta os impulsos <b>tic</b> e <b>toc</b> do escapo e, pelo espaçamento entre eles, calcula a marcha do relógio (segundos ganhos/perdidos por dia), a amplitude, o erro de batida e mais. Os resultados são plotados ao vivo sob vários pontos de vista ao mesmo tempo.</p>
 
-      <h3><span class="ko">화면 구조</span><span class="sep"> · </span><span class="en">Screen layout</span></h3>
+      <h3><span class="ko">화면 구조</span><span class="sep"> · </span><span class="en">Screen layout</span><span class="sep"> · </span><span class="pt">Layout da tela</span></h3>
       <p class="ko">창은 크게 세 부분으로 나뉩니다.</p>
       <p class="en">The window has three main regions.</p>
+      <p class="pt">A janela tem três regiões principais.</p>
       <dl class="kv">
-        <dt>① <span class="ko">왼쪽 패널</span><span class="en">Left panel</span></dt>
-        <dd><span class="ko">입력·시계·시뮬레이션·기타 파라미터를 설정하고 측정을 시작/일시정지합니다. → <a href="controls.html">자세히</a></span><span class="en">Set input / watch / simulation / misc parameters and start/pause the measurement. → <a href="controls.html">details</a></span></dd>
-        <dt>② <span class="ko">포지션 스트립</span><span class="en">Position strip</span></dt>
-        <dd><span class="ko">시계를 놓은 자세(12시·3시·6시·9시 등)를 고릅니다. <a href="graphs/positions.html">Positions</a> 그래프와 연동됩니다.</span><span class="en">Pick the watch position (dial up, 3 o'clock down, etc.). Tied to the <a href="graphs/positions.html">Positions</a> graph.</span></dd>
-        <dt>③ <span class="ko">그래프 탭</span><span class="en">Graph tabs</span></dt>
-        <dd><span class="ko">14개 분석 그래프를 탭으로 전환하며 봅니다. 아래 목록 참고.</span><span class="en">14 analysis graphs, switched by tab. See the list below.</span></dd>
+        <dt>① <span class="ko">왼쪽 패널</span><span class="en">Left panel</span><span class="pt">Painel esquerdo</span></dt>
+        <dd><span class="ko">입력·시계·시뮬레이션·기타 파라미터를 설정하고 측정을 시작/일시정지합니다. → <a href="controls.html">자세히</a></span><span class="en">Set input / watch / simulation / misc parameters and start/pause the measurement. → <a href="controls.html">details</a></span><span class="pt">Defina os parâmetros de entrada / relógio / simulação / diversos e inicie ou pause a medição. → <a href="controls.html">detalhes</a></span></dd>
+        <dt>② <span class="ko">포지션 스트립</span><span class="en">Position strip</span><span class="pt">Faixa de posição</span></dt>
+        <dd><span class="ko">시계를 놓은 자세(12시·3시·6시·9시 등)를 고릅니다. <a href="graphs/positions.html">Positions</a> 그래프와 연동됩니다.</span><span class="en">Pick the watch position (dial up, 3 o'clock down, etc.). Tied to the <a href="graphs/positions.html">Positions</a> graph.</span><span class="pt">Escolha a posição do relógio (mostrador para cima, 3 horas para baixo, etc.). Vinculada ao gráfico <a href="graphs/positions.html">Positions</a>.</span></dd>
+        <dt>③ <span class="ko">그래프 탭</span><span class="en">Graph tabs</span><span class="pt">Abas de gráficos</span></dt>
+        <dd><span class="ko">14개 분석 그래프를 탭으로 전환하며 봅니다. 아래 목록 참고.</span><span class="en">14 analysis graphs, switched by tab. See the list below.</span><span class="pt">14 gráficos de análise, alternados por aba. Veja a lista abaixo.</span></dd>
       </dl>
 
-      <h2 id="quickstart"><span class="ko">빠른 시작</span><span class="sep"> · </span><span class="en">Quick start</span></h2>
+      <h2 id="quickstart"><span class="ko">빠른 시작</span><span class="sep"> · </span><span class="en">Quick start</span><span class="sep"> · </span><span class="pt">Início rápido</span></h2>
       <ol>
-        <li><span class="ko"><b>입력을 고릅니다.</b> 왼쪽 위 <code>Input</code> 드롭다운에서 세 가지 중 하나를 선택합니다.</span><span class="en"><b>Choose an input</b> from the <code>Input</code> dropdown (top left).</span>
+        <li><span class="ko"><b>입력을 고릅니다.</b> 왼쪽 위 <code>Input</code> 드롭다운에서 세 가지 중 하나를 선택합니다.</span><span class="en"><b>Choose an input</b> from the <code>Input</code> dropdown (top left).</span><span class="pt"><b>Escolha uma entrada</b> no menu suspenso <code>Input</code> (canto superior esquerdo).</span>
           <ul>
-            <li><span class="pill">Live</span> <span class="ko">마이크로 실제 시계 소리를 듣습니다.</span><span class="en">Listen to a real watch through the microphone.</span></li>
-            <li><span class="pill">Playback</span> <span class="ko">미리 녹음된 WAV 파일을 재생합니다(<code>sample/</code> 폴더에 예제 9개 제공).</span><span class="en">Play a recorded WAV (9 examples ship in <code>sample/</code>).</span></li>
-            <li><span class="pill">Simulation</span> <span class="ko">마이크 없이 합성 신호를 만들어 동작을 시험합니다(데모·연습용).</span><span class="en">Generate a synthetic signal — no mic needed (demo/practice).</span></li>
+            <li><span class="pill">Live</span> <span class="ko">마이크로 실제 시계 소리를 듣습니다.</span><span class="en">Listen to a real watch through the microphone.</span><span class="pt">Escute um relógio real pelo microfone.</span></li>
+            <li><span class="pill">Playback</span> <span class="ko">미리 녹음된 WAV 파일을 재생합니다(<code>sample/</code> 폴더에 예제 9개 제공).</span><span class="en">Play a recorded WAV (9 examples ship in <code>sample/</code>).</span><span class="pt">Reproduza um WAV gravado (9 exemplos incluídos em <code>sample/</code>).</span></li>
+            <li><span class="pill">Simulation</span> <span class="ko">마이크 없이 합성 신호를 만들어 동작을 시험합니다(데모·연습용).</span><span class="en">Generate a synthetic signal — no mic needed (demo/practice).</span><span class="pt">Gere um sinal sintético — sem microfone (demonstração/prática).</span></li>
           </ul>
         </li>
-        <li><span class="ko"><b>시계 파라미터를 맞춥니다.</b> <code>BPH</code>(시간당 진동수)와 <code>Lift Angle</code>(리프트각)을 측정할 시계에 맞게 설정합니다. → <a href="controls.html#watch">Watch Parameters</a></span><span class="en"><b>Set the watch parameters</b> — <code>BPH</code> and <code>Lift Angle</code> to match the movement. → <a href="controls.html#watch">Watch Parameters</a></span></li>
-        <li><span class="ko"><b>▶ 재생 버튼</b>을 눌러 측정을 시작합니다(같은 버튼이 ⏸ 일시정지로 바뀝니다).</span><span class="en"><b>Press ▶ Play</b> to start (the same button becomes ⏸ Pause).</span></li>
-        <li><span class="ko"><b>그래프를 읽습니다.</b> 목적에 맞는 탭을 골라 봅니다. 장기 추세를 되짚어 볼 때는 <b>Long-Term</b> 탭의 리뷰 바를 일시정지 후 사용합니다.</span><span class="en"><b>Read the graphs.</b> Pick the tab you need. To review long-run history, pause and use the review bar inside the <b>Long-Term</b> tab.</span></li>
+        <li><span class="ko"><b>시계 파라미터를 맞춥니다.</b> <code>BPH</code>(시간당 진동수)와 <code>Lift Angle</code>(리프트각)을 측정할 시계에 맞게 설정합니다. → <a href="controls.html#watch">Watch Parameters</a></span><span class="en"><b>Set the watch parameters</b> — <code>BPH</code> and <code>Lift Angle</code> to match the movement. → <a href="controls.html#watch">Watch Parameters</a></span><span class="pt"><b>Ajuste os parâmetros do relógio</b> — <code>BPH</code> e <code>Lift Angle</code> conforme o movimento. → <a href="controls.html#watch">Watch Parameters</a></span></li>
+        <li><span class="ko"><b>▶ 재생 버튼</b>을 눌러 측정을 시작합니다(같은 버튼이 ⏸ 일시정지로 바뀝니다).</span><span class="en"><b>Press ▶ Play</b> to start (the same button becomes ⏸ Pause).</span><span class="pt"><b>Pressione ▶ Play</b> para iniciar (o mesmo botão vira ⏸ Pause).</span></li>
+        <li><span class="ko"><b>그래프를 읽습니다.</b> 목적에 맞는 탭을 골라 봅니다. 장기 추세를 되짚어 볼 때는 <b>Long-Term</b> 탭의 리뷰 바를 일시정지 후 사용합니다.</span><span class="en"><b>Read the graphs.</b> Pick the tab you need. To review long-run history, pause and use the review bar inside the <b>Long-Term</b> tab.</span><span class="pt"><b>Leia os gráficos.</b> Escolha a aba de que precisa. Para revisar o histórico de longa duração, pause e use a barra de revisão dentro da aba <b>Long-Term</b>.</span></li>
       </ol>
 
       <div class="tip">
         <p class="ko"><b>처음이라면</b> — <span class="pill">Simulation</span> 입력으로 <b>Realistic</b> 옵션을 켜고 ▶를 누르면, 실제 시계 없이도 모든 그래프가 살아 움직이는 모습을 볼 수 있습니다. 매뉴얼을 따라가며 익히기에 좋습니다.</p>
         <p class="en"><b>New here?</b> Pick the <span class="pill">Simulation</span> input, tick <b>Realistic</b>, and press ▶ — every graph comes alive without a physical watch. Ideal for learning alongside this manual.</p>
+        <p class="pt"><b>Primeira vez aqui?</b> Escolha a entrada <span class="pill">Simulation</span>, marque <b>Realistic</b> e pressione ▶ — todos os gráficos ganham vida sem um relógio físico. Ideal para aprender junto com este manual.</p>
       </div>
 
-      <h2 id="signal-quality"><span class="ko">신호 품질 경고</span><span class="sep"> · </span><span class="en">Signal Quality Warnings</span></h2>
+      <h2 id="signal-quality"><span class="ko">신호 품질 경고</span><span class="sep"> · </span><span class="en">Signal Quality Warnings</span><span class="sep"> · </span><span class="pt">Avisos de Qualidade do Sinal</span></h2>
       <p class="ko">측정 중 입력 신호가 불안정하면 그래프 영역 위에 빨간 경고가 깜빡이고, 하단 상태바가 처리 방법을 안내합니다. 이 경고가 보이면 표시된 rate, amplitude, beat error를 확정값처럼 해석하지 말고 먼저 입력 상태를 정리하세요.</p>
       <p class="en">When the input signal is unreliable, a red flashing warning appears over the graph area and the bottom status bar suggests what to do. Treat rate, amplitude, and beat error as provisional until the input is corrected.</p>
+      <p class="pt">Quando o sinal de entrada não é confiável, um aviso vermelho piscante aparece sobre a área do gráfico e a barra de status inferior sugere o que fazer. Trate a marcha, a amplitude e o erro de batida como provisórios até que a entrada seja corrigida.</p>
       <table>
-        <thead><tr><th><span class="ko">경고</span><span class="sep"> · </span><span class="en">Warning</span></th><th><span class="ko">뜻</span><span class="sep"> · </span><span class="en">Meaning</span></th><th><span class="ko">처리 방법</span><span class="sep"> · </span><span class="en">What to do</span></th></tr></thead>
+        <thead><tr><th><span class="ko">경고</span><span class="sep"> · </span><span class="en">Warning</span><span class="sep"> · </span><span class="pt">Aviso</span></th><th><span class="ko">뜻</span><span class="sep"> · </span><span class="en">Meaning</span><span class="sep"> · </span><span class="pt">Significado</span></th><th><span class="ko">처리 방법</span><span class="sep"> · </span><span class="en">What to do</span><span class="sep"> · </span><span class="pt">O que fazer</span></th></tr></thead>
         <tbody>
-          <tr><td><b>Possible false C</b></td><td><span class="ko">잡음이나 B 피크를 C 이벤트로 잘못 잡았을 가능성이 있습니다.</span><span class="en">Noise or a B peak may have been selected as the C event.</span></td><td><span class="ko">시계를 움직이지 말고 Beat Noise 파형을 확인한 뒤, 손/주변 잡음을 줄입니다.</span><span class="en">Keep the watch still, inspect Beat Noise, and reduce handling or ambient noise.</span></td></tr>
-          <tr><td><b>C timing unstable</b></td><td><span class="ko">A-to-C 타이밍이 최근 패턴과 맞지 않아 진폭 계산 신뢰도가 낮습니다.</span><span class="en">A-to-C timing does not match the recent pattern, reducing amplitude confidence.</span></td><td><span class="ko">몇 초 더 측정해 안정되는지 보고, 계속 뜨면 마이크 위치와 시계 접촉을 조정합니다.</span><span class="en">Measure a little longer; if it persists, adjust microphone placement and watch contact.</span></td></tr>
-          <tr><td><b>Noisy signal</b></td><td><span class="ko">주변 소음이나 취급 잡음이 신호 해석에 영향을 줍니다.</span><span class="en">Ambient or handling noise is affecting interpretation.</span></td><td><span class="ko">책상 진동, 손 접촉, 팬/스피커 소음을 줄이고 조용한 위치에서 다시 측정합니다.</span><span class="en">Reduce desk vibration, hand contact, fan/speaker noise, and retry in a quieter place.</span></td></tr>
-          <tr><td><b>Weak signal</b></td><td><span class="ko">시계 소리가 너무 약하거나 C 구간이 일부 빠져 있습니다.</span><span class="en">The watch sound is too weak or part of the C event is missing.</span></td><td><span class="ko">시계와 마이크를 다시 놓고, 필요하면 입력 gain을 조금 올립니다.</span><span class="en">Reposition the watch/microphone and raise input gain slightly if needed.</span></td></tr>
-          <tr><td><b>Clipping</b></td><td><span class="ko">입력이 너무 커서 파형이 잘렸습니다. 이 상태의 측정값은 신뢰하기 어렵습니다.</span><span class="en">The input is too loud and the waveform is clipped, making readings unreliable.</span></td><td><span class="ko">gain을 낮춘 뒤 flat-top 파형이 사라지는지 확인하고 다시 측정합니다.</span><span class="en">Lower gain, confirm the flat-top waveform disappears, then measure again.</span></td></tr>
-          <tr><td><b>No signal</b></td><td><span class="ko">분석 가능한 시계 신호가 감지되지 않습니다.</span><span class="en">No usable watch signal is detected.</span></td><td><span class="ko">입력 장치, 파일, 마이크 연결, 시계 위치를 확인합니다.</span><span class="en">Check the input device, file, microphone connection, and watch position.</span></td></tr>
+          <tr><td><b>Possible false C</b></td><td><span class="ko">잡음이나 B 피크를 C 이벤트로 잘못 잡았을 가능성이 있습니다.</span><span class="en">Noise or a B peak may have been selected as the C event.</span><span class="pt">Ruído ou um pico B pode ter sido selecionado como o evento C.</span></td><td><span class="ko">시계를 움직이지 말고 Beat Noise 파형을 확인한 뒤, 손/주변 잡음을 줄입니다.</span><span class="en">Keep the watch still, inspect Beat Noise, and reduce handling or ambient noise.</span><span class="pt">Mantenha o relógio imóvel, inspecione o Beat Noise e reduza o manuseio ou o ruído ambiente.</span></td></tr>
+          <tr><td><b>C timing unstable</b></td><td><span class="ko">A-to-C 타이밍이 최근 패턴과 맞지 않아 진폭 계산 신뢰도가 낮습니다.</span><span class="en">A-to-C timing does not match the recent pattern, reducing amplitude confidence.</span><span class="pt">O tempo de A-para-C não corresponde ao padrão recente, reduzindo a confiança na amplitude.</span></td><td><span class="ko">몇 초 더 측정해 안정되는지 보고, 계속 뜨면 마이크 위치와 시계 접촉을 조정합니다.</span><span class="en">Measure a little longer; if it persists, adjust microphone placement and watch contact.</span><span class="pt">Meça um pouco mais; se persistir, ajuste o posicionamento do microfone e o contato do relógio.</span></td></tr>
+          <tr><td><b>Noisy signal</b></td><td><span class="ko">주변 소음이나 취급 잡음이 신호 해석에 영향을 줍니다.</span><span class="en">Ambient or handling noise is affecting interpretation.</span><span class="pt">Ruído ambiente ou de manuseio está afetando a interpretação.</span></td><td><span class="ko">책상 진동, 손 접촉, 팬/스피커 소음을 줄이고 조용한 위치에서 다시 측정합니다.</span><span class="en">Reduce desk vibration, hand contact, fan/speaker noise, and retry in a quieter place.</span><span class="pt">Reduza a vibração da mesa, o contato das mãos, o ruído de ventilador/alto-falante e tente novamente em um local mais silencioso.</span></td></tr>
+          <tr><td><b>Weak signal</b></td><td><span class="ko">시계 소리가 너무 약하거나 C 구간이 일부 빠져 있습니다.</span><span class="en">The watch sound is too weak or part of the C event is missing.</span><span class="pt">O som do relógio está fraco demais ou parte do evento C está faltando.</span></td><td><span class="ko">시계와 마이크를 다시 놓고, 필요하면 입력 gain을 조금 올립니다.</span><span class="en">Reposition the watch/microphone and raise input gain slightly if needed.</span><span class="pt">Reposicione o relógio e o microfone e aumente um pouco o ganho de entrada, se necessário.</span></td></tr>
+          <tr><td><b>Clipping</b></td><td><span class="ko">입력이 너무 커서 파형이 잘렸습니다. 이 상태의 측정값은 신뢰하기 어렵습니다.</span><span class="en">The input is too loud and the waveform is clipped, making readings unreliable.</span><span class="pt">A entrada está alta demais e a forma de onda está saturada, tornando as leituras não confiáveis.</span></td><td><span class="ko">gain을 낮춘 뒤 flat-top 파형이 사라지는지 확인하고 다시 측정합니다.</span><span class="en">Lower gain, confirm the flat-top waveform disappears, then measure again.</span><span class="pt">Reduza o ganho, confirme que a forma de onda de topo achatado desaparece e meça novamente.</span></td></tr>
+          <tr><td><b>No signal</b></td><td><span class="ko">분석 가능한 시계 신호가 감지되지 않습니다.</span><span class="en">No usable watch signal is detected.</span><span class="pt">Nenhum sinal de relógio utilizável é detectado.</span></td><td><span class="ko">입력 장치, 파일, 마이크 연결, 시계 위치를 확인합니다.</span><span class="en">Check the input device, file, microphone connection, and watch position.</span><span class="pt">Verifique o dispositivo de entrada, o arquivo, a conexão do microfone e a posição do relógio.</span></td></tr>
         </tbody>
       </table>
 
-      <h2 id="graphs"><span class="ko">그래프 목록</span><span class="sep"> · </span><span class="en">The 14 graphs</span></h2>
+      <h2 id="graphs"><span class="ko">그래프 목록</span><span class="sep"> · </span><span class="en">The 14 graphs</span><span class="sep"> · </span><span class="pt">Os 14 gráficos</span></h2>
       <p class="ko">각 카드를 눌러 그래프별 <b>용도 · 보는 방법 · 옵션</b> 설명으로 이동합니다.</p>
       <p class="en">Click a card for each graph's <b>purpose · how to read · options</b>.</p>
+      <p class="pt">Clique em um cartão para ver <b>finalidade · como ler · opções</b> de cada gráfico.</p>
       <div class="grid">
-        <a class="tile" href="graphs/rate-scope.html"><span class="n">1</span> <span class="t">Rate/Scope</span><div class="d ko">파형 + 비트별 Error Rate</div><div class="d en">Waveform + per-beat Error Rate</div></a>
-        <a class="tile" href="graphs/sound-print.html"><span class="n">2</span> <span class="t">Sound Print</span><div class="d ko">소리의 시각적 지문</div><div class="d en">Visual acoustic fingerprint</div></a>
-        <a class="tile" href="graphs/trace.html"><span class="n">3</span> <span class="t">Trace</span><div class="d ko">Error Rate·진폭의 시간 추이</div><div class="d en">Error Rate & amplitude over time</div></a>
-        <a class="tile" href="graphs/sweep.html"><span class="n">4</span> <span class="t">Sweep</span><div class="d ko">한 비트 접은 파형</div><div class="d en">Folded single-beat envelope</div></a>
-        <a class="tile" href="graphs/vario.html"><span class="n">5</span> <span class="t">Vario</span><div class="d ko">Error Rate·진폭 안정도 게이지</div><div class="d en">Error Rate/amplitude stability gauges</div></a>
-        <a class="tile" href="graphs/beat-error.html"><span class="n">6</span> <span class="t">Beat Error</span><div class="d ko">똑/딱 비대칭·드리프트 진단</div><div class="d en">Tic/toc asymmetry & drift</div></a>
-        <a class="tile" href="graphs/filter-scope.html"><span class="n">7</span> <span class="t">Filter Scope</span><div class="d ko">4단 필터 파형 비교</div><div class="d en">Four filtered waveform lanes</div></a>
-        <a class="tile" href="graphs/long-term.html"><span class="n">8</span> <span class="t">Long-Term</span><div class="d ko">장시간 레이트·진폭·오차 추세</div><div class="d en">Long-run trend (rate/amplitude/BE)</div></a>
-        <a class="tile" href="graphs/positions.html"><span class="n">9</span> <span class="t">Positions</span><div class="d ko">워치 위치별 측정 비교</div><div class="d en">Per-position comparison</div></a>
-        <a class="tile" href="graphs/health.html"><span class="n">10</span> <span class="t">Health</span><div class="d ko">자세별 건강도 레이더·종합 진단</div><div class="d en">Per-position health radar & diagnosis</div></a>
-        <a class="tile" href="graphs/beat-noise.html"><span class="n">11</span> <span class="t">Beat Noise</span><div class="d ko">비트 엔벨로프 상세·평균</div><div class="d en">Beat envelope detail & average</div></a>
-        <a class="tile" href="graphs/escapement.html"><span class="n">12</span> <span class="t">Escapement</span><div class="d ko">비트 내부 타이밍 정밀도</div><div class="d en">Intra-beat timing precision</div></a>
-        <a class="tile" href="graphs/waveforms.html"><span class="n">13</span> <span class="t">Waveforms</span><div class="d ko">똑/딱 쌍 파형 비교</div><div class="d en">Tic/toc pair comparison</div></a>
-        <a class="tile" href="graphs/spectrogram.html"><span class="n">14</span> <span class="t">Spectrogram</span><div class="d ko">시간-주파수 스펙트로그램</div><div class="d en">Time–frequency spectrogram</div></a>
+        <a class="tile" href="graphs/rate-scope.html"><span class="n">1</span> <span class="t">Rate/Scope</span><div class="d ko">파형 + 비트별 Error Rate</div><div class="d en">Waveform + per-beat Error Rate</div><div class="d pt">Forma de onda + Error Rate por batida</div></a>
+        <a class="tile" href="graphs/sound-print.html"><span class="n">2</span> <span class="t">Sound Print</span><div class="d ko">소리의 시각적 지문</div><div class="d en">Visual acoustic fingerprint</div><div class="d pt">Impressão digital acústica visual</div></a>
+        <a class="tile" href="graphs/trace.html"><span class="n">3</span> <span class="t">Trace</span><div class="d ko">Error Rate·진폭의 시간 추이</div><div class="d en">Error Rate & amplitude over time</div><div class="d pt">Error Rate e amplitude ao longo do tempo</div></a>
+        <a class="tile" href="graphs/sweep.html"><span class="n">4</span> <span class="t">Sweep</span><div class="d ko">한 비트 접은 파형</div><div class="d en">Folded single-beat envelope</div><div class="d pt">Envelope dobrado de uma batida</div></a>
+        <a class="tile" href="graphs/vario.html"><span class="n">5</span> <span class="t">Vario</span><div class="d ko">Error Rate·진폭 안정도 게이지</div><div class="d en">Error Rate/amplitude stability gauges</div><div class="d pt">Medidores de estabilidade de Error Rate/amplitude</div></a>
+        <a class="tile" href="graphs/beat-error.html"><span class="n">6</span> <span class="t">Beat Error</span><div class="d ko">똑/딱 비대칭·드리프트 진단</div><div class="d en">Tic/toc asymmetry & drift</div><div class="d pt">Assimetria tic/toc e deriva</div></a>
+        <a class="tile" href="graphs/filter-scope.html"><span class="n">7</span> <span class="t">Filter Scope</span><div class="d ko">4단 필터 파형 비교</div><div class="d en">Four filtered waveform lanes</div><div class="d pt">Quatro faixas de forma de onda filtrada</div></a>
+        <a class="tile" href="graphs/long-term.html"><span class="n">8</span> <span class="t">Long-Term</span><div class="d ko">장시간 레이트·진폭·오차 추세</div><div class="d en">Long-run trend (rate/amplitude/BE)</div><div class="d pt">Tendência de longa duração (marcha/amplitude/BE)</div></a>
+        <a class="tile" href="graphs/positions.html"><span class="n">9</span> <span class="t">Positions</span><div class="d ko">워치 위치별 측정 비교</div><div class="d en">Per-position comparison</div><div class="d pt">Comparação por posição</div></a>
+        <a class="tile" href="graphs/health.html"><span class="n">10</span> <span class="t">Health</span><div class="d ko">자세별 건강도 레이더·종합 진단</div><div class="d en">Per-position health radar & diagnosis</div><div class="d pt">Radar de saúde por posição e diagnóstico</div></a>
+        <a class="tile" href="graphs/beat-noise.html"><span class="n">11</span> <span class="t">Beat Noise</span><div class="d ko">비트 엔벨로프 상세·평균</div><div class="d en">Beat envelope detail & average</div><div class="d pt">Detalhe e média do envelope da batida</div></a>
+        <a class="tile" href="graphs/escapement.html"><span class="n">12</span> <span class="t">Escapement</span><div class="d ko">비트 내부 타이밍 정밀도</div><div class="d en">Intra-beat timing precision</div><div class="d pt">Precisão de tempo dentro da batida</div></a>
+        <a class="tile" href="graphs/waveforms.html"><span class="n">13</span> <span class="t">Waveforms</span><div class="d ko">똑/딱 쌍 파형 비교</div><div class="d en">Tic/toc pair comparison</div><div class="d pt">Comparação do par tic/toc</div></a>
+        <a class="tile" href="graphs/spectrogram.html"><span class="n">14</span> <span class="t">Spectrogram</span><div class="d ko">시간-주파수 스펙트로그램</div><div class="d en">Time–frequency spectrogram</div><div class="d pt">Espectrograma tempo–frequência</div></a>
       </div>
 
-      <h2 id="glossary"><span class="ko">용어 사전</span><span class="sep"> · </span><span class="en">Glossary</span></h2>
+      <h2 id="glossary"><span class="ko">용어 사전</span><span class="sep"> · </span><span class="en">Glossary</span><span class="sep"> · </span><span class="pt">Glossário</span></h2>
       <table>
-        <thead><tr><th><span class="ko">용어</span><span class="sep"> · </span><span class="en">Term</span></th><th><span class="ko">설명</span><span class="sep"> · </span><span class="en">Meaning</span></th></tr></thead>
+        <thead><tr><th><span class="ko">용어</span><span class="sep"> · </span><span class="en">Term</span><span class="sep"> · </span><span class="pt">Termo</span></th><th><span class="ko">설명</span><span class="sep"> · </span><span class="en">Meaning</span><span class="sep"> · </span><span class="pt">Significado</span></th></tr></thead>
         <tbody>
-          <tr><td><b>BPH</b></td><td><span class="ko">시간당 진동수(BPH). 탈진기 박자. 예: 21600, 28800.</span><span class="en">BPH — the escapement's tick rate (e.g. 21600, 28800).</span></td></tr>
-          <tr><td><b>Error Rate (s/d)</b></td><td><span class="ko">하루에 빠르거나(+) 느린(−) 초. 0에 가까울수록 정확.</span><span class="en">Seconds per day gained (+) or lost (−). Closer to 0 is more accurate.</span></td></tr>
-          <tr><td><b>Amplitude(°)</b></td><td><span class="ko">밸런스 휠의 진폭(흔들림 각도). 보통 270–300°가 건강한 범위.</span><span class="en">Balance-wheel swing in degrees; 270–300° is a typical healthy range.</span></td></tr>
-          <tr><td><b>Beat error (ms)</b></td><td><span class="ko">똑과 딱 간격의 비대칭(ms). 0에 가까울수록 좋음.</span><span class="en">Tic/toc spacing asymmetry in milliseconds; closer to 0 is better.</span></td></tr>
-          <tr><td><b>Tic / Toc</b></td><td><span class="ko">교대로 나는 두 충격음(똑·딱).</span><span class="en">The two alternating escapement impulses.</span> <span class="pill tic">tic</span> <span class="pill toc">toc</span></td></tr>
-          <tr><td><b>A / C event</b></td><td><span class="ko">한 비트 안의 충격 구간. A = 기준 시작점, C = 임팩트(피크/온셋) 구간.</span><span class="en">Sub-events within a beat. A = the reference onset; C = the impact cluster (peak/onset).</span></td></tr>
-          <tr><td><b>Lift Angle</b></td><td><span class="ko">진폭 계산에 쓰는 무브먼트 고유값(리프트각). 시계 사양에 맞춰 설정.</span><span class="en">A movement-specific angle used to compute amplitude; set it to the watch's spec.</span></td></tr>
+          <tr><td><b>BPH</b></td><td><span class="ko">시간당 진동수(BPH). 탈진기 박자. 예: 21600, 28800.</span><span class="en">BPH — the escapement's tick rate (e.g. 21600, 28800).</span><span class="pt">BPH — a cadência de batidas do escapo (ex.: 21600, 28800).</span></td></tr>
+          <tr><td><b>Error Rate (s/d)</b></td><td><span class="ko">하루에 빠르거나(+) 느린(−) 초. 0에 가까울수록 정확.</span><span class="en">Seconds per day gained (+) or lost (−). Closer to 0 is more accurate.</span><span class="pt">Segundos por dia ganhos (+) ou perdidos (−). Mais perto de 0 é mais preciso.</span></td></tr>
+          <tr><td><b>Amplitude(°)</b></td><td><span class="ko">밸런스 휠의 진폭(흔들림 각도). 보통 270–300°가 건강한 범위.</span><span class="en">Balance-wheel swing in degrees; 270–300° is a typical healthy range.</span><span class="pt">Oscilação da roda de balanço em graus; 270–300° é uma faixa saudável típica.</span></td></tr>
+          <tr><td><b>Beat error (ms)</b></td><td><span class="ko">똑과 딱 간격의 비대칭(ms). 0에 가까울수록 좋음.</span><span class="en">Tic/toc spacing asymmetry in milliseconds; closer to 0 is better.</span><span class="pt">Assimetria do espaçamento tic/toc em milissegundos; mais perto de 0 é melhor.</span></td></tr>
+          <tr><td><b>Tic / Toc</b></td><td><span class="ko">교대로 나는 두 충격음(똑·딱).</span><span class="en">The two alternating escapement impulses.</span><span class="pt">Os dois impulsos alternados do escapo.</span> <span class="pill tic">tic</span> <span class="pill toc">toc</span></td></tr>
+          <tr><td><b>A / C event</b></td><td><span class="ko">한 비트 안의 충격 구간. A = 기준 시작점, C = 임팩트(피크/온셋) 구간.</span><span class="en">Sub-events within a beat. A = the reference onset; C = the impact cluster (peak/onset).</span><span class="pt">Subeventos dentro de uma batida. A = o início de referência; C = o agrupamento de impacto (pico/onset).</span></td></tr>
+          <tr><td><b>Lift Angle</b></td><td><span class="ko">진폭 계산에 쓰는 무브먼트 고유값(리프트각). 시계 사양에 맞춰 설정.</span><span class="en">A movement-specific angle used to compute amplitude; set it to the watch's spec.</span><span class="pt">Um ângulo específico do movimento usado para calcular a amplitude; defina-o conforme a especificação do relógio.</span></td></tr>
         </tbody>
       </table>
 

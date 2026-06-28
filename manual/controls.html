@@ -17,153 +17,173 @@
     </div>
     <div class="content-inner">
 
-      <h1><span class="ko">왼쪽 메뉴 사용법</span><span class="sep"> · </span><span class="en">Left-panel controls</span></h1>
+      <h1><span class="ko">왼쪽 메뉴 사용법</span><span class="sep"> · </span><span class="en">Left-panel controls</span><span class="sep"> · </span><span class="pt">Controles do painel esquerdo</span></h1>
       <p class="lede ko">왼쪽 패널은 위에서부터 <b>Run · Watch · Simulation · Misc</b> 네 묶음으로 나뉘며, 측정 조건을 정하고 측정을 시작합니다. 패널 오른쪽의 포지션 스트립, 창 아래의 상태 바, Long-Term 탭의 리뷰 바도 함께 설명합니다.</p>
       <p class="lede en">The left panel has four sections — <b>Run · Watch · Simulation · Misc</b> — that set up and start a measurement. The position strip, bottom status bar, and Long-Term tab review bar are covered here too.</p>
+      <p class="lede pt">O painel esquerdo tem quatro seções — <b>Run · Watch · Simulation · Misc</b> — que configuram e iniciam uma medição. A faixa de posição, a barra de status inferior e a barra de revisão da aba Long-Term também são abordadas aqui.</p>
 
       <figure>
         <img data-shot src="img/left-panel.png" alt="Left parameter panel">
         <figcaption class="ko">그림 1. 왼쪽 파라미터 패널 (Run / Watch / Simulation / Misc).</figcaption>
         <figcaption class="en">Fig 1. The left parameter panel (Run / Watch / Simulation / Misc).</figcaption>
+        <figcaption class="pt">Fig 1. O painel de parâmetros à esquerda (Run / Watch / Simulation / Misc).</figcaption>
       </figure>
 
       <div class="note">
         <p class="ko"><b>언제 잠기나요?</b> 측정이 <b>진행 중</b>일 때는 대부분의 파라미터가 비활성화됩니다. 값을 바꾸려면 ⏸로 일시정지하거나 정지한 뒤 수정하세요. (Scope Scale처럼 실행 중에도 바꿀 수 있는 항목은 따로 표시했습니다.)</p>
         <p class="en"><b>When are controls locked?</b> While a run is <b>active</b>, most parameters are disabled. Pause (⏸) or stop to change them. A few (e.g. Scope Scale) remain live — noted where relevant.</p>
+        <p class="pt"><b>Quando os controles ficam bloqueados?</b> Enquanto uma medição está <b>ativa</b>, a maioria dos parâmetros fica desativada. Pause (⏸) ou pare para alterá-los. Alguns (ex.: Scope Scale) permanecem ativos — indicados quando relevante.</p>
       </div>
 
       <h2 id="run">① Run Parameters</h2>
       <p class="ko">입력 소스와 캡처 조건, 그리고 측정 시작/정지를 다룹니다.</p>
       <p class="en">Input source, capture settings, and the start/stop of a measurement.</p>
+      <p class="pt">Fonte de entrada, configurações de captura e o início/parada de uma medição.</p>
 
       <h3>Input</h3>
       <p class="ko">소리를 어디서 받을지 고릅니다. 세 종류가 한 드롭다운에 함께 나열됩니다.</p>
       <p class="en">Where the sound comes from. Three kinds appear in one dropdown.</p>
+      <p class="pt">De onde vem o som. Três tipos aparecem em um único menu suspenso.</p>
       <ul>
-        <li><span class="pill">Live</span> <span class="ko"><b>마이크</b> — 컴퓨터에 연결된 실제 캡처 장치. 장치 이름이 그대로 보입니다. 측정 전 <a href="#mic">마이크 설정(AGC·결합)</a>을 확인하세요.</span><span class="en"><b>Microphone</b> — a real capture device on the computer; its name is listed. Check <a href="#mic">microphone setup (AGC &amp; coupling)</a> before measuring.</span></li>
-        <li><span class="pill">Playback</span> <span class="ko"><b>WAV 재생</b> — 선택하면 파일 선택 창이 열립니다. <code>sample/</code> 폴더의 예제(예: <code>28800BPH_3135_hulk.wav</code>)를 고르면 됩니다. 모노·표준 샘플레이트 WAV만 받습니다.</span><span class="en"><b>WAV playback</b> — opens a file picker. Use an example from <code>sample/</code>. Only mono, standard-rate WAV is accepted.</span></li>
-        <li><span class="pill">Simulation</span> <span class="ko"><b>합성 신호</b> — 마이크 없이 아래 <a href="#sim">Simulation Parameters</a> 값으로 가짜 시계 소리를 만듭니다. 데모·학습용.</span><span class="en"><b>Synthetic signal</b> — builds a fake watch signal from the <a href="#sim">Simulation Parameters</a>; no mic needed. For demo/learning.</span></li>
+        <li><span class="pill">Live</span> <span class="ko"><b>마이크</b> — 컴퓨터에 연결된 실제 캡처 장치. 장치 이름이 그대로 보입니다. 측정 전 <a href="#mic">마이크 설정(AGC·결합)</a>을 확인하세요.</span><span class="en"><b>Microphone</b> — a real capture device on the computer; its name is listed. Check <a href="#mic">microphone setup (AGC &amp; coupling)</a> before measuring.</span><span class="pt"><b>Microfone</b> — um dispositivo de captura real no computador; seu nome é listado. Verifique a <a href="#mic">configuração do microfone (AGC e acoplamento)</a> antes de medir.</span></li>
+        <li><span class="pill">Playback</span> <span class="ko"><b>WAV 재생</b> — 선택하면 파일 선택 창이 열립니다. <code>sample/</code> 폴더의 예제(예: <code>28800BPH_3135_hulk.wav</code>)를 고르면 됩니다. 모노·표준 샘플레이트 WAV만 받습니다.</span><span class="en"><b>WAV playback</b> — opens a file picker. Use an example from <code>sample/</code>. Only mono, standard-rate WAV is accepted.</span><span class="pt"><b>Reprodução de WAV</b> — abre um seletor de arquivos. Use um exemplo de <code>sample/</code>. Apenas WAV mono, em taxa padrão, é aceito.</span></li>
+        <li><span class="pill">Simulation</span> <span class="ko"><b>합성 신호</b> — 마이크 없이 아래 <a href="#sim">Simulation Parameters</a> 값으로 가짜 시계 소리를 만듭니다. 데모·학습용.</span><span class="en"><b>Synthetic signal</b> — builds a fake watch signal from the <a href="#sim">Simulation Parameters</a>; no mic needed. For demo/learning.</span><span class="pt"><b>Sinal sintético</b> — constrói um sinal de relógio falso a partir dos <a href="#sim">Simulation Parameters</a>; sem microfone. Para demonstração/aprendizado.</span></li>
       </ul>
       <p class="tip ko" style="padding:10px 14px"><b>녹음</b> — Live·Simulation 실행은 입력을 WAV로 동시에 녹음할 수 있습니다. (Playback은 기존 파일을 재생만 합니다.)</p>
       <p class="tip en" style="padding:10px 14px"><b>Recording</b> — Live and Simulation runs can record the input to a WAV at the same time. (Playback only plays an existing file.)</p>
+      <p class="tip pt" style="padding:10px 14px"><b>Gravação</b> — as execuções Live e Simulation podem gravar a entrada em um WAV ao mesmo tempo. (Playback apenas reproduz um arquivo existente.)</p>
 
       <h3>Sample Rate</h3>
       <p class="ko">초당 샘플 수. 선택지는 <code>48000 · 96000 · 192000</code> Hz입니다. 높을수록 똑/딱 충격의 시간 분해능이 좋아져 비트 오차·진폭 측정이 정밀해지지만 CPU 부담이 커집니다. 장치가 지원하는 값만 활성화됩니다. <b>192 kHz</b>가 정밀도와 부하의 일반적 절충점입니다.</p>
       <p class="en">Samples per second: <code>48000 · 96000 · 192000</code> Hz. Higher rates give finer timing resolution (more precise beat-error/amplitude) at higher CPU cost. Only rates the device supports are enabled. <b>192 kHz</b> is a common sweet spot.</p>
+      <p class="pt">Amostras por segundo: <code>48000 · 96000 · 192000</code> Hz. Taxas mais altas dão resolução temporal mais fina (erro de batida/amplitude mais precisos) a um custo maior de CPU. Apenas as taxas suportadas pelo dispositivo ficam habilitadas. <b>192 kHz</b> é um bom ponto de equilíbrio comum.</p>
 
       <h3 id="gain">Gain</h3>
       <p class="ko">입력 볼륨 슬라이더(0–1000). 파형이 너무 작아 검출이 안 되면 올리고, 클리핑(꼭대기가 잘림)되면 내립니다. <a href="graphs/rate-scope.html">Rate/Scope</a>의 스코프에서 트리거(빨간) 선을 적당히 넘는 정도가 적절합니다.</p>
       <p class="en">Input volume (0–1000). Raise it if the waveform is too small to detect; lower it if it clips. Aim for peaks that comfortably cross the red trigger line in <a href="graphs/rate-scope.html">Rate/Scope</a>.</p>
+      <p class="pt">Volume de entrada (0–1000). Aumente se a forma de onda estiver pequena demais para detectar; reduza se ela saturar. Mire em picos que cruzem confortavelmente a linha de disparo vermelha no <a href="graphs/rate-scope.html">Rate/Scope</a>.</p>
 
-      <h3 id="mic"><span class="ko">마이크 설정 (AGC·결합)</span><span class="sep"> · </span><span class="en">Microphone setup (AGC &amp; coupling)</span></h3>
+      <h3 id="mic"><span class="ko">마이크 설정 (AGC·결합)</span><span class="sep"> · </span><span class="en">Microphone setup (AGC &amp; coupling)</span><span class="sep"> · </span><span class="pt">Configuração do microfone (AGC e acoplamento)</span></h3>
       <p class="ko"><span class="pill">Live</span> 입력에서만 해당합니다(Playback·Simulation은 무관). 마이크 캡처가 왜곡되면 진폭·비트 오차 등 <b>모든 측정</b>이 어긋나므로, 측정 전에 아래 두 가지를 확인하세요.</p>
       <p class="en">Applies to the <span class="pill">Live</span> input only (Playback/Simulation are unaffected). A distorted mic capture skews <b>every</b> reading (amplitude, beat error, …), so check these two before measuring.</p>
+      <p class="pt">Aplica-se apenas à entrada <span class="pill">Live</span> (Playback/Simulation não são afetados). Uma captura de microfone distorcida prejudica <b>todas</b> as leituras (amplitude, erro de batida, …), então verifique estes dois pontos antes de medir.</p>
       <div class="note">
         <p class="ko"><b>AGC를 끄세요</b> — <b>자동 게인(AGC)·노이즈 억제·"오디오 향상"</b>은 OS 사운드 설정에서 직접 꺼야 합니다. 앱은 이를 자동으로 끄지 못합니다. 켜져 있으면 똑/딱 충격을 눌러 평탄하게 만들거나 부풀려 측정을 무너뜨립니다. <i>Windows</i>: 사운드 설정 → 입력 장치 속성 → 향상(Enhancements)/고급에서 관련 항목 해제. <i>Linux</i>: <code>pw-record</code>/<code>arecord</code>는 기본적으로 AGC를 적용하지 않습니다.</p>
         <p class="en"><b>Turn AGC off</b> — disable <b>auto gain control (AGC), noise suppression, and "audio enhancements"</b> in your OS sound settings yourself; the app cannot turn them off. Left on, they flatten or inflate the tic/toc impulses and corrupt readings. <i>Windows</i>: Sound settings → input-device properties → uncheck the enhancement/advanced options. <i>Linux</i>: <code>pw-record</code>/<code>arecord</code> apply no AGC by default.</p>
+        <p class="pt"><b>Desligue o AGC</b> — desative você mesmo o <b>controle automático de ganho (AGC), a supressão de ruído e os "aprimoramentos de áudio"</b> nas configurações de som do seu SO; o aplicativo não consegue desativá-los. Se ligados, eles achatam ou inflam os impulsos tic/toc e corrompem as leituras. <i>Windows</i>: Configurações de som → propriedades do dispositivo de entrada → desmarque as opções de aprimoramento/avançadas. <i>Linux</i>: <code>pw-record</code>/<code>arecord</code> não aplicam AGC por padrão.</p>
       </div>
       <p class="ko"><b>마이크 결합(coupling)</b> — 시계와 마이크 픽업을 <b>단단하고 안정적으로 밀착</b>시키세요. 결합이 헐겁거나 흔들리면 신호가 약해지거나 왜곡돼 검출이 불안정해집니다. 밀착한 뒤 <a href="#gain">Gain</a>으로 레벨을 맞추고, <a href="graphs/rate-scope.html">Rate/Scope</a>에서 파형이 트리거 선을 안정적으로 넘는지 확인하세요.</p>
       <p class="en"><b>Microphone coupling</b> — hold the watch <b>firmly and steadily</b> against the microphone pickup. A loose or shifting coupling weakens or distorts the signal and makes detection unstable. Once seated, set the level with <a href="#gain">Gain</a> and confirm the waveform reliably crosses the trigger line in <a href="graphs/rate-scope.html">Rate/Scope</a>.</p>
+      <p class="pt"><b>Acoplamento do microfone</b> — mantenha o relógio <b>firme e estável</b> contra o captador do microfone. Um acoplamento solto ou que se desloca enfraquece ou distorce o sinal e torna a detecção instável. Uma vez encaixado, ajuste o nível com <a href="#gain">Gain</a> e confirme que a forma de onda cruza a linha de disparo de forma confiável no <a href="graphs/rate-scope.html">Rate/Scope</a>.</p>
 
       <h3>Avg. Period</h3>
       <p class="ko">측정값을 평균 내는 시간 창(초). 선택지는 <code>2 · 4 · 8 · 10 · 12 · 20 · 30 · 40 · 50 · 60 · 120 · 240</code>초. <b>짧게</b> 하면 변화에 빨리 반응하지만 값이 출렁이고, <b>길게</b> 하면 안정적이지만 반응이 느립니다. 정밀 측정은 길게, 조정 중 즉각 반응은 짧게.</p>
       <p class="en">The averaging window (seconds): <code>2 · 4 · 8 · 10 · 12 · 20 · 30 · 40 · 50 · 60 · 120 · 240</code>. <b>Shorter</b> reacts fast but is jittery; <b>longer</b> is steady but slow. Use long for precise readings, short for live feedback while regulating.</p>
+      <p class="pt">A janela de média (segundos): <code>2 · 4 · 8 · 10 · 12 · 20 · 30 · 40 · 50 · 60 · 120 · 240</code>. <b>Mais curta</b> reage rápido, mas oscila; <b>mais longa</b> é estável, mas lenta. Use longa para leituras precisas, curta para feedback ao vivo durante a regulagem.</p>
 
-      <h3><span class="ko">Reset / 재생·일시정지 버튼</span><span class="en">Reset / Play–Pause buttons</span></h3>
+      <h3><span class="ko">Reset / 재생·일시정지 버튼</span><span class="en">Reset / Play–Pause buttons</span><span class="pt">Botões Reset / Play–Pause</span></h3>
       <dl class="kv">
-        <dt>⟳ Reset</dt><dd><span class="ko">입력 장치 목록을 새로 읽고 상태를 초기화합니다. 마이크를 꽂았는데 목록에 없을 때 누르세요.</span><span class="en">Re-scans input devices and resets state. Press it if a just-plugged mic isn't listed.</span></dd>
-        <dt>▶ / ⏸</dt><dd><span class="ko">측정 시작/일시정지. 같은 버튼이 상태에 따라 ▶(시작)와 ⏸(일시정지)로 바뀝니다. 일시정지하면 <a href="graphs/long-term.html">Long-Term</a> 탭의 <a href="#review">리뷰 바</a>를 쓸 수 있습니다.</span><span class="en">Start / pause the measurement. The one button toggles between ▶ and ⏸. Pausing enables the <a href="#review">review bar</a> inside the <a href="graphs/long-term.html">Long-Term</a> tab.</span></dd>
+        <dt>⟳ Reset</dt><dd><span class="ko">입력 장치 목록을 새로 읽고 상태를 초기화합니다. 마이크를 꽂았는데 목록에 없을 때 누르세요.</span><span class="en">Re-scans input devices and resets state. Press it if a just-plugged mic isn't listed.</span><span class="pt">Reexamina os dispositivos de entrada e reinicia o estado. Pressione se um microfone recém-conectado não estiver listado.</span></dd>
+        <dt>▶ / ⏸</dt><dd><span class="ko">측정 시작/일시정지. 같은 버튼이 상태에 따라 ▶(시작)와 ⏸(일시정지)로 바뀝니다. 일시정지하면 <a href="graphs/long-term.html">Long-Term</a> 탭의 <a href="#review">리뷰 바</a>를 쓸 수 있습니다.</span><span class="en">Start / pause the measurement. The one button toggles between ▶ and ⏸. Pausing enables the <a href="#review">review bar</a> inside the <a href="graphs/long-term.html">Long-Term</a> tab.</span><span class="pt">Inicia / pausa a medição. O mesmo botão alterna entre ▶ e ⏸. Pausar habilita a <a href="#review">barra de revisão</a> dentro da aba <a href="graphs/long-term.html">Long-Term</a>.</span></dd>
       </dl>
 
       <h2 id="watch">② Watch Parameters</h2>
       <p class="ko">측정 <b>대상 시계</b>의 사양을 알려 줍니다. 정확한 측정의 핵심이므로 시계에 맞게 설정하세요.</p>
       <p class="en">Tell the app about the <b>watch being measured</b>. Correct values here are essential for accurate readings.</p>
+      <p class="pt">Informe ao aplicativo sobre o <b>relógio que está sendo medido</b>. Valores corretos aqui são essenciais para leituras precisas.</p>
       <dl class="kv">
         <dt>BPH</dt>
-        <dd><span class="ko">BPH. 잘 모르면 <b>Auto BPH</b>를 두면 신호에서 자동 추정합니다. 알고 있으면 정확한 값(예: 21600, 28800)을 직접 고르는 편이 검출이 더 안정적입니다.</span><span class="en">BPH. Leave it on <b>Auto BPH</b> to estimate it from the signal, or pick the exact value (e.g. 21600, 28800) for steadier detection if you know it.</span></dd>
+        <dd><span class="ko">BPH. 잘 모르면 <b>Auto BPH</b>를 두면 신호에서 자동 추정합니다. 알고 있으면 정확한 값(예: 21600, 28800)을 직접 고르는 편이 검출이 더 안정적입니다.</span><span class="en">BPH. Leave it on <b>Auto BPH</b> to estimate it from the signal, or pick the exact value (e.g. 21600, 28800) for steadier detection if you know it.</span><span class="pt">BPH. Deixe em <b>Auto BPH</b> para estimá-lo a partir do sinal, ou escolha o valor exato (ex.: 21600, 28800) para uma detecção mais estável, se você o conhecer.</span></dd>
         <dt>Lift Angle</dt>
-        <dd><span class="ko">리프트각(30–70°). 무브먼트 고유값으로 <b>진폭(amplitude)</b> 계산에 직접 쓰입니다. 시계/무브먼트 사양서 값(흔히 52°)을 넣으세요. 틀리면 진폭이 통째로 어긋납니다.</span><span class="en">Lift angle (30–70°). A movement constant used directly to compute <b>amplitude</b>. Enter the spec value (often 52°). A wrong value skews amplitude across the board.</span></dd>
+        <dd><span class="ko">리프트각(30–70°). 무브먼트 고유값으로 <b>진폭(amplitude)</b> 계산에 직접 쓰입니다. 시계/무브먼트 사양서 값(흔히 52°)을 넣으세요. 틀리면 진폭이 통째로 어긋납니다.</span><span class="en">Lift angle (30–70°). A movement constant used directly to compute <b>amplitude</b>. Enter the spec value (often 52°). A wrong value skews amplitude across the board.</span><span class="pt">Ângulo de alçamento (30–70°). Uma constante do movimento usada diretamente para calcular a <b>amplitude</b>. Insira o valor de especificação (geralmente 52°). Um valor errado distorce a amplitude por completo.</span></dd>
       </dl>
 
       <h2 id="sim">③ Simulation Parameters</h2>
       <p class="ko"><span class="pill">Simulation</span> 입력일 때만 의미가 있습니다. 만들어 낼 가짜 시계의 특성을 정합니다 — 정상 시계가 어떻게 보이는지, 또는 특정 결함이 그래프에 어떻게 나타나는지 연습할 때 유용합니다.</p>
       <p class="en">Only relevant with the <span class="pill">Simulation</span> input. Defines the synthetic watch — handy to learn what a healthy watch looks like, or how a specific fault appears on the graphs.</p>
+      <p class="pt">Relevante apenas com a entrada <span class="pill">Simulation</span>. Define o relógio sintético — útil para aprender como é um relógio saudável, ou como uma falha específica aparece nos gráficos.</p>
       <dl class="kv">
-        <dt>BPH</dt><dd><span class="ko">합성 시계의 BPH(자동 항목 없음, 직접 선택).</span><span class="en">The synthetic watch's BPH (no Auto here — pick a value).</span></dd>
-        <dt>Error Rate</dt><dd><span class="ko">하루 오차(s/d, −999~999). 양수면 빠르게, 음수면 느리게 가는 시계를 흉내 냅니다.</span><span class="en">Daily error (s/d, −999…999). Positive = a fast watch, negative = slow.</span></dd>
-        <dt>Amplitude</dt><dd><span class="ko">진폭(°, 100–360). 건강한 시계는 보통 270–300°.</span><span class="en">Amplitude (°, 100–360). Healthy is typically 270–300°.</span></dd>
-        <dt>Beat Error</dt><dd><span class="ko">비트 오차(ms, −10~10, 0.1 단위). 똑/딱 비대칭을 흉내 냅니다.</span><span class="en">Beat error (ms, −10…10, 0.1 step). Emulates tic/toc asymmetry.</span></dd>
-        <dt>Realistic</dt><dd><span class="ko">체크하면 잡음·미세 변동을 더해 실제 녹음에 가깝게 만듭니다. 끄면 깔끔한 이상적 신호.</span><span class="en">Adds noise and small variation for a more lifelike signal. Off = a clean ideal signal.</span></dd>
+        <dt>BPH</dt><dd><span class="ko">합성 시계의 BPH(자동 항목 없음, 직접 선택).</span><span class="en">The synthetic watch's BPH (no Auto here — pick a value).</span><span class="pt">O BPH do relógio sintético (sem Auto aqui — escolha um valor).</span></dd>
+        <dt>Error Rate</dt><dd><span class="ko">하루 오차(s/d, −999~999). 양수면 빠르게, 음수면 느리게 가는 시계를 흉내 냅니다.</span><span class="en">Daily error (s/d, −999…999). Positive = a fast watch, negative = slow.</span><span class="pt">Erro diário (s/d, −999…999). Positivo = relógio adiantado, negativo = atrasado.</span></dd>
+        <dt>Amplitude</dt><dd><span class="ko">진폭(°, 100–360). 건강한 시계는 보통 270–300°.</span><span class="en">Amplitude (°, 100–360). Healthy is typically 270–300°.</span><span class="pt">Amplitude (°, 100–360). O saudável é tipicamente 270–300°.</span></dd>
+        <dt>Beat Error</dt><dd><span class="ko">비트 오차(ms, −10~10, 0.1 단위). 똑/딱 비대칭을 흉내 냅니다.</span><span class="en">Beat error (ms, −10…10, 0.1 step). Emulates tic/toc asymmetry.</span><span class="pt">Erro de batida (ms, −10…10, passo de 0,1). Emula a assimetria tic/toc.</span></dd>
+        <dt>Realistic</dt><dd><span class="ko">체크하면 잡음·미세 변동을 더해 실제 녹음에 가깝게 만듭니다. 끄면 깔끔한 이상적 신호.</span><span class="en">Adds noise and small variation for a more lifelike signal. Off = a clean ideal signal.</span><span class="pt">Adiciona ruído e pequenas variações para um sinal mais realista. Desligado = um sinal ideal e limpo.</span></dd>
       </dl>
 
       <h2 id="misc">④ Misc Parameters</h2>
       <p class="ko">검출·표시를 미세 조정하는 고급 옵션입니다. 기본값으로 두어도 대부분 잘 동작합니다.</p>
       <p class="en">Advanced options that fine-tune detection and display. Defaults work for most cases.</p>
+      <p class="pt">Opções avançadas que ajustam finamente a detecção e a exibição. Os padrões funcionam na maioria dos casos.</p>
       <dl class="kv">
         <dt>High Pass Cutoff</dt>
-        <dd><span class="ko">하이패스 필터의 차단 주파수. 이 값 아래의 낮은 주파수(손 떨림·취급 잡음·배경 진동 등)를 걸러 냅니다. 저주파 잡음이 검출을 방해하면 올리고, 신호가 약해지면 내립니다.</span><span class="en">High-pass cut-off frequency. Removes low-frequency content below it (handling noise, background rumble). Raise it if low rumble disturbs detection; lower it if the signal weakens.</span></dd>
+        <dd><span class="ko">하이패스 필터의 차단 주파수. 이 값 아래의 낮은 주파수(손 떨림·취급 잡음·배경 진동 등)를 걸러 냅니다. 저주파 잡음이 검출을 방해하면 올리고, 신호가 약해지면 내립니다.</span><span class="en">High-pass cut-off frequency. Removes low-frequency content below it (handling noise, background rumble). Raise it if low rumble disturbs detection; lower it if the signal weakens.</span><span class="pt">Frequência de corte do filtro passa-altas. Remove o conteúdo de baixa frequência abaixo dela (ruído de manuseio, estrondo de fundo). Aumente se um estrondo grave atrapalhar a detecção; reduza se o sinal enfraquecer.</span></dd>
         <dt>Scope Scale</dt>
-        <dd><span class="ko">스코프류 그래프의 세로 확대 배율(1–8). 파형이 작으면 키워서 봅니다. <b>실행 중에도 변경</b>됩니다(검출에는 영향 없음, 보기 전용).</span><span class="en">Vertical zoom for scope-style graphs (1–8). Magnify a small waveform. Changeable <b>during a run</b> (display-only, doesn't affect detection).</span></dd>
+        <dd><span class="ko">스코프류 그래프의 세로 확대 배율(1–8). 파형이 작으면 키워서 봅니다. <b>실행 중에도 변경</b>됩니다(검출에는 영향 없음, 보기 전용).</span><span class="en">Vertical zoom for scope-style graphs (1–8). Magnify a small waveform. Changeable <b>during a run</b> (display-only, doesn't affect detection).</span><span class="pt">Zoom vertical para os gráficos do tipo osciloscópio (1–8). Amplie uma forma de onda pequena. Alterável <b>durante uma medição</b> (apenas exibição, não afeta a detecção).</span></dd>
         <dt>Verdict Beats</dt>
-        <dd><span class="ko">Vario, Positions, Health 판정이 <b>Measuring…</b>에서 벗어나기 전에 요구하는 최소 beat 수입니다. 기본값은 30이며, 짧게 하면 판정이 빨리 뜨고 길게 하면 평균이 더 안정된 뒤 판정합니다. 실행 중에는 같은 세션의 기준이 바뀌지 않도록 잠깁니다.</span><span class="en">Minimum beats required before Vario, Positions, and Health leave <b>Measuring…</b>. Default is 30; lower values answer sooner, higher values wait for a steadier average. It is locked during a run so one session keeps one verdict threshold.</span></dd>
+        <dd><span class="ko">Vario, Positions, Health 판정이 <b>Measuring…</b>에서 벗어나기 전에 요구하는 최소 beat 수입니다. 기본값은 30이며, 짧게 하면 판정이 빨리 뜨고 길게 하면 평균이 더 안정된 뒤 판정합니다. 실행 중에는 같은 세션의 기준이 바뀌지 않도록 잠깁니다.</span><span class="en">Minimum beats required before Vario, Positions, and Health leave <b>Measuring…</b>. Default is 30; lower values answer sooner, higher values wait for a steadier average. It is locked during a run so one session keeps one verdict threshold.</span><span class="pt">Número mínimo de batidas exigido antes que Vario, Positions e Health saiam de <b>Measuring…</b>. O padrão é 30; valores menores respondem mais cedo, valores maiores aguardam uma média mais estável. Fica bloqueado durante uma medição para que uma sessão mantenha um único limiar de veredito.</span></dd>
         <dt>Use C-onset timing</dt>
-        <dd><span class="ko">진폭을 계산할 때 C 충격의 <b>피크 시각</b> 대신 <b>온셋(시작 가장자리) 시각</b>을 쓰도록 바꿉니다. 일부 무브먼트에서 Amplitude가 더 안정적으로 잡힙니다. (<a href="graphs/escapement.html">Escapement</a> 참고.)</span><span class="en">Use the C impulse's <b>onset timing</b> instead of its <b>peak timing</b> when computing Amplitude. Can be steadier on some movements. (See <a href="graphs/escapement.html">Escapement</a>.)</span></dd>
+        <dd><span class="ko">진폭을 계산할 때 C 충격의 <b>피크 시각</b> 대신 <b>온셋(시작 가장자리) 시각</b>을 쓰도록 바꿉니다. 일부 무브먼트에서 Amplitude가 더 안정적으로 잡힙니다. (<a href="graphs/escapement.html">Escapement</a> 참고.)</span><span class="en">Use the C impulse's <b>onset timing</b> instead of its <b>peak timing</b> when computing Amplitude. Can be steadier on some movements. (See <a href="graphs/escapement.html">Escapement</a>.)</span><span class="pt">Usa o <b>tempo de onset</b> (borda inicial) do impulso C em vez do <b>tempo do pico</b> ao calcular a Amplitude. Pode ser mais estável em alguns movimentos. (Veja <a href="graphs/escapement.html">Escapement</a>.)</span></dd>
         <dt>PLL Event Veto<br><small>(impulse rejection)</small></dt>
-        <dd><span class="ko">위상 추적(PLL)이 예상한 박자에서 크게 벗어난 충격을 <b>거부</b>해, 똑딱이 아닌 일회성 잡음(탭·툭 치는 소리)이 측정을 망치지 않게 합니다. 취급 잡음이 많은 환경에서 켜세요.</span><span class="en">Lets the phase tracker (PLL) <b>reject</b> impulses that fall far from the expected beat, so one-off knocks/taps don't corrupt readings. Turn on in noisy/handling-heavy setups.</span></dd>
+        <dd><span class="ko">위상 추적(PLL)이 예상한 박자에서 크게 벗어난 충격을 <b>거부</b>해, 똑딱이 아닌 일회성 잡음(탭·툭 치는 소리)이 측정을 망치지 않게 합니다. 취급 잡음이 많은 환경에서 켜세요.</span><span class="en">Lets the phase tracker (PLL) <b>reject</b> impulses that fall far from the expected beat, so one-off knocks/taps don't corrupt readings. Turn on in noisy/handling-heavy setups.</span><span class="pt">Permite que o rastreador de fase (PLL) <b>rejeite</b> impulsos que ficam muito longe da batida esperada, para que pancadas/toques isolados não corrompam as leituras. Ligue em configurações ruidosas ou com muito manuseio.</span></dd>
       </dl>
 
-      <h2 id="positions"><span class="ko">포지션 스트립</span><span class="sep"> · </span><span class="en">Position strip</span></h2>
+      <h2 id="positions"><span class="ko">포지션 스트립</span><span class="sep"> · </span><span class="en">Position strip</span><span class="sep"> · </span><span class="pt">Faixa de posição</span></h2>
       <p class="ko">왼쪽 패널과 그래프 사이의 세로 버튼 묶음입니다. 시계를 놓은 <b>자세</b>(문자판 위/아래, 또는 6·9·3·12시 방향이 위로 향하는 수직 자세 등)를 고릅니다. 표준 시계 검사는 여러 자세에서 측정해 균형을 보는데, 여기서 고른 자세가 측정값에 라벨로 붙고 <a href="graphs/positions.html">Positions</a> 그래프의 해당 행에 누적됩니다. 현재 자세는 창 아래 <b>상태 바</b>에도 표시됩니다.</p>
       <p class="en">The vertical button group between the panel and the graphs. It selects the watch's <b>watch position</b> (dial up/down, or 6/9/3/12 o'clock up, etc.). Standard watch testing measures several positions to check balance; the position you pick here labels the readings and accumulates into the matching row of the <a href="graphs/positions.html">Positions</a> graph. The active position also shows in the <b>status bar</b>.</p>
+      <p class="pt">O grupo de botões verticais entre o painel e os gráficos. Seleciona a <b>posição do relógio</b> (mostrador para cima/baixo, ou 6/9/3/12 horas para cima, etc.). O teste padrão de relógios mede várias posições para verificar o equilíbrio; a posição que você escolhe aqui rotula as leituras e se acumula na linha correspondente do gráfico <a href="graphs/positions.html">Positions</a>. A posição ativa também aparece na <b>barra de status</b>.</p>
       <p class="note ko" style="padding:10px 14px">자세 코드는 <b>NIHS 95-10 / ISO 3158</b> 표준을 따르며, 버튼에는 NIHS/Witschi 표기(<b>CH·CB</b>와 시각 라벨)가 그대로 쓰입니다. <b>CH·CB</b>는 문자판을 위/아래로 둔 수평 자세이고, 나머지는 그 시각 방향이 위로 향하는 수직 자세입니다. 기본 4개(<b>12H·3H·6H·9H</b>) 사이에 45° 중간 자세(<b>1:30H·4:30H·7:30H·10:30H</b>)가 끼어 시계 방향 순서로 나열되며, 중간 자세는 필요할 때만 씁니다. 표 오른쪽 <b>ISO 3158</b> 열(DU·CL 등)은 같은 자세의 영문 표기입니다.</p>
       <p class="note en" style="padding:10px 14px">Position codes follow <b>NIHS 95-10 / ISO 3158</b>; the buttons use the NIHS/Witschi labels (<b>CH·CB</b> and hour positions). <b>CH·CB</b> are the flat (horizontal) positions with the dial up/down; the rest are vertical positions with that hour mark pointing up. The four cardinal verticals (<b>12H·3H·6H·9H</b>) are interleaved with the 45° intermediates (<b>1:30H·4:30H·7:30H·10:30H</b>) in clockwise order; the intermediates are used only when needed. The right-hand <b>ISO 3158</b> column (DU, CL, …) is the English designation for the same orientation.</p>
+      <p class="note pt" style="padding:10px 14px">Os códigos de posição seguem a <b>NIHS 95-10 / ISO 3158</b>; os botões usam os rótulos NIHS/Witschi (<b>CH·CB</b> e posições horárias). <b>CH·CB</b> são as posições planas (horizontais) com o mostrador para cima/baixo; as demais são posições verticais com aquela marca de hora apontando para cima. As quatro verticais cardeais (<b>12H·3H·6H·9H</b>) são intercaladas com as intermediárias de 45° (<b>1:30H·4:30H·7:30H·10:30H</b>) em ordem horária; as intermediárias são usadas apenas quando necessário. A coluna <b>ISO 3158</b> à direita (DU, CL, …) é a designação em inglês para a mesma orientação.</p>
 
       <table>
         <thead><tr>
-          <th><span class="ko">기호</span><span class="sep"> · </span><span class="en">Code</span></th>
-          <th><span class="ko">프랑스어 원어</span><span class="sep"> · </span><span class="en">French (NIHS)</span></th>
-          <th><span class="ko">실제 시계의 상태</span><span class="sep"> · </span><span class="en">Orientation</span></th>
+          <th><span class="ko">기호</span><span class="sep"> · </span><span class="en">Code</span><span class="sep"> · </span><span class="pt">Código</span></th>
+          <th><span class="ko">프랑스어 원어</span><span class="sep"> · </span><span class="en">French (NIHS)</span><span class="sep"> · </span><span class="pt">Francês (NIHS)</span></th>
+          <th><span class="ko">실제 시계의 상태</span><span class="sep"> · </span><span class="en">Orientation</span><span class="sep"> · </span><span class="pt">Orientação</span></th>
           <th>ISO 3158</th>
         </tr></thead>
         <tbody>
-          <tr><td><b>CH</b></td><td>Cadran Haut</td><td><span class="ko">문자판이 위를 봄 (평평하게 눕힘)</span><span class="en">Dial up — watch lying flat</span></td><td>DU</td></tr>
-          <tr><td><b>CB</b></td><td>Cadran Bas</td><td><span class="ko">뒷뚜껑이 위를 봄 (엎어놓음)</span><span class="en">Dial down — lying face-down</span></td><td>DD</td></tr>
-          <tr><td><b>12H</b></td><td>12h Haut</td><td><span class="ko">12시 방향이 위로 향함 = 용두가 오른쪽</span><span class="en">12 o'clock up = crown to the right</span></td><td>CR</td></tr>
-          <tr><td><b>1:30H</b></td><td>1h30 Haut</td><td><span class="ko">대각선 중간 자세 — 용두가 위-오른쪽</span><span class="en">Diagonal intermediate — crown up-right</span></td><td>CU(R)</td></tr>
-          <tr><td><b>3H</b></td><td>3h Haut</td><td><span class="ko">3시 방향이 위로 향함 = 용두(크라운)가 하늘을 향함 (가장 흔한 자세)</span><span class="en">3 o'clock up = crown points up (the most common position)</span></td><td>CU</td></tr>
-          <tr><td><b>4:30H</b></td><td>4h30 Haut</td><td><span class="ko">대각선 중간 자세 — 용두가 위-왼쪽</span><span class="en">Diagonal intermediate — crown up-left</span></td><td>CU(L)</td></tr>
-          <tr><td><b>6H</b></td><td>6h Haut</td><td><span class="ko">6시 방향이 위로 향함 = 용두가 왼쪽 (세움)</span><span class="en">6 o'clock up = crown to the left (hanging)</span></td><td>CL</td></tr>
-          <tr><td><b>7:30H</b></td><td>7h30 Haut</td><td><span class="ko">대각선 중간 자세 — 용두가 아래-왼쪽</span><span class="en">Diagonal intermediate — crown down-left</span></td><td>CD(L)</td></tr>
-          <tr><td><b>9H</b></td><td>9h Haut</td><td><span class="ko">9시 방향이 위로 향함 = 용두가 아래</span><span class="en">9 o'clock up = crown points down</span></td><td>CD</td></tr>
-          <tr><td><b>10:30H</b></td><td>10h30 Haut</td><td><span class="ko">대각선 중간 자세 — 용두가 아래-오른쪽</span><span class="en">Diagonal intermediate — crown down-right</span></td><td>CD(R)</td></tr>
+          <tr><td><b>CH</b></td><td>Cadran Haut</td><td><span class="ko">문자판이 위를 봄 (평평하게 눕힘)</span><span class="en">Dial up — watch lying flat</span><span class="pt">Mostrador para cima — relógio deitado na horizontal</span></td><td>DU</td></tr>
+          <tr><td><b>CB</b></td><td>Cadran Bas</td><td><span class="ko">뒷뚜껑이 위를 봄 (엎어놓음)</span><span class="en">Dial down — lying face-down</span><span class="pt">Mostrador para baixo — deitado de face para baixo</span></td><td>DD</td></tr>
+          <tr><td><b>12H</b></td><td>12h Haut</td><td><span class="ko">12시 방향이 위로 향함 = 용두가 오른쪽</span><span class="en">12 o'clock up = crown to the right</span><span class="pt">12 horas para cima = coroa à direita</span></td><td>CR</td></tr>
+          <tr><td><b>1:30H</b></td><td>1h30 Haut</td><td><span class="ko">대각선 중간 자세 — 용두가 위-오른쪽</span><span class="en">Diagonal intermediate — crown up-right</span><span class="pt">Intermediária diagonal — coroa para cima-direita</span></td><td>CU(R)</td></tr>
+          <tr><td><b>3H</b></td><td>3h Haut</td><td><span class="ko">3시 방향이 위로 향함 = 용두(크라운)가 하늘을 향함 (가장 흔한 자세)</span><span class="en">3 o'clock up = crown points up (the most common position)</span><span class="pt">3 horas para cima = coroa apontando para cima (a posição mais comum)</span></td><td>CU</td></tr>
+          <tr><td><b>4:30H</b></td><td>4h30 Haut</td><td><span class="ko">대각선 중간 자세 — 용두가 위-왼쪽</span><span class="en">Diagonal intermediate — crown up-left</span><span class="pt">Intermediária diagonal — coroa para cima-esquerda</span></td><td>CU(L)</td></tr>
+          <tr><td><b>6H</b></td><td>6h Haut</td><td><span class="ko">6시 방향이 위로 향함 = 용두가 왼쪽 (세움)</span><span class="en">6 o'clock up = crown to the left (hanging)</span><span class="pt">6 horas para cima = coroa à esquerda (pendurado)</span></td><td>CL</td></tr>
+          <tr><td><b>7:30H</b></td><td>7h30 Haut</td><td><span class="ko">대각선 중간 자세 — 용두가 아래-왼쪽</span><span class="en">Diagonal intermediate — crown down-left</span><span class="pt">Intermediária diagonal — coroa para baixo-esquerda</span></td><td>CD(L)</td></tr>
+          <tr><td><b>9H</b></td><td>9h Haut</td><td><span class="ko">9시 방향이 위로 향함 = 용두가 아래</span><span class="en">9 o'clock up = crown points down</span><span class="pt">9 horas para cima = coroa apontando para baixo</span></td><td>CD</td></tr>
+          <tr><td><b>10:30H</b></td><td>10h30 Haut</td><td><span class="ko">대각선 중간 자세 — 용두가 아래-오른쪽</span><span class="en">Diagonal intermediate — crown down-right</span><span class="pt">Intermediária diagonal — coroa para baixo-direita</span></td><td>CD(R)</td></tr>
         </tbody>
       </table>
 
-      <h2 id="status"><span class="ko">상태 바</span><span class="sep"> · </span><span class="en">Status bar (창 아래)</span></h2>
+      <h2 id="status"><span class="ko">상태 바</span><span class="sep"> · </span><span class="en">Status bar (창 아래)</span><span class="sep"> · </span><span class="pt">Barra de status (parte inferior da janela)</span></h2>
       <p class="ko">창 맨 아래 줄. 왼쪽부터:</p>
       <p class="en">The bottom strip of the window. From left:</p>
+      <p class="pt">A faixa inferior da janela. Da esquerda:</p>
       <dl class="kv">
-        <dt><span class="ko">상태 메시지</span><span class="en">Status text</span></dt><dd><span class="ko">현재 동작/안내(파일 로드 결과, 오류 등).</span><span class="en">Current activity or messages (file-load result, errors).</span></dd>
-        <dt><span class="ko">포지션</span><span class="en">Position</span></dt><dd><span class="ko">현재 선택된 시계 자세(NIHS 95-10 / ISO 3158).</span><span class="en">The active watch position (NIHS 95-10 / ISO 3158).</span></dd>
-        <dt><span class="ko">지연시간</span><span class="en">Latency</span></dt><dd><span class="ko">캡처→표시까지의 평균/최악 지연, 버린 입력 샘플/합쳐진 UI 프레임, 놓친 비트, 동기 손실 횟수. 실시간 성능을 한눈에 보는 지표입니다.</span><span class="en">End-to-end avg/worst latency (capture→display), dropped input samples / coalesced UI frames, missed beats, sync losses — a quick real-time-performance gauge.</span></dd>
+        <dt><span class="ko">상태 메시지</span><span class="en">Status text</span><span class="pt">Texto de status</span></dt><dd><span class="ko">현재 동작/안내(파일 로드 결과, 오류 등).</span><span class="en">Current activity or messages (file-load result, errors).</span><span class="pt">Atividade ou mensagens atuais (resultado de carregamento de arquivo, erros).</span></dd>
+        <dt><span class="ko">포지션</span><span class="en">Position</span><span class="pt">Posição</span></dt><dd><span class="ko">현재 선택된 시계 자세(NIHS 95-10 / ISO 3158).</span><span class="en">The active watch position (NIHS 95-10 / ISO 3158).</span><span class="pt">A posição ativa do relógio (NIHS 95-10 / ISO 3158).</span></dd>
+        <dt><span class="ko">지연시간</span><span class="en">Latency</span><span class="pt">Latência</span></dt><dd><span class="ko">캡처→표시까지의 평균/최악 지연, 버린 입력 샘플/합쳐진 UI 프레임, 놓친 비트, 동기 손실 횟수. 실시간 성능을 한눈에 보는 지표입니다.</span><span class="en">End-to-end avg/worst latency (capture→display), dropped input samples / coalesced UI frames, missed beats, sync losses — a quick real-time-performance gauge.</span><span class="pt">Latência média/pior de ponta a ponta (captura→exibição), amostras de entrada descartadas / quadros de UI agrupados, batidas perdidas, perdas de sincronia — um indicador rápido do desempenho em tempo real.</span></dd>
       </dl>
 
-      <h2 id="review"><span class="ko">리뷰 바</span><span class="sep"> · </span><span class="en">Review bar (Long-Term)</span></h2>
+      <h2 id="review"><span class="ko">리뷰 바</span><span class="sep"> · </span><span class="en">Review bar (Long-Term)</span><span class="sep"> · </span><span class="pt">Barra de revisão (Long-Term)</span></h2>
       <p class="ko"><a href="graphs/long-term.html">Long-Term</a> 탭 안에 항상 보이며, 실행 중에는 비활성화되어 있습니다. ⏸로 일시정지하면 활성화되어 데이터를 잃지 않고 <b>지난 Long-Term 기록을 되짚어</b> 볼 수 있습니다.</p>
       <p class="en">Always visible inside the <a href="graphs/long-term.html">Long-Term</a> tab, disabled while the run is live. Pause (⏸) to enable it and scrub <b>back through the Long-Term recording</b> without losing data.</p>
+      <p class="pt">Sempre visível dentro da aba <a href="graphs/long-term.html">Long-Term</a>, desativada enquanto a medição está ao vivo. Pause (⏸) para habilitá-la e percorrer <b>de volta a gravação Long-Term</b> sem perder dados.</p>
       <ul>
-        <li><kbd>−1 s</kbd> / <kbd>+1 s</kbd> <span class="ko">리뷰 커서를 1초씩 뒤/앞으로 이동.</span><span class="en">Move the review cursor 1 second back/forward.</span></li>
-        <li><span class="ko"><b>슬라이더</b> — Long-Term 기록 전체를 자유롭게 스크럽. 세 Long-Term 플롯과 아래 읽기값이 그 시점으로 갱신됩니다.</span><span class="en"><b>Slider</b> — scrub anywhere through the Long-Term recording; the three Long-Term plots and readouts update to that moment.</span></li>
-        <li><kbd>LIVE</kbd> <span class="ko">커서를 지우고 가장 최신 값으로 복귀.</span><span class="en">Clear the cursor and jump back to the newest reading.</span></li>
-        <li><span class="ko"><b>읽기 라벨</b> — 현재 커서 위치 / 마지막으로 캡처된 시각.</span><span class="en"><b>Readout</b> — cursor position / latest captured time.</span></li>
+        <li><kbd>−1 s</kbd> / <kbd>+1 s</kbd> <span class="ko">리뷰 커서를 1초씩 뒤/앞으로 이동.</span><span class="en">Move the review cursor 1 second back/forward.</span><span class="pt">Move o cursor de revisão 1 segundo para trás/frente.</span></li>
+        <li><span class="ko"><b>슬라이더</b> — Long-Term 기록 전체를 자유롭게 스크럽. 세 Long-Term 플롯과 아래 읽기값이 그 시점으로 갱신됩니다.</span><span class="en"><b>Slider</b> — scrub anywhere through the Long-Term recording; the three Long-Term plots and readouts update to that moment.</span><span class="pt"><b>Controle deslizante</b> — percorra qualquer ponto da gravação Long-Term; os três gráficos Long-Term e as leituras se atualizam para aquele momento.</span></li>
+        <li><kbd>LIVE</kbd> <span class="ko">커서를 지우고 가장 최신 값으로 복귀.</span><span class="en">Clear the cursor and jump back to the newest reading.</span><span class="pt">Limpa o cursor e salta de volta para a leitura mais recente.</span></li>
+        <li><span class="ko"><b>읽기 라벨</b> — 현재 커서 위치 / 마지막으로 캡처된 시각.</span><span class="en"><b>Readout</b> — cursor position / latest captured time.</span><span class="pt"><b>Leitura</b> — posição do cursor / horário capturado mais recente.</span></li>
       </ul>
 
-      <h2 id="titlebar"><span class="ko">제목 표시줄</span><span class="sep"> · </span><span class="en">Title bar</span></h2>
+      <h2 id="titlebar"><span class="ko">제목 표시줄</span><span class="sep"> · </span><span class="en">Title bar</span><span class="sep"> · </span><span class="pt">Barra de título</span></h2>
       <p class="ko">창 맨 위 오른쪽 버튼들:</p>
       <p class="en">Buttons at the top-right of the window:</p>
+      <p class="pt">Botões no canto superior direito da janela:</p>
       <dl class="kv">
-        <dt>◐ <span class="ko">테마</span><span class="en">Theme</span></dt><dd><span class="ko">밝은/어두운 테마 전환. 그래프 배경·색도 함께 바뀝니다.</span><span class="en">Toggle light/dark theme; graph backgrounds and colours follow.</span></dd>
-        <dt>— □ ✕</dt><dd><span class="ko">최소화 · 최대화 · 닫기.</span><span class="en">Minimize · maximize · close.</span></dd>
+        <dt>◐ <span class="ko">테마</span><span class="en">Theme</span><span class="pt">Tema</span></dt><dd><span class="ko">밝은/어두운 테마 전환. 그래프 배경·색도 함께 바뀝니다.</span><span class="en">Toggle light/dark theme; graph backgrounds and colours follow.</span><span class="pt">Alterna entre tema claro/escuro; os fundos e as cores dos gráficos acompanham.</span></dd>
+        <dt>— □ ✕</dt><dd><span class="ko">최소화 · 최대화 · 닫기.</span><span class="en">Minimize · maximize · close.</span><span class="pt">Minimizar · maximizar · fechar.</span></dd>
       </dl>
 
       <div class="pager">
