@@ -989,6 +989,10 @@ public sealed class InfoTabRegistryTests
             .ToArray();
 
         Assert.Equal(BeatErrorReadout.Labels, labels.Select(label => label.Text).ToArray());
+        // NOTE: the labels bind Foreground to the ChromeAccentBrush DynamicResource,
+        // which only resolves to a color once attached under a theme variant; off-tree
+        // it falls back to the default. So here we can only assert the binding is set;
+        // verifying it is specifically the accent color needs a hosted themed window.
         Assert.All(labels, label =>
         {
             Assert.Equal(1.0, label.Opacity);

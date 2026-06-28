@@ -1,9 +1,11 @@
 using System;
 using System.Linq;
+using System.Runtime.InteropServices;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Media.Imaging;
 using TimeGrapher.App.Rendering;
 using TimeGrapher.App.Tabs;
 using TimeGrapher.Core.Shared;
@@ -98,6 +100,76 @@ public sealed class MultiPositionSeqRendererTests
             ChromeBorder: 0xFFCFCFCF);
 
         Assert.Equal(palette.ChromeBorder, RateRangeLaneControl.TrackFillArgb(palette));
+    }
+
+    [Fact]
+    public void RateRangeLaneRendersTheAcceptBandFromThePaletteTicColor()
+    {
+        // The helper tests above pin the colors; this proves Render actually draws
+        // the accept band from AcceptBandFillArgb (the Tic color) rather than a
+        // hardcoded value or the track color.
+        HeadlessPlatform.EnsureStarted();
+
+        var control = new RateRangeLaneControl(hasValue: false, min: 0.0, mean: 0.0, max: 0.0)
+        {
+            Width = 200,
+        };
+        control.Measure(new Size(200, 26));
+        control.Arrange(new Rect(0, 0, 200, 26));
+
+        var target = new RenderTargetBitmap(new PixelSize(200, 26), new Vector(96, 96));
+        target.Render(control);
+
+        byte[] pixels = ReadBgra(target, 200, 26);
+        PlotThemePalette palette = PlotThemePalette.Current;
+        Color tic = Color.FromUInt32(RateRangeLaneControl.AcceptBandFillArgb(palette));
+        Color track = Color.FromUInt32(RateRangeLaneControl.TrackFillArgb(palette));
+
+        // The band rect overhangs the track by 2px, so the rows just above the
+        // track carry the band over a transparent background — semi-transparent
+        // pixels whose color is the Tic-derived band fill, not the track grey.
+        bool bandUsesTicColor = false;
+        for (int y = 5; y <= 8 && !bandUsesTicColor; y++)
+        {
+            for (int x = 0; x < 200; x++)
+            {
+                int i = (y * 200 + x) * 4;
+                byte a = pixels[i + 3];
+                if (a == 0 || a == 255)
+                {
+                    continue; // transparent gap or fully opaque (track), not the overhang
+                }
+
+                int b = pixels[i], g = pixels[i + 1], r = pixels[i + 2];
+                int toTic = Math.Abs(r - tic.R) + Math.Abs(g - tic.G) + Math.Abs(b - tic.B);
+                int toTrack = Math.Abs(r - track.R) + Math.Abs(g - track.G) + Math.Abs(b - track.B);
+                if (toTic < toTrack)
+                {
+                    bandUsesTicColor = true;
+                    break;
+                }
+            }
+        }
+
+        Assert.True(
+            bandUsesTicColor,
+            "Render must paint the accept band with the palette Tic color (AcceptBandFillArgb), not the track color.");
+    }
+
+    private static byte[] ReadBgra(RenderTargetBitmap bitmap, int width, int height)
+    {
+        var pixels = new byte[width * height * 4];
+        GCHandle handle = GCHandle.Alloc(pixels, GCHandleType.Pinned);
+        try
+        {
+            bitmap.CopyPixels(new PixelRect(0, 0, width, height), handle.AddrOfPinnedObject(), pixels.Length, width * 4);
+        }
+        finally
+        {
+            handle.Free();
+        }
+
+        return pixels;
     }
 
     [Fact]

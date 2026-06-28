@@ -215,6 +215,9 @@ public sealed class AppXamlLoadTests
         string mainWindowXaml = File.ReadAllText(SourcePath("src", "TimeGrapher.App", "Views", "MainWindow.axaml"));
         Assert.DoesNotContain("Animation Duration=\"0:0:0.7\"", mainWindowXaml);
         Assert.DoesNotContain("Opacity\" Value=\"0.35\"", mainWindowXaml);
+        // Format-insensitive backstop: any reintroduced warning pulse adds an
+        // <Animation> element regardless of its exact duration/opacity formatting.
+        Assert.DoesNotContain("<Animation", mainWindowXaml, StringComparison.Ordinal);
     }
 
     [Fact]
