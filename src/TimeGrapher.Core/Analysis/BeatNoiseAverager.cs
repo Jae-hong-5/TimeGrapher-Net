@@ -4,9 +4,10 @@ namespace TimeGrapher.Core.Analysis;
 
 /// <summary>
 /// Scope 2 averaging: accumulates fixed 20 ms beat-noise traces into two lanes
-/// assigned by the alternating beat phase. The lanes deliberately carry no
-/// tic/toc meaning (the plan: the system does not guarantee which physical
-/// noise lands on which axis, so the UI labels them trace 1/2).
+/// assigned by the alternating beat phase. The UI presents the two lanes as the
+/// alternating half-beats — lane 1 as "Tic" and lane 2 as "Toc". The phase split
+/// is stable within a run, so the labels track the two alternating beats; which
+/// physical half maps to lane 1 versus lane 2 is not guaranteed across runs.
 ///
 /// With Σ enabled, each lane averages up to <see cref="IntervalsPerLane"/>
 /// intervals and the cycle freezes once both lanes are full (50 tic + 50 tac);
