@@ -26,18 +26,8 @@ internal sealed partial class InfoTabRegistry
             Margin = new Thickness(4),
         };
 
-        // --- radar header (metric title + better-is hint) ---
-        var hint = new TextBlock
-        {
-            FontSize = 14,
-            Opacity = 0.75,
-            VerticalAlignment = VerticalAlignment.Center,
-            TextWrapping = TextWrapping.Wrap,
-            Margin = new Thickness(12, 0, 8, 0),
-        };
-
         // --- Diagnosis rail controls ---
-        var overall = new TextBlock { FontSize = 22, FontWeight = FontWeight.Bold, TextWrapping = TextWrapping.Wrap };
+        var overall = new TextBlock { FontSize = 14, FontWeight = FontWeight.Bold, TextWrapping = TextWrapping.Wrap };
         var overallSub = new TextBlock { FontSize = 14, Opacity = 0.6, Margin = new Thickness(0, 2, 0, 0) };
 
         var levelsGrid = new Grid
@@ -67,7 +57,7 @@ internal sealed partial class InfoTabRegistry
             MakeConsistencyCard("V/H Bias", "vertical − horizontal mean rate");
 
         var rail = new HealthDiagnosisControls(
-            hint, overall, overallSub, levelRows, weakest, spread, balance, verticalHorizontal);
+            overall, overallSub, levelRows, weakest, spread, balance, verticalHorizontal);
 
         var renderer = new WatchHealthRadarRenderer(radar, rail);
 
@@ -118,17 +108,10 @@ internal sealed partial class InfoTabRegistry
         UpdateMetricButtons();
 
         // --- radar area (col 0) ---
-        var headerStrip = new Grid { ColumnDefinitions = new ColumnDefinitions("*"), Margin = new Thickness(8, 4, 8, 2) };
-        headerStrip.Children.Add(hint);
-
-        var radarArea = new Grid { RowDefinitions = new RowDefinitions("Auto,*") };
-        Grid.SetRow(headerStrip, 0);
-        Grid.SetRow(radar, 1);
-        radarArea.Children.Add(headerStrip);
+        var radarArea = new Grid();
         radarArea.Children.Add(radar);
         if (CreateWaitingOverlay(context.ViewModel) is { } overlay)
         {
-            Grid.SetRow(overlay, 1);
             radarArea.Children.Add(overlay);
         }
 
@@ -155,15 +138,6 @@ internal sealed partial class InfoTabRegistry
         railStack.Children.Add(balanceCard);
         railStack.Children.Add(vhCard);
 
-        railStack.Children.Add(new TextBlock
-        {
-            Text = "Criteria (inline): CHECK when rate spread > 15 s/d across qualified positions. Reuses the Positions sequence — no new sensor.",
-            FontSize = 14,
-            Opacity = 0.6,
-            TextWrapping = TextWrapping.Wrap,
-            Margin = new Thickness(0, 12, 0, 0),
-        });
-
         var panel = new Border
         {
             Classes = { "PositionPanel" },
@@ -176,9 +150,6 @@ internal sealed partial class InfoTabRegistry
             },
         };
 
-        // Frame the radar in the same PositionPanel so both columns are equal-height
-        // white boxes that align top and bottom (the radar header sits inside its box
-        // just as the Diagnosis header sits inside the rail box).
         var radarPanel = new Border
         {
             Classes = { "PositionPanel" },
@@ -234,6 +205,7 @@ internal sealed partial class InfoTabRegistry
             HorizontalAlignment = HorizontalAlignment.Right,
             IsVisible = false,
         };
+        ToolTip.SetTip(dot, "Worst status for this position");
 
         Place(grid, pos, rowIndex, 0);
         Place(grid, amp, rowIndex, 1);

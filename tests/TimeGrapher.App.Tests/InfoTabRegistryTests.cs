@@ -1,8 +1,10 @@
+using System.Runtime.InteropServices;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Media.Imaging;
 using ScottPlot.Avalonia;
 using ScottPlot.Plottables;
 using TimeGrapher.App;
@@ -1211,10 +1213,142 @@ public sealed class InfoTabRegistryTests
             text.Text?.Contains("= current", StringComparison.Ordinal) == true);
     }
 
+    [Fact]
+    public void WatchHealthRailOmitsInlineCriteriaAndUsesBodyFontSize()
+    {
+        Grid content = CreateWatchHealthContent();
+
+        TextBlock[] textBlocks = Descendants(content).OfType<TextBlock>().ToArray();
+        Assert.DoesNotContain(textBlocks, text =>
+            text.Text?.Contains("Criteria", StringComparison.OrdinalIgnoreCase) == true);
+        Assert.DoesNotContain(textBlocks, text =>
+            text.Text?.Contains("by position", StringComparison.OrdinalIgnoreCase) == true ||
+            text.Text?.Contains("healthier", StringComparison.OrdinalIgnoreCase) == true);
+        Assert.DoesNotContain(textBlocks, text =>
+            text.Text?.Contains("Weakest", StringComparison.OrdinalIgnoreCase) == true);
+        Assert.Contains(textBlocks, text => text.Text == "Review Focus: —");
+        Assert.All(textBlocks, text => Assert.Equal(14, text.FontSize));
+        Assert.All(Descendants(content).OfType<Button>(), button => Assert.Equal(14, button.FontSize));
+
+        Border[] statusDots = Descendants(content)
+            .OfType<Border>()
+            .Where(border => border.Width == 10 && border.Height == 10)
+            .ToArray();
+        Assert.Equal(WatchHealthRadarModel.AxisOrder.Count, statusDots.Length);
+        Assert.All(statusDots, dot => Assert.Equal("Worst status for this position", ToolTip.GetTip(dot)));
+    }
+
+    [Fact]
+    public void WatchHealthTabRendersAtDefaultDpi()
+    {
+        EnsureAvaloniaPlatform();
+        Grid content = CreateWatchHealthContent();
+        var contentSize = new Size(1280, 680);
+        content.Measure(contentSize);
+        content.Arrange(new Rect(contentSize));
+
+        var target = new RenderTargetBitmap(new PixelSize(1280, 680), new Vector(96, 96));
+        target.Render(content);
+
+        Assert.True(CountOpaquePixels(target, 1280, 680) > 10000);
+    }
+
+    [Fact]
+    public void WatchHealthGuideScreenshotsExportAtDefaultDpi()
+    {
+        EnsureAvaloniaPlatform();
+        string outputDirectory = Path.Combine(RepositoryRoot(), "artifacts", "health-guides");
+        Directory.CreateDirectory(outputDirectory);
+
+        double inBand = (VarioGaugePolicy.AmplitudeAcceptMinDeg + VarioGaugePolicy.AmplitudeAcceptMaxDeg) / 2.0;
+        double serviceLow = VarioVerdict.AmplitudeServiceDeg - 20.0;
+
+        CaptureGuide(
+            "health-measuring.png",
+            "Measuring…",
+            WatchPosition.CH);
+        CaptureGuide(
+            "health-ok-in-range.png",
+            "OK — In Range",
+            WatchPosition.CH,
+            WatchHealthRadarModel.AxisOrder
+                .Select(position => Position(position, rate: 0.0, amplitude: inBand, beatError: 0.2, count: 60))
+                .ToArray());
+        CaptureGuide(
+            "health-watch-review.png",
+            "WATCH — Review",
+            WatchPosition.CH,
+            Position(WatchPosition.CH, rate: 0.0, amplitude: inBand, beatError: 0.2, count: 60),
+            Position(WatchPosition.P3H, rate: 0.0, amplitude: inBand, beatError: 0.2, count: 60),
+            Position(WatchPosition.P9H, rate: 20.0, amplitude: inBand, beatError: 0.2, count: 60));
+        CaptureGuide(
+            "health-alert-review-required.png",
+            "ALERT — Review Required",
+            WatchPosition.CB,
+            Position(WatchPosition.CH, rate: 0.0, amplitude: inBand, beatError: 0.2, count: 60),
+            Position(WatchPosition.CB, rate: 0.0, amplitude: serviceLow, beatError: 0.2, count: 60),
+            Position(WatchPosition.P3H, rate: 0.0, amplitude: inBand, beatError: 0.2, count: 60));
+
+        void CaptureGuide(string fileName, string expectedGuide, WatchPosition activePosition, params PositionSummary[] positions)
+        {
+            WatchHealthScreenshotSurface surface = CreateRenderedWatchHealthSurface(activePosition, positions);
+            try
+            {
+                Assert.Contains(Descendants(surface.Content).OfType<TextBlock>(), text => text.Text == expectedGuide);
+
+                string path = Path.Combine(outputDirectory, fileName);
+                SaveControlScreenshot(surface.Content, path);
+
+                Assert.True(File.Exists(path));
+            }
+            finally
+            {
+                surface.Window.Close();
+            }
+        }
+    }
+
     private static Grid CreateVarioContent()
     {
         return Assert.IsType<Grid>(CreateVarioRegistration().TabItem.Content);
     }
+
+    private static Grid CreateWatchHealthContent()
+    {
+        var tabControl = new TabControl();
+        InfoTabRegistry registry = InfoTabRegistry.FromCatalog(tabControl, new Grid(), "Arial");
+        return Assert.IsType<Grid>(registry.Registrations.Single(
+            registration => registration.Definition.Id == InfoTabCatalog.WatchHealthRadarTabId).TabItem.Content);
+    }
+
+    private static WatchHealthScreenshotSurface CreateRenderedWatchHealthSurface(
+        WatchPosition activePosition,
+        params PositionSummary[] positions)
+    {
+        var tabControl = new TabControl();
+        InfoTabRegistry registry = InfoTabRegistry.FromCatalog(tabControl, new Grid(), "Arial");
+        InfoTabRegistration registration = registry.Registrations.Single(
+            registration => registration.Definition.Id == InfoTabCatalog.WatchHealthRadarTabId);
+        var content = Assert.IsType<Grid>(registration.TabItem.Content);
+        registry.CreateRouter().Route(
+            Frame(version: 1, activePosition, positions),
+            InfoTabCatalog.WatchHealthRadarTabId,
+            new AnalysisTabRenderContext(48000));
+
+        tabControl.SelectedItem = registration.TabItem;
+        var window = new Window
+        {
+            Width = 1280,
+            Height = 680,
+            Background = Brushes.White,
+            Content = tabControl,
+        };
+        window.Show();
+
+        return new WatchHealthScreenshotSurface(window, content);
+    }
+
+    private sealed record WatchHealthScreenshotSurface(Window Window, Grid Content);
 
     private static Grid CreateLongTermContent(MainWindowViewModel? viewModel = null)
     {
@@ -1398,5 +1532,51 @@ public sealed class InfoTabRegistryTests
             }
         }
     }
+
+    private static int CountOpaquePixels(RenderTargetBitmap bitmap, int width, int height)
+    {
+        var pixels = new byte[width * height * 4];
+        GCHandle handle = GCHandle.Alloc(pixels, GCHandleType.Pinned);
+        try
+        {
+            bitmap.CopyPixels(new PixelRect(0, 0, width, height), handle.AddrOfPinnedObject(), pixels.Length, width * 4);
+        }
+        finally
+        {
+            handle.Free();
+        }
+
+        int opaque = 0;
+        for (int i = 3; i < pixels.Length; i += 4)
+        {
+            if (pixels[i] > 16)
+            {
+                opaque++;
+            }
+        }
+
+        return opaque;
+    }
+
+    private static void SaveControlScreenshot(Control content, string path)
+    {
+        if (content is Panel panel)
+        {
+            panel.Background = Brushes.White;
+        }
+
+        var contentSize = new Size(1280, 680);
+        content.Measure(contentSize);
+        content.Arrange(new Rect(contentSize));
+
+        var target = new RenderTargetBitmap(new PixelSize(1280, 680), new Vector(96, 96));
+        target.Render(content);
+        target.Save(path);
+
+        Assert.True(CountOpaquePixels(target, 1280, 680) > 10000);
+    }
+
+    private static string RepositoryRoot() =>
+        Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
 
 }

@@ -15,7 +15,6 @@ internal sealed record HealthConsistencyRowControls(TextBlock Reading, TextBlock
 
 /// <summary>The mutable controls of the unified Diagnosis rail.</summary>
 internal sealed record HealthDiagnosisControls(
-    TextBlock Hint,
     TextBlock Overall,
     TextBlock OverallSub,
     IReadOnlyList<HealthLevelRowControls> LevelRows,
@@ -85,8 +84,6 @@ internal sealed class WatchHealthRadarRenderer
         WatchHealthRadarModel model = WatchHealthRadarModel.Build(_positions, _metric, _activePosition);
         _radar.SetModel(model);
 
-        _rail.Hint.Text = $"{model.MetricTitle} · {model.BetterHint}";
-
         _rail.Overall.Text = model.OverallText;
         BindForeground(_rail.Overall, LevelBrush(model.OverallLevel));
         _rail.OverallSub.Text = string.Format(
@@ -97,8 +94,8 @@ internal sealed class WatchHealthRadarRenderer
         ProjectLevels(model);
 
         _rail.Weakest.Text = model.WeakestPosition is { } position
-            ? $"Weakest: {position.ShortName()} · {position.LongName()}"
-            : "Weakest: —";
+            ? $"Review Focus: {position.ShortName()} · {position.LongName()}"
+            : "Review Focus: —";
 
         ConsistencyDiagnosis consistency = model.Consistency;
         ProjectConsistency(_rail.Spread, FormatSpread(consistency.RateSpreadSPerDay), consistency.SpreadStatus);

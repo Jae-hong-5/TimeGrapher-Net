@@ -51,8 +51,6 @@ internal sealed record HealthLevelRow(
 /// </summary>
 internal sealed record WatchHealthRadarModel(
     RadarMetric Metric,
-    string MetricTitle,
-    string BetterHint,
     IReadOnlyList<RadarAxis> Axes,
     bool HasBand,
     double BandInnerFraction,
@@ -195,9 +193,9 @@ internal sealed record WatchHealthRadarModel(
                 level = worst;
                 verdictText = level switch
                 {
-                    VarioVerdictLevel.Bad => "ALERT — Service Required",
-                    VarioVerdictLevel.Warn => "WATCH — Keep Measuring",
-                    _ => "OK — Healthy",
+                    VarioVerdictLevel.Bad => "ALERT — Review Required",
+                    VarioVerdictLevel.Warn => "WATCH — Review",
+                    _ => "OK — In Range",
                 };
             }
             else
@@ -243,16 +241,14 @@ internal sealed record WatchHealthRadarModel(
         VarioVerdictLevel overallLevel = (VarioVerdictLevel)Math.Max((int)level, (int)consistency.Level);
         string overallText = overallLevel switch
         {
-            VarioVerdictLevel.Bad => "ALERT — Service Required",
-            VarioVerdictLevel.Warn => "WATCH — Keep Measuring",
-            VarioVerdictLevel.Good => "OK — Healthy",
+            VarioVerdictLevel.Bad => "ALERT — Review Required",
+            VarioVerdictLevel.Warn => "WATCH — Review",
+            VarioVerdictLevel.Good => "OK — In Range",
             _ => "Measuring…",
         };
 
         return new WatchHealthRadarModel(
             metric,
-            spec.Title,
-            spec.BetterHint,
             axes,
             hasBand,
             bandInner,
@@ -292,8 +288,6 @@ internal sealed record WatchHealthRadarModel(
     /// </summary>
     private sealed class MetricSpec
     {
-        public required string Title { get; init; }
-        public required string BetterHint { get; init; }
         public required Func<PositionSummary, StatsSummary> Stats { get; init; }
         public required Func<double, double> RadiusValue { get; init; }
         public required Func<double, double, (double Min, double Max)> Scale { get; init; }
@@ -322,8 +316,6 @@ internal sealed record WatchHealthRadarModel(
         {
             return new MetricSpec
             {
-                Title = "Amplitude by position",
-                BetterHint = "larger is healthier",
                 Stats = p => p.Amplitude,
                 RadiusValue = mean => mean,
                 // Fixed instrument scale: service-low (180) to over-banked (330).
@@ -348,8 +340,6 @@ internal sealed record WatchHealthRadarModel(
             double center = (VarioGaugePolicy.RateAcceptMinSPerDay + VarioGaugePolicy.RateAcceptMaxSPerDay) / 2.0;
             return new MetricSpec
             {
-                Title = "Rate by position",
-                BetterHint = "closer to the band is healthier",
                 Stats = p => p.Rate,
                 RadiusValue = mean => mean,
                 Scale = (dataMin, dataMax) =>
@@ -375,8 +365,6 @@ internal sealed record WatchHealthRadarModel(
         {
             return new MetricSpec
             {
-                Title = "Beat error by position",
-                BetterHint = "smaller is healthier",
                 Stats = p => p.BeatError,
                 RadiusValue = mean => Math.Abs(mean),
                 Scale = (dataMin, dataMax) => (0.0, Math.Max(

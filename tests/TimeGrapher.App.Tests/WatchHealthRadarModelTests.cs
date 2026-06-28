@@ -20,6 +20,11 @@ public class WatchHealthRadarModelTests
     private static PositionSummary Beat(WatchPosition position, double beatMs, long count = 50) =>
         new(position, None, None, Stat(beatMs, count));
 
+    private static double InBandAmplitude() =>
+        (VarioGaugePolicy.AmplitudeAcceptMinDeg + VarioGaugePolicy.AmplitudeAcceptMaxDeg) / 2.0;
+
+    private static double ServiceLowAmplitude() => VarioVerdict.AmplitudeServiceDeg - 20.0;
+
     private static RadarAxis AxisFor(WatchHealthRadarModel model, WatchPosition position) =>
         model.Axes.Single(a => a.Position == position);
 
@@ -42,6 +47,40 @@ public class WatchHealthRadarModelTests
         Assert.Equal(0, model.MeasuredCount);
         Assert.Null(model.WeakestPosition);
         Assert.Equal(VarioVerdictLevel.Pending, model.VerdictLevel);
+    }
+
+    public static TheoryData<string, PositionSummary[], WatchPosition, int, string> OverallGuideCases() => new()
+    {
+        { "Measuring", Array.Empty<PositionSummary>(), WatchPosition.CH, (int)VarioVerdictLevel.Pending, "Measuring…" },
+        { "OK", new[] { Amp(WatchPosition.CH, InBandAmplitude()) }, WatchPosition.CH, (int)VarioVerdictLevel.Good, "OK — In Range" },
+        {
+            "WATCH",
+            new[]
+            {
+                AmpRate(WatchPosition.CH, InBandAmplitude(), rate: 0.0),
+                AmpRate(WatchPosition.P3H, InBandAmplitude(), rate: 0.0),
+                AmpRate(WatchPosition.P9H, InBandAmplitude(), rate: 20.0),
+            },
+            WatchPosition.CH,
+            (int)VarioVerdictLevel.Warn,
+            "WATCH — Review"
+        },
+        { "ALERT", new[] { Amp(WatchPosition.CB, ServiceLowAmplitude()) }, WatchPosition.CB, (int)VarioVerdictLevel.Bad, "ALERT — Review Required" },
+    };
+
+    [Theory]
+    [MemberData(nameof(OverallGuideCases))]
+    public void Build_OverallGuideTextCoversEveryHealthState(
+        string _,
+        PositionSummary[] positions,
+        WatchPosition activePosition,
+        int expectedLevel,
+        string expectedText)
+    {
+        WatchHealthRadarModel model = WatchHealthRadarModel.Build(positions, RadarMetric.Amplitude, activePosition);
+
+        Assert.Equal(expectedLevel, (int)model.OverallLevel);
+        Assert.Equal(expectedText, model.OverallText);
     }
 
     [Fact]
@@ -98,20 +137,20 @@ public class WatchHealthRadarModelTests
     [Fact]
     public void Amplitude_AllInBand_ReadsHealthy()
     {
-        double inBand = (VarioGaugePolicy.AmplitudeAcceptMinDeg + VarioGaugePolicy.AmplitudeAcceptMaxDeg) / 2.0;
+        double inBand = InBandAmplitude();
         var positions = WatchHealthRadarModel.AxisOrder.Select(p => Amp(p, inBand)).ToArray();
 
         WatchHealthRadarModel model = WatchHealthRadarModel.Build(positions, RadarMetric.Amplitude);
 
         Assert.Equal(VarioVerdictLevel.Good, model.VerdictLevel);
-        Assert.Contains("OK", model.VerdictText);
+        Assert.Equal("OK — In Range", model.VerdictText);
     }
 
     [Fact]
     public void Amplitude_BelowServiceThreshold_RaisesAlert()
     {
-        double inBand = (VarioGaugePolicy.AmplitudeAcceptMinDeg + VarioGaugePolicy.AmplitudeAcceptMaxDeg) / 2.0;
-        double serviceLow = VarioVerdict.AmplitudeServiceDeg - 20.0;
+        double inBand = InBandAmplitude();
+        double serviceLow = ServiceLowAmplitude();
         var positions = new[]
         {
             Amp(WatchPosition.CH, inBand),
@@ -121,14 +160,15 @@ public class WatchHealthRadarModelTests
         WatchHealthRadarModel model = WatchHealthRadarModel.Build(positions, RadarMetric.Amplitude);
 
         Assert.Equal(VarioVerdictLevel.Bad, model.VerdictLevel);
-        Assert.Contains("ALERT", model.VerdictText);
+        Assert.Equal("ALERT — Review Required", model.VerdictText);
+        Assert.DoesNotContain("Service", model.VerdictText);
         Assert.Equal(WatchPosition.CB, model.WeakestPosition);
     }
 
     [Fact]
     public void Verdict_StaysPendingUntilWarmupCountReached()
     {
-        double inBand = (VarioGaugePolicy.AmplitudeAcceptMinDeg + VarioGaugePolicy.AmplitudeAcceptMaxDeg) / 2.0;
+        double inBand = InBandAmplitude();
         var positions = new[] { Amp(WatchPosition.CH, inBand, count: 5) };
 
         WatchHealthRadarModel model = WatchHealthRadarModel.Build(positions, RadarMetric.Amplitude);
@@ -186,12 +226,11 @@ public class WatchHealthRadarModelTests
     }
 
     [Fact]
-    public void Rate_FormatsSignedValueAndSelectsMetricTitle()
+    public void Rate_FormatsSignedValue()
     {
         WatchHealthRadarModel model = WatchHealthRadarModel.Build(
             new[] { Rate(WatchPosition.CH, 8.0) }, RadarMetric.Rate);
 
-        Assert.Contains("Rate", model.MetricTitle);
         Assert.Contains("s/d", AxisFor(model, WatchPosition.CH).ValueText);
     }
 
@@ -218,7 +257,7 @@ public class WatchHealthRadarModelTests
     public void Build_LevelSeverityIsWorstOfTheThreeMeasures()
     {
         // Service-low amplitude alone makes the row's status dot ALERT (Bad).
-        double serviceLow = VarioVerdict.AmplitudeServiceDeg - 20.0;
+        double serviceLow = ServiceLowAmplitude();
         var positions = new[] { Amp(WatchPosition.CH, serviceLow) };
 
         WatchHealthRadarModel model = WatchHealthRadarModel.Build(positions, RadarMetric.Amplitude);
@@ -232,7 +271,7 @@ public class WatchHealthRadarModelTests
         // Amplitude in band on every measured position (band axis Good), but the
         // qualified rate spread is 20 s/d (> 15) so consistency CHECKs — the
         // overall verdict must take the worse axis (WATCH).
-        double inBand = (VarioGaugePolicy.AmplitudeAcceptMinDeg + VarioGaugePolicy.AmplitudeAcceptMaxDeg) / 2.0;
+        double inBand = InBandAmplitude();
         var positions = new[]
         {
             AmpRate(WatchPosition.CH, inBand, rate: 0.0),
@@ -245,7 +284,8 @@ public class WatchHealthRadarModelTests
         Assert.Equal(VarioVerdictLevel.Good, model.VerdictLevel);   // band axis unchanged
         Assert.Equal(VarioVerdictLevel.Warn, model.Consistency.Level);
         Assert.Equal(VarioVerdictLevel.Warn, model.OverallLevel);
-        Assert.Contains("WATCH", model.OverallText);
+        Assert.Equal("WATCH — Review", model.OverallText);
+        Assert.DoesNotContain("Keep Measuring", model.OverallText);
     }
 
     [Fact]
@@ -253,7 +293,7 @@ public class WatchHealthRadarModelTests
     {
         // One in-band amplitude position: band axis Good, consistency still
         // collecting (no rate / too few positions) — overall stays Good.
-        double inBand = (VarioGaugePolicy.AmplitudeAcceptMinDeg + VarioGaugePolicy.AmplitudeAcceptMaxDeg) / 2.0;
+        double inBand = InBandAmplitude();
         var positions = new[] { Amp(WatchPosition.CH, inBand) };
 
         WatchHealthRadarModel model = WatchHealthRadarModel.Build(positions, RadarMetric.Amplitude, WatchPosition.CH);

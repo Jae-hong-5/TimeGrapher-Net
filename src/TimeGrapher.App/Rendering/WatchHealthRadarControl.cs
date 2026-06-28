@@ -19,8 +19,9 @@ namespace TimeGrapher.App.Rendering;
 /// </summary>
 internal sealed class WatchHealthRadarControl : Control
 {
-    private const double LabelGap = 26.0;
+    private const double LabelGap = 34.0;
     private const double EdgeMargin = 20.0;
+    private const double LabelFontSize = PlotThemeHelper.GraphLabelFontSize;
     private static readonly double[] RingFractions = { 0.25, 0.5, 0.75 };
 
     private readonly Typeface _typeface;
@@ -86,7 +87,7 @@ internal sealed class WatchHealthRadarControl : Control
         if (model.MeasuredCount == 0)
         {
             FormattedText message = Text(
-                "Measure positions to build the health radar", 13.0, Fill(palette.TextPrimary));
+                "Measure positions to build the health radar", LabelFontSize, Fill(palette.TextPrimary));
             context.DrawText(message, new Point(cx - message.Width / 2.0, cy + radius * 0.45));
         }
     }
@@ -178,9 +179,9 @@ internal sealed class WatchHealthRadarControl : Control
             RadarAxis axis = model.Axes[i];
             (double lx, double ly) = Vertex(cx, cy, radius + LabelGap, i, 1.0);
 
-            FormattedText label = Text(axis.Label, 12.0, labelBrush);
-            FormattedText value = Text(axis.ValueText, 12.0, axis.HasValue ? valueBrush : mutedBrush);
-            context.DrawText(label, new Point(lx - label.Width / 2.0, ly - 15.0));
+            FormattedText label = Text(axis.Label, LabelFontSize, labelBrush);
+            FormattedText value = Text(axis.ValueText, LabelFontSize, axis.HasValue ? valueBrush : mutedBrush);
+            context.DrawText(label, new Point(lx - label.Width / 2.0, ly - 18.0));
             context.DrawText(value, new Point(lx - value.Width / 2.0, ly - 1.0));
         }
     }
@@ -194,7 +195,7 @@ internal sealed class WatchHealthRadarControl : Control
         {
             double fraction = (t + 1) / 3.0;
             (double tx, double ty) = Vertex(cx, cy, radius * fraction, 0, 1.0);
-            FormattedText tick = Text(model.ScaleTicks[t], 9.0, tickBrush);
+            FormattedText tick = Text(model.ScaleTicks[t], LabelFontSize, tickBrush);
             context.DrawText(tick, new Point(tx + 4.0, ty - tick.Height / 2.0));
         }
     }
