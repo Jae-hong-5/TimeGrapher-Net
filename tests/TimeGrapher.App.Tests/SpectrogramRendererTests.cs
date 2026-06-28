@@ -1,3 +1,5 @@
+using System.Reflection;
+
 using Avalonia.Controls;
 using TimeGrapher.App.Rendering;
 using Xunit;
@@ -77,13 +79,66 @@ public sealed class SpectrogramRendererTests
     }
 
     [Fact]
-    public void SetViewBeatsBelowTwoStaysInBeatsMode()
+    public void SetViewBeatsBelowTwoClampsToTwo()
     {
         var caption = new TextBlock();
         var renderer = CreateRenderer(caption, TimeLabels());
 
         renderer.SetViewMode(SpectrogramViewMode.Beats);
-        renderer.SetViewBeats(1); // clamped to 2 (a single beat is Last Beat's job)
+        renderer.SetViewBeats(1); // a single beat is Last Beat's job
+        Assert.Equal(2, ViewBeats(renderer)); // clamped to 2
         Assert.Equal("Time (ms)", caption.Text);
+
+        renderer.SetViewBeats(8);
+        Assert.Equal(8, ViewBeats(renderer)); // honored above the floor
     }
+
+    [Theory]
+    [InlineData(250.0, 1000.0, 50.0)] // wide lane -> fine step (~quarter period)
+    [InlineData(250.0, 48.0, 250.0)]  // narrow lane -> coarsened to one label per beat
+    [InlineData(100.0, 240.0, 25.0)]
+    public void ChooseBeatRulerStep_PicksANiceStepThatFitsTheLane(
+        double periodMs, double laneWidthPx, double expectedStep)
+    {
+        Assert.Equal(expectedStep, SpectrogramRenderer.ChooseBeatRulerStep(periodMs, laneWidthPx));
+    }
+
+    [Fact]
+    public void TryBeatLaneSourceColumn_CentersTheLaneOnTheOnset()
+    {
+        // beatCols 10 -> laneCenter at +5; the centre pixel maps to the onset column.
+        Assert.True(SpectrogramRenderer.TryBeatLaneSourceColumn(
+            onsetColumn: 50, laneStart: 0, laneCenter: 5, xi: 5,
+            minValid: 0, total: 1000, sourceWidth: 100, out int center));
+        Assert.Equal(50, center);
+
+        // The left edge is half a beat before the onset.
+        Assert.True(SpectrogramRenderer.TryBeatLaneSourceColumn(
+            50, 0, 5, 0, 0, 1000, 100, out int left));
+        Assert.Equal(45, left);
+
+        // Source column wraps through the ring-buffer width.
+        Assert.True(SpectrogramRenderer.TryBeatLaneSourceColumn(
+            150, 0, 5, 5, 0, 1000, 100, out int wrapped));
+        Assert.Equal(50, wrapped);
+    }
+
+    [Fact]
+    public void TryBeatLaneSourceColumn_LeavesColumnsOutsideRetainedHistoryEmpty()
+    {
+        // Before the oldest retained column.
+        Assert.False(SpectrogramRenderer.TryBeatLaneSourceColumn(
+            onsetColumn: 2, laneStart: 0, laneCenter: 5, xi: 0,
+            minValid: 0, total: 1000, sourceWidth: 100, out _));
+
+        // At/after the newest column.
+        Assert.False(SpectrogramRenderer.TryBeatLaneSourceColumn(
+            onsetColumn: 998, laneStart: 0, laneCenter: 5, xi: 9,
+            minValid: 0, total: 1000, sourceWidth: 100, out _));
+    }
+
+    private static int ViewBeats(SpectrogramRenderer renderer) =>
+        (int)typeof(SpectrogramRenderer)
+            .GetField("_viewBeats", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .GetValue(renderer)!;
 }

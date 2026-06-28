@@ -480,13 +480,13 @@ internal sealed class SpectrogramRenderer
             for (int xi = 0; xi < beatCols; xi++)
             {
                 int x = laneStart + xi;
-                long c = onsetColumn + (x - laneCenter); // source column for this lane pixel
-                if (c < minValid || c >= total)
+                if (!TryBeatLaneSourceColumn(
+                        onsetColumn, laneStart, laneCenter, xi, minValid, total, sourceWidth,
+                        out int sourceColumn))
                 {
                     continue; // outside retained history — leave empty
                 }
 
-                int sourceColumn = (int)(c % sourceWidth);
                 for (int y = 0; y < height; y++)
                 {
                     target[y * cols + x] = source[y * sourceWidth + sourceColumn];
@@ -589,6 +589,50 @@ internal sealed class SpectrogramRenderer
     // Filter Scope's steps so the axis reads in familiar 1/5/10/25/50/100 ms units.
     private static readonly double[] BeatRulerSteps = { 1, 5, 10, 25, 50, 100, 250, 500, 1000 };
 
+    // Picks the "nice" ruler step for one beat lane: start at the largest step
+    // no finer than a quarter period, then coarsen until the per-lane label count
+    // fits the lane's pixel budget (~24 px per label). Pure so it is unit-testable
+    // without a laid-out control.
+    internal static double ChooseBeatRulerStep(double periodMs, double laneWidthPx)
+    {
+        int maxLabels = Math.Max(2, (int)(laneWidthPx / 24.0));
+        double target = periodMs / 4.0;
+        int idx = 0;
+        for (int i = 0; i < BeatRulerSteps.Length; i++)
+        {
+            if (BeatRulerSteps[i] <= target)
+            {
+                idx = i;
+            }
+        }
+
+        while (idx < BeatRulerSteps.Length - 1 &&
+               (int)Math.Floor(periodMs / BeatRulerSteps[idx]) + 1 > maxLabels)
+        {
+            idx++;
+        }
+
+        return BeatRulerSteps[idx];
+    }
+
+    // Maps a Beats-view lane pixel to its source column, centering the lane on the
+    // detected onset (xi at the lane centre -> the onset column). Returns false when
+    // the column falls outside retained history, so the caller leaves it empty.
+    internal static bool TryBeatLaneSourceColumn(
+        long onsetColumn, int laneStart, int laneCenter, int xi,
+        long minValid, long total, int sourceWidth, out int sourceColumn)
+    {
+        long c = onsetColumn + (laneStart + xi - laneCenter);
+        if (c < minValid || c >= total)
+        {
+            sourceColumn = 0;
+            return false;
+        }
+
+        sourceColumn = (int)(c % sourceWidth);
+        return true;
+    }
+
     // Draws the per-beat 0-based time ruler onto the overlay canvas: each lane counts
     // from 0 at its own left edge up in a nice step (~beat/4, coarsened so labels
     // never collide in narrow lanes). The full beat-period max is labelled once at
@@ -605,23 +649,7 @@ internal sealed class SpectrogramRenderer
         }
 
         double laneWidth = width / beats;
-        int maxLabels = Math.Max(2, (int)(laneWidth / 24.0));
-        double target = periodMs / 4.0;
-        int idx = 0;
-        for (int i = 0; i < BeatRulerSteps.Length; i++)
-        {
-            if (BeatRulerSteps[i] <= target)
-            {
-                idx = i;
-            }
-        }
-        // Coarsen until the per-lane label count fits the lane's pixel budget.
-        while (idx < BeatRulerSteps.Length - 1 &&
-               (int)Math.Floor(periodMs / BeatRulerSteps[idx]) + 1 > maxLabels)
-        {
-            idx++;
-        }
-        double step = BeatRulerSteps[idx];
+        double step = ChooseBeatRulerStep(periodMs, laneWidth);
 
         int p = 0;
         for (int lane = 0; lane < beats && p < _beatRulerTicks.Length; lane++)
