@@ -17,19 +17,22 @@ internal sealed class AppSettingsController : ISettingsWindowResetRunner
     private readonly Action<AppSettings> _persist;
     private readonly IAcceptBandOperations? _acceptBandOperations;
     private readonly Action<SamplingSettings>? _syncSamplingSettings;
+    private readonly Action<LeftPanelSettings>? _resetLeftPanelSelections;
 
     public AppSettingsController(
         MainWindowViewModel viewModel,
         Func<AppSettingsSelection> selection,
         Action<AppSettings> persist,
         IAcceptBandOperations? acceptBandOperations = null,
-        Action<SamplingSettings>? syncSamplingSettings = null)
+        Action<SamplingSettings>? syncSamplingSettings = null,
+        Action<LeftPanelSettings>? resetLeftPanelSelections = null)
     {
         _viewModel = viewModel;
         _selection = selection;
         _persist = persist;
         _acceptBandOperations = acceptBandOperations;
         _syncSamplingSettings = syncSamplingSettings;
+        _resetLeftPanelSelections = resetLeftPanelSelections;
         _viewModel.PropertyChanged += OnViewModelPropertyChanged;
     }
 
@@ -61,9 +64,20 @@ internal sealed class AppSettingsController : ISettingsWindowResetRunner
         SamplingSettings sampling = SamplingSettings.Default;
         SettingsWindowSettings window = SettingsWindowSettings.Default;
         AcceptBandSettings bands = AcceptBandSettings.Default;
+        LeftPanelSettings leftPanel = LeftPanelSettings.Default;
 
         _viewModel.RunSettingsWindowReset(() =>
         {
+            _resetLeftPanelSelections?.Invoke(leftPanel);
+            _viewModel.Gain = leftPanel.Gain;
+            _viewModel.LiftAngle = (decimal)leftPanel.LiftAngle;
+            _viewModel.SimErrorRate = (decimal)leftPanel.SimulationErrorRate;
+            _viewModel.SimAmplitude = (decimal)leftPanel.SimulationAmplitude;
+            _viewModel.SimBeatError = (decimal)leftPanel.SimulationBeatError;
+            _viewModel.Realistic = leftPanel.SimulationRealistic;
+            _viewModel.SimSignalAScale = (decimal)leftPanel.SimulationSignalAScale;
+            _viewModel.SimSignalBScale = (decimal)leftPanel.SimulationSignalBScale;
+            _viewModel.SimSignalCScale = (decimal)leftPanel.SimulationSignalCScale;
             _viewModel.UseCOnset = window.UseCOnset;
             _viewModel.WeakAOnsetRescue = window.WeakAOnsetRescue;
             _viewModel.WeakAOnsetRescueStrengthStep = window.WeakAOnsetRescueStrengthStep;
@@ -81,7 +95,7 @@ internal sealed class AppSettingsController : ISettingsWindowResetRunner
         SamplingSettings.Current = sampling;
         _syncSamplingSettings?.Invoke(sampling);
         AcceptBandSettings.Current = bands;
-        Persist(BuildSnapshot(sampling, bands, window));
+        Persist(BuildSnapshot(sampling, bands, leftPanel, window));
         _acceptBandOperations?.ApplyCurrentBands();
     }
 
@@ -161,27 +175,41 @@ internal sealed class AppSettingsController : ISettingsWindowResetRunner
         AcceptBandSettings acceptBands,
         SettingsWindowSettings settingsWindow)
     {
-        AppSettingsSelection selection = _selection();
+        return BuildSnapshot(sampling, acceptBands, BuildLeftPanelSnapshot(), settingsWindow);
+    }
+
+    private AppSettings BuildSnapshot(
+        SamplingSettings sampling,
+        AcceptBandSettings acceptBands,
+        LeftPanelSettings leftPanel,
+        SettingsWindowSettings settingsWindow)
+    {
         return AppSettings.Current with
         {
             Sampling = sampling,
             AcceptBands = acceptBands,
-            LeftPanel = new LeftPanelSettings(
-                selection.InputDeviceName,
-                selection.SampleRate,
-                _viewModel.Gain,
-                selection.Bph,
-                (double)_viewModel.LiftAngle,
-                selection.SimulationBph,
-                (double)_viewModel.SimErrorRate,
-                (double)_viewModel.SimAmplitude,
-                (double)_viewModel.SimBeatError,
-                _viewModel.Realistic,
-                (double)_viewModel.SimSignalAScale,
-                (double)_viewModel.SimSignalBScale,
-                (double)_viewModel.SimSignalCScale),
+            LeftPanel = leftPanel,
             SettingsWindow = settingsWindow,
         };
+    }
+
+    private LeftPanelSettings BuildLeftPanelSnapshot()
+    {
+        AppSettingsSelection selection = _selection();
+        return new LeftPanelSettings(
+            selection.InputDeviceName,
+            selection.SampleRate,
+            _viewModel.Gain,
+            selection.Bph,
+            (double)_viewModel.LiftAngle,
+            selection.SimulationBph,
+            (double)_viewModel.SimErrorRate,
+            (double)_viewModel.SimAmplitude,
+            (double)_viewModel.SimBeatError,
+            _viewModel.Realistic,
+            (double)_viewModel.SimSignalAScale,
+            (double)_viewModel.SimSignalBScale,
+            (double)_viewModel.SimSignalCScale);
     }
 
     private static void ResetAcceptBands(MainWindowViewModel viewModel, AcceptBandSettings defaults)

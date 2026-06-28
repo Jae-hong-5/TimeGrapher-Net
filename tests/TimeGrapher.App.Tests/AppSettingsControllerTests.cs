@@ -191,10 +191,14 @@ public sealed class AppSettingsControllerTests : IDisposable
     }
 
     [Fact]
-    public void ResetSettingsWindow_RestoresOnlySettingsWindowControls()
+    public void ResetSettingsWindow_RestoresSettingsAndLeftPanelControls()
     {
         var viewModel = new MainWindowViewModel
         {
+            SelectedInputDeviceIndex = 2,
+            SelectedSampleRateIndex = 3,
+            SelectedBphIndex = 4,
+            SelectedSimBphIndex = 5,
             Gain = 777.0,
             LiftAngle = 60m,
             SimErrorRate = -30m,
@@ -221,23 +225,37 @@ public sealed class AppSettingsControllerTests : IDisposable
             VerdictMinimumBeats = 45m,
             IsMeasurementLogEnabled = true,
         };
+        LeftPanelSettings? resetLeftPanel = null;
 
         var controller = new AppSettingsController(
             viewModel,
-            () => new AppSettingsSelection(null, 48000, 0, 28800),
-            _ => { });
+            () => new AppSettingsSelection("Live: Mic", 96000, 21600, 18000),
+            _ => { },
+            resetLeftPanelSelections: defaults =>
+            {
+                resetLeftPanel = defaults;
+                viewModel.SelectedInputDeviceIndex = 0;
+                viewModel.SelectedSampleRateIndex = 1;
+                viewModel.SelectedBphIndex = 0;
+                viewModel.SelectedSimBphIndex = 3;
+            });
 
         controller.ResetSettingsWindow();
 
-        Assert.Equal(777.0, viewModel.Gain);
-        Assert.Equal(60m, viewModel.LiftAngle);
-        Assert.Equal(-30m, viewModel.SimErrorRate);
-        Assert.Equal(250m, viewModel.SimAmplitude);
-        Assert.Equal(2m, viewModel.SimBeatError);
-        Assert.False(viewModel.Realistic);
-        Assert.Equal(0.4m, viewModel.SimSignalAScale);
-        Assert.Equal(1.6m, viewModel.SimSignalBScale);
-        Assert.Equal(0.7m, viewModel.SimSignalCScale);
+        Assert.Same(LeftPanelSettings.Default, resetLeftPanel);
+        Assert.Equal(0, viewModel.SelectedInputDeviceIndex);
+        Assert.Equal(1, viewModel.SelectedSampleRateIndex);
+        Assert.Equal(0, viewModel.SelectedBphIndex);
+        Assert.Equal(3, viewModel.SelectedSimBphIndex);
+        Assert.Equal(LeftPanelSettings.Default.Gain, viewModel.Gain);
+        Assert.Equal((decimal)LeftPanelSettings.Default.LiftAngle, viewModel.LiftAngle);
+        Assert.Equal((decimal)LeftPanelSettings.Default.SimulationErrorRate, viewModel.SimErrorRate);
+        Assert.Equal((decimal)LeftPanelSettings.Default.SimulationAmplitude, viewModel.SimAmplitude);
+        Assert.Equal((decimal)LeftPanelSettings.Default.SimulationBeatError, viewModel.SimBeatError);
+        Assert.Equal(LeftPanelSettings.Default.SimulationRealistic, viewModel.Realistic);
+        Assert.Equal((decimal)LeftPanelSettings.Default.SimulationSignalAScale, viewModel.SimSignalAScale);
+        Assert.Equal((decimal)LeftPanelSettings.Default.SimulationSignalBScale, viewModel.SimSignalBScale);
+        Assert.Equal((decimal)LeftPanelSettings.Default.SimulationSignalCScale, viewModel.SimSignalCScale);
         Assert.False(viewModel.UseCOnset);
         Assert.True(viewModel.WeakAOnsetRescue);
         Assert.Equal(WeakAOnsetRescueStrengthPolicy.StandardStep, viewModel.WeakAOnsetRescueStrengthStep);
@@ -300,10 +318,7 @@ public sealed class AppSettingsControllerTests : IDisposable
         Assert.Equal(SamplingSettings.Default, saved.Sampling);
         Assert.Equal(AcceptBandSettings.Default, saved.AcceptBands);
         Assert.Equal(SettingsWindowSettings.Default, saved.SettingsWindow);
-        Assert.Equal("Live: Mic", saved.LeftPanel.InputDeviceName);
-        Assert.Equal(96000, saved.LeftPanel.SampleRate);
-        Assert.Equal(21600, saved.LeftPanel.Bph);
-        Assert.Equal(18000, saved.LeftPanel.SimulationBph);
+        Assert.Equal(LeftPanelSettings.Default, saved.LeftPanel);
 
         viewModel.AnalysisBlockSize = customSampling.AnalysisBlockSize;
 

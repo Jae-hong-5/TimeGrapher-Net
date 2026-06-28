@@ -203,7 +203,8 @@ public partial class MainWindow : Window
             CaptureAppSettingsSelection,
             AppSettingsStore.Save,
             acceptBandOperations,
-            mSamplingSettingsController.SyncAppliedSnapshot);
+            mSamplingSettingsController.SyncAppliedSnapshot,
+            ResetLeftPanelSelections);
         mViewModel.AttachSettingsWindowResetRunner(mAppSettingsController);
 
         Closed += OnWindowClosed;
@@ -484,6 +485,32 @@ public partial class MainWindow : Window
             mAudioSelection.CurrentSampleRate,
             SelectedCatalogValue(BphCatalog.ManualAutoBph, mViewModel.SelectedBphIndex, AppSettings.Current.LeftPanel.Bph),
             SelectedCatalogValue(BphCatalog.ManualBph, mViewModel.SelectedSimBphIndex, AppSettings.Current.LeftPanel.SimulationBph));
+    }
+
+    private void ResetLeftPanelSelections(LeftPanelSettings defaults)
+    {
+        int selectedInput = SelectInputDeviceIndexAfterReload(
+            mViewModel.InputDeviceNames,
+            defaults.InputDeviceName);
+        if (selectedInput == -1 && mViewModel.InputDeviceNames.Count > 0)
+        {
+            selectedInput = 0;
+        }
+
+        if (selectedInput != -1)
+        {
+            mSelectionCoordinator.SetSelectedInputDeviceIndex(selectedInput, forceChanged: true);
+        }
+
+        SetAudioRate(defaults.SampleRate);
+        mViewModel.SelectedBphIndex = SavedCatalogIndexOrFallback(
+            BphCatalog.ManualAutoBph,
+            defaults.Bph,
+            fallbackIndex: 0);
+        mViewModel.SelectedSimBphIndex = SavedCatalogIndexOrFallback(
+            BphCatalog.ManualBph,
+            defaults.SimulationBph,
+            mRunSelectionResolver.DefaultSimulationBphIndex);
     }
 
     private static int SelectedCatalogValue(IReadOnlyList<int> values, int index, int fallback)
