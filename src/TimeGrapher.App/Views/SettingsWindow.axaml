@@ -3,7 +3,7 @@
         x:Class="TimeGrapher.App.Views.SettingsWindow"
         Title="Settings"
         Icon="/Assets/App/AppIcon-256.png"
-        Width="760" Height="600"
+        Width="832" Height="600"
         CanResize="False"
         SystemDecorations="None"
         ShowInTaskbar="False"
@@ -60,20 +60,20 @@
         <Grid ColumnDefinitions="*,Auto"
               HorizontalAlignment="Stretch"
               IsEnabled="{Binding AreRunParametersEnabled}">
-          <TextBlock Text="Use C-onset timing"
+          <TextBlock Text="Enhanced Auto BPH"
                      FontWeight="Bold"
                      HorizontalAlignment="Left"
                      VerticalAlignment="Center" />
-          <ToggleSwitch Name="UseConsetToggleSwitch"
+          <ToggleSwitch Name="SpuriousBeatRejectionToggleSwitch"
                         Grid.Column="1"
-                        AutomationProperties.Name="Use C-onset timing"
+                        AutomationProperties.Name="Enhanced Auto BPH"
                         OffContent=""
                         OnContent=""
                         FontWeight="Bold"
                         HorizontalAlignment="Right"
                         IsEnabled="{Binding AreRunParametersEnabled}"
-                        IsChecked="{Binding UseCOnset, Mode=TwoWay}"
-                        ToolTip.Tip="Time the C event from its onset instead of its peak" />
+                        IsChecked="{Binding SpuriousBeatRejection, Mode=TwoWay}"
+                        ToolTip.Tip="Reject weak between-beat noise during BPH acquisition so the rate cannot lock to 2x" />
         </Grid>
         <Grid RowDefinitions="Auto,Auto"
               RowSpacing="6"
@@ -82,13 +82,13 @@
                 ColumnDefinitions="*,Auto"
                 HorizontalAlignment="Stretch"
                 IsEnabled="{Binding AreRunParametersEnabled}">
-            <TextBlock Text="Weak-A onset rescue"
+            <TextBlock Text="Weak A-onset rescue"
                        FontWeight="Bold"
                        HorizontalAlignment="Left"
                        VerticalAlignment="Center" />
             <ToggleSwitch Name="WeakAOnsetRescueToggleSwitch"
                           Grid.Column="1"
-                          AutomationProperties.Name="Weak-A onset rescue"
+                          AutomationProperties.Name="Weak A-onset rescue"
                           OffContent=""
                           OnContent=""
                           FontWeight="Bold"
@@ -118,7 +118,7 @@
             </Grid>
             <Slider Name="WeakAOnsetRescueStrengthSlider"
                     Grid.Row="1"
-                    AutomationProperties.Name="Weak-A onset rescue strength"
+                    AutomationProperties.Name="Weak A-onset rescue strength"
                     Minimum="0"
                     Maximum="10"
                     TickFrequency="1"
@@ -149,20 +149,20 @@
         <Grid ColumnDefinitions="*,Auto"
               HorizontalAlignment="Stretch"
               IsEnabled="{Binding AreRunParametersEnabled}">
-          <TextBlock Text="Enhanced Auto BPH"
+          <TextBlock Text="Use C-onset timing"
                      FontWeight="Bold"
                      HorizontalAlignment="Left"
                      VerticalAlignment="Center" />
-          <ToggleSwitch Name="SpuriousBeatRejectionToggleSwitch"
+          <ToggleSwitch Name="UseConsetToggleSwitch"
                         Grid.Column="1"
-                        AutomationProperties.Name="Enhanced Auto BPH"
+                        AutomationProperties.Name="Use C-onset timing"
                         OffContent=""
                         OnContent=""
                         FontWeight="Bold"
                         HorizontalAlignment="Right"
                         IsEnabled="{Binding AreRunParametersEnabled}"
-                        IsChecked="{Binding SpuriousBeatRejection, Mode=TwoWay}"
-                        ToolTip.Tip="Reject weak between-beat noise during BPH acquisition so the rate cannot lock to 2x" />
+                        IsChecked="{Binding UseCOnset, Mode=TwoWay}"
+                        ToolTip.Tip="Time the C event from its onset instead of its peak" />
         </Grid>
         <Grid ColumnDefinitions="*,Auto"
               HorizontalAlignment="Stretch"
@@ -205,9 +205,18 @@
                          Minimum="1" Maximum="240" Increment="1"
                          ClipValueToMinMax="True"
                          ToolTip.Tip="Error Rate averaging window in seconds. Applies on the next run." />
-          <TextBlock Grid.Row="1" Grid.Column="0" Text="Block Size"
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="High Pass Cutoff"
                      VerticalAlignment="Center" FontWeight="Bold" />
-          <NumericUpDown Name="AnalysisBlockSizeSpinBox" Grid.Row="1" Grid.Column="1"
+          <TextBox Name="HighLineEdit" Grid.Row="1" Grid.Column="1"
+                   Margin="6,3"
+                   Height="32"
+                   AutomationProperties.Name="High Pass Cutoff (Hz)"
+                   IsEnabled="{Binding AreRunParametersEnabled}"
+                   Text="{Binding HighPassCutoffText, Mode=TwoWay}"
+                   ToolTip.Tip="High-pass filter cutoff in Hz. Applies on the next run." />
+          <TextBlock Grid.Row="2" Grid.Column="0" Text="Block Size"
+                     VerticalAlignment="Center" FontWeight="Bold" />
+          <NumericUpDown Name="AnalysisBlockSizeSpinBox" Grid.Row="2" Grid.Column="1"
                          Margin="6,3"
                          Height="32"
                          AutomationProperties.Name="Analysis block size (samples)"
@@ -217,9 +226,9 @@
                          Minimum="256" Maximum="16384" Increment="256"
                          ClipValueToMinMax="True"
                          ToolTip.Tip="Detector input window in samples (~85 ms at 48 kHz for 4096). Applies on the next run." />
-          <TextBlock Grid.Row="2" Grid.Column="0" Text="Capture Buffer"
+          <TextBlock Grid.Row="3" Grid.Column="0" Text="Capture Buffer"
                      VerticalAlignment="Center" FontWeight="Bold" />
-          <NumericUpDown Name="CaptureBufferMsSpinBox" Grid.Row="2" Grid.Column="1"
+          <NumericUpDown Name="CaptureBufferMsSpinBox" Grid.Row="3" Grid.Column="1"
                          Margin="6,3"
                          Height="32"
                          AutomationProperties.Name="Capture buffer length (milliseconds)"
@@ -229,15 +238,6 @@
                          Minimum="5" Maximum="200" Increment="5"
                          ClipValueToMinMax="True"
                          ToolTip.Tip="Audio capture buffer length in ms (latency vs. stability). Applies on the next run." />
-          <TextBlock Grid.Row="3" Grid.Column="0" Text="High Pass Cutoff"
-                     VerticalAlignment="Center" FontWeight="Bold" />
-          <TextBox Name="HighLineEdit" Grid.Row="3" Grid.Column="1"
-                   Margin="6,3"
-                   Height="32"
-                   AutomationProperties.Name="High Pass Cutoff (Hz)"
-                   IsEnabled="{Binding AreRunParametersEnabled}"
-                   Text="{Binding HighPassCutoffText, Mode=TwoWay}"
-                   ToolTip.Tip="High-pass filter cutoff in Hz. Applies on the next run." />
         </Grid>
         </StackPanel>
       </Border>

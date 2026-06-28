@@ -301,7 +301,7 @@ public sealed class MainWindowRunControlWiringTests
     {
         XDocument document = XDocument.Load(FindSourceFile("src/TimeGrapher.App/Views/SettingsWindow.axaml"));
 
-        Assert.Equal("760", document.Root?.Attribute("Width")?.Value);
+        Assert.Equal("832", document.Root?.Attribute("Width")?.Value);
         Assert.Equal("600", document.Root?.Attribute("Height")?.Value);
         Assert.Equal(
             new[]
@@ -325,18 +325,18 @@ public sealed class MainWindowRunControlWiringTests
         Assert.Equal(
             new[]
             {
-                "UseConsetToggleSwitch",
-                "WeakAOnsetRescueToggleSwitch",
                 "SpuriousBeatRejectionToggleSwitch",
+                "WeakAOnsetRescueToggleSwitch",
+                "UseConsetToggleSwitch",
                 "PauseOnPositionChangeToggleSwitch",
                 "MeasurementLogEnabledToggleSwitch",
             },
             toggleSwitches.Select(toggleSwitch => toggleSwitch.Attribute("Name")?.Value).ToArray());
         string[] labels =
         {
-            "Use C-onset timing",
-            "Weak-A onset rescue",
             "Enhanced Auto BPH",
+            "Weak A-onset rescue",
+            "Use C-onset timing",
             "Pause on position change",
             "Save measurement CSV log",
         };
@@ -358,9 +358,9 @@ public sealed class MainWindowRunControlWiringTests
         Assert.Equal(
             new[]
             {
-                "{Binding UseCOnset, Mode=TwoWay}",
-                "{Binding WeakAOnsetRescue, Mode=TwoWay}",
                 "{Binding SpuriousBeatRejection, Mode=TwoWay}",
+                "{Binding WeakAOnsetRescue, Mode=TwoWay}",
+                "{Binding UseCOnset, Mode=TwoWay}",
                 "{Binding PauseOnPositionChange, Mode=TwoWay}",
                 "{Binding IsMeasurementLogEnabled, Mode=TwoWay}",
             },
@@ -370,7 +370,7 @@ public sealed class MainWindowRunControlWiringTests
             toggleSwitch => Assert.Equal("{Binding AreRunParametersEnabled}", toggleSwitch.Attribute("IsEnabled")?.Value));
         XElement rescueStrengthSlider = FindNamedElement(document, "WeakAOnsetRescueStrengthSlider");
         Assert.Equal("Slider", rescueStrengthSlider.Name.LocalName);
-        Assert.Equal("Weak-A onset rescue strength", rescueStrengthSlider.Attribute("AutomationProperties.Name")?.Value);
+        Assert.Equal("Weak A-onset rescue strength", rescueStrengthSlider.Attribute("AutomationProperties.Name")?.Value);
         Assert.Equal("0", rescueStrengthSlider.Attribute("Minimum")?.Value);
         Assert.Equal("10", rescueStrengthSlider.Attribute("Maximum")?.Value);
         Assert.Equal("1", rescueStrengthSlider.Attribute("TickFrequency")?.Value);
