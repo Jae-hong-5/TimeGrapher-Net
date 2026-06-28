@@ -16,6 +16,16 @@ public sealed class InfoTabCatalogTests
     }
 
     [Fact]
+    public void LiveGraphTabsUseDisplayRateRefreshCadence()
+    {
+        Assert.Equal(16, InfoTabCatalog.DefaultUiRefreshIntervalMs);
+        Assert.All(
+            InfoTabCatalog.All.Where(tab =>
+                tab.Kind is not InfoTabKind.SoundPrint and not InfoTabKind.Spectrogram),
+            tab => Assert.Equal(InfoTabCatalog.DefaultUiRefreshIntervalMs, tab.RefreshIntervalMs));
+    }
+
+    [Fact]
     public void RateScopeTabDeclaresSnapshotGraphContract()
     {
         InfoTabDefinition tab = InfoTabCatalog.Get(InfoTabCatalog.RateScopeTabId);
