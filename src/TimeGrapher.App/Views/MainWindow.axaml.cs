@@ -136,8 +136,9 @@ public partial class MainWindow : Window
                 AppSettings.Current.LeftPanel.InputDeviceName,
                 AppSettings.Current.LeftPanel.SampleRate));
         var acceptBandOperations = new GraphAcceptBandOperations(mGraphFrameRenderer);
+        var selectionOperations = new MainWindowSelectionOperations(mAudioSelection, mAudioDeviceController);
         var adapters = new MainWindowViewAdapters(
-            new MainWindowSelectionOperations(this, mAudioSelection, mAudioDeviceController),
+            selectionOperations,
             new RunCommandOperations(this),
             dialogs,
             acceptBandOperations,
@@ -169,6 +170,10 @@ public partial class MainWindow : Window
         mRunCommandService = composition.RunCommandService;
         mMeasurementLogController = composition.MeasurementLogController;
         mRunSessionController = composition.RunSessionController;
+        // Late-attach the live-run adjustment seam now that the bootstrapper has built the
+        // controller (the adapter is itself an input to Build), replacing the former window
+        // back-reference in MainWindowSelectionOperations.
+        selectionOperations.AttachRunSessionLiveAdjustments(mRunSessionController);
         mRunControlController = composition.RunControlController;
         mAcceptBandController = composition.AcceptBandController;
         mSamplingSettingsController = composition.SamplingSettingsController;

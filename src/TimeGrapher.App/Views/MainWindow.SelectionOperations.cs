@@ -8,18 +8,25 @@ public partial class MainWindow
 {
     private sealed class MainWindowSelectionOperations : IMainWindowSelectionOperations
     {
-        private readonly MainWindow _owner;
         private readonly AudioSelectionState _state;
         private readonly AudioDeviceController _deviceController;
+        private IRunSessionLiveAdjustments? _liveAdjustments;
 
         public MainWindowSelectionOperations(
-            MainWindow owner,
             AudioSelectionState state,
             AudioDeviceController deviceController)
         {
-            _owner = owner;
             _state = state;
             _deviceController = deviceController;
+        }
+
+        // The run-session controller is built by the bootstrapper, which itself takes this
+        // adapter as input, so the live-adjustment seam is late-attached once Build returns
+        // (the same construction-cycle break as ISelectionEventGate). This replaces the former
+        // _owner (window) back-reference.
+        public void AttachRunSessionLiveAdjustments(IRunSessionLiveAdjustments liveAdjustments)
+        {
+            _liveAdjustments = liveAdjustments;
         }
 
         public IReadOnlyList<int> InputDeviceNumbers => _state.InputDeviceNumbers;
@@ -43,7 +50,7 @@ public partial class MainWindow
 
         public void SetAudioInputVolume(float normalizedVolume)
         {
-            _owner.mRunSessionController.SetLiveInputVolume(normalizedVolume);
+            _liveAdjustments!.SetLiveInputVolume(normalizedVolume);
         }
 
         public void SetLiveSimulationParameters(
@@ -54,7 +61,7 @@ public partial class MainWindow
             double bClusterLevelScale,
             double cClusterLevelScale)
         {
-            _owner.mRunSessionController.SetLiveSimulationParameters(
+            _liveAdjustments!.SetLiveSimulationParameters(
                 rateErrorSPerDay,
                 beatErrorMs,
                 watchAmplitudeDegrees,
