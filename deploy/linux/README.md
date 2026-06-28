@@ -8,8 +8,8 @@ single-file app launcher, the icon (`AppIcon-256.png`), and the installer script
 
 ## 1. Quick install (recommended)
 
-Extract and run `install.sh` once — it installs dependencies, sets the executable bit,
-registers the icon/desktop entry, and creates a `TimeGrapher.desktop` launcher in the
+Extract and run `install.sh` once — it installs runtime, live-audio, and credential-store
+dependencies, sets the executable bit, registers the icon/desktop entry, and creates a
 extract folder plus a desktop shortcut (replacing any existing one). Every entry's
 `Exec`/`Icon` paths are **set automatically to the extract location**.
 
@@ -21,7 +21,7 @@ cd ~/timegrapher
 ./TimeGrapher.App      # or 'TimeGrapher' from the menu/taskbar
 ```
 
-- `install.sh` is idempotent (safe to re-run). It installs dependencies only when
+- `install.sh` is idempotent (safe to re-run). It installs apt dependencies only when
   `apt-get` is present, and uses `sudo` when not root.
 - The raw `TimeGrapher.App` binary showing a generic icon in the file manager is normal
   — a Linux ELF cannot embed an icon the way a Windows .exe does. Double-click the
@@ -32,20 +32,26 @@ Being a single-file, self-contained build, **no .NET runtime install is needed.*
 Sections 2 and 3 below are for doing what `install.sh` automates by hand, or for
 troubleshooting.
 
-## 2. Runtime dependencies (manual — once on a fresh Pi OS)
+## 2. Runtime and credential-store dependencies (manual — once on a fresh Pi OS)
 
 The self-contained executable includes the .NET runtime but not the system X11/font
-libraries. If no window appears or fonts are missing, install them:
+libraries, live-audio tools, or Secret Service keyring tools. If no window appears,
+fonts are missing, live capture is unavailable, or remember-login cannot use the OS
+credential store, install them:
 
 ```bash
 sudo apt update
-sudo apt install -y libx11-6 libice6 libsm6 libfontconfig1 xwayland
+sudo apt install -y libx11-6 libice6 libsm6 libfontconfig1 xwayland \
+  pipewire pipewire-bin wireplumber alsa-utils \
+  gnome-keyring libsecret-tools
 ```
 
 - `libx11-6 libice6 libsm6` — Avalonia's X11 backend. Without them the windowing backend fails to initialize.
 - `libfontconfig1` — fonts. Without it text rendering / startup fails.
 - `xwayland` — Pi OS defaults to a Wayland session, but Avalonia uses the X11 backend and
   runs via XWayland. If no window appears, suspect this first.
+- `pipewire pipewire-bin wireplumber alsa-utils` — live-audio CLI support (`wpctl`, `pw-record`, and `arecord`).
+- `gnome-keyring libsecret-tools` — Secret Service / GNOME Keyring support for remember-login credential storage and `secret-tool` diagnostics.
 - (Optional) For direct DRM/KMS fullscreen, you also need `libgbm1 libdrm2 libinput10`.
 
 > ICU (`libicu`) is **not needed.** The app is built in invariant globalization mode

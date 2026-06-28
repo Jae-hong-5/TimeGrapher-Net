@@ -450,6 +450,7 @@ The app-side implementation should assume this backend contract:
 - The tested Raspberry Pi Desktop target reports `labwc:wlroots`, `rpd-labwc`, and `wayland`; a `secret-tool store` keyring password dialog is expected during GNOME Keyring setup or unlock.
 - Persistent login remains conditional on the full store/read/delete credential-store probe succeeding on the target device.
 - These findings make Windows and the tested Raspberry Pi Desktop the intended initial persistent-login targets for the app implementation, without permitting plain text credential storage.
+- Linux releases should include `gnome-keyring` and `libsecret-tools` in `install.sh` so Raspberry Pi users receive the required Secret Service/keyring components during normal installation.
 - The app never saves demo passwords in plain text config files, logs, screenshots, crash reports, or bundled assets.
 - The app asks for explicit consent before uploading the analysis log.
 - The app sends `consentGranted=true` only after the user consents.

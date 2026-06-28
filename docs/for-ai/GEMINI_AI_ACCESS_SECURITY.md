@@ -38,6 +38,7 @@ Provide Gemini-powered app features without distributing the project-owned Gemin
    - The tested Raspberry Pi Desktop target reports `labwc:wlroots`, `rpd-labwc`, and `wayland`; `secret-tool store` opening a keyring password dialog is expected during GNOME Keyring creation or unlock.
    - On that target, enable persistent login only after the full `secret-tool store`, `lookup`, and `clear` probe succeeds.
    - This confirms the target environment can support credential-backed auto-login; the app implementation must still use the credential-store adapter and fail closed if the probe fails.
+   - The Linux release installer should install `gnome-keyring` and `libsecret-tools` so Raspberry Pi users get the required Secret Service/keyring components during normal setup.
    - Do not store the password in app config, plain text files, screenshots, logs, crash reports, or bundled assets.
    - Keeping credentials only in memory is still acceptable when the user does not opt in to saving them.
 
@@ -119,6 +120,7 @@ Avoid claiming that the system has "no security risk". The correct claim is that
 - 확인한 라즈베리파이 Desktop 대상은 `labwc:wlroots`, `rpd-labwc`, `wayland` 세션이며, `secret-tool store` 실행 시 keyring 비밀번호 창이 뜨는 것은 GNOME Keyring 생성/해제 과정으로 정상이다.
 - 해당 대상에서도 `secret-tool store`, `lookup`, `clear` 전체 probe가 성공한 경우에만 자동 로그인 저장을 활성화한다.
 - 이 확인은 대상 환경이 credential 기반 자동 로그인을 지원할 수 있음을 의미하며, 앱 구현은 여전히 credential-store adapter를 사용하고 probe 실패 시 저장을 비활성화해야 한다.
+- Linux 릴리즈의 `install.sh`는 `gnome-keyring`과 `libsecret-tools`를 설치하여 라즈베리파이 사용자가 일반 설치 과정에서 Secret Service/keyring 구성요소를 갖추도록 한다.
 - 서버는 인증, rate limit, quota, 입력 크기 제한, 토큰 제한을 적용한다.
 - 범용 Gemini 프록시가 아니라 기능별 API만 제공한다.
 - 사용자의 명시적 동의를 받은 경우, 앱은 AI 설명을 위해 작은 분석 로그 파일을 서버로 보낼 수 있다.

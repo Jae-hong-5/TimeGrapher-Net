@@ -7,8 +7,8 @@
 
 ## 1. 빠른 설치 (권장)
 
-압축을 풀고 `install.sh`를 한 번 실행하면 의존성 설치 + 실행 권한 + 아이콘/데스크톱
-엔트리 등록에 더해, 푼 폴더와 바탕화면에 `TimeGrapher.desktop` 런처가 생성된다(기존
+압축을 풀고 `install.sh`를 한 번 실행하면 런타임, live-audio, credential-store 의존성
+설치 + 실행 권한 + 아이콘/데스크톱 엔트리 등록에 더해, 푼 폴더와 바탕화면에
 숏컷은 교체). 모든 엔트리의 `Exec`/`Icon` 경로는 **푼 위치로 자동 설정**된다.
 
 ```bash
@@ -19,8 +19,8 @@ cd ~/timegrapher
 ./TimeGrapher.App      # 또는 메뉴/작업표시줄의 'TimeGrapher'
 ```
 
-- `install.sh`는 멱등(재실행 가능). 의존성은 `apt-get`이 있을 때만 설치하고, root가
-  아니면 `sudo`를 쓴다.
+- `install.sh`는 멱등(재실행 가능). apt 의존성은 `apt-get`이 있을 때만 설치하고,
+  root가 아니면 `sudo`를 쓴다.
 - 파일 관리자에서 `TimeGrapher.App` 바이너리 자체는 기본 아이콘으로 보이는 게 정상이다
   — Linux ELF는 Windows .exe처럼 아이콘을 내장할 수 없다. 더블클릭 실행은 생성된
   `TimeGrapher.desktop` 런처(또는 바탕화면 숏컷)를 쓰면 된다.
@@ -29,20 +29,26 @@ cd ~/timegrapher
 단일 파일 self-contained 빌드라 **.NET 런타임은 설치할 필요 없다.** 아래 2·3번은
 `install.sh`가 자동으로 하는 일을 수동으로 하거나 문제를 진단할 때 참고하는 내용이다.
 
-## 2. 런타임 의존성 (수동 — 신선한 Pi OS에서 한 번만)
+## 2. 런타임 및 credential-store 의존성 (수동 — 신선한 Pi OS에서 한 번만)
 
-single-file 실행파일은 .NET 런타임은 포함하지만 시스템 X11/폰트 라이브러리는 포함하지
-않는다. 창이 안 뜨거나 폰트가 안 보이면 설치한다:
+single-file 실행파일은 .NET 런타임은 포함하지만 시스템 X11/폰트 라이브러리,
+live-audio 도구, Secret Service keyring 도구는 포함하지 않는다. 창이 안 뜨거나
+폰트가 안 보이거나, live capture가 안 되거나, 자동 로그인 저장이 OS credential
+store를 사용할 수 없으면 설치한다:
 
 ```bash
 sudo apt update
-sudo apt install -y libx11-6 libice6 libsm6 libfontconfig1 xwayland
+sudo apt install -y libx11-6 libice6 libsm6 libfontconfig1 xwayland \
+  pipewire pipewire-bin wireplumber alsa-utils \
+  gnome-keyring libsecret-tools
 ```
 
 - `libx11-6 libice6 libsm6` — Avalonia X11 백엔드. 없으면 윈도우 백엔드 초기화 실패.
 - `libfontconfig1` — 폰트. 없으면 텍스트 렌더링/시작 실패.
 - `xwayland` — Pi OS는 Wayland 세션이 기본인데 Avalonia는 X11 백엔드라 XWayland로 동작.
   창이 안 뜨면 이걸 먼저 의심할 것.
+- `pipewire pipewire-bin wireplumber alsa-utils` — live-audio CLI 지원(`wpctl`, `pw-record`, `arecord`).
+- `gnome-keyring libsecret-tools` — 자동 로그인 credential 저장과 `secret-tool` 진단을 위한 Secret Service / GNOME Keyring 지원.
 - (선택) 직접 DRM/KMS 풀스크린을 쓰면 `libgbm1 libdrm2 libinput10`도 필요.
 
 > ICU(`libicu`)는 **필요 없다.** 앱이 invariant globalization 모드로 빌드되어 있어

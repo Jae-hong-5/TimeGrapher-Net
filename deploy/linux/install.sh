@@ -6,7 +6,7 @@
 #     ./install.sh
 #
 # What it does:
-#   1. Installs the X11/font runtime libraries Avalonia needs (apt; skip with --no-deps).
+#   1. Installs Linux runtime, live-audio CLI, and credential-store packages
 #   2. Marks the TimeGrapher.App launcher executable.
 #   3. Installs the taskbar icon and a desktop entry whose Exec/Icon point at THIS
 #      folder (no hardcoded paths), so the app shows up in the menu/taskbar.
@@ -26,8 +26,9 @@ usage() {
   cat <<'USAGE'
 Usage: ./install.sh [--no-deps] [--help]
 
-  --no-deps   Skip the apt package install (use if the runtime libraries are
-              already present, or on a non-Debian/non-Pi system).
+  --no-deps   Skip the apt package install (use if the runtime, live-audio,
+              and credential-store dependencies are already present, or on a
+              non-Debian/non-Pi system).
   --help      Show this help.
 USAGE
 }
@@ -55,15 +56,17 @@ if [ "$INSTALL_DEPS" -eq 1 ]; then
   if command -v apt-get >/dev/null 2>&1; then
     SUDO=""
     if [ "$(id -u)" -ne 0 ]; then SUDO="sudo"; fi
-    echo "==> Installing runtime libraries (X11, fontconfig, XWayland, live-audio CLI)..."
+    echo "==> Installing runtime libraries (X11, fontconfig, XWayland, live-audio CLI, credential store)..."
     $SUDO apt-get update
     $SUDO apt-get install -y libx11-6 libice6 libsm6 libfontconfig1 xwayland \
-      pipewire pipewire-bin wireplumber alsa-utils
+      pipewire pipewire-bin wireplumber alsa-utils \
+      gnome-keyring libsecret-tools
   else
     echo "==> apt-get not found; skipping dependency install."
     echo "    Install the equivalents of: libx11-6 libice6 libsm6 libfontconfig1 xwayland"
-    echo "    and the live-audio CLI tools: pipewire pipewire-bin wireplumber alsa-utils"
-    echo "    (provide wpctl/pw-record and arecord; without them live capture is unavailable)."
+    echo "    live-audio CLI tools: pipewire pipewire-bin wireplumber alsa-utils"
+    echo "    and credential-store tools: gnome-keyring libsecret-tools"
+    echo "    (provide X11/XWayland, wpctl/pw-record/arecord, and Secret Service/secret-tool)."
   fi
 else
   echo "==> Skipping dependency install (--no-deps)."
