@@ -236,12 +236,12 @@
               <tr><td class="area">Beat Noise</td><td class="code">20 ms, 200 ms, 400 ms</td><td class="code">현재 유지</td></tr>
               <tr><td class="area">Beat Noise</td><td class="code">ABS, Σ</td><td class="code">현재 유지</td></tr>
               <tr><td class="area">Beat Noise</td><td class="code">LIFT —</td><td class="code">Lift —</td></tr>
-              <tr><td class="area">Waveforms</td><td class="code">Instantaneous Rate</td><td class="code">Inst. Error Rate</td></tr>
-              <tr><td class="area">Waveforms</td><td class="code">Instantaneous Beat Err</td><td class="code">Inst. Beat Error</td></tr>
-              <tr><td class="area">Waveforms</td><td class="code">BPH</td><td class="code">현재 유지</td></tr>
-              <tr><td class="area">Waveforms</td><td class="code">A to C</td><td class="code">A→C</td></tr>
-              <tr><td class="area">Waveforms</td><td class="code">Amplitude</td><td class="code">현재 유지</td></tr>
-              <tr><td class="area">Waveforms</td><td class="code">TIC, TOC</td><td class="code">Tic, Toc</td></tr>
+              <tr><td class="area">Comparison</td><td class="code">Instantaneous Rate</td><td class="code">Inst. Error Rate</td></tr>
+              <tr><td class="area">Comparison</td><td class="code">Instantaneous Beat Err</td><td class="code">Inst. Beat Error</td></tr>
+              <tr><td class="area">Comparison</td><td class="code">BPH</td><td class="code">현재 유지</td></tr>
+              <tr><td class="area">Comparison</td><td class="code">A to C</td><td class="code">A→C</td></tr>
+              <tr><td class="area">Comparison</td><td class="code">Amplitude</td><td class="code">현재 유지</td></tr>
+              <tr><td class="area">Comparison</td><td class="code">TIC, TOC</td><td class="code">Tic, Toc</td></tr>
               <tr><td class="area">Filter Scope</td><td class="code">F0, F1, F2, F3</td><td class="code">현재 유지</td></tr>
               <tr><td class="area">Filter Scope 설명문</td><td class="code">긴 설명문</td><td class="code">tooltip/보조 설명</td></tr>
               <tr><td class="area">Sound Print</td><td class="code">별도 주요 텍스트 없음</td><td class="code">현재 유지</td></tr>

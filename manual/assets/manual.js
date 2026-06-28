@@ -26,7 +26,7 @@
     { f: "graphs/health.html",       n: 10, t: "Health" },
     { f: "graphs/beat-noise.html",   n: 11, t: "Beat Noise" },
     { f: "graphs/escapement.html",   n: 12, t: "Escapement" },
-    { f: "graphs/waveforms.html",    n: 13, t: "Waveforms" },
+    { f: "graphs/waveforms.html",    n: 13, t: "Comparison" },
     { f: "graphs/spectrogram.html",  n: 14, t: "Spectrogram" }
   ];
 

@@ -197,7 +197,7 @@ $tabMap = @{
   "Health"       = "tab-health.png"
   "Beat Noise"   = "tab-beat-noise.png"
   "Escapement"   = "tab-escapement.png"
-  "Waveforms"    = "tab-waveforms.png"
+  "Comparison"   = "tab-waveforms.png"
   "Spectrogram"  = "tab-spectrogram.png"
 }
 
