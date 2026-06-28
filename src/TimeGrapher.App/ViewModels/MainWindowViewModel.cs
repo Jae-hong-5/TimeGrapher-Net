@@ -77,7 +77,7 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     private int _sweepMultiple = SweepFrameProjector.DefaultSweepMultiple;
     private int _selectedPositionIndex; // 0 = WatchPosition.CH (dial up)
     private bool _sigmaAveraging;
-    private bool _isMeasurementLogEnabled;
+    private bool _isMeasurementLogEnabled = true;
     // Accept-band ("normal" range) limits the user edits in Settings. Decimal to
     // bind cleanly to the NumericUpDown controls (the LiftAngle pattern); seeded
     // from the persisted AcceptBandSettings on startup and applied live by the

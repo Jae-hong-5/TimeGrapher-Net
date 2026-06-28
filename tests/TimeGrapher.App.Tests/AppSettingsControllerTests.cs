@@ -271,7 +271,7 @@ public sealed class AppSettingsControllerTests : IDisposable
         Assert.Equal((decimal)AcceptBandSettings.Default.AmplitudeMaxDeg, viewModel.AmplitudeAcceptMax);
         Assert.Equal((decimal)AcceptBandSettings.Default.BeatErrorMagnitudeMs, viewModel.BeatErrorAcceptMag);
         Assert.Equal(SettingsWindowSettings.Default.VerdictMinimumBeats, (int)viewModel.VerdictMinimumBeats);
-        Assert.False(viewModel.IsMeasurementLogEnabled);
+        Assert.True(viewModel.IsMeasurementLogEnabled);
     }
 
     [Fact]

@@ -246,7 +246,7 @@ public sealed class MainWindowViewModelTests
         Assert.True(vm.IsWeakAOnsetRescueStrengthEnabled);
         Assert.True(vm.SpuriousBeatRejection);
         Assert.False(vm.PauseOnPositionChange);
-        Assert.False(vm.IsMeasurementLogEnabled);
+        Assert.True(vm.IsMeasurementLogEnabled);
 
         // The view-model's literal defaults must mirror the canonical Default records
         // (the single source of truth) so an un-seeded view-model builds a run with the
@@ -319,7 +319,7 @@ public sealed class MainWindowViewModelTests
         vm.Gain = 250;
         vm.LiftAngle = 53m;
         vm.PauseOnPositionChange = true;
-        vm.IsMeasurementLogEnabled = true;
+        vm.IsMeasurementLogEnabled = false;
         vm.VerdictMinimumBeats = 45m;
 
         Assert.Contains(nameof(MainWindowViewModel.SelectedInputDeviceIndex), changed);

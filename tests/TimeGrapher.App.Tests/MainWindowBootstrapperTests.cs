@@ -146,20 +146,28 @@ public sealed class MainWindowBootstrapperTests : IDisposable
     }
 
     [Fact]
-    public void Build_SeedsMeasurementLogDisabledWhenNoCliPath()
+    public void Build_SeedsMeasurementLogFromDefaultWhenNoCliPath()
     {
+        // No CLI path: the toggle seeds from the persisted setting, which is on by default.
+        AppSettings.Current = AppSettings.Default;
         MainWindowViewModel vm = MainWindowBootstrapper.CreateViewModel();
 
         _ = MainWindowBootstrapper.Build(
             vm, Adapters(new FakeRunCommandOperations(), new FakeAcceptBandOperations()), Callbacks(),
             AppStartupOptions.Parse(Array.Empty<string>()));
 
-        Assert.False(vm.IsMeasurementLogEnabled);
+        Assert.True(vm.IsMeasurementLogEnabled);
     }
 
     [Fact]
     public void Build_DoesNotSeedMeasurementLogToggleFromCliPath()
     {
+        // The persisted toggle is off here, so any post-Build "on" could only come from
+        // the CLI path — which must not happen.
+        AppSettings.Current = AppSettings.Default with
+        {
+            SettingsWindow = SettingsWindowSettings.Default with { MeasurementLogEnabled = false },
+        };
         MainWindowViewModel vm = MainWindowBootstrapper.CreateViewModel();
 
         // A one-shot --measurement-log launch must NOT flip the persisted toggle: that

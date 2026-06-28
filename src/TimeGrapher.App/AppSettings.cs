@@ -108,7 +108,7 @@ internal sealed record SettingsWindowSettings(
         SpuriousBeatRejection: true,
         PauseOnPositionChange: false,
         HighPassCutoffText: "200",
-        MeasurementLogEnabled: false,
+        MeasurementLogEnabled: true,
         WeakAOnsetRescueStrengthStep: WeakAOnsetRescueStrengthPolicy.MinStep,
         VerdictMinimumBeats: VerdictBeatPolicy.DefaultMinimumBeats);
 
