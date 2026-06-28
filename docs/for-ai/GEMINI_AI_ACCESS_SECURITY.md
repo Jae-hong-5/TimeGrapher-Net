@@ -34,6 +34,8 @@ Provide Gemini-powered app features without distributing the project-owned Gemin
    - On Linux/Raspberry Pi, this means a Secret Service-compatible keyring such as GNOME Keyring or KWallet; if no such keyring is available, do not persist credentials.
    - Treat a successful store/read/delete probe against the credential store as the availability check; a desktop session alone is not enough.
    - SSH sessions may report `XDG_SESSION_TYPE=tty`; this does not prove the desktop keyring is unavailable. Run the credential-store probe from the graphical desktop session, or fail closed to in-memory credentials only.
+   - The tested Raspberry Pi Desktop target reports `labwc:wlroots`, `rpd-labwc`, and `wayland`; `secret-tool store` opening a keyring password dialog is expected during GNOME Keyring creation or unlock.
+   - On that target, enable persistent login only after the full `secret-tool store`, `lookup`, and `clear` probe succeeds.
    - Do not store the password in app config, plain text files, screenshots, logs, crash reports, or bundled assets.
    - Keeping credentials only in memory is still acceptable when the user does not opt in to saving them.
 
@@ -111,6 +113,8 @@ Avoid claiming that the system has "no security risk". The correct claim is that
 - 라즈베리파이/리눅스에서는 GNOME Keyring, KWallet 등 Secret Service 호환 keyring이 있는 경우에만 저장하고, 없으면 자동 로그인 저장을 제공하지 않는다.
 - Desktop 환경인지보다 credential store에 실제 저장/조회/삭제가 되는지가 기준이다.
 - SSH 세션의 `XDG_SESSION_TYPE=tty` 출력은 데스크톱 keyring 부재를 증명하지 않으므로, 그래픽 데스크톱 터미널에서 probe를 실행하거나 실패 시 메모리 저장만 사용한다.
+- 확인한 라즈베리파이 Desktop 대상은 `labwc:wlroots`, `rpd-labwc`, `wayland` 세션이며, `secret-tool store` 실행 시 keyring 비밀번호 창이 뜨는 것은 GNOME Keyring 생성/해제 과정으로 정상이다.
+- 해당 대상에서도 `secret-tool store`, `lookup`, `clear` 전체 probe가 성공한 경우에만 자동 로그인 저장을 활성화한다.
 - 서버는 인증, rate limit, quota, 입력 크기 제한, 토큰 제한을 적용한다.
 - 범용 Gemini 프록시가 아니라 기능별 API만 제공한다.
 - 사용자의 명시적 동의를 받은 경우, 앱은 AI 설명을 위해 작은 분석 로그 파일을 서버로 보낼 수 있다.

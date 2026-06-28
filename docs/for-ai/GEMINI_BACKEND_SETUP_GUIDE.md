@@ -446,6 +446,8 @@ The app-side implementation should assume this backend contract:
 - On Linux/Raspberry Pi, persistent login requires a Secret Service-compatible keyring such as GNOME Keyring or KWallet; if no keyring is available, the app should keep credentials in memory only.
 - The app should detect credential-store availability with a store/read/delete probe; a Raspberry Pi desktop session alone should not enable persistent login.
 - `XDG_SESSION_TYPE=tty` from SSH is not a negative keyring result; probe from the graphical desktop session when persistent login is required.
+- The tested Raspberry Pi Desktop target reports `labwc:wlroots`, `rpd-labwc`, and `wayland`; a `secret-tool store` keyring password dialog is expected during GNOME Keyring setup or unlock.
+- Persistent login remains conditional on the full store/read/delete credential-store probe succeeding on the target device.
 - The app never saves demo passwords in plain text config files, logs, screenshots, crash reports, or bundled assets.
 - The app asks for explicit consent before uploading the analysis log.
 - The app sends `consentGranted=true` only after the user consents.
