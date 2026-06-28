@@ -204,7 +204,11 @@ flowchart LR
 How the View stays reachable from the controllers **without** any controller or the view-model
 referencing the concrete `MainWindow`: controllers depend on **ports** (`«interface»`); View-side
 adapters **realize** those ports and hold the concrete window/renderer. `RunCommandService` closes
-the loop by realizing the view-model's own `IRunCommandRunner` port.
+the loop by realizing the view-model's own `IRunCommandRunner` port. One **reverse** edge exists
+since the selection-ops refactor: the View-side adapter `MainWindow.SelectionOperations` *uses* the
+`IRunSessionLiveAdjustments` port (late-attached after `Build`) which the `RunSessionController`
+service realizes — so that adapter no longer holds the window for the live volume / simulation-parameter
+forwards.
 
 ```mermaid
 flowchart LR
@@ -226,6 +230,7 @@ flowchart LR
   pPause["«port» IRunCommandPause"]
   pBk["«port» IAudioDeviceBackend"]
   pDisp["«port» IUiDispatcher"]
+  pLive["«port» IRunSessionLiveAdjustments"]
 
   rcs["RunCommandService"]
   rcc["RunControlController"]
@@ -253,11 +258,12 @@ flowchart LR
   rcc -.->|"«use»"| pCtrls
   rcc -.->|"«use»"| pPause
   rsc -.->|"«realize»"| pCtrls
+  rsc -.->|"«realize»"| pLive
   rcs -.->|"«realize»"| pPause
 
   msc -.->|"«use»"| pSel
   aSel -.->|"«realize»"| pSel
-  aSel -.->|"«use» owner"| mw
+  aSel -.->|"«use» (late-attach)"| pLive
 
   abc -.->|"«use»"| pBand
   aBand -.->|"«realize»"| pBand
@@ -276,7 +282,7 @@ flowchart LR
   class mw,renderer,aRun,aSel,aBand,aDlg,aDisp,aBk cView;
   class vm cVm;
   class rcs,rcc,rsc,msc,abc,adc,rec,play cSvc;
-  class iRunner,pRun,pSel,pBand,pDlg,pCtrls,pPause,pBk,pDisp cPort;
+  class iRunner,pRun,pSel,pBand,pDlg,pCtrls,pPause,pBk,pDisp,pLive cPort;
 ```
 
 ---
@@ -319,7 +325,7 @@ flowchart LR
 | Adapter / service (realizer) | Port realized |
 |---|---|
 | `RunCommandService` | `IRunCommandRunner`, `IRunCommandPause` |
-| `RunSessionController` | `IRunSessionControls` |
+| `RunSessionController` | `IRunSessionControls`, `IRunSessionLiveAdjustments` |
 | `MainWindow.RunCommandOperations` (nested) | `IRunCommandOperations` |
 | `MainWindow.SelectionOperations` (nested) | `IMainWindowSelectionOperations` |
 | `GraphAcceptBandOperations` | `IAcceptBandOperations` |
