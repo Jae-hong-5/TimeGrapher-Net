@@ -56,6 +56,32 @@ public sealed class MultiFilterScopeRendererTests
     }
 
     [Fact]
+    public void RenderFrame_RebasesLaneXAndAxisToTheLockedWindowAfterSync()
+    {
+        var renderer = new MultiFilterScopeRenderer(CreatePlots());
+        renderer.CreateGraphs();
+        AnalysisFrame frame = FilterFrame(beatSynced: false);
+        renderer.RenderFrame(frame, new AnalysisTabRenderContext(SampleRate));
+
+        frame.BeatSynced = true;
+        frame.BeatSegments = BeatSegments();
+        renderer.RenderFrame(frame, new AnalysisTabRenderContext(SampleRate));
+
+        // A beat window locked, so the frame is re-based: the axis starts at 0 and
+        // every lane's X is shifted left by the locked window-left edge.
+        double windowLeft = GetField<double>(renderer, "_windowLeft");
+        Assert.True(windowLeft > 0.0, "a beat window should have locked and shifted the frame");
+        Assert.Equal(0.0, GetField<double>(renderer, "_dataMinX"));
+        Assert.True(GetField<double>(renderer, "_dataMaxX") > 0.0);
+
+        // FilterFrame feeds X = 0, 1000, ..., 24000 absolute ticks; after re-base the
+        // newest sample sits at 24000 - windowLeft and the oldest at -windowLeft.
+        List<double> laneX = LaneBuffers(renderer)[0];
+        Assert.Equal(24000.0 - windowLeft, laneX.Max(), 6);
+        Assert.Equal(-windowLeft, laneX.Min(), 6);
+    }
+
+    [Fact]
     public void RenderFrame_ClearsFilterSeriesAfterSyncLoss()
     {
         var renderer = new MultiFilterScopeRenderer(CreatePlots());
@@ -118,6 +144,11 @@ public sealed class MultiFilterScopeRendererTests
         Samples = new float[] { 1.0f },
         MsPerPoint = 0.25,
     };
+
+    private static T GetField<T>(MultiFilterScopeRenderer renderer, string name) =>
+        (T)typeof(MultiFilterScopeRenderer)
+            .GetField(name, BindingFlags.Instance | BindingFlags.NonPublic)!
+            .GetValue(renderer)!;
 
     private static IReadOnlyList<List<double>> LaneBuffers(MultiFilterScopeRenderer renderer) =>
         (IReadOnlyList<List<double>>)typeof(MultiFilterScopeRenderer)
