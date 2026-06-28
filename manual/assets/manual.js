@@ -65,14 +65,15 @@
     var el = document.getElementById("langToggle");
     if (!el) return;
     el.innerHTML =
-      "<button data-mode=\"show-both\">둘 다</button>" +
+      "<button data-mode=\"show-both\">전체</button>" +
       "<button data-mode=\"show-ko\">한국어</button>" +
-      "<button data-mode=\"show-en\">EN</button>";
+      "<button data-mode=\"show-en\">EN</button>" +
+      "<button data-mode=\"show-pt\">PT</button>";
   }
 
   /* ---- language toggle ---- */
   var KEY = "tg-manual-lang";
-  var modes = ["show-both", "show-ko", "show-en"];
+  var modes = ["show-both", "show-ko", "show-en", "show-pt"];
   function applyLang(mode) {
     modes.forEach(function (m) { document.body.classList.remove(m); });
     document.body.classList.add(mode);

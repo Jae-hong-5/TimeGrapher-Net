@@ -211,34 +211,37 @@ dl.kv { display: grid; grid-template-columns: max-content 1fr; gap: 4px 16px; ma
 dl.kv dt { font-weight: 700; }
 dl.kv dd { margin: 0; }
 
-/* ---------- bilingual toggle ---------- */
-.en { color: var(--text-muted); }
+/* ---------- multilingual toggle ---------- */
+.en, .pt { color: var(--text-muted); }
 
-/* symmetric KO / EN badges — only meaningful in side-by-side (both) mode */
-.ko::before, .en::before {
+/* symmetric KO / EN / PT badges — only meaningful in side-by-side (all) mode */
+.ko::before, .en::before, .pt::before {
   font-size: 10px; font-weight: 700; padding: 0 3px; margin-right: 6px;
   vertical-align: 1px; border: 1px solid currentColor;
 }
 .ko::before { content: "KO"; color: var(--tic); }
 .en::before { content: "EN"; color: var(--accent); }
+.pt::before { content: "PT"; color: var(--warn-border); }
 
-/* hide the other language per selected mode */
-body.show-ko .en { display: none; }
-body.show-en .ko { display: none; }
-body.show-en .en { color: var(--text); }
+/* hide the other languages per selected mode */
+body.show-ko .en, body.show-ko .pt { display: none; }
+body.show-en .ko, body.show-en .pt { display: none; }
+body.show-pt .ko, body.show-pt .en { display: none; }
+body.show-en .en, body.show-pt .pt { color: var(--text); }
 
 /* in a single-language mode the badge is redundant — drop it */
 body.show-ko .ko::before { display: none; }
 body.show-en .en::before { display: none; }
+body.show-pt .pt::before { display: none; }
 
-/* headings & table headers carry no badge; a "·" separator shows only in both mode */
-:is(h1, h2, h3) .ko::before, :is(h1, h2, h3) .en::before,
-th .ko::before, th .en::before { display: none; }
+/* headings & table headers carry no badge; a "·" separator shows only in all mode */
+:is(h1, h2, h3) .ko::before, :is(h1, h2, h3) .en::before, :is(h1, h2, h3) .pt::before,
+th .ko::before, th .en::before, th .pt::before { display: none; }
 .sep { color: var(--text-muted); }
-body.show-ko .sep, body.show-en .sep { display: none; }
+body.show-ko .sep, body.show-en .sep, body.show-pt .sep { display: none; }
 
-/* keep block-level EN paragraphs on their own line */
-li > .en, p.en { display: block; }
+/* keep block-level EN / PT paragraphs on their own line */
+li > .en, p.en, li > .pt, p.pt { display: block; }
 
 @media (max-width: 860px) {
   .sidebar { display: none; }
