@@ -31,6 +31,7 @@ Provide Gemini-powered app features without distributing the project-owned Gemin
    - The demo ID/password are delivered through a private grading channel, such as LMS, email, or live presentation.
    - The backend verifies the credentials before calling Gemini.
    - If "remember login" or auto-login is implemented, store the credentials only in the operating system credential store.
+   - On Linux/Raspberry Pi, this means a Secret Service-compatible keyring such as GNOME Keyring or KWallet; if no such keyring is available, do not persist credentials.
    - Do not store the password in app config, plain text files, screenshots, logs, crash reports, or bundled assets.
    - Keeping credentials only in memory is still acceptable when the user does not opt in to saving them.
 
@@ -105,6 +106,7 @@ Avoid claiming that the system has "no security risk". The correct claim is that
 - 앱은 Gemini API 키 입력, 저장, 직접 호출 기능을 제공하지 않는다.
 - 채점자용 ID/PW는 앱에 넣지 않고 별도로 제공한다.
 - 자동 로그인이나 로그인 정보 저장을 지원하는 경우, ID/PW는 운영체제 credential store에만 저장하고 평문 설정 파일에는 저장하지 않는다.
+- 라즈베리파이/리눅스에서는 GNOME Keyring, KWallet 등 Secret Service 호환 keyring이 있는 경우에만 저장하고, 없으면 자동 로그인 저장을 제공하지 않는다.
 - 서버는 인증, rate limit, quota, 입력 크기 제한, 토큰 제한을 적용한다.
 - 범용 Gemini 프록시가 아니라 기능별 API만 제공한다.
 - 사용자의 명시적 동의를 받은 경우, 앱은 AI 설명을 위해 작은 분석 로그 파일을 서버로 보낼 수 있다.
