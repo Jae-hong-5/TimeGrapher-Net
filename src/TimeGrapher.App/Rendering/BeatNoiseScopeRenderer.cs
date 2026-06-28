@@ -68,21 +68,37 @@ internal sealed class BeatNoiseScopeRenderer
     private readonly List<double> _mainCLegendX = new();
     private readonly List<double> _mainCLegendY = new();
     private readonly List<StableStripWindow> _stable400MsStripWindows = new();
+    // Reused per-frame for the non-400 ms range (the live default): one scratch
+    // window per strip slot, plus one for the main plot's displayed window, so
+    // RenderStrips no longer allocates a StableStripWindow per slot every frame.
+    private readonly StableStripWindow[] _stripScratchWindows;
+    private readonly StableStripWindow _displayedScratchWindow = new();
 
     private sealed class StableStripWindow
     {
+        public StableStripWindow()
+        {
+        }
+
         public StableStripWindow(long bucket, BeatSegment segment, IReadOnlyList<BeatSegment> markerSegments)
         {
-            Bucket = bucket;
-            Segment = segment;
+            Reset(bucket, segment);
             MergeMarkerSegments(markerSegments);
         }
 
-        public long Bucket { get; }
+        public long Bucket { get; private set; }
 
-        public BeatSegment Segment { get; }
+        public BeatSegment Segment { get; private set; } = null!;
 
         public List<BeatSegment> MarkerSegments { get; } = new();
+
+        /// <summary>Re-points a pooled window at a new bucket/segment and clears its markers for a refill.</summary>
+        public void Reset(long bucket, BeatSegment segment)
+        {
+            Bucket = bucket;
+            Segment = segment;
+            MarkerSegments.Clear();
+        }
 
         public void MergeMarkerSegments(IReadOnlyList<BeatSegment> markerSegments)
         {
@@ -165,10 +181,12 @@ internal sealed class BeatNoiseScopeRenderer
         _stripScatters = new Scatter?[BeatNoiseScopeLogic.StripCount];
         _stripDividers = new VerticalLine?[BeatNoiseScopeLogic.StripCount - 1];
         _stripSlotLabels = new Text?[BeatNoiseScopeLogic.StripCount];
+        _stripScratchWindows = new StableStripWindow[BeatNoiseScopeLogic.StripCount];
         for (int i = 0; i < BeatNoiseScopeLogic.StripCount; i++)
         {
             _stripX[i] = new List<double>();
             _stripY[i] = new List<double>();
+            _stripScratchWindows[i] = new StableStripWindow();
         }
 
         for (int i = 0; i < 5; i++)
@@ -770,7 +788,10 @@ internal sealed class BeatNoiseScopeRenderer
             BeatSegment? segment;
             if (_viewMode == BeatNoiseScopeViewMode.EnvelopeAndStrip)
             {
-                if (WindowForSlot(snapshot, slot, _rangeMs) is StableStripWindow window)
+                StableStripWindow? slotWindow = _rangeMs != DefaultRangeMs
+                    ? FillNonDefaultWindow(snapshot, slot, _rangeMs, _stripScratchWindows[slot])
+                    : WindowForSlot(snapshot, slot, _rangeMs);
+                if (slotWindow is StableStripWindow window)
                 {
                     segment = window.Segment;
                     markerSegments = window.MarkerSegments;
@@ -1164,6 +1185,24 @@ internal sealed class BeatNoiseScopeRenderer
         return null;
     }
 
+    // Fills a pooled scratch window for the non-default (live) range so the strip
+    // path reuses instances instead of allocating one per slot every frame.
+    private StableStripWindow? FillNonDefaultWindow(
+        BeatSegmentsSnapshot snapshot, int slot, int rangeMs, StableStripWindow scratch)
+    {
+        int count = Math.Min(snapshot.Segments.Count, BeatNoiseScopeLogic.StripCount);
+        int index = slot - (BeatNoiseScopeLogic.StripCount - count);
+        if (index < 0 || index >= count)
+        {
+            return null;
+        }
+
+        BeatSegment segment = snapshot.Segments[snapshot.Segments.Count - count + index];
+        scratch.Reset(WindowBucket(segment, rangeMs), segment);
+        scratch.MergeMarkerSegments(snapshot.Segments);
+        return scratch;
+    }
+
     private StableStripWindow? WindowForSlot(BeatSegmentsSnapshot snapshot, int slot, int rangeMs)
     {
         if (slot < 0 || slot >= BeatNoiseScopeLogic.StripCount)
@@ -1173,15 +1212,7 @@ internal sealed class BeatNoiseScopeRenderer
 
         if (rangeMs != DefaultRangeMs)
         {
-            int count = Math.Min(snapshot.Segments.Count, BeatNoiseScopeLogic.StripCount);
-            int index = slot - (BeatNoiseScopeLogic.StripCount - count);
-            if (index < 0 || index >= count)
-            {
-                return null;
-            }
-
-            BeatSegment segment = snapshot.Segments[snapshot.Segments.Count - count + index];
-            return new StableStripWindow(WindowBucket(segment, rangeMs), segment, snapshot.Segments);
+            return FillNonDefaultWindow(snapshot, slot, rangeMs, _displayedScratchWindow);
         }
 
         IReadOnlyList<StableStripWindow> windows = StableNonOverlappingWindowSegments(snapshot, rangeMs);
