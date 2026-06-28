@@ -3,7 +3,9 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
 
-namespace TimeGrapher.App.Services;
+using TimeGrapher.App.Services;
+
+namespace TimeGrapher.App.Views;
 
 internal sealed class MainWindowDialogService : ITimeGrapherDialogService
 {
