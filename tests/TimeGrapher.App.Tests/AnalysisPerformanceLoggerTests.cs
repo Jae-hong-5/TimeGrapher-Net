@@ -37,6 +37,32 @@ public sealed class AnalysisPerformanceLoggerTests
     }
 
     [Fact]
+    public void SaturatedQueueDropsAreCountedWithoutThrowingOrBlocking()
+    {
+        string path = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".csv");
+
+        // Capacity 1 against a large burst: the synchronous formatting/file-write
+        // consumer cannot keep up, so the bounded queue saturates and the UI frame
+        // path drops (counted) instead of blocking on Add. Every ObserveDisplayed
+        // must return promptly and never throw.
+        using (var logger = new AnalysisPerformanceLogger(path, ticksPerMs: 1000.0, queueCapacity: 1))
+        {
+            for (int i = 0; i < 200_000; i++)
+            {
+                logger.ObserveDisplayed(new AnalysisFrame
+                {
+                    CaptureTimestamp = 1_000,
+                    ProcessingCompletedTimestamp = 2_000,
+                }, displayTicks: 3_000);
+            }
+
+            Assert.True(logger.DroppedEntries > 0);
+        }
+
+        File.Delete(path);
+    }
+
+    [Fact]
     public void ObserveDisplayedReportsCumulativeAverageAndWorstCase()
     {
         string path = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".csv");

@@ -9,7 +9,12 @@ namespace TimeGrapher.App.Services;
 
 internal sealed class AnalysisPerformanceLogger : IDisposable
 {
-    private readonly BlockingCollection<AnalysisPerformanceLogEntry> _entries = new();
+    // Bounded queue mirroring QueuedWavStreamWriter: the UI frame path must never
+    // block on the diagnostic writer, so a full queue drops the entry (counted) via
+    // TryAdd instead of stalling the UI thread on Add.
+    private const int DefaultQueueCapacity = 1024;
+
+    private readonly BlockingCollection<AnalysisPerformanceLogEntry> _entries;
     private readonly StreamWriter _writer;
     private readonly Thread _writerThread;
     private readonly object _gate = new();
@@ -18,10 +23,14 @@ internal sealed class AnalysisPerformanceLogger : IDisposable
     private readonly RunningStats _procToDispMs = new();
     private readonly RunningStats _endToEndMs = new();
     private ulong _droppedAudioSamples;
+    private ulong _droppedEntries;
     private bool _disposed;
 
-    public AnalysisPerformanceLogger(string path, double? ticksPerMs = null)
+    public ulong DroppedEntries => Interlocked.Read(ref _droppedEntries);
+
+    public AnalysisPerformanceLogger(string path, double? ticksPerMs = null, int queueCapacity = DefaultQueueCapacity)
     {
+        _entries = new BlockingCollection<AnalysisPerformanceLogEntry>(boundedCapacity: Math.Max(1, queueCapacity));
         _ticksPerMs = ticksPerMs ?? Stopwatch.Frequency / 1000.0;
         _writer = new StreamWriter(path, append: false, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
         _writer.WriteLine(
@@ -73,7 +82,12 @@ internal sealed class AnalysisPerformanceLogger : IDisposable
                 _endToEndMs.Max,
                 _droppedAudioSamples,
                 frame.MissedBeats);
-            _entries.Add(entry);
+            if (!_entries.TryAdd(entry))
+            {
+                // Queue saturated: drop this diagnostic entry rather than block the
+                // UI frame path. Count the drop so the loss is observable.
+                Interlocked.Increment(ref _droppedEntries);
+            }
         }
     }
 

@@ -17,17 +17,26 @@ internal sealed class MeasurementResultLogger : IMeasurementResultSink
         "amplitude_count,amplitude_mean_deg,amplitude_sigma_deg," +
         "missed_beat_detections,sync_loss_count";
 
-    private readonly BlockingCollection<MeasurementResultLogEntry> _entries = new();
+    // Bounded queue mirroring QueuedWavStreamWriter: the UI frame path must never
+    // block on the diagnostic writer, so a full queue drops the entry (counted) via
+    // TryAdd instead of stalling the UI thread on Add.
+    private const int DefaultQueueCapacity = 1024;
+
+    private readonly BlockingCollection<MeasurementResultLogEntry> _entries;
     private readonly StreamWriter _writer;
     private readonly Thread _writerThread;
     private readonly object _gate = new();
     private ulong _lastSessionId;
     private ulong _lastHistoryVersion;
     private bool _haveLastHistory;
+    private ulong _droppedEntries;
     private bool _disposed;
 
-    public MeasurementResultLogger(string path, decimal liftAngleDeg)
+    public ulong DroppedEntries => Interlocked.Read(ref _droppedEntries);
+
+    public MeasurementResultLogger(string path, decimal liftAngleDeg, int queueCapacity = DefaultQueueCapacity)
     {
+        _entries = new BlockingCollection<MeasurementResultLogEntry>(boundedCapacity: Math.Max(1, queueCapacity));
         var stream = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.Read);
         _writer = new StreamWriter(stream, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false))
         {
@@ -77,7 +86,12 @@ internal sealed class MeasurementResultLogger : IMeasurementResultSink
             _lastHistoryVersion = history.Version;
             _haveLastHistory = true;
 
-            _entries.Add(MeasurementResultLogEntry.From(frame, history));
+            if (!_entries.TryAdd(MeasurementResultLogEntry.From(frame, history)))
+            {
+                // Queue saturated: drop this diagnostic entry rather than block the
+                // UI frame path. Count the drop so the loss is observable.
+                Interlocked.Increment(ref _droppedEntries);
+            }
         }
     }
 

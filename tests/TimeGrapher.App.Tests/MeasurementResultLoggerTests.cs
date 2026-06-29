@@ -148,6 +148,29 @@ public sealed class MeasurementResultLoggerTests
         Assert.Equal(2, lines.Length);
     }
 
+    [Fact]
+    public void SaturatedQueueDropsAreCountedWithoutThrowingOrBlocking()
+    {
+        string path = NewTempCsvPath();
+
+        // Capacity 1 against a large burst of distinct history versions (each clears
+        // the dedup gate so a fresh entry is enqueued): the synchronous formatting/
+        // file-write consumer cannot keep up, so the bounded queue saturates and the
+        // UI frame path drops (counted) instead of blocking on Add. Every
+        // ObserveDisplayed must return promptly and never throw.
+        using (var logger = new MeasurementResultLogger(path, 52m, queueCapacity: 1))
+        {
+            for (ulong version = 1; version <= 200_000; version++)
+            {
+                logger.ObserveDisplayed(SampleFrame(sessionId: 7, sourceId: version, version: version));
+            }
+
+            Assert.True(logger.DroppedEntries > 0);
+        }
+
+        File.Delete(path);
+    }
+
     private static AnalysisFrame SampleFrame(ulong sessionId, ulong sourceId, ulong version)
     {
         return new AnalysisFrame
