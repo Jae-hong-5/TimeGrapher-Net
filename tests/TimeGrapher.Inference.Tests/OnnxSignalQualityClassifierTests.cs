@@ -215,7 +215,10 @@ public sealed class OnnxSignalQualityClassifierTests
     [Fact]
     public void Constructor_Throws_OnUnreadableModel()
     {
-        Assert.ThrowsAny<Exception>(() =>
+        // InferenceSession surfaces a malformed model as a typed OnnxRuntimeException;
+        // pin the exact type so a future silent swallow (returning a broken session)
+        // cannot pass as "threw something".
+        Assert.Throws<Microsoft.ML.OnnxRuntime.OnnxRuntimeException>(() =>
             new OnnxSignalQualityClassifier(new byte[] { 0, 1, 2, 3 }, new[] { "Good", "Noisy" }));
     }
 }
