@@ -107,7 +107,7 @@
       "timegrapher.platform.linuxaudio": {
         "type": "Project",
         "dependencies": {
-          "TimeGrapher.Core": "[0.9.10, )"
+          "TimeGrapher.Core": "[0.9.11, )"
         }
       }
     }
