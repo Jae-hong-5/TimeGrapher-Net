@@ -67,6 +67,16 @@
               </Grid>
             </Viewbox>
           </Button>
+          <Button Name="AiExplanationTitleBarButton"
+                  Classes="TitleBarIconButton"
+                  Command="{Binding AiExplanationCommand}"
+                  ToolTip.Tip="AI explanation">
+            <TextBlock Text="AI"
+                       FontFamily="{StaticResource AppFontFamily}"
+                       FontSize="12"
+                       FontWeight="Bold"
+                       Foreground="{DynamicResource TextPrimaryBrush}" />
+          </Button>
           <Button Name="SettingsTitleBarButton"
                   Classes="TitleBarIconButton"
                   Click="OnSettingsTitleBarButtonClick"

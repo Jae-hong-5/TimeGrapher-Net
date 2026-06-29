@@ -123,6 +123,8 @@ public sealed class PlaybackFileServiceTests
             return Task.FromResult(_openResults.Count == 0 ? null : _openResults.Dequeue());
         }
 
+        public Task<string?> PickOpenMeasurementLogAsync() => Task.FromResult<string?>(null);
+
         public Task<string?> PickSaveWavAsync() => Task.FromResult<string?>(null);
 
         public Task ShowErrorAsync(string title, string message)
@@ -130,5 +132,9 @@ public sealed class PlaybackFileServiceTests
             Errors.Add((title, message));
             return Task.CompletedTask;
         }
+
+        public Task<AiExplanationDialogResult?> AskAiExplanationAsync(AiExplanationDialogRequest request) => Task.FromResult<AiExplanationDialogResult?>(null);
+
+        public Task ShowAiExplanationAsync(AiExplanationDisplay display) => Task.CompletedTask;
     }
 }

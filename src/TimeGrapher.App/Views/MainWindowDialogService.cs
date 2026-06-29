@@ -85,6 +85,23 @@ internal sealed class MainWindowDialogService : ITimeGrapherDialogService
         return files.Count == 0 ? null : files[0].TryGetLocalPath();
     }
 
+    public async Task<string?> PickOpenMeasurementLogAsync()
+    {
+        IStorageProvider sp = _owner.StorageProvider;
+        IReadOnlyList<IStorageFile> files = await sp.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = "Open Measurement Log",
+            AllowMultiple = false,
+            FileTypeFilter = new[]
+            {
+                new FilePickerFileType("Measurement Logs") { Patterns = new[] { "*.csv", "*.log", "*.txt" } },
+                new FilePickerFileType("All Files") { Patterns = new[] { "*" } },
+            },
+        });
+
+        return files.Count == 0 ? null : files[0].TryGetLocalPath();
+    }
+
     public async Task<string?> PickSaveWavAsync()
     {
         IStorageProvider sp = _owner.StorageProvider;
@@ -100,6 +117,168 @@ internal sealed class MainWindowDialogService : ITimeGrapherDialogService
         });
 
         return file?.TryGetLocalPath();
+    }
+
+    public async Task<AiExplanationDialogResult?> AskAiExplanationAsync(AiExplanationDialogRequest request)
+    {
+        var dialog = new Window
+        {
+            Title = "AI Explanation",
+            Width = 480,
+            SizeToContent = SizeToContent.Height,
+            CanResize = false,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+        };
+
+        AiExplanationDialogResult? result = null;
+        string[] backendLabels = BuildBackendLabels(request.BackendOptions);
+        var backendCombo = new ComboBox
+        {
+            ItemsSource = backendLabels,
+            SelectedIndex = SelectedBackendIndex(request.BackendOptions, request.SelectedBackendBaseUrl),
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+        };
+        var username = new TextBox
+        {
+            Text = request.SavedCredentials?.Username ?? string.Empty,
+            Watermark = "Demo username",
+        };
+        var password = new TextBox
+        {
+            Text = request.SavedCredentials?.Password ?? string.Empty,
+            PasswordChar = '●',
+            Watermark = "Demo password",
+        };
+        var remember = new CheckBox
+        {
+            Content = "Remember login with OS credential store",
+            IsChecked = request.CredentialPersistenceAvailable && request.SavedCredentials != null,
+            IsEnabled = request.CredentialPersistenceAvailable,
+        };
+        var consent = new CheckBox
+        {
+            Content = "I consent to upload the selected TimeGrapher measurement log to the private backend for AI explanation.",
+        };
+        var errorText = new TextBlock
+        {
+            Foreground = Brushes.IndianRed,
+            TextWrapping = TextWrapping.Wrap,
+            IsVisible = false,
+        };
+
+        if (!request.CredentialPersistenceAvailable)
+        {
+            remember.Content = "Remember login unavailable: OS credential store probe failed";
+        }
+
+        var ok = new Button { Content = "Explain", Width = 88, IsDefault = true };
+        var cancel = new Button { Content = "Cancel", Width = 80, IsCancel = true };
+        ok.Click += (_, _) =>
+        {
+            string selectedBackend = request.BackendOptions[Math.Max(0, backendCombo.SelectedIndex)].BaseUrl;
+            string usernameText = username.Text?.Trim() ?? string.Empty;
+            string passwordText = password.Text ?? string.Empty;
+
+            if (string.IsNullOrWhiteSpace(usernameText) || string.IsNullOrWhiteSpace(passwordText))
+            {
+                errorText.Text = "Enter the provided demo username and password.";
+                errorText.IsVisible = true;
+                return;
+            }
+
+            if (consent.IsChecked != true)
+            {
+                errorText.Text = "Consent is required before uploading the measurement log.";
+                errorText.IsVisible = true;
+                return;
+            }
+
+            result = new AiExplanationDialogResult(
+                selectedBackend,
+                usernameText,
+                passwordText,
+                remember.IsChecked == true && request.CredentialPersistenceAvailable,
+                ConsentGranted: true);
+            dialog.Close();
+        };
+        cancel.Click += (_, _) => dialog.Close();
+
+        var buttons = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            Spacing = 8,
+        };
+        buttons.Children.Add(ok);
+        buttons.Children.Add(cancel);
+
+        var panel = new StackPanel { Margin = new Avalonia.Thickness(16), Spacing = 10 };
+        panel.Children.Add(new TextBlock
+        {
+            Text = "Send the selected TimeGrapher measurement log to an approved private backend for a Korean AI explanation.",
+            TextWrapping = TextWrapping.Wrap,
+        });
+        panel.Children.Add(new TextBlock { Text = "Backend" });
+        panel.Children.Add(backendCombo);
+        panel.Children.Add(new TextBlock { Text = "Demo username" });
+        panel.Children.Add(username);
+        panel.Children.Add(new TextBlock { Text = "Demo password" });
+        panel.Children.Add(password);
+        panel.Children.Add(remember);
+        panel.Children.Add(consent);
+        panel.Children.Add(errorText);
+        panel.Children.Add(buttons);
+        dialog.Content = panel;
+
+        await dialog.ShowDialog(_owner);
+        return result;
+    }
+
+    public async Task ShowAiExplanationAsync(AiExplanationDisplay display)
+    {
+        var dialog = new Window
+        {
+            Title = "AI Explanation",
+            Width = 640,
+            Height = 520,
+            CanResize = true,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+        };
+
+        var explanation = new ScrollViewer
+        {
+            VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
+            HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled,
+            Content = new TextBlock
+            {
+                Text = display.Explanation,
+                TextWrapping = TextWrapping.Wrap,
+            },
+        };
+        var ok = new Button
+        {
+            Content = "OK",
+            Width = 80,
+            IsDefault = true,
+            HorizontalAlignment = HorizontalAlignment.Right,
+        };
+        ok.Click += (_, _) => dialog.Close();
+
+        var panel = new DockPanel { Margin = new Avalonia.Thickness(16) };
+        var details = new TextBlock
+        {
+            Text = $"Backend: {display.BackendBaseUrl}\nModel: {display.Model}\nRequest ID: {display.RequestId}",
+            TextWrapping = TextWrapping.Wrap,
+            Margin = new Avalonia.Thickness(0, 0, 0, 10),
+        };
+        DockPanel.SetDock(details, Dock.Top);
+        DockPanel.SetDock(ok, Dock.Bottom);
+        panel.Children.Add(details);
+        panel.Children.Add(ok);
+        panel.Children.Add(explanation);
+        dialog.Content = panel;
+
+        await dialog.ShowDialog(_owner);
     }
 
     public async Task ShowErrorAsync(string title, string message)
@@ -119,5 +298,29 @@ internal sealed class MainWindowDialogService : ITimeGrapherDialogService
         panel.Children.Add(ok);
         dialog.Content = panel;
         await dialog.ShowDialog(_owner);
+    }
+
+    private static string[] BuildBackendLabels(IReadOnlyList<AiBackendOption> options)
+    {
+        var labels = new string[options.Count];
+        for (int i = 0; i < options.Count; i++)
+        {
+            labels[i] = $"{options[i].DisplayName} - {options[i].BaseUrl}";
+        }
+
+        return labels;
+    }
+
+    private static int SelectedBackendIndex(IReadOnlyList<AiBackendOption> options, string selectedBackendBaseUrl)
+    {
+        for (int i = 0; i < options.Count; i++)
+        {
+            if (options[i].BaseUrl == selectedBackendBaseUrl)
+            {
+                return i;
+            }
+        }
+
+        return 0;
     }
 }

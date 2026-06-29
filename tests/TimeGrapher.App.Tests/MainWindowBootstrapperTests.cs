@@ -69,8 +69,11 @@ public sealed class MainWindowBootstrapperTests : IDisposable
     {
         public Task<RecordSessionChoice> AskRecordSessionAsync() => Task.FromResult(RecordSessionChoice.Cancel);
         public Task<string?> PickOpenWavAsync(string currentDirectory) => Task.FromResult<string?>(null);
+        public Task<string?> PickOpenMeasurementLogAsync() => Task.FromResult<string?>(null);
         public Task<string?> PickSaveWavAsync() => Task.FromResult<string?>(null);
         public Task ShowErrorAsync(string title, string message) => Task.CompletedTask;
+        public Task<AiExplanationDialogResult?> AskAiExplanationAsync(AiExplanationDialogRequest request) => Task.FromResult<AiExplanationDialogResult?>(null);
+        public Task ShowAiExplanationAsync(AiExplanationDisplay display) => Task.CompletedTask;
     }
 
     private sealed class FakeAcceptBandOperations : IAcceptBandOperations

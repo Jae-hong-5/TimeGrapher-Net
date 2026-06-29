@@ -101,6 +101,8 @@ public sealed class RecordingSessionServiceTests
             return Task.FromResult<string?>(null);
         }
 
+        public Task<string?> PickOpenMeasurementLogAsync() => Task.FromResult<string?>(null);
+
         public Task<string?> PickSaveWavAsync() => Task.FromResult(SavePath);
 
         public Task ShowErrorAsync(string title, string message)
@@ -108,6 +110,10 @@ public sealed class RecordingSessionServiceTests
             Errors.Add((title, message));
             return Task.CompletedTask;
         }
+
+        public Task<AiExplanationDialogResult?> AskAiExplanationAsync(AiExplanationDialogRequest request) => Task.FromResult<AiExplanationDialogResult?>(null);
+
+        public Task ShowAiExplanationAsync(AiExplanationDisplay display) => Task.CompletedTask;
     }
 
     private sealed class FakeWriterFactory : IRecordingWriterFactory

@@ -32,9 +32,11 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     private readonly RelayCommand _reviewLiveCommand;
     private readonly RelayCommand _resetSettingsWindowCommand;
     private readonly RelayCommand _toggleThemeCommand;
+    private readonly AsyncRelayCommand _aiExplanationCommand;
     private IRunCommandRunner? _runner;
     private ISettingsWindowResetRunner? _settingsWindowResetRunner;
     private IThemeToggleRunner? _themeToggleRunner;
+    private IAiExplanationRunner? _aiExplanationRunner;
     private RunUiState _runState = RunUiState.Stopped;
     private bool _modeAllowsSampleRate = true;
     private bool _modeAllowsGain = true;
@@ -107,6 +109,7 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
         _reviewLiveCommand = new RelayCommand(() => ReviewCursorTimeS = null, () => IsReviewBarEnabled);
         _resetSettingsWindowCommand = new RelayCommand(ExecuteResetSettingsWindow, () => AreRunParametersEnabled);
         _toggleThemeCommand = new RelayCommand(ExecuteToggleTheme);
+        _aiExplanationCommand = new AsyncRelayCommand(ExecuteAiExplanationAsync);
     }
 
     /// <summary>
@@ -119,6 +122,8 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     public void AttachSettingsWindowResetRunner(ISettingsWindowResetRunner runner) => _settingsWindowResetRunner = runner;
 
     public void AttachThemeToggleRunner(IThemeToggleRunner runner) => _themeToggleRunner = runner;
+    public void AttachAiExplanationRunner(IAiExplanationRunner runner) => _aiExplanationRunner = runner;
+
 
     // The play/pause button is one control: a stopped run starts, an active run toggles
     // pause/resume. The runner's state machine decides what each call actually does.
@@ -142,6 +147,16 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
 
     private void ExecuteToggleTheme() => _themeToggleRunner?.ToggleTheme();
 
+    private async Task ExecuteAiExplanationAsync()
+    {
+        if (_aiExplanationRunner is null)
+        {
+            return;
+        }
+
+        await _aiExplanationRunner.ExplainAsync();
+    }
+
     public event PropertyChangedEventHandler? PropertyChanged;
 
     public ICommand PlayPauseCommand => _playPauseCommand;
@@ -153,6 +168,7 @@ internal sealed class MainWindowViewModel : INotifyPropertyChanged
     public ICommand ResetSettingsWindowCommand => _resetSettingsWindowCommand;
 
     public ICommand ToggleThemeCommand => _toggleThemeCommand;
+    public ICommand AiExplanationCommand => _aiExplanationCommand;
 
     public bool IsSettingsWindowResetInProgress => _settingsWindowResetDepth > 0;
 

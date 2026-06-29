@@ -35,6 +35,11 @@ internal static class MainWindowBootstrapper
         var playbackFileService = new PlaybackFileService(adapters.Dialogs, errorLog);
 
         var runCommandService = new RunCommandService(viewModel, adapters.RunCommandOperations);
+        var aiExplanationController = new AiExplanationController(
+            adapters.Dialogs,
+            new AiExplanationService(new HttpClient()),
+            AiCredentialStore.CreateDefault());
+        viewModel.AttachAiExplanationRunner(aiExplanationController);
         // The play/pause and reset commands invoke the service directly; attach immediately after
         // construction, before any load/initialize path can execute a command.
         viewModel.AttachRunCommandRunner(runCommandService);

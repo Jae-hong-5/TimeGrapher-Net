@@ -243,7 +243,7 @@ public sealed class MainWindowRunControlWiringTests
     }
 
     [Fact]
-    public void TitleBarPlacesHelpAndSettingsBetweenThemeAndMinimizeButtons()
+    public void TitleBarPlacesHelpAiAndSettingsBetweenThemeAndMinimizeButtons()
     {
         XDocument document = XDocument.Load(FindSourceFile("src/TimeGrapher.App/Views/MainWindow.axaml"));
 
@@ -251,7 +251,7 @@ public sealed class MainWindowRunControlWiringTests
             .Where(element => element.Name.LocalName == "Button")
             .Select(element => element.Attribute("Name")?.Value)
             .Where(name => name is not null)
-            .Take(6)
+            .Take(7)
             .ToArray();
 
         Assert.Equal(
@@ -259,6 +259,7 @@ public sealed class MainWindowRunControlWiringTests
             {
                 "ThemeToggleButton",
                 "HelpTitleBarButton",
+                "AiExplanationTitleBarButton",
                 "SettingsTitleBarButton",
                 "MinimizeWindowButton",
                 "MaximizeWindowButton",
