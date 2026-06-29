@@ -18,7 +18,7 @@ internal interface IRunCommandOperations
 
     void SetWorkersPaused(bool paused);
 
-    void CleanupFailedStart();
+    RunCommandStopOutcome CleanupFailedStart();
 
     Task ShowStartFailureAsync(Exception exception);
 

@@ -26,9 +26,11 @@ public partial class MainWindow
         mAppSettingsController.Detach();
         AppSettingsStore.Flush();
         mViewModel.PropertyChanged -= OnReviewCursorPropertyChanged;
-        mRunSessionController.InvalidateRunSession();
-        mRunSessionController.StopInputWorker("Input");
-        mRunSessionController.StopAnalysisThread();
+        // Final close has no retry surface, so do a blocking stop/dispose of the input
+        // and analysis workers rather than leaving a timed-out worker alive (the bounded
+        // StopInputWorker/StopAnalysisThread keep a timed-out worker for a retry that can
+        // never come at close).
+        mRunSessionController.CloseBlocking();
         mAnalysisPerformanceLogger?.Dispose();
         mMeasurementLogController.Dispose();
         if (!AudioCloseCheck() && mWavWriter != null)
@@ -504,7 +506,11 @@ public partial class MainWindow
 
         if (!SetAudioRate(selection.SampleRate))
         {
+            // Match PlaybackStart: a failed rate set must abort the start and restore
+            // the prior device/rate rather than starting the sim on a wrong rate.
             Console.Error.WriteLine("SetAudioRate Failed");
+            RestorePlaybackOrSimulationAudioState();
+            return false;
         }
 
         try

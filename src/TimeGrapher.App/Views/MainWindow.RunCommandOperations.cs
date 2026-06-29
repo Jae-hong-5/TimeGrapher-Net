@@ -50,12 +50,20 @@ public partial class MainWindow
             _owner.SetWorkersPaused(paused);
         }
 
-        public void CleanupFailedStart()
+        public RunCommandStopOutcome CleanupFailedStart()
         {
             _owner.InvalidateRunSession();
-            _owner.mRunSessionController.StopInputWorker("Input");
-            _owner.mRunSessionController.StopAnalysisThread();
-            _owner.AudioCloseCheck();
+            // Always attempt every teardown step (input, analysis, audio close) as the
+            // original did, but combine their outcomes: if a worker did not stop in time
+            // or the recording could not close, report Stopping so the caller enters the
+            // StopFailed retry state instead of orphaning a still-running worker.
+            RunSessionStopOutcome outcome = CombineStopOutcome(
+                _owner.mRunSessionController.StopInputWorker("Input"),
+                _owner.mRunSessionController.StopAnalysisThread());
+            bool audioClosed = _owner.AudioCloseCheck();
+            return outcome == RunSessionStopOutcome.Stopped && audioClosed
+                ? RunCommandStopOutcome.Stopped
+                : RunCommandStopOutcome.Stopping;
         }
 
         public Task ShowStartFailureAsync(Exception exception)

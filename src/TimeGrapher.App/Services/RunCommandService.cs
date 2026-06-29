@@ -71,6 +71,10 @@ internal sealed partial class RunCommandService : IRunCommandRunner, IRunCommand
         _viewModel.StatusText = "Starting";
         _viewModel.IsAwaitingBeatSync = true;
         bool started = false;
+        // A failed start whose teardown does not finish must enter the StopFailed
+        // retry state (a still-running input/analysis worker would otherwise be
+        // orphaned when the next start runs), not be reported as cleanly Stopped.
+        bool cleanupFailed = false;
 
         try
         {
@@ -79,7 +83,7 @@ internal sealed partial class RunCommandService : IRunCommandRunner, IRunCommand
         }
         catch (Exception ex)
         {
-            _operations.CleanupFailedStart();
+            cleanupFailed = _operations.CleanupFailedStart() != RunCommandStopOutcome.Stopped;
             _viewModel.StatusText = UserErrorMessages.CouldNotStartRun;
             await _operations.ShowStartFailureAsync(ex);
         }
@@ -88,11 +92,20 @@ internal sealed partial class RunCommandService : IRunCommandRunner, IRunCommand
             _startInProgress = false;
             if (!started && !_operations.IsClosing)
             {
-                SetStopped();
-                _viewModel.IsAwaitingBeatSync = false;
-                if (_viewModel.StatusText == "Starting")
+                if (cleanupFailed)
                 {
-                    _viewModel.StatusText = "Stopped";
+                    SetStopFailed();
+                    _viewModel.IsAwaitingBeatSync = false;
+                    _viewModel.StatusText = UserErrorMessages.StopDidNotFinish;
+                }
+                else
+                {
+                    SetStopped();
+                    _viewModel.IsAwaitingBeatSync = false;
+                    if (_viewModel.StatusText == "Starting")
+                    {
+                        _viewModel.StatusText = "Stopped";
+                    }
                 }
             }
         }

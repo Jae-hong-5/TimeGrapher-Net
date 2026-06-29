@@ -280,13 +280,16 @@ public sealed class AnalysisWorker : IDisposable
         while (true)
         {
             _wakeup.WaitOne();
+            // An explicit stop preempts a pending natural completion: check
+            // _stopRequested first so a TryStop issued after CompleteInput aborts
+            // immediately instead of being trapped behind the non-interruptible drain.
+            if (_stopRequested)
+            {
+                break;
+            }
             if (_completionRequested)
             {
                 DrainAndFlushInput();
-                break;
-            }
-            if (_stopRequested)
-            {
                 break;
             }
             ApplyPendingRecolor();
@@ -497,11 +500,18 @@ public sealed class AnalysisWorker : IDisposable
         // remains stop-interruptible so a stop retry can cancel a slow EOF drain
         // instead of leaving the run stuck in Stopping.
         ApplyPendingRecolor();
+        // Interruptible: with no stop pending this drains the buffer fully (natural
+        // completion), but an explicit TryStop issued during completion preempts the
+        // drain so the worker aborts promptly instead of finishing the whole buffer.
         HandleInputDataCore(stopInterruptible: true);
+
+        // An explicit stop preempted the completion drain; skip the force-published
+        // final frame and let the thread exit so TryStop's join returns promptly.
         if (_stopRequested)
         {
             return;
         }
+
         var processingTimer = Stopwatch.StartNew();
         MasterAudioBufferSnapshot snapshot = _rawAudio.GetSnapshot();
         var frame = new AnalysisFrame

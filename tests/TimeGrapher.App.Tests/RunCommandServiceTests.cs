@@ -67,6 +67,31 @@ public sealed class RunCommandServiceTests
     }
 
     [Fact]
+    public async Task StartFailureWithIncompleteCleanupEntersStopFailedRetry()
+    {
+        MainWindowViewModel vm = CreateViewModel();
+        var operations = new FakeRunCommandOperations
+        {
+            CurrentMode = RunCommandMode.Playback,
+            // The teardown after the failed start could not finish (a worker did not
+            // stop in time / the recording could not close).
+            CleanupFailedStartOutcome = RunCommandStopOutcome.Stopping,
+        };
+        operations.StartPlaybackAsyncImpl = () => throw new InvalidOperationException("bad file");
+        var service = new RunCommandService(vm, operations);
+
+        await service.StartAsync();
+
+        // A still-running worker must not be reported as cleanly Stopped: enter the
+        // StopFailed retry state (the same state a failed manual stop uses).
+        Assert.Equal(RunUiState.StopFailed, vm.RunState);
+        Assert.True(vm.ResetCommand.CanExecute(null));
+        Assert.Equal(UserErrorMessages.StopDidNotFinish, vm.StatusText);
+        Assert.False(vm.IsAwaitingBeatSync);
+        Assert.Equal(new[] { "StartPlaybackAsync", "CleanupFailedStart", "ShowStartFailureAsync" }, operations.Calls);
+    }
+
+    [Fact]
     public void TogglePauseNoOpsWithoutActiveWorker()
     {
         MainWindowViewModel vm = CreateViewModel();
@@ -641,9 +666,12 @@ public sealed class RunCommandServiceTests
             PauseValues.Add(paused);
         }
 
-        public void CleanupFailedStart()
+        public RunCommandStopOutcome CleanupFailedStartOutcome { get; set; } = RunCommandStopOutcome.Stopped;
+
+        public RunCommandStopOutcome CleanupFailedStart()
         {
             Calls.Add("CleanupFailedStart");
+            return CleanupFailedStartOutcome;
         }
 
         public Task ShowStartFailureAsync(Exception exception)

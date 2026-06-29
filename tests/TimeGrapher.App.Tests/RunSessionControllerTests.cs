@@ -71,6 +71,28 @@ public sealed class RunSessionControllerTests
     }
 
     [Fact]
+    public void CloseBlockingDisposesInputWorkerEvenWhenTryStopTimesOut()
+    {
+        var controller = NewController();
+        var order = new List<string>();
+        // A worker that does not stop in time would be kept for retry by the bounded
+        // StopInputWorker; at final close there is no retry, so CloseBlocking must
+        // dispose it regardless rather than leak a still-running worker.
+        var worker = new FakeInputWorker(order) { StopResult = false };
+        controller.AttachInputWorker(worker, runSessionToken: 1, () => order.Add("detach-completion"));
+
+        controller.CloseBlocking();
+
+        Assert.Contains("trystop", order);
+        Assert.Contains("dispose", order);
+        int detachIdx = order.IndexOf("detach-completion");
+        int tryStopIdx = order.IndexOf("trystop");
+        Assert.True(
+            detachIdx >= 0 && detachIdx < tryStopIdx,
+            "completion must detach before TryStop on final close; order: " + string.Join(",", order));
+    }
+
+    [Fact]
     public void RunSessionToken_GoesStaleAfterInvalidate_RejectingOldSessionCallbacks()
     {
         // The run-session token is the stale-response gate: a late DataReady from a

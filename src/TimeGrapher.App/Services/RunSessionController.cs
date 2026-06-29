@@ -276,6 +276,53 @@ internal sealed class RunSessionController : IDisposable, IRunSessionControls, I
         _analysisWorker?.SetSigmaAveraging(enabled);
     }
 
+    /// <summary>
+    /// Final-close teardown: invalidate the session, then blocking-stop and dispose the
+    /// input and analysis workers. Unlike the bounded <see cref="StopInputWorker"/> /
+    /// <see cref="StopAnalysisThread"/> stops (which keep a timed-out worker addressable
+    /// for a retry), this disposes the workers regardless of whether they stopped in
+    /// time: at window close there is no retry surface, so a timed-out worker would
+    /// otherwise be leaked alive. The analysis worker uses its blocking
+    /// <see cref="AnalysisWorker.Stop"/> (infinite join) so a slow but finite drain
+    /// completes rather than being abandoned.
+    /// </summary>
+    public void CloseBlocking()
+    {
+        InvalidateRunSession();
+
+        IAudioInputWorker? worker = _inputWorker;
+        if (worker != null)
+        {
+            if (_inputDataReadyHandler != null)
+            {
+                worker.DataReady -= _inputDataReadyHandler;
+                _inputDataReadyHandler = null;
+            }
+
+            _inputCompletionDetach?.Invoke();
+            _inputCompletionDetach = null;
+
+            // Stop with the same bounded timeout, but dispose unconditionally: there is
+            // no retry path at close, so release the worker even if it did not stop in
+            // time rather than leaving a still-running input thread behind.
+            worker.TryStop(TimeSpan.FromMilliseconds(WorkerStopTimeoutMs));
+            worker.Dispose();
+            _inputWorker = null;
+        }
+
+        AnalysisWorker? analysisWorker = _analysisWorker;
+        if (analysisWorker != null)
+        {
+            analysisWorker.AnalysisFrameReady -= _onAnalysisFrameReady;
+            analysisWorker.Stop();
+            analysisWorker.Dispose();
+            _analysisWorker = null;
+            AnalysisSessionId++;
+        }
+
+        _clearPendingFrames();
+    }
+
     public void Dispose()
     {
         InvalidateRunSession();
