@@ -131,8 +131,6 @@ internal sealed class BeatNoiseScopeRenderer
     private readonly List<VerticalLine> _dynamicAMarkers = new();
     private readonly List<VerticalLine> _dynamicCPeakMarkers = new();
     private VerticalLine? _cOnsetMarker;
-    private Text? _weakSignalLabel;
-    private readonly SignalQualityOverlayState _signalQualityOverlay = new();
     private ReviewCursorLayer? _reviewCursor;
     private readonly Scatter?[] _stripScatters;
     private readonly VerticalLine?[] _stripDividers;
@@ -319,8 +317,6 @@ internal sealed class BeatNoiseScopeRenderer
         _dynamicAMarkers.Clear();
         _dynamicCPeakMarkers.Clear();
         _cOnsetMarker = AddMarker(main, GraphLinePatterns.VerticalGuide);
-        _weakSignalLabel = AddWeakSignalLabel(main);
-        _signalQualityOverlay.Reset();
         _reviewCursor = AddCursor(main);
         ApplyRangeLimits();
         // Cap zoom-out/pan to the initial full output on both axes: X to the
@@ -516,14 +512,13 @@ internal sealed class BeatNoiseScopeRenderer
         // per their own contract and are shared as-is.
         if (snapshot != null && (snapshot.Version != _lastVersion || _lastSnapshot == null))
         {
-            _lastSnapshot = CopyForCache(snapshot);
+            _lastSnapshot = BeatSegmentCacheCopier.CopyForCache(snapshot);
         }
 
         _lastCursorTimeS = context.ReviewCursorTimeS;
         bool cursorMoved = UpdateReviewCursor(context.ReviewCursorTimeS);
         if (snapshot == null || snapshot.Version == _lastVersion)
         {
-            SetSignalQuality(_lastSnapshot?.Quality ?? SignalQualityFlags.None);
             if (cursorMoved)
             {
                 _mainPlot.Refresh();
@@ -538,54 +533,6 @@ internal sealed class BeatNoiseScopeRenderer
         RenderStrips(cached);
         RenderAverageView(cached);
         RefreshAll();
-    }
-
-    /// <summary>
-    /// Deep-copies the pooled segment envelope/raw arrays into UI-owned storage
-    /// so cached re-renders (interaction handlers, paused review) never read a
-    /// segment buffer that the capture pool has since recycled. Scalar fields,
-    /// markers, and the average snapshot are immutable and shared as-is.
-    /// </summary>
-    private static BeatSegmentsSnapshot CopyForCache(BeatSegmentsSnapshot snapshot)
-    {
-        IReadOnlyList<BeatSegment> segments = snapshot.Segments;
-        if (segments.Count == 0)
-        {
-            return snapshot;
-        }
-
-        var owned = new BeatSegment[segments.Count];
-        for (int i = 0; i < segments.Count; i++)
-        {
-            BeatSegment s = segments[i];
-            owned[i] = new BeatSegment
-            {
-                Samples = s.Samples.ToArray(),
-                RawValid = s.RawValid,
-                RawMin = s.RawMin.ToArray(),
-                RawMax = s.RawMax.ToArray(),
-                MsPerPoint = s.MsPerPoint,
-                StartTimeS = s.StartTimeS,
-                IsTic = s.IsTic,
-                AOffsetMs = s.AOffsetMs,
-                PeakValue = s.PeakValue,
-                CPeakValid = s.CPeakValid,
-                CPeakOffsetMs = s.CPeakOffsetMs,
-                COnsetValid = s.COnsetValid,
-                COnsetOffsetMs = s.COnsetOffsetMs,
-                Quality = s.Quality,
-            };
-        }
-
-        return new BeatSegmentsSnapshot
-        {
-            Version = snapshot.Version,
-            Segments = owned,
-            Markers = snapshot.Markers,
-            LiftAngleDeg = snapshot.LiftAngleDeg,
-            Average = snapshot.Average,
-            Quality = snapshot.Quality,
-        };
     }
 
     private VerticalLine GetOrCreateMarker(List<VerticalLine> pool, Plot plot, LinePattern pattern, uint colorArgb)
@@ -623,7 +570,6 @@ internal sealed class BeatNoiseScopeRenderer
         if (segment == null)
         {
             SetMarker(_cOnsetMarker, null);
-            SetSignalQuality(snapshot.Quality);
             return;
         }
 
@@ -682,12 +628,6 @@ internal sealed class BeatNoiseScopeRenderer
         }
 
         SetMarker(_cOnsetMarker, null);
-        SignalQualityFlags quality = snapshot.Quality | segment.Quality;
-        if (cMarkerXs.Count == 0)
-        {
-            quality |= SignalQualityFlags.WeakSignal;
-        }
-        SetSignalQuality(quality);
     }
 
     private void RenderMainRaw(BeatSegment segment)
@@ -1531,25 +1471,6 @@ internal sealed class BeatNoiseScopeRenderer
         return segment.CPeakOffsetMs;
     }
 
-    private Text AddWeakSignalLabel(Plot plot)
-    {
-        Text label = plot.Add.Text("WEAK SIGNAL", 0.0, 0.0);
-        label.LabelFontSize = PlotThemeHelper.GraphLabelFontSize;
-        label.LabelBold = true;
-        label.Alignment = Alignment.UpperRight;
-        label.IsVisible = false;
-        return label;
-    }
-
-    private void SetSignalQuality(SignalQualityFlags quality)
-    {
-        _ = quality;
-        if (_weakSignalLabel != null)
-        {
-            _weakSignalLabel.IsVisible = false;
-        }
-    }
-
     private static void SetMarker(VerticalLine? marker, double? x)
     {
         if (marker == null)
@@ -1608,11 +1529,6 @@ internal sealed class BeatNoiseScopeRenderer
         if (_cOnsetMarker != null)
         {
             _cOnsetMarker.LineColor = Color.FromARGB(_theme.TraceTock);
-        }
-
-        if (_weakSignalLabel != null)
-        {
-            _weakSignalLabel.LabelFontColor = Color.FromARGB(_theme.VarioWarn);
         }
 
         foreach (Scatter? strip in _stripScatters)

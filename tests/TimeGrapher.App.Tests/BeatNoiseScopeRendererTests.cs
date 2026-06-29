@@ -1041,47 +1041,6 @@ public sealed class BeatNoiseScopeRendererTests
     }
 
     [Fact]
-    public void RetiredPerPlotWeakSignalLabelStaysHidden()
-    {
-        // The per-plot 'WEAK SIGNAL' overlay was retired: signal-quality warnings are
-        // consolidated onto the status bar (AnalysisRunStatusReporter), so SetSignalQuality
-        // deliberately keeps this label hidden regardless of segment/marker/quality state.
-        // This single guard replaces five former tests that each asserted the same
-        // always-false constant against different (unobserved) fixtures.
-        var mainPlot = new AvaPlot();
-        var renderer = new BeatNoiseScopeRenderer(
-            mainPlot, new AvaPlot(), new AvaPlot(), new TextBlock());
-        renderer.CreateGraphs();
-
-        var frame = new AnalysisFrame
-        {
-            BeatSegments = new BeatSegmentsSnapshot
-            {
-                Version = 1,
-                Segments = new[]
-                {
-                    new BeatSegment
-                    {
-                        Samples = new float[] { 0.2f, 0.5f },
-                        MsPerPoint = 0.25,
-                        AOffsetMs = 5.0,
-                        PeakValue = 0.5f,
-                        CPeakValid = true,
-                        CPeakOffsetMs = 6.5,
-                    },
-                },
-                Quality = SignalQualityFlags.WeakSignal,
-            },
-        };
-
-        renderer.RenderFrame(frame, new AnalysisTabRenderContext(SampleRate: 48000));
-
-        Text weakSignal = mainPlot.Plot.GetPlottables<Text>()
-            .Single(text => text.LabelText == "WEAK SIGNAL");
-        Assert.False(weakSignal.IsVisible);
-    }
-
-    [Fact]
     public void AverageEnvelopeRendersMilestoneSnapshots()
     {
         var averagePlot = new AvaPlot();

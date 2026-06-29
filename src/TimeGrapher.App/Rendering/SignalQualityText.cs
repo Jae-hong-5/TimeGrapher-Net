@@ -49,10 +49,4 @@ internal static class SignalQualityText
         _ when (quality & SignalQualityFlags.WeakSignal) != 0 => "Weak signal. Reposition the watch or increase input gain.",
         _ => string.Empty,
     };
-
-    public static string Overlay(SignalQualityFlags quality)
-    {
-        string summary = Summary(quality);
-        return summary.Length == 0 ? string.Empty : summary.ToUpperInvariant();
-    }
 }

@@ -92,8 +92,6 @@ internal sealed class EscapementAnalyzerRenderer
     private Text? _ticTocAConnectorLabel;
     private readonly VerticalLine?[] _markers = new VerticalLine?[MarkerCount];
     private readonly Text?[] _labels = new Text?[MarkerCount];
-    private Text? _signalQualityLabel;
-    private readonly SignalQualityOverlayState _signalQualityOverlay = new();
 
     private PlotThemePalette _theme = PlotThemePalette.Current;
     private ulong _lastVersion;
@@ -160,8 +158,6 @@ internal sealed class EscapementAnalyzerRenderer
             _markers[i] = AddMarker(plot, GraphLinePatterns.VerticalGuide);
             _labels[i] = AddLabel(plot);
         }
-        _signalQualityLabel = AddSignalQualityLabel(plot);
-        _signalQualityOverlay.Reset();
         // A-relative, escapement-zoomed view: A at 0 with the capture's pre-A
         // roll showing as negative time. The window start is exactly -AOffsetMs
         // (the segment opens AOffsetMs before A, capped at PreEventMs), so floor
@@ -219,7 +215,6 @@ internal sealed class EscapementAnalyzerRenderer
         BeatSegment? latest = snapshot.Segments.Count > 0 ? snapshot.Segments[^1] : null;
         double labelExtent = RenderPair(tic, toc);
         UpdateMarkers(tic, toc, labelExtent);
-        SetSignalQuality(latest?.Quality ?? SignalQualityFlags.None);
         UpdateReadout(latest);
         _plot.Refresh();
     }
@@ -563,25 +558,6 @@ internal sealed class EscapementAnalyzerRenderer
         _ticTocAConnectorLabel.Location = new Coordinates(distanceMs / 2.0, labelY);
     }
 
-    private Text AddSignalQualityLabel(Plot plot)
-    {
-        Text label = plot.Add.Text("", 0.0, 0.0);
-        label.LabelFontName = _textFontFamily;
-        label.LabelFontSize = PlotThemeHelper.GraphLabelFontSize;
-        label.LabelBold = true;
-        label.Alignment = Alignment.UpperRight;
-        label.IsVisible = false;
-        return label;
-    }
-
-    private void SetSignalQuality(SignalQualityFlags quality)
-    {
-        _ = quality;
-        if (_signalQualityLabel != null)
-        {
-            _signalQualityLabel.IsVisible = false;
-        }
-    }
     private void ApplySeriesTheme()
     {
         if (_envelopeScatter != null)

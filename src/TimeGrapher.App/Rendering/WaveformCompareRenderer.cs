@@ -75,8 +75,6 @@ internal sealed class WaveformCompareRenderer
     private readonly Text?[] _cLabelsTic;
     private readonly Text?[] _cLabelsToc;
     private ReviewCursorLayer? _reviewCursor;
-    private Text? _signalQualityLabel;
-    private readonly SignalQualityOverlayState _signalQualityOverlay = new();
 
     // Ghost overlay: selected pair's waveform re-drawn at every other lane's baseline
     private readonly List<double>[] _ghostTicX;
@@ -220,8 +218,6 @@ internal sealed class WaveformCompareRenderer
         }
 
         _reviewCursor = AddCursor(plot);
-        _signalQualityLabel = AddSignalQualityLabel(plot);
-        _signalQualityOverlay.Reset();
 
         plot.Axes.SetLimitsX(XMinMs, XMaxMs);
         plot.Axes.SetLimitsY(-0.1, YTop(0));
@@ -251,7 +247,7 @@ internal sealed class WaveformCompareRenderer
             // BeatSegmentCapture pool (protected only two snapshot versions) recycles
             // the buffers. Gating on Version avoids re-copying every frame while the
             // same snapshot instance is reattached between segment completions.
-            _lastSnapshot = CopyForCache(snapshot);
+            _lastSnapshot = BeatSegmentCacheCopier.CopyForCache(snapshot);
         }
 
         bool changed = false;
@@ -290,55 +286,6 @@ internal sealed class WaveformCompareRenderer
 
         _lastHistoryVersion = history.Version;
         _headerText.Text = WaveformCompareLogic.HeaderLine(history);
-    }
-
-    /// <summary>
-    /// Deep-copies the pooled segment envelope/raw arrays into UI-owned storage so
-    /// the cached snapshot (read later by SelectPairAtPixelY / ghost overlay on a
-    /// click) never references a BeatSegmentCapture pool buffer that has since been
-    /// recycled. Mirrors BeatNoiseScopeRenderer.CopyForCache; scalar fields, markers,
-    /// and the average snapshot are immutable and shared as-is.
-    /// </summary>
-    private static BeatSegmentsSnapshot CopyForCache(BeatSegmentsSnapshot snapshot)
-    {
-        IReadOnlyList<BeatSegment> cached = snapshot.Segments;
-        if (cached.Count == 0)
-        {
-            return snapshot;
-        }
-
-        var owned = new BeatSegment[cached.Count];
-        for (int i = 0; i < cached.Count; i++)
-        {
-            BeatSegment s = cached[i];
-            owned[i] = new BeatSegment
-            {
-                Samples = s.Samples.ToArray(),
-                RawValid = s.RawValid,
-                RawMin = s.RawMin.ToArray(),
-                RawMax = s.RawMax.ToArray(),
-                MsPerPoint = s.MsPerPoint,
-                StartTimeS = s.StartTimeS,
-                IsTic = s.IsTic,
-                AOffsetMs = s.AOffsetMs,
-                PeakValue = s.PeakValue,
-                CPeakValid = s.CPeakValid,
-                CPeakOffsetMs = s.CPeakOffsetMs,
-                COnsetValid = s.COnsetValid,
-                COnsetOffsetMs = s.COnsetOffsetMs,
-                Quality = s.Quality,
-            };
-        }
-
-        return new BeatSegmentsSnapshot
-        {
-            Version = snapshot.Version,
-            Segments = owned,
-            Markers = snapshot.Markers,
-            LiftAngleDeg = snapshot.LiftAngleDeg,
-            Average = snapshot.Average,
-            Quality = snapshot.Quality,
-        };
     }
 
     private void RenderLanes(BeatSegmentsSnapshot snapshot, BeatMetricsHistorySnapshot? history)
@@ -500,7 +447,6 @@ internal sealed class WaveformCompareRenderer
         double yTop = YTop(pairCount);
         _plot.Plot.Axes.SetLimitsX(XMinMs, xMaxMs);
         _plot.Plot.Axes.SetLimitsY(-0.1, yTop);
-        SetSignalQuality(snapshot.Quality, xMaxMs, yTop);
     }
 
     /// <summary>
@@ -714,27 +660,6 @@ internal sealed class WaveformCompareRenderer
         return cursor;
     }
 
-    private Text AddSignalQualityLabel(Plot plot)
-    {
-        Text label = plot.Add.Text("", 0.0, 0.0);
-        label.LabelFontName = _textFontFamily;
-        label.LabelFontSize = PlotThemeHelper.GraphLabelFontSize;
-        label.LabelBold = true;
-        label.Alignment = Alignment.UpperRight;
-        label.IsVisible = false;
-        return label;
-    }
-
-    private void SetSignalQuality(SignalQualityFlags quality, double xRight, double yTop)
-    {
-        _ = quality;
-        _ = xRight;
-        _ = yTop;
-        if (_signalQualityLabel != null)
-        {
-            _signalQualityLabel.IsVisible = false;
-        }
-    }
     private void ApplySeriesTheme()
     {
         for (int i = 0; i < _laneScatters.Length; i++)
