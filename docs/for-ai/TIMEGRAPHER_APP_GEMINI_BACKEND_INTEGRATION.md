@@ -1,7 +1,8 @@
 # TimeGrapher App Gemini Backend Integration Guide
 
-Status: implemented on the app side; backend contract is ready and the remaining
-work is operational validation against deployed backend credentials.
+Status: implemented on the app side; backend contract is ready. Deployment and
+real-Gemini validation are external operational checks not evidenced by this
+repository.
 Allowed backend base URLs:
 
 ```text
@@ -26,13 +27,12 @@ is implemented, make the chosen backend visible in diagnostics and avoid
 repeated retry loops that could multiply Gemini calls.
 
 This document records the TimeGrapher app-side integration. The private backend
-is already deployed and is responsible for holding the project-owned Gemini API
-key, building the fixed prompt, calling Gemini, and returning only the generated
-explanation.
+contract is responsible for holding the project-owned Gemini API key, building
+the fixed prompt, calling Gemini, and returning only the generated explanation.
 
 ## 1. Required App Behavior
 
-The app must use the private backend for Gemini-powered explanations.
+The app must use the private backend for Gemini-powered AI analysis.
 
 ```text
 TimeGrapher App
@@ -185,7 +185,7 @@ Authorization: Basic <encoded-value>
 
 Before calling the AI endpoint, the app must clearly ask for upload consent.
 
-The consent text should state that the selected TimeGrapher analysis log will be
+The consent text should state that the selected TimeGrapher measurement log will be
 sent to the private backend for AI analysis.
 
 Only send:
@@ -232,7 +232,9 @@ testable. Either read a user-selected CSV/log file or expose a narrow
 `MeasurementLogController`/service seam for the latest completed measurement
 log. Do not read a file that the logger is still writing unless the sink has
 been closed or flushed. If no completed log is available, show a friendly
-message instead of calling the backend.
+message instead of calling the backend. The current app implementation follows
+the first option: it reads the user-selected log file after existence, extension,
+and size validation and does not depend on the `MeasurementLogController` seam.
 
 ## 6. Size and Rate Limits
 
@@ -353,13 +355,13 @@ public sealed record MeasurementSummary(
     double? AmplitudeDegrees,
     double? Confidence);
 
-public sealed record AiAnalysisResponse(
+public sealed record AiAnalysisResult(
     string RequestId,
     string Explanation,
     string Model);
 
-public sealed record AiErrorResponse(
-    string RequestId,
+public sealed record AiAnalysisError(
+    string? RequestId,
     string Error,
     string Message);
 ```
@@ -409,9 +411,9 @@ using var response = await httpClient.SendAsync(
 var responseText = await response.Content.ReadAsStringAsync(cancellationToken);
 ```
 
-On `2xx`, parse `AiAnalysisResponse` and display `Explanation`.
+On `2xx`, parse `AiAnalysisResult` and display `Explanation`.
 
-On non-`2xx`, parse `AiErrorResponse` if possible and map it to the status code
+On non-`2xx`, parse `AiAnalysisError` if possible and map it to the status code
 handling rules above.
 
 ## 11. UI Requirements
@@ -470,7 +472,7 @@ Use these after implementing the app integration:
 11. Both approved backend URLs can be selected and tested.
 12. A Cloudflare `403` challenge response is shown as a backend protection issue, not as an auth failure.
 
-The backend has already been smoke-tested successfully with real Gemini:
+Real-Gemini smoke testing must be verified and recorded outside this repository before claiming completion:
 
 ```text
 HTTP 200

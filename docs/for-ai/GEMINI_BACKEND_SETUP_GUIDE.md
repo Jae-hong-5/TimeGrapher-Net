@@ -3,7 +3,7 @@
 Status: guide for the private backend implementation.
 Date: 2026-06-28
 
-This document is written so a separate server-side coding agent can implement and deploy the private backend used by TimeGrapher's Gemini-powered explanation feature.
+This document is written so a separate server-side coding agent can implement and deploy the private backend used by TimeGrapher's Gemini-powered AI analysis feature.
 
 Related decision document: `docs/for-ai/GEMINI_AI_ACCESS_SECURITY.md`.
 
@@ -11,13 +11,13 @@ Related decision document: `docs/for-ai/GEMINI_AI_ACCESS_SECURITY.md`.
 
 The backend exists to keep the project-owned Gemini API key out of the distributed TimeGrapher client.
 
-The backend is the only supported path for Gemini-powered explanations; the app must not call Gemini directly.
+The backend is the only supported path for Gemini-powered AI analysis; the app must not call Gemini directly.
 
 Target flow:
 
 ```text
 TimeGrapher App
-  -> HTTPS request with grader-provided demo credentials and user-consented analysis log
+  -> HTTPS request with grader-provided demo credentials and user-consented measurement log
 Private Backend
   -> Builds fixed server-side prompt
   -> Calls Gemini with server-side API key
@@ -64,8 +64,8 @@ GEMINI_API_KEY=<server-side Gemini API key>
 GEMINI_MODEL=<server-selected Gemini Flash model>
 DEMO_USERNAME=<grader demo username>
 DEMO_PASSWORD=<grader demo password stored as a platform secret>
-MAX_LOG_CHARS=20000
-MAX_BODY_BYTES=65536
+MAX_LOG_CHARS=100000
+MAX_BODY_BYTES=262144
 MAX_OUTPUT_TOKENS=700
 RATE_LIMIT_PER_MINUTE=3
 RATE_LIMIT_PER_DAY=30
@@ -112,7 +112,7 @@ Request body:
   "consentGranted": true,
   "locale": "ko-KR",
   "appVersion": "1.0.0",
-  "logText": "small TimeGrapher analysis log text",
+  "logText": "small TimeGrapher measurement log text",
   "measurementSummary": {
     "bph": 28800,
     "rateSecondsPerDay": 3.2,
@@ -206,8 +206,8 @@ Implementation guidance:
 Minimum limits:
 
 ```text
-MAX_BODY_BYTES=65536
-MAX_LOG_CHARS=20000
+MAX_BODY_BYTES=262144
+MAX_LOG_CHARS=100000
 ```
 
 Server requirements:
@@ -241,7 +241,7 @@ Recommended user content shape:
 Measurement summary:
 <server-rendered structured summary>
 
-Uploaded analysis log, delimited as untrusted data:
+Uploaded measurement log, delimited as untrusted data:
 --- BEGIN TIMEGRAPHER LOG ---
 <logText>
 --- END TIMEGRAPHER LOG ---
@@ -322,7 +322,7 @@ Default privacy policy for the backend:
 - Log request ID, timestamp, endpoint, status code, response time, body size, and high-level error category.
 - If temporary debugging requires raw log capture, make it opt-in, time-limited, and disabled before grading/demo use.
 
-The app-side consent text should tell the user that the analysis log will be sent to the private backend for AI analysis.
+The app-side consent text should tell the user that the measurement log will be sent to the private backend for AI analysis.
 
 ## 12. Deployment option A: managed platform
 
@@ -439,7 +439,7 @@ Do not paste real credentials into public screenshots, logs, README files, or is
 
 The app-side implementation should assume this backend contract:
 
-- The app stores only the backend base URL, not the Gemini API key.
+- The app keeps approved backend base URLs as code-defined options and persists neither a backend URL nor any Gemini API key.
 - The app must not provide UI for entering or storing a Gemini API key.
 - The app prompts the grader/user for demo username and password.
 - If the app supports "remember login" or auto-login, credentials are stored only in the operating system credential store.
@@ -452,10 +452,10 @@ The app-side implementation should assume this backend contract:
 - These findings make Windows and the tested Raspberry Pi Desktop the intended initial persistent-login targets for the app implementation, without permitting plain text credential storage.
 - Linux releases should include `gnome-keyring` and `libsecret-tools` in `install.sh` so Raspberry Pi users receive the required Secret Service/keyring components during normal installation.
 - The app never saves demo passwords in plain text config files, logs, screenshots, crash reports, or bundled assets.
-- The app asks for explicit consent before uploading the analysis log.
+- The app asks for explicit consent before uploading the measurement log.
 - The app sends `consentGranted=true` only after the user consents.
 - The app sends a small log and optional structured measurement summary.
-- The app always calls `POST /api/watch/explain-measurement-log` for Gemini-powered explanations.
+- The app always calls `POST /api/watch/explain-measurement-log` for Gemini-powered AI analysis.
 - The app displays the returned `explanation`.
 - The app does not call Gemini directly.
 
@@ -489,7 +489,7 @@ Do not claim that the design has no security risk. The accurate claim is that cl
 
 - 서버는 TimeGrapher 앱에 개발자 Gemini API 키를 넣지 않기 위한 보안 경계이다.
 - 배포 서버는 HTTPS, Basic Auth, 환경변수/secret 기반 Gemini 키 저장, rate limit, quota, 입력 크기 제한을 적용한다.
-- 앱은 사용자의 명시적 동의 후 작은 분석 로그를 서버로 보내고, 서버는 고정 프롬프트와 로그를 결합해 Gemini를 호출한다.
+- 앱은 사용자의 명시적 동의 후 작은 측정 로그를 서버로 보내고, 서버는 고정 프롬프트와 로그를 결합해 Gemini를 호출한다.
 - 앱은 프롬프트, 모델, 토큰 수, temperature를 직접 지정하지 않는다.
 - 서버는 범용 Gemini 프록시가 아니라 `/api/watch/explain-measurement-log` 같은 기능별 API만 제공한다.
 - 로그와 인증 헤더, API 키는 기본적으로 저장하거나 출력하지 않는다.
