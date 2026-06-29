@@ -238,7 +238,7 @@ internal sealed class MainWindowDialogService : ITimeGrapherDialogService
         var dialog = new Window
         {
             Title = "AI Explanation",
-            Width = 640,
+            Width = 960,
             Height = 640,
             CanResize = true,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,

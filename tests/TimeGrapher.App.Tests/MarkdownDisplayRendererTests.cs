@@ -21,9 +21,27 @@ public sealed class MarkdownDisplayRendererTests
 """);
 
         var panel = Assert.IsType<StackPanel>(rendered);
-        Assert.IsType<TextBlock>(panel.Children[0]);
+        var heading = Assert.IsType<TextBlock>(panel.Children[0]);
+        Assert.Equal(20.0, heading.FontSize);
         Assert.IsType<Grid>(panel.Children[1]);
         Assert.IsType<Grid>(panel.Children[2]);
+    }
+
+    [Fact]
+    public void Render_UsesLargeHeadingSizesForTitles()
+    {
+        HeadlessPlatform.EnsureStarted();
+
+        Control rendered = MarkdownDisplayRenderer.Render("""
+# 큰 제목
+## 중간 제목
+#### 작은 제목
+""");
+
+        var panel = Assert.IsType<StackPanel>(rendered);
+        Assert.Equal(28.0, Assert.IsType<TextBlock>(panel.Children[0]).FontSize);
+        Assert.Equal(24.0, Assert.IsType<TextBlock>(panel.Children[1]).FontSize);
+        Assert.Equal(17.0, Assert.IsType<TextBlock>(panel.Children[2]).FontSize);
     }
 
     [Fact]

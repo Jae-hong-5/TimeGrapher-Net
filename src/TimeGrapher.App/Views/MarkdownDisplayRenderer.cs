@@ -75,7 +75,7 @@ internal static class MarkdownDisplayRenderer
                     Text = StripInlineMarkdown(heading),
                     TextWrapping = TextWrapping.Wrap,
                     FontWeight = FontWeight.Bold,
-                    FontSize = level <= 1 ? 20 : level == 2 ? 17 : 15,
+                    FontSize = HeadingFontSize(level),
                     Margin = new Thickness(0, level <= 2 ? 8 : 4, 0, 0),
                 }))
                 {
@@ -152,6 +152,14 @@ internal static class MarkdownDisplayRenderer
         text = line[(level + 1)..].Trim();
         return text.Length > 0;
     }
+
+    private static double HeadingFontSize(int level) => level switch
+    {
+        <= 1 => 28.0,
+        2 => 24.0,
+        3 => 20.0,
+        _ => 17.0
+    };
 
     private static bool TryParseListItem(string line, out string marker, out string text)
     {
