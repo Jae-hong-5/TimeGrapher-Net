@@ -147,6 +147,8 @@ card 4: CA7 [Cubilux CA7], device 0: USB Audio [USB Audio]
     [Fact]
     public void ProbeStartInfoForSampleRate_KillsLongRunningProbeBeforeAcceptingRate()
     {
+        const int startupProbeTimeoutMs = 100;
+        const int cleanupTimeoutMs = 5000;
         Stopwatch stopwatch = Stopwatch.StartNew();
         (string fileName, string[] args) = ShellCommand(OperatingSystem.IsWindows()
             ? "ping 127.0.0.1 -n 30 > nul"
@@ -154,11 +156,16 @@ card 4: CA7 [Cubilux CA7], device 0: USB Audio [USB Audio]
 
         bool supported = LinuxLiveAudioWorker.ProbeStartInfoForSampleRate(
             BuildStartInfo(fileName, args),
-            startupProbeTimeoutMs: 100,
-            cleanupTimeoutMs: 5000);
+            startupProbeTimeoutMs: startupProbeTimeoutMs,
+            cleanupTimeoutMs: cleanupTimeoutMs);
 
         Assert.True(supported);
-        Assert.True(stopwatch.Elapsed < TimeSpan.FromSeconds(10));
+        // Bound derived from the timeouts the probe is given (probe wait + cleanup wait)
+        // plus a documented CI grace, rather than a magic 10 s: the kill must land well
+        // inside this, and far under the ~30 s child that would run if the kill failed.
+        const int ciGraceMs = 5000;
+        Assert.True(stopwatch.Elapsed <
+            TimeSpan.FromMilliseconds(startupProbeTimeoutMs + cleanupTimeoutMs + ciGraceMs));
     }
 
     [Fact]
@@ -202,14 +209,17 @@ card 4: CA7 [Cubilux CA7], device 0: USB Audio [USB Audio]
     {
         Stopwatch stopwatch = Stopwatch.StartNew();
 
+        // A clearly long-lived child (~30 s) against a 200 ms timeout: RunCommand must
+        // give up and return empty far inside the 5 s ceiling. (The old ~2 s child raced
+        // the 2 s assertion, so a slow-to-start child could finish before the bound.)
         (string fileName, string[] args) = ShellCommand(OperatingSystem.IsWindows()
-            ? "ping 127.0.0.1 -n 6 > nul & echo done"
-            : "sleep 2; echo done");
+            ? "ping 127.0.0.1 -n 30 > nul & echo done"
+            : "sleep 30; echo done");
 
         string output = LinuxLiveAudioWorker.RunCommand(fileName, TimeSpan.FromMilliseconds(200), args);
 
         Assert.Equal("", output);
-        Assert.True(stopwatch.Elapsed < TimeSpan.FromSeconds(2));
+        Assert.True(stopwatch.Elapsed < TimeSpan.FromSeconds(5));
     }
 
     [Fact]
