@@ -1,7 +1,28 @@
 # TimeGrapher App Gemini Backend Integration Guide
 
 Status: implementable; backend contract is ready and app-side credential-store/log-source seams still need coding.
-Backend base URL: `https://tg-ai.jaehongoh.com`
+Allowed backend base URLs:
+
+```text
+Primary:
+https://tg-ai.jaehongoh.com
+
+AWS Learner Lab:
+https://tg-ai-cmu-aws.jaehongoh.com
+```
+
+The app should keep the backend base URL configurable. Use the primary backend
+by default and allow switching to the AWS Learner Lab backend for demos or
+fallback testing.
+
+The backend base URL is not a secret, but production builds must constrain it
+to the approved HTTPS allowlist above. Do not let ordinary users type an
+arbitrary AI backend URL unless the app has a clearly separated developer/debug
+mode.
+
+Automatic fallback is allowed only between the two approved URLs. If fallback
+is implemented, make the chosen backend visible in diagnostics and avoid
+repeated retry loops that could multiply Gemini calls.
 
 This document is for the coding agent implementing the TimeGrapher app-side
 integration. The private backend is already deployed and is responsible for
@@ -36,7 +57,7 @@ only.
 ### Health Check
 
 ```http
-GET https://tg-ai.jaehongoh.com/health
+GET <backend-base-url>/health
 ```
 
 Expected success:
@@ -53,7 +74,7 @@ backend internals in the UI.
 ### AI Explanation Endpoint
 
 ```http
-POST https://tg-ai.jaehongoh.com/api/watch/explain-measurement-log
+POST <backend-base-url>/api/watch/explain-measurement-log
 Authorization: Basic <base64(username:password)>
 Content-Type: application/json
 ```
@@ -199,6 +220,7 @@ inside a fixed server-side prompt. The backend prompt instructs Gemini to:
 - output in Korean
 
 The app should not duplicate this prompt and should not send prompt text.
+
 For the first app implementation, the log source must be explicit and
 testable. Either read a user-selected CSV/log file or expose a narrow
 `MeasurementLogController`/service seam for the latest completed measurement
@@ -216,9 +238,10 @@ these errors gracefully:
 - `413 Payload Too Large`: log or JSON body is too large
 - `429 Too Many Requests`: per-client or global quota exceeded
 
-Current intended deployment settings are expected to support ordinary CSV logs,
-including logs around 25 KB. If a log is too large, show a friendly message and
-ask the user to shorten the log or retry with a smaller measurement window.
+Current deployment settings are expected to support ordinary full CSV logs,
+including the 24 KB backend sample fixture. If a log is too large, show a
+friendly message and ask the user to shorten the log or retry with a smaller
+measurement window.
 
 Do not split one analysis into many backend calls unless the backend contract is
 explicitly changed later.
@@ -239,6 +262,10 @@ Handle these responses:
   Missing or wrong demo credentials.
   Ask the user to re-enter credentials.
 
+403 Forbidden
+  If the response is HTML or includes a Cloudflare challenge header, treat this
+  as backend protection misconfiguration, not as wrong credentials.
+
 413 Payload Too Large
   Log/body exceeds backend limits.
   Ask the user to use a smaller log.
@@ -256,9 +283,10 @@ Handle these responses:
   Show that AI explanation is currently unavailable.
 ```
 
-Always preserve `requestId` from error responses when showing advanced details
-or when the user reports a problem. Do not show raw credentials or uploaded log
-content in error dialogs.
+Always preserve `requestId` from JSON error responses when showing advanced
+details or when the user reports a problem. Some infrastructure errors, such as
+Cloudflare challenge HTML, will not include a backend `requestId`. Do not show
+raw credentials or uploaded log content in error dialogs.
 
 ## 8. Recommended App Service Boundary
 
@@ -274,6 +302,7 @@ it asks an app service for an explanation.
 
 Suggested service responsibilities:
 
+- validate the backend base URL against the approved allowlist
 - build the backend JSON request
 - add Basic Auth
 - set `Content-Type: application/json`
@@ -349,7 +378,7 @@ var json = JsonSerializer.Serialize(requestBody);
 
 using var request = new HttpRequestMessage(
     HttpMethod.Post,
-    "https://tg-ai.jaehongoh.com/api/watch/explain-measurement-log");
+    $"{backendBaseUrl.TrimEnd('/')}/api/watch/explain-measurement-log");
 
 var pair = $"{username}:{password}";
 var encoded = Convert.ToBase64String(Encoding.UTF8.GetBytes(pair));
@@ -376,6 +405,7 @@ handling rules above.
 
 Add or update UI for:
 
+- approved backend selection for primary/AWS demo fallback
 - backend-powered AI explanation action
 - consent confirmation before upload
 - demo username/password input
@@ -396,10 +426,12 @@ Before considering the app-side task done, verify:
 - No Gemini API key exists in app source, assets, config, README, or installer.
 - No demo username/password exists in app source, assets, config, README, or installer.
 - App does not expose BYOK or direct Gemini access.
-- App calls only `https://tg-ai.jaehongoh.com/api/watch/explain-measurement-log`.
+- App calls only approved backend base URLs:
+  `https://tg-ai.jaehongoh.com` or `https://tg-ai-cmu-aws.jaehongoh.com`.
+- App rejects non-HTTPS backend URLs in production builds.
 - App sends `consentGranted=true` only after explicit user consent.
 - App sends log data as `logText`, not as prompt instructions.
-- App handles `401`, `413`, `429`, `502`, and `503`.
+- App handles `400`, `401`, `403`, `413`, `429`, `502`, and `503`.
 - App does not log Basic Auth headers, passwords, or full uploaded logs.
 - App stores saved demo credentials only in the OS credential store.
 - App disables credential persistence when the store/read/delete probe fails.
@@ -420,6 +452,8 @@ Use these after implementing the app integration:
 8. Normal CSV log returns `200` and displays Korean explanation.
 9. Oversized log shows a friendly too-large message.
 10. Repeated rapid requests eventually show a retry-later message.
+11. Both approved backend URLs can be selected and tested.
+12. A Cloudflare `403` challenge response is shown as a backend protection issue, not as an auth failure.
 
 The backend has already been smoke-tested successfully with real Gemini:
 
@@ -427,3 +461,19 @@ The backend has already been smoke-tested successfully with real Gemini:
 HTTP 200
 response contains requestId, explanation, and model
 ```
+
+## 14. Cloudflare API Note
+
+These backends are API endpoints. Cloudflare browser challenges must not be
+required for `/health` or `/api/watch/explain-measurement-log`, because desktop
+apps and ordinary HTTP clients cannot solve JavaScript challenges.
+
+If the app receives HTML with `HTTP 403` and a header like:
+
+```text
+Cf-Mitigated: challenge
+```
+
+then Cloudflare, not the backend, challenged the request. The fix is to remove
+Bot Fight Mode or Managed Challenge behavior for these API paths and use
+Cloudflare block/rate-limit rules plus backend Basic Auth instead.

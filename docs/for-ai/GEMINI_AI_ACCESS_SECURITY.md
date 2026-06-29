@@ -16,15 +16,16 @@ Provide Gemini-powered app features without distributing the project-owned Gemin
    - No bundled config file.
    - No README or public repository exposure.
 
-2. The only supported AI access mode uses a private backend server.
+2. The only supported AI access mode uses approved private backend servers.
 
    ```text
-   TimeGrapher App -> Private Backend Server -> Gemini API
+   TimeGrapher App -> Approved Private Backend Server -> Gemini API
    ```
 
    - The Gemini API key is stored only on the backend, preferably as an environment variable or secret.
    - The app sends requests to the backend and receives only the generated result.
    - The app does not know the Gemini API key or direct Gemini service details.
+   - Current approved backend base URLs are `https://tg-ai.jaehongoh.com` and `https://tg-ai-cmu-aws.jaehongoh.com`.
 
 3. Grader credentials are provided separately, not embedded in the app.
    - The app contains only the login/input UI.
@@ -61,15 +62,15 @@ Provide Gemini-powered app features without distributing the project-owned Gemin
    POST /api/gemini-proxy
    ```
 
-5. Direct client Gemini access is out of scope.
+5. Direct client Gemini access is out of scope; all Gemini-powered explanations must use an approved private backend.
 
    ```text
-   TimeGrapher App -> Private Backend Server -> Gemini API
+   TimeGrapher App -> Approved Private Backend Server -> Gemini API
    ```
 
    - The app must not accept, store, or use a Gemini API key.
    - The app must not call Gemini directly.
-   - All Gemini-powered explanations must go through the private backend.
+   - All Gemini-powered explanations must go through an approved private backend.
    - The backend remains responsible for prompt ownership, model selection, token limits, quota, logging policy, and abuse controls.
 
 6. Server-mode log upload is allowed only with explicit user consent.
@@ -109,7 +110,8 @@ Avoid claiming that the system has "no security risk". The correct claim is that
 ## Korean summary
 
 - 개발자 소유 Gemini API 키는 앱에 포함하지 않는다.
-- AI 기능은 개인 서버 경유 방식만 지원한다.
+- AI 기능은 승인된 개인 백엔드 서버 경유 방식만 지원한다.
+- 현재 승인된 백엔드 base URL은 `https://tg-ai.jaehongoh.com`과 `https://tg-ai-cmu-aws.jaehongoh.com`이다.
 - 앱은 Gemini API 키 입력, 저장, 직접 호출 기능을 제공하지 않는다.
 - 채점자용 ID/PW는 앱에 넣지 않고 별도로 제공한다.
 - 자동 로그인이나 로그인 정보 저장을 지원하는 경우, ID/PW는 운영체제 credential store에만 저장하고 평문 설정 파일에는 저장하지 않는다.
