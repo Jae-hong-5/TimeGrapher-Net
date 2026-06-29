@@ -459,6 +459,31 @@ public sealed class BeatSegmentCaptureTests
     }
 
     [Fact]
+    public void Capture_DoesNotFlagHighButUnclippedRawPlateauAsClippedSignal()
+    {
+        var capture = NewCapture();
+        const int aSample = 24000;
+        const int cSample = aSample + 2400;
+
+        var raw = new float[48000];
+        for (int i = 0; i < 8; i++)
+        {
+            raw[aSample + i] = 0.9f;
+        }
+        capture.AppendRaw(raw);
+
+        Feed(capture, 0, 48000,
+            spikes: new[] { (aSample, 0.9f), (cSample, 0.7f) },
+            AEvent(aSample, peak: 0.9f, isTic: true),
+            CEvent(cSample));
+
+        BeatSegmentsSnapshot snapshot = capture.CurrentSnapshot()!;
+
+        Assert.False((snapshot.Quality & SignalQualityFlags.ClippedSignal) != 0);
+        Assert.False((snapshot.Segments[0].Quality & SignalQualityFlags.ClippedSignal) != 0);
+    }
+
+    [Fact]
     public void Capture_LeavesRawInvalidWhenNoRawIsFed()
     {
         var capture = NewCapture();

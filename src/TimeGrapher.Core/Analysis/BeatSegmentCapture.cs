@@ -125,7 +125,7 @@ public sealed class BeatSegmentCapture
     private const double AcDeviationMadScale = 4.0;
     private const double PossibleFalseCMaxAcMs = 5.0;
     private const float WeakPeakThreshold = 0.03f;
-    private const float RawClipThreshold = 0.65f;
+    private const float RawClipThreshold = 0.95f;
     private const float RawClipPlateauTolerance = 0.000001f;
     private const int MinRawClipPlateauSamples = 4;
 
