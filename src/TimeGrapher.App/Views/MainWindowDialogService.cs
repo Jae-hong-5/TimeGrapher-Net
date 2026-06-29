@@ -173,8 +173,9 @@ internal sealed class MainWindowDialogService : ITimeGrapherDialogService
             remember.Content = "Remember login unavailable: OS credential store probe failed";
         }
 
-        var ok = new Button { Content = "Analyze", Width = 88, IsDefault = true };
+        var ok = new Button { Content = "Analyze", Width = 88, IsDefault = true, IsEnabled = consent.IsChecked == true };
         var cancel = new Button { Content = "Cancel", Width = 80, IsCancel = true };
+        consent.IsCheckedChanged += (_, _) => ok.IsEnabled = consent.IsChecked == true;
         ok.Click += (_, _) =>
         {
             string selectedBackend = request.BackendOptions[Math.Max(0, backendCombo.SelectedIndex)].BaseUrl;

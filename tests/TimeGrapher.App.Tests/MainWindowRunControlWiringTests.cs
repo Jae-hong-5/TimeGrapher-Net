@@ -338,6 +338,8 @@ public sealed class MainWindowRunControlWiringTests
         Assert.Contains("Watermark = \"User ID\"", source);
         Assert.Contains("Watermark = \"User PW\"", source);
         Assert.Contains("selected TimeGrapher service server", source);
+        Assert.Contains("IsEnabled = consent.IsChecked == true", source);
+        Assert.Contains("consent.IsCheckedChanged += (_, _) => ok.IsEnabled = consent.IsChecked == true", source);
         Assert.Contains("$\"Server:", source);
         Assert.DoesNotContain("Text = \"Backend\"", source);
         Assert.DoesNotContain("Text = \"Demo username\"", source);
