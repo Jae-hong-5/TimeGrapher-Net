@@ -29,12 +29,15 @@ public class WatchHealthRadarModelTests
         model.Axes.Single(a => a.Position == position);
 
     [Fact]
-    public void AxisOrder_IsTheSixCardinalPositions()
+    public void AxisOrder_IsTheEightVerticalPositions()
     {
-        Assert.Equal(6, WatchHealthRadarModel.AxisOrder.Count);
-        Assert.DoesNotContain(WatchHealthRadarModel.AxisOrder, p => p.IsIntermediate());
-        Assert.Contains(WatchPosition.CH, WatchHealthRadarModel.AxisOrder);
-        Assert.Contains(WatchPosition.CB, WatchHealthRadarModel.AxisOrder);
+        Assert.Equal(8, WatchHealthRadarModel.AxisOrder.Count);
+        // The octagon is the vertical (hanging) positions only — no flat CH/CB.
+        Assert.DoesNotContain(WatchHealthRadarModel.AxisOrder, p => p.IsHorizontal());
+        // The 45° intermediate positions are now included to complete the octagon.
+        Assert.Contains(WatchPosition.P3H45, WatchHealthRadarModel.AxisOrder);
+        // 12H sits at the top, clockwise, so each vertex matches the clock face.
+        Assert.Equal(WatchPosition.P12H, WatchHealthRadarModel.AxisOrder[0]);
     }
 
     [Fact]
@@ -42,7 +45,7 @@ public class WatchHealthRadarModelTests
     {
         WatchHealthRadarModel model = WatchHealthRadarModel.Build(new PositionSummary[0], RadarMetric.Amplitude);
 
-        Assert.Equal(6, model.Axes.Count);
+        Assert.Equal(8, model.Axes.Count);
         Assert.All(model.Axes, axis => Assert.False(axis.HasValue));
         Assert.Equal(0, model.MeasuredCount);
         Assert.Null(model.WeakestPosition);
@@ -92,19 +95,19 @@ public class WatchHealthRadarModelTests
     }
 
     [Fact]
-    public void Build_CountsOnlyMeasuredPositions()
+    public void Build_CountsOnlyMeasuredVerticalAxes()
     {
         var positions = new[]
         {
-            Amp(WatchPosition.CH, 290),
-            Amp(WatchPosition.CB, 285),
-            Amp(WatchPosition.P3H, 270),
+            Amp(WatchPosition.P12H, 290),
+            Amp(WatchPosition.P3H, 285),
+            Amp(WatchPosition.P6H, 270),
         };
 
         WatchHealthRadarModel model = WatchHealthRadarModel.Build(positions, RadarMetric.Amplitude);
 
         Assert.Equal(3, model.MeasuredCount);
-        Assert.True(AxisFor(model, WatchPosition.CH).HasValue);
+        Assert.True(AxisFor(model, WatchPosition.P12H).HasValue);
         Assert.False(AxisFor(model, WatchPosition.P9H).HasValue);
     }
 
@@ -113,20 +116,20 @@ public class WatchHealthRadarModelTests
     {
         var positions = new[]
         {
-            Amp(WatchPosition.CH, 300),
-            Amp(WatchPosition.CB, 250),
+            Amp(WatchPosition.P12H, 300),
+            Amp(WatchPosition.P6H, 250),
         };
 
         WatchHealthRadarModel model = WatchHealthRadarModel.Build(positions, RadarMetric.Amplitude);
 
-        Assert.True(AxisFor(model, WatchPosition.CH).RadiusFraction > AxisFor(model, WatchPosition.CB).RadiusFraction);
+        Assert.True(AxisFor(model, WatchPosition.P12H).RadiusFraction > AxisFor(model, WatchPosition.P6H).RadiusFraction);
     }
 
     [Fact]
     public void Amplitude_HasHealthyBandWithinTheScale()
     {
         WatchHealthRadarModel model = WatchHealthRadarModel.Build(
-            new[] { Amp(WatchPosition.CH, 290) }, RadarMetric.Amplitude);
+            new[] { Amp(WatchPosition.P12H, 290) }, RadarMetric.Amplitude);
 
         Assert.True(model.HasBand);
         Assert.InRange(model.BandInnerFraction, 0.0, 1.0);
@@ -147,8 +150,10 @@ public class WatchHealthRadarModelTests
     }
 
     [Fact]
-    public void Amplitude_BelowServiceThreshold_RaisesAlert()
+    public void Amplitude_HorizontalServiceLow_RaisesAlertAndIsWeakest()
     {
+        // A flat-position (dial-down) service-low amplitude must drive the verdict
+        // and be picked as weakest even though CB is not a radar vertex.
         double inBand = InBandAmplitude();
         double serviceLow = ServiceLowAmplitude();
         var positions = new[]
@@ -169,12 +174,12 @@ public class WatchHealthRadarModelTests
     public void Verdict_StaysPendingUntilWarmupCountReached()
     {
         double inBand = InBandAmplitude();
-        var positions = new[] { Amp(WatchPosition.CH, inBand, count: 5) };
+        var positions = new[] { Amp(WatchPosition.P12H, inBand, count: 5) };
 
         WatchHealthRadarModel model = WatchHealthRadarModel.Build(positions, RadarMetric.Amplitude);
 
         Assert.Equal(1, model.MeasuredCount);
-        Assert.True(AxisFor(model, WatchPosition.CH).HasValue);
+        Assert.True(AxisFor(model, WatchPosition.P12H).HasValue);
         Assert.Equal(VarioVerdictLevel.Pending, model.VerdictLevel);
     }
 
@@ -183,14 +188,14 @@ public class WatchHealthRadarModelTests
     {
         var positions = new[]
         {
-            Beat(WatchPosition.CH, 0.5),
-            Beat(WatchPosition.CB, 3.0),
+            Beat(WatchPosition.P12H, 0.5),
+            Beat(WatchPosition.P6H, 3.0),
         };
 
         WatchHealthRadarModel model = WatchHealthRadarModel.Build(positions, RadarMetric.BeatError);
 
-        Assert.True(AxisFor(model, WatchPosition.CB).RadiusFraction > AxisFor(model, WatchPosition.CH).RadiusFraction);
-        Assert.Equal(WatchPosition.CB, model.WeakestPosition);
+        Assert.True(AxisFor(model, WatchPosition.P6H).RadiusFraction > AxisFor(model, WatchPosition.P12H).RadiusFraction);
+        Assert.Equal(WatchPosition.P6H, model.WeakestPosition);
     }
 
     [Fact]
@@ -229,9 +234,9 @@ public class WatchHealthRadarModelTests
     public void Rate_FormatsSignedValue()
     {
         WatchHealthRadarModel model = WatchHealthRadarModel.Build(
-            new[] { Rate(WatchPosition.CH, 8.0) }, RadarMetric.Rate);
+            new[] { Rate(WatchPosition.P12H, 8.0) }, RadarMetric.Rate);
 
-        Assert.Contains("s/d", AxisFor(model, WatchPosition.CH).ValueText);
+        Assert.Contains("s/d", AxisFor(model, WatchPosition.P12H).ValueText);
     }
 
     private static PositionSummary AmpRate(WatchPosition position, double amplitude, double rate, long count = 50) =>
@@ -240,16 +245,19 @@ public class WatchHealthRadarModelTests
     private static HealthLevelRow LevelFor(WatchHealthRadarModel model, WatchPosition position) =>
         model.Levels.Single(l => l.Position == position);
 
+    private static HealthHorizontalRow HorizontalFor(WatchHealthRadarModel model, WatchPosition position) =>
+        model.Horizontal.Single(h => h.Position == position);
+
     [Fact]
     public void Build_PopulatesLevelsForEveryAxisPosition()
     {
-        var positions = new[] { Amp(WatchPosition.CH, 290), Amp(WatchPosition.CB, 285) };
+        var positions = new[] { Amp(WatchPosition.P12H, 290), Amp(WatchPosition.P3H, 285) };
 
         WatchHealthRadarModel model = WatchHealthRadarModel.Build(positions, RadarMetric.Amplitude);
 
         Assert.Equal(WatchHealthRadarModel.AxisOrder.Count, model.Levels.Count);
-        Assert.True(LevelFor(model, WatchPosition.CH).HasValue);
-        Assert.Contains("290", LevelFor(model, WatchPosition.CH).AmplitudeText);
+        Assert.True(LevelFor(model, WatchPosition.P12H).HasValue);
+        Assert.Contains("290", LevelFor(model, WatchPosition.P12H).AmplitudeText);
         Assert.False(LevelFor(model, WatchPosition.P9H).HasValue);
     }
 
@@ -258,11 +266,43 @@ public class WatchHealthRadarModelTests
     {
         // Service-low amplitude alone makes the row's status dot ALERT (Bad).
         double serviceLow = ServiceLowAmplitude();
-        var positions = new[] { Amp(WatchPosition.CH, serviceLow) };
+        var positions = new[] { Amp(WatchPosition.P12H, serviceLow) };
 
         WatchHealthRadarModel model = WatchHealthRadarModel.Build(positions, RadarMetric.Amplitude);
 
-        Assert.Equal(VarioVerdictLevel.Bad, LevelFor(model, WatchPosition.CH).Level);
+        Assert.Equal(VarioVerdictLevel.Bad, LevelFor(model, WatchPosition.P12H).Level);
+    }
+
+    [Fact]
+    public void Build_PopulatesHorizontalRowsForChAndCb()
+    {
+        var positions = new[] { Amp(WatchPosition.CH, 290), Amp(WatchPosition.P12H, 280) };
+
+        WatchHealthRadarModel model = WatchHealthRadarModel.Build(positions, RadarMetric.Amplitude);
+
+        Assert.Equal(WatchHealthRadarModel.HorizontalOrder.Count, model.Horizontal.Count);
+        Assert.True(HorizontalFor(model, WatchPosition.CH).HasValue);
+        Assert.False(HorizontalFor(model, WatchPosition.CB).HasValue);
+        Assert.Contains("290", HorizontalFor(model, WatchPosition.CH).ValueText);
+        // CH/CB are reported as horizontal rows, never as radar vertices.
+        Assert.DoesNotContain(model.Axes, a => a.Position == WatchPosition.CH);
+    }
+
+    [Fact]
+    public void Horizontal_OutOfBandFlagsTheMeanDot()
+    {
+        double inBand = InBandAmplitude();
+        double serviceLow = ServiceLowAmplitude();
+        var positions = new[]
+        {
+            Amp(WatchPosition.CH, inBand),
+            Amp(WatchPosition.CB, serviceLow),
+        };
+
+        WatchHealthRadarModel model = WatchHealthRadarModel.Build(positions, RadarMetric.Amplitude);
+
+        Assert.False(HorizontalFor(model, WatchPosition.CH).OutOfBand);
+        Assert.True(HorizontalFor(model, WatchPosition.CB).OutOfBand);
     }
 
     [Fact]

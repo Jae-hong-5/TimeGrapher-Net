@@ -122,7 +122,8 @@ internal static class InfoTabCatalog
             // and per-position aggregates; it declares no per-frame graph-series
             // contract. Placed eighth so it leads the wrapped second tab row.
             new(WatchPositionsTabId, "Positions", InfoTabKind.WatchPositions, DefaultUiRefreshIntervalMs, UsesGraphSnapshots: false, Array.Empty<GraphSeriesDefinition>()),
-            // Watch Health renders a six-position radar of the per-position
+            // Watch Health renders an eight-position octagon of the vertical
+            // positions (plus a horizontal CH/CB gauge strip) from the per-position
             // aggregates the same cumulative snapshot already carries (amplitude /
             // rate / beat error by position), with the shared accept band as the
             // healthy ring; it declares no per-frame graph-series contract. Placed
