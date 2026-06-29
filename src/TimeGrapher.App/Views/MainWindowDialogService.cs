@@ -1,3 +1,4 @@
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
@@ -243,6 +244,7 @@ internal sealed class MainWindowDialogService : ITimeGrapherDialogService
             CanResize = true,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
         };
+        dialog.Bind(Window.BackgroundProperty, dialog.GetResourceObservable("GlassPanelBrush"));
 
         var details = new TextBlock
         {
@@ -338,6 +340,7 @@ internal sealed class MainWindowDialogService : ITimeGrapherDialogService
             {
                 Text = statusText,
                 TextWrapping = TextWrapping.Wrap,
+                FontWeight = FontWeight.Normal,
             });
             return panel;
         }
@@ -358,6 +361,7 @@ internal sealed class MainWindowDialogService : ITimeGrapherDialogService
             Text = message,
             Foreground = Brushes.IndianRed,
             TextWrapping = TextWrapping.Wrap,
+            FontWeight = FontWeight.Normal,
         };
     }
     public async Task ShowErrorAsync(string title, string message)

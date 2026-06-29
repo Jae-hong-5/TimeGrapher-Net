@@ -109,6 +109,7 @@ internal static class MarkdownDisplayRenderer
                 Text = StripInlineMarkdown(string.Join(' ', paragraph)),
                 TextWrapping = TextWrapping.Wrap,
                 LineHeight = 20,
+                FontWeight = FontWeight.Normal,
             }))
             {
                 AddTruncationNotice(panel);
@@ -205,6 +206,7 @@ internal static class MarkdownDisplayRenderer
             Text = StripInlineMarkdown(text),
             TextWrapping = TextWrapping.Wrap,
             LineHeight = 20,
+            FontWeight = FontWeight.Normal,
         };
         Grid.SetColumn(body, 1);
         grid.Children.Add(body);
@@ -220,7 +222,7 @@ internal static class MarkdownDisplayRenderer
             .ToArray();
         if (allRows.Length == 0)
         {
-            return new TextBlock { Text = string.Join(Environment.NewLine, tableLines), TextWrapping = TextWrapping.Wrap };
+            return new TextBlock { Text = string.Join(Environment.NewLine, tableLines), TextWrapping = TextWrapping.Wrap, FontWeight = FontWeight.Normal };
         }
 
         bool truncatedRows = allRows.Length > MaxTableRows;
@@ -304,6 +306,7 @@ internal static class MarkdownDisplayRenderer
         Text = TruncationNotice,
         TextWrapping = TextWrapping.Wrap,
         FontStyle = FontStyle.Italic,
+        FontWeight = FontWeight.Normal,
         Opacity = 0.8,
     };
 

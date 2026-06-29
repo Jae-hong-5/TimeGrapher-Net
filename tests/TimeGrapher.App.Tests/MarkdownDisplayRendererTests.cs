@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using Avalonia.Media;
 using TimeGrapher.App.Views;
 using Xunit;
 
@@ -23,7 +24,8 @@ public sealed class MarkdownDisplayRendererTests
         var panel = Assert.IsType<StackPanel>(rendered);
         var heading = Assert.IsType<TextBlock>(panel.Children[0]);
         Assert.Equal(20.0, heading.FontSize);
-        Assert.IsType<Grid>(panel.Children[1]);
+        var list = Assert.IsType<Grid>(panel.Children[1]);
+        Assert.Equal(FontWeight.Normal, Assert.IsType<TextBlock>(list.Children[1]).FontWeight);
         Assert.IsType<Grid>(panel.Children[2]);
     }
 
@@ -42,6 +44,18 @@ public sealed class MarkdownDisplayRendererTests
         Assert.Equal(28.0, Assert.IsType<TextBlock>(panel.Children[0]).FontSize);
         Assert.Equal(24.0, Assert.IsType<TextBlock>(panel.Children[1]).FontSize);
         Assert.Equal(17.0, Assert.IsType<TextBlock>(panel.Children[2]).FontSize);
+    }
+
+    [Fact]
+    public void Render_UsesNormalWeightForParagraphBody()
+    {
+        HeadlessPlatform.EnsureStarted();
+
+        Control rendered = MarkdownDisplayRenderer.Render("본문 설명입니다.");
+
+        var panel = Assert.IsType<StackPanel>(rendered);
+        var paragraph = Assert.IsType<TextBlock>(panel.Children[0]);
+        Assert.Equal(FontWeight.Normal, paragraph.FontWeight);
     }
 
     [Fact]
