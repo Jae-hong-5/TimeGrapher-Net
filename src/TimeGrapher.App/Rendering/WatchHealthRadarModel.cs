@@ -42,6 +42,23 @@ internal sealed record HealthLevelRow(
     VarioVerdictLevel Level);
 
 /// <summary>
+/// One horizontal (flat) position's gauge row for the selected metric, mirroring
+/// the Positions tab's <see cref="RateRangeLaneControl"/> visual language: a
+/// measured min–max range plus the mean, all as 0..1 fractions on the shared radar
+/// scale so the control only scales them to pixels. <see cref="OutOfBand"/> colours
+/// the mean dot red when the mean falls outside the shared accept band.
+/// </summary>
+internal sealed record HealthHorizontalRow(
+    WatchPosition Position,
+    string Label,
+    bool HasValue,
+    double MeanFraction,
+    double MinFraction,
+    double MaxFraction,
+    bool OutOfBand,
+    string ValueText);
+
+/// <summary>
 /// Pure model behind the Watch Health radar. It maps the per-position aggregates
 /// the frame snapshot already carries (<see cref="PositionSummary"/>) onto the six
 /// fixed cardinal NIHS positions, normalising the selected measure onto a 0..1
@@ -64,21 +81,60 @@ internal sealed record WatchHealthRadarModel(
     IReadOnlyList<HealthLevelRow> Levels,
     ConsistencyDiagnosis Consistency,
     string OverallText,
-    VarioVerdictLevel OverallLevel)
+    VarioVerdictLevel OverallLevel,
+    IReadOnlyList<HealthHorizontalRow> Horizontal)
 {
     /// <summary>
-    /// The six cardinal NIHS positions, clockwise from the top (CH). The four 45°
-    /// intermediate positions are intentionally excluded so the polygon stays a
-    /// clean hexagon, matching how a movement is normally certified.
+    /// The eight vertical (hanging) positions, clockwise from the top, so each
+    /// vertex angle matches the watch's actual clock orientation: 12H at the top,
+    /// then the 45° intermediate positions interleaved with the cardinal ones
+    /// (1:30 · 3 · 4:30 · 6 · 7:30 · 9 · 10:30). The radar polygon is therefore a
+    /// regular octagon of the vertical positions only — the flat horizontal
+    /// positions (CH/CB) are a different axis and are reported separately in
+    /// <see cref="Horizontal"/>.
     /// </summary>
     public static readonly IReadOnlyList<WatchPosition> AxisOrder = new[]
     {
-        WatchPosition.CH,
         WatchPosition.P12H,
+        WatchPosition.P3H45,
         WatchPosition.P3H,
-        WatchPosition.CB,
+        WatchPosition.P6H45,
         WatchPosition.P6H,
+        WatchPosition.P9H45,
         WatchPosition.P9H,
+        WatchPosition.P12H45,
+    };
+
+    /// <summary>
+    /// The two flat (horizontal) positions, reported beside the octagon rather than
+    /// as radar vertices. They still feed the band-conformance verdict and the
+    /// weakest-position pick (see <see cref="VerdictOrder"/>).
+    /// </summary>
+    public static readonly IReadOnlyList<WatchPosition> HorizontalOrder = new[]
+    {
+        WatchPosition.CH,
+        WatchPosition.CB,
+    };
+
+    /// <summary>
+    /// Every position the verdict and the radial scale span: the eight vertical
+    /// radar axes plus the two horizontal positions. A flat-position fault (e.g. a
+    /// dial-down service-low amplitude) must still drive the health verdict even
+    /// though it is not a radar vertex, and the horizontal gauges share the radar's
+    /// scale and accept band.
+    /// </summary>
+    public static readonly IReadOnlyList<WatchPosition> VerdictOrder = new[]
+    {
+        WatchPosition.P12H,
+        WatchPosition.P3H45,
+        WatchPosition.P3H,
+        WatchPosition.P6H45,
+        WatchPosition.P6H,
+        WatchPosition.P9H45,
+        WatchPosition.P9H,
+        WatchPosition.P12H45,
+        WatchPosition.CH,
+        WatchPosition.CB,
     };
 
     public static WatchHealthRadarModel Build(
@@ -95,10 +151,12 @@ internal sealed record WatchHealthRadarModel(
         MetricSpec rateSpec = MetricSpec.For(RadarMetric.Rate);
         MetricSpec beatSpec = MetricSpec.For(RadarMetric.BeatError);
 
-        // Pass 1: size the radial scale to cover the measured values.
+        // Pass 1: size the radial scale to cover every measured value — the vertical
+        // radar axes AND the horizontal positions — so the horizontal CH/CB gauges
+        // share the radar's scale and accept band.
         double dataMin = double.PositiveInfinity;
         double dataMax = double.NegativeInfinity;
-        foreach (WatchPosition position in AxisOrder)
+        foreach (WatchPosition position in VerdictOrder)
         {
             if (byPosition.TryGetValue(position, out PositionSummary? summary) && spec.Stats(summary).Valid)
             {
@@ -111,17 +169,15 @@ internal sealed record WatchHealthRadarModel(
         (double scaleMin, double scaleMax) = spec.Scale(dataMin, dataMax);
         double span = Math.Max(1e-9, scaleMax - scaleMin);
         double Fraction(double radial) => Math.Clamp((radial - scaleMin) / span, 0.0, 1.0);
+        (bool hasBand, double bandInner, double bandOuter) = spec.Band(scaleMin, span);
 
-        // Pass 2: build the axes and the running diagnosis.
+        // Pass 2: build the vertical radar axes (the octagon polygon) and the
+        // running mean/spread of the vertical readings for the summary line.
         var axes = new List<RadarAxis>(AxisOrder.Count);
         int measured = 0;
         double valueSum = 0.0;
         double valueMin = double.PositiveInfinity;
         double valueMax = double.NegativeInfinity;
-        double weakestScore = double.PositiveInfinity;
-        WatchPosition? weakest = null;
-        var worst = VarioVerdictLevel.Pending;
-        bool anyJudged = false;
 
         foreach (WatchPosition position in AxisOrder)
         {
@@ -142,23 +198,6 @@ internal sealed record WatchHealthRadarModel(
                 valueSum += stats.Mean;
                 valueMin = Math.Min(valueMin, stats.Mean);
                 valueMax = Math.Max(valueMax, stats.Mean);
-
-                double score = spec.HealthScore(stats.Mean);
-                if (score < weakestScore)
-                {
-                    weakestScore = score;
-                    weakest = position;
-                }
-
-                VarioVerdict verdict = spec.Verdict(stats);
-                if (verdict.Level != VarioVerdictLevel.Pending)
-                {
-                    anyJudged = true;
-                    if ((int)verdict.Level > (int)worst)
-                    {
-                        worst = verdict.Level;
-                    }
-                }
             }
             else
             {
@@ -166,7 +205,38 @@ internal sealed record WatchHealthRadarModel(
             }
         }
 
-        (bool hasBand, double bandInner, double bandOuter) = spec.Band(scaleMin, span);
+        // Pass 3: the band-conformance verdict and weakest-position pick span EVERY
+        // measured position (vertical AND horizontal): a flat-position fault must
+        // still drive the health verdict even though it is not a radar vertex.
+        double weakestScore = double.PositiveInfinity;
+        WatchPosition? weakest = null;
+        var worst = VarioVerdictLevel.Pending;
+        bool anyJudged = false;
+        foreach (WatchPosition position in VerdictOrder)
+        {
+            if (!byPosition.TryGetValue(position, out PositionSummary? summary) || !spec.Stats(summary).Valid)
+            {
+                continue;
+            }
+
+            StatsSummary stats = spec.Stats(summary);
+            double score = spec.HealthScore(stats.Mean);
+            if (score < weakestScore)
+            {
+                weakestScore = score;
+                weakest = position;
+            }
+
+            VarioVerdict verdict = spec.Verdict(stats);
+            if (verdict.Level != VarioVerdictLevel.Pending)
+            {
+                anyJudged = true;
+                if ((int)verdict.Level > (int)worst)
+                {
+                    worst = verdict.Level;
+                }
+            }
+        }
 
         var ticks = new List<string>(3);
         for (int i = 1; i <= 3; i++)
@@ -177,7 +247,7 @@ internal sealed record WatchHealthRadarModel(
         string summaryLine;
         string verdictText;
         VarioVerdictLevel level;
-        if (measured == 0)
+        if (measured == 0 && !anyJudged)
         {
             summaryLine = "Measure positions to build the radar.";
             verdictText = "Measuring…";
@@ -185,7 +255,7 @@ internal sealed record WatchHealthRadarModel(
         }
         else
         {
-            double mean = valueSum / measured;
+            double mean = measured > 0 ? valueSum / measured : 0.0;
             double spread = measured >= 2 ? valueMax - valueMin : 0.0;
             summaryLine = spec.Summary(mean, spread, measured, AxisOrder.Count);
             if (anyJudged)
@@ -233,6 +303,36 @@ internal sealed record WatchHealthRadarModel(
             }
         }
 
+        // Horizontal axis: the flat positions (CH/CB) for the selected metric, as a
+        // min–max range plus the mean on the shared radar scale (the Positions-lane
+        // gauge language). Reported beside the octagon, not as radar vertices.
+        var horizontal = new List<HealthHorizontalRow>(HorizontalOrder.Count);
+        foreach (WatchPosition position in HorizontalOrder)
+        {
+            if (byPosition.TryGetValue(position, out PositionSummary? summary) && spec.Stats(summary).Valid)
+            {
+                StatsSummary stats = spec.Stats(summary);
+                double meanFraction = Fraction(spec.RadiusValue(stats.Mean));
+                double f1 = Fraction(spec.RadiusValue(stats.Min));
+                double f2 = Fraction(spec.RadiusValue(stats.Max));
+                bool outOfBand = hasBand && (meanFraction < bandInner - 1e-6 || meanFraction > bandOuter + 1e-6);
+                horizontal.Add(new HealthHorizontalRow(
+                    position,
+                    position.ShortName(),
+                    HasValue: true,
+                    meanFraction,
+                    Math.Min(f1, f2),
+                    Math.Max(f1, f2),
+                    outOfBand,
+                    spec.Format(stats.Mean)));
+            }
+            else
+            {
+                horizontal.Add(new HealthHorizontalRow(
+                    position, position.ShortName(), HasValue: false, 0.0, 0.0, 0.0, false, "—"));
+            }
+        }
+
         // Consistency axis: reuse the Positions sequence judgment over the same snapshot.
         ConsistencyDiagnosis consistency =
             ConsistencyDiagnosis.Compute(SequenceSummary.Compute(positions), activePosition);
@@ -255,14 +355,15 @@ internal sealed record WatchHealthRadarModel(
             bandOuter,
             ticks,
             measured,
-            measured > 0 ? weakest : null,
+            weakest,
             summaryLine,
             verdictText,
             level,
             levels,
             consistency,
             overallText,
-            overallLevel);
+            overallLevel,
+            horizontal);
     }
 
     /// <summary>Worst non-pending severity across a position's three measure verdicts.</summary>
