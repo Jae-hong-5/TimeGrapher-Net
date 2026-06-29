@@ -13,6 +13,7 @@ internal static class UserErrorMessages
     public const string StopDidNotFinish = "Stop could not finish. Please press Stop and try again.";
     public const string RecordingCloseFailed = "We couldn't finish saving the WAV recording. Please try again.";
     public const string RecordingMayBeIncomplete = "The WAV recording may be incomplete. Please check the saved file.";
+    public const string MeasurementLogMayBeIncomplete = "The measurement log may be incomplete. Please check the saved CSV file.";
     public const string RecordingOpenFailed = "We couldn't start WAV recording. Please choose a different save location.";
     public const string PlaybackFileOpenFailed = "We couldn't open the selected WAV file. Please choose another file.";
     public const string PlaybackFileUnsupported = "This WAV file isn't supported. Please choose a supported WAV file.";

@@ -114,9 +114,9 @@ public partial class MainWindow
 
         private static RunCommandStopOutcome MapStopOutcome(RunSessionStopOutcome outcome)
         {
-            return outcome == RunSessionStopOutcome.Stopped
-                ? RunCommandStopOutcome.Stopped
-                : RunCommandStopOutcome.Stopping;
+            return outcome == RunSessionStopOutcome.Stopping
+                ? RunCommandStopOutcome.Stopping
+                : RunCommandStopOutcome.Stopped;
         }
     }
 }

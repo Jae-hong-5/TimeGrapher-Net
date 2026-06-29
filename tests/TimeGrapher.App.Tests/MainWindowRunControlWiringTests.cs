@@ -116,6 +116,30 @@ public sealed class MainWindowRunControlWiringTests
     }
 
     [Fact]
+    public void EofCompletionKeepsFinalRenderAheadOfTerminalRunState()
+    {
+        string source = File.ReadAllText(FindSourceFile("src/TimeGrapher.App/Views/MainWindow.RunLifecycle.cs"));
+
+        int finalFrameFlag = source.IndexOf(
+            "bool finalFrameQueued = analysisOutcome == RunSessionStopOutcome.Stopped;",
+            StringComparison.Ordinal);
+        int delayedFailure = source.IndexOf(
+            "Dispatcher.UIThread.Post(finishFailed);",
+            StringComparison.Ordinal);
+        int delayedSuccess = source.IndexOf(
+            "Dispatcher.UIThread.Post(() => FinishCompletedPlaybackOrSimulationRun(",
+            StringComparison.Ordinal);
+        int incompleteWarning = source.IndexOf(
+            "UserErrorMessages.MeasurementLogMayBeIncomplete",
+            StringComparison.Ordinal);
+
+        Assert.True(finalFrameFlag >= 0);
+        Assert.True(delayedFailure > finalFrameFlag);
+        Assert.True(delayedSuccess > finalFrameFlag);
+        Assert.True(incompleteWarning > delayedSuccess);
+    }
+
+    [Fact]
     public void InputDeviceComboBoxReloadsDevicesWhenDropDownOpens()
     {
         XDocument document = XDocument.Load(FindSourceFile("src/TimeGrapher.App/Views/MainWindow.axaml"));

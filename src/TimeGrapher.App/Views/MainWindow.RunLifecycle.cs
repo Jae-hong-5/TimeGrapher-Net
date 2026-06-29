@@ -217,38 +217,86 @@ public partial class MainWindow
             RestorePlaybackOrSimulationAudioState();
         }
 
-        RunSessionStopOutcome outcome = stopInputWorker();
-        outcome = CombineStopOutcome(outcome, mRunSessionController.StopAnalysisThread(completeInput: true));
-        bool audioClosed = outcome == RunSessionStopOutcome.Stopped && AudioCloseCheck();
-        if (outcome != RunSessionStopOutcome.Stopped || !audioClosed)
+        RunSessionStopOutcome inputOutcome = stopInputWorker();
+        RunSessionStopOutcome analysisOutcome = mRunSessionController.StopAnalysisThread(completeInput: true);
+        RunSessionStopOutcome outcome = CombineStopOutcome(inputOutcome, analysisOutcome);
+        bool audioClosed = outcome != RunSessionStopOutcome.Stopping && AudioCloseCheck();
+        bool finalFrameQueued = analysisOutcome == RunSessionStopOutcome.Stopped;
+        bool measurementMayBeIncomplete = analysisOutcome == RunSessionStopOutcome.StoppedIncomplete;
+
+        if (outcome == RunSessionStopOutcome.Stopping || !audioClosed)
         {
             // A worker timeout or recording-close failure during natural
             // completion must surface StopFailed (the manual-stop failure state),
-            // not leave the app stuck in Stopping. RunCommandService derives its
-            // state from the view model, so RESET then retries via StopFailedState.
-            mViewModel.SetStopFailed();
-            ReportUserErrorStatus(
-                UserErrorMessages.StopDidNotFinish,
-                "Run completion stop failed: outcome=" + outcome +
-                ", audio_closed=" + audioClosed +
-                ", input_failed=" + failed + ".");
+            // not leave the app stuck in Stopping. If CompleteInput already queued
+            // a final frame, preserve the same render-before-log-close ordering as
+            // the successful EOF path.
+            Action finishFailed = () => FinishFailedPlaybackOrSimulationRun(
+                outcome,
+                inputOutcome,
+                analysisOutcome,
+                audioClosed,
+                failed);
+            if (finalFrameQueued)
+            {
+                Dispatcher.UIThread.Post(finishFailed);
+            }
+            else
+            {
+                finishFailed();
+            }
+
             return;
         }
 
         // CompleteInput publishes the final analysis frame through the UI scheduler.
         // Queue the visible Stopped transition behind that render so displayed-frame
         // observers (notably measurement CSV logging) see the final frame before
-        // RunState closes the run's log sink.
-        Dispatcher.UIThread.Post(() => FinishCompletedPlaybackOrSimulationRun(failed, failureStatus, failureDetail));
+        // RunState closes the run's log sink. The incomplete fallback path may not
+        // have a final frame; posting is still harmless and keeps one ordering rule.
+        Dispatcher.UIThread.Post(() => FinishCompletedPlaybackOrSimulationRun(
+            failed,
+            failureStatus,
+            failureDetail,
+            measurementMayBeIncomplete));
     }
 
-    private void FinishCompletedPlaybackOrSimulationRun(bool failed, string failureStatus, string failureDetail)
+    private void FinishFailedPlaybackOrSimulationRun(
+        RunSessionStopOutcome outcome,
+        RunSessionStopOutcome inputOutcome,
+        RunSessionStopOutcome analysisOutcome,
+        bool audioClosed,
+        bool inputFailed)
+    {
+        // RunCommandService derives its state from the view model, so RESET then
+        // retries via StopFailedState.
+        mViewModel.SetStopFailed();
+        ReportUserErrorStatus(
+            UserErrorMessages.StopDidNotFinish,
+            "Run completion stop failed: outcome=" + outcome +
+            ", input_outcome=" + inputOutcome +
+            ", analysis_outcome=" + analysisOutcome +
+            ", audio_closed=" + audioClosed +
+            ", input_failed=" + inputFailed + ".");
+    }
+
+    private void FinishCompletedPlaybackOrSimulationRun(
+        bool failed,
+        string failureStatus,
+        string failureDetail,
+        bool measurementMayBeIncomplete)
     {
         SetGuiStopMode();
         mViewModel.IsAwaitingBeatSync = false;
         if (failed)
         {
             ReportUserErrorStatus(failureStatus, failureDetail);
+        }
+        else if (measurementMayBeIncomplete)
+        {
+            ReportUserErrorStatus(
+                UserErrorMessages.MeasurementLogMayBeIncomplete,
+                "Analysis drain timed out at natural run completion; final measurement rows may be incomplete.");
         }
         else
         {

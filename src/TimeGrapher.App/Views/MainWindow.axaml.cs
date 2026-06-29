@@ -44,6 +44,12 @@ public partial class MainWindow : Window, IThemeToggleRunner
             return RunSessionStopOutcome.Stopping;
         }
 
+        if (left == RunSessionStopOutcome.StoppedIncomplete ||
+            right == RunSessionStopOutcome.StoppedIncomplete)
+        {
+            return RunSessionStopOutcome.StoppedIncomplete;
+        }
+
         return RunSessionStopOutcome.Stopped;
     }
 

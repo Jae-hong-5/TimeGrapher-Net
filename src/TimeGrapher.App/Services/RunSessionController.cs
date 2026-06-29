@@ -7,6 +7,7 @@ namespace TimeGrapher.App.Services;
 internal enum RunSessionStopOutcome
 {
     Stopped,
+    StoppedIncomplete,
     Stopping,
 }
 
@@ -132,6 +133,7 @@ internal sealed class RunSessionController : IDisposable, IRunSessionControls, I
     {
         if (_analysisWorker != null)
         {
+            bool usedInterruptingFallback = false;
             bool stopped = completeInput
                 ? _analysisWorker.CompleteInput(TimeSpan.FromMilliseconds(WorkerStopTimeoutMs))
                 : _analysisWorker.TryStop(TimeSpan.FromMilliseconds(WorkerStopTimeoutMs));
@@ -141,7 +143,10 @@ internal sealed class RunSessionController : IDisposable, IRunSessionControls, I
                 // publish the final frame. If the analysis backlog cannot drain
                 // within the normal stop budget, fall back to an interrupting stop
                 // so EOF behaves like a user Stop instead of trapping the UI in a
-                // retry state with the log writer still open.
+                // retry state with the log writer still open. Return a distinct
+                // outcome so the caller can warn that final measurement evidence
+                // may be incomplete.
+                usedInterruptingFallback = true;
                 stopped = _analysisWorker.TryStop(TimeSpan.FromMilliseconds(WorkerStopTimeoutMs));
             }
 
@@ -159,6 +164,9 @@ internal sealed class RunSessionController : IDisposable, IRunSessionControls, I
                     AnalysisSessionId++;
                     _clearPendingFrames();
                 }
+                return usedInterruptingFallback
+                    ? RunSessionStopOutcome.StoppedIncomplete
+                    : RunSessionStopOutcome.Stopped;
             }
             else
             {
