@@ -90,6 +90,22 @@ public sealed class AnalysisDeadlineMonitorTests
     }
 
     [Fact]
+    public void ZeroSampleRateNeverBreaches()
+    {
+        // The sampleRate<=0 guard forces lagSeconds (and so lagBeats) to 0, so even a
+        // breach-sized lag with the most eager escalation can never escalate — in
+        // contrast to the SampleRate=48000 breaches that escalate above.
+        var monitor = new AnalysisDeadlineMonitor(escalateAfterPasses: 1, deescalateAfterPasses: 1);
+
+        for (int i = 0; i < 5; i++)
+        {
+            Assert.False(monitor.Observe(BreachLag, sampleRate: 0, beatPeriodSeconds: 0.0));
+        }
+
+        Assert.Equal(0, monitor.Level);
+    }
+
+    [Fact]
     public void ResetClearsLevelAndStreaks()
     {
         var monitor = new AnalysisDeadlineMonitor(escalateAfterPasses: 1, deescalateAfterPasses: 1);
