@@ -14,10 +14,15 @@ public sealed class GraphFrameRendererTests
     public void PlaceholderResultsMatchesFixedWidthLayout()
     {
         // Must stay byte-for-byte aligned with WatchMetrics.BuildResults(all-invalid) so the
-        // readout does not shift when the first real metrics arrive.
+        // readout does not shift when the first real metrics arrive. Compare against the
+        // formatter itself (not a hand-copied literal) so a width change in either side fails.
         Assert.Equal(
-            "Error Rate ------ s/d | Amplitude ---° | Beat Error ---- ms | BPH -----",
-            GraphFrameRenderer.PlaceholderResults);
+            GraphFrameRenderer.PlaceholderResults,
+            WatchMetrics.BuildResults(
+                bphValid: false, bph: 0,
+                rateValid: false, rate: 0.0,
+                beatErrorValid: false, beatError: 0.0,
+                amplitudeValid: false, amplitude: 0.0));
     }
 
     [Fact]
