@@ -6,35 +6,52 @@ namespace TimeGrapher.App.Tests;
 public sealed class AudioSmokeRunnerTests
 {
     [Fact]
-    public void ParsePositiveOptionReadsSeparateAndInlineValues()
+    public void TryParsePositiveOptionReadsSeparateAndInlineValues()
     {
-        Assert.Equal(96000, AudioSmokeRunner.ParsePositiveOption(
+        Assert.Equal(AudioSmokeRunner.OptionParse.Valid, AudioSmokeRunner.TryParsePositiveOption(
             new[] { "--capture-smoke", "--rate", "96000" },
             "--rate",
-            48000));
+            48000,
+            out int rate));
+        Assert.Equal(96000, rate);
 
-        Assert.Equal(2500, AudioSmokeRunner.ParsePositiveOption(
+        Assert.Equal(AudioSmokeRunner.OptionParse.Valid, AudioSmokeRunner.TryParsePositiveOption(
             new[] { "--capture-smoke", "--duration-ms=2500" },
             "--duration-ms",
-            1500));
+            1500,
+            out int durationMs));
+        Assert.Equal(2500, durationMs);
     }
 
     [Fact]
-    public void ParsePositiveOptionFallsBackForMissingOrInvalidValues()
+    public void TryParsePositiveOptionAbsentKeepsDefault()
     {
-        Assert.Equal(48000, AudioSmokeRunner.ParsePositiveOption(
-            new[] { "--capture-smoke", "--rate" },
+        // An absent option keeps its default and reports Absent (not an error).
+        Assert.Equal(AudioSmokeRunner.OptionParse.Absent, AudioSmokeRunner.TryParsePositiveOption(
+            new[] { "--capture-smoke" },
             "--rate",
-            48000));
+            48000,
+            out int rate));
+        Assert.Equal(48000, rate);
+    }
 
-        Assert.Equal(48000, AudioSmokeRunner.ParsePositiveOption(
-            new[] { "--capture-smoke", "--rate", "0" },
-            "--rate",
-            48000));
+    [Theory]
+    [InlineData("--rate")]            // present but value missing
+    [InlineData("--rate", "0")]       // present but non-positive
+    [InlineData("--rate=abc")]        // present but non-numeric (inline)
+    [InlineData("--rate=0")]          // present but non-positive (inline)
+    [InlineData("--rate", "abc")]     // present but non-numeric (separate)
+    public void TryParsePositiveOptionPresentButInvalidIsError(params string[] optionArgs)
+    {
+        var args = new[] { "--capture-smoke" }.Concat(optionArgs).ToArray();
 
-        Assert.Equal(48000, AudioSmokeRunner.ParsePositiveOption(
-            new[] { "--capture-smoke", "--rate=abc" },
+        // A present-but-invalid value is an error: it no longer silently falls back
+        // to the default (it leaves the out value at the default for the caller).
+        Assert.Equal(AudioSmokeRunner.OptionParse.Invalid, AudioSmokeRunner.TryParsePositiveOption(
+            args,
             "--rate",
-            48000));
+            48000,
+            out int rate));
+        Assert.Equal(48000, rate);
     }
 }

@@ -114,7 +114,24 @@ internal static class AnalysisBenchmarkRunner
         worker.CompleteInput(Timeout.InfiniteTimeSpan);
         worker.Dispose();
         summary.Print(source, expectedBph, sampleRate, TotalDurationMs(totalSamples, sampleRate));
-        return summary.FrameCount > 0 && (expectedBph <= 0 || summary.DetectedBph == expectedBph) ? 0 : 1;
+        // Hard gates only: frames produced, the expected BPH detected, and no
+        // sustained deadline degradation (max_deadline_level == 0). The deadline
+        // level is the monitor's own backlog verdict, not a machine-dependent
+        // wall-clock threshold, so gating it catches a sustained analysis backlog
+        // without making the run fail on slow-but-keeping-up hardware.
+        bool deadlineOk = summary.MaxDeadlineLevel <= 0;
+        if (!deadlineOk)
+        {
+            Console.Error.WriteLine(string.Format(CultureInfo.InvariantCulture,
+                "analysis_benchmark FAIL: sustained deadline degradation max_deadline_level={0}",
+                summary.MaxDeadlineLevel));
+        }
+
+        return summary.FrameCount > 0
+               && (expectedBph <= 0 || summary.DetectedBph == expectedBph)
+               && deadlineOk
+            ? 0
+            : 1;
     }
 
     private static string? ParseStringOption(string[] args, string name)

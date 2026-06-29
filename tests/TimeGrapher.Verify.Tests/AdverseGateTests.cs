@@ -157,4 +157,26 @@ public sealed class AdverseGateTests
             gates, Snapshot(TgSyncStatus.Synced, 21600), Score(), resets, expectedBph: 21600);
         Assert.Equal(expected, verdict);
     }
+
+    [Theory]
+    [InlineData(0, "PASS")]   // no detections on noise — the noise-only contract
+    [InlineData(1, "FAIL")]   // a single spurious A event on pure noise fails
+    public void MaxDetectedCount_FailsWhenExceeded(int detectedCount, string expected)
+    {
+        // The noise-only row stays unsynced (MustSync: false) but must not flood
+        // false A events; MaxDetectedCount: 0 catches detections the sync gate misses.
+        var gates = new AdverseGates(MustSync: false, MaxDetectedCount: 0);
+        string verdict = AdverseScenarios.Evaluate(
+            gates,
+            Snapshot(TgSyncStatus.NotSynced, 0),
+            ScoreWithDetectedCount(detectedCount),
+            resets: 0,
+            expectedBph: 21600);
+        Assert.Equal(expected, verdict);
+    }
+
+    private static DetectionScorer.Score ScoreWithDetectedCount(int detectedCount) =>
+        new(TruthCount: 0, DetectedCount: detectedCount, Matched: 0,
+            Precision: detectedCount == 0 ? 1.0 : 0.0, Recall: 1.0,
+            MedianOffsetMs: 0.0, RmsAfterOffsetMs: 0.0);
 }

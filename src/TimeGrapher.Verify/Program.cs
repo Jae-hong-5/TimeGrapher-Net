@@ -89,6 +89,16 @@ foreach (string arg in args)
 
 files.AddRange(generatedFiles);
 
+if (diagnose && runAdverse)
+{
+    // Diagnose mode returns after printing the per-file B->A signature and never
+    // runs the adverse gates, so combining it with --adverse would silently skip
+    // the gates and exit 0 — a mistyped CI gate becoming a vacuous pass. Reject
+    // the contradictory combination as a usage error (exit 2).
+    Console.Error.WriteLine("TimeGrapher.Verify: --diagnose cannot be combined with --adverse");
+    return 2;
+}
+
 if (files.Count == 0 && !runAdverse)
 {
     // Usage error (exit 2): exit 1 is reserved for verification failures.

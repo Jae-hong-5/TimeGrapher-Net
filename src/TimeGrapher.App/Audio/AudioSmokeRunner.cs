@@ -63,8 +63,21 @@ internal static class AudioSmokeRunner
             return 2;
         }
 
-        int sampleRate = ParsePositiveOption(args, "--rate", DefaultRate);
-        int durationMs = ParsePositiveOption(args, "--duration-ms", DefaultDurationMs);
+        // An absent option keeps its default; a present-but-invalid value (missing,
+        // non-numeric, or non-positive) is a usage error rather than a silent
+        // fallback that would run the smoke at an unintended rate/duration.
+        if (TryParsePositiveOption(args, "--rate", DefaultRate, out int sampleRate) == OptionParse.Invalid)
+        {
+            Console.Error.WriteLine("Invalid --rate value: expected a positive integer.");
+            return 2;
+        }
+
+        if (TryParsePositiveOption(args, "--duration-ms", DefaultDurationMs, out int durationMs) == OptionParse.Invalid)
+        {
+            Console.Error.WriteLine("Invalid --duration-ms value: expected a positive integer.");
+            return 2;
+        }
+
         LiveAudioDevice selected = devices[deviceIndex];
         Console.WriteLine("capture_source_index=" + deviceIndex.ToString(CultureInfo.InvariantCulture));
         Console.WriteLine("capture_source_number=" + selected.Number.ToString(CultureInfo.InvariantCulture));
@@ -109,32 +122,70 @@ internal static class AudioSmokeRunner
         return 0;
     }
 
-    internal static int ParsePositiveOption(string[] args, string name, int defaultValue)
+    /// <summary>Outcome of parsing one positive-integer option.</summary>
+    internal enum OptionParse
     {
+        /// <summary>The option was not present; the default applies.</summary>
+        Absent,
+
+        /// <summary>The option was present with a valid positive integer.</summary>
+        Valid,
+
+        /// <summary>The option was present but its value was missing, non-numeric, or non-positive.</summary>
+        Invalid,
+    }
+
+    /// <summary>
+    /// Parses a positive-integer option, distinguishing an absent option (keep the
+    /// default) from a present-but-invalid one (a usage error). <paramref name="value"/>
+    /// is the default unless a valid positive value was supplied.
+    /// </summary>
+    internal static OptionParse TryParsePositiveOption(string[] args, string name, int defaultValue, out int value)
+    {
+        value = defaultValue;
         for (int i = 0; i < args.Length; i++)
         {
             string arg = args[i];
             if (arg.Equals(name, StringComparison.Ordinal))
             {
                 if (i + 1 < args.Length &&
-                    int.TryParse(args[i + 1], NumberStyles.Integer, CultureInfo.InvariantCulture, out int value) &&
-                    value > 0)
+                    int.TryParse(args[i + 1], NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsed) &&
+                    parsed > 0)
                 {
-                    return value;
+                    value = parsed;
+                    return OptionParse.Valid;
                 }
 
-                return defaultValue;
+                // Present but missing/non-numeric/non-positive value.
+                return OptionParse.Invalid;
             }
 
             string prefix = name + "=";
-            if (arg.StartsWith(prefix, StringComparison.Ordinal) &&
-                int.TryParse(arg[prefix.Length..], NumberStyles.Integer, CultureInfo.InvariantCulture, out int inlineValue) &&
-                inlineValue > 0)
+            if (arg.StartsWith(prefix, StringComparison.Ordinal))
             {
-                return inlineValue;
+                if (int.TryParse(arg[prefix.Length..], NumberStyles.Integer, CultureInfo.InvariantCulture, out int inlineValue) &&
+                    inlineValue > 0)
+                {
+                    value = inlineValue;
+                    return OptionParse.Valid;
+                }
+
+                return OptionParse.Invalid;
             }
         }
 
-        return defaultValue;
+        return OptionParse.Absent;
+    }
+
+    /// <summary>
+    /// Fallback-on-anything-else variant: returns the parsed positive value when
+    /// present and valid, otherwise the default. Kept for callers that treat an
+    /// absent and an invalid option the same (the benchmark runner's optional
+    /// limits and the device-index lookup), which validate downstream.
+    /// </summary>
+    internal static int ParsePositiveOption(string[] args, string name, int defaultValue)
+    {
+        _ = TryParsePositiveOption(args, name, defaultValue, out int value);
+        return value;
     }
 }

@@ -25,6 +25,7 @@ internal sealed record AdverseGates(
     int MinResets = -1,
     int MaxResets = -1,
     long MaxMissedBeats = -1,
+    int MaxDetectedCount = -1,
     bool InfoOnly = false);
 
 internal sealed record AdverseScenario(
@@ -118,10 +119,13 @@ internal static class AdverseScenarios
             SilenceLeadInSamples: 96000,
             Default: new AdverseGates(MustSync: true, MinRecall: 0.80, MaxResets: 0, MaxMissedBeats: 0)),
         // No watch at all: the detector must NOT lock onto noise (false-lock
-        // guard).
+        // guard) and must NOT flood false A events. MaxDetectedCount: 0 gates the
+        // scored A-event count to zero — the current detector emits no A events on
+        // pure noise (measured precision=1.000 i.e. detected=0), so any spurious
+        // detection on noise fails the row even if it never locks sync.
         new("noise-only", Bph: 21600, SampleRate: 48000, Seconds: 12,
             PcmPeak: 0.0, NoisePeak: 0.05, Realistic: false,
-            Default: new AdverseGates(MustSync: false)),
+            Default: new AdverseGates(MustSync: false, MaxDetectedCount: 0)),
     };
 
     internal sealed record RowResult(
@@ -305,6 +309,14 @@ internal static class AdverseScenarios
             // interval (the gap branch of AccumulatePeriodDelta); gating it locks
             // the gap-vs-extra-event classification end-to-end under noise/impulse.
             ok &= (long)snapshot.MissedBeats <= gates.MaxMissedBeats;
+        }
+        if (gates.MaxDetectedCount >= 0)
+        {
+            // Caps the number of A events emitted in the scored window. For the
+            // noise-only row (no watch, sync must stay off) this catches a detector
+            // that floods false A events on pure noise without locking sync — a
+            // failure the sync-only gate alone would pass.
+            ok &= score.DetectedCount <= gates.MaxDetectedCount;
         }
         return ok ? "PASS" : "FAIL";
     }
