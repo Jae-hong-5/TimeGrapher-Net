@@ -269,6 +269,7 @@ public sealed class MainWindowRunControlWiringTests
 
         XElement settingsButton = FindNamedElement(document, "SettingsTitleBarButton");
         XElement helpButton = FindNamedElement(document, "HelpTitleBarButton");
+        XElement aiButton = FindNamedElement(document, "AiExplanationTitleBarButton");
 
         // The gear opens the standalone Settings popup; Help opens the online manual.
         Assert.Equal("TitleBarIconButton", settingsButton.Attribute("Classes")?.Value);
@@ -285,6 +286,15 @@ public sealed class MainWindowRunControlWiringTests
         Assert.Single(helpButton.Descendants(), element => element.Name.LocalName == "Ellipse");
         Assert.Single(helpButton.Descendants(), element => element.Name.LocalName == "Path");
         Assert.DoesNotContain(helpButton.Descendants(), element => element.Name.LocalName == "Image");
+
+        Assert.Equal("TitleBarIconButton", aiButton.Attribute("Classes")?.Value);
+        Assert.Equal("AI explanation", aiButton.Attribute("ToolTip.Tip")?.Value);
+        Assert.Equal("{Binding AiExplanationCommand}", aiButton.Attribute("Command")?.Value);
+        Assert.Equal("Viewbox", FindOnlyChild(aiButton, "Viewbox").Name.LocalName);
+        XElement geminiPath = Assert.Single(aiButton.Descendants(), element => element.Name.LocalName == "Path");
+        Assert.StartsWith("M11.04 19.32Q12 21.51 12 24", geminiPath.Attribute("Data")?.Value);
+        Assert.DoesNotContain(aiButton.Descendants(), element => element.Name.LocalName == "TextBlock");
+        Assert.DoesNotContain(aiButton.Descendants(), element => element.Name.LocalName == "Image");
     }
 
     [Fact]
