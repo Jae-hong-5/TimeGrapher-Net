@@ -138,6 +138,19 @@ public sealed class MeasurementLogControllerTests
     }
 
     [Fact]
+    public void RunStop_ClosesTheOpenLog()
+    {
+        var vm = EnabledViewModel(true);
+        var factory = new RecordingFactory();
+        using var controller = new MeasurementLogController(vm, "seed.csv", factory.Create);
+
+        vm.SetRunning();
+        vm.SetStopped();
+
+        Assert.True(factory.Sinks[0].Disposed);
+    }
+
+    [Fact]
     public void Disable_ClosesTheOpenLog()
     {
         var vm = EnabledViewModel(true);

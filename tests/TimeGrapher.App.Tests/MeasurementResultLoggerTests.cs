@@ -36,6 +36,38 @@ public sealed class MeasurementResultLoggerTests
     }
 
     [Fact]
+    public void ObserveDisplayedFlushesRowsBeforeDispose()
+    {
+        string path = NewTempCsvPath();
+        const string expectedRow =
+            "7,42,5,12.500000,28800,CH,true,-2.500000,true,270.250000,true,0.125000," +
+            "true,0.300000,true,-0.400000,true,0.500000,4,-1.000000,0.500000," +
+            "3,268.000000,1.500000,6,2";
+
+        try
+        {
+            using (var logger = new MeasurementResultLogger(path, 54m))
+            {
+                logger.ObserveDisplayed(SampleFrame(sessionId: 7, sourceId: 42, version: 5));
+
+                Assert.True(
+                    SpinWait.SpinUntil(
+                        () =>
+                        {
+                            string[] lines = ReadAllLinesShared(path);
+                            return lines.Length >= 3 && lines[2] == expectedRow;
+                        },
+                        TimeSpan.FromSeconds(2)),
+                    "Measurement rows must be readable before the logger is disposed.");
+            }
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
     public void ObserveDisplayedSkipsDuplicateHistoryVersionInSameSession()
     {
         string path = NewTempCsvPath();
@@ -159,6 +191,19 @@ public sealed class MeasurementResultLoggerTests
                     3),
             },
         };
+    }
+
+    private static string[] ReadAllLinesShared(string path)
+    {
+        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+        using var reader = new StreamReader(stream);
+        var lines = new List<string>();
+        while (reader.ReadLine() is string line)
+        {
+            lines.Add(line);
+        }
+
+        return lines.ToArray();
     }
 
     private static string NewTempCsvPath()

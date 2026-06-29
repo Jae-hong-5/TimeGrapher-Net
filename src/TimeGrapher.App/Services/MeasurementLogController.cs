@@ -10,10 +10,10 @@ namespace TimeGrapher.App.Services;
 /// <summary>
 /// Owns the optional measurement-result CSV log: opens a fresh log at each run start (so the
 /// log's lift-angle header records the angle that run actually uses), keeps writing across a
-/// pause/resume, and closes the sink when logging is disabled or on dispose. Consumes the CLI
-/// --measurement-log path for the first run, then timestamps later runs. The flow the MainWindow
-/// code-behind used to own; mirrors the other view-model-subscriber controllers. The sink is
-/// created through an injected factory so the controller is testable without opening a file.
+/// pause/resume, and closes the sink when a run stops, logging is disabled, or on dispose.
+/// Consumes the CLI --measurement-log path for the first run, then timestamps later runs. The
+/// flow the MainWindow code-behind used to own; mirrors the other view-model-subscriber controllers.
+/// The sink is created through an injected factory so the controller is testable without opening a file.
 /// </summary>
 internal sealed class MeasurementLogController : IDisposable
 {
@@ -83,6 +83,13 @@ internal sealed class MeasurementLogController : IDisposable
                 (_viewModel.IsMeasurementLogEnabled || _cliLogging))
             {
                 OpenSink();
+            }
+
+            // A completed or failed stop ends the current run's evidence file.
+            // Pause/resume keeps the sink open; the next real run opens a fresh file.
+            if (current is RunUiState.Stopped or RunUiState.StopFailed)
+            {
+                CloseSink();
             }
         }
     }

@@ -135,6 +135,16 @@ internal sealed class RunSessionController : IDisposable, IRunSessionControls, I
             bool stopped = completeInput
                 ? _analysisWorker.CompleteInput(TimeSpan.FromMilliseconds(WorkerStopTimeoutMs))
                 : _analysisWorker.TryStop(TimeSpan.FromMilliseconds(WorkerStopTimeoutMs));
+            if (!stopped && completeInput)
+            {
+                // Natural playback/simulation completion first tries to drain and
+                // publish the final frame. If the analysis backlog cannot drain
+                // within the normal stop budget, fall back to an interrupting stop
+                // so EOF behaves like a user Stop instead of trapping the UI in a
+                // retry state with the log writer still open.
+                stopped = _analysisWorker.TryStop(TimeSpan.FromMilliseconds(WorkerStopTimeoutMs));
+            }
+
             if (stopped)
             {
                 _analysisWorker.AnalysisFrameReady -= _onAnalysisFrameReady;

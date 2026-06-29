@@ -235,6 +235,15 @@ public partial class MainWindow
             return;
         }
 
+        // CompleteInput publishes the final analysis frame through the UI scheduler.
+        // Queue the visible Stopped transition behind that render so displayed-frame
+        // observers (notably measurement CSV logging) see the final frame before
+        // RunState closes the run's log sink.
+        Dispatcher.UIThread.Post(() => FinishCompletedPlaybackOrSimulationRun(failed, failureStatus, failureDetail));
+    }
+
+    private void FinishCompletedPlaybackOrSimulationRun(bool failed, string failureStatus, string failureDetail)
+    {
         SetGuiStopMode();
         mViewModel.IsAwaitingBeatSync = false;
         if (failed)

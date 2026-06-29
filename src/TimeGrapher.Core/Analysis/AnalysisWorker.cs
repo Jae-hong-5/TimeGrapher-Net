@@ -493,10 +493,15 @@ public sealed class AnalysisWorker : IDisposable
     {
         // Mirror the steady-state pass order: a recolor requested just before
         // completion must reach the force-published final frame. Both drain
-        // entry points run on the thread that owns the pixel buffers.
+        // entry points run on the thread that owns the pixel buffers. The drain
+        // remains stop-interruptible so a stop retry can cancel a slow EOF drain
+        // instead of leaving the run stuck in Stopping.
         ApplyPendingRecolor();
-        HandleInputDataCore(stopInterruptible: false);
-
+        HandleInputDataCore(stopInterruptible: true);
+        if (_stopRequested)
+        {
+            return;
+        }
         var processingTimer = Stopwatch.StartNew();
         MasterAudioBufferSnapshot snapshot = _rawAudio.GetSnapshot();
         var frame = new AnalysisFrame

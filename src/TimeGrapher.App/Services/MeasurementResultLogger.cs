@@ -28,7 +28,11 @@ internal sealed class MeasurementResultLogger : IMeasurementResultSink
 
     public MeasurementResultLogger(string path, decimal liftAngleDeg)
     {
-        _writer = new StreamWriter(path, append: false, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+        var stream = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.Read);
+        _writer = new StreamWriter(stream, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false))
+        {
+            AutoFlush = true,
+        };
         _writer.Write(LiftAngleMetadataKey);
         _writer.Write(',');
         _writer.WriteLine(liftAngleDeg.ToString("F6", CultureInfo.InvariantCulture));
