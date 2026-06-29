@@ -141,13 +141,15 @@ internal sealed class MainWindowDialogService : ITimeGrapherDialogService
         var username = new TextBox
         {
             Text = request.SavedCredentials?.Username ?? string.Empty,
-            Watermark = "Demo username",
+            Watermark = "User ID",
+            MinWidth = 120,
         };
         var password = new TextBox
         {
             Text = request.SavedCredentials?.Password ?? string.Empty,
             PasswordChar = '●',
-            Watermark = "Demo password",
+            Watermark = "User PW",
+            MinWidth = 120,
         };
         var remember = new CheckBox
         {
@@ -157,7 +159,7 @@ internal sealed class MainWindowDialogService : ITimeGrapherDialogService
         };
         var consent = new CheckBox
         {
-            Content = "I consent to upload the selected TimeGrapher measurement log to the private backend for AI analysis.",
+            Content = "I consent to upload the selected TimeGrapher measurement log to the private server for AI analysis.",
         };
         var errorText = new TextBlock
         {
@@ -181,7 +183,7 @@ internal sealed class MainWindowDialogService : ITimeGrapherDialogService
 
             if (string.IsNullOrWhiteSpace(usernameText) || string.IsNullOrWhiteSpace(passwordText))
             {
-                errorText.Text = "Enter the provided demo username and password.";
+                errorText.Text = "Enter the provided User ID and User PW.";
                 errorText.IsVisible = true;
                 return;
             }
@@ -212,18 +214,38 @@ internal sealed class MainWindowDialogService : ITimeGrapherDialogService
         buttons.Children.Add(ok);
         buttons.Children.Add(cancel);
 
+        var backendLabel = new TextBlock { Text = "Server", VerticalAlignment = VerticalAlignment.Center };
+        var backendRow = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions("Auto,8,*"),
+        };
+        Grid.SetColumn(backendLabel, 0);
+        Grid.SetColumn(backendCombo, 2);
+        backendRow.Children.Add(backendLabel);
+        backendRow.Children.Add(backendCombo);
+
+        var userIdLabel = new TextBlock { Text = "User ID", VerticalAlignment = VerticalAlignment.Center };
+        var userPwLabel = new TextBlock { Text = "User PW", VerticalAlignment = VerticalAlignment.Center };
+        var credentialsRow = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions("Auto,8,*,16,Auto,8,*"),
+        };
+        Grid.SetColumn(userIdLabel, 0);
+        Grid.SetColumn(username, 2);
+        Grid.SetColumn(userPwLabel, 4);
+        Grid.SetColumn(password, 6);
+        credentialsRow.Children.Add(userIdLabel);
+        credentialsRow.Children.Add(username);
+        credentialsRow.Children.Add(userPwLabel);
+        credentialsRow.Children.Add(password);
         var panel = new StackPanel { Margin = new Avalonia.Thickness(16), Spacing = 10 };
         panel.Children.Add(new TextBlock
         {
-            Text = "Send the selected TimeGrapher measurement log to an approved private backend for a Korean AI analysis.",
+            Text = "Send the selected TimeGrapher measurement log to an approved private server for a Korean AI analysis.",
             TextWrapping = TextWrapping.Wrap,
         });
-        panel.Children.Add(new TextBlock { Text = "Backend" });
-        panel.Children.Add(backendCombo);
-        panel.Children.Add(new TextBlock { Text = "Demo username" });
-        panel.Children.Add(username);
-        panel.Children.Add(new TextBlock { Text = "Demo password" });
-        panel.Children.Add(password);
+        panel.Children.Add(backendRow);
+        panel.Children.Add(credentialsRow);
         panel.Children.Add(remember);
         panel.Children.Add(consent);
         panel.Children.Add(errorText);
@@ -302,7 +324,7 @@ internal sealed class MainWindowDialogService : ITimeGrapherDialogService
 
         public Task ShowStatusAsync(string statusText)
         {
-            _details.Text = $"Backend: {_backendBaseUrl}\nStatus: Waiting for AI analysis";
+            _details.Text = $"Server: {_backendBaseUrl}\nStatus: Waiting for AI analysis";
             _contentHost.Content = BuildStatusContent(statusText);
             _close.IsDefault = false;
             _close.IsEnabled = false;
@@ -311,7 +333,7 @@ internal sealed class MainWindowDialogService : ITimeGrapherDialogService
 
         public Task ShowResultAsync(AiAnalysisDisplay display)
         {
-            _details.Text = $"Backend: {display.BackendBaseUrl}\nModel: {display.Model}\nRequest ID: {display.RequestId}";
+            _details.Text = $"Server: {display.BackendBaseUrl}\nModel: {display.Model}\nRequest ID: {display.RequestId}";
             _contentHost.Content = BuildExplanationContent(display.Explanation);
             _close.IsDefault = true;
             _close.IsEnabled = true;
@@ -332,7 +354,7 @@ internal sealed class MainWindowDialogService : ITimeGrapherDialogService
             string requestIdText = requestId == null
                 ? string.Empty
                 : $"\nRequest ID: {requestId}";
-            return $"Backend: {backendBaseUrl}\nStatus: Request failed{requestIdText}";
+            return $"Server: {backendBaseUrl}\nStatus: Request failed{requestIdText}";
         }
 
         private static Control BuildStatusContent(string statusText)

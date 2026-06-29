@@ -325,6 +325,27 @@ public sealed class MainWindowRunControlWiringTests
     }
 
     [Fact]
+    public void AiAnalysisDialogPlacesServerAndCredentialsInline()
+    {
+        string source = File.ReadAllText(FindSourceFile("src/TimeGrapher.App/Views/MainWindowDialogService.cs"));
+
+        Assert.Contains("Text = \"Server\"", source);
+        Assert.Contains("ColumnDefinitions = new ColumnDefinitions(\"Auto,8,*\")", source);
+        Assert.Contains("ColumnDefinitions = new ColumnDefinitions(\"Auto,8,*,16,Auto,8,*\")", source);
+        Assert.Contains("Text = \"User ID\"", source);
+        Assert.Contains("Text = \"User PW\"", source);
+        Assert.Contains("Watermark = \"User ID\"", source);
+        Assert.Contains("Watermark = \"User PW\"", source);
+        Assert.Contains("private server", source);
+        Assert.Contains("$\"Server:", source);
+        Assert.DoesNotContain("Text = \"Backend\"", source);
+        Assert.DoesNotContain("Text = \"Demo username\"", source);
+        Assert.DoesNotContain("Text = \"Demo password\"", source);
+        Assert.DoesNotContain("Watermark = \"Demo username\"", source);
+        Assert.DoesNotContain("Watermark = \"Demo password\"", source);
+    }
+
+    [Fact]
     public void TitleBarResultsUsesAppFontForMetricReadout()
     {
         XDocument document = XDocument.Load(FindSourceFile("src/TimeGrapher.App/Views/MainWindow.axaml"));
