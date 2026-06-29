@@ -59,7 +59,7 @@ flowchart TB
     LinuxAudioTests --> LinuxAudio
     LinuxAudioTests -. "전이 · Core DTO 사용" .-> Core
     InferenceTests --> Inference
-    InferenceTests -. "전이 · Core 타입(Shared·Analysis·Detection·Sim) 사용" .-> Core
+    InferenceTests --> Core
 
     App --> Avalonia
     App --> ScottPlot
@@ -85,7 +85,7 @@ flowchart TB
 - 두 플랫폼 어댑터는 각각 `Core.Shared`만 사용한다(`AudioCaptureWorker`, `LinuxLiveAudioWorker`).
 - `TimeGrapher.Inference`는 `Core`와 외부 NuGet 패키지 `Microsoft.ML.OnnxRuntime`(중앙 버전)만 참조하는 리프다. `Core.Analysis.Quality`의 `ISignalQualityClassifier` seam을 ONNX 모델(`OnnxSignalQualityClassifier`, 임베드된 `signal-quality.onnx` + 클래스 순서 사이드카)로 구현한다. `App`만 합성 루트에서 이를 참조하며(`App --> Inference`), 로드 실패 시 `HeuristicSignalQualityClassifier`로 폴백한다. ONNX 타입은 `Core`로 새지 않으므로 `Core`의 무의존 규칙은 유지된다. 모델을 학습하는 `tools/TimeGrapher.SignalQualityTrainer`는 **dev 전용**이며 `TimeGrapherNet.sln` 밖에 있어(런타임은 ONNX Runtime만 필요, ML.NET 학습 스택은 배포 빌드에서 제외) uses 그래프의 엣지를 만들지 않는다.
 - `TimeGrapher.App`의 AI 분석 기능은 승인된 두 HTTPS 백엔드(`tg-ai.jaehongoh.com`, `tg-ai-cmu-aws.jaehongoh.com`)만 호출한다. HTTP 프로토콜과 Basic Auth 구성은 `AiAnalysisService`에 갇히고, Gemini API 키·모델·프롬프트는 서버 경계 안에 남는다. 선택된 로그는 백엔드 `MAX_LOG_CHARS=100000`보다 낮은 90,000자 클라이언트 제한을 통과해야 하며, 응답 읽기와 Markdown 렌더링도 bounded 처리한다.
-- 로그인 저장은 `AiCredentialStore` 어댑터 뒤에서만 이루어진다. Windows는 Credential Manager P/Invoke, Linux/Raspberry Pi는 `secret-tool`(Secret Service)을 사용하며, probe 실패 시 `NullAiCredentialStore`로 저장을 비활성화한다. 평문 `AppSettings` 엣지는 만들지 않는다. 저장된 credential은 백엔드 요청 성공 후에만 갱신한다.
+- 로그인 저장은 `AiCredentialStore` 어댑터 뒤에서만 이루어진다. Windows는 Credential Manager P/Invoke, Linux/Raspberry Pi는 `secret-tool`(Secret Service)을 사용하고, 그 외 OS는 `NullAiCredentialStore`다(`AiCredentialStore.CreateDefault`). credential-store probe가 실패하면 `NullAiCredentialStore`로 교체하는 것이 아니라 `AiAnalysisController`가 저장/조회 persistence 자체를 비활성화한다. 평문 `AppSettings` 엣지는 만들지 않는다. 저장된 credential은 백엔드 요청 성공 후에만 갱신한다.
 
 ### App의 플랫폼 어댑터 참조 (RID 조건부)
 
@@ -101,13 +101,13 @@ flowchart TB
 
 ### 테스트 프로젝트의 Core 의존
 
-`*.Tests`는 각자 검증 대상 프로젝트 **하나만** `ProjectReference`로 직접 참조한다(`App.Tests→App`, `Core.Tests→Core`, `Verify.Tests→Verify`, `WindowsAudio.Tests→WindowsAudio`, `LinuxAudio.Tests→LinuxAudio`). `Verify.Tests`는 `Verify`가 `InternalsVisibleTo`로 노출한 악조건 게이트 평가기(`AdverseScenarios.Evaluate`)를 직접 단언하고, `Core`의 `DetectorResultSnapshot`/`TgEvent`/`DetectionScorer.Score`를 전이로 구성한다. `Core`는 전이 참조이지만, 어서션·테스트 지원에서 `Core` 타입을 직접 `using`하므로 점선으로 표시했다 — `App.Tests`는 `Shared`(DTO)에 더해 `Analysis`·`Detection`·`Metrics`(예: `AnalysisRunSettingsTests`, `GraphFrameRendererTests`, `RunSelectionResolverTests`)와 `Core.AudioIo`·`Core.Sim`(`AnalysisBenchmarkRunnerTests`의 `WavStreamWriter`·`WatchSynthStream`)까지 직접 `using`한다(그래도 `ProjectReference`는 App 하나뿐이라 여전히 전이 참조다). `Core.Tests`만 `Core`를 직접 참조한다. `App.Tests`는 컨트롤(`AvaPlot`, `SplashWindow`)을 구성하므로 `Avalonia`·`ScottPlot`도 직접 사용한다.
+대부분의 `*.Tests`는 각자 검증 대상 프로젝트 **하나만** `ProjectReference`로 직접 참조하지만, `Inference.Tests`는 `Inference`와 `Core`를 모두 직접 참조한다(`App.Tests→App`, `Core.Tests→Core`, `Verify.Tests→Verify`, `WindowsAudio.Tests→WindowsAudio`, `LinuxAudio.Tests→LinuxAudio`, `Inference.Tests→Inference+Core`). `Verify.Tests`는 `Verify`가 `InternalsVisibleTo`로 노출한 악조건 게이트 평가기(`AdverseScenarios.Evaluate`)를 직접 단언하고, `Core`의 `DetectorResultSnapshot`/`TgEvent`/`DetectionScorer.Score`를 전이로 구성한다. `Core`는 전이 참조이지만, 어서션·테스트 지원에서 `Core` 타입을 직접 `using`하므로 점선으로 표시했다 — `App.Tests`는 `Shared`(DTO)에 더해 `Analysis`·`Detection`·`Metrics`(예: `AnalysisRunSettingsTests`, `GraphFrameRendererTests`, `RunSelectionResolverTests`)와 `Core.AudioIo`·`Core.Sim`(`AnalysisBenchmarkRunnerTests`의 `WavStreamWriter`·`WatchSynthStream`)까지 직접 `using`한다(그래도 `ProjectReference`는 App 하나뿐이라 여전히 전이 참조다). `Core.Tests`와 `Inference.Tests`가 `Core`를 직접 참조한다. `App.Tests`는 컨트롤(`AvaPlot`, `SplashWindow`)을 구성하므로 `Avalonia`·`ScottPlot`도 직접 사용한다.
 
 그 전 단계의 신호 품질 표시는 `Core.Shared.SignalQualityFlags`와 `BeatSegmentsSnapshot.Quality`에 담긴 DTO 계약으로 처리한다. `BeatSegmentCapture`는 A→C 반복성에서 벗어난 C 후보를 `CTimingUnstable`/`PossibleFalseC`로 표시하고, `WatchMetrics`는 같은 이상 C를 amplitude 갱신에서 제외한다. App 계층은 `SignalQualityText`로 전역 graph warning overlay와 상태바 recovery guidance의 문구를 통일한다. 이 경로는 `Core → Shared DTO → App Rendering/Services` 단방향 소비라 신규 외부 패키지나 프로젝트 엣지를 만들지 않는다.
 
 ## 2. TimeGrapher.App 내부 사용 관계
 
-폴더 수준 추상화로 묶었고, 코드 엣지는 실제 `using`/타입 참조에 근거한다. 예외는 `Views → Assets`로, 이는 `using`/타입 참조가 아니라 `avares://` 리소스 URI·XAML `Icon` 참조다(`Assets`는 png/ttf 리소스 폴더이며 코드 네임스페이스가 아니다). `Program` 노드는 루트 네임스페이스(`Program`, `App`, `AppStartupOptions`, `AnalysisRunSettings`)를 가리킨다.
+폴더 수준 추상화로 묶었고, 코드 엣지는 실제 `using`/타입 참조에 근거한다. 예외는 `Views → Assets`로, 이는 `using`/타입 참조가 아니라 `avares://` 리소스 URI·XAML `Icon` 참조다(`Assets`는 png/ttf 리소스 폴더이며 코드 네임스페이스가 아니다). `Program` 노드는 루트 네임스페이스(`Program`, `App`, `AppStartupOptions`, `AnalysisRunSettings`, `AppSettings`, `AppSettingsStore`, `SamplingSettings` 등)를 가리킨다.
 
 ```mermaid
 flowchart TB
@@ -140,6 +140,7 @@ flowchart TB
     Program --> Rendering
     Program --> CoreAnalysis
     Program --> CoreAudioIo
+    Program --> CoreDetection
     Program --> CoreShared
 
     Views --> Program
@@ -148,6 +149,7 @@ flowchart TB
     Views --> Audio
     Views --> Tabs
     Views --> Rendering
+    Views --> CoreAnalysis
     Views --> CoreAudioIo
     Views --> CoreDetection
     Views --> CoreShared
@@ -157,6 +159,8 @@ flowchart TB
 
     ViewModels --> CoreAnalysis
     ViewModels --> CoreShared
+    ViewModels --> Rendering
+    ViewModels --> Program
 
     Services --> ViewModels
     Services --> Program
@@ -166,6 +170,7 @@ flowchart TB
     Services --> CoreDetection
     Services --> CoreMetrics
     Services --> CoreShared
+    Services --> CoreSim
 
     Audio --> Tabs
     Audio --> CoreAnalysis
@@ -180,6 +185,7 @@ flowchart TB
     Tabs --> CoreShared
 
     Rendering --> Tabs
+    Rendering --> Program
     Rendering --> CoreAnalysis
     Rendering --> CoreMetrics
     Rendering --> CoreShared
@@ -190,17 +196,18 @@ flowchart TB
 
 | 폴더 | 사용하는 App 폴더 | 사용하는 Core 하위모듈 |
 |---|---|---|
-| Program / 앱 시작 | Views, Audio, Rendering | Analysis, AudioIo, Shared |
-| Views | Program, ViewModels, Services, Audio, Tabs, Rendering, Assets | AudioIo, Detection, Shared, Sim |
-| ViewModels | — | Analysis, Shared |
-| Services | ViewModels, Program, Rendering | Analysis, AudioIo, Detection, Metrics, Shared; 승인된 AI 백엔드와 OS credential store를 어댑터 뒤에서 사용 |
+| Program / 앱 시작 | Views, Audio, Rendering | Analysis, AudioIo, Detection, Shared |
+| Views | Program, ViewModels, Services, Audio, Tabs, Rendering, Assets | Analysis, AudioIo, Detection, Shared, Sim |
+| ViewModels | Rendering, Program | Analysis, Shared |
+| Services | ViewModels, Program, Rendering | Analysis, AudioIo, Detection, Metrics, Shared, Sim; 승인된 AI 백엔드와 OS credential store를 어댑터 뒤에서 사용 |
 | Audio | Tabs | Analysis, AudioIo, Shared, Sim, 플랫폼 백엔드(RID 조건부) |
 | Tabs | ViewModels, Rendering | Analysis, Shared |
-| Rendering | Tabs, Assets | Analysis, Metrics, Shared |
+| Rendering | Tabs, Assets, Program | Analysis, Metrics, Shared |
 
 - `Audio`→`Tabs`와 `Services`→`Rendering`는 MVVM 리팩토링과 무관한 별도 기능에서 생긴 엣지다: `AnalysisBenchmarkRunner`(`Audio`)가 `InfoTabCatalog.ScopeTargetPointBudget`(`Tabs`)로 스코프 포인트 예산을 맞추고, `AnalysisRunStatusReporter`(`Services`)가 신호 품질 상태 문구를 위해 `SignalQualityText`/`SignalQualityFlagsMap`(`Rendering`)를 사용한다.
 - `Program`은 `AnalysisRunSettings`에서 `AnalysisWorker.Config`를 조립하며 `PlotThemePalette`(`Rendering`)를 직접 사용한다. 또한 시작 시 `AppSettingsStore.Load()`로 단일 사용자 설정 파일(`settings.json`)을 읽고, 그 안의 사용자 정상 밴드를 `AcceptBandSettings.Current`(`Rendering`)에, 실행 시작 파라미터(Avg. Period·분석 블록 크기·캡처 버퍼)를 `SamplingSettings.Current`에 복원한다(그래프/창 생성 이전). 좌측 패널·Settings 창 값은 `MainWindowBootstrapper`와 View 초기화 뒤 컨트롤러들이 view-model에 시드한다.
-- `ViewModels`는 스윕 배수 기본값을 `SweepFrameProjector.DefaultSweepMultiple`(`Core.Analysis`)로 초기화하므로 `Shared` 외에 `Analysis`에도 의존한다.
+- `ViewModels`는 스윕 배수 기본값을 `SweepFrameProjector.DefaultSweepMultiple`(`Core.Analysis`)로, 판정 최소 beat 기본값/정규화를 Avalonia-free `VerdictBeatPolicy`(`Rendering`)로, weak-A onset rescue step 기본값/라벨을 루트 네임스페이스 `WeakAOnsetRescueStrengthPolicy`(`Program`)로 초기화하므로 `Shared` 외에 `Analysis`·`Rendering`·`Program`에도 의존한다.
+- `Rendering`의 `VerdictBeatPolicy`도 루트 네임스페이스 전역 설정 `AppSettings.Current`(`Program`)를 읽어 판정 최소 beat를 노출하므로 `Rendering→Program` 엣지가 존재한다. `Program→Rendering`(`PlotThemePalette`/`AcceptBandSettings`)과의 양방향 결합은 전역 설정 접근에서 비롯된 의도적 ambient 의존이다.
 - `Rendering`과 `Tabs`는 순환처럼 보이지만 분리되어 있다: `Rendering`의 프레임 컨슈머가 `Tabs`의 라우팅 계약(`IAnalysisFrameConsumer`/`IThemedFrameConsumer`/`IAcceptBandConsumer`)을 구현하고, `Tabs`의 레지스트리가 컨슈머를 등록한다. `IAcceptBandConsumer`는 사용자 정상 밴드 편집을 모든 밴드 그래프에 라이브로 팬아웃하는 두 번째 브로드캐스트 계약으로, 테마 팬아웃(`IThemedFrameConsumer`)과 같은 패턴이다.
 - Positions 탭의 활성 워치 자세는 `WatchModelView`(자체 CPU 소프트웨어 렌더)가 표시한다. 번들된 vertex-color GLB(`Assets/Model/watch_model_round_vertexcolor.glb`)를 `GlbMeshLoader`가 읽고 `WatchModelRasterizer`가 `System.Numerics`만으로 원근 투영·z-buffer·flat 음영 래스터화한다(GPU/외부 3D 라이브러리 무의존 — 이식성 driver, `SAP_TACTICS_ANALYSIS.md` 참고). 포지션 버튼이 `WatchPositionsRenderer`를 통해 `Position`을 바꾸면 `WatchModelOrientation`이 정한 목표 사원수로 `Quaternion.Slerp`(650 ms) 애니메이션한다. 즉 `Rendering`이 `Assets`(avares 모델 리소스)를 사용한다.
 - `Views`(`MainWindow`)는 합성 루트에서 `TimeGrapher.Inference`의 `OnnxSignalQualityClassifier`를 1회 생성해(로드 실패 시 `HeuristicSignalQualityClassifier`로 폴백) `AnalysisRunSettings.ToWorkerConfig`에 주입한다. 이 advisory 분류기는 `ISignalQualityClassifier` seam을 통해서만 `Core.Analysis`로 전달되므로, App 계층에서 ONNX 리프를 직접 참조하는 곳은 합성 루트 한 곳뿐이다(`Views --> Inference`).
@@ -220,7 +227,7 @@ flowchart TB
 이 리팩토링 후 **`ViewModels`는 Avalonia 무의존**이다(마지막으로 남아 있던 review-slider 마진의 `Avalonia.Thickness`가 View 계층 변환기 `ReviewSliderMarginConverter`(`Tabs/` 폴더의 `TimeGrapher.App.Tabs` Avalonia value converter)로 옮겨졌고, `ViewModelPurityTests`가 이를 잠근다). 전면 "순수 MVVM"이라고 단정하지는 않는다 — 행위 보존과 아키텍처 변경 최소화를 위해 다음 한 잔여물을 의도적으로 View에 남겼다:
 
 - **실행 수명주기 어댑터**: `RunCommandService`(`Services`)는 여전히 View-중첩 `RunCommandOperations`(`IRunCommandOperations` 구현)를 통해 `MainWindow`의 실행 본문(`LiveStart`/`PlaybackStart`/`SimStart`, 정지/복원)을 호출한다. 실행 설정 조립(`BuildRunSettings`)은 `RunCommandOperations`가 아니라 `MainWindowRunSessionCallbacks.CreateAnalysisConfig` 콜백으로 `RunSessionController`에 따로 전달된다. 컴파일 시점 의존은 인터페이스/콜백으로 역전됐지만(서비스→인터페이스, 창 아님), 본문은 아직 code-behind에 있다. 이를 서비스로 추출하는 것은 별도의 더 큰 변경이라 이번 패스의 범위 밖이다.
-**해소된 잔여물 — 선택-operations 통과**: `MainWindowSelectionOperations`는 `SetAudioInputVolume`(→ `RunSessionController.SetLiveInputVolume`)와 `SetLiveSimulationParameters`(→ `RunSessionController.SetLiveSimulationParameters`) **두 호출**을 위해 `_owner`(창)를 보유하고 있었다(과거 기술의 "한 호출"은 부정확했다). 이를 좁은 `IRunSessionLiveAdjustments` 시밍(`RunSessionController` 구현)으로 바꾸고 `Build` 반환 직후 late-attach 하여 **클래스 수준의 `Services`→View back-edge를 제거**했다(`ISelectionEventGate`와 같은 생성-순환 끊기). 어댑터는 여전히 `Services` 계약을 구현하므로 폴더 수준 의존 형태는 그대로다.
+- **해소된 잔여물 — 선택-operations 통과**: `MainWindowSelectionOperations`는 `SetAudioInputVolume`(→ `RunSessionController.SetLiveInputVolume`)와 `SetLiveSimulationParameters`(→ `RunSessionController.SetLiveSimulationParameters`) **두 호출**을 위해 `_owner`(창)를 보유하고 있었다(과거 기술의 "한 호출"은 부정확했다). 이를 좁은 `IRunSessionLiveAdjustments` 시밍(`RunSessionController` 구현)으로 바꾸고 `Build` 반환 직후 late-attach 하여 **클래스 수준의 `Services`→View back-edge를 제거**했다(`ISelectionEventGate`와 같은 생성-순환 끊기). 어댑터는 여전히 `Services` 계약을 구현하므로 폴더 수준 의존 형태는 그대로다.
 
 ## 3. TimeGrapher.Core 내부 사용 관계
 
@@ -261,7 +268,7 @@ flowchart TB
 
 | 사용 모듈 | 사용 대상 | 만들어지는 결합 |
 |---|---|---|
-| `TimeGrapher.App` | `TimeGrapher.Core`, RID 선택 플랫폼 오디오, Avalonia, ScottPlot | UI가 Core 계약/결과, 데스크톱 UI 라이브러리, 선택된 플랫폼 오디오 어댑터에 결합 |
+| `TimeGrapher.App` | `TimeGrapher.Core`, `TimeGrapher.Inference`, RID 선택 플랫폼 오디오, Avalonia, ScottPlot | UI가 Core 계약/결과, 온디바이스 ONNX 분류기, 데스크톱 UI 라이브러리, 선택된 플랫폼 오디오 어댑터에 결합 |
 | `TimeGrapher.Verify` | `TimeGrapher.Core` (Analysis, AudioIo, Detection, Metrics, Shared, Sim) | 콘솔 검증이 앱과 동일한 분석·검출·시뮬레이터 모듈을 공유 |
 | `TimeGrapher.Platform.WindowsAudio` | `TimeGrapher.Core.Shared`, NAudio | Windows 입력 백엔드가 Core 라이브 오디오 계약과 NAudio API에 결합 |
 | `TimeGrapher.Platform.LinuxAudio` | `TimeGrapher.Core.Shared`, `wpctl`·`pw-record`·`arecord` | Linux 입력 백엔드가 Core 라이브 오디오 계약과 Linux 오디오 CLI 도구에 결합 |
