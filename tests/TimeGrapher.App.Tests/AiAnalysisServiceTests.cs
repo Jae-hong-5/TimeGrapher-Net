@@ -39,6 +39,19 @@ public sealed class AiAnalysisServiceTests
         Assert.Contains("\"logText\":\"rate_valid,rate_s_per_day\\ntrue,3.2\"", capturedContent);
     }
 
+    [Fact]
+    public void BackendOptions_UseReadableServerLabelsWithoutDomains()
+    {
+        Assert.Equal(
+            new[]
+            {
+                "TimeGrapher Service Server (KR)",
+                "AWS Learner Lab EC2 Server (US-EAST)",
+            },
+            AiAnalysisService.BackendOptions.Select(option => option.DisplayName).ToArray());
+        Assert.DoesNotContain(AiAnalysisService.BackendOptions, option => option.DisplayName.Contains("http", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(AiAnalysisService.BackendOptions, option => option.DisplayName.Contains("jaehongoh.com", StringComparison.OrdinalIgnoreCase));
+    }
     [Theory]
     [InlineData("http://tg-ai.jaehongoh.com")]
     [InlineData("https://example.com")]

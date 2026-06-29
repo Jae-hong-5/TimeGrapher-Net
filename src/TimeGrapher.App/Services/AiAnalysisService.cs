@@ -43,8 +43,8 @@ internal sealed class AiAnalysisService : IAiAnalysisService
 
     public static IReadOnlyList<AiBackendOption> BackendOptions { get; } = new[]
     {
-        new AiBackendOption("Primary VPS", PrimaryBackendBaseUrl),
-        new AiBackendOption("AWS Learner Lab", AwsBackendBaseUrl)
+        new AiBackendOption("TimeGrapher Service Server (KR)", PrimaryBackendBaseUrl),
+        new AiBackendOption("AWS Learner Lab EC2 Server (US-EAST)", AwsBackendBaseUrl)
     };
 
     public async Task<AiAnalysisResult> AnalyzeMeasurementLogAsync(

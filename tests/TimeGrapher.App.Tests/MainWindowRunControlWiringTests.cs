@@ -337,13 +337,14 @@ public sealed class MainWindowRunControlWiringTests
         Assert.Contains("Text = \"User PW\"", source);
         Assert.Contains("Watermark = \"User ID\"", source);
         Assert.Contains("Watermark = \"User PW\"", source);
-        Assert.Contains("private server", source);
+        Assert.Contains("selected TimeGrapher service server", source);
         Assert.Contains("$\"Server:", source);
         Assert.DoesNotContain("Text = \"Backend\"", source);
         Assert.DoesNotContain("Text = \"Demo username\"", source);
         Assert.DoesNotContain("Text = \"Demo password\"", source);
         Assert.DoesNotContain("Watermark = \"Demo username\"", source);
         Assert.DoesNotContain("Watermark = \"Demo password\"", source);
+        Assert.DoesNotContain("private server", source);
     }
 
     [Fact]

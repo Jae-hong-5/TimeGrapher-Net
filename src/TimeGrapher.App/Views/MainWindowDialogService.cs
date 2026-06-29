@@ -159,7 +159,7 @@ internal sealed class MainWindowDialogService : ITimeGrapherDialogService
         };
         var consent = new CheckBox
         {
-            Content = "I consent to upload the selected TimeGrapher measurement log to the private server for AI analysis.",
+            Content = "I consent to upload the selected TimeGrapher measurement log to the selected TimeGrapher service server for AI analysis.",
         };
         var errorText = new TextBlock
         {
@@ -244,7 +244,7 @@ internal sealed class MainWindowDialogService : ITimeGrapherDialogService
         var panel = new StackPanel { Margin = new Avalonia.Thickness(16), Spacing = 10 };
         panel.Children.Add(new TextBlock
         {
-            Text = "Send the selected TimeGrapher measurement log to an approved private server for a Korean AI analysis.",
+            Text = "Send the selected TimeGrapher measurement log to the selected TimeGrapher service server for a Korean AI analysis.",
             TextWrapping = TextWrapping.Wrap,
         });
         panel.Children.Add(formGrid);
@@ -419,7 +419,7 @@ internal sealed class MainWindowDialogService : ITimeGrapherDialogService
         var labels = new string[options.Count];
         for (int i = 0; i < options.Count; i++)
         {
-            labels[i] = $"{options[i].DisplayName} - {options[i].BaseUrl}";
+            labels[i] = options[i].DisplayName;
         }
 
         return labels;
