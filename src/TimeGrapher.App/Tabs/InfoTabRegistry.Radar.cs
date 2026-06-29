@@ -9,12 +9,13 @@ namespace TimeGrapher.App.Tabs;
 
 internal sealed partial class InfoTabRegistry
 {
-    // Watch Health: a six-position hexagon plus a unified Diagnosis rail that judges
-    // BOTH axes over the same snapshot the Positions tab consumes (Strategy: another
-    // consumer over one snapshot) — band conformance per position (Levels) and
-    // cross-position Consistency (the shared ConsistencyDiagnosis). The analysis
-    // engine is untouched; the catalog entry, this factory and the rail are the
-    // whole addition.
+    // Watch Health: an eight-position octagon of the vertical (hanging) positions
+    // with a bottom strip of horizontal (flat) CH/CB gauges, plus a unified
+    // Diagnosis rail that judges BOTH axes over the same snapshot the Positions tab
+    // consumes (Strategy: another consumer over one snapshot) — band conformance per
+    // position (Levels) and cross-position Consistency (the shared
+    // ConsistencyDiagnosis). The analysis engine is untouched; the catalog entry,
+    // this factory and the rail are the whole addition.
     private static InfoTabRegistration CreateWatchHealthRadarRegistration(
         InfoTabDefinition definition,
         InfoTabFactoryContext context)
@@ -161,7 +162,7 @@ internal sealed partial class InfoTabRegistry
         // Rail is wide enough for the 14 px Diagnosis fonts without horizontal
         // clipping (the ScrollViewer disables horizontal scroll, so overflow is
         // cut, not scrolled). The radar keeps the remaining width — it has ample
-        // empty margin around the hexagon to spare.
+        // empty margin around the octagon to spare.
         var root = new Grid { ColumnDefinitions = new ColumnDefinitions("*,540") };
         Grid.SetColumn(radarPanel, 0);
         Grid.SetColumn(panel, 1);
