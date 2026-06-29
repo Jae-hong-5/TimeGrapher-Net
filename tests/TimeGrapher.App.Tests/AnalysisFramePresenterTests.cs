@@ -53,6 +53,50 @@ public sealed class AnalysisFramePresenterTests
     }
 
     [Fact]
+    public void Present_WhileStopped_DoesNotOverwriteTerminalStatusOrLatency()
+    {
+        var vm = new MainWindowViewModel();
+        var errorLog = new RecordingErrorLog();
+        var presenter = new AnalysisFramePresenter(vm, errorLog);
+
+        // The stop already set the terminal status and latency readout.
+        vm.SetStopped();
+        vm.StatusText = "Stopped";
+        vm.LatencyText = "final";
+
+        // A drained final frame arriving after Stopped carries a warning (overrun) and
+        // a timestamped latency leg; neither must overwrite the terminal readouts, and
+        // it must not write to the error log.
+        presenter.Present(
+            new AnalysisFrame
+            {
+                InputOverrun = true,
+                CaptureTimestamp = 1000,
+                ProcessingCompletedTimestamp = 2000,
+            },
+            droppedFrames: 0, displayTicks: 3000, sampleRate: 48000);
+
+        Assert.Equal("Stopped", vm.StatusText);
+        Assert.Equal("final", vm.LatencyText);
+        Assert.Equal(0, errorLog.Writes);
+    }
+
+    [Fact]
+    public void Present_WhileStopped_StillGrowsReviewMaximum()
+    {
+        var vm = new MainWindowViewModel();
+        AnalysisFramePresenter presenter = Create(vm);
+        vm.SetStopped();
+
+        // The review-range growth is the stopped-safe update that survives the gate.
+        presenter.Present(
+            new AnalysisFrame { MetricsHistory = new BeatMetricsHistorySnapshot { LatestTimeS = 7.0 } },
+            0, 0, 48000);
+
+        Assert.Equal(7.0, vm.ReviewMaximumS);
+    }
+
+    [Fact]
     public void Present_GrowsReviewMaximumFromHistory()
     {
         var vm = new MainWindowViewModel();
@@ -70,6 +114,7 @@ public sealed class AnalysisFramePresenterTests
     public void Present_InputOverrun_SetsStatusAndLogsDetail()
     {
         var vm = new MainWindowViewModel();
+        vm.SetRunning();
         var errorLog = new RecordingErrorLog();
         var presenter = new AnalysisFramePresenter(vm, errorLog);
 
@@ -80,9 +125,49 @@ public sealed class AnalysisFramePresenterTests
     }
 
     [Fact]
+    public void Present_RepeatedIdenticalWarning_LogsDetailOnce_AndChangedDetailLogsAgain()
+    {
+        var vm = new MainWindowViewModel();
+        vm.SetRunning();
+        var errorLog = new RecordingErrorLog();
+        var presenter = new AnalysisFramePresenter(vm, errorLog);
+
+        // A persistent warning state reports the same LogDetail every active-tab frame.
+        // The presenter must write it once (per state-change), not once per frame.
+        var overrun = new AnalysisFrame { InputOverrun = true, InputSamplesDropped = 96 };
+        presenter.Present(overrun, 0, 0, 48000);
+        presenter.Present(overrun, 0, 0, 48000);
+        presenter.Present(overrun, 0, 0, 48000);
+        Assert.Equal(1, errorLog.Writes);
+
+        // A changed detail (different dropped-sample count) is a new state and logs again.
+        presenter.Present(new AnalysisFrame { InputOverrun = true, InputSamplesDropped = 200 }, 0, 0, 48000);
+        Assert.Equal(2, errorLog.Writes);
+    }
+
+    [Fact]
+    public void Reset_ReEmitsAPersistentWarningDetail()
+    {
+        var vm = new MainWindowViewModel();
+        vm.SetRunning();
+        var errorLog = new RecordingErrorLog();
+        var presenter = new AnalysisFramePresenter(vm, errorLog);
+
+        var overrun = new AnalysisFrame { InputOverrun = true, InputSamplesDropped = 96 };
+        presenter.Present(overrun, 0, 0, 48000);
+        Assert.Equal(1, errorLog.Writes);
+
+        // A new session must re-log the same persistent detail (the dedup memory clears).
+        presenter.Reset();
+        presenter.Present(overrun, 0, 0, 48000);
+        Assert.Equal(2, errorLog.Writes);
+    }
+
+    [Fact]
     public void Present_SetsLatencyText_FromTimestampedFrame()
     {
         var vm = new MainWindowViewModel();
+        vm.SetRunning();
         AnalysisFramePresenter presenter = Create(vm);
 
         // A frame with both timestamps feeds the latency accumulator, so the first status format
@@ -112,6 +197,7 @@ public sealed class AnalysisFramePresenterTests
     public void Present_ThroughputDedups_AndResetReEmits()
     {
         var vm = new MainWindowViewModel();
+        vm.SetRunning();
         AnalysisFramePresenter presenter = Create(vm);
 
         presenter.Present(new AnalysisFrame { BackgroundFps = 30 }, 0, 0, 48000);

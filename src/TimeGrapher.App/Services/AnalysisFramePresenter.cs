@@ -17,6 +17,12 @@ internal sealed class AnalysisFramePresenter
     private readonly IUserErrorLog _errorLog;
     private readonly LatencyStatsTracker _latencyStats = new();
     private readonly AnalysisRunStatusReporter _statusReporter = new();
+    // Last error-log detail written, used to suppress the per-frame disk write for a
+    // persistent warning state (deadline degradation / signal-quality / no-signal):
+    // such a state reports the same detail every active-tab frame and would grow the
+    // log unbounded. Logging once per state-change (when the detail changes) keeps the
+    // visible status text update untouched.
+    private string? _lastLoggedDetail;
 
     public AnalysisFramePresenter(MainWindowViewModel viewModel, IUserErrorLog errorLog)
     {
@@ -31,15 +37,20 @@ internal sealed class AnalysisFramePresenter
     /// </summary>
     public void Present(AnalysisFrame frame, ulong droppedFrames, long displayTicks, int sampleRate)
     {
-        // The drained final frame of a completed run arrives after the GUI reached Stopped
-        // (completeInput keeps the session id alive); it must not re-raise the waiting overlay.
-        if (_viewModel.RunState != RunUiState.Stopped)
+        // Grow the review scrub range to the newest captured reading. This is the only
+        // stopped-safe mutation: it extends the review range without touching the
+        // terminal status, latency readout, or run-status report.
+        _viewModel.UpdateReviewMaximum(frame.MetricsHistory?.LatestTimeS ?? 0.0);
+
+        // A drained final frame of a completed run arrives after the GUI reached Stopped
+        // (completeInput keeps the session id alive). It must neither re-raise the waiting
+        // overlay nor overwrite the terminal status/latency/report the stop already set.
+        if (_viewModel.RunState == RunUiState.Stopped)
         {
-            _viewModel.IsAwaitingBeatSync = !frame.BeatSynced;
+            return;
         }
 
-        // Grow the review scrub range to the newest captured reading.
-        _viewModel.UpdateReviewMaximum(frame.MetricsHistory?.LatestTimeS ?? 0.0);
+        _viewModel.IsAwaitingBeatSync = !frame.BeatSynced;
 
         _latencyStats.Observe(frame, droppedFrames, displayTicks);
         if (_latencyStats.TryFormatStatus(displayTicks) is string latencyText)
@@ -59,8 +70,9 @@ internal sealed class AnalysisFramePresenter
                 _viewModel.StatusText = report.StatusText;
             }
 
-            if (report.LogDetail != null)
+            if (report.LogDetail != null && report.LogDetail != _lastLoggedDetail)
             {
+                _lastLoggedDetail = report.LogDetail;
                 _errorLog.Write(report.StatusText, report.LogDetail);
             }
         }
@@ -76,6 +88,7 @@ internal sealed class AnalysisFramePresenter
     {
         _statusReporter.Reset();
         _latencyStats.Reset();
+        _lastLoggedDetail = null;
         _viewModel.LatencyText = "";
         _viewModel.ResetReview();
     }
