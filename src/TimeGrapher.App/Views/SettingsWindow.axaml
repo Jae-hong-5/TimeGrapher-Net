@@ -1,5 +1,6 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:views="using:TimeGrapher.App.Views"
         x:Class="TimeGrapher.App.Views.SettingsWindow"
         Title="Settings"
         Icon="/Assets/App/AppIcon-256.png"
@@ -8,6 +9,9 @@
         SystemDecorations="None"
         ShowInTaskbar="False"
         WindowStartupLocation="CenterOwner">
+  <Window.Resources>
+    <views:NumericDefaultConverter x:Key="NumericDefault" />
+  </Window.Resources>
   <Border BorderBrush="{DynamicResource ChromeAccentBrush}" BorderThickness="1">
   <Grid RowDefinitions="36,*" Background="{DynamicResource AmbientBackdropBrush}">
     <Border Grid.Row="0"
@@ -196,10 +200,11 @@
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Avg. Period"
                      VerticalAlignment="Center" FontWeight="Bold" />
           <NumericUpDown Name="AveragingPeriodSpinBox" Grid.Row="0" Grid.Column="1"
+                         views:NumericInputGuard.Enabled="True"
                          Margin="6,3"
                          Height="32"
                          AutomationProperties.Name="Error Rate averaging period (seconds)"
-                         Value="{Binding AveragingPeriod, Mode=TwoWay}"
+                         Value="{Binding AveragingPeriod, Mode=TwoWay, Converter={StaticResource NumericDefault}}"
                          IsEnabled="{Binding AreRunParametersEnabled}"
                          FontWeight="Bold" FormatString="0' s'"
                          Minimum="1" Maximum="240" Increment="1"
@@ -217,10 +222,11 @@
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Block Size"
                      VerticalAlignment="Center" FontWeight="Bold" />
           <NumericUpDown Name="AnalysisBlockSizeSpinBox" Grid.Row="2" Grid.Column="1"
+                         views:NumericInputGuard.Enabled="True"
                          Margin="6,3"
                          Height="32"
                          AutomationProperties.Name="Analysis block size (samples)"
-                         Value="{Binding AnalysisBlockSize, Mode=TwoWay}"
+                         Value="{Binding AnalysisBlockSize, Mode=TwoWay, Converter={StaticResource NumericDefault}}"
                          IsEnabled="{Binding AreRunParametersEnabled}"
                          FontWeight="Bold" FormatString="0' samples'"
                          Minimum="256" Maximum="16384" Increment="256"
@@ -229,10 +235,11 @@
           <TextBlock Grid.Row="3" Grid.Column="0" Text="Capture Buffer"
                      VerticalAlignment="Center" FontWeight="Bold" />
           <NumericUpDown Name="CaptureBufferMsSpinBox" Grid.Row="3" Grid.Column="1"
+                         views:NumericInputGuard.Enabled="True"
                          Margin="6,3"
                          Height="32"
                          AutomationProperties.Name="Capture buffer length (milliseconds)"
-                         Value="{Binding CaptureBufferMs, Mode=TwoWay}"
+                         Value="{Binding CaptureBufferMs, Mode=TwoWay, Converter={StaticResource NumericDefault}}"
                          IsEnabled="{Binding AreRunParametersEnabled}"
                          FontWeight="Bold" FormatString="0' ms'"
                          Minimum="5" Maximum="200" Increment="5"
@@ -263,18 +270,20 @@
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Error Rate"
                      VerticalAlignment="Center" FontWeight="Bold" />
           <NumericUpDown Name="RateAcceptMinSpinBox" Grid.Row="1" Grid.Column="1"
+                         views:NumericInputGuard.Enabled="True"
                          Margin="6,3"
                          Height="32"
                          AutomationProperties.Name="Error Rate band minimum (s/d)"
-                         Value="{Binding RateAcceptMin, Mode=TwoWay}"
+                         Value="{Binding RateAcceptMin, Mode=TwoWay, Converter={StaticResource NumericDefault}}"
                          FontWeight="Bold" FormatString="0' s/d'"
                          Minimum="-120" Maximum="120" Increment="1"
                          ToolTip.Tip="Error Rate normal-band lower limit (s/d)" />
           <NumericUpDown Name="RateAcceptMaxSpinBox" Grid.Row="1" Grid.Column="2"
+                         views:NumericInputGuard.Enabled="True"
                          Margin="6,3"
                          Height="32"
                          AutomationProperties.Name="Error Rate band maximum (s/d)"
-                         Value="{Binding RateAcceptMax, Mode=TwoWay}"
+                         Value="{Binding RateAcceptMax, Mode=TwoWay, Converter={StaticResource NumericDefault}}"
                          FontWeight="Bold" FormatString="0' s/d'"
                          Minimum="-120" Maximum="120" Increment="1"
                          ToolTip.Tip="Error Rate normal-band upper limit (s/d)" />
@@ -282,18 +291,20 @@
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Amplitude"
                      VerticalAlignment="Center" FontWeight="Bold" />
           <NumericUpDown Name="AmplitudeAcceptMinSpinBox" Grid.Row="2" Grid.Column="1"
+                         views:NumericInputGuard.Enabled="True"
                          Margin="6,3"
                          Height="32"
                          AutomationProperties.Name="Amplitude band minimum (degrees)"
-                         Value="{Binding AmplitudeAcceptMin, Mode=TwoWay}"
+                         Value="{Binding AmplitudeAcceptMin, Mode=TwoWay, Converter={StaticResource NumericDefault}}"
                          FontWeight="Bold" FormatString="0'°'"
                          Minimum="0" Maximum="360" Increment="1"
                          ToolTip.Tip="Amplitude normal-band lower limit (°)" />
           <NumericUpDown Name="AmplitudeAcceptMaxSpinBox" Grid.Row="2" Grid.Column="2"
+                         views:NumericInputGuard.Enabled="True"
                          Margin="6,3"
                          Height="32"
                          AutomationProperties.Name="Amplitude band maximum (degrees)"
-                         Value="{Binding AmplitudeAcceptMax, Mode=TwoWay}"
+                         Value="{Binding AmplitudeAcceptMax, Mode=TwoWay, Converter={StaticResource NumericDefault}}"
                          FontWeight="Bold" FormatString="0'°'"
                          Minimum="0" Maximum="360" Increment="1"
                          ToolTip.Tip="Amplitude normal-band upper limit (°)" />
@@ -301,10 +312,11 @@
           <TextBlock Grid.Row="3" Grid.Column="0" Text="Beat Error"
                      VerticalAlignment="Center" FontWeight="Bold" />
           <NumericUpDown Name="BeatErrorAcceptMagSpinBox" Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="2"
+                         views:NumericInputGuard.Enabled="True"
                          Margin="6,3"
                          Height="32"
                          AutomationProperties.Name="Beat Error band magnitude, symmetric (± ms)"
-                         Value="{Binding BeatErrorAcceptMag, Mode=TwoWay}"
+                         Value="{Binding BeatErrorAcceptMag, Mode=TwoWay, Converter={StaticResource NumericDefault}}"
                          FontWeight="Bold" FormatString="'±'0.0' ms'"
                          Minimum="0.1" Maximum="10" Increment="0.1"
                          ToolTip.Tip="Beat Error normal band, symmetric about zero (± ms)" />
@@ -321,10 +333,11 @@
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Verdict Beats"
                      VerticalAlignment="Center" FontWeight="Bold" />
           <NumericUpDown Name="VerdictMinimumBeatsSpinBox" Grid.Row="0" Grid.Column="1"
+                         views:NumericInputGuard.Enabled="True"
                          Margin="6,3"
                          Height="32"
                          AutomationProperties.Name="Verdict minimum beats"
-                         Value="{Binding VerdictMinimumBeats, Mode=TwoWay}"
+                         Value="{Binding VerdictMinimumBeats, Mode=TwoWay, Converter={StaticResource NumericDefault}}"
                          IsEnabled="{Binding AreRunParametersEnabled}"
                          FontWeight="Bold" FormatString="0' beats'"
                          Minimum="1" Maximum="999" Increment="1"

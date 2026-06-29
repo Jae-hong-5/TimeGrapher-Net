@@ -162,7 +162,11 @@ public sealed class MainWindowRunControlWiringTests
 
         Assert.Equal("NumericUpDown", averagingPeriodInput.Name.LocalName);
         Assert.Equal("{Binding AreRunParametersEnabled}", averagingPeriodInput.Attribute("IsEnabled")?.Value);
-        Assert.Equal("{Binding AveragingPeriod, Mode=TwoWay}", averagingPeriodInput.Attribute("Value")?.Value);
+        // The field binds through NumericDefaultConverter (+ NumericInputGuard) so a
+        // cleared field does not push null onto the non-nullable VM decimal.
+        Assert.Equal(
+            "{Binding AveragingPeriod, Mode=TwoWay, Converter={StaticResource NumericDefault}}",
+            averagingPeriodInput.Attribute("Value")?.Value);
         Assert.Equal("1", averagingPeriodInput.Attribute("Minimum")?.Value);
         Assert.Equal("240", averagingPeriodInput.Attribute("Maximum")?.Value);
         Assert.Equal("1", averagingPeriodInput.Attribute("Increment")?.Value);
@@ -444,7 +448,11 @@ public sealed class MainWindowRunControlWiringTests
         XElement verdictBeatsInput = FindNamedElement(document, "VerdictMinimumBeatsSpinBox");
         Assert.Equal("NumericUpDown", verdictBeatsInput.Name.LocalName);
         Assert.Equal("Verdict minimum beats", verdictBeatsInput.Attribute("AutomationProperties.Name")?.Value);
-        Assert.Equal("{Binding VerdictMinimumBeats, Mode=TwoWay}", verdictBeatsInput.Attribute("Value")?.Value);
+        // Binds through NumericDefaultConverter (+ NumericInputGuard) so a cleared
+        // field does not push null onto the non-nullable VM decimal.
+        Assert.Equal(
+            "{Binding VerdictMinimumBeats, Mode=TwoWay, Converter={StaticResource NumericDefault}}",
+            verdictBeatsInput.Attribute("Value")?.Value);
         Assert.Equal("1", verdictBeatsInput.Attribute("Minimum")?.Value);
         Assert.Equal("999", verdictBeatsInput.Attribute("Maximum")?.Value);
         Assert.Equal("1", verdictBeatsInput.Attribute("Increment")?.Value);
