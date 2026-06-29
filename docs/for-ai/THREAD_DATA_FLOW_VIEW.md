@@ -8,14 +8,11 @@
 flowchart LR
     UI["UI Thread<br/>run control + graph rendering"]
     Input["Input Worker Thread<br/>live / playback / simulation"]
-    Buffer["MasterAudioBuffer<br/>shared ring buffer"]
     Analysis["AnalysisWorker Thread<br/>signal analysis + AnalysisFrame"]
     Writers["Optional Writer Threads<br/>WAV / measurement CSV / perf CSV"]
 
     UI -->|"start / stop / pause"| Input
-    Input -->|"sample blocks"| Buffer
-    Input -.->|"DataReady signal"| Analysis
-    Buffer -->|"copied sample blocks"| Analysis
+    Input -->|"sample blocks via MasterAudioBuffer<br/>+ DataReady signal"| Analysis
     Analysis -->|"AnalysisFrameReady(frame)"| UI
     Analysis -.->|"optional recording blocks"| Writers
     UI -.->|"optional displayed-frame logs"| Writers
@@ -27,14 +24,11 @@ flowchart LR
 sequenceDiagram
     participant U as UI thread
     participant I as Input worker thread
-    participant B as MasterAudioBuffer
     participant A as AnalysisWorker thread
     participant W as Optional writer threads
 
     U->>I: Start run
-    I->>B: Write sample blocks
-    I-->>A: DataReady signal
-    A->>B: Copy pending samples
+    I-->>A: Sample blocks via MasterAudioBuffer + DataReady
     A-->>W: Optional recording blocks
     A-->>U: AnalysisFrameReady(frame)
     U-->>W: Optional displayed-frame log entries
@@ -45,8 +39,7 @@ sequenceDiagram
 | Execution context | Owns | Sends | Receives |
 |---|---|---|---|
 | UI thread | Run controls, tab routing, graph rendering, status/warning presentation | Start/stop commands, UI posts, optional displayed-frame log entries | `AnalysisFrame` via dispatcher post |
-| Live input callback / playback / simulation worker | Captured, decoded, or generated audio blocks | Float sample blocks into `MasterAudioBuffer`; `DataReady` signal | Pause/stop/live-adjust requests |
-| `MasterAudioBuffer` | Synchronized sample history and write stamps | Copied analysis blocks | Raw float sample writes |
+| Live input callback / playback / simulation worker | Captured, decoded, or generated audio blocks | Float sample blocks through `MasterAudioBuffer`; `DataReady` signal | Pause/stop/live-adjust requests |
 | `AnalysisWorker` thread | Detector, BPH sync, metrics, projectors, `AnalysisFrame` creation | `AnalysisFrameReady(frame)`, optional recording blocks | Wake-up signal and copied sample blocks |
 | Optional writer threads | WAV recording, measurement CSV, performance CSV | Files on disk | Bounded queue entries |
 
