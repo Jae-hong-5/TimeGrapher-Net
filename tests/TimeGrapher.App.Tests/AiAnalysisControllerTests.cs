@@ -91,6 +91,43 @@ public sealed class AiAnalysisControllerTests : IDisposable
     }
 
     [Fact]
+    public async Task AnalyzeAsync_ClosingProgressWindowCancelsInFlightRequest()
+    {
+        string logPath = WriteTempLog("log");
+        var dialogs = new FakeDialogs
+        {
+            MeasurementLogPath = logPath,
+            DialogResult = new AiAnalysisDialogResult(
+                AiAnalysisService.PrimaryBackendBaseUrl,
+                "grader",
+                "secret",
+                RememberCredentials: false,
+                ConsentGranted: true)
+        };
+        var requestStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var ai = new FakeAiAnalysisService
+        {
+            RequestStarted = requestStarted,
+            AwaitCancellation = true
+        };
+        var controller = new AiAnalysisController(
+            dialogs,
+            ai,
+            new FakeCredentialStore { ProbeResult = true });
+
+        Task run = controller.AnalyzeAsync();
+        await requestStarted.Task.WaitAsync(TimeSpan.FromSeconds(1));
+
+        // The request is in flight; closing the progress window must cancel its token.
+        dialogs.LastDisplaySession!.RaiseClosed();
+        await run.WaitAsync(TimeSpan.FromSeconds(1));
+
+        Assert.True(ai.LastCancellationToken.IsCancellationRequested);
+        Assert.Null(dialogs.LastDisplay);
+        Assert.NotNull(dialogs.LastFailure);
+    }
+
+    [Fact]
     public async Task AnalyzeAsync_RememberCredentialsSavesToCredentialStore()
     {
         string logPath = WriteTempLog("log");
@@ -222,6 +259,41 @@ public sealed class AiAnalysisControllerTests : IDisposable
     }
 
     [Fact]
+    public async Task AnalyzeAsync_UncheckedRememberSurfacesErrorWhenDeleteFails()
+    {
+        string logPath = WriteTempLog("log");
+        var dialogs = new FakeDialogs
+        {
+            MeasurementLogPath = logPath,
+            DialogResult = new AiAnalysisDialogResult(
+                AiAnalysisService.PrimaryBackendBaseUrl,
+                "grader",
+                "secret",
+                RememberCredentials: false,
+                ConsentGranted: true)
+        };
+        var store = new FakeCredentialStore
+        {
+            ProbeResult = true,
+            ReadResult = new AiBackendCredentials("saved", "saved-secret"),
+            DeleteResult = false
+        };
+        var ai = new FakeAiAnalysisService();
+        var controller = new AiAnalysisController(dialogs, ai, store);
+
+        await controller.AnalyzeAsync();
+
+        // The backend call still succeeded (the result is shown), but the credential
+        // removal failed, so the controller must surface the credential-update error
+        // path instead of silently reporting success.
+        Assert.True(store.DeleteCalled);
+        Assert.NotNull(dialogs.LastDisplay);
+        Assert.Contains(
+            dialogs.Errors,
+            error => error.Message.Contains("could not be removed", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public async Task AnalyzeAsync_OversizedLogDoesNotCallBackend()
     {
         string logPath = WriteTempLog(new string('x', AiAnalysisService.MaxLogChars + 1));
@@ -325,9 +397,15 @@ public sealed class AiAnalysisControllerTests : IDisposable
 
     private sealed class FakeAiAnalysisDisplaySession : IAiAnalysisDisplaySession
     {
+        private Action? _onClosed;
+
         public List<string> StatusTexts { get; } = new();
         public AiAnalysisDisplay? LastDisplay { get; private set; }
         public AiAnalysisFailureDisplay? LastFailure { get; private set; }
+
+        public void OnClosed(Action callback) => _onClosed += callback;
+
+        public void RaiseClosed() => _onClosed?.Invoke();
 
         public Task ShowStatusAsync(string statusText)
         {
@@ -352,6 +430,7 @@ public sealed class AiAnalysisControllerTests : IDisposable
     {
         public bool ProbeResult { get; init; }
         public AiBackendCredentials? ReadResult { get; init; }
+        public bool DeleteResult { get; init; } = true;
         public AiBackendCredentials? SavedCredentials { get; private set; }
         public bool DeleteCalled { get; private set; }
 
@@ -365,10 +444,10 @@ public sealed class AiAnalysisControllerTests : IDisposable
             return Task.FromResult(true);
         }
 
-        public Task DeleteAsync(CancellationToken cancellationToken)
+        public Task<bool> DeleteAsync(CancellationToken cancellationToken)
         {
             DeleteCalled = true;
-            return Task.CompletedTask;
+            return Task.FromResult(DeleteResult);
         }
     }
 
@@ -378,11 +457,13 @@ public sealed class AiAnalysisControllerTests : IDisposable
         public string? LastLogText { get; private set; }
         public AiBackendCredentials? LastCredentials { get; private set; }
         public bool? LastConsentGranted { get; private set; }
+        public CancellationToken LastCancellationToken { get; private set; }
         public AiAnalysisServiceException? Exception { get; init; }
         public TaskCompletionSource<bool>? RequestStarted { get; init; }
         public Task<AiAnalysisResult>? ResultTask { get; init; }
+        public bool AwaitCancellation { get; init; }
 
-        public Task<AiAnalysisResult> AnalyzeMeasurementLogAsync(
+        public async Task<AiAnalysisResult> AnalyzeMeasurementLogAsync(
             string backendBaseUrl,
             string logText,
             AiBackendCredentials credentials,
@@ -393,6 +474,7 @@ public sealed class AiAnalysisControllerTests : IDisposable
             LastLogText = logText;
             LastCredentials = credentials;
             LastConsentGranted = consentGranted;
+            LastCancellationToken = cancellationToken;
             RequestStarted?.TrySetResult(true);
 
             if (Exception != null)
@@ -400,7 +482,22 @@ public sealed class AiAnalysisControllerTests : IDisposable
                 throw Exception;
             }
 
-            return ResultTask ?? Task.FromResult(new AiAnalysisResult("rid", "설명", "gemini-test"));
+            if (AwaitCancellation)
+            {
+                // Block until the request token is cancelled (the progress window
+                // closing), then surface cancellation like the real HTTP client would.
+                var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                using (cancellationToken.Register(() => tcs.TrySetResult(true)))
+                {
+                    await tcs.Task;
+                }
+
+                cancellationToken.ThrowIfCancellationRequested();
+            }
+
+            return ResultTask != null
+                ? await ResultTask
+                : new AiAnalysisResult("rid", "설명", "gemini-test");
         }
     }
 }

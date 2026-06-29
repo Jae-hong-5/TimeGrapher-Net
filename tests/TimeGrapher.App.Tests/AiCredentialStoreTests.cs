@@ -50,10 +50,17 @@ public sealed class AiCredentialStoreTests
             return Task.FromResult(_backing.TryGetValue(targetName, out string? json) ? json : null);
         }
 
-        protected override Task DeleteJsonAsync(string targetName, CancellationToken cancellationToken)
+        public bool DeleteSucceeds { get; set; } = true;
+
+        protected override Task<bool> DeleteJsonAsync(string targetName, CancellationToken cancellationToken)
         {
+            if (!DeleteSucceeds)
+            {
+                return Task.FromResult(false);
+            }
+
             _backing.Remove(targetName);
-            return Task.CompletedTask;
+            return Task.FromResult(true);
         }
     }
 
@@ -90,11 +97,26 @@ public sealed class AiCredentialStoreTests
     }
 
     [Fact]
+    public async Task DeleteAsync_ReportsUnderlyingSuccessAndFailure()
+    {
+        var store = new InMemoryJsonStore();
+        await store.SaveAsync(new AiBackendCredentials("grader", "secret"), CancellationToken.None);
+
+        Assert.True(await store.DeleteAsync(CancellationToken.None));
+
+        // A keystore that cannot remove the credential must report failure, not success.
+        store.DeleteSucceeds = false;
+        Assert.False(await store.DeleteAsync(CancellationToken.None));
+    }
+
+    [Fact]
     public async Task NullStore_FailsClosed()
     {
         IAiCredentialStore store = NullAiCredentialStore.Instance;
 
         Assert.False(await store.ProbeAsync(CancellationToken.None));
         Assert.Null(await store.ReadAsync(CancellationToken.None));
+        // Fail-closed: an unsupported OS cannot confirm a removal succeeded.
+        Assert.False(await store.DeleteAsync(CancellationToken.None));
     }
 }

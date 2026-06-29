@@ -14,7 +14,7 @@ internal interface IAiCredentialStore
 
     Task<bool> SaveAsync(AiBackendCredentials credentials, CancellationToken cancellationToken);
 
-    Task DeleteAsync(CancellationToken cancellationToken);
+    Task<bool> DeleteAsync(CancellationToken cancellationToken);
 }
 
 internal static class AiCredentialStore
@@ -49,7 +49,9 @@ internal sealed class NullAiCredentialStore : IAiCredentialStore
 
     public Task<bool> SaveAsync(AiBackendCredentials credentials, CancellationToken cancellationToken) => Task.FromResult(false);
 
-    public Task DeleteAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+    // Fail-closed: an unsupported OS has no credential store, so a removal cannot be
+    // confirmed as having succeeded.
+    public Task<bool> DeleteAsync(CancellationToken cancellationToken) => Task.FromResult(false);
 }
 
 internal abstract class JsonAiCredentialStore : IAiCredentialStore
@@ -81,7 +83,7 @@ internal abstract class JsonAiCredentialStore : IAiCredentialStore
     public Task<bool> SaveAsync(AiBackendCredentials credentials, CancellationToken cancellationToken) =>
         SaveJsonAsync(TargetName, Serialize(credentials), cancellationToken);
 
-    public Task DeleteAsync(CancellationToken cancellationToken) => DeleteJsonAsync(TargetName, cancellationToken);
+    public Task<bool> DeleteAsync(CancellationToken cancellationToken) => DeleteJsonAsync(TargetName, cancellationToken);
 
     protected abstract string TargetName { get; }
 
@@ -91,7 +93,7 @@ internal abstract class JsonAiCredentialStore : IAiCredentialStore
 
     protected abstract Task<string?> ReadJsonAsync(string targetName, CancellationToken cancellationToken);
 
-    protected abstract Task DeleteJsonAsync(string targetName, CancellationToken cancellationToken);
+    protected abstract Task<bool> DeleteJsonAsync(string targetName, CancellationToken cancellationToken);
 
     private static string Serialize(AiBackendCredentials credentials) => JsonSerializer.Serialize(credentials);
 
@@ -167,10 +169,9 @@ internal sealed class WindowsAiCredentialStore : JsonAiCredentialStore
         }
     }
 
-    protected override Task DeleteJsonAsync(string targetName, CancellationToken cancellationToken)
+    protected override Task<bool> DeleteJsonAsync(string targetName, CancellationToken cancellationToken)
     {
-        CredDelete(targetName, CredentialTypeGeneric, 0);
-        return Task.CompletedTask;
+        return Task.FromResult(CredDelete(targetName, CredentialTypeGeneric, 0));
     }
 
     [DllImport("advapi32.dll", EntryPoint = "CredWriteW", CharSet = CharSet.Unicode, SetLastError = true)]
@@ -235,12 +236,13 @@ internal sealed class LinuxSecretToolAiCredentialStore : JsonAiCredentialStore
             : null;
     }
 
-    protected override async Task DeleteJsonAsync(string targetName, CancellationToken cancellationToken)
+    protected override async Task<bool> DeleteJsonAsync(string targetName, CancellationToken cancellationToken)
     {
-        await RunSecretToolAsync(
+        SecretToolResult result = await RunSecretToolAsync(
             new[] { "clear", "app", "timegrapher", "service", targetName },
             null,
             cancellationToken);
+        return result.ExitCode == 0;
     }
 
     private static async Task<SecretToolResult> RunSecretToolAsync(

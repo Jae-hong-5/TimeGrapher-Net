@@ -301,6 +301,9 @@ internal sealed class MainWindowDialogService : ITimeGrapherDialogService
         dialog.Content = panel;
 
         var session = new AiAnalysisDisplaySession(display.BackendBaseUrl, details, contentHost, close);
+        // The progress window is non-modal: closing it (title-bar X / Close button)
+        // must cancel the in-flight request whose result it would otherwise display.
+        dialog.Closed += (_, _) => session.RaiseClosed();
         await session.ShowStatusAsync(display.StatusText);
         dialog.Show(_owner);
         return session;
@@ -312,6 +315,8 @@ internal sealed class MainWindowDialogService : ITimeGrapherDialogService
         private readonly TextBlock _details;
         private readonly ContentControl _contentHost;
         private readonly Button _close;
+        private Action? _onClosed;
+        private bool _closed;
 
         public AiAnalysisDisplaySession(
             string backendBaseUrl,
@@ -323,6 +328,25 @@ internal sealed class MainWindowDialogService : ITimeGrapherDialogService
             _details = details;
             _contentHost = contentHost;
             _close = close;
+        }
+
+        public void OnClosed(Action callback)
+        {
+            // If the window already closed before the controller registered (it awaits
+            // ShowStatusAsync first), fire immediately so the cancellation is not lost.
+            if (_closed)
+            {
+                callback();
+                return;
+            }
+
+            _onClosed += callback;
+        }
+
+        public void RaiseClosed()
+        {
+            _closed = true;
+            _onClosed?.Invoke();
         }
 
         public Task ShowStatusAsync(string statusText)

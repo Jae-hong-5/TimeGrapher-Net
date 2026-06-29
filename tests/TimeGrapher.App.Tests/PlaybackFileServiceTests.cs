@@ -144,5 +144,6 @@ public sealed class PlaybackFileServiceTests
         public Task ShowStatusAsync(string statusText) => Task.CompletedTask;
         public Task ShowResultAsync(AiAnalysisDisplay display) => Task.CompletedTask;
         public Task ShowFailureAsync(AiAnalysisFailureDisplay failure) => Task.CompletedTask;
+        public void OnClosed(Action callback) { }
     }
 }

@@ -115,6 +115,13 @@ internal sealed class AiAnalysisController : IAiAnalysisRunner
             new AiAnalysisProgressDisplay(
                 normalizedBackendBaseUrl,
                 "Preparing AI analysis request."));
+
+        // Tie the request lifetime to the (non-modal) progress window: closing it
+        // cancels the in-flight backend call and the credential-store update.
+        using var requestCts = new CancellationTokenSource();
+        displaySession.OnClosed(requestCts.Cancel);
+        CancellationToken requestToken = requestCts.Token;
+
         await displaySession.ShowStatusAsync("Sending selected measurement log to the AI backend. Waiting for response.");
 
         AiAnalysisResult result;
@@ -125,7 +132,7 @@ internal sealed class AiAnalysisController : IAiAnalysisRunner
                 logText,
                 credentials,
                 dialogResult.ConsentGranted,
-                CancellationToken.None);
+                requestToken);
         }
         catch (AiAnalysisServiceException ex)
         {
@@ -133,6 +140,13 @@ internal sealed class AiAnalysisController : IAiAnalysisRunner
             return;
         }
         catch (TaskCanceledException)
+        {
+            await displaySession.ShowFailureAsync(new AiAnalysisFailureDisplay(
+                "AI analysis request was canceled or timed out.",
+                RequestId: null));
+            return;
+        }
+        catch (OperationCanceledException)
         {
             await displaySession.ShowFailureAsync(new AiAnalysisFailureDisplay(
                 "AI analysis request was canceled or timed out.",
@@ -149,7 +163,8 @@ internal sealed class AiAnalysisController : IAiAnalysisRunner
         string? credentialUpdateError = await UpdateCredentialStoreAfterSuccessAsync(
             dialogResult,
             credentials,
-            credentialStoreAvailable);
+            credentialStoreAvailable,
+            requestToken);
         if (credentialUpdateError != null)
         {
             await _dialogs.ShowErrorAsync("AI Analysis", credentialUpdateError);
@@ -159,7 +174,8 @@ internal sealed class AiAnalysisController : IAiAnalysisRunner
     private async Task<string?> UpdateCredentialStoreAfterSuccessAsync(
         AiAnalysisDialogResult dialogResult,
         AiBackendCredentials credentials,
-        bool credentialStoreAvailable)
+        bool credentialStoreAvailable,
+        CancellationToken cancellationToken)
     {
         if (!credentialStoreAvailable)
         {
@@ -170,14 +186,16 @@ internal sealed class AiAnalysisController : IAiAnalysisRunner
         {
             if (dialogResult.RememberCredentials)
             {
-                bool saved = await _credentialStore.SaveAsync(credentials, CancellationToken.None);
+                bool saved = await _credentialStore.SaveAsync(credentials, cancellationToken);
                 return saved
                     ? null
                     : "Credentials could not be saved by the operating system credential store. This request completed without changing saved login state.";
             }
 
-            await _credentialStore.DeleteAsync(CancellationToken.None);
-            return null;
+            bool deleted = await _credentialStore.DeleteAsync(cancellationToken);
+            return deleted
+                ? null
+                : "Saved login could not be removed by the operating system credential store. This request completed without changing saved login state.";
         }
         catch (IOException)
         {

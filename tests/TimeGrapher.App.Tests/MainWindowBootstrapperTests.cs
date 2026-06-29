@@ -53,7 +53,7 @@ public sealed class MainWindowBootstrapperTests : IDisposable
         public Task<bool> StartPlaybackAsync() => Task.FromResult(false);
         public Task<bool> StartSimulationAsync() => Task.FromResult(false);
         public void SetWorkersPaused(bool paused) { }
-        public void CleanupFailedStart() { }
+        public RunCommandStopOutcome CleanupFailedStart() => RunCommandStopOutcome.Stopped;
         public Task ShowStartFailureAsync(Exception exception) => Task.CompletedTask;
         public RunCommandStopOutcome StopLive() => RunCommandStopOutcome.Stopped;
         public RunCommandStopOutcome StopPlayback() => RunCommandStopOutcome.Stopped;
@@ -82,6 +82,7 @@ public sealed class MainWindowBootstrapperTests : IDisposable
         public Task ShowStatusAsync(string statusText) => Task.CompletedTask;
         public Task ShowResultAsync(AiAnalysisDisplay display) => Task.CompletedTask;
         public Task ShowFailureAsync(AiAnalysisFailureDisplay failure) => Task.CompletedTask;
+        public void OnClosed(Action callback) { }
     }
 
     private sealed class FakeAcceptBandOperations : IAcceptBandOperations
