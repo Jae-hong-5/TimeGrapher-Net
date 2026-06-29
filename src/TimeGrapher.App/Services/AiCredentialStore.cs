@@ -277,10 +277,12 @@ internal sealed class LinuxSecretToolAiCredentialStore : JsonAiCredentialStore
             }
 
             Task<string> stdoutTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
+            Task<string> stderrTask = process.StandardError.ReadToEndAsync(cancellationToken);
             using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             timeoutCts.CancelAfter(CommandTimeout);
             await process.WaitForExitAsync(timeoutCts.Token);
             string stdout = await stdoutTask;
+            _ = await stderrTask;
             return new SecretToolResult(process.ExitCode, stdout);
         }
         catch (Win32Exception)

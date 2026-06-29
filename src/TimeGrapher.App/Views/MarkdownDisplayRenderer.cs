@@ -7,6 +7,12 @@ namespace TimeGrapher.App.Views;
 
 internal static class MarkdownDisplayRenderer
 {
+    private const int MaxMarkdownChars = 32_000;
+    private const int MaxBlocks = 200;
+    private const int MaxTableRows = 40;
+    private const int MaxTableColumns = 6;
+    private const string TruncationNotice = "AI explanation truncated for display.";
+
     public static Control Render(string markdown)
     {
         var panel = new StackPanel
@@ -14,7 +20,9 @@ internal static class MarkdownDisplayRenderer
             Spacing = 8,
         };
 
-        string[] lines = markdown.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n');
+        bool inputTruncated = markdown.Length > MaxMarkdownChars;
+        string source = inputTruncated ? markdown[..MaxMarkdownChars] : markdown;
+        string[] lines = source.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n');
         for (int i = 0; i < lines.Length; i++)
         {
             string line = lines[i].TrimEnd();
@@ -26,13 +34,18 @@ internal static class MarkdownDisplayRenderer
 
             if (IsRule(trimmed))
             {
-                panel.Children.Add(new Border
+                if (!TryAddBlock(panel, new Border
                 {
                     Height = 1,
                     Background = Brushes.Gray,
                     Opacity = 0.35,
                     Margin = new Thickness(0, 2),
-                });
+                }))
+                {
+                    AddTruncationNotice(panel);
+                    return panel;
+                }
+
                 continue;
             }
 
@@ -46,26 +59,41 @@ internal static class MarkdownDisplayRenderer
                 }
 
                 i--;
-                panel.Children.Add(BuildTable(tableLines));
+                if (!TryAddBlock(panel, BuildTable(tableLines)))
+                {
+                    AddTruncationNotice(panel);
+                    return panel;
+                }
+
                 continue;
             }
 
             if (TryParseHeading(trimmed, out int level, out string heading))
             {
-                panel.Children.Add(new TextBlock
+                if (!TryAddBlock(panel, new TextBlock
                 {
                     Text = StripInlineMarkdown(heading),
                     TextWrapping = TextWrapping.Wrap,
                     FontWeight = FontWeight.Bold,
                     FontSize = level <= 1 ? 20 : level == 2 ? 17 : 15,
                     Margin = new Thickness(0, level <= 2 ? 8 : 4, 0, 0),
-                });
+                }))
+                {
+                    AddTruncationNotice(panel);
+                    return panel;
+                }
+
                 continue;
             }
 
             if (TryParseListItem(trimmed, out string marker, out string itemText))
             {
-                panel.Children.Add(BuildListItem(marker, itemText));
+                if (!TryAddBlock(panel, BuildListItem(marker, itemText)))
+                {
+                    AddTruncationNotice(panel);
+                    return panel;
+                }
+
                 continue;
             }
 
@@ -76,12 +104,21 @@ internal static class MarkdownDisplayRenderer
                 paragraph.Add(lines[i].Trim());
             }
 
-            panel.Children.Add(new TextBlock
+            if (!TryAddBlock(panel, new TextBlock
             {
                 Text = StripInlineMarkdown(string.Join(' ', paragraph)),
                 TextWrapping = TextWrapping.Wrap,
                 LineHeight = 20,
-            });
+            }))
+            {
+                AddTruncationNotice(panel);
+                return panel;
+            }
+        }
+
+        if (inputTruncated)
+        {
+            AddTruncationNotice(panel);
         }
 
         return panel;
@@ -168,16 +205,22 @@ internal static class MarkdownDisplayRenderer
 
     private static Control BuildTable(IReadOnlyList<string> tableLines)
     {
-        string[][] rows = tableLines
+        string[][] allRows = tableLines
             .Where(static line => !IsTableSeparator(line))
             .Select(SplitTableLine)
             .Where(static cells => cells.Length > 0)
             .ToArray();
-        if (rows.Length == 0)
+        if (allRows.Length == 0)
         {
             return new TextBlock { Text = string.Join(Environment.NewLine, tableLines), TextWrapping = TextWrapping.Wrap };
         }
 
+        bool truncatedRows = allRows.Length > MaxTableRows;
+        bool truncatedColumns = allRows.Any(static row => row.Length > MaxTableColumns);
+        string[][] rows = allRows
+            .Take(MaxTableRows)
+            .Select(static row => row.Take(MaxTableColumns).ToArray())
+            .ToArray();
         int columnCount = rows.Max(static row => row.Length);
         var grid = new Grid
         {
@@ -208,6 +251,14 @@ internal static class MarkdownDisplayRenderer
             }
         }
 
+        if (truncatedRows || truncatedColumns)
+        {
+            var panel = new StackPanel { Spacing = 4 };
+            panel.Children.Add(grid);
+            panel.Children.Add(BuildTruncationText());
+            return panel;
+        }
+
         return grid;
     }
 
@@ -226,6 +277,27 @@ internal static class MarkdownDisplayRenderer
 
         return content.All(static c => c is '-' or ':' or '|' or ' ');
     }
+
+    private static bool TryAddBlock(StackPanel panel, Control control)
+    {
+        if (panel.Children.Count >= MaxBlocks)
+        {
+            return false;
+        }
+
+        panel.Children.Add(control);
+        return true;
+    }
+
+    private static void AddTruncationNotice(StackPanel panel) => panel.Children.Add(BuildTruncationText());
+
+    private static TextBlock BuildTruncationText() => new()
+    {
+        Text = TruncationNotice,
+        TextWrapping = TextWrapping.Wrap,
+        FontStyle = FontStyle.Italic,
+        Opacity = 0.8,
+    };
 
     private static string StripInlineMarkdown(string text) => text
         .Replace("**", string.Empty, StringComparison.Ordinal)

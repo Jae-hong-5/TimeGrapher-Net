@@ -25,4 +25,48 @@ public sealed class MarkdownDisplayRendererTests
         Assert.IsType<Grid>(panel.Children[1]);
         Assert.IsType<Grid>(panel.Children[2]);
     }
+
+    [Fact]
+    public void Render_TruncatesLongInputForDisplay()
+    {
+        HeadlessPlatform.EnsureStarted();
+
+        Control rendered = MarkdownDisplayRenderer.Render(new string('x', 33_000));
+
+        var panel = Assert.IsType<StackPanel>(rendered);
+        Assert.Equal(2, panel.Children.Count);
+        var notice = Assert.IsType<TextBlock>(panel.Children[1]);
+        Assert.Contains("truncated", notice.Text);
+    }
+
+    [Fact]
+    public void Render_LimitsBlockCount()
+    {
+        HeadlessPlatform.EnsureStarted();
+        string markdown = string.Join('\n', Enumerable.Range(0, 240).Select(static i => "- item " + i));
+
+        Control rendered = MarkdownDisplayRenderer.Render(markdown);
+
+        var panel = Assert.IsType<StackPanel>(rendered);
+        Assert.True(panel.Children.Count <= 201);
+        var notice = Assert.IsType<TextBlock>(panel.Children[^1]);
+        Assert.Contains("truncated", notice.Text);
+    }
+
+    [Fact]
+    public void Render_LimitsLargeTables()
+    {
+        HeadlessPlatform.EnsureStarted();
+        string header = "| c1 | c2 | c3 | c4 | c5 | c6 | c7 |";
+        string separator = "|---|---|---|---|---|---|---|";
+        string rows = string.Join('\n', Enumerable.Range(0, 45).Select(static i => $"| {i} | a | b | c | d | e | f |"));
+
+        Control rendered = MarkdownDisplayRenderer.Render(string.Join('\n', header, separator, rows));
+
+        var panel = Assert.IsType<StackPanel>(rendered);
+        var tableWrapper = Assert.IsType<StackPanel>(panel.Children[0]);
+        Assert.IsType<Grid>(tableWrapper.Children[0]);
+        var notice = Assert.IsType<TextBlock>(tableWrapper.Children[1]);
+        Assert.Contains("truncated", notice.Text);
+    }
 }

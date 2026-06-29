@@ -11,6 +11,7 @@ internal interface IAiExplanationService
         string backendBaseUrl,
         string logText,
         AiBackendCredentials credentials,
+        bool consentGranted,
         CancellationToken cancellationToken);
 }
 
@@ -18,6 +19,9 @@ internal sealed class AiExplanationService : IAiExplanationService
 {
     public const string PrimaryBackendBaseUrl = "https://tg-ai.jaehongoh.com";
     public const string AwsBackendBaseUrl = "https://tg-ai-cmu-aws.jaehongoh.com";
+    public const int MaxLogChars = 90_000;
+    public const int MaxLogFileBytes = MaxLogChars * 4 + 4096;
+    public const int MaxResponseChars = 64_000;
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -47,11 +51,30 @@ internal sealed class AiExplanationService : IAiExplanationService
         string backendBaseUrl,
         string logText,
         AiBackendCredentials credentials,
+        bool consentGranted,
         CancellationToken cancellationToken)
     {
+        if (!consentGranted)
+        {
+            throw new AiExplanationServiceException(
+                HttpStatusCode.BadRequest,
+                null,
+                "missing_consent",
+                "Consent is required before uploading the measurement log.");
+        }
+
+        if (logText.Length > MaxLogChars)
+        {
+            throw new AiExplanationServiceException(
+                HttpStatusCode.RequestEntityTooLarge,
+                null,
+                "log_too_large",
+                "Measurement log is too large. Use a shorter log or smaller measurement window.");
+        }
+
         string normalizedBaseUrl = NormalizeApprovedBackendBaseUrl(backendBaseUrl);
         var requestBody = new AiExplanationRequest(
-            ConsentGranted: true,
+            ConsentGranted: consentGranted,
             Locale: "ko-KR",
             AppVersion: AppVersionInfo.Current,
             LogText: logText);
@@ -65,33 +88,86 @@ internal sealed class AiExplanationService : IAiExplanationService
         request.Headers.Authorization = new AuthenticationHeaderValue("Basic", encoded);
         request.Content = new StringContent(json, Encoding.UTF8, "application/json");
 
-        using HttpResponseMessage response = await _httpClient.SendAsync(
-            request,
-            HttpCompletionOption.ResponseHeadersRead,
-            cancellationToken);
-        string responseText = await response.Content.ReadAsStringAsync(cancellationToken);
-
-        if (response.IsSuccessStatusCode)
+        HttpResponseMessage response;
+        try
         {
-            AiExplanationResult? result = JsonSerializer.Deserialize<AiExplanationResult>(responseText, JsonOptions);
-            if (result is { Explanation.Length: > 0 })
-            {
-                return result;
-            }
-
+            response = await _httpClient.SendAsync(
+                request,
+                HttpCompletionOption.ResponseHeadersRead,
+                cancellationToken);
+        }
+        catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
             throw new AiExplanationServiceException(
-                response.StatusCode,
+                HttpStatusCode.GatewayTimeout,
                 null,
-                "invalid_success_response",
-                "AI explanation response was invalid.");
+                "request_timeout",
+                "AI explanation request timed out. Please retry with the same log or use the AWS backend.");
+        }
+        catch (HttpRequestException)
+        {
+            throw new AiExplanationServiceException(
+                0,
+                null,
+                "transport_error",
+                "AI explanation backend could not be reached. Check the network or try the AWS backend.");
         }
 
-        AiExplanationError? error = TryParseError(responseText);
-        throw new AiExplanationServiceException(
-            response.StatusCode,
-            error?.RequestId,
-            error?.Error ?? "http_error",
-            MapUserMessage(response.StatusCode, error?.Message));
+        using (response)
+        {
+            string responseText;
+            try
+            {
+                responseText = await ReadResponseTextAsync(response, cancellationToken);
+            }
+            catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested)
+            {
+                throw new AiExplanationServiceException(
+                    HttpStatusCode.GatewayTimeout,
+                    null,
+                    "request_timeout",
+                    "AI explanation request timed out. Please retry with the same log or use the AWS backend.");
+            }
+            catch (IOException)
+            {
+                throw new AiExplanationServiceException(
+                    0,
+                    null,
+                    "transport_error",
+                    "AI explanation backend could not be reached. Check the network or try the AWS backend.");
+            }
+
+            if (response.IsSuccessStatusCode)
+            {
+                AiExplanationResult? result;
+                try
+                {
+                    result = JsonSerializer.Deserialize<AiExplanationResult>(responseText, JsonOptions);
+                }
+                catch (JsonException)
+                {
+                    result = null;
+                }
+
+                if (result is { Explanation.Length: > 0 })
+                {
+                    return result;
+                }
+
+                throw new AiExplanationServiceException(
+                    response.StatusCode,
+                    null,
+                    "invalid_success_response",
+                    "AI explanation response was invalid.");
+            }
+
+            AiExplanationError? error = TryParseError(responseText);
+            throw new AiExplanationServiceException(
+                response.StatusCode,
+                error?.RequestId,
+                error?.Error ?? "http_error",
+                MapUserMessage(response.StatusCode, error?.Message));
+        }
     }
 
     public static string NormalizeApprovedBackendBaseUrl(string backendBaseUrl)
@@ -126,6 +202,45 @@ internal sealed class AiExplanationService : IAiExplanationService
             return null;
         }
     }
+
+    private static async Task<string> ReadResponseTextAsync(HttpResponseMessage response, CancellationToken cancellationToken)
+    {
+        await using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+        using var reader = new StreamReader(
+            stream,
+            Encoding.UTF8,
+            detectEncodingFromByteOrderMarks: true,
+            bufferSize: 4096,
+            leaveOpen: false);
+        var builder = new StringBuilder();
+        char[] buffer = new char[4096];
+        while (true)
+        {
+            int remaining = MaxResponseChars + 1 - builder.Length;
+            if (remaining <= 0)
+            {
+                throw ResponseTooLarge(response.StatusCode);
+            }
+
+            int read = await reader.ReadAsync(buffer.AsMemory(0, Math.Min(buffer.Length, remaining)), cancellationToken);
+            if (read == 0)
+            {
+                return builder.ToString();
+            }
+
+            builder.Append(buffer, 0, read);
+            if (builder.Length > MaxResponseChars)
+            {
+                throw ResponseTooLarge(response.StatusCode);
+            }
+        }
+    }
+
+    private static AiExplanationServiceException ResponseTooLarge(HttpStatusCode statusCode) => new(
+        statusCode,
+        null,
+        "response_too_large",
+        "AI explanation response was too large.");
 
     private static string MapUserMessage(HttpStatusCode statusCode, string? backendMessage) => statusCode switch
     {

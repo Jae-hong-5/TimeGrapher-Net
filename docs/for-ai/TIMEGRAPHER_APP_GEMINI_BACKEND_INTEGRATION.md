@@ -1,6 +1,7 @@
 # TimeGrapher App Gemini Backend Integration Guide
 
-Status: implementable; backend contract is ready and app-side credential-store/log-source seams still need coding.
+Status: implemented on the app side; backend contract is ready and the remaining
+work is operational validation against deployed backend credentials.
 Allowed backend base URLs:
 
 ```text
@@ -24,10 +25,10 @@ Automatic fallback is allowed only between the two approved URLs. If fallback
 is implemented, make the chosen backend visible in diagnostics and avoid
 repeated retry loops that could multiply Gemini calls.
 
-This document is for the coding agent implementing the TimeGrapher app-side
-integration. The private backend is already deployed and is responsible for
-holding the project-owned Gemini API key, building the fixed prompt, calling
-Gemini, and returning only the generated explanation.
+This document records the TimeGrapher app-side integration. The private backend
+is already deployed and is responsible for holding the project-owned Gemini API
+key, building the fixed prompt, calling Gemini, and returning only the generated
+explanation.
 
 ## 1. Required App Behavior
 
@@ -155,6 +156,10 @@ acceptable when the user does not opt in to saving them or when the credential
 store probe fails. Do not save credentials in `AppSettings`, plain text config
 files, logs, screenshots, crash reports, or bundled assets.
 
+The app should update saved credentials only after the backend request succeeds.
+This prevents a failed `401` attempt from replacing a known-good saved login and
+prevents an unverified login attempt from deleting the previous saved state.
+
 Persistent-login targets for the first implementation:
 
 - Windows: use the OS credential store.
@@ -242,6 +247,13 @@ Current deployment settings are expected to support ordinary full CSV logs,
 including the 24 KB backend sample fixture. If a log is too large, show a
 friendly message and ask the user to shorten the log or retry with a smaller
 measurement window.
+
+The deployed backend currently uses `MAX_LOG_CHARS=100000`. The app keeps a
+client-side margin by limiting selected logs to 90,000 characters before sending
+and rejecting obviously oversized files before reading them into memory.
+
+The app also bounds response reading and display rendering so a backend or
+network problem cannot create unbounded UI work.
 
 Do not split one analysis into many backend calls unless the backend contract is
 explicitly changed later.
@@ -411,8 +423,8 @@ Add or update UI for:
 - demo username/password input
 - remember-login checkbox backed only by the OS credential store
 - disabled remember-login UI when the credential-store probe fails
-- loading state while waiting for the backend
-- cancellation support if the app already supports cancellable operations
+- duplicate-request guard while waiting for the backend
+- optional visible loading/cancellation support if the app later expands cancellable operations
 - success display for Korean explanation text
 - retry-friendly error display
 
@@ -431,9 +443,11 @@ Before considering the app-side task done, verify:
 - App rejects non-HTTPS backend URLs in production builds.
 - App sends `consentGranted=true` only after explicit user consent.
 - App sends log data as `logText`, not as prompt instructions.
+- App rejects logs above 90,000 characters before upload.
 - App handles `400`, `401`, `403`, `413`, `429`, `502`, and `503`.
 - App does not log Basic Auth headers, passwords, or full uploaded logs.
 - App stores saved demo credentials only in the OS credential store.
+- App updates saved credentials only after a successful backend response.
 - App disables credential persistence when the store/read/delete probe fails.
 - App does not put credentials into `AppSettings` or any plain text file.
 - App displays the backend `explanation` on success.

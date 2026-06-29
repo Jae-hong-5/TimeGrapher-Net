@@ -25,6 +25,7 @@ public sealed class AiExplanationServiceTests
             AiExplanationService.AwsBackendBaseUrl,
             "rate_valid,rate_s_per_day\ntrue,3.2",
             new AiBackendCredentials("grader", "secret"),
+            consentGranted: true,
             CancellationToken.None);
 
         Assert.Equal("설명", result.Explanation);
@@ -66,12 +67,100 @@ public sealed class AiExplanationServiceTests
                 AiExplanationService.PrimaryBackendBaseUrl,
                 "log",
                 new AiBackendCredentials("grader", "secret"),
+                consentGranted: true,
                 CancellationToken.None));
 
         Assert.Equal((HttpStatusCode)statusCode, ex.StatusCode);
         Assert.Equal("rid", ex.RequestId);
         Assert.Equal(errorCode, ex.Error);
         Assert.StartsWith(expectedMessagePrefix, ex.Message);
+    }
+
+    [Fact]
+    public async Task ExplainMeasurementLogAsync_RejectsMissingConsentBeforeSending()
+    {
+        using var client = new HttpClient(new CapturingHandler(_ => throw new InvalidOperationException("Should not send")));
+        var service = new AiExplanationService(client);
+
+        AiExplanationServiceException ex = await Assert.ThrowsAsync<AiExplanationServiceException>(() =>
+            service.ExplainMeasurementLogAsync(
+                AiExplanationService.PrimaryBackendBaseUrl,
+                "log",
+                new AiBackendCredentials("grader", "secret"),
+                consentGranted: false,
+                CancellationToken.None));
+
+        Assert.Equal("missing_consent", ex.Error);
+    }
+
+    [Fact]
+    public async Task ExplainMeasurementLogAsync_RejectsOversizedLogBeforeSending()
+    {
+        using var client = new HttpClient(new CapturingHandler(_ => throw new InvalidOperationException("Should not send")));
+        var service = new AiExplanationService(client);
+
+        AiExplanationServiceException ex = await Assert.ThrowsAsync<AiExplanationServiceException>(() =>
+            service.ExplainMeasurementLogAsync(
+                AiExplanationService.PrimaryBackendBaseUrl,
+                new string('x', AiExplanationService.MaxLogChars + 1),
+                new AiBackendCredentials("grader", "secret"),
+                consentGranted: true,
+                CancellationToken.None));
+
+        Assert.Equal("log_too_large", ex.Error);
+    }
+
+    [Fact]
+    public async Task ExplainMeasurementLogAsync_MapsTransportFailure()
+    {
+        using var client = new HttpClient(new CapturingHandler(_ => throw new HttpRequestException("offline")));
+        var service = new AiExplanationService(client);
+
+        AiExplanationServiceException ex = await Assert.ThrowsAsync<AiExplanationServiceException>(() =>
+            service.ExplainMeasurementLogAsync(
+                AiExplanationService.PrimaryBackendBaseUrl,
+                "log",
+                new AiBackendCredentials("grader", "secret"),
+                consentGranted: true,
+                CancellationToken.None));
+
+        Assert.Equal("transport_error", ex.Error);
+    }
+
+    [Fact]
+    public async Task ExplainMeasurementLogAsync_MapsInvalidSuccessJson()
+    {
+        using var client = new HttpClient(new CapturingHandler(_ => Task.FromResult(
+            JsonResponse(HttpStatusCode.OK, "not-json"))));
+        var service = new AiExplanationService(client);
+
+        AiExplanationServiceException ex = await Assert.ThrowsAsync<AiExplanationServiceException>(() =>
+            service.ExplainMeasurementLogAsync(
+                AiExplanationService.PrimaryBackendBaseUrl,
+                "log",
+                new AiBackendCredentials("grader", "secret"),
+                consentGranted: true,
+                CancellationToken.None));
+
+        Assert.Equal("invalid_success_response", ex.Error);
+    }
+
+    [Fact]
+    public async Task ExplainMeasurementLogAsync_RejectsOversizedResponse()
+    {
+        using var client = new HttpClient(new CapturingHandler(_ => Task.FromResult(
+            JsonResponse(HttpStatusCode.OK, new string('x', AiExplanationService.MaxResponseChars + 1)))));
+        var service = new AiExplanationService(client);
+
+        AiExplanationServiceException ex = await Assert.ThrowsAsync<AiExplanationServiceException>(() =>
+            service.ExplainMeasurementLogAsync(
+                AiExplanationService.PrimaryBackendBaseUrl,
+                "log",
+                new AiBackendCredentials("grader", "secret"),
+                consentGranted: true,
+                CancellationToken.None));
+
+        Assert.Equal("response_too_large", ex.Error);
     }
 
     private static HttpResponseMessage JsonResponse(HttpStatusCode statusCode, string json) => new(statusCode)

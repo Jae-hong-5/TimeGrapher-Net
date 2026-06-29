@@ -1,6 +1,6 @@
 # Gemini AI Access Security Decision
 
-Status: decided; implementation pending.
+Status: decided; app-side implementation present.
 Date: 2026-06-28
 
 Implementation guide: `docs/for-ai/GEMINI_BACKEND_SETUP_GUIDE.md`
@@ -40,6 +40,7 @@ Provide Gemini-powered app features without distributing the project-owned Gemin
    - On that target, enable persistent login only after the full `secret-tool store`, `lookup`, and `clear` probe succeeds.
    - This confirms the target environment can support credential-backed auto-login; the app implementation must still use the credential-store adapter and fail closed if the probe fails.
    - The Linux release installer should install `gnome-keyring` and `libsecret-tools` so Raspberry Pi users get the required Secret Service/keyring components during normal setup.
+   - Update saved demo credentials only after a backend request succeeds, so failed authentication cannot overwrite or delete a previous saved login.
    - Do not store the password in app config, plain text files, screenshots, logs, crash reports, or bundled assets.
    - Keeping credentials only in memory is still acceptable when the user does not opt in to saving them.
 
@@ -79,6 +80,7 @@ Provide Gemini-powered app features without distributing the project-owned Gemin
    - The UI must make clear that the log will be sent to the private backend for AI analysis.
    - The backend still owns the prompt template and combines the uploaded log with the server-side prompt before calling Gemini.
    - The backend must keep request size limits even if current logs are expected to be small.
+   - The app keeps a client-side margin below the deployed `MAX_LOG_CHARS=100000` by rejecting logs above 90,000 characters before upload.
    - The log-upload endpoint remains feature-specific and must not accept arbitrary prompts.
 
    Example flow:

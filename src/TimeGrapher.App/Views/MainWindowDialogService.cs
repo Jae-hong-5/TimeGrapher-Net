@@ -95,7 +95,6 @@ internal sealed class MainWindowDialogService : ITimeGrapherDialogService
             FileTypeFilter = new[]
             {
                 new FilePickerFileType("Measurement Logs") { Patterns = new[] { "*.csv", "*.log", "*.txt" } },
-                new FilePickerFileType("All Files") { Patterns = new[] { "*" } },
             },
         });
 
@@ -283,8 +282,8 @@ internal sealed class MainWindowDialogService : ITimeGrapherDialogService
         var dialog = new Window
         {
             Title = title,
-            Width = 320,
-            Height = 130,
+            Width = 420,
+            SizeToContent = SizeToContent.Height,
             CanResize = false,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
         };

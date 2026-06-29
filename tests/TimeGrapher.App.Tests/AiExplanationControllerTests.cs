@@ -1,3 +1,4 @@
+using System.Net;
 using TimeGrapher.App.Services;
 using Xunit;
 
@@ -41,6 +42,7 @@ public sealed class AiExplanationControllerTests : IDisposable
         Assert.False(dialogs.LastDialogRequest!.CredentialPersistenceAvailable);
         Assert.Equal("rate_valid,rate_s_per_day\ntrue,3.2", ai.LastLogText);
         Assert.Equal("grader", ai.LastCredentials!.Username);
+        Assert.True(ai.LastConsentGranted);
         Assert.NotNull(dialogs.LastDisplay);
         Assert.Null(store.SavedCredentials);
     }
@@ -76,6 +78,140 @@ public sealed class AiExplanationControllerTests : IDisposable
     }
 
     [Fact]
+    public async Task ExplainAsync_RememberCredentialsDoesNotSaveWhenBackendRejectsLogin()
+    {
+        string logPath = WriteTempLog("log");
+        var dialogs = new FakeDialogs
+        {
+            MeasurementLogPath = logPath,
+            DialogResult = new AiExplanationDialogResult(
+                AiExplanationService.AwsBackendBaseUrl,
+                "grader",
+                "wrong",
+                RememberCredentials: true,
+                ConsentGranted: true)
+        };
+        var store = new FakeCredentialStore
+        {
+            ProbeResult = true,
+            ReadResult = new AiBackendCredentials("saved", "saved-secret")
+        };
+        var ai = new FakeAiExplanationService
+        {
+            Exception = new AiExplanationServiceException(
+                HttpStatusCode.Unauthorized,
+                "rid",
+                "unauthorized",
+                "Demo username or password is incorrect.")
+        };
+        var controller = new AiExplanationController(dialogs, ai, store);
+
+        await controller.ExplainAsync();
+
+        Assert.Null(store.SavedCredentials);
+        Assert.False(store.DeleteCalled);
+        Assert.Null(dialogs.LastDisplay);
+        Assert.Contains(dialogs.Errors, error => error.Message.Contains("Demo username or password is incorrect.", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task ExplainAsync_UncheckedRememberDeletesSavedCredentialsAfterSuccessfulBackendCall()
+    {
+        string logPath = WriteTempLog("log");
+        var dialogs = new FakeDialogs
+        {
+            MeasurementLogPath = logPath,
+            DialogResult = new AiExplanationDialogResult(
+                AiExplanationService.PrimaryBackendBaseUrl,
+                "grader",
+                "secret",
+                RememberCredentials: false,
+                ConsentGranted: true)
+        };
+        var store = new FakeCredentialStore
+        {
+            ProbeResult = true,
+            ReadResult = new AiBackendCredentials("saved", "saved-secret")
+        };
+        var ai = new FakeAiExplanationService();
+        var controller = new AiExplanationController(dialogs, ai, store);
+
+        await controller.ExplainAsync();
+
+        Assert.Equal("log", ai.LastLogText);
+        Assert.True(store.DeleteCalled);
+    }
+
+    [Fact]
+    public async Task ExplainAsync_UncheckedRememberDoesNotDeleteSavedCredentialsWhenBackendFails()
+    {
+        string logPath = WriteTempLog("log");
+        var dialogs = new FakeDialogs
+        {
+            MeasurementLogPath = logPath,
+            DialogResult = new AiExplanationDialogResult(
+                AiExplanationService.PrimaryBackendBaseUrl,
+                "grader",
+                "wrong",
+                RememberCredentials: false,
+                ConsentGranted: true)
+        };
+        var store = new FakeCredentialStore
+        {
+            ProbeResult = true,
+            ReadResult = new AiBackendCredentials("saved", "saved-secret")
+        };
+        var ai = new FakeAiExplanationService
+        {
+            Exception = new AiExplanationServiceException(
+                HttpStatusCode.Unauthorized,
+                "rid",
+                "unauthorized",
+                "Demo username or password is incorrect.")
+        };
+        var controller = new AiExplanationController(dialogs, ai, store);
+
+        await controller.ExplainAsync();
+
+        Assert.False(store.DeleteCalled);
+        Assert.Null(dialogs.LastDisplay);
+    }
+
+    [Fact]
+    public async Task ExplainAsync_OversizedLogDoesNotCallBackend()
+    {
+        string logPath = WriteTempLog(new string('x', AiExplanationService.MaxLogChars + 1));
+        var dialogs = new FakeDialogs { MeasurementLogPath = logPath };
+        var ai = new FakeAiExplanationService();
+        var controller = new AiExplanationController(
+            dialogs,
+            ai,
+            new FakeCredentialStore { ProbeResult = true });
+
+        await controller.ExplainAsync();
+
+        Assert.Null(ai.LastLogText);
+        Assert.Contains(dialogs.Errors, error => error.Message.Contains("too large", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task ExplainAsync_UnsupportedExtensionDoesNotCallBackend()
+    {
+        string logPath = WriteTempLog("log", ".bin");
+        var dialogs = new FakeDialogs { MeasurementLogPath = logPath };
+        var ai = new FakeAiExplanationService();
+        var controller = new AiExplanationController(
+            dialogs,
+            ai,
+            new FakeCredentialStore { ProbeResult = true });
+
+        await controller.ExplainAsync();
+
+        Assert.Null(ai.LastLogText);
+        Assert.Contains(dialogs.Errors, error => error.Message.Contains(".csv", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public async Task ExplainAsync_DeclinedConsentDoesNotCallBackend()
     {
         string logPath = WriteTempLog("log");
@@ -96,9 +232,9 @@ public sealed class AiExplanationControllerTests : IDisposable
         Assert.Null(ai.LastLogText);
     }
 
-    private string WriteTempLog(string text)
+    private string WriteTempLog(string text, string extension = ".csv")
     {
-        string path = Path.GetTempFileName();
+        string path = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + extension);
         File.WriteAllText(path, text);
         _tempFiles.Add(path);
         return path;
@@ -168,16 +304,25 @@ public sealed class AiExplanationControllerTests : IDisposable
         public string? LastBackendBaseUrl { get; private set; }
         public string? LastLogText { get; private set; }
         public AiBackendCredentials? LastCredentials { get; private set; }
+        public bool? LastConsentGranted { get; private set; }
+        public AiExplanationServiceException? Exception { get; init; }
 
         public Task<AiExplanationResult> ExplainMeasurementLogAsync(
             string backendBaseUrl,
             string logText,
             AiBackendCredentials credentials,
+            bool consentGranted,
             CancellationToken cancellationToken)
         {
+            if (Exception != null)
+            {
+                throw Exception;
+            }
+
             LastBackendBaseUrl = backendBaseUrl;
             LastLogText = logText;
             LastCredentials = credentials;
+            LastConsentGranted = consentGranted;
             return Task.FromResult(new AiExplanationResult("rid", "설명", "gemini-test"));
         }
     }

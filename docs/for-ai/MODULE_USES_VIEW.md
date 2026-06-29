@@ -84,8 +84,8 @@ flowchart TB
 - `TimeGrapher.Platform.*`는 `Core`만 참조한다(`ProjectReference`). 단 `TimeGrapher.Platform.WindowsAudio`는 외부 NuGet 패키지 `NAudio.Wasapi`·`NAudio.WinMM`도 참조한다(위 도식의 `WindowsAudio --> NAudio` 엣지). `TimeGrapher.Platform.LinuxAudio`는 CLI 도구를 프로세스로 구동하므로 패키지 의존이 없다.
 - 두 플랫폼 어댑터는 각각 `Core.Shared`만 사용한다(`AudioCaptureWorker`, `LinuxLiveAudioWorker`).
 - `TimeGrapher.Inference`는 `Core`와 외부 NuGet 패키지 `Microsoft.ML.OnnxRuntime`(중앙 버전)만 참조하는 리프다. `Core.Analysis.Quality`의 `ISignalQualityClassifier` seam을 ONNX 모델(`OnnxSignalQualityClassifier`, 임베드된 `signal-quality.onnx` + 클래스 순서 사이드카)로 구현한다. `App`만 합성 루트에서 이를 참조하며(`App --> Inference`), 로드 실패 시 `HeuristicSignalQualityClassifier`로 폴백한다. ONNX 타입은 `Core`로 새지 않으므로 `Core`의 무의존 규칙은 유지된다. 모델을 학습하는 `tools/TimeGrapher.SignalQualityTrainer`는 **dev 전용**이며 `TimeGrapherNet.sln` 밖에 있어(런타임은 ONNX Runtime만 필요, ML.NET 학습 스택은 배포 빌드에서 제외) uses 그래프의 엣지를 만들지 않는다.
-- `TimeGrapher.App`의 AI 설명 기능은 승인된 두 HTTPS 백엔드(`tg-ai.jaehongoh.com`, `tg-ai-cmu-aws.jaehongoh.com`)만 호출한다. HTTP 프로토콜과 Basic Auth 구성은 `AiExplanationService`에 갇히고, Gemini API 키·모델·프롬프트는 서버 경계 안에 남는다.
-- 로그인 저장은 `AiCredentialStore` 어댑터 뒤에서만 이루어진다. Windows는 Credential Manager P/Invoke, Linux/Raspberry Pi는 `secret-tool`(Secret Service)을 사용하며, probe 실패 시 `NullAiCredentialStore`로 저장을 비활성화한다. 평문 `AppSettings` 엣지는 만들지 않는다.
+- `TimeGrapher.App`의 AI 설명 기능은 승인된 두 HTTPS 백엔드(`tg-ai.jaehongoh.com`, `tg-ai-cmu-aws.jaehongoh.com`)만 호출한다. HTTP 프로토콜과 Basic Auth 구성은 `AiExplanationService`에 갇히고, Gemini API 키·모델·프롬프트는 서버 경계 안에 남는다. 선택된 로그는 백엔드 `MAX_LOG_CHARS=100000`보다 낮은 90,000자 클라이언트 제한을 통과해야 하며, 응답 읽기와 Markdown 렌더링도 bounded 처리한다.
+- 로그인 저장은 `AiCredentialStore` 어댑터 뒤에서만 이루어진다. Windows는 Credential Manager P/Invoke, Linux/Raspberry Pi는 `secret-tool`(Secret Service)을 사용하며, probe 실패 시 `NullAiCredentialStore`로 저장을 비활성화한다. 평문 `AppSettings` 엣지는 만들지 않는다. 저장된 credential은 백엔드 요청 성공 후에만 갱신한다.
 
 ### App의 플랫폼 어댑터 참조 (RID 조건부)
 
