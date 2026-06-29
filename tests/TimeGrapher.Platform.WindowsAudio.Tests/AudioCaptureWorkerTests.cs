@@ -70,14 +70,9 @@ public sealed class AudioCaptureWorkerTests
         Assert.Equal(-1, AudioCaptureWorker.FindBestEndpointMatchIndex("USB PnP Sound Device", endpoints));
     }
 
-    [Fact]
+    [WindowsOnlyFact]
     public void TryStop_TimeoutLeavesWorkerRestoppable()
     {
-        if (!OperatingSystem.IsWindows())
-        {
-            return;
-        }
-
         var worker = new AudioCaptureWorker(new MasterAudioBuffer(48000));
         using var release = new ManualResetEventSlim(initialState: false);
         worker.InstallCaptureForTests(() => release.Wait());
@@ -91,14 +86,9 @@ public sealed class AudioCaptureWorkerTests
         Assert.True(worker.TryStop(TimeSpan.FromSeconds(5)));
     }
 
-    [Fact]
+    [WindowsOnlyFact]
     public void TryStop_RetryWaitsForThePendingTeardownInsteadOfReportingSuccess()
     {
-        if (!OperatingSystem.IsWindows())
-        {
-            return;
-        }
-
         var worker = new AudioCaptureWorker(new MasterAudioBuffer(48000));
         using var release = new ManualResetEventSlim(initialState: false);
         worker.InstallCaptureForTests(() => release.Wait());
@@ -113,14 +103,9 @@ public sealed class AudioCaptureWorkerTests
         Assert.True(worker.TryStop(TimeSpan.FromSeconds(5)));
     }
 
-    [Fact]
+    [WindowsOnlyFact]
     public void TryStop_AlsoStopsACaptureStartedSinceTheTimedOutStop()
     {
-        if (!OperatingSystem.IsWindows())
-        {
-            return;
-        }
-
         var worker = new AudioCaptureWorker(new MasterAudioBuffer(48000));
         using var firstRelease = new ManualResetEventSlim(initialState: false);
         int teardowns = 0;
@@ -141,14 +126,9 @@ public sealed class AudioCaptureWorkerTests
         Assert.Equal(2, teardowns);
     }
 
-    [Fact]
+    [WindowsOnlyFact]
     public void CaptureEnded_RaisedWhenRecordingStopsWithoutStopRequest()
     {
-        if (!OperatingSystem.IsWindows())
-        {
-            return;
-        }
-
         var worker = new AudioCaptureWorker(new MasterAudioBuffer(48000));
         bool raised = false;
         worker.CaptureEnded += () => raised = true;
@@ -159,14 +139,9 @@ public sealed class AudioCaptureWorkerTests
         Assert.True(raised);
     }
 
-    [Fact]
+    [WindowsOnlyFact]
     public void CaptureEnded_NotRaisedForRequestedStop()
     {
-        if (!OperatingSystem.IsWindows())
-        {
-            return;
-        }
-
         var worker = new AudioCaptureWorker(new MasterAudioBuffer(48000));
         bool raised = false;
         worker.CaptureEnded += () => raised = true;
@@ -180,14 +155,9 @@ public sealed class AudioCaptureWorkerTests
         Assert.False(raised);
     }
 
-    [Fact]
+    [WindowsOnlyFact]
     public void TryStop_WithoutActiveCaptureReportsSuccess()
     {
-        if (!OperatingSystem.IsWindows())
-        {
-            return;
-        }
-
         var worker = new AudioCaptureWorker(new MasterAudioBuffer(48000));
 
         Assert.True(worker.TryStop(TimeSpan.FromSeconds(1)));
