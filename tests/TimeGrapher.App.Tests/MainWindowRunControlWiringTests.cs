@@ -330,8 +330,9 @@ public sealed class MainWindowRunControlWiringTests
         string source = File.ReadAllText(FindSourceFile("src/TimeGrapher.App/Views/MainWindowDialogService.cs"));
 
         Assert.Contains("Text = \"Server\"", source);
-        Assert.Contains("ColumnDefinitions = new ColumnDefinitions(\"Auto,8,*\")", source);
         Assert.Contains("ColumnDefinitions = new ColumnDefinitions(\"Auto,8,*,16,Auto,8,*\")", source);
+        Assert.Contains("RowDefinitions = new RowDefinitions(\"Auto,10,Auto\")", source);
+        Assert.Contains("Grid.SetColumnSpan(backendCombo, 5)", source);
         Assert.Contains("Text = \"User ID\"", source);
         Assert.Contains("Text = \"User PW\"", source);
         Assert.Contains("Watermark = \"User ID\"", source);

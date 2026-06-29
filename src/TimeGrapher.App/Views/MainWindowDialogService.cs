@@ -215,37 +215,39 @@ internal sealed class MainWindowDialogService : ITimeGrapherDialogService
         buttons.Children.Add(cancel);
 
         var backendLabel = new TextBlock { Text = "Server", VerticalAlignment = VerticalAlignment.Center };
-        var backendRow = new Grid
-        {
-            ColumnDefinitions = new ColumnDefinitions("Auto,8,*"),
-        };
-        Grid.SetColumn(backendLabel, 0);
-        Grid.SetColumn(backendCombo, 2);
-        backendRow.Children.Add(backendLabel);
-        backendRow.Children.Add(backendCombo);
-
         var userIdLabel = new TextBlock { Text = "User ID", VerticalAlignment = VerticalAlignment.Center };
         var userPwLabel = new TextBlock { Text = "User PW", VerticalAlignment = VerticalAlignment.Center };
-        var credentialsRow = new Grid
+        var formGrid = new Grid
         {
             ColumnDefinitions = new ColumnDefinitions("Auto,8,*,16,Auto,8,*"),
+            RowDefinitions = new RowDefinitions("Auto,10,Auto"),
         };
+        Grid.SetRow(backendLabel, 0);
+        Grid.SetColumn(backendLabel, 0);
+        Grid.SetRow(backendCombo, 0);
+        Grid.SetColumn(backendCombo, 2);
+        Grid.SetColumnSpan(backendCombo, 5);
+        Grid.SetRow(userIdLabel, 2);
         Grid.SetColumn(userIdLabel, 0);
+        Grid.SetRow(username, 2);
         Grid.SetColumn(username, 2);
+        Grid.SetRow(userPwLabel, 2);
         Grid.SetColumn(userPwLabel, 4);
+        Grid.SetRow(password, 2);
         Grid.SetColumn(password, 6);
-        credentialsRow.Children.Add(userIdLabel);
-        credentialsRow.Children.Add(username);
-        credentialsRow.Children.Add(userPwLabel);
-        credentialsRow.Children.Add(password);
+        formGrid.Children.Add(backendLabel);
+        formGrid.Children.Add(backendCombo);
+        formGrid.Children.Add(userIdLabel);
+        formGrid.Children.Add(username);
+        formGrid.Children.Add(userPwLabel);
+        formGrid.Children.Add(password);
         var panel = new StackPanel { Margin = new Avalonia.Thickness(16), Spacing = 10 };
         panel.Children.Add(new TextBlock
         {
             Text = "Send the selected TimeGrapher measurement log to an approved private server for a Korean AI analysis.",
             TextWrapping = TextWrapping.Wrap,
         });
-        panel.Children.Add(backendRow);
-        panel.Children.Add(credentialsRow);
+        panel.Children.Add(formGrid);
         panel.Children.Add(remember);
         panel.Children.Add(consent);
         panel.Children.Add(errorText);
