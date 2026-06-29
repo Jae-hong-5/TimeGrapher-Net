@@ -1,18 +1,6 @@
 namespace TimeGrapher.Core.Shared;
 
-/// <summary>
-/// One captured beat-noise segment: the decimated envelope window around a
-/// detected A event (a short pre-roll before A through the configured window
-/// length), with the in-window marker offsets the Beat Noise displays.
-/// <para>
-/// <see cref="Samples"/> references a pooled buffer owned by
-/// <see cref="TimeGrapher.Core.Analysis.BeatSegmentCapture"/> (the
-/// SoundPrintFrameProjector publish-pool pattern): the contents are immutable
-/// by contract until enough newer segments have completed to rotate the pool,
-/// so consumers must read only the segments of the latest snapshot and never
-/// cache a segment across snapshots.
-/// </para>
-/// </summary>
+/// <summary>Beat-noise marker kinds: the A (unlock) event, the C peak, and the C onset.</summary>
 public enum BeatNoiseMarkerKind
 {
     A,
@@ -40,6 +28,19 @@ public sealed class BeatNoiseMarker
     public BeatNoiseMarkerKind Kind { get; init; }
 }
 
+/// <summary>
+/// One captured beat-noise segment: the decimated envelope window around a
+/// detected A event (a short pre-roll before A through the configured window
+/// length), with the in-window marker offsets the Beat Noise displays.
+/// <para>
+/// <see cref="Samples"/> references a pooled buffer owned by
+/// <see cref="TimeGrapher.Core.Analysis.BeatSegmentCapture"/> (the
+/// SoundPrintFrameProjector publish-pool pattern): the contents are immutable
+/// by contract until enough newer segments have completed to rotate the pool,
+/// so consumers must read only the segments of the latest snapshot and never
+/// cache a segment across snapshots.
+/// </para>
+/// </summary>
 public sealed class BeatSegment
 {
     /// <summary>Decimated envelope of the window (rectified, so values are non-negative).</summary>
