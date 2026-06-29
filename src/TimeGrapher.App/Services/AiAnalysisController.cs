@@ -2,7 +2,7 @@ using TimeGrapher.App.ViewModels;
 
 namespace TimeGrapher.App.Services;
 
-internal sealed class AiExplanationController : IAiExplanationRunner
+internal sealed class AiAnalysisController : IAiAnalysisRunner
 {
     private static readonly HashSet<string> MeasurementLogExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -12,48 +12,48 @@ internal sealed class AiExplanationController : IAiExplanationRunner
     };
 
     private readonly ITimeGrapherDialogService _dialogs;
-    private readonly IAiExplanationService _aiExplanationService;
+    private readonly IAiAnalysisService _aiAnalysisService;
     private readonly IAiCredentialStore _credentialStore;
 
-    public AiExplanationController(
+    public AiAnalysisController(
         ITimeGrapherDialogService dialogs,
-        IAiExplanationService aiExplanationService,
+        IAiAnalysisService aiAnalysisService,
         IAiCredentialStore credentialStore)
     {
         _dialogs = dialogs;
-        _aiExplanationService = aiExplanationService;
+        _aiAnalysisService = aiAnalysisService;
         _credentialStore = credentialStore;
     }
 
-    public async Task ExplainAsync()
+    public async Task AnalyzeAsync()
     {
         try
         {
-            await ExplainCoreAsync();
+            await AnalyzeCoreAsync();
         }
-        catch (AiExplanationServiceException ex)
+        catch (AiAnalysisServiceException ex)
         {
             await ShowServiceErrorAsync(ex);
         }
         catch (UnauthorizedAccessException)
         {
-            await _dialogs.ShowErrorAsync("AI Explanation", "Selected measurement log could not be read.");
+            await _dialogs.ShowErrorAsync("AI Analysis", "Selected measurement log could not be read.");
         }
         catch (IOException)
         {
-            await _dialogs.ShowErrorAsync("AI Explanation", "Selected measurement log could not be read.");
+            await _dialogs.ShowErrorAsync("AI Analysis", "Selected measurement log could not be read.");
         }
         catch (TaskCanceledException)
         {
-            await _dialogs.ShowErrorAsync("AI Explanation", "AI explanation request was canceled or timed out.");
+            await _dialogs.ShowErrorAsync("AI Analysis", "AI analysis request was canceled or timed out.");
         }
         catch (ArgumentException)
         {
-            await _dialogs.ShowErrorAsync("AI Explanation", "AI explanation settings were invalid.");
+            await _dialogs.ShowErrorAsync("AI Analysis", "AI analysis settings were invalid.");
         }
     }
 
-    private async Task ExplainCoreAsync()
+    private async Task AnalyzeCoreAsync()
     {
         string? logPath = await _dialogs.PickOpenMeasurementLogAsync();
         if (logPath == null)
@@ -63,33 +63,33 @@ internal sealed class AiExplanationController : IAiExplanationRunner
 
         if (!File.Exists(logPath))
         {
-            await _dialogs.ShowErrorAsync("AI Explanation", "Selected measurement log does not exist.");
+            await _dialogs.ShowErrorAsync("AI Analysis", "Selected measurement log does not exist.");
             return;
         }
 
         if (!MeasurementLogExtensions.Contains(Path.GetExtension(logPath)))
         {
-            await _dialogs.ShowErrorAsync("AI Explanation", "Select a measurement log file (.csv, .log, or .txt).");
+            await _dialogs.ShowErrorAsync("AI Analysis", "Select a measurement log file (.csv, .log, or .txt).");
             return;
         }
 
         var logFile = new FileInfo(logPath);
-        if (logFile.Length > AiExplanationService.MaxLogFileBytes)
+        if (logFile.Length > AiAnalysisService.MaxLogFileBytes)
         {
-            await _dialogs.ShowErrorAsync("AI Explanation", LogTooLargeMessage());
+            await _dialogs.ShowErrorAsync("AI Analysis", LogTooLargeMessage());
             return;
         }
 
         string logText = await File.ReadAllTextAsync(logPath);
         if (string.IsNullOrWhiteSpace(logText))
         {
-            await _dialogs.ShowErrorAsync("AI Explanation", "Selected measurement log is empty.");
+            await _dialogs.ShowErrorAsync("AI Analysis", "Selected measurement log is empty.");
             return;
         }
 
-        if (logText.Length > AiExplanationService.MaxLogChars)
+        if (logText.Length > AiAnalysisService.MaxLogChars)
         {
-            await _dialogs.ShowErrorAsync("AI Explanation", LogTooLargeMessage());
+            await _dialogs.ShowErrorAsync("AI Analysis", LogTooLargeMessage());
             return;
         }
 
@@ -98,49 +98,49 @@ internal sealed class AiExplanationController : IAiExplanationRunner
             ? await _credentialStore.ReadAsync(CancellationToken.None)
             : null;
 
-        var request = new AiExplanationDialogRequest(
-            AiExplanationService.BackendOptions,
-            AiExplanationService.PrimaryBackendBaseUrl,
+        var request = new AiAnalysisDialogRequest(
+            AiAnalysisService.BackendOptions,
+            AiAnalysisService.PrimaryBackendBaseUrl,
             savedCredentials,
             credentialStoreAvailable);
-        AiExplanationDialogResult? dialogResult = await _dialogs.AskAiExplanationAsync(request);
+        AiAnalysisDialogResult? dialogResult = await _dialogs.AskAiAnalysisAsync(request);
         if (dialogResult == null || !dialogResult.ConsentGranted)
         {
             return;
         }
 
-        string normalizedBackendBaseUrl = AiExplanationService.NormalizeApprovedBackendBaseUrl(dialogResult.BackendBaseUrl);
+        string normalizedBackendBaseUrl = AiAnalysisService.NormalizeApprovedBackendBaseUrl(dialogResult.BackendBaseUrl);
         var credentials = new AiBackendCredentials(dialogResult.Username, dialogResult.Password);
-        IAiExplanationDisplaySession displaySession = await _dialogs.ShowAiExplanationProgressAsync(
-            new AiExplanationProgressDisplay(
+        IAiAnalysisDisplaySession displaySession = await _dialogs.ShowAiAnalysisProgressAsync(
+            new AiAnalysisProgressDisplay(
                 normalizedBackendBaseUrl,
-                "Preparing AI explanation request."));
+                "Preparing AI analysis request."));
         await displaySession.ShowStatusAsync("Sending selected measurement log to the AI backend. Waiting for response.");
 
-        AiExplanationResult result;
+        AiAnalysisResult result;
         try
         {
-            result = await _aiExplanationService.ExplainMeasurementLogAsync(
+            result = await _aiAnalysisService.AnalyzeMeasurementLogAsync(
                 normalizedBackendBaseUrl,
                 logText,
                 credentials,
                 dialogResult.ConsentGranted,
                 CancellationToken.None);
         }
-        catch (AiExplanationServiceException ex)
+        catch (AiAnalysisServiceException ex)
         {
             await displaySession.ShowFailureAsync(ToFailureDisplay(ex));
             return;
         }
         catch (TaskCanceledException)
         {
-            await displaySession.ShowFailureAsync(new AiExplanationFailureDisplay(
-                "AI explanation request was canceled or timed out.",
+            await displaySession.ShowFailureAsync(new AiAnalysisFailureDisplay(
+                "AI analysis request was canceled or timed out.",
                 RequestId: null));
             return;
         }
 
-        await displaySession.ShowResultAsync(new AiExplanationDisplay(
+        await displaySession.ShowResultAsync(new AiAnalysisDisplay(
             result.RequestId,
             result.Explanation,
             result.Model,
@@ -152,12 +152,12 @@ internal sealed class AiExplanationController : IAiExplanationRunner
             credentialStoreAvailable);
         if (credentialUpdateError != null)
         {
-            await _dialogs.ShowErrorAsync("AI Explanation", credentialUpdateError);
+            await _dialogs.ShowErrorAsync("AI Analysis", credentialUpdateError);
         }
     }
 
     private async Task<string?> UpdateCredentialStoreAfterSuccessAsync(
-        AiExplanationDialogResult dialogResult,
+        AiAnalysisDialogResult dialogResult,
         AiBackendCredentials credentials,
         bool credentialStoreAvailable)
     {
@@ -189,21 +189,21 @@ internal sealed class AiExplanationController : IAiExplanationRunner
         }
     }
 
-    private async Task ShowServiceErrorAsync(AiExplanationServiceException ex)
+    private async Task ShowServiceErrorAsync(AiAnalysisServiceException ex)
     {
-        AiExplanationFailureDisplay failure = ToFailureDisplay(ex);
+        AiAnalysisFailureDisplay failure = ToFailureDisplay(ex);
         string requestIdText = failure.RequestId == null
             ? string.Empty
             : $"\n\nRequest ID: {failure.RequestId}";
-        await _dialogs.ShowErrorAsync("AI Explanation", failure.Message + requestIdText);
+        await _dialogs.ShowErrorAsync("AI Analysis", failure.Message + requestIdText);
     }
 
-    private static AiExplanationFailureDisplay ToFailureDisplay(AiExplanationServiceException ex) => new(
+    private static AiAnalysisFailureDisplay ToFailureDisplay(AiAnalysisServiceException ex) => new(
         ex.Message,
         string.IsNullOrWhiteSpace(ex.RequestId) ? null : ex.RequestId);
 
     private static string LogTooLargeMessage() =>
         "Measurement log is too large. Select a log under " +
-        AiExplanationService.MaxLogChars.ToString("N0") +
+        AiAnalysisService.MaxLogChars.ToString("N0") +
         " characters.";
 }

@@ -257,7 +257,7 @@ public sealed class MainWindowRunControlWiringTests
         Assert.Equal(
             new[]
             {
-                "AiExplanationTitleBarButton",
+                "AiAnalysisTitleBarButton",
                 "ThemeToggleButton",
                 "HelpTitleBarButton",
                 "SettingsTitleBarButton",
@@ -269,7 +269,7 @@ public sealed class MainWindowRunControlWiringTests
 
         XElement settingsButton = FindNamedElement(document, "SettingsTitleBarButton");
         XElement helpButton = FindNamedElement(document, "HelpTitleBarButton");
-        XElement aiButton = FindNamedElement(document, "AiExplanationTitleBarButton");
+        XElement aiButton = FindNamedElement(document, "AiAnalysisTitleBarButton");
 
         // The gear opens the standalone Settings popup; Help opens the online manual.
         Assert.Equal("TitleBarIconButton", settingsButton.Attribute("Classes")?.Value);
@@ -288,8 +288,8 @@ public sealed class MainWindowRunControlWiringTests
         Assert.DoesNotContain(helpButton.Descendants(), element => element.Name.LocalName == "Image");
 
         Assert.Equal("TitleBarIconButton", aiButton.Attribute("Classes")?.Value);
-        Assert.Equal("AI explanation", aiButton.Attribute("ToolTip.Tip")?.Value);
-        Assert.Equal("{Binding AiExplanationCommand}", aiButton.Attribute("Command")?.Value);
+        Assert.Equal("AI analysis", aiButton.Attribute("ToolTip.Tip")?.Value);
+        Assert.Equal("{Binding AiAnalysisCommand}", aiButton.Attribute("Command")?.Value);
         XElement aiViewbox = FindOnlyChild(aiButton, "Viewbox");
         Assert.Equal("Viewbox", aiViewbox.Name.LocalName);
         Assert.Equal("22", aiViewbox.Attribute("Width")?.Value);

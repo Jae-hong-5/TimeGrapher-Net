@@ -76,7 +76,7 @@ Provide Gemini-powered app features without distributing the project-owned Gemin
 
 6. Server-mode log upload is allowed only with explicit user consent.
 
-   - The app may send a small analysis log file to the backend when the user requests AI explanation.
+   - The app may send a small analysis log file to the backend when the user requests AI analysis.
    - The UI must make clear that the log will be sent to the private backend for AI analysis.
    - The backend still owns the prompt template and combines the uploaded log with the server-side prompt before calling Gemini.
    - The backend must keep request size limits even if current logs are expected to be small.
@@ -86,7 +86,7 @@ Provide Gemini-powered app features without distributing the project-owned Gemin
    Example flow:
 
    ```text
-   User consent + AI explanation button
+   User consent + AI analysis button
    -> App uploads measurement log
    -> Backend builds fixed prompt with the log
    -> Backend calls Gemini
@@ -106,7 +106,7 @@ Avoid claiming that the system has "no security risk". The correct claim is that
 ## Architecture boundary
 
 - `TimeGrapher.Core` must not depend on Gemini, HTTP clients, UI, or platform-specific credential APIs.
-- App-level services may coordinate the server-backed AI explanation flow.
+- App-level services may coordinate the server-backed AI analysis flow.
 - Backend-server integration should remain behind an app-facing service boundary so UI code does not know backend or Gemini protocol details.
 
 ## Korean summary
@@ -127,4 +127,4 @@ Avoid claiming that the system has "no security risk". The correct claim is that
 - Linux 릴리즈의 `install.sh`는 `gnome-keyring`과 `libsecret-tools`를 설치하여 라즈베리파이 사용자가 일반 설치 과정에서 Secret Service/keyring 구성요소를 갖추도록 한다.
 - 서버는 인증, rate limit, quota, 입력 크기 제한, 토큰 제한을 적용한다.
 - 범용 Gemini 프록시가 아니라 기능별 API만 제공한다.
-- 사용자의 명시적 동의를 받은 경우, 앱은 AI 설명을 위해 작은 분석 로그 파일을 서버로 보낼 수 있다.
+- 사용자의 명시적 동의를 받은 경우, 앱은 AI 분석을 위해 작은 분석 로그 파일을 서버로 보낼 수 있다.

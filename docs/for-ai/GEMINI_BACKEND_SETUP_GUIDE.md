@@ -97,7 +97,7 @@ Success response:
 
 This endpoint must not expose secrets, Gemini quota details, environment variable values, or internal stack traces.
 
-### 5.2 AI explanation endpoint
+### 5.2 AI analysis endpoint
 
 ```http
 POST /api/watch/explain-measurement-log
@@ -322,7 +322,7 @@ Default privacy policy for the backend:
 - Log request ID, timestamp, endpoint, status code, response time, body size, and high-level error category.
 - If temporary debugging requires raw log capture, make it opt-in, time-limited, and disabled before grading/demo use.
 
-The app-side consent text should tell the user that the analysis log will be sent to the private backend for AI explanation.
+The app-side consent text should tell the user that the analysis log will be sent to the private backend for AI analysis.
 
 ## 12. Deployment option A: managed platform
 

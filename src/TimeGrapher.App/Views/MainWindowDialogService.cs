@@ -119,18 +119,18 @@ internal sealed class MainWindowDialogService : ITimeGrapherDialogService
         return file?.TryGetLocalPath();
     }
 
-    public async Task<AiExplanationDialogResult?> AskAiExplanationAsync(AiExplanationDialogRequest request)
+    public async Task<AiAnalysisDialogResult?> AskAiAnalysisAsync(AiAnalysisDialogRequest request)
     {
         var dialog = new Window
         {
-            Title = "AI Explanation",
+            Title = "AI Analysis",
             Width = 480,
             SizeToContent = SizeToContent.Height,
             CanResize = false,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
         };
 
-        AiExplanationDialogResult? result = null;
+        AiAnalysisDialogResult? result = null;
         string[] backendLabels = BuildBackendLabels(request.BackendOptions);
         var backendCombo = new ComboBox
         {
@@ -157,7 +157,7 @@ internal sealed class MainWindowDialogService : ITimeGrapherDialogService
         };
         var consent = new CheckBox
         {
-            Content = "I consent to upload the selected TimeGrapher measurement log to the private backend for AI explanation.",
+            Content = "I consent to upload the selected TimeGrapher measurement log to the private backend for AI analysis.",
         };
         var errorText = new TextBlock
         {
@@ -171,7 +171,7 @@ internal sealed class MainWindowDialogService : ITimeGrapherDialogService
             remember.Content = "Remember login unavailable: OS credential store probe failed";
         }
 
-        var ok = new Button { Content = "Explain", Width = 88, IsDefault = true };
+        var ok = new Button { Content = "Analyze", Width = 88, IsDefault = true };
         var cancel = new Button { Content = "Cancel", Width = 80, IsCancel = true };
         ok.Click += (_, _) =>
         {
@@ -193,7 +193,7 @@ internal sealed class MainWindowDialogService : ITimeGrapherDialogService
                 return;
             }
 
-            result = new AiExplanationDialogResult(
+            result = new AiAnalysisDialogResult(
                 selectedBackend,
                 usernameText,
                 passwordText,
@@ -215,7 +215,7 @@ internal sealed class MainWindowDialogService : ITimeGrapherDialogService
         var panel = new StackPanel { Margin = new Avalonia.Thickness(16), Spacing = 10 };
         panel.Children.Add(new TextBlock
         {
-            Text = "Send the selected TimeGrapher measurement log to an approved private backend for a Korean AI explanation.",
+            Text = "Send the selected TimeGrapher measurement log to an approved private backend for a Korean AI analysis.",
             TextWrapping = TextWrapping.Wrap,
         });
         panel.Children.Add(new TextBlock { Text = "Backend" });
@@ -234,11 +234,11 @@ internal sealed class MainWindowDialogService : ITimeGrapherDialogService
         return result;
     }
 
-    public async Task<IAiExplanationDisplaySession> ShowAiExplanationProgressAsync(AiExplanationProgressDisplay display)
+    public async Task<IAiAnalysisDisplaySession> ShowAiAnalysisProgressAsync(AiAnalysisProgressDisplay display)
     {
         var dialog = new Window
         {
-            Title = "AI Explanation",
+            Title = "AI Analysis",
             Width = 960,
             Height = 640,
             CanResize = true,
@@ -275,20 +275,20 @@ internal sealed class MainWindowDialogService : ITimeGrapherDialogService
         panel.Children.Add(contentHost);
         dialog.Content = panel;
 
-        var session = new AiExplanationDisplaySession(display.BackendBaseUrl, details, contentHost, close);
+        var session = new AiAnalysisDisplaySession(display.BackendBaseUrl, details, contentHost, close);
         await session.ShowStatusAsync(display.StatusText);
         dialog.Show(_owner);
         return session;
     }
 
-    private sealed class AiExplanationDisplaySession : IAiExplanationDisplaySession
+    private sealed class AiAnalysisDisplaySession : IAiAnalysisDisplaySession
     {
         private readonly string _backendBaseUrl;
         private readonly TextBlock _details;
         private readonly ContentControl _contentHost;
         private readonly Button _close;
 
-        public AiExplanationDisplaySession(
+        public AiAnalysisDisplaySession(
             string backendBaseUrl,
             TextBlock details,
             ContentControl contentHost,
@@ -302,14 +302,14 @@ internal sealed class MainWindowDialogService : ITimeGrapherDialogService
 
         public Task ShowStatusAsync(string statusText)
         {
-            _details.Text = $"Backend: {_backendBaseUrl}\nStatus: Waiting for AI explanation";
+            _details.Text = $"Backend: {_backendBaseUrl}\nStatus: Waiting for AI analysis";
             _contentHost.Content = BuildStatusContent(statusText);
             _close.IsDefault = false;
             _close.IsEnabled = false;
             return Task.CompletedTask;
         }
 
-        public Task ShowResultAsync(AiExplanationDisplay display)
+        public Task ShowResultAsync(AiAnalysisDisplay display)
         {
             _details.Text = $"Backend: {display.BackendBaseUrl}\nModel: {display.Model}\nRequest ID: {display.RequestId}";
             _contentHost.Content = BuildExplanationContent(display.Explanation);
@@ -318,7 +318,7 @@ internal sealed class MainWindowDialogService : ITimeGrapherDialogService
             return Task.CompletedTask;
         }
 
-        public Task ShowFailureAsync(AiExplanationFailureDisplay failure)
+        public Task ShowFailureAsync(AiAnalysisFailureDisplay failure)
         {
             _details.Text = FailureDetails(_backendBaseUrl, failure.RequestId);
             _contentHost.Content = BuildFailureContent(failure.Message);

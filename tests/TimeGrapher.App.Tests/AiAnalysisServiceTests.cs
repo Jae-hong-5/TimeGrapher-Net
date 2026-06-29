@@ -6,10 +6,10 @@ using Xunit;
 
 namespace TimeGrapher.App.Tests;
 
-public sealed class AiExplanationServiceTests
+public sealed class AiAnalysisServiceTests
 {
     [Fact]
-    public async Task ExplainMeasurementLogAsync_SendsApprovedBackendRequestWithBasicAuth()
+    public async Task AnalyzeMeasurementLogAsync_SendsApprovedBackendRequestWithBasicAuth()
     {
         HttpRequestMessage? captured = null;
         string? capturedContent = null;
@@ -19,10 +19,10 @@ public sealed class AiExplanationServiceTests
             capturedContent = request.Content == null ? null : await request.Content.ReadAsStringAsync();
             return JsonResponse(HttpStatusCode.OK, "{\"requestId\":\"rid\",\"explanation\":\"설명\",\"model\":\"gemini-test\"}");
         }));
-        var service = new AiExplanationService(client);
+        var service = new AiAnalysisService(client);
 
-        AiExplanationResult result = await service.ExplainMeasurementLogAsync(
-            AiExplanationService.AwsBackendBaseUrl,
+        AiAnalysisResult result = await service.AnalyzeMeasurementLogAsync(
+            AiAnalysisService.AwsBackendBaseUrl,
             "rate_valid,rate_s_per_day\ntrue,3.2",
             new AiBackendCredentials("grader", "secret"),
             consentGranted: true,
@@ -45,7 +45,7 @@ public sealed class AiExplanationServiceTests
     [InlineData("https://tg-ai.jaehongoh.com/api/watch/explain-measurement-log")]
     public void NormalizeApprovedBackendBaseUrl_RejectsUnapprovedUrls(string backendBaseUrl)
     {
-        Assert.Throws<ArgumentException>(() => AiExplanationService.NormalizeApprovedBackendBaseUrl(backendBaseUrl));
+        Assert.Throws<ArgumentException>(() => AiAnalysisService.NormalizeApprovedBackendBaseUrl(backendBaseUrl));
     }
 
     [Theory]
@@ -54,17 +54,17 @@ public sealed class AiExplanationServiceTests
     [InlineData(403, "forbidden", "Backend protection rejected the request.")]
     [InlineData(413, "log_too_large", "Measurement log is too large.")]
     [InlineData(429, "rate_limit_minute", "AI request limit was reached.")]
-    [InlineData(502, "gemini_upstream_failed", "AI explanation is temporarily unavailable.")]
-    [InlineData(503, "ai_disabled", "AI explanation is currently unavailable.")]
-    public async Task ExplainMeasurementLogAsync_MapsBackendErrors(int statusCode, string errorCode, string expectedMessagePrefix)
+    [InlineData(502, "gemini_upstream_failed", "AI analysis is temporarily unavailable.")]
+    [InlineData(503, "ai_disabled", "AI analysis is currently unavailable.")]
+    public async Task AnalyzeMeasurementLogAsync_MapsBackendErrors(int statusCode, string errorCode, string expectedMessagePrefix)
     {
         using var client = new HttpClient(new CapturingHandler(_ => Task.FromResult(
             JsonResponse((HttpStatusCode)statusCode, $"{{\"requestId\":\"rid\",\"error\":\"{errorCode}\",\"message\":\"backend message\"}}"))));
-        var service = new AiExplanationService(client);
+        var service = new AiAnalysisService(client);
 
-        AiExplanationServiceException ex = await Assert.ThrowsAsync<AiExplanationServiceException>(() =>
-            service.ExplainMeasurementLogAsync(
-                AiExplanationService.PrimaryBackendBaseUrl,
+        AiAnalysisServiceException ex = await Assert.ThrowsAsync<AiAnalysisServiceException>(() =>
+            service.AnalyzeMeasurementLogAsync(
+                AiAnalysisService.PrimaryBackendBaseUrl,
                 "log",
                 new AiBackendCredentials("grader", "secret"),
                 consentGranted: true,
@@ -77,14 +77,14 @@ public sealed class AiExplanationServiceTests
     }
 
     [Fact]
-    public async Task ExplainMeasurementLogAsync_RejectsMissingConsentBeforeSending()
+    public async Task AnalyzeMeasurementLogAsync_RejectsMissingConsentBeforeSending()
     {
         using var client = new HttpClient(new CapturingHandler(_ => throw new InvalidOperationException("Should not send")));
-        var service = new AiExplanationService(client);
+        var service = new AiAnalysisService(client);
 
-        AiExplanationServiceException ex = await Assert.ThrowsAsync<AiExplanationServiceException>(() =>
-            service.ExplainMeasurementLogAsync(
-                AiExplanationService.PrimaryBackendBaseUrl,
+        AiAnalysisServiceException ex = await Assert.ThrowsAsync<AiAnalysisServiceException>(() =>
+            service.AnalyzeMeasurementLogAsync(
+                AiAnalysisService.PrimaryBackendBaseUrl,
                 "log",
                 new AiBackendCredentials("grader", "secret"),
                 consentGranted: false,
@@ -94,15 +94,15 @@ public sealed class AiExplanationServiceTests
     }
 
     [Fact]
-    public async Task ExplainMeasurementLogAsync_RejectsOversizedLogBeforeSending()
+    public async Task AnalyzeMeasurementLogAsync_RejectsOversizedLogBeforeSending()
     {
         using var client = new HttpClient(new CapturingHandler(_ => throw new InvalidOperationException("Should not send")));
-        var service = new AiExplanationService(client);
+        var service = new AiAnalysisService(client);
 
-        AiExplanationServiceException ex = await Assert.ThrowsAsync<AiExplanationServiceException>(() =>
-            service.ExplainMeasurementLogAsync(
-                AiExplanationService.PrimaryBackendBaseUrl,
-                new string('x', AiExplanationService.MaxLogChars + 1),
+        AiAnalysisServiceException ex = await Assert.ThrowsAsync<AiAnalysisServiceException>(() =>
+            service.AnalyzeMeasurementLogAsync(
+                AiAnalysisService.PrimaryBackendBaseUrl,
+                new string('x', AiAnalysisService.MaxLogChars + 1),
                 new AiBackendCredentials("grader", "secret"),
                 consentGranted: true,
                 CancellationToken.None));
@@ -111,14 +111,14 @@ public sealed class AiExplanationServiceTests
     }
 
     [Fact]
-    public async Task ExplainMeasurementLogAsync_MapsTransportFailure()
+    public async Task AnalyzeMeasurementLogAsync_MapsTransportFailure()
     {
         using var client = new HttpClient(new CapturingHandler(_ => throw new HttpRequestException("offline")));
-        var service = new AiExplanationService(client);
+        var service = new AiAnalysisService(client);
 
-        AiExplanationServiceException ex = await Assert.ThrowsAsync<AiExplanationServiceException>(() =>
-            service.ExplainMeasurementLogAsync(
-                AiExplanationService.PrimaryBackendBaseUrl,
+        AiAnalysisServiceException ex = await Assert.ThrowsAsync<AiAnalysisServiceException>(() =>
+            service.AnalyzeMeasurementLogAsync(
+                AiAnalysisService.PrimaryBackendBaseUrl,
                 "log",
                 new AiBackendCredentials("grader", "secret"),
                 consentGranted: true,
@@ -128,15 +128,15 @@ public sealed class AiExplanationServiceTests
     }
 
     [Fact]
-    public async Task ExplainMeasurementLogAsync_MapsInvalidSuccessJson()
+    public async Task AnalyzeMeasurementLogAsync_MapsInvalidSuccessJson()
     {
         using var client = new HttpClient(new CapturingHandler(_ => Task.FromResult(
             JsonResponse(HttpStatusCode.OK, "not-json"))));
-        var service = new AiExplanationService(client);
+        var service = new AiAnalysisService(client);
 
-        AiExplanationServiceException ex = await Assert.ThrowsAsync<AiExplanationServiceException>(() =>
-            service.ExplainMeasurementLogAsync(
-                AiExplanationService.PrimaryBackendBaseUrl,
+        AiAnalysisServiceException ex = await Assert.ThrowsAsync<AiAnalysisServiceException>(() =>
+            service.AnalyzeMeasurementLogAsync(
+                AiAnalysisService.PrimaryBackendBaseUrl,
                 "log",
                 new AiBackendCredentials("grader", "secret"),
                 consentGranted: true,
@@ -146,15 +146,15 @@ public sealed class AiExplanationServiceTests
     }
 
     [Fact]
-    public async Task ExplainMeasurementLogAsync_RejectsOversizedResponse()
+    public async Task AnalyzeMeasurementLogAsync_RejectsOversizedResponse()
     {
         using var client = new HttpClient(new CapturingHandler(_ => Task.FromResult(
-            JsonResponse(HttpStatusCode.OK, new string('x', AiExplanationService.MaxResponseChars + 1)))));
-        var service = new AiExplanationService(client);
+            JsonResponse(HttpStatusCode.OK, new string('x', AiAnalysisService.MaxResponseChars + 1)))));
+        var service = new AiAnalysisService(client);
 
-        AiExplanationServiceException ex = await Assert.ThrowsAsync<AiExplanationServiceException>(() =>
-            service.ExplainMeasurementLogAsync(
-                AiExplanationService.PrimaryBackendBaseUrl,
+        AiAnalysisServiceException ex = await Assert.ThrowsAsync<AiAnalysisServiceException>(() =>
+            service.AnalyzeMeasurementLogAsync(
+                AiAnalysisService.PrimaryBackendBaseUrl,
                 "log",
                 new AiBackendCredentials("grader", "secret"),
                 consentGranted: true,

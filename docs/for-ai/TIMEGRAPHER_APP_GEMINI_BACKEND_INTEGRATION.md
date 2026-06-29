@@ -72,7 +72,7 @@ Expected success:
 Use this only for diagnostics or optional connection testing. Do not expose
 backend internals in the UI.
 
-### AI Explanation Endpoint
+### AI Analysis Endpoint
 
 ```http
 POST <backend-base-url>/api/watch/explain-measurement-log
@@ -186,7 +186,7 @@ Authorization: Basic <encoded-value>
 Before calling the AI endpoint, the app must clearly ask for upload consent.
 
 The consent text should state that the selected TimeGrapher analysis log will be
-sent to the private backend for AI explanation.
+sent to the private backend for AI analysis.
 
 Only send:
 
@@ -201,10 +201,10 @@ If the user cancels or declines, do not call the backend.
 Suggested UI flow:
 
 1. User records or selects a measurement log.
-2. User clicks an AI explanation action.
+2. User clicks an AI analysis action.
 3. App shows a consent dialog.
 4. User enters or confirms demo credentials.
-5. App opens the AI Explanation result window immediately, shows request status,
+5. App opens the AI Analysis result window immediately, shows request status,
    and sends `logText` to the backend.
 6. App updates that same window with `explanation` or the mapped backend error.
 
@@ -289,11 +289,11 @@ Handle these responses:
 
 502 Bad Gateway
   Gemini upstream failed.
-  Show that AI explanation is temporarily unavailable.
+  Show that AI analysis is temporarily unavailable.
 
 503 Service Unavailable
   AI feature disabled or backend not configured.
-  Show that AI explanation is currently unavailable.
+  Show that AI analysis is currently unavailable.
 ```
 
 Always preserve `requestId` from JSON error responses when showing advanced
@@ -306,8 +306,8 @@ raw credentials or uploaded log content in error dialogs.
 Keep backend integration behind an app-facing service, for example:
 
 ```text
-IAiExplanationService
-  ExplainMeasurementLogAsync(logText, credentials, consentGranted, cancellationToken)
+IAiAnalysisService
+  AnalyzeMeasurementLogAsync(logText, credentials, consentGranted, cancellationToken)
 ```
 
 UI code should not know Gemini protocol details. UI code should only know that
@@ -339,7 +339,7 @@ Use the app's existing coding style, but keep the wire names compatible with the
 backend.
 
 ```csharp
-public sealed record AiExplanationRequest(
+public sealed record AiAnalysisRequest(
     bool ConsentGranted,
     string Locale,
     string AppVersion,
@@ -353,7 +353,7 @@ public sealed record MeasurementSummary(
     double? AmplitudeDegrees,
     double? Confidence);
 
-public sealed record AiExplanationResponse(
+public sealed record AiAnalysisResponse(
     string RequestId,
     string Explanation,
     string Model);
@@ -409,7 +409,7 @@ using var response = await httpClient.SendAsync(
 var responseText = await response.Content.ReadAsStringAsync(cancellationToken);
 ```
 
-On `2xx`, parse `AiExplanationResponse` and display `Explanation`.
+On `2xx`, parse `AiAnalysisResponse` and display `Explanation`.
 
 On non-`2xx`, parse `AiErrorResponse` if possible and map it to the status code
 handling rules above.
@@ -419,14 +419,14 @@ handling rules above.
 Add or update UI for:
 
 - approved backend selection for primary/AWS demo fallback
-- backend-powered AI explanation action
+- backend-powered AI analysis action
 - consent confirmation before upload
 - demo username/password input
 - remember-login checkbox backed only by the OS credential store
 - disabled remember-login UI when the credential-store probe fails
 - duplicate-request guard while waiting for the backend
 - visible request-status display opened before the backend response arrives
-- success display for Korean explanation text in the same AI Explanation window
+- success display for Korean explanation text in the same AI Analysis window
 - retry-friendly error display
 
 Avoid showing technical backend details by default. A small advanced/details
@@ -458,8 +458,8 @@ Before considering the app-side task done, verify:
 Use these after implementing the app integration:
 
 1. Health check succeeds.
-2. AI explanation without credentials fails with `401`.
-3. AI explanation with wrong credentials fails with `401`.
+2. AI analysis without credentials fails with `401`.
+3. AI analysis with wrong credentials fails with `401`.
 4. Declining consent results in no backend request.
 5. Credential-store probe failure disables remember-login and still allows an in-memory login.
 6. Successful credential-store probe can save, load, and delete demo credentials without touching `AppSettings`.

@@ -1,10 +1,10 @@
 namespace TimeGrapher.App.Services;
 
-internal interface IAiExplanationDisplaySession
+internal interface IAiAnalysisDisplaySession
 {
     Task ShowStatusAsync(string statusText);
-    Task ShowResultAsync(AiExplanationDisplay display);
-    Task ShowFailureAsync(AiExplanationFailureDisplay failure);
+    Task ShowResultAsync(AiAnalysisDisplay display);
+    Task ShowFailureAsync(AiAnalysisFailureDisplay failure);
 }
 
 internal interface ITimeGrapherDialogService
@@ -18,7 +18,7 @@ internal interface ITimeGrapherDialogService
     Task<string?> PickSaveWavAsync();
 
     Task ShowErrorAsync(string title, string message);
-    Task<AiExplanationDialogResult?> AskAiExplanationAsync(AiExplanationDialogRequest request);
+    Task<AiAnalysisDialogResult?> AskAiAnalysisAsync(AiAnalysisDialogRequest request);
 
-    Task<IAiExplanationDisplaySession> ShowAiExplanationProgressAsync(AiExplanationProgressDisplay display);
+    Task<IAiAnalysisDisplaySession> ShowAiAnalysisProgressAsync(AiAnalysisProgressDisplay display);
 }

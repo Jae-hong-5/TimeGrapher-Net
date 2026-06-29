@@ -4,7 +4,7 @@ using Xunit;
 
 namespace TimeGrapher.App.Tests;
 
-public sealed class AiExplanationControllerTests : IDisposable
+public sealed class AiAnalysisControllerTests : IDisposable
 {
     private readonly List<string> _tempFiles = new();
 
@@ -20,24 +20,24 @@ public sealed class AiExplanationControllerTests : IDisposable
     }
 
     [Fact]
-    public async Task ExplainAsync_ProbeFailureDisablesPersistenceButStillSendsRequest()
+    public async Task AnalyzeAsync_ProbeFailureDisablesPersistenceButStillSendsRequest()
     {
         string logPath = WriteTempLog("rate_valid,rate_s_per_day\ntrue,3.2");
         var dialogs = new FakeDialogs
         {
             MeasurementLogPath = logPath,
-            DialogResult = new AiExplanationDialogResult(
-                AiExplanationService.PrimaryBackendBaseUrl,
+            DialogResult = new AiAnalysisDialogResult(
+                AiAnalysisService.PrimaryBackendBaseUrl,
                 "grader",
                 "secret",
                 RememberCredentials: false,
                 ConsentGranted: true)
         };
         var store = new FakeCredentialStore { ProbeResult = false };
-        var ai = new FakeAiExplanationService();
-        var controller = new AiExplanationController(dialogs, ai, store);
+        var ai = new FakeAiAnalysisService();
+        var controller = new AiAnalysisController(dialogs, ai, store);
 
-        await controller.ExplainAsync();
+        await controller.AnalyzeAsync();
 
         Assert.False(dialogs.LastDialogRequest!.CredentialPersistenceAvailable);
         Assert.Equal("rate_valid,rate_s_per_day\ntrue,3.2", ai.LastLogText);
@@ -48,57 +48,57 @@ public sealed class AiExplanationControllerTests : IDisposable
     }
 
     [Fact]
-    public async Task ExplainAsync_ShowsProgressWindowBeforeBackendCompletes()
+    public async Task AnalyzeAsync_ShowsProgressWindowBeforeBackendCompletes()
     {
         string logPath = WriteTempLog("log");
         var dialogs = new FakeDialogs
         {
             MeasurementLogPath = logPath,
-            DialogResult = new AiExplanationDialogResult(
-                AiExplanationService.PrimaryBackendBaseUrl,
+            DialogResult = new AiAnalysisDialogResult(
+                AiAnalysisService.PrimaryBackendBaseUrl,
                 "grader",
                 "secret",
                 RememberCredentials: false,
                 ConsentGranted: true)
         };
         var requestStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var response = new TaskCompletionSource<AiExplanationResult>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var ai = new FakeAiExplanationService
+        var response = new TaskCompletionSource<AiAnalysisResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var ai = new FakeAiAnalysisService
         {
             RequestStarted = requestStarted,
             ResultTask = response.Task
         };
-        var controller = new AiExplanationController(
+        var controller = new AiAnalysisController(
             dialogs,
             ai,
             new FakeCredentialStore { ProbeResult = true });
 
-        Task run = controller.ExplainAsync();
+        Task run = controller.AnalyzeAsync();
         await requestStarted.Task.WaitAsync(TimeSpan.FromSeconds(1));
 
         Assert.NotNull(dialogs.LastProgressDisplay);
-        Assert.Equal(AiExplanationService.PrimaryBackendBaseUrl, dialogs.LastProgressDisplay.BackendBaseUrl);
+        Assert.Equal(AiAnalysisService.PrimaryBackendBaseUrl, dialogs.LastProgressDisplay.BackendBaseUrl);
         Assert.NotNull(dialogs.LastDisplaySession);
         Assert.Contains(
             dialogs.LastDisplaySession.StatusTexts,
             status => status.Contains("Waiting for response", StringComparison.Ordinal));
         Assert.Null(dialogs.LastDisplay);
 
-        response.SetResult(new AiExplanationResult("rid-progress", "응답", "gemini-test"));
+        response.SetResult(new AiAnalysisResult("rid-progress", "응답", "gemini-test"));
         await run;
 
         Assert.Equal("응답", dialogs.LastDisplay!.Explanation);
     }
 
     [Fact]
-    public async Task ExplainAsync_RememberCredentialsSavesToCredentialStore()
+    public async Task AnalyzeAsync_RememberCredentialsSavesToCredentialStore()
     {
         string logPath = WriteTempLog("log");
         var dialogs = new FakeDialogs
         {
             MeasurementLogPath = logPath,
-            DialogResult = new AiExplanationDialogResult(
-                AiExplanationService.AwsBackendBaseUrl,
+            DialogResult = new AiAnalysisDialogResult(
+                AiAnalysisService.AwsBackendBaseUrl,
                 "grader",
                 "secret",
                 RememberCredentials: true,
@@ -109,26 +109,26 @@ public sealed class AiExplanationControllerTests : IDisposable
             ProbeResult = true,
             ReadResult = new AiBackendCredentials("saved", "saved-secret")
         };
-        var ai = new FakeAiExplanationService();
-        var controller = new AiExplanationController(dialogs, ai, store);
+        var ai = new FakeAiAnalysisService();
+        var controller = new AiAnalysisController(dialogs, ai, store);
 
-        await controller.ExplainAsync();
+        await controller.AnalyzeAsync();
 
         Assert.True(dialogs.LastDialogRequest!.CredentialPersistenceAvailable);
         Assert.Equal("saved", dialogs.LastDialogRequest.SavedCredentials!.Username);
         Assert.Equal("grader", store.SavedCredentials!.Username);
-        Assert.Equal(AiExplanationService.AwsBackendBaseUrl, ai.LastBackendBaseUrl);
+        Assert.Equal(AiAnalysisService.AwsBackendBaseUrl, ai.LastBackendBaseUrl);
     }
 
     [Fact]
-    public async Task ExplainAsync_RememberCredentialsDoesNotSaveWhenBackendRejectsLogin()
+    public async Task AnalyzeAsync_RememberCredentialsDoesNotSaveWhenBackendRejectsLogin()
     {
         string logPath = WriteTempLog("log");
         var dialogs = new FakeDialogs
         {
             MeasurementLogPath = logPath,
-            DialogResult = new AiExplanationDialogResult(
-                AiExplanationService.AwsBackendBaseUrl,
+            DialogResult = new AiAnalysisDialogResult(
+                AiAnalysisService.AwsBackendBaseUrl,
                 "grader",
                 "wrong",
                 RememberCredentials: true,
@@ -139,17 +139,17 @@ public sealed class AiExplanationControllerTests : IDisposable
             ProbeResult = true,
             ReadResult = new AiBackendCredentials("saved", "saved-secret")
         };
-        var ai = new FakeAiExplanationService
+        var ai = new FakeAiAnalysisService
         {
-            Exception = new AiExplanationServiceException(
+            Exception = new AiAnalysisServiceException(
                 HttpStatusCode.Unauthorized,
                 "rid",
                 "unauthorized",
                 "Demo username or password is incorrect.")
         };
-        var controller = new AiExplanationController(dialogs, ai, store);
+        var controller = new AiAnalysisController(dialogs, ai, store);
 
-        await controller.ExplainAsync();
+        await controller.AnalyzeAsync();
 
         Assert.Null(store.SavedCredentials);
         Assert.False(store.DeleteCalled);
@@ -158,14 +158,14 @@ public sealed class AiExplanationControllerTests : IDisposable
     }
 
     [Fact]
-    public async Task ExplainAsync_UncheckedRememberDeletesSavedCredentialsAfterSuccessfulBackendCall()
+    public async Task AnalyzeAsync_UncheckedRememberDeletesSavedCredentialsAfterSuccessfulBackendCall()
     {
         string logPath = WriteTempLog("log");
         var dialogs = new FakeDialogs
         {
             MeasurementLogPath = logPath,
-            DialogResult = new AiExplanationDialogResult(
-                AiExplanationService.PrimaryBackendBaseUrl,
+            DialogResult = new AiAnalysisDialogResult(
+                AiAnalysisService.PrimaryBackendBaseUrl,
                 "grader",
                 "secret",
                 RememberCredentials: false,
@@ -176,24 +176,24 @@ public sealed class AiExplanationControllerTests : IDisposable
             ProbeResult = true,
             ReadResult = new AiBackendCredentials("saved", "saved-secret")
         };
-        var ai = new FakeAiExplanationService();
-        var controller = new AiExplanationController(dialogs, ai, store);
+        var ai = new FakeAiAnalysisService();
+        var controller = new AiAnalysisController(dialogs, ai, store);
 
-        await controller.ExplainAsync();
+        await controller.AnalyzeAsync();
 
         Assert.Equal("log", ai.LastLogText);
         Assert.True(store.DeleteCalled);
     }
 
     [Fact]
-    public async Task ExplainAsync_UncheckedRememberDoesNotDeleteSavedCredentialsWhenBackendFails()
+    public async Task AnalyzeAsync_UncheckedRememberDoesNotDeleteSavedCredentialsWhenBackendFails()
     {
         string logPath = WriteTempLog("log");
         var dialogs = new FakeDialogs
         {
             MeasurementLogPath = logPath,
-            DialogResult = new AiExplanationDialogResult(
-                AiExplanationService.PrimaryBackendBaseUrl,
+            DialogResult = new AiAnalysisDialogResult(
+                AiAnalysisService.PrimaryBackendBaseUrl,
                 "grader",
                 "wrong",
                 RememberCredentials: false,
@@ -204,17 +204,17 @@ public sealed class AiExplanationControllerTests : IDisposable
             ProbeResult = true,
             ReadResult = new AiBackendCredentials("saved", "saved-secret")
         };
-        var ai = new FakeAiExplanationService
+        var ai = new FakeAiAnalysisService
         {
-            Exception = new AiExplanationServiceException(
+            Exception = new AiAnalysisServiceException(
                 HttpStatusCode.Unauthorized,
                 "rid",
                 "unauthorized",
                 "Demo username or password is incorrect.")
         };
-        var controller = new AiExplanationController(dialogs, ai, store);
+        var controller = new AiAnalysisController(dialogs, ai, store);
 
-        await controller.ExplainAsync();
+        await controller.AnalyzeAsync();
 
         Assert.False(store.DeleteCalled);
         Assert.Null(dialogs.LastDisplay);
@@ -222,41 +222,41 @@ public sealed class AiExplanationControllerTests : IDisposable
     }
 
     [Fact]
-    public async Task ExplainAsync_OversizedLogDoesNotCallBackend()
+    public async Task AnalyzeAsync_OversizedLogDoesNotCallBackend()
     {
-        string logPath = WriteTempLog(new string('x', AiExplanationService.MaxLogChars + 1));
+        string logPath = WriteTempLog(new string('x', AiAnalysisService.MaxLogChars + 1));
         var dialogs = new FakeDialogs { MeasurementLogPath = logPath };
-        var ai = new FakeAiExplanationService();
-        var controller = new AiExplanationController(
+        var ai = new FakeAiAnalysisService();
+        var controller = new AiAnalysisController(
             dialogs,
             ai,
             new FakeCredentialStore { ProbeResult = true });
 
-        await controller.ExplainAsync();
+        await controller.AnalyzeAsync();
 
         Assert.Null(ai.LastLogText);
         Assert.Contains(dialogs.Errors, error => error.Message.Contains("too large", StringComparison.Ordinal));
     }
 
     [Fact]
-    public async Task ExplainAsync_UnsupportedExtensionDoesNotCallBackend()
+    public async Task AnalyzeAsync_UnsupportedExtensionDoesNotCallBackend()
     {
         string logPath = WriteTempLog("log", ".bin");
         var dialogs = new FakeDialogs { MeasurementLogPath = logPath };
-        var ai = new FakeAiExplanationService();
-        var controller = new AiExplanationController(
+        var ai = new FakeAiAnalysisService();
+        var controller = new AiAnalysisController(
             dialogs,
             ai,
             new FakeCredentialStore { ProbeResult = true });
 
-        await controller.ExplainAsync();
+        await controller.AnalyzeAsync();
 
         Assert.Null(ai.LastLogText);
         Assert.Contains(dialogs.Errors, error => error.Message.Contains(".csv", StringComparison.Ordinal));
     }
 
     [Fact]
-    public async Task ExplainAsync_DeclinedConsentDoesNotCallBackend()
+    public async Task AnalyzeAsync_DeclinedConsentDoesNotCallBackend()
     {
         string logPath = WriteTempLog("log");
         var dialogs = new FakeDialogs
@@ -264,13 +264,13 @@ public sealed class AiExplanationControllerTests : IDisposable
             MeasurementLogPath = logPath,
             DialogResult = null
         };
-        var ai = new FakeAiExplanationService();
-        var controller = new AiExplanationController(
+        var ai = new FakeAiAnalysisService();
+        var controller = new AiAnalysisController(
             dialogs,
             ai,
             new FakeCredentialStore { ProbeResult = true });
 
-        await controller.ExplainAsync();
+        await controller.AnalyzeAsync();
 
         Assert.Null(dialogs.LastDisplay);
         Assert.Null(ai.LastLogText);
@@ -287,12 +287,12 @@ public sealed class AiExplanationControllerTests : IDisposable
     private sealed class FakeDialogs : ITimeGrapherDialogService
     {
         public string? MeasurementLogPath { get; init; }
-        public AiExplanationDialogResult? DialogResult { get; init; }
-        public AiExplanationDialogRequest? LastDialogRequest { get; private set; }
-        public AiExplanationProgressDisplay? LastProgressDisplay { get; private set; }
-        public FakeAiExplanationDisplaySession? LastDisplaySession { get; private set; }
-        public AiExplanationDisplay? LastDisplay => LastDisplaySession?.LastDisplay;
-        public AiExplanationFailureDisplay? LastFailure => LastDisplaySession?.LastFailure;
+        public AiAnalysisDialogResult? DialogResult { get; init; }
+        public AiAnalysisDialogRequest? LastDialogRequest { get; private set; }
+        public AiAnalysisProgressDisplay? LastProgressDisplay { get; private set; }
+        public FakeAiAnalysisDisplaySession? LastDisplaySession { get; private set; }
+        public AiAnalysisDisplay? LastDisplay => LastDisplaySession?.LastDisplay;
+        public AiAnalysisFailureDisplay? LastFailure => LastDisplaySession?.LastFailure;
         public List<(string Title, string Message)> Errors { get; } = new();
 
         public Task<RecordSessionChoice> AskRecordSessionAsync() => Task.FromResult(RecordSessionChoice.Cancel);
@@ -309,25 +309,25 @@ public sealed class AiExplanationControllerTests : IDisposable
             return Task.CompletedTask;
         }
 
-        public Task<AiExplanationDialogResult?> AskAiExplanationAsync(AiExplanationDialogRequest request)
+        public Task<AiAnalysisDialogResult?> AskAiAnalysisAsync(AiAnalysisDialogRequest request)
         {
             LastDialogRequest = request;
             return Task.FromResult(DialogResult);
         }
 
-        public Task<IAiExplanationDisplaySession> ShowAiExplanationProgressAsync(AiExplanationProgressDisplay display)
+        public Task<IAiAnalysisDisplaySession> ShowAiAnalysisProgressAsync(AiAnalysisProgressDisplay display)
         {
             LastProgressDisplay = display;
-            LastDisplaySession = new FakeAiExplanationDisplaySession();
-            return Task.FromResult<IAiExplanationDisplaySession>(LastDisplaySession);
+            LastDisplaySession = new FakeAiAnalysisDisplaySession();
+            return Task.FromResult<IAiAnalysisDisplaySession>(LastDisplaySession);
         }
     }
 
-    private sealed class FakeAiExplanationDisplaySession : IAiExplanationDisplaySession
+    private sealed class FakeAiAnalysisDisplaySession : IAiAnalysisDisplaySession
     {
         public List<string> StatusTexts { get; } = new();
-        public AiExplanationDisplay? LastDisplay { get; private set; }
-        public AiExplanationFailureDisplay? LastFailure { get; private set; }
+        public AiAnalysisDisplay? LastDisplay { get; private set; }
+        public AiAnalysisFailureDisplay? LastFailure { get; private set; }
 
         public Task ShowStatusAsync(string statusText)
         {
@@ -335,13 +335,13 @@ public sealed class AiExplanationControllerTests : IDisposable
             return Task.CompletedTask;
         }
 
-        public Task ShowResultAsync(AiExplanationDisplay display)
+        public Task ShowResultAsync(AiAnalysisDisplay display)
         {
             LastDisplay = display;
             return Task.CompletedTask;
         }
 
-        public Task ShowFailureAsync(AiExplanationFailureDisplay failure)
+        public Task ShowFailureAsync(AiAnalysisFailureDisplay failure)
         {
             LastFailure = failure;
             return Task.CompletedTask;
@@ -372,17 +372,17 @@ public sealed class AiExplanationControllerTests : IDisposable
         }
     }
 
-    private sealed class FakeAiExplanationService : IAiExplanationService
+    private sealed class FakeAiAnalysisService : IAiAnalysisService
     {
         public string? LastBackendBaseUrl { get; private set; }
         public string? LastLogText { get; private set; }
         public AiBackendCredentials? LastCredentials { get; private set; }
         public bool? LastConsentGranted { get; private set; }
-        public AiExplanationServiceException? Exception { get; init; }
+        public AiAnalysisServiceException? Exception { get; init; }
         public TaskCompletionSource<bool>? RequestStarted { get; init; }
-        public Task<AiExplanationResult>? ResultTask { get; init; }
+        public Task<AiAnalysisResult>? ResultTask { get; init; }
 
-        public Task<AiExplanationResult> ExplainMeasurementLogAsync(
+        public Task<AiAnalysisResult> AnalyzeMeasurementLogAsync(
             string backendBaseUrl,
             string logText,
             AiBackendCredentials credentials,
@@ -400,7 +400,7 @@ public sealed class AiExplanationControllerTests : IDisposable
                 throw Exception;
             }
 
-            return ResultTask ?? Task.FromResult(new AiExplanationResult("rid", "설명", "gemini-test"));
+            return ResultTask ?? Task.FromResult(new AiAnalysisResult("rid", "설명", "gemini-test"));
         }
     }
 }

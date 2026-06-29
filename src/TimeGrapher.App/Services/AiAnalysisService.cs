@@ -5,9 +5,9 @@ using System.Text.Json;
 
 namespace TimeGrapher.App.Services;
 
-internal interface IAiExplanationService
+internal interface IAiAnalysisService
 {
-    Task<AiExplanationResult> ExplainMeasurementLogAsync(
+    Task<AiAnalysisResult> AnalyzeMeasurementLogAsync(
         string backendBaseUrl,
         string logText,
         AiBackendCredentials credentials,
@@ -15,7 +15,7 @@ internal interface IAiExplanationService
         CancellationToken cancellationToken);
 }
 
-internal sealed class AiExplanationService : IAiExplanationService
+internal sealed class AiAnalysisService : IAiAnalysisService
 {
     public const string PrimaryBackendBaseUrl = "https://tg-ai.jaehongoh.com";
     public const string AwsBackendBaseUrl = "https://tg-ai-cmu-aws.jaehongoh.com";
@@ -36,7 +36,7 @@ internal sealed class AiExplanationService : IAiExplanationService
 
     private readonly HttpClient _httpClient;
 
-    public AiExplanationService(HttpClient httpClient)
+    public AiAnalysisService(HttpClient httpClient)
     {
         _httpClient = httpClient;
     }
@@ -47,7 +47,7 @@ internal sealed class AiExplanationService : IAiExplanationService
         new AiBackendOption("AWS Learner Lab", AwsBackendBaseUrl)
     };
 
-    public async Task<AiExplanationResult> ExplainMeasurementLogAsync(
+    public async Task<AiAnalysisResult> AnalyzeMeasurementLogAsync(
         string backendBaseUrl,
         string logText,
         AiBackendCredentials credentials,
@@ -56,7 +56,7 @@ internal sealed class AiExplanationService : IAiExplanationService
     {
         if (!consentGranted)
         {
-            throw new AiExplanationServiceException(
+            throw new AiAnalysisServiceException(
                 HttpStatusCode.BadRequest,
                 null,
                 "missing_consent",
@@ -65,7 +65,7 @@ internal sealed class AiExplanationService : IAiExplanationService
 
         if (logText.Length > MaxLogChars)
         {
-            throw new AiExplanationServiceException(
+            throw new AiAnalysisServiceException(
                 HttpStatusCode.RequestEntityTooLarge,
                 null,
                 "log_too_large",
@@ -73,7 +73,7 @@ internal sealed class AiExplanationService : IAiExplanationService
         }
 
         string normalizedBaseUrl = NormalizeApprovedBackendBaseUrl(backendBaseUrl);
-        var requestBody = new AiExplanationRequest(
+        var requestBody = new AiAnalysisRequest(
             ConsentGranted: consentGranted,
             Locale: "ko-KR",
             AppVersion: AppVersionInfo.Current,
@@ -98,19 +98,19 @@ internal sealed class AiExplanationService : IAiExplanationService
         }
         catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
-            throw new AiExplanationServiceException(
+            throw new AiAnalysisServiceException(
                 HttpStatusCode.GatewayTimeout,
                 null,
                 "request_timeout",
-                "AI explanation request timed out. Please retry with the same log or use the AWS backend.");
+                "AI analysis request timed out. Please retry with the same log or use the AWS backend.");
         }
         catch (HttpRequestException)
         {
-            throw new AiExplanationServiceException(
+            throw new AiAnalysisServiceException(
                 0,
                 null,
                 "transport_error",
-                "AI explanation backend could not be reached. Check the network or try the AWS backend.");
+                "AI analysis backend could not be reached. Check the network or try the AWS backend.");
         }
 
         using (response)
@@ -122,27 +122,27 @@ internal sealed class AiExplanationService : IAiExplanationService
             }
             catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested)
             {
-                throw new AiExplanationServiceException(
+                throw new AiAnalysisServiceException(
                     HttpStatusCode.GatewayTimeout,
                     null,
                     "request_timeout",
-                    "AI explanation request timed out. Please retry with the same log or use the AWS backend.");
+                    "AI analysis request timed out. Please retry with the same log or use the AWS backend.");
             }
             catch (IOException)
             {
-                throw new AiExplanationServiceException(
+                throw new AiAnalysisServiceException(
                     0,
                     null,
                     "transport_error",
-                    "AI explanation backend could not be reached. Check the network or try the AWS backend.");
+                    "AI analysis backend could not be reached. Check the network or try the AWS backend.");
             }
 
             if (response.IsSuccessStatusCode)
             {
-                AiExplanationResult? result;
+                AiAnalysisResult? result;
                 try
                 {
-                    result = JsonSerializer.Deserialize<AiExplanationResult>(responseText, JsonOptions);
+                    result = JsonSerializer.Deserialize<AiAnalysisResult>(responseText, JsonOptions);
                 }
                 catch (JsonException)
                 {
@@ -154,15 +154,15 @@ internal sealed class AiExplanationService : IAiExplanationService
                     return result;
                 }
 
-                throw new AiExplanationServiceException(
+                throw new AiAnalysisServiceException(
                     response.StatusCode,
                     null,
                     "invalid_success_response",
-                    "AI explanation response was invalid.");
+                    "AI analysis response was invalid.");
             }
 
-            AiExplanationError? error = TryParseError(responseText);
-            throw new AiExplanationServiceException(
+            AiAnalysisError? error = TryParseError(responseText);
+            throw new AiAnalysisServiceException(
                 response.StatusCode,
                 error?.RequestId,
                 error?.Error ?? "http_error",
@@ -191,11 +191,11 @@ internal sealed class AiExplanationService : IAiExplanationService
         return normalized;
     }
 
-    private static AiExplanationError? TryParseError(string responseText)
+    private static AiAnalysisError? TryParseError(string responseText)
     {
         try
         {
-            return JsonSerializer.Deserialize<AiExplanationError>(responseText, JsonOptions);
+            return JsonSerializer.Deserialize<AiAnalysisError>(responseText, JsonOptions);
         }
         catch (JsonException)
         {
@@ -236,11 +236,11 @@ internal sealed class AiExplanationService : IAiExplanationService
         }
     }
 
-    private static AiExplanationServiceException ResponseTooLarge(HttpStatusCode statusCode) => new(
+    private static AiAnalysisServiceException ResponseTooLarge(HttpStatusCode statusCode) => new(
         statusCode,
         null,
         "response_too_large",
-        "AI explanation response was too large.");
+        "AI analysis response was too large.");
 
     private static string MapUserMessage(HttpStatusCode statusCode, string? backendMessage) => statusCode switch
     {
@@ -249,16 +249,16 @@ internal sealed class AiExplanationService : IAiExplanationService
         HttpStatusCode.Forbidden => "Backend protection rejected the request. Check the API host's Cloudflare rules.",
         HttpStatusCode.RequestEntityTooLarge => "Measurement log is too large. Use a shorter log or smaller measurement window.",
         (HttpStatusCode)429 => "AI request limit was reached. Please retry later.",
-        HttpStatusCode.BadGateway => "AI explanation is temporarily unavailable.",
-        HttpStatusCode.GatewayTimeout => "AI explanation timed out upstream. Please retry with the same log or use the AWS backend.",
-        HttpStatusCode.ServiceUnavailable => "AI explanation is currently unavailable.",
-        _ => backendMessage ?? "AI explanation request failed."
+        HttpStatusCode.BadGateway => "AI analysis is temporarily unavailable.",
+        HttpStatusCode.GatewayTimeout => "AI analysis timed out upstream. Please retry with the same log or use the AWS backend.",
+        HttpStatusCode.ServiceUnavailable => "AI analysis is currently unavailable.",
+        _ => backendMessage ?? "AI analysis request failed."
     };
 }
 
-internal sealed class AiExplanationServiceException : Exception
+internal sealed class AiAnalysisServiceException : Exception
 {
-    public AiExplanationServiceException(HttpStatusCode statusCode, string? requestId, string error, string message)
+    public AiAnalysisServiceException(HttpStatusCode statusCode, string? requestId, string error, string message)
         : base(message)
     {
         StatusCode = statusCode;

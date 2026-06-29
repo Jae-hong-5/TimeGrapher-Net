@@ -72,16 +72,16 @@ public sealed class MainWindowBootstrapperTests : IDisposable
         public Task<string?> PickOpenMeasurementLogAsync() => Task.FromResult<string?>(null);
         public Task<string?> PickSaveWavAsync() => Task.FromResult<string?>(null);
         public Task ShowErrorAsync(string title, string message) => Task.CompletedTask;
-        public Task<AiExplanationDialogResult?> AskAiExplanationAsync(AiExplanationDialogRequest request) => Task.FromResult<AiExplanationDialogResult?>(null);
-        public Task<IAiExplanationDisplaySession> ShowAiExplanationProgressAsync(AiExplanationProgressDisplay display) =>
-            Task.FromResult<IAiExplanationDisplaySession>(new FakeAiExplanationDisplaySession());
+        public Task<AiAnalysisDialogResult?> AskAiAnalysisAsync(AiAnalysisDialogRequest request) => Task.FromResult<AiAnalysisDialogResult?>(null);
+        public Task<IAiAnalysisDisplaySession> ShowAiAnalysisProgressAsync(AiAnalysisProgressDisplay display) =>
+            Task.FromResult<IAiAnalysisDisplaySession>(new FakeAiAnalysisDisplaySession());
     }
 
-    private sealed class FakeAiExplanationDisplaySession : IAiExplanationDisplaySession
+    private sealed class FakeAiAnalysisDisplaySession : IAiAnalysisDisplaySession
     {
         public Task ShowStatusAsync(string statusText) => Task.CompletedTask;
-        public Task ShowResultAsync(AiExplanationDisplay display) => Task.CompletedTask;
-        public Task ShowFailureAsync(AiExplanationFailureDisplay failure) => Task.CompletedTask;
+        public Task ShowResultAsync(AiAnalysisDisplay display) => Task.CompletedTask;
+        public Task ShowFailureAsync(AiAnalysisFailureDisplay failure) => Task.CompletedTask;
     }
 
     private sealed class FakeAcceptBandOperations : IAcceptBandOperations

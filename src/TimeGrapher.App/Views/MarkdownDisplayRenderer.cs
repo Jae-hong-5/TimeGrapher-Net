@@ -11,7 +11,7 @@ internal static class MarkdownDisplayRenderer
     private const int MaxBlocks = 200;
     private const int MaxTableRows = 40;
     private const int MaxTableColumns = 6;
-    private const string TruncationNotice = "AI explanation truncated for display.";
+    private const string TruncationNotice = "AI analysis truncated for display.";
 
     public static Control Render(string markdown)
     {

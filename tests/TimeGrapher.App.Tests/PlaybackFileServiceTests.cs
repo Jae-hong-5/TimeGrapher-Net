@@ -133,16 +133,16 @@ public sealed class PlaybackFileServiceTests
             return Task.CompletedTask;
         }
 
-        public Task<AiExplanationDialogResult?> AskAiExplanationAsync(AiExplanationDialogRequest request) => Task.FromResult<AiExplanationDialogResult?>(null);
+        public Task<AiAnalysisDialogResult?> AskAiAnalysisAsync(AiAnalysisDialogRequest request) => Task.FromResult<AiAnalysisDialogResult?>(null);
 
-        public Task<IAiExplanationDisplaySession> ShowAiExplanationProgressAsync(AiExplanationProgressDisplay display) =>
-            Task.FromResult<IAiExplanationDisplaySession>(new FakeAiExplanationDisplaySession());
+        public Task<IAiAnalysisDisplaySession> ShowAiAnalysisProgressAsync(AiAnalysisProgressDisplay display) =>
+            Task.FromResult<IAiAnalysisDisplaySession>(new FakeAiAnalysisDisplaySession());
     }
 
-    private sealed class FakeAiExplanationDisplaySession : IAiExplanationDisplaySession
+    private sealed class FakeAiAnalysisDisplaySession : IAiAnalysisDisplaySession
     {
         public Task ShowStatusAsync(string statusText) => Task.CompletedTask;
-        public Task ShowResultAsync(AiExplanationDisplay display) => Task.CompletedTask;
-        public Task ShowFailureAsync(AiExplanationFailureDisplay failure) => Task.CompletedTask;
+        public Task ShowResultAsync(AiAnalysisDisplay display) => Task.CompletedTask;
+        public Task ShowFailureAsync(AiAnalysisFailureDisplay failure) => Task.CompletedTask;
     }
 }

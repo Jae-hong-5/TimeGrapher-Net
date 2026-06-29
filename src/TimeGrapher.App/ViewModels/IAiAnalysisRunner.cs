@@ -2,7 +2,7 @@ using System.Threading.Tasks;
 
 namespace TimeGrapher.App.ViewModels;
 
-internal interface IAiExplanationRunner
+internal interface IAiAnalysisRunner
 {
-    Task ExplainAsync();
+    Task AnalyzeAsync();
 }
