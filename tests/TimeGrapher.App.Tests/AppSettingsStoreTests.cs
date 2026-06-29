@@ -265,6 +265,6 @@ public sealed class AppSettingsStoreTests : IDisposable
 
         AppSettingsStore.SaveQueuedTo(path, AppSettings.Default);
 
-        AppSettingsStore.Flush();
+        Assert.Null(Record.Exception(() => AppSettingsStore.Flush()));
     }
 }

@@ -48,6 +48,28 @@ public sealed class AiAnalysisServiceTests
         Assert.Throws<ArgumentException>(() => AiAnalysisService.NormalizeApprovedBackendBaseUrl(backendBaseUrl));
     }
 
+    [Fact]
+    public void NormalizeApprovedBackendBaseUrl_AcceptsApprovedUrls_AsCanonicalSlashFree()
+    {
+        Assert.Equal(
+            AiAnalysisService.PrimaryBackendBaseUrl,
+            AiAnalysisService.NormalizeApprovedBackendBaseUrl(AiAnalysisService.PrimaryBackendBaseUrl));
+        Assert.Equal(
+            AiAnalysisService.AwsBackendBaseUrl,
+            AiAnalysisService.NormalizeApprovedBackendBaseUrl(AiAnalysisService.AwsBackendBaseUrl));
+    }
+
+    [Fact]
+    public void NormalizeApprovedBackendBaseUrl_TrimsTrailingSlash_ToTheSameCanonicalValue()
+    {
+        Assert.Equal(
+            AiAnalysisService.PrimaryBackendBaseUrl,
+            AiAnalysisService.NormalizeApprovedBackendBaseUrl(AiAnalysisService.PrimaryBackendBaseUrl + "/"));
+        Assert.Equal(
+            AiAnalysisService.AwsBackendBaseUrl,
+            AiAnalysisService.NormalizeApprovedBackendBaseUrl(AiAnalysisService.AwsBackendBaseUrl + "/"));
+    }
+
     [Theory]
     [InlineData(400, "bad", "backend message")]
     [InlineData(401, "unauthorized", "Demo username or password is incorrect.")]
@@ -108,6 +130,31 @@ public sealed class AiAnalysisServiceTests
                 CancellationToken.None));
 
         Assert.Equal("log_too_large", ex.Error);
+    }
+
+    [Fact]
+    public async Task AnalyzeMeasurementLogAsync_AcceptsLogAtExactlyMaxLogChars()
+    {
+        // The size gate rejects MaxLogChars+1 (above) but must ACCEPT exactly MaxLogChars:
+        // a request goes out and a success result comes back.
+        HttpRequestMessage? captured = null;
+        using var client = new HttpClient(new CapturingHandler(request =>
+        {
+            captured = request;
+            return Task.FromResult(JsonResponse(
+                HttpStatusCode.OK, "{\"requestId\":\"rid\",\"explanation\":\"ok\",\"model\":\"gemini-test\"}"));
+        }));
+        var service = new AiAnalysisService(client);
+
+        AiAnalysisResult result = await service.AnalyzeMeasurementLogAsync(
+            AiAnalysisService.PrimaryBackendBaseUrl,
+            new string('x', AiAnalysisService.MaxLogChars),
+            new AiBackendCredentials("grader", "secret"),
+            consentGranted: true,
+            CancellationToken.None);
+
+        Assert.NotNull(captured);
+        Assert.Equal("ok", result.Explanation);
     }
 
     [Fact]

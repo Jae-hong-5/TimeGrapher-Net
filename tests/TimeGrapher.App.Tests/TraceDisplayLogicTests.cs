@@ -1,3 +1,4 @@
+using System;
 using TimeGrapher.App.Rendering;
 using TimeGrapher.Core.Shared;
 using Xunit;
@@ -8,8 +9,24 @@ namespace TimeGrapher.App.Tests;
 /// Pure logic behind the Trace Display tab: summary math over decimated series
 /// and the project-plan alert policy (running late; amplitude outside the default 270-300°).
 /// </summary>
-public sealed class TraceDisplayLogicTests
+public sealed class TraceDisplayLogicTests : IDisposable
 {
+    // TraceAlertEvaluator reads its amplitude band live from AcceptBandSettings.Current,
+    // which is ambient global state. Pin it to Default (270-300°) for these tests and
+    // restore the caller's value afterward, so the default-band assertions cannot depend
+    // on test ordering or a band another test left mutated. Mirrors AppSettingsControllerTests.
+    private readonly AcceptBandSettings _savedAcceptBandSettings = AcceptBandSettings.Current;
+
+    public TraceDisplayLogicTests()
+    {
+        AcceptBandSettings.Current = AcceptBandSettings.Default;
+    }
+
+    public void Dispose()
+    {
+        AcceptBandSettings.Current = _savedAcceptBandSettings;
+    }
+
     private static MetricsHistorySeries Series(double[] x, double[] y) => new()
     {
         X = x,

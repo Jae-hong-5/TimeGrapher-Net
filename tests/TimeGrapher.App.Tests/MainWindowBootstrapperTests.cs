@@ -135,6 +135,7 @@ public sealed class MainWindowBootstrapperTests : IDisposable
         Assert.NotNull(composition.RunControlController);
         Assert.NotNull(composition.AcceptBandController);
         Assert.NotNull(composition.SamplingSettingsController);
+        Assert.NotNull(composition.AnalysisFramePresenter);
         Assert.Null(composition.AnalysisPerformanceLogger); // no --analysis-log
     }
 

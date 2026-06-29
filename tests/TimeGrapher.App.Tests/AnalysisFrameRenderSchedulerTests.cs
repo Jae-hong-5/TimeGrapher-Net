@@ -198,6 +198,30 @@ public sealed class AnalysisFrameRenderSchedulerTests
     }
 
     [Fact]
+    public void ResetDropsHeldDelayedRenderFromStaleGeneration()
+    {
+        var harness = new SchedulerHarness { HoldDelays = true };
+
+        harness.Scheduler.Enqueue(new AnalysisFrame { SourceId = 1 });
+        harness.RunNextPostedAction(); // renders frame 1, arms the refresh deadline
+
+        harness.Scheduler.Enqueue(new AnalysisFrame { SourceId = 2 });
+        harness.RunNextPostedAction(); // frame 2 parks behind the held throttle delay
+
+        Assert.Single(harness.Delays);
+        Assert.Single(harness.Rendered);
+
+        // Reset bumps the render generation. When the held delay finally expires its
+        // continuation posts ProcessPendingFrame for the now-stale generation, which the
+        // latest-wins guard must drop: no render for the stale generation.
+        harness.Scheduler.Reset();
+        harness.CompleteHeldDelays();
+        harness.RunNextPostedAction();
+
+        Assert.Equal(new ulong[] { 1 }, harness.Rendered.Select(rendered => rendered.Frame.SourceId));
+    }
+
+    [Fact]
     public void RefreshIntervalDelaysNextRender()
     {
         var harness = new SchedulerHarness();
@@ -220,6 +244,7 @@ public sealed class AnalysisFrameRenderSchedulerTests
     private sealed class SchedulerHarness
     {
         private readonly Queue<Action> _postedActions = new();
+        private readonly List<TaskCompletionSource> _heldDelays = new();
 
         public SchedulerHarness()
         {
@@ -232,8 +257,19 @@ public sealed class AnalysisFrameRenderSchedulerTests
                 {
                     Delays.Add(delay);
                     // HoldDelays leaves the throttle delay pending (as a real
-                    // Task.Delay would) so a frame can sit queued behind it.
-                    return HoldDelays ? new TaskCompletionSource().Task : Task.CompletedTask;
+                    // Task.Delay would) so a frame can sit queued behind it. The
+                    // completion source is kept so a test can later expire the delay.
+                    if (!HoldDelays)
+                    {
+                        return Task.CompletedTask;
+                    }
+
+                    // Synchronous continuations: SetResult runs the await continuation
+                    // inline, so the follow-up _postToUi lands on the queue deterministically
+                    // (no thread-pool hop to race) before the test drains the next action.
+                    var held = new TaskCompletionSource();
+                    _heldDelays.Add(held);
+                    return held.Task;
                 });
         }
 
@@ -253,6 +289,17 @@ public sealed class AnalysisFrameRenderSchedulerTests
             {
                 action();
             }
+        }
+
+        /// <summary>Expires every held throttle delay so its continuation can post.</summary>
+        public void CompleteHeldDelays()
+        {
+            foreach (TaskCompletionSource held in _heldDelays)
+            {
+                held.SetResult();
+            }
+
+            _heldDelays.Clear();
         }
     }
 

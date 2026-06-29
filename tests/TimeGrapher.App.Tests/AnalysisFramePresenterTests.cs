@@ -86,12 +86,26 @@ public sealed class AnalysisFramePresenterTests
         AnalysisFramePresenter presenter = Create(vm);
 
         // A frame with both timestamps feeds the latency accumulator, so the first status format
-        // (no prior status tick) returns a readout.
+        // (no prior status tick) returns a readout. Seed nonzero drop/miss/sync-loss counts so the
+        // readout carries every stable field of LatencyStatsTracker.FormatStatus, not just "non-empty".
         presenter.Present(
-            new AnalysisFrame { CaptureTimestamp = 1000, ProcessingCompletedTimestamp = 2000 },
-            droppedFrames: 0, displayTicks: 3000, sampleRate: 48000);
+            new AnalysisFrame
+            {
+                CaptureTimestamp = 1000,
+                ProcessingCompletedTimestamp = 2000,
+                InputSamplesDropped = 7,
+                MissedBeats = 3,
+                SyncLossCount = 2,
+            },
+            droppedFrames: 5, displayTicks: 3000, sampleRate: 48000);
 
-        Assert.NotEqual("", vm.LatencyText);
+        // Format: "E2E {e2e} ms | drop {drop} smp | miss {miss} | sync−loss {sync} | {frm} frm"
+        Assert.Contains("E2E", vm.LatencyText);
+        Assert.Contains("ms", vm.LatencyText);
+        Assert.Contains("drop 7 smp", vm.LatencyText);
+        Assert.Contains("miss 3", vm.LatencyText);
+        Assert.Contains("sync−loss 2", vm.LatencyText);
+        Assert.Contains("5 frm", vm.LatencyText);
     }
 
     [Fact]
