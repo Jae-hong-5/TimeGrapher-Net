@@ -244,13 +244,18 @@ internal sealed class MainWindowDialogService : ITimeGrapherDialogService
             CanResize = true,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
         };
-        dialog.Bind(Window.BackgroundProperty, dialog.GetResourceObservable("GlassPanelBrush"));
 
         var details = new TextBlock
         {
             TextWrapping = TextWrapping.Wrap,
             Margin = new Avalonia.Thickness(0, 0, 0, 10),
         };
+        var divider = new Border
+        {
+            Height = 1,
+            Margin = new Avalonia.Thickness(0, 0, 0, 10),
+        };
+        divider.Bind(Border.BackgroundProperty, divider.GetResourceObservable("ChromeBorderBrush"));
         var contentHost = new ContentControl();
         var close = new Button
         {
@@ -262,8 +267,10 @@ internal sealed class MainWindowDialogService : ITimeGrapherDialogService
 
         var panel = new DockPanel { Margin = new Avalonia.Thickness(16) };
         DockPanel.SetDock(details, Dock.Top);
+        DockPanel.SetDock(divider, Dock.Top);
         DockPanel.SetDock(close, Dock.Bottom);
         panel.Children.Add(details);
+        panel.Children.Add(divider);
         panel.Children.Add(close);
         panel.Children.Add(contentHost);
         dialog.Content = panel;
