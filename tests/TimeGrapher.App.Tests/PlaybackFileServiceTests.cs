@@ -135,6 +135,14 @@ public sealed class PlaybackFileServiceTests
 
         public Task<AiExplanationDialogResult?> AskAiExplanationAsync(AiExplanationDialogRequest request) => Task.FromResult<AiExplanationDialogResult?>(null);
 
-        public Task ShowAiExplanationAsync(AiExplanationDisplay display) => Task.CompletedTask;
+        public Task<IAiExplanationDisplaySession> ShowAiExplanationProgressAsync(AiExplanationProgressDisplay display) =>
+            Task.FromResult<IAiExplanationDisplaySession>(new FakeAiExplanationDisplaySession());
+    }
+
+    private sealed class FakeAiExplanationDisplaySession : IAiExplanationDisplaySession
+    {
+        public Task ShowStatusAsync(string statusText) => Task.CompletedTask;
+        public Task ShowResultAsync(AiExplanationDisplay display) => Task.CompletedTask;
+        public Task ShowFailureAsync(AiExplanationFailureDisplay failure) => Task.CompletedTask;
     }
 }

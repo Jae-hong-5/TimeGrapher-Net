@@ -48,6 +48,49 @@ public sealed class AiExplanationControllerTests : IDisposable
     }
 
     [Fact]
+    public async Task ExplainAsync_ShowsProgressWindowBeforeBackendCompletes()
+    {
+        string logPath = WriteTempLog("log");
+        var dialogs = new FakeDialogs
+        {
+            MeasurementLogPath = logPath,
+            DialogResult = new AiExplanationDialogResult(
+                AiExplanationService.PrimaryBackendBaseUrl,
+                "grader",
+                "secret",
+                RememberCredentials: false,
+                ConsentGranted: true)
+        };
+        var requestStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var response = new TaskCompletionSource<AiExplanationResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var ai = new FakeAiExplanationService
+        {
+            RequestStarted = requestStarted,
+            ResultTask = response.Task
+        };
+        var controller = new AiExplanationController(
+            dialogs,
+            ai,
+            new FakeCredentialStore { ProbeResult = true });
+
+        Task run = controller.ExplainAsync();
+        await requestStarted.Task.WaitAsync(TimeSpan.FromSeconds(1));
+
+        Assert.NotNull(dialogs.LastProgressDisplay);
+        Assert.Equal(AiExplanationService.PrimaryBackendBaseUrl, dialogs.LastProgressDisplay.BackendBaseUrl);
+        Assert.NotNull(dialogs.LastDisplaySession);
+        Assert.Contains(
+            dialogs.LastDisplaySession.StatusTexts,
+            status => status.Contains("Waiting for response", StringComparison.Ordinal));
+        Assert.Null(dialogs.LastDisplay);
+
+        response.SetResult(new AiExplanationResult("rid-progress", "응답", "gemini-test"));
+        await run;
+
+        Assert.Equal("응답", dialogs.LastDisplay!.Explanation);
+    }
+
+    [Fact]
     public async Task ExplainAsync_RememberCredentialsSavesToCredentialStore()
     {
         string logPath = WriteTempLog("log");
@@ -111,7 +154,7 @@ public sealed class AiExplanationControllerTests : IDisposable
         Assert.Null(store.SavedCredentials);
         Assert.False(store.DeleteCalled);
         Assert.Null(dialogs.LastDisplay);
-        Assert.Contains(dialogs.Errors, error => error.Message.Contains("Demo username or password is incorrect.", StringComparison.Ordinal));
+        Assert.Contains("Demo username or password is incorrect.", dialogs.LastFailure!.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -175,6 +218,7 @@ public sealed class AiExplanationControllerTests : IDisposable
 
         Assert.False(store.DeleteCalled);
         Assert.Null(dialogs.LastDisplay);
+        Assert.Contains("Demo username or password is incorrect.", dialogs.LastFailure!.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -245,7 +289,10 @@ public sealed class AiExplanationControllerTests : IDisposable
         public string? MeasurementLogPath { get; init; }
         public AiExplanationDialogResult? DialogResult { get; init; }
         public AiExplanationDialogRequest? LastDialogRequest { get; private set; }
-        public AiExplanationDisplay? LastDisplay { get; private set; }
+        public AiExplanationProgressDisplay? LastProgressDisplay { get; private set; }
+        public FakeAiExplanationDisplaySession? LastDisplaySession { get; private set; }
+        public AiExplanationDisplay? LastDisplay => LastDisplaySession?.LastDisplay;
+        public AiExplanationFailureDisplay? LastFailure => LastDisplaySession?.LastFailure;
         public List<(string Title, string Message)> Errors { get; } = new();
 
         public Task<RecordSessionChoice> AskRecordSessionAsync() => Task.FromResult(RecordSessionChoice.Cancel);
@@ -268,9 +315,35 @@ public sealed class AiExplanationControllerTests : IDisposable
             return Task.FromResult(DialogResult);
         }
 
-        public Task ShowAiExplanationAsync(AiExplanationDisplay display)
+        public Task<IAiExplanationDisplaySession> ShowAiExplanationProgressAsync(AiExplanationProgressDisplay display)
+        {
+            LastProgressDisplay = display;
+            LastDisplaySession = new FakeAiExplanationDisplaySession();
+            return Task.FromResult<IAiExplanationDisplaySession>(LastDisplaySession);
+        }
+    }
+
+    private sealed class FakeAiExplanationDisplaySession : IAiExplanationDisplaySession
+    {
+        public List<string> StatusTexts { get; } = new();
+        public AiExplanationDisplay? LastDisplay { get; private set; }
+        public AiExplanationFailureDisplay? LastFailure { get; private set; }
+
+        public Task ShowStatusAsync(string statusText)
+        {
+            StatusTexts.Add(statusText);
+            return Task.CompletedTask;
+        }
+
+        public Task ShowResultAsync(AiExplanationDisplay display)
         {
             LastDisplay = display;
+            return Task.CompletedTask;
+        }
+
+        public Task ShowFailureAsync(AiExplanationFailureDisplay failure)
+        {
+            LastFailure = failure;
             return Task.CompletedTask;
         }
     }
@@ -306,6 +379,8 @@ public sealed class AiExplanationControllerTests : IDisposable
         public AiBackendCredentials? LastCredentials { get; private set; }
         public bool? LastConsentGranted { get; private set; }
         public AiExplanationServiceException? Exception { get; init; }
+        public TaskCompletionSource<bool>? RequestStarted { get; init; }
+        public Task<AiExplanationResult>? ResultTask { get; init; }
 
         public Task<AiExplanationResult> ExplainMeasurementLogAsync(
             string backendBaseUrl,
@@ -314,16 +389,18 @@ public sealed class AiExplanationControllerTests : IDisposable
             bool consentGranted,
             CancellationToken cancellationToken)
         {
+            LastBackendBaseUrl = backendBaseUrl;
+            LastLogText = logText;
+            LastCredentials = credentials;
+            LastConsentGranted = consentGranted;
+            RequestStarted?.TrySetResult(true);
+
             if (Exception != null)
             {
                 throw Exception;
             }
 
-            LastBackendBaseUrl = backendBaseUrl;
-            LastLogText = logText;
-            LastCredentials = credentials;
-            LastConsentGranted = consentGranted;
-            return Task.FromResult(new AiExplanationResult("rid", "설명", "gemini-test"));
+            return ResultTask ?? Task.FromResult(new AiExplanationResult("rid", "설명", "gemini-test"));
         }
     }
 }

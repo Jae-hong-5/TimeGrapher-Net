@@ -204,8 +204,9 @@ Suggested UI flow:
 2. User clicks an AI explanation action.
 3. App shows a consent dialog.
 4. User enters or confirms demo credentials.
-5. App sends `logText` to the backend.
-6. App displays `explanation`.
+5. App opens the AI Explanation result window immediately, shows request status,
+   and sends `logText` to the backend.
+6. App updates that same window with `explanation` or the mapped backend error.
 
 ## 5. Log Upload
 
@@ -424,8 +425,8 @@ Add or update UI for:
 - remember-login checkbox backed only by the OS credential store
 - disabled remember-login UI when the credential-store probe fails
 - duplicate-request guard while waiting for the backend
-- optional visible loading/cancellation support if the app later expands cancellable operations
-- success display for Korean explanation text
+- visible request-status display opened before the backend response arrives
+- success display for Korean explanation text in the same AI Explanation window
 - retry-friendly error display
 
 Avoid showing technical backend details by default. A small advanced/details

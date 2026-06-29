@@ -22,6 +22,9 @@ internal sealed record AiExplanationResult(string RequestId, string Explanation,
 internal sealed record AiExplanationError(string? RequestId, string Error, string Message);
 
 internal sealed record AiExplanationDisplay(string RequestId, string Explanation, string Model, string BackendBaseUrl);
+internal sealed record AiExplanationProgressDisplay(string BackendBaseUrl, string StatusText);
+
+internal sealed record AiExplanationFailureDisplay(string Message, string? RequestId);
 
 internal sealed record AiExplanationRequest(
     bool ConsentGranted,

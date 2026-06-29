@@ -233,7 +233,7 @@ internal sealed class MainWindowDialogService : ITimeGrapherDialogService
         return result;
     }
 
-    public async Task ShowAiExplanationAsync(AiExplanationDisplay display)
+    public async Task<IAiExplanationDisplaySession> ShowAiExplanationProgressAsync(AiExplanationProgressDisplay display)
     {
         var dialog = new Window
         {
@@ -244,39 +244,122 @@ internal sealed class MainWindowDialogService : ITimeGrapherDialogService
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
         };
 
-        Control explanationContent = MarkdownDisplayRenderer.Render(display.Explanation);
-        var explanation = new ScrollViewer
-        {
-            VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
-            HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled,
-            Content = explanationContent,
-        };
-        var ok = new Button
-        {
-            Content = "OK",
-            Width = 80,
-            IsDefault = true,
-            HorizontalAlignment = HorizontalAlignment.Right,
-        };
-        ok.Click += (_, _) => dialog.Close();
-
-        var panel = new DockPanel { Margin = new Avalonia.Thickness(16) };
         var details = new TextBlock
         {
-            Text = $"Backend: {display.BackendBaseUrl}\nModel: {display.Model}\nRequest ID: {display.RequestId}",
             TextWrapping = TextWrapping.Wrap,
             Margin = new Avalonia.Thickness(0, 0, 0, 10),
         };
+        var contentHost = new ContentControl();
+        var close = new Button
+        {
+            Content = "Close",
+            Width = 80,
+            HorizontalAlignment = HorizontalAlignment.Right,
+        };
+        close.Click += (_, _) => dialog.Close();
+
+        var panel = new DockPanel { Margin = new Avalonia.Thickness(16) };
         DockPanel.SetDock(details, Dock.Top);
-        DockPanel.SetDock(ok, Dock.Bottom);
+        DockPanel.SetDock(close, Dock.Bottom);
         panel.Children.Add(details);
-        panel.Children.Add(ok);
-        panel.Children.Add(explanation);
+        panel.Children.Add(close);
+        panel.Children.Add(contentHost);
         dialog.Content = panel;
 
-        await dialog.ShowDialog(_owner);
+        var session = new AiExplanationDisplaySession(display.BackendBaseUrl, details, contentHost, close);
+        await session.ShowStatusAsync(display.StatusText);
+        dialog.Show(_owner);
+        return session;
     }
 
+    private sealed class AiExplanationDisplaySession : IAiExplanationDisplaySession
+    {
+        private readonly string _backendBaseUrl;
+        private readonly TextBlock _details;
+        private readonly ContentControl _contentHost;
+        private readonly Button _close;
+
+        public AiExplanationDisplaySession(
+            string backendBaseUrl,
+            TextBlock details,
+            ContentControl contentHost,
+            Button close)
+        {
+            _backendBaseUrl = backendBaseUrl;
+            _details = details;
+            _contentHost = contentHost;
+            _close = close;
+        }
+
+        public Task ShowStatusAsync(string statusText)
+        {
+            _details.Text = $"Backend: {_backendBaseUrl}\nStatus: Waiting for AI explanation";
+            _contentHost.Content = BuildStatusContent(statusText);
+            _close.IsDefault = false;
+            _close.IsEnabled = false;
+            return Task.CompletedTask;
+        }
+
+        public Task ShowResultAsync(AiExplanationDisplay display)
+        {
+            _details.Text = $"Backend: {display.BackendBaseUrl}\nModel: {display.Model}\nRequest ID: {display.RequestId}";
+            _contentHost.Content = BuildExplanationContent(display.Explanation);
+            _close.IsDefault = true;
+            _close.IsEnabled = true;
+            return Task.CompletedTask;
+        }
+
+        public Task ShowFailureAsync(AiExplanationFailureDisplay failure)
+        {
+            _details.Text = FailureDetails(_backendBaseUrl, failure.RequestId);
+            _contentHost.Content = BuildFailureContent(failure.Message);
+            _close.IsDefault = true;
+            _close.IsEnabled = true;
+            return Task.CompletedTask;
+        }
+
+        private static string FailureDetails(string backendBaseUrl, string? requestId)
+        {
+            string requestIdText = requestId == null
+                ? string.Empty
+                : $"\nRequest ID: {requestId}";
+            return $"Backend: {backendBaseUrl}\nStatus: Request failed{requestIdText}";
+        }
+
+        private static Control BuildStatusContent(string statusText)
+        {
+            var panel = new StackPanel { Spacing = 12 };
+            panel.Children.Add(new ProgressBar
+            {
+                IsIndeterminate = true,
+                Height = 6,
+            });
+            panel.Children.Add(new TextBlock
+            {
+                Text = statusText,
+                TextWrapping = TextWrapping.Wrap,
+            });
+            return panel;
+        }
+
+        private static Control BuildExplanationContent(string explanation)
+        {
+            Control explanationContent = MarkdownDisplayRenderer.Render(explanation);
+            return new ScrollViewer
+            {
+                VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
+                HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled,
+                Content = explanationContent,
+            };
+        }
+
+        private static Control BuildFailureContent(string message) => new TextBlock
+        {
+            Text = message,
+            Foreground = Brushes.IndianRed,
+            TextWrapping = TextWrapping.Wrap,
+        };
+    }
     public async Task ShowErrorAsync(string title, string message)
     {
         var dialog = new Window

@@ -1,5 +1,12 @@
 namespace TimeGrapher.App.Services;
 
+internal interface IAiExplanationDisplaySession
+{
+    Task ShowStatusAsync(string statusText);
+    Task ShowResultAsync(AiExplanationDisplay display);
+    Task ShowFailureAsync(AiExplanationFailureDisplay failure);
+}
+
 internal interface ITimeGrapherDialogService
 {
     Task<RecordSessionChoice> AskRecordSessionAsync();
@@ -13,5 +20,5 @@ internal interface ITimeGrapherDialogService
     Task ShowErrorAsync(string title, string message);
     Task<AiExplanationDialogResult?> AskAiExplanationAsync(AiExplanationDialogRequest request);
 
-    Task ShowAiExplanationAsync(AiExplanationDisplay display);
+    Task<IAiExplanationDisplaySession> ShowAiExplanationProgressAsync(AiExplanationProgressDisplay display);
 }

@@ -109,13 +109,42 @@ internal sealed class AiExplanationController : IAiExplanationRunner
             return;
         }
 
+        string normalizedBackendBaseUrl = AiExplanationService.NormalizeApprovedBackendBaseUrl(dialogResult.BackendBaseUrl);
         var credentials = new AiBackendCredentials(dialogResult.Username, dialogResult.Password);
-        AiExplanationResult result = await _aiExplanationService.ExplainMeasurementLogAsync(
-            dialogResult.BackendBaseUrl,
-            logText,
-            credentials,
-            dialogResult.ConsentGranted,
-            CancellationToken.None);
+        IAiExplanationDisplaySession displaySession = await _dialogs.ShowAiExplanationProgressAsync(
+            new AiExplanationProgressDisplay(
+                normalizedBackendBaseUrl,
+                "Preparing AI explanation request."));
+        await displaySession.ShowStatusAsync("Sending selected measurement log to the AI backend. Waiting for response.");
+
+        AiExplanationResult result;
+        try
+        {
+            result = await _aiExplanationService.ExplainMeasurementLogAsync(
+                normalizedBackendBaseUrl,
+                logText,
+                credentials,
+                dialogResult.ConsentGranted,
+                CancellationToken.None);
+        }
+        catch (AiExplanationServiceException ex)
+        {
+            await displaySession.ShowFailureAsync(ToFailureDisplay(ex));
+            return;
+        }
+        catch (TaskCanceledException)
+        {
+            await displaySession.ShowFailureAsync(new AiExplanationFailureDisplay(
+                "AI explanation request was canceled or timed out.",
+                RequestId: null));
+            return;
+        }
+
+        await displaySession.ShowResultAsync(new AiExplanationDisplay(
+            result.RequestId,
+            result.Explanation,
+            result.Model,
+            normalizedBackendBaseUrl));
 
         string? credentialUpdateError = await UpdateCredentialStoreAfterSuccessAsync(
             dialogResult,
@@ -125,12 +154,6 @@ internal sealed class AiExplanationController : IAiExplanationRunner
         {
             await _dialogs.ShowErrorAsync("AI Explanation", credentialUpdateError);
         }
-
-        await _dialogs.ShowAiExplanationAsync(new AiExplanationDisplay(
-            result.RequestId,
-            result.Explanation,
-            result.Model,
-            AiExplanationService.NormalizeApprovedBackendBaseUrl(dialogResult.BackendBaseUrl)));
     }
 
     private async Task<string?> UpdateCredentialStoreAfterSuccessAsync(
@@ -168,11 +191,16 @@ internal sealed class AiExplanationController : IAiExplanationRunner
 
     private async Task ShowServiceErrorAsync(AiExplanationServiceException ex)
     {
-        string requestIdText = string.IsNullOrWhiteSpace(ex.RequestId)
+        AiExplanationFailureDisplay failure = ToFailureDisplay(ex);
+        string requestIdText = failure.RequestId == null
             ? string.Empty
-            : $"\n\nRequest ID: {ex.RequestId}";
-        await _dialogs.ShowErrorAsync("AI Explanation", ex.Message + requestIdText);
+            : $"\n\nRequest ID: {failure.RequestId}";
+        await _dialogs.ShowErrorAsync("AI Explanation", failure.Message + requestIdText);
     }
+
+    private static AiExplanationFailureDisplay ToFailureDisplay(AiExplanationServiceException ex) => new(
+        ex.Message,
+        string.IsNullOrWhiteSpace(ex.RequestId) ? null : ex.RequestId);
 
     private static string LogTooLargeMessage() =>
         "Measurement log is too large. Select a log under " +
