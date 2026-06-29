@@ -240,20 +240,17 @@ internal sealed class MainWindowDialogService : ITimeGrapherDialogService
         {
             Title = "AI Explanation",
             Width = 640,
-            Height = 520,
+            Height = 640,
             CanResize = true,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
         };
 
+        Control explanationContent = MarkdownDisplayRenderer.Render(display.Explanation);
         var explanation = new ScrollViewer
         {
             VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
             HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled,
-            Content = new TextBlock
-            {
-                Text = display.Explanation,
-                TextWrapping = TextWrapping.Wrap,
-            },
+            Content = explanationContent,
         };
         var ok = new Button
         {

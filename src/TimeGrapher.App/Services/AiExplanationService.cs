@@ -135,6 +135,7 @@ internal sealed class AiExplanationService : IAiExplanationService
         HttpStatusCode.RequestEntityTooLarge => "Measurement log is too large. Use a shorter log or smaller measurement window.",
         (HttpStatusCode)429 => "AI request limit was reached. Please retry later.",
         HttpStatusCode.BadGateway => "AI explanation is temporarily unavailable.",
+        HttpStatusCode.GatewayTimeout => "AI explanation timed out upstream. Please retry with the same log or use the AWS backend.",
         HttpStatusCode.ServiceUnavailable => "AI explanation is currently unavailable.",
         _ => backendMessage ?? "AI explanation request failed."
     };
