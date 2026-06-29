@@ -142,6 +142,59 @@ public sealed class WavFileReaderDecodeTests
     }
 
     [Fact]
+    public void FoldsNonFiniteIeeeFloat32SamplesToZero()
+    {
+        // A legal IEEE float32 WAV can carry NaN/Inf bit patterns; the decode
+        // boundary must fold them to a finite value so they never latch into the
+        // recursive HPF/envelope DSP state (regression guard mirroring the
+        // PlaybackWorker non-finite fold). Finite samples must pass through unchanged.
+        using var ms = new MemoryStream();
+        var bw = new BinaryWriter(ms);
+        bw.Write(0.5f);
+        bw.Write(float.NaN);
+        bw.Write(float.PositiveInfinity);
+        bw.Write(float.NegativeInfinity);
+        bw.Write(-0.25f);
+        string path = WriteWav(FloatFormat, 1, 32, ms.ToArray());
+        try
+        {
+            WavData wav = WavFileReader.ReadMonoFloat(path);
+            Assert.Equal(5, wav.Samples.Length);
+            Assert.All(wav.Samples, s => Assert.True(float.IsFinite(s)));
+            Assert.Equal(0.5f, wav.Samples[0], 6);
+            Assert.Equal(0.0f, wav.Samples[1]);  // NaN folded
+            Assert.Equal(0.0f, wav.Samples[2]);  // +Inf folded
+            Assert.Equal(0.0f, wav.Samples[3]);  // -Inf folded
+            Assert.Equal(-0.25f, wav.Samples[4], 6);
+        }
+        finally { File.Delete(path); }
+    }
+
+    [Fact]
+    public void FoldsNonFiniteIeeeFloat64SamplesToZero()
+    {
+        // The float64 decode arm shares the same non-finite fold.
+        using var ms = new MemoryStream();
+        var bw = new BinaryWriter(ms);
+        bw.Write(0.5);
+        bw.Write(double.NaN);
+        bw.Write(double.PositiveInfinity);
+        bw.Write(double.NegativeInfinity);
+        string path = WriteWav(FloatFormat, 1, 64, ms.ToArray());
+        try
+        {
+            WavData wav = WavFileReader.ReadMonoFloat(path);
+            Assert.Equal(4, wav.Samples.Length);
+            Assert.All(wav.Samples, s => Assert.True(float.IsFinite(s)));
+            Assert.Equal(0.5f, wav.Samples[0], 6);
+            Assert.Equal(0.0f, wav.Samples[1]);
+            Assert.Equal(0.0f, wav.Samples[2]);
+            Assert.Equal(0.0f, wav.Samples[3]);
+        }
+        finally { File.Delete(path); }
+    }
+
+    [Fact]
     public void ThrowsOnProbeAcceptedButUndecodableFormat()
     {
         // PCM 8-bit passes the probe's basic field checks (BytesPerSample=1,

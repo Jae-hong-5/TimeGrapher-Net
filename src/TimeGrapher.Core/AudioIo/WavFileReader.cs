@@ -65,7 +65,7 @@ public static class WavFileReader
         for (int f = 0; f < frameCount; f++)
         {
             int s = dataOffset + f * frameStride; // start of channel 0 in this frame
-            samples[f] = formatInfo.AudioFormat switch
+            float sample = formatInfo.AudioFormat switch
             {
                 WaveFormatIeeeFloat when formatInfo.BitsPerSample == 32 => BitConverter.Int32BitsToSingle(
                     (int)ReadU32Le(bytes, s)),
@@ -77,6 +77,13 @@ public static class WavFileReader
                 _ => throw new InvalidDataException(
                     $"WavFileReader: unsupported format (audioFormat={formatInfo.AudioFormat}, bits={formatInfo.BitsPerSample})")
             };
+            // A legal IEEE-float WAV can carry NaN/Inf samples. Folding them to 0
+            // here keeps a non-finite value from latching into the recursive
+            // HPF/envelope state (which would silently and permanently kill
+            // detection), mirroring the fold-to-safe guard PlaybackWorker applies on
+            // the playback decode boundary. The s16/24/32 PCM paths cannot produce a
+            // non-finite value, so the fold is a no-op for them.
+            samples[f] = float.IsFinite(sample) ? sample : 0f;
         }
 
         return new WavData { SampleRate = formatInfo.SampleRate, Samples = samples };

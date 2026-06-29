@@ -142,7 +142,13 @@ public sealed class AudioCaptureWorker : ILiveAudioWorker
         for (int i = 0; i < numberOfSamples; i++)
         {
             int bits = src[i * 4] | (src[i * 4 + 1] << 8) | (src[i * 4 + 2] << 16) | (src[i * 4 + 3] << 24);
-            block[i] = BitConverter.Int32BitsToSingle(bits) * vol;
+            float s = BitConverter.Int32BitsToSingle(bits) * vol;
+            // A live float capture stream can deliver NaN/Inf samples. Folding them
+            // to 0 here keeps a non-finite value from latching into the recursive
+            // HPF/envelope state (which would silently and permanently kill
+            // detection), mirroring the fold-to-safe guard PlaybackWorker applies on
+            // the playback decode boundary.
+            block[i] = float.IsFinite(s) ? s : 0f;
         }
 
         // Ring-write into the shared buffer (locks internally).

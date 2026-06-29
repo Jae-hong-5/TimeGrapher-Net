@@ -631,9 +631,21 @@ public sealed class LinuxLiveAudioWorker : ILiveAudioWorker
         for (int i = 0; i < sampleCount; i++)
         {
             int offset = i * bytesPerSample;
-            block[i] = sampleFormat == PcmSampleFormat.Float32LittleEndian
-                ? BitConverter.Int32BitsToSingle(BinaryPrimitives.ReadInt32LittleEndian(bytes.Slice(offset, sizeof(float)))) * volume
-                : BinaryPrimitives.ReadInt16LittleEndian(bytes.Slice(offset, sizeof(short))) / 32768.0f * volume;
+            if (sampleFormat == PcmSampleFormat.Float32LittleEndian)
+            {
+                float s = BitConverter.Int32BitsToSingle(BinaryPrimitives.ReadInt32LittleEndian(bytes.Slice(offset, sizeof(float)))) * volume;
+                // A live float capture stream can deliver NaN/Inf samples. Folding
+                // them to 0 here keeps a non-finite value from latching into the
+                // recursive HPF/envelope state (which would silently and permanently
+                // kill detection), mirroring the fold-to-safe guard PlaybackWorker
+                // applies on the playback decode boundary. The S16 path below cannot
+                // produce a non-finite value, so it is left unchanged.
+                block[i] = float.IsFinite(s) ? s : 0f;
+            }
+            else
+            {
+                block[i] = BinaryPrimitives.ReadInt16LittleEndian(bytes.Slice(offset, sizeof(short))) / 32768.0f * volume;
+            }
         }
 
         _rawAudio.WriteSamples(block);
