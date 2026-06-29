@@ -35,7 +35,7 @@ public sealed class AiAnalysisServiceTests
         Assert.Equal("Basic", captured.Headers.Authorization?.Scheme);
         Assert.Equal(Convert.ToBase64String(Encoding.UTF8.GetBytes("grader:secret")), captured.Headers.Authorization?.Parameter);
         Assert.Contains("\"consentGranted\":true", capturedContent);
-        Assert.Contains("\"locale\":\"ko-KR\"", capturedContent);
+        Assert.Contains("\"locale\":\"en-US\"", capturedContent);
         Assert.Contains("\"logText\":\"rate_valid,rate_s_per_day\\ntrue,3.2\"", capturedContent);
     }
 

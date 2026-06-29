@@ -85,7 +85,7 @@ Minimum request body:
 ```json
 {
   "consentGranted": true,
-  "locale": "ko-KR",
+  "locale": "en-US",
   "appVersion": "1.0.0",
   "logText": "full TimeGrapher CSV/log text"
 }
@@ -96,7 +96,7 @@ Optional request body with structured summary:
 ```json
 {
   "consentGranted": true,
-  "locale": "ko-KR",
+  "locale": "en-US",
   "appVersion": "1.0.0",
   "logText": "full TimeGrapher CSV/log text",
   "measurementSummary": {
@@ -117,7 +117,7 @@ Success response:
 ```json
 {
   "requestId": "dc6f3f31-79c9-48d3-8efb-022adef65349",
-  "explanation": "Korean explanation text",
+  "explanation": "English explanation text",
   "model": "gemini-3.5-flash"
 }
 ```
@@ -223,7 +223,7 @@ inside a fixed server-side prompt. The backend prompt instructs Gemini to:
 - show original and robust statistics instead of silently deleting outliers
 - check `missed_beat_detections` and `sync_loss_count`
 - make conservative conclusions for short, single-position measurements
-- output in Korean
+- output in English
 
 The app should not duplicate this prompt and should not send prompt text.
 
@@ -384,7 +384,7 @@ This is illustrative. Adapt it to the app's existing architecture.
 var requestBody = new
 {
     consentGranted = true,
-    locale = "ko-KR",
+    locale = "en-US",
     appVersion = appVersion,
     logText = csvLogText
 };
@@ -428,7 +428,7 @@ Add or update UI for:
 - disabled remember-login UI when the credential-store probe fails
 - duplicate-request guard while waiting for the backend
 - visible request-status display opened before the backend response arrives
-- success display for Korean explanation text in the same AI Analysis window
+- success display for explanation text in the same AI Analysis window
 - retry-friendly error display
 
 Avoid showing technical backend details by default. A small advanced/details
@@ -466,7 +466,7 @@ Use these after implementing the app integration:
 5. Credential-store probe failure disables remember-login and still allows an in-memory login.
 6. Successful credential-store probe can save, load, and delete demo credentials without touching `AppSettings`.
 7. Empty log is blocked by the app or returns `400`.
-8. Normal CSV log returns `200` and displays Korean explanation.
+8. Normal CSV log returns `200` and displays an explanation.
 9. Oversized log shows a friendly too-large message.
 10. Repeated rapid requests eventually show a retry-later message.
 11. Both approved backend URLs can be selected and tested.

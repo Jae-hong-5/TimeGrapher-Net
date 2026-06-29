@@ -245,7 +245,7 @@ internal sealed class MainWindowDialogService : ITimeGrapherDialogService
         var panel = new StackPanel { Margin = new Avalonia.Thickness(16), Spacing = 10 };
         panel.Children.Add(new TextBlock
         {
-            Text = "Upload the selected measurement log to the selected TimeGrapher service server and generate a Korean-language AI analysis.",
+            Text = "Upload the selected measurement log to the selected TimeGrapher service server and generate an AI analysis.",
             TextWrapping = TextWrapping.Wrap,
         });
         panel.Children.Add(formGrid);

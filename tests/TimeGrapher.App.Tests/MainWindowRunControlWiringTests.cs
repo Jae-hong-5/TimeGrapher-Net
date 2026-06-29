@@ -345,7 +345,7 @@ public sealed class MainWindowRunControlWiringTests
         Assert.Contains("I agree to upload the selected measurement log", source);
         Assert.Contains("Remember User ID / User PW on this device", source);
         Assert.Contains("Upload the selected measurement log", source);
-        Assert.Contains("Korean-language AI analysis", source);
+        Assert.Contains("generate an AI analysis", source);
         Assert.Contains("IsEnabled = consent.IsChecked == true", source);
         Assert.Contains("consent.IsCheckedChanged += (_, _) => ok.IsEnabled = consent.IsChecked == true", source);
         Assert.Contains("$\"Server:", source);

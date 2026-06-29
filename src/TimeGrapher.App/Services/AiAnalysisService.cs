@@ -75,7 +75,7 @@ internal sealed class AiAnalysisService : IAiAnalysisService
         string normalizedBaseUrl = NormalizeApprovedBackendBaseUrl(backendBaseUrl);
         var requestBody = new AiAnalysisRequest(
             ConsentGranted: consentGranted,
-            Locale: "ko-KR",
+            Locale: "en-US",
             AppVersion: AppVersionInfo.Current,
             LogText: logText);
         string json = JsonSerializer.Serialize(requestBody, JsonOptions);
