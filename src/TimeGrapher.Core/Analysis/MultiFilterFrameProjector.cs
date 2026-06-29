@@ -27,6 +27,14 @@ public sealed class MultiFilterFrameProjector
     public const int WindowSeconds = 1;
     public const int FilterPointBudget = 6000;
 
+    // Batched front-trim threshold (see TrimWindow). Expired front points are tracked
+    // logically every pass but physically removed (an O(retained) List.RemoveRange
+    // shift) only once this many have accumulated, amortising the shift over many
+    // passes. ~0.5 s of decimated points at the FilterPointBudget cadence; the
+    // retained window stays bounded at WindowSeconds plus at most one batch of
+    // carry-over.
+    private const int TrimBatchPoints = 3000;
+
     /// <summary>
     /// Stream-time floor between series rebuilds. The five rebuilt lists
     /// (~240 KB) used to be allocated per analysis pass — at the Pi's 192 kHz
@@ -53,6 +61,12 @@ public sealed class MultiFilterFrameProjector
     private readonly List<double> _windowX = new();
     private readonly List<double>[] _windowY;
     private ulong _sampleTicks;
+
+    // Logical front offset of expired points not yet physically removed (see
+    // TrimWindow). Publishing copies from this offset, so the published window is
+    // identical to the per-pass-trimmed window while the costly RemoveRange shift is
+    // batched.
+    private int _trimStart;
 
     // Peak-preserving (max-per-bin) decimation accumulator: the running max of
     // each filter over the current stride-bin, and the bin's start tick. Storing
@@ -140,7 +154,11 @@ public sealed class MultiFilterFrameProjector
     public void AppendSnapshot(AnalysisFrame frame, bool force = false)
     {
         TrimWindow();
-        if (_windowX.Count == 0)
+        // Live window length excludes the expired front points carried before the
+        // next batched physical trim (see TrimWindow); publishing reads from
+        // _trimStart so the result is identical to a per-pass-trimmed window.
+        int liveCount = _windowX.Count - _trimStart;
+        if (liveCount == 0)
         {
             return;
         }
@@ -151,15 +169,18 @@ public sealed class MultiFilterFrameProjector
         ulong intervalSamples = (ulong)(PublishIntervalS * _sampleRate) * (ulong)_publishIntervalScale;
         if (force || _lastSeries == null || _sampleTicks - _lastPublishedTick >= intervalSamples)
         {
-            var x = new List<double>(_windowX);
+            var x = new List<double>(liveCount);
+            x.AddRange(System.Runtime.InteropServices.CollectionsMarshal.AsSpan(_windowX).Slice(_trimStart, liveCount));
             var series = new GraphSeriesFrame[SeriesIds.Length];
             for (int i = 0; i < SeriesIds.Length; i++)
             {
+                var y = new List<double>(liveCount);
+                y.AddRange(System.Runtime.InteropServices.CollectionsMarshal.AsSpan(_windowY[i]).Slice(_trimStart, liveCount));
                 series[i] = new GraphSeriesFrame
                 {
                     Id = SeriesIds[i],
                     X = x,
-                    Y = new List<double>(_windowY[i]),
+                    Y = y,
                     Replace = true,
                 };
             }
@@ -191,19 +212,30 @@ public sealed class MultiFilterFrameProjector
             minX = _sampleTicks - historySamples;
         }
 
-        int removeCount = 0;
+        // Count expired front points from the current logical start. List.RemoveRange
+        // (0, n) shifts the whole retained tail (O(retained)) every call, so removing
+        // the few points that fall out of the window each pass was a steady
+        // O(retained) cost. Track the expired front logically (_trimStart) and publish
+        // from it, so the published window is unchanged; only pay the physical shift
+        // once at least TrimBatchPoints have expired.
+        int removeCount = _trimStart;
         while (removeCount < _windowX.Count && _windowX[removeCount] < minX)
         {
             removeCount++;
         }
 
-        if (removeCount > 0)
+        if (removeCount - _trimStart >= TrimBatchPoints)
         {
             _windowX.RemoveRange(0, removeCount);
             for (int i = 0; i < _windowY.Length; i++)
             {
                 _windowY[i].RemoveRange(0, removeCount);
             }
+            _trimStart = 0;
+        }
+        else
+        {
+            _trimStart = removeCount;
         }
     }
 }

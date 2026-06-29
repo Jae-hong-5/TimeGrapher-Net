@@ -206,6 +206,47 @@ public sealed class ScopeRateFrameProjectorTests
     }
 
     [Fact]
+    public void AppendSnapshot_BatchedTrimKeepsLatestSliceUnchangedAcrossManyPasses()
+    {
+        // The retention front-trim is amortised (RemoveRange batched), but the
+        // published 2 s scope slice is rebuilt from the retained window each pass and
+        // is self-bounded to the newest 2 s, so carrying a little extra expired data
+        // at the front between batched trims must not change the published slice:
+        // it stays bounded to the 2 s window and starts within it, across many passes.
+        const int pointBudget = 32000;
+        var projector = new ScopeRateFrameProjector(SampleRate, useCOnset: false, scopeSnapshotPointBudget: pointBudget);
+        ulong windowSamples = (ulong)(2.0 * SampleRate); // ScopePublishWindowSeconds
+        ulong ticks = 0;
+
+        for (int pass = 0; pass < 300; pass++)
+        {
+            var block = new float[3000]; // ~62.5 ms: crosses the 0.05 s publish floor
+            Array.Fill(block, 0.1f);
+            ticks += (ulong)block.Length;
+
+            var frame = new AnalysisFrame();
+            projector.Project(new DetectorMetricsBlockUpdate(
+                Result(TgSyncStatus.Synced, block, block.Length, 0.2f),
+                Array.Empty<DetectedEventUpdate>()), frame);
+            projector.AppendSnapshot(frame);
+
+            GraphSeriesFrame pcm = Assert.Single(frame.ScopeSeries, s => s.Id == AnalysisGraphSeries.ScopePcm);
+            Assert.NotEmpty(pcm.X);
+            // Self-bounded to the newest 2 s regardless of how much expired front
+            // data is carried before the next batched physical trim.
+            double newest = pcm.X[^1];
+            Assert.True(pcm.X[0] >= newest - (double)windowSamples,
+                $"slice start {pcm.X[0]} should be within the 2 s window of newest {newest}");
+            Assert.Equal(pcm.X.Count, pcm.Y.Count);
+            // Strictly increasing ticks: no stale carry-over leaks into the slice.
+            for (int i = 1; i < pcm.X.Count; i++)
+            {
+                Assert.True(pcm.X[i] > pcm.X[i - 1]);
+            }
+        }
+    }
+
+    [Fact]
     public void Project_NotSyncedClearsBeatSyncedFlag()
     {
         var projector = new ScopeRateFrameProjector(SampleRate, useCOnset: false, scopeSnapshotPointBudget: 256);

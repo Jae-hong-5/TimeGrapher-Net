@@ -181,6 +181,38 @@ public sealed class MultiFilterFrameProjectorTests
     }
 
     [Fact]
+    public void BatchedFrontTrimKeepsPublishedWindowBoundedAndUnchangedAcrossManyPasses()
+    {
+        // The front-trim is amortised (the physical RemoveRange shift is batched),
+        // but publishing reads from the logical trim start, so the published window
+        // must stay identical to a per-pass-trimmed window: bounded to WindowSeconds
+        // and dropping the oldest ticks, across many passes that each force a publish.
+        var projector = new MultiFilterFrameProjector(SampleRate);
+        ulong windowSamples = (ulong)(MultiFilterFrameProjector.WindowSeconds * SampleRate);
+
+        // Prime past the window so trimming is active.
+        projector.ProcessSamples(AlternatingBlock(2 * SampleRate));
+
+        for (int pass = 0; pass < 200; pass++)
+        {
+            // ~21 ms blocks; force each publish so every pass exercises the trim.
+            projector.ProcessSamples(AlternatingBlock(1000));
+            GraphSeriesFrame f0 = Series(Snapshot(projector, force: true), AnalysisGraphSeries.FilterF0);
+
+            // Bounded to the rolling window and dropping the oldest ticks.
+            Assert.True(f0.X.Count <= MultiFilterFrameProjector.FilterPointBudget);
+            double newest = f0.X[^1];
+            Assert.True(f0.X[0] >= newest - windowSamples,
+                $"published window start {f0.X[0]} should be within {windowSamples} of newest {newest}");
+            // Strictly increasing absolute ticks (no stale carry-over leaks in).
+            for (int i = 1; i < f0.X.Count; i++)
+            {
+                Assert.True(f0.X[i] > f0.X[i - 1]);
+            }
+        }
+    }
+
+    [Fact]
     public void ConstantInputRidesThroughTheFilterBankAsZeroViews()
     {
         var projector = new MultiFilterFrameProjector(SampleRate);

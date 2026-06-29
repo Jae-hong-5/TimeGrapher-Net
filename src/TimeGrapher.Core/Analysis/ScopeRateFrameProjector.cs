@@ -18,6 +18,13 @@ public sealed class ScopeRateFrameProjector
     // retained point count then scales with ScopeRetentionSeconds, not the stride.
     private const int ScopeStrideReferenceSeconds = 2;
 
+    // Batched front-trim threshold (see TrimScopeWindow). Expired front points are
+    // physically removed only once this many have accumulated, amortising the
+    // O(retained) RemoveRange shift over many passes. Sized to roughly one second of
+    // decimated points at a typical 2 s point budget; the retained window therefore
+    // stays bounded at ScopeRetentionSeconds plus at most one batch of carry-over.
+    private const int ScopeTrimBatchPoints = 2048;
+
     // Per-publish copy window. Only the newest <see cref="ScopePublishWindowSeconds"/>
     // of decimated scope samples are copied onto each frame; the renderer merges
     // those slices into its own rolling history (so a pan/pause can still reach the
@@ -375,13 +382,25 @@ public sealed class ScopeRateFrameProjector
         {
             removeCount++;
         }
-        if (removeCount > 0)
+        // Batched/amortised front-trim: List.RemoveRange(0, n) shifts the whole
+        // retained tail (O(retained)) every pass, so trimming the handful of points
+        // that fall out of the 10 s retention each pass was a steady O(retained) cost.
+        // RebuildScopeSlice re-scans the window and keeps only the newest 2 s, so any
+        // expired-but-not-yet-removed points carried at the front are never published
+        // — the scope output is identical whether they are dropped now or in a later
+        // batch. Defer the shift until at least ScopeTrimBatchPoints have expired, so
+        // the O(retained) shift is paid once per batch instead of once per pass.
+        if (removeCount >= ScopeTrimBatchPoints)
         {
             _scopeWindowX.RemoveRange(0, removeCount);
             _scopeWindowPcm.RemoveRange(0, removeCount);
             _scopeWindowThreshold.RemoveRange(0, removeCount);
         }
 
+        // Markers ride every frame at their full retained extent (SetScopeMarkers),
+        // so they are trimmed per-pass to keep the published marker set exact. They
+        // are bounded by events (~hundreds of structs), not per-sample PCM, so this
+        // RemoveAll is not on the hot O(retained) path the batched trim above targets.
         _scopeWindowVerticalMarkers.RemoveAll(marker => marker.X < minX);
         _scopeWindowHorizontalMarkers.RemoveAll(marker =>
             Math.Max(marker.XLeft, marker.XRight) + marker.Length < minX);

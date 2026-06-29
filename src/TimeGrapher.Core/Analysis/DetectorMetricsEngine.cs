@@ -131,8 +131,14 @@ public sealed class DetectorMetricsEngine
         {
             _syncLossCount++;
         }
-        var displayUpdates = new List<DetectedEventUpdate>(_result.Events.Count);
-        var metricsUpdates = new List<DetectedEventUpdate>(_result.Events.Count);
+        // The live path's display and metrics event lists carry identical contents
+        // (every update is appended to both in lockstep, with no per-list filtering),
+        // so we build one list and hand it to both DisplayEvents and MetricsEvents via
+        // the 2-arg block-update constructor instead of allocating and populating two.
+        // The immutable per-block contract is preserved: consumers only read the
+        // shared IReadOnlyList. (Callers that genuinely need divergent lists still use
+        // the 3-arg constructor.)
+        var eventUpdates = new List<DetectedEventUpdate>(_result.Events.Count);
 
         foreach (TgEvent ev in _result.Events)
         {
@@ -144,9 +150,7 @@ public sealed class DetectorMetricsEngine
                 _ => new WatchMetricsUpdate(),
             };
 
-            var update = new DetectedEventUpdate(ev, eventSample, metricsUpdate);
-            displayUpdates.Add(update);
-            metricsUpdates.Add(update);
+            eventUpdates.Add(new DetectedEventUpdate(ev, eventSample, metricsUpdate));
         }
 
         SignalQualityAssessment? qualityAssessment = null;
@@ -202,7 +206,7 @@ public sealed class DetectorMetricsEngine
             _syncLossCount,
             qualityAssessment);
 
-        return new DetectorMetricsBlockUpdate(resultSnapshot, displayUpdates, metricsUpdates);
+        return new DetectorMetricsBlockUpdate(resultSnapshot, eventUpdates);
     }
 
     private double EventSample(TgEvent ev)
