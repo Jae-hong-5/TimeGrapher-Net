@@ -36,6 +36,8 @@ flowchart TB
         LinuxAudioStack["PipeWire / ALSA 도구<br/>wpctl · pw-record · arecord"]
         Xunit["테스트 스택<br/>xUnit · xunit.runner.visualstudio · Microsoft.NET.Test.Sdk<br/>(Directory.Packages.props 중앙 버전)"]
         OnnxRuntime["Microsoft.ML.OnnxRuntime<br/>(중앙 버전 1.20.1)"]
+        AiBackends["승인된 Gemini 백엔드<br/>tg-ai.jaehongoh.com · tg-ai-cmu-aws.jaehongoh.com"]
+        CredentialStores["OS credential store<br/>Windows Credential Manager · Secret Service(secret-tool)"]
     end
 
     App --> Core
@@ -61,6 +63,8 @@ flowchart TB
 
     App --> Avalonia
     App --> ScottPlot
+    App --> AiBackends
+    App --> CredentialStores
     WindowsAudio --> NAudio
     LinuxAudio --> LinuxAudioStack
     Inference --> OnnxRuntime
@@ -80,6 +84,8 @@ flowchart TB
 - `TimeGrapher.Platform.*`는 `Core`만 참조한다(`ProjectReference`). 단 `TimeGrapher.Platform.WindowsAudio`는 외부 NuGet 패키지 `NAudio.Wasapi`·`NAudio.WinMM`도 참조한다(위 도식의 `WindowsAudio --> NAudio` 엣지). `TimeGrapher.Platform.LinuxAudio`는 CLI 도구를 프로세스로 구동하므로 패키지 의존이 없다.
 - 두 플랫폼 어댑터는 각각 `Core.Shared`만 사용한다(`AudioCaptureWorker`, `LinuxLiveAudioWorker`).
 - `TimeGrapher.Inference`는 `Core`와 외부 NuGet 패키지 `Microsoft.ML.OnnxRuntime`(중앙 버전)만 참조하는 리프다. `Core.Analysis.Quality`의 `ISignalQualityClassifier` seam을 ONNX 모델(`OnnxSignalQualityClassifier`, 임베드된 `signal-quality.onnx` + 클래스 순서 사이드카)로 구현한다. `App`만 합성 루트에서 이를 참조하며(`App --> Inference`), 로드 실패 시 `HeuristicSignalQualityClassifier`로 폴백한다. ONNX 타입은 `Core`로 새지 않으므로 `Core`의 무의존 규칙은 유지된다. 모델을 학습하는 `tools/TimeGrapher.SignalQualityTrainer`는 **dev 전용**이며 `TimeGrapherNet.sln` 밖에 있어(런타임은 ONNX Runtime만 필요, ML.NET 학습 스택은 배포 빌드에서 제외) uses 그래프의 엣지를 만들지 않는다.
+- `TimeGrapher.App`의 AI 설명 기능은 승인된 두 HTTPS 백엔드(`tg-ai.jaehongoh.com`, `tg-ai-cmu-aws.jaehongoh.com`)만 호출한다. HTTP 프로토콜과 Basic Auth 구성은 `AiExplanationService`에 갇히고, Gemini API 키·모델·프롬프트는 서버 경계 안에 남는다.
+- 로그인 저장은 `AiCredentialStore` 어댑터 뒤에서만 이루어진다. Windows는 Credential Manager P/Invoke, Linux/Raspberry Pi는 `secret-tool`(Secret Service)을 사용하며, probe 실패 시 `NullAiCredentialStore`로 저장을 비활성화한다. 평문 `AppSettings` 엣지는 만들지 않는다.
 
 ### App의 플랫폼 어댑터 참조 (RID 조건부)
 
@@ -187,7 +193,7 @@ flowchart TB
 | Program / 앱 시작 | Views, Audio, Rendering | Analysis, AudioIo, Shared |
 | Views | Program, ViewModels, Services, Audio, Tabs, Rendering, Assets | AudioIo, Detection, Shared, Sim |
 | ViewModels | — | Analysis, Shared |
-| Services | ViewModels, Program, Rendering | Analysis, AudioIo, Detection, Metrics, Shared |
+| Services | ViewModels, Program, Rendering | Analysis, AudioIo, Detection, Metrics, Shared; 승인된 AI 백엔드와 OS credential store를 어댑터 뒤에서 사용 |
 | Audio | Tabs | Analysis, AudioIo, Shared, Sim, 플랫폼 백엔드(RID 조건부) |
 | Tabs | ViewModels, Rendering | Analysis, Shared |
 | Rendering | Tabs, Assets | Analysis, Metrics, Shared |
@@ -205,9 +211,9 @@ flowchart TB
 
 - **view-model `PropertyChanged` 구독 컨트롤러**(`MainWindowSelectionCoordinator`와 같은 패턴 — 구독 후 operations 인터페이스 또는 결과 sink로 위임): `AcceptBandController`(정상밴드 시드+라이브 적용, `IAcceptBandOperations`), `SamplingSettingsController`(Run Parameters 입력 시드+영속화; 라이브 재적용 없이 다음 실행에 반영되므로 주입된 persist 델리게이트로만 위임), `AppSettingsController`(좌측 패널·Settings 창의 나머지 설정을 단일 `AppSettings` 스냅샷으로 영속화하고 Settings 창 default reset 때 Settings·좌측 패널·sampling·accept-band 값을 한 번의 기본 스냅샷으로 되돌림), `RunControlController`(스윕/위치/Σ 노브 + 위치변경 자동정지, `IRunSessionControls`), `MeasurementLogController`(operations 인터페이스가 아니라 주입된 sink 팩토리/`IMeasurementResultSink`로 위임; 측정 CSV 로그 생명주기·CLI 경로 1회 소비, `IDisposable`).
 - **명시적 호출로 구동되는 소유자**(`PropertyChanged` 구독자가 아님): `AudioDeviceController`(입력장치 열거·레이트 프로브; `LoadAudioDevices`/`PopulateSampleRates`를 ctor·콤보 드롭다운·디바이스 새로고침·선택-operations에서 명시적으로 호출, 캐시 식별성+UI 스레드 재진입 보존), `RunSessionController`(분석/입력 워커 생명주기), `AudioSelectionState`(입력장치/레이트 선택 상태 보관).
-- **composition root** `MainWindowBootstrapper`: 서비스 그래프 생성·배선(`Build`가 view-model을 시드하고 `RunCommandService`를 `IRunCommandRunner`로 view-model에 attach). 단 `AudioDeviceController`는 view 어댑터·델리게이트가 필요하므로 `MainWindow` 생성자가 직접 생성하고, bootstrapper가 만든 코디네이터를 `ISelectionEventGate`로 late-attach한다. 커맨드 본문은 view-model로 옮겨 주입된 `IRunCommandRunner`(`ViewModels`)를 호출한다.
-- **좁은 시밍 인터페이스**로 결합을 좁히고 테스트를 가능케 한다: `IRunCommandRunner`는 `ViewModels`, 나머지(`IAcceptBandOperations`/`IRunSessionControls`/`IRunSessionLiveAdjustments`/`IRunCommandPause`/`IMeasurementResultSink`/`IAudioDeviceBackend`/`IUiDispatcher`/`ISelectionEventGate`)는 `Services`. `ISelectionEventGate`(코디네이터가 구현)+late-attach가 코디네이터↔디바이스 컨트롤러 생성 순환을 끊고, `IRunSessionLiveAdjustments`(`RunSessionController`가 구현)+late-attach가 선택-operations 어댑터↔`RunSessionController` 생성 순환을 같은 방식으로 끊는다(어댑터가 `Build`의 입력이라 생성자 주입이 불가능하다).
-- **View 쪽 어댑터**(`GraphAcceptBandOperations`/`LiveAudioDeviceBackend`/`UiThreadDispatcher`/`MainWindowDialogService`)는 `Views`에서 이 `Services` 계약을 구현한다(앞의 셋은 창이 아니라 렌더러/`LiveAudioBackend`/`Dispatcher`를 감싸고, `MainWindowDialogService`는 `ITimeGrapherDialogService` 구현으로 다이얼로그 owner인 base `Window` 타입만 보유하므로 — 구체 `MainWindow`가 아니다 — 어느 쪽도 구체-View back-edge가 아니다). `MainWindowDialogService`는 본래 `Services/`에 있었으나, `Services` 계층에서 유일하게 Avalonia를 직접 import하던 프레젠테이션 코드라 다른 View 어댑터와 같은 패턴으로 `Views/`로 옮겼다(계약 `ITimeGrapherDialogService`는 `Services`에 유지). 따라서 **폴더 수준 엣지는 변하지 않는다**(`Views→Services`/`Views→Audio`/`Services→ViewModels` 모두 기존 엣지). 추가된 폴더 간 엣지는 둘이다 — `MainWindowBootstrapper`가 `BphCatalog`(`Core.Detection`)를 직접 참조하는 `Services→Core.Detection`, 그리고 `MainWindowBootstrapper`/`SamplingSettingsController`/`AppSettingsController`가 루트 네임스페이스 타입 `AppSettings`/`AppSettingsStore`/`SamplingSettings`를 사용하는 `Services→Program`. 둘 다 위 표의 `Services` 행에 반영했다.
+- **composition root** `MainWindowBootstrapper`: 서비스 그래프 생성·배선(`Build`가 view-model을 시드하고 `RunCommandService`를 `IRunCommandRunner`로, `AiExplanationController`를 `IAiExplanationRunner`로 view-model에 attach). 단 `AudioDeviceController`는 view 어댑터·델리게이트가 필요하므로 `MainWindow` 생성자가 직접 생성하고, bootstrapper가 만든 코디네이터를 `ISelectionEventGate`로 late-attach한다. 커맨드 본문은 view-model로 옮겨 주입된 runner 인터페이스(`ViewModels`)를 호출한다.
+- **좁은 시밍 인터페이스**로 결합을 좁히고 테스트를 가능케 한다: `IRunCommandRunner`와 `IAiExplanationRunner`는 `ViewModels`, 나머지(`IAcceptBandOperations`/`IRunSessionControls`/`IRunSessionLiveAdjustments`/`IRunCommandPause`/`IMeasurementResultSink`/`IAudioDeviceBackend`/`IUiDispatcher`/`ISelectionEventGate`)는 `Services`. `ISelectionEventGate`(코디네이터가 구현)+late-attach가 코디네이터↔디바이스 컨트롤러 생성 순환을 끊고, `IRunSessionLiveAdjustments`(`RunSessionController`가 구현)+late-attach가 선택-operations 어댑터↔`RunSessionController` 생성 순환을 같은 방식으로 끊는다(어댑터가 `Build`의 입력이라 생성자 주입이 불가능하다). AI 설명 경로도 `IAiExplanationService`와 `IAiCredentialStore`로 HTTP/credential 저장소를 fake로 대체할 수 있게 했다.
+- **View 쪽 어댑터**(`GraphAcceptBandOperations`/`LiveAudioDeviceBackend`/`UiThreadDispatcher`/`MainWindowDialogService`)는 `Views`에서 이 `Services` 계약을 구현한다(앞의 셋은 창이 아니라 렌더러/`LiveAudioBackend`/`Dispatcher`를 감싸고, `MainWindowDialogService`는 `ITimeGrapherDialogService` 구현으로 다이얼로그 owner인 base `Window` 타입만 보유하므로 — 구체 `MainWindow`가 아니다 — 어느 쪽도 구체-View back-edge가 아니다). AI 설명의 파일 선택, 동의/로그인 입력, 결과 표시도 이 dialog adapter에 남기고, HTTP와 credential 저장소 코드는 `Services`에 둔다. 따라서 **폴더 수준 엣지는 변하지 않는다**(`Views→Services`/`Views→Audio`/`Services→ViewModels` 모두 기존 엣지). 추가된 폴더 간 엣지는 둘이다 — `MainWindowBootstrapper`가 `BphCatalog`(`Core.Detection`)를 직접 참조하는 `Services→Core.Detection`, 그리고 `MainWindowBootstrapper`/`SamplingSettingsController`/`AppSettingsController`가 루트 네임스페이스 타입 `AppSettings`/`AppSettingsStore`/`SamplingSettings`를 사용하는 `Services→Program`. 둘 다 위 표의 `Services` 행에 반영했다.
 
 #### 순수성 상태와 받아들인 잔여물 (accepted residuals)
 
