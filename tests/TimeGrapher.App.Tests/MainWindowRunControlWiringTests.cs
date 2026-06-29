@@ -290,7 +290,10 @@ public sealed class MainWindowRunControlWiringTests
         Assert.Equal("TitleBarIconButton", aiButton.Attribute("Classes")?.Value);
         Assert.Equal("AI explanation", aiButton.Attribute("ToolTip.Tip")?.Value);
         Assert.Equal("{Binding AiExplanationCommand}", aiButton.Attribute("Command")?.Value);
-        Assert.Equal("Viewbox", FindOnlyChild(aiButton, "Viewbox").Name.LocalName);
+        XElement aiViewbox = FindOnlyChild(aiButton, "Viewbox");
+        Assert.Equal("Viewbox", aiViewbox.Name.LocalName);
+        Assert.Equal("22", aiViewbox.Attribute("Width")?.Value);
+        Assert.Equal("22", aiViewbox.Attribute("Height")?.Value);
         XElement geminiPath = Assert.Single(aiButton.Descendants(), element => element.Name.LocalName == "Path");
         Assert.StartsWith("M11.04 19.32Q12 21.51 12 24", geminiPath.Attribute("Data")?.Value);
         Assert.DoesNotContain(aiButton.Descendants(), element => element.Name.LocalName == "TextBlock");
