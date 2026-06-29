@@ -29,7 +29,6 @@ internal enum GraphSeriesRenderMode
 internal sealed record GraphSeriesDefinition(
     string Id,
     string Name,
-    uint Color,
     GraphSeriesRenderMode RenderMode,
     int TargetPointBudget,
     // Per-series fill opacity (0-255); byte so an out-of-range value is a
@@ -73,18 +72,18 @@ internal static class InfoTabCatalog
 
     private static readonly GraphSeriesDefinition[] RateScopeSeries =
     {
-        new(AnalysisGraphSeries.ScopePcm, "Rectified", Argb.Blue, GraphSeriesRenderMode.Line, ScopeTargetPointBudget, FillAlpha: 20),
-        new(AnalysisGraphSeries.ScopeThreshold, "Trigger", Argb.Red, GraphSeriesRenderMode.Line, ScopeTargetPointBudget),
-        new(AnalysisGraphSeries.RateTic, "Tic", Argb.Red, GraphSeriesRenderMode.Points, RateTargetPointBudget),
-        new(AnalysisGraphSeries.RateToc, "Toc", Argb.Blue, GraphSeriesRenderMode.Points, RateTargetPointBudget),
+        new(AnalysisGraphSeries.ScopePcm, "Rectified", GraphSeriesRenderMode.Line, ScopeTargetPointBudget, FillAlpha: 20),
+        new(AnalysisGraphSeries.ScopeThreshold, "Trigger", GraphSeriesRenderMode.Line, ScopeTargetPointBudget),
+        new(AnalysisGraphSeries.RateTic, "Tic", GraphSeriesRenderMode.Points, RateTargetPointBudget),
+        new(AnalysisGraphSeries.RateToc, "Toc", GraphSeriesRenderMode.Points, RateTargetPointBudget),
     };
 
     // Same tic/toc Error Rate traces the Rate/Scope tab consumes; declared
     // separately so each tab states its own graph-series contract.
     private static readonly GraphSeriesDefinition[] BeatErrorDiagSeries =
     {
-        new(AnalysisGraphSeries.RateTic, "Tic", Argb.Red, GraphSeriesRenderMode.Points, RateTargetPointBudget),
-        new(AnalysisGraphSeries.RateToc, "Toc", Argb.Blue, GraphSeriesRenderMode.Points, RateTargetPointBudget),
+        new(AnalysisGraphSeries.RateTic, "Tic", GraphSeriesRenderMode.Points, RateTargetPointBudget),
+        new(AnalysisGraphSeries.RateToc, "Toc", GraphSeriesRenderMode.Points, RateTargetPointBudget),
     };
 
     private static readonly InfoTabDefinition[] Definitions = BuildDefinitions();
