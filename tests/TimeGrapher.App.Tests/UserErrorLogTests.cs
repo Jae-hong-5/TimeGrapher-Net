@@ -34,4 +34,14 @@ public sealed class UserErrorLogTests
             }
         }
     }
+
+    [Fact]
+    public void BuildDefaultPathUsesPerUserAppDataNotInstallDir()
+    {
+        string appDataRoot = Path.Combine(Path.GetTempPath(), "tg-appdata-" + Guid.NewGuid().ToString("N"));
+
+        string path = UserErrorLog.BuildDefaultPath(appDataRoot);
+
+        Assert.Equal(Path.Combine(appDataRoot, "TimeGrapher", "log", "error.log"), path);
+    }
 }
