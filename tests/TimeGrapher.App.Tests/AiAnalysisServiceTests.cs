@@ -85,8 +85,8 @@ public sealed class AiAnalysisServiceTests
 
     [Theory]
     [InlineData(400, "bad", "backend message")]
-    [InlineData(401, "unauthorized", "Demo username or password is incorrect.")]
-    [InlineData(403, "forbidden", "Backend protection rejected the request.")]
+    [InlineData(401, "unauthorized", "User ID or User PW is incorrect.")]
+    [InlineData(403, "forbidden", "Server protection rejected the request.")]
     [InlineData(413, "log_too_large", "Measurement log is too large.")]
     [InlineData(429, "rate_limit_minute", "AI request limit was reached.")]
     [InlineData(502, "gemini_upstream_failed", "AI analysis is temporarily unavailable.")]

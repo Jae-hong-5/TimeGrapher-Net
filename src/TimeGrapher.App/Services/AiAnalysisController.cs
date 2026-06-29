@@ -122,7 +122,7 @@ internal sealed class AiAnalysisController : IAiAnalysisRunner
         displaySession.OnClosed(requestCts.Cancel);
         CancellationToken requestToken = requestCts.Token;
 
-        await displaySession.ShowStatusAsync("Sending selected measurement log to the AI backend. Waiting for response.");
+        await displaySession.ShowStatusAsync("Sending the selected measurement log to the selected server. Waiting for AI response.");
 
         AiAnalysisResult result;
         try
@@ -189,7 +189,7 @@ internal sealed class AiAnalysisController : IAiAnalysisRunner
                 bool saved = await _credentialStore.SaveAsync(credentials, cancellationToken);
                 return saved
                     ? null
-                    : "Credentials could not be saved by the operating system credential store. This request completed without changing saved login state.";
+                    : "User ID / User PW could not be saved by this device. This request completed without changing saved login state.";
             }
 
             bool deleted = await _credentialStore.DeleteAsync(cancellationToken);
@@ -199,11 +199,11 @@ internal sealed class AiAnalysisController : IAiAnalysisRunner
         }
         catch (IOException)
         {
-            return "Saved login state could not be updated by the operating system credential store.";
+            return "Saved login state could not be updated on this device.";
         }
         catch (UnauthorizedAccessException)
         {
-            return "Saved login state could not be updated by the operating system credential store.";
+            return "Saved login state could not be updated on this device.";
         }
     }
 

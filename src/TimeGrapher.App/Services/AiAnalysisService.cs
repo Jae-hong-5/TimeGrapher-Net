@@ -102,7 +102,7 @@ internal sealed class AiAnalysisService : IAiAnalysisService
                 HttpStatusCode.GatewayTimeout,
                 null,
                 "request_timeout",
-                "AI analysis request timed out. Please retry with the same log or use the AWS backend.");
+                "AI analysis request timed out. Retry with the same log or try the other server.");
         }
         catch (HttpRequestException)
         {
@@ -110,7 +110,7 @@ internal sealed class AiAnalysisService : IAiAnalysisService
                 0,
                 null,
                 "transport_error",
-                "AI analysis backend could not be reached. Check the network or try the AWS backend.");
+                "AI analysis server could not be reached. Check the network or try the other server.");
         }
 
         using (response)
@@ -126,7 +126,7 @@ internal sealed class AiAnalysisService : IAiAnalysisService
                     HttpStatusCode.GatewayTimeout,
                     null,
                     "request_timeout",
-                    "AI analysis request timed out. Please retry with the same log or use the AWS backend.");
+                    "AI analysis request timed out. Retry with the same log or try the other server.");
             }
             catch (IOException)
             {
@@ -134,7 +134,7 @@ internal sealed class AiAnalysisService : IAiAnalysisService
                     0,
                     null,
                     "transport_error",
-                    "AI analysis backend could not be reached. Check the network or try the AWS backend.");
+                    "AI analysis server could not be reached. Check the network or try the other server.");
             }
 
             if (response.IsSuccessStatusCode)
@@ -245,12 +245,12 @@ internal sealed class AiAnalysisService : IAiAnalysisService
     private static string MapUserMessage(HttpStatusCode statusCode, string? backendMessage) => statusCode switch
     {
         HttpStatusCode.BadRequest => backendMessage ?? "Measurement log input was invalid.",
-        HttpStatusCode.Unauthorized => "Demo username or password is incorrect.",
-        HttpStatusCode.Forbidden => "Backend protection rejected the request. Check the API host's Cloudflare rules.",
+        HttpStatusCode.Unauthorized => "User ID or User PW is incorrect.",
+        HttpStatusCode.Forbidden => "Server protection rejected the request. Try the other server.",
         HttpStatusCode.RequestEntityTooLarge => "Measurement log is too large. Use a shorter log or smaller measurement window.",
         (HttpStatusCode)429 => "AI request limit was reached. Please retry later.",
         HttpStatusCode.BadGateway => "AI analysis is temporarily unavailable.",
-        HttpStatusCode.GatewayTimeout => "AI analysis timed out upstream. Please retry with the same log or use the AWS backend.",
+        HttpStatusCode.GatewayTimeout => "AI analysis timed out upstream. Retry with the same log or try the other server.",
         HttpStatusCode.ServiceUnavailable => "AI analysis is currently unavailable.",
         _ => backendMessage ?? "AI analysis request failed."
     };

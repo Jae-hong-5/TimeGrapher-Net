@@ -81,7 +81,7 @@ public sealed class AiAnalysisControllerTests : IDisposable
         Assert.NotNull(dialogs.LastDisplaySession);
         Assert.Contains(
             dialogs.LastDisplaySession.StatusTexts,
-            status => status.Contains("Waiting for response", StringComparison.Ordinal));
+            status => status.Contains("Waiting for AI response", StringComparison.Ordinal));
         Assert.Null(dialogs.LastDisplay);
 
         response.SetResult(new AiAnalysisResult("rid-progress", "응답", "gemini-test"));
@@ -182,7 +182,7 @@ public sealed class AiAnalysisControllerTests : IDisposable
                 HttpStatusCode.Unauthorized,
                 "rid",
                 "unauthorized",
-                "Demo username or password is incorrect.")
+                "User ID or User PW is incorrect.")
         };
         var controller = new AiAnalysisController(dialogs, ai, store);
 
@@ -191,7 +191,7 @@ public sealed class AiAnalysisControllerTests : IDisposable
         Assert.Null(store.SavedCredentials);
         Assert.False(store.DeleteCalled);
         Assert.Null(dialogs.LastDisplay);
-        Assert.Contains("Demo username or password is incorrect.", dialogs.LastFailure!.Message, StringComparison.Ordinal);
+        Assert.Contains("User ID or User PW is incorrect.", dialogs.LastFailure!.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -247,7 +247,7 @@ public sealed class AiAnalysisControllerTests : IDisposable
                 HttpStatusCode.Unauthorized,
                 "rid",
                 "unauthorized",
-                "Demo username or password is incorrect.")
+                "User ID or User PW is incorrect.")
         };
         var controller = new AiAnalysisController(dialogs, ai, store);
 
@@ -255,7 +255,7 @@ public sealed class AiAnalysisControllerTests : IDisposable
 
         Assert.False(store.DeleteCalled);
         Assert.Null(dialogs.LastDisplay);
-        Assert.Contains("Demo username or password is incorrect.", dialogs.LastFailure!.Message, StringComparison.Ordinal);
+        Assert.Contains("User ID or User PW is incorrect.", dialogs.LastFailure!.Message, StringComparison.Ordinal);
     }
 
     [Fact]

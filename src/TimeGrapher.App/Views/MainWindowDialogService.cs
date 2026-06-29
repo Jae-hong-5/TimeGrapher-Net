@@ -153,13 +153,13 @@ internal sealed class MainWindowDialogService : ITimeGrapherDialogService
         };
         var remember = new CheckBox
         {
-            Content = "Remember login with OS credential store",
+            Content = "Remember User ID / User PW on this device",
             IsChecked = request.CredentialPersistenceAvailable && request.SavedCredentials != null,
             IsEnabled = request.CredentialPersistenceAvailable,
         };
         var consent = new CheckBox
         {
-            Content = "I consent to upload the selected TimeGrapher measurement log to the selected TimeGrapher service server for AI analysis.",
+            Content = "I agree to upload the selected measurement log to the selected TimeGrapher service server for AI analysis.",
         };
         var errorText = new TextBlock
         {
@@ -170,7 +170,7 @@ internal sealed class MainWindowDialogService : ITimeGrapherDialogService
 
         if (!request.CredentialPersistenceAvailable)
         {
-            remember.Content = "Remember login unavailable: OS credential store probe failed";
+            remember.Content = "Remember login is unavailable on this device";
         }
 
         var ok = new Button { Content = "Analyze", Width = 88, IsDefault = true, IsEnabled = consent.IsChecked == true };
@@ -184,14 +184,14 @@ internal sealed class MainWindowDialogService : ITimeGrapherDialogService
 
             if (string.IsNullOrWhiteSpace(usernameText) || string.IsNullOrWhiteSpace(passwordText))
             {
-                errorText.Text = "Enter the provided User ID and User PW.";
+                errorText.Text = "Enter the User ID and User PW.";
                 errorText.IsVisible = true;
                 return;
             }
 
             if (consent.IsChecked != true)
             {
-                errorText.Text = "Consent is required before uploading the measurement log.";
+                errorText.Text = "Check the upload consent box before starting AI analysis.";
                 errorText.IsVisible = true;
                 return;
             }
@@ -245,7 +245,7 @@ internal sealed class MainWindowDialogService : ITimeGrapherDialogService
         var panel = new StackPanel { Margin = new Avalonia.Thickness(16), Spacing = 10 };
         panel.Children.Add(new TextBlock
         {
-            Text = "Send the selected TimeGrapher measurement log to the selected TimeGrapher service server for a Korean AI analysis.",
+            Text = "Upload the selected measurement log to the selected TimeGrapher service server and generate a Korean-language AI analysis.",
             TextWrapping = TextWrapping.Wrap,
         });
         panel.Children.Add(formGrid);
