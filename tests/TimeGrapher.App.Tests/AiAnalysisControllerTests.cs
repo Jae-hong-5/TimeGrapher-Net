@@ -128,6 +128,69 @@ public sealed class AiAnalysisControllerTests : IDisposable
     }
 
     [Fact]
+    public async Task AnalyzeAsync_ClosingResultWindowAfterSuccessDoesNotCancelCompletedRequest()
+    {
+        string logPath = WriteTempLog("log");
+        var dialogs = new FakeDialogs
+        {
+            MeasurementLogPath = logPath,
+            DialogResult = new AiAnalysisDialogResult(
+                AiAnalysisService.PrimaryBackendBaseUrl,
+                "grader",
+                "secret",
+                RememberCredentials: false,
+                ConsentGranted: true)
+        };
+        var ai = new FakeAiAnalysisService();
+        var controller = new AiAnalysisController(
+            dialogs,
+            ai,
+            new FakeCredentialStore { ProbeResult = true });
+
+        await controller.AnalyzeAsync();
+
+        Assert.NotNull(dialogs.LastDisplay);
+        Exception? ex = Record.Exception(() => dialogs.LastDisplaySession!.RaiseClosed());
+        Assert.Null(ex);
+        Assert.False(ai.LastCancellationToken.IsCancellationRequested);
+    }
+
+    [Fact]
+    public async Task AnalyzeAsync_ClosingResultWindowDuringCredentialSaveDoesNotFault()
+    {
+        string logPath = WriteTempLog("log");
+        var dialogs = new FakeDialogs
+        {
+            MeasurementLogPath = logPath,
+            DialogResult = new AiAnalysisDialogResult(
+                AiAnalysisService.PrimaryBackendBaseUrl,
+                "grader",
+                "secret",
+                RememberCredentials: true,
+                ConsentGranted: true)
+        };
+        var store = new FakeCredentialStore
+        {
+            ProbeResult = true,
+            AwaitSaveCancellation = true
+        };
+        var controller = new AiAnalysisController(
+            dialogs,
+            new FakeAiAnalysisService(),
+            store);
+
+        Task run = controller.AnalyzeAsync();
+        await store.SaveStarted.Task.WaitAsync(TimeSpan.FromSeconds(1));
+
+        Assert.NotNull(dialogs.LastDisplay);
+        dialogs.LastDisplaySession!.RaiseClosed();
+        await run.WaitAsync(TimeSpan.FromSeconds(1));
+
+        Assert.True(store.SaveCancellationObserved);
+        Assert.Empty(dialogs.Errors);
+    }
+
+    [Fact]
     public async Task AnalyzeAsync_RememberCredentialsSavesToCredentialStore()
     {
         string logPath = WriteTempLog("log");
@@ -433,15 +496,31 @@ public sealed class AiAnalysisControllerTests : IDisposable
         public bool DeleteResult { get; init; } = true;
         public AiBackendCredentials? SavedCredentials { get; private set; }
         public bool DeleteCalled { get; private set; }
+        public bool AwaitSaveCancellation { get; init; }
+        public bool SaveCancellationObserved { get; private set; }
+        public TaskCompletionSource<bool> SaveStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         public Task<bool> ProbeAsync(CancellationToken cancellationToken) => Task.FromResult(ProbeResult);
 
         public Task<AiBackendCredentials?> ReadAsync(CancellationToken cancellationToken) => Task.FromResult(ReadResult);
 
-        public Task<bool> SaveAsync(AiBackendCredentials credentials, CancellationToken cancellationToken)
+        public async Task<bool> SaveAsync(AiBackendCredentials credentials, CancellationToken cancellationToken)
         {
             SavedCredentials = credentials;
-            return Task.FromResult(true);
+            if (AwaitSaveCancellation)
+            {
+                SaveStarted.TrySetResult(true);
+                var cancelled = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                using (cancellationToken.Register(() => cancelled.TrySetResult(true)))
+                {
+                    await cancelled.Task;
+                }
+
+                SaveCancellationObserved = true;
+                cancellationToken.ThrowIfCancellationRequested();
+            }
+
+            return true;
         }
 
         public Task<bool> DeleteAsync(CancellationToken cancellationToken)

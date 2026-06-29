@@ -117,10 +117,11 @@ internal sealed class AiAnalysisController : IAiAnalysisRunner
                 "Preparing AI analysis request."));
 
         // Tie the request lifetime to the (non-modal) progress window: closing it
-        // cancels the in-flight backend call and the credential-store update.
-        using var requestCts = new CancellationTokenSource();
-        displaySession.OnClosed(requestCts.Cancel);
-        CancellationToken requestToken = requestCts.Token;
+        // cancels the in-flight backend call and the credential-store update, while
+        // closing the final result window after completion is a no-op.
+        using var requestLifetime = new AiAnalysisRequestLifetime();
+        displaySession.OnClosed(requestLifetime.CancelIfActive);
+        CancellationToken requestToken = requestLifetime.Token;
 
         await displaySession.ShowStatusAsync("Sending the selected measurement log to the selected server. Waiting for AI response.");
 
@@ -197,6 +198,10 @@ internal sealed class AiAnalysisController : IAiAnalysisRunner
                 ? null
                 : "Saved login could not be removed by the operating system credential store. This request completed without changing saved login state.";
         }
+        catch (OperationCanceledException)
+        {
+            return null;
+        }
         catch (IOException)
         {
             return "Saved login state could not be updated on this device.";
@@ -207,6 +212,34 @@ internal sealed class AiAnalysisController : IAiAnalysisRunner
         }
     }
 
+    private sealed class AiAnalysisRequestLifetime : IDisposable
+    {
+        private readonly object _gate = new();
+        private readonly CancellationTokenSource _source = new();
+        private bool _active = true;
+
+        public CancellationToken Token => _source.Token;
+
+        public void CancelIfActive()
+        {
+            lock (_gate)
+            {
+                if (_active)
+                {
+                    _source.Cancel();
+                }
+            }
+        }
+
+        public void Dispose()
+        {
+            lock (_gate)
+            {
+                _active = false;
+                _source.Dispose();
+            }
+        }
+    }
     private async Task ShowServiceErrorAsync(AiAnalysisServiceException ex)
     {
         AiAnalysisFailureDisplay failure = ToFailureDisplay(ex);
