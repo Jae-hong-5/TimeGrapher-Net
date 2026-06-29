@@ -220,7 +220,21 @@ jobs:
         run: dotnet build TimeGrapherNet.sln -c Release --no-restore /p:TreatWarningsAsErrors=true
 
       - name: Test
-        run: dotnet test TimeGrapherNet.sln -c Release --no-build --logger "trx;LogFilePrefix=test-results" --results-directory TestResults
+        run: |
+          $projects = @(
+            "tests/TimeGrapher.App.Tests/TimeGrapher.App.Tests.csproj",
+            "tests/TimeGrapher.Core.Tests/TimeGrapher.Core.Tests.csproj",
+            "tests/TimeGrapher.Inference.Tests/TimeGrapher.Inference.Tests.csproj",
+            "tests/TimeGrapher.Platform.LinuxAudio.Tests/TimeGrapher.Platform.LinuxAudio.Tests.csproj",
+            "tests/TimeGrapher.Platform.WindowsAudio.Tests/TimeGrapher.Platform.WindowsAudio.Tests.csproj",
+            "tests/TimeGrapher.Verify.Tests/TimeGrapher.Verify.Tests.csproj"
+          )
+
+          foreach ($project in $projects) {
+            $prefix = [IO.Path]::GetFileNameWithoutExtension($project)
+            dotnet test $project -c Release --no-build --logger "trx;LogFilePrefix=$prefix" --results-directory TestResults
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
 
       - name: Upload test results
         if: always()
