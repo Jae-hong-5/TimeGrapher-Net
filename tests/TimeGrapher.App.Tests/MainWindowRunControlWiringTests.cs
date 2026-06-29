@@ -243,7 +243,7 @@ public sealed class MainWindowRunControlWiringTests
     }
 
     [Fact]
-    public void TitleBarPlacesHelpAiAndSettingsBetweenThemeAndMinimizeButtons()
+    public void TitleBarPlacesAiBeforeThemeHelpAndSettings()
     {
         XDocument document = XDocument.Load(FindSourceFile("src/TimeGrapher.App/Views/MainWindow.axaml"));
 
@@ -257,9 +257,9 @@ public sealed class MainWindowRunControlWiringTests
         Assert.Equal(
             new[]
             {
+                "AiExplanationTitleBarButton",
                 "ThemeToggleButton",
                 "HelpTitleBarButton",
-                "AiExplanationTitleBarButton",
                 "SettingsTitleBarButton",
                 "MinimizeWindowButton",
                 "MaximizeWindowButton",
