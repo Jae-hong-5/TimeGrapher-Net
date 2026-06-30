@@ -84,6 +84,7 @@ public sealed class AnalysisWorker : IDisposable
 
     // Thread loop state (port-only; replaces Qt moveToThread).
     private Thread? _thread;
+    private readonly object _threadStateLock = new();
     private readonly AutoResetEvent _wakeup = new(false);
     private volatile bool _stopRequested = false;
     private volatile bool _completionRequested = false;
@@ -136,19 +137,23 @@ public sealed class AnalysisWorker : IDisposable
     /// <summary>Starts the analysis thread (AutoResetEvent wait loop).</summary>
     public void Start()
     {
-        if (_thread != null)
+        lock (_threadStateLock)
         {
-            return;
+            if (_thread != null)
+            {
+                return;
+            }
+
+            _stopRequested = false;
+            _completionRequested = false;
+            _thread = new Thread(ThreadLoop)
+            {
+                Name = "AnalysisWorker",
+                IsBackground = true,
+                Priority = ThreadPriority.Highest, // QThread::TimeCriticalPriority
+            };
+            _thread.Start();
         }
-        _stopRequested = false;
-        _completionRequested = false;
-        _thread = new Thread(ThreadLoop)
-        {
-            Name = "AnalysisWorker",
-            IsBackground = true,
-            Priority = ThreadPriority.Highest, // QThread::TimeCriticalPriority
-        };
-        _thread.Start();
     }
 
     /// <summary>Signal that new audio is available. Callable from any thread.</summary>
@@ -238,18 +243,32 @@ public sealed class AnalysisWorker : IDisposable
 
     public bool TryStop(TimeSpan timeout)
     {
-        if (_thread == null)
+        Thread? thread;
+        lock (_threadStateLock)
+        {
+            thread = _thread;
+            if (thread != null)
+            {
+                _stopRequested = true;
+                _wakeup.Set();
+            }
+        }
+
+        if (thread == null)
         {
             return true;
         }
 
-        _stopRequested = true;
-        _wakeup.Set();
-        Thread thread = _thread;
         bool stopped = JoinThread(thread, timeout);
         if (stopped)
         {
-            _thread = null;
+            lock (_threadStateLock)
+            {
+                if (ReferenceEquals(_thread, thread))
+                {
+                    _thread = null;
+                }
+            }
         }
 
         return stopped;
@@ -257,19 +276,33 @@ public sealed class AnalysisWorker : IDisposable
 
     public bool CompleteInput(TimeSpan timeout)
     {
-        if (_thread == null)
+        Thread? thread;
+        lock (_threadStateLock)
+        {
+            thread = _thread;
+            if (thread != null)
+            {
+                _completionRequested = true;
+                _wakeup.Set();
+            }
+        }
+
+        if (thread == null)
         {
             DrainAndFlushInput();
             return true;
         }
 
-        _completionRequested = true;
-        _wakeup.Set();
-        Thread thread = _thread;
         bool stopped = JoinThread(thread, timeout);
         if (stopped)
         {
-            _thread = null;
+            lock (_threadStateLock)
+            {
+                if (ReferenceEquals(_thread, thread))
+                {
+                    _thread = null;
+                }
+            }
         }
 
         return stopped;
