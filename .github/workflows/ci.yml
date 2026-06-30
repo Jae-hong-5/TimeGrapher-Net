@@ -221,14 +221,15 @@ jobs:
 
       - name: Test
         run: |
-          $projects = @(
-            "tests/TimeGrapher.App.Tests/TimeGrapher.App.Tests.csproj",
-            "tests/TimeGrapher.Core.Tests/TimeGrapher.Core.Tests.csproj",
-            "tests/TimeGrapher.Inference.Tests/TimeGrapher.Inference.Tests.csproj",
-            "tests/TimeGrapher.Platform.LinuxAudio.Tests/TimeGrapher.Platform.LinuxAudio.Tests.csproj",
-            "tests/TimeGrapher.Platform.WindowsAudio.Tests/TimeGrapher.Platform.WindowsAudio.Tests.csproj",
-            "tests/TimeGrapher.Verify.Tests/TimeGrapher.Verify.Tests.csproj"
-          )
+          # Derive the test projects from the solution rather than a hardcoded list, so a
+          # test project added to the solution cannot be silently built-but-never-run.
+          # Each project is still run in its own process to preserve test isolation.
+          $projects = dotnet sln TimeGrapherNet.sln list |
+            Where-Object { $_ -match '\.Tests\.csproj$' }
+          if (-not $projects) {
+            Write-Error "No test projects found in TimeGrapherNet.sln."
+            exit 1
+          }
 
           foreach ($project in $projects) {
             $prefix = [IO.Path]::GetFileNameWithoutExtension($project)
