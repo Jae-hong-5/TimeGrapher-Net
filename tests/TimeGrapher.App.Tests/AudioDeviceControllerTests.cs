@@ -311,6 +311,26 @@ public sealed class AudioDeviceControllerTests
     }
 
     [Fact]
+    public void ProbeSampleRates_CacheMissShowsNoLiveRatesUntilProbeCompletes()
+    {
+        var h = new Harness();
+        h.Backend.Devices.Add(new LiveAudioDevice(1, "Mic"));
+        h.Backend.RatesByDevice[1] = new[] { 48000 };
+        h.Runner.Immediate = false;
+
+        h.Controller.LoadAudioDevices();      // pre-warm deferred -> cache stays empty
+        h.ViewModel.SelectedInputDeviceIndex = 0; // device 1 is selected
+        h.Controller.PopulateSampleRates(1);  // cache miss -> no optimistic unsupported rates
+
+        Assert.Empty(h.ViewModel.SampleRateLabels);
+        Assert.Equal(0, h.State.AvailableSampleRateCount);
+
+        h.Runner.RunPending();
+
+        Assert.Equal(new[] { "48000 Hz" }, h.ViewModel.SampleRateLabels);
+    }
+
+    [Fact]
     public void ProbeSampleRates_StaleAfterReEnumeration_IsIgnored()
     {
         var h = new Harness();
@@ -320,17 +340,17 @@ public sealed class AudioDeviceControllerTests
 
         h.Controller.LoadAudioDevices();      // pre-warm deferred -> cache stays empty
         h.ViewModel.SelectedInputDeviceIndex = 0; // device 1 is selected
-        h.Controller.PopulateSampleRates(1);  // cache miss -> all standard now + probe deferred
+        h.Controller.PopulateSampleRates(1);  // cache miss -> empty list + probe deferred
 
-        Assert.Equal(3, h.ViewModel.SampleRateLabels.Count); // miss branch shows all standard
+        Assert.Empty(h.ViewModel.SampleRateLabels);
 
         h.Controller.LoadAudioDevices();      // re-enumerate -> swaps the cache instance
 
         h.Runner.RunPending(); // runs the stale probe (old cache) + the pre-warms
 
-        // The stale probe's re-narrow is dropped (cache identity changed), so the list is not
-        // narrowed to the single supported rate.
-        Assert.Equal(3, h.ViewModel.SampleRateLabels.Count);
+        // The stale probe's re-narrow is dropped (cache identity changed), so the empty
+        // cache-miss list is not narrowed to the single supported rate.
+        Assert.Empty(h.ViewModel.SampleRateLabels);
     }
 
     [Fact]
@@ -343,9 +363,9 @@ public sealed class AudioDeviceControllerTests
 
         h.Controller.LoadAudioDevices();          // state: device 1, Playback, Simulation
         h.ViewModel.SelectedInputDeviceIndex = 0; // device 1 selected
-        h.Controller.PopulateSampleRates(1);      // cache miss -> all standard now + probe deferred
+        h.Controller.PopulateSampleRates(1);      // cache miss -> empty list + probe deferred
 
-        Assert.Equal(3, h.ViewModel.SampleRateLabels.Count);
+        Assert.Empty(h.ViewModel.SampleRateLabels);
 
         // Move selection to Playback (-1) WITHOUT re-enumerating, so the cache identity is unchanged
         // but the device-match guard (CurrentSelectedInputDeviceNumber == deviceNumber) now fails.
@@ -353,6 +373,6 @@ public sealed class AudioDeviceControllerTests
 
         h.Runner.RunPending(); // pre-warm fills the cache; the device-1 probe must NOT re-narrow
 
-        Assert.Equal(3, h.ViewModel.SampleRateLabels.Count);
+        Assert.Empty(h.ViewModel.SampleRateLabels);
     }
 }

@@ -184,17 +184,9 @@ internal sealed class AudioDeviceController
         }
         else
         {
-            // Cache miss (pre-warm not finished, e.g. the initial auto-select): show every standard
-            // rate now so the UI never blocks on the probe (on Linux it spawns a process per rate),
-            // then probe off the UI thread and re-narrow once it returns if the device is still chosen.
-            foreach (int rate in standardRates)
-            {
-                if (_state.TryAddSampleRate(rate))
-                {
-                    labels.Add(rate.ToString(CultureInfo.InvariantCulture) + " Hz");
-                }
-            }
-
+            // Cache miss (pre-warm not finished, e.g. the initial auto-select): keep the live
+            // sample-rate list empty until the backend probe returns. Showing every standard
+            // rate here lets unsupported Linux/PipeWire rates appear selectable.
             ProbeSampleRatesAsync(deviceNumber);
         }
 

@@ -179,6 +179,49 @@ card 4: CA7 [Cubilux CA7], device 0: USB Audio [USB Audio]
     }
 
     [Fact]
+    public void BuildPipeWireAlsaRateProbeMap_UsesInspectHardwareAddressBeforeNameMatch()
+    {
+        var pipeWireSources = new[]
+        {
+            new LiveAudioDevice(65, "CM108 Audio Controller Mono"),
+        };
+        IReadOnlyList<LiveAudioDevice> alsaDevices = LinuxLiveAudioWorker.ParseAlsaCaptureDevices("""
+**** List of CAPTURE Hardware Devices ****
+card 3: Device [USB PnP Sound Device], device 0: USB Audio [USB Audio]
+""");
+
+        IReadOnlyDictionary<int, int> map = LinuxLiveAudioWorker.BuildPipeWireAlsaRateProbeMap(
+            pipeWireSources,
+            alsaDevices,
+            sourceNumber => sourceNumber == 65
+                ? """
+id 65, type PipeWire:Interface:Node
+    api.alsa.pcm.card = "3"
+    api.alsa.pcm.device = "0"
+"""
+                : "");
+
+        Assert.True(map.TryGetValue(65, out int deviceNumber));
+        Assert.True(LinuxLiveAudioWorker.TryDecodeAlsaDeviceNumber(deviceNumber, out int card, out int device));
+        Assert.Equal(3, card);
+        Assert.Equal(0, device);
+    }
+
+    [Fact]
+    public void TryParsePipeWireAlsaHardwareAddress_FallsBackToHwPath()
+    {
+        const string inspectOutput = """
+id 65, type PipeWire:Interface:Node
+    api.alsa.path = "hw:4"
+    alsa.device = "0"
+""";
+
+        Assert.True(LinuxLiveAudioWorker.TryParsePipeWireAlsaHardwareAddress(inspectOutput, out int card, out int device));
+        Assert.Equal(4, card);
+        Assert.Equal(0, device);
+    }
+
+    [Fact]
     public void ResolveRateProbeDeviceNumber_UsesMappedAlsaHardwareForPipeWireSource()
     {
         IReadOnlyList<LiveAudioDevice> alsaDevices = LinuxLiveAudioWorker.ParseAlsaCaptureDevices("""
@@ -192,6 +235,18 @@ card 3: Device [USB PnP Sound Device], device 0: USB Audio [USB Audio]
 
         Assert.Equal(alsaDevices[0].Number, LinuxLiveAudioWorker.ResolveRateProbeDeviceNumber(65, map));
         Assert.Equal(66, LinuxLiveAudioWorker.ResolveRateProbeDeviceNumber(66, map));
+    }
+
+    [Fact]
+    public void TryResolveRateProbeDeviceNumber_RejectsUnmappedPipeWireSource()
+    {
+        var map = new Dictionary<int, int>();
+        var pipeWireSources = new HashSet<int> { 65 };
+
+        Assert.False(LinuxLiveAudioWorker.TryResolveRateProbeDeviceNumber(65, map, pipeWireSources, out int probeDeviceNumber));
+        Assert.Equal(0, probeDeviceNumber);
+        Assert.True(LinuxLiveAudioWorker.TryResolveRateProbeDeviceNumber(66, map, pipeWireSources, out int nonPipeWireProbe));
+        Assert.Equal(66, nonPipeWireProbe);
     }
 
     [Fact]

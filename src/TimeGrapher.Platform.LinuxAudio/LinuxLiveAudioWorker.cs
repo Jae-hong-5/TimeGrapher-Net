@@ -38,8 +38,12 @@ public sealed class LinuxLiveAudioWorker : ILiveAudioWorker
     private static readonly Regex AlsaCaptureDeviceRegex = new(
         @"^card\s+(?<card>\d+):\s+(?<cardId>[^\[]+)\[(?<cardName>[^\]]+)\],\s+device\s+(?<device>\d+):\s+(?<deviceName>.+?)(?:\s+\[.*\])?$",
         RegexOptions.Compiled | RegexOptions.CultureInvariant);
+    private static readonly Regex PipeWirePropertyRegex = new(
+        @"^(?<name>[A-Za-z0-9_.-]+)\s*=\s*(?:""(?<quoted>[^""]*)""|(?<bare>\S+))",
+        RegexOptions.Compiled | RegexOptions.CultureInvariant);
     private static readonly object PipeWireRateProbeLock = new();
     private static IReadOnlyDictionary<int, int> _pipeWireAlsaRateProbeDevices = new Dictionary<int, int>();
+    private static IReadOnlySet<int> _pipeWireRateProbeSourceNumbers = new HashSet<int>();
 
     private readonly MasterAudioBuffer _rawAudio;
     private readonly Stopwatch _timer = new();
@@ -86,11 +90,13 @@ public sealed class LinuxLiveAudioWorker : ILiveAudioWorker
         IReadOnlyList<LiveAudioDevice> alsaDevices = ParseAlsaCaptureDevices(arecordList);
         if (devices.Count > 0)
         {
-            SetPipeWireAlsaRateProbeDevices(BuildPipeWireAlsaRateProbeMap(devices, alsaDevices));
+            SetPipeWireAlsaRateProbeDevices(
+                BuildPipeWireAlsaRateProbeMap(devices, alsaDevices, InspectPipeWireSource),
+                BuildPipeWireSourceNumberSet(devices));
             return devices;
         }
 
-        SetPipeWireAlsaRateProbeDevices(new Dictionary<int, int>());
+        SetPipeWireAlsaRateProbeDevices(new Dictionary<int, int>(), new HashSet<int>());
         return alsaDevices;
     }
 
@@ -204,9 +210,23 @@ public sealed class LinuxLiveAudioWorker : ILiveAudioWorker
         IReadOnlyList<LiveAudioDevice> pipeWireSources,
         IReadOnlyList<LiveAudioDevice> alsaDevices)
     {
+        return BuildPipeWireAlsaRateProbeMap(pipeWireSources, alsaDevices, inspectPipeWireSource: null);
+    }
+
+    internal static IReadOnlyDictionary<int, int> BuildPipeWireAlsaRateProbeMap(
+        IReadOnlyList<LiveAudioDevice> pipeWireSources,
+        IReadOnlyList<LiveAudioDevice> alsaDevices,
+        Func<int, string>? inspectPipeWireSource)
+    {
         var map = new Dictionary<int, int>();
         foreach (LiveAudioDevice source in pipeWireSources)
         {
+            if (TryResolveInspectedAlsaRateProbeDevice(source.Number, alsaDevices, inspectPipeWireSource, out int inspectedDeviceNumber))
+            {
+                map[source.Number] = inspectedDeviceNumber;
+                continue;
+            }
+
             int matchedDeviceNumber = 0;
             bool matched = false;
             bool ambiguous = false;
@@ -237,6 +257,17 @@ public sealed class LinuxLiveAudioWorker : ILiveAudioWorker
         return map;
     }
 
+    private static IReadOnlySet<int> BuildPipeWireSourceNumberSet(IReadOnlyList<LiveAudioDevice> pipeWireSources)
+    {
+        var numbers = new HashSet<int>();
+        foreach (LiveAudioDevice source in pipeWireSources)
+        {
+            numbers.Add(source.Number);
+        }
+
+        return numbers;
+    }
+
     internal static int ResolveRateProbeDeviceNumber(
         int deviceNumber,
         IReadOnlyDictionary<int, int> pipeWireAlsaRateProbeDevices)
@@ -244,6 +275,28 @@ public sealed class LinuxLiveAudioWorker : ILiveAudioWorker
         return pipeWireAlsaRateProbeDevices.TryGetValue(deviceNumber, out int alsaDeviceNumber)
             ? alsaDeviceNumber
             : deviceNumber;
+    }
+
+    internal static bool TryResolveRateProbeDeviceNumber(
+        int deviceNumber,
+        IReadOnlyDictionary<int, int> pipeWireAlsaRateProbeDevices,
+        IReadOnlySet<int> pipeWireSourceNumbers,
+        out int probeDeviceNumber)
+    {
+        if (pipeWireAlsaRateProbeDevices.TryGetValue(deviceNumber, out int alsaDeviceNumber))
+        {
+            probeDeviceNumber = alsaDeviceNumber;
+            return true;
+        }
+
+        if (pipeWireSourceNumbers.Contains(deviceNumber))
+        {
+            probeDeviceNumber = 0;
+            return false;
+        }
+
+        probeDeviceNumber = deviceNumber;
+        return true;
     }
 
     public static IReadOnlyList<int> GetCandidateSampleRates(int deviceNumber)
@@ -291,7 +344,10 @@ public sealed class LinuxLiveAudioWorker : ILiveAudioWorker
     {
         try
         {
-            int probeDeviceNumber = ResolveRateProbeDeviceNumber(deviceNumber);
+            if (!TryResolveRateProbeDeviceNumber(deviceNumber, out int probeDeviceNumber))
+            {
+                return false;
+            }
             ProcessStartInfo startInfo = TryDecodeAlsaDeviceNumber(probeDeviceNumber, out int card, out int device)
                 ? BuildAlsaProbeStartInfo(card, device, sampleRate)
                 : BuildPipeWireProbeStartInfo(deviceNumber, sampleRate);
@@ -306,23 +362,148 @@ public sealed class LinuxLiveAudioWorker : ILiveAudioWorker
         }
     }
 
-    private static int ResolveRateProbeDeviceNumber(int deviceNumber)
+    private static bool TryResolveRateProbeDeviceNumber(int deviceNumber, out int probeDeviceNumber)
     {
         IReadOnlyDictionary<int, int> map;
+        IReadOnlySet<int> pipeWireSourceNumbers;
         lock (PipeWireRateProbeLock)
         {
             map = _pipeWireAlsaRateProbeDevices;
+            pipeWireSourceNumbers = _pipeWireRateProbeSourceNumbers;
         }
 
-        return ResolveRateProbeDeviceNumber(deviceNumber, map);
+        return TryResolveRateProbeDeviceNumber(deviceNumber, map, pipeWireSourceNumbers, out probeDeviceNumber);
     }
 
-    private static void SetPipeWireAlsaRateProbeDevices(IReadOnlyDictionary<int, int> map)
+    private static void SetPipeWireAlsaRateProbeDevices(
+        IReadOnlyDictionary<int, int> map,
+        IReadOnlySet<int> pipeWireSourceNumbers)
     {
         lock (PipeWireRateProbeLock)
         {
             _pipeWireAlsaRateProbeDevices = map;
+            _pipeWireRateProbeSourceNumbers = pipeWireSourceNumbers;
         }
+    }
+
+    private static string InspectPipeWireSource(int sourceNumber)
+    {
+        return RunCommand(
+            "wpctl",
+            "inspect",
+            sourceNumber.ToString(CultureInfo.InvariantCulture));
+    }
+
+    private static bool TryResolveInspectedAlsaRateProbeDevice(
+        int sourceNumber,
+        IReadOnlyList<LiveAudioDevice> alsaDevices,
+        Func<int, string>? inspectPipeWireSource,
+        out int deviceNumber)
+    {
+        deviceNumber = 0;
+        if (inspectPipeWireSource == null)
+        {
+            return false;
+        }
+
+        string inspectOutput = inspectPipeWireSource(sourceNumber);
+        if (!TryParsePipeWireAlsaHardwareAddress(inspectOutput, out int card, out int device))
+        {
+            return false;
+        }
+
+        int encodedDeviceNumber = EncodeAlsaDeviceNumber(card, device);
+        foreach (LiveAudioDevice alsaDevice in alsaDevices)
+        {
+            if (alsaDevice.Number == encodedDeviceNumber)
+            {
+                deviceNumber = encodedDeviceNumber;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    internal static bool TryParsePipeWireAlsaHardwareAddress(string inspectOutput, out int card, out int device)
+    {
+        card = 0;
+        device = 0;
+        int? parsedCard = ReadPipeWireIntProperty(inspectOutput, "api.alsa.pcm.card", "alsa.card");
+        int? parsedDevice = ReadPipeWireIntProperty(inspectOutput, "api.alsa.pcm.device", "alsa.device");
+
+        if (TryReadPipeWireHwPath(inspectOutput, out int pathCard, out int pathDevice))
+        {
+            parsedCard ??= pathCard;
+            parsedDevice ??= pathDevice;
+        }
+
+        if (parsedCard is not { } resolvedCard || parsedDevice is not { } resolvedDevice)
+        {
+            return false;
+        }
+
+        card = resolvedCard;
+        device = resolvedDevice;
+        return card >= 0 && device >= 0;
+    }
+
+    private static int? ReadPipeWireIntProperty(string inspectOutput, params string[] propertyNames)
+    {
+        string? value = ReadPipeWireProperty(inspectOutput, propertyNames);
+        return int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsed)
+            ? parsed
+            : null;
+    }
+
+    private static bool TryReadPipeWireHwPath(string inspectOutput, out int card, out int device)
+    {
+        card = 0;
+        device = 0;
+        string? path = ReadPipeWireProperty(inspectOutput, "api.alsa.path");
+        if (string.IsNullOrWhiteSpace(path) || !path.StartsWith("hw:", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        ReadOnlySpan<char> rest = path.AsSpan("hw:".Length);
+        int comma = rest.IndexOf(',');
+        ReadOnlySpan<char> cardText = comma >= 0 ? rest[..comma] : rest;
+        ReadOnlySpan<char> deviceText = comma >= 0 ? rest[(comma + 1)..] : "0".AsSpan();
+
+        return int.TryParse(cardText, NumberStyles.Integer, CultureInfo.InvariantCulture, out card) &&
+            int.TryParse(deviceText, NumberStyles.Integer, CultureInfo.InvariantCulture, out device);
+    }
+
+    private static string? ReadPipeWireProperty(string inspectOutput, params string[] propertyNames)
+    {
+        if (string.IsNullOrWhiteSpace(inspectOutput))
+        {
+            return null;
+        }
+
+        foreach (string rawLine in inspectOutput.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None))
+        {
+            Match match = PipeWirePropertyRegex.Match(rawLine.Trim());
+            if (!match.Success)
+            {
+                continue;
+            }
+
+            string propertyName = match.Groups["name"].Value;
+            foreach (string expectedName in propertyNames)
+            {
+                if (!propertyName.Equals(expectedName, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                Group quoted = match.Groups["quoted"];
+                return quoted.Success ? quoted.Value : match.Groups["bare"].Value;
+            }
+        }
+
+        return null;
     }
 
     private static bool AudioDeviceNamesLikelyMatch(string pipeWireName, string alsaName)
