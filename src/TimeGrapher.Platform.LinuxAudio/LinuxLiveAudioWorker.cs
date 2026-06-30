@@ -15,6 +15,22 @@ public sealed class LinuxLiveAudioWorker : ILiveAudioWorker
     private const int Channels = MasterAudioBuffer.Channels;
     private const int AlsaDeviceNumberBase = 1_000_000;
     private const int AlsaDeviceNumberStride = 1_000;
+    private static readonly HashSet<string> GenericAudioNameTokens = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "alsa",
+        "hw",
+        "usb",
+        "audio",
+        "device",
+        "mono",
+        "stereo",
+        "capture",
+        "source",
+        "input",
+        "analog",
+        "digital",
+        "fallback",
+    };
 
     private static readonly Regex SourceLineRegex = new(
         @"(?:^|\s)(?:\*\s*)?(?<id>\d+)\.\s+(?<name>.+?)(?:\s+\[|$)",
@@ -22,6 +38,8 @@ public sealed class LinuxLiveAudioWorker : ILiveAudioWorker
     private static readonly Regex AlsaCaptureDeviceRegex = new(
         @"^card\s+(?<card>\d+):\s+(?<cardId>[^\[]+)\[(?<cardName>[^\]]+)\],\s+device\s+(?<device>\d+):\s+(?<deviceName>.+?)(?:\s+\[.*\])?$",
         RegexOptions.Compiled | RegexOptions.CultureInvariant);
+    private static readonly object PipeWireRateProbeLock = new();
+    private static IReadOnlyDictionary<int, int> _pipeWireAlsaRateProbeDevices = new Dictionary<int, int>();
 
     private readonly MasterAudioBuffer _rawAudio;
     private readonly Stopwatch _timer = new();
@@ -64,13 +82,16 @@ public sealed class LinuxLiveAudioWorker : ILiveAudioWorker
     {
         string status = RunCommand("wpctl", "status");
         IReadOnlyList<LiveAudioDevice> devices = ParseWpctlSources(status);
+        string arecordList = RunCommand("arecord", "-l");
+        IReadOnlyList<LiveAudioDevice> alsaDevices = ParseAlsaCaptureDevices(arecordList);
         if (devices.Count > 0)
         {
+            SetPipeWireAlsaRateProbeDevices(BuildPipeWireAlsaRateProbeMap(devices, alsaDevices));
             return devices;
         }
 
-        string arecordList = RunCommand("arecord", "-l");
-        return ParseAlsaCaptureDevices(arecordList);
+        SetPipeWireAlsaRateProbeDevices(new Dictionary<int, int>());
+        return alsaDevices;
     }
 
     public static void SetPipeWireSourceVolume(IReadOnlyList<string> sourceNameFragments, int volumePercent)
@@ -179,6 +200,52 @@ public sealed class LinuxLiveAudioWorker : ILiveAudioWorker
         return devices;
     }
 
+    internal static IReadOnlyDictionary<int, int> BuildPipeWireAlsaRateProbeMap(
+        IReadOnlyList<LiveAudioDevice> pipeWireSources,
+        IReadOnlyList<LiveAudioDevice> alsaDevices)
+    {
+        var map = new Dictionary<int, int>();
+        foreach (LiveAudioDevice source in pipeWireSources)
+        {
+            int matchedDeviceNumber = 0;
+            bool matched = false;
+            bool ambiguous = false;
+            foreach (LiveAudioDevice alsaDevice in alsaDevices)
+            {
+                if (!TryDecodeAlsaDeviceNumber(alsaDevice.Number, out _, out _) ||
+                    !AudioDeviceNamesLikelyMatch(source.Name, alsaDevice.Name))
+                {
+                    continue;
+                }
+
+                if (matched)
+                {
+                    ambiguous = true;
+                    break;
+                }
+
+                matched = true;
+                matchedDeviceNumber = alsaDevice.Number;
+            }
+
+            if (matched && !ambiguous)
+            {
+                map[source.Number] = matchedDeviceNumber;
+            }
+        }
+
+        return map;
+    }
+
+    internal static int ResolveRateProbeDeviceNumber(
+        int deviceNumber,
+        IReadOnlyDictionary<int, int> pipeWireAlsaRateProbeDevices)
+    {
+        return pipeWireAlsaRateProbeDevices.TryGetValue(deviceNumber, out int alsaDeviceNumber)
+            ? alsaDeviceNumber
+            : deviceNumber;
+    }
+
     public static IReadOnlyList<int> GetCandidateSampleRates(int deviceNumber)
     {
         return GetCandidateSampleRates(rate => CanOpenDeviceAtSampleRate(deviceNumber, rate));
@@ -224,7 +291,8 @@ public sealed class LinuxLiveAudioWorker : ILiveAudioWorker
     {
         try
         {
-            ProcessStartInfo startInfo = TryDecodeAlsaDeviceNumber(deviceNumber, out int card, out int device)
+            int probeDeviceNumber = ResolveRateProbeDeviceNumber(deviceNumber);
+            ProcessStartInfo startInfo = TryDecodeAlsaDeviceNumber(probeDeviceNumber, out int card, out int device)
                 ? BuildAlsaProbeStartInfo(card, device, sampleRate)
                 : BuildPipeWireProbeStartInfo(deviceNumber, sampleRate);
             return ProbeStartInfoForSampleRate(
@@ -235,6 +303,104 @@ public sealed class LinuxLiveAudioWorker : ILiveAudioWorker
         catch
         {
             return false;
+        }
+    }
+
+    private static int ResolveRateProbeDeviceNumber(int deviceNumber)
+    {
+        IReadOnlyDictionary<int, int> map;
+        lock (PipeWireRateProbeLock)
+        {
+            map = _pipeWireAlsaRateProbeDevices;
+        }
+
+        return ResolveRateProbeDeviceNumber(deviceNumber, map);
+    }
+
+    private static void SetPipeWireAlsaRateProbeDevices(IReadOnlyDictionary<int, int> map)
+    {
+        lock (PipeWireRateProbeLock)
+        {
+            _pipeWireAlsaRateProbeDevices = map;
+        }
+    }
+
+    private static bool AudioDeviceNamesLikelyMatch(string pipeWireName, string alsaName)
+    {
+        HashSet<string> pipeWireTokens = SignificantAudioNameTokens(pipeWireName);
+        HashSet<string> alsaTokens = SignificantAudioNameTokens(alsaName);
+        if (pipeWireTokens.Count == 0 || alsaTokens.Count == 0)
+        {
+            return false;
+        }
+
+        return IsSubset(pipeWireTokens, alsaTokens) || IsSubset(alsaTokens, pipeWireTokens);
+    }
+
+    private static bool IsSubset(HashSet<string> left, HashSet<string> right)
+    {
+        foreach (string token in left)
+        {
+            if (!right.Contains(token))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static HashSet<string> SignificantAudioNameTokens(string name)
+    {
+        var tokens = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        Span<char> buffer = stackalloc char[64];
+        int length = 0;
+        foreach (char ch in name)
+        {
+            if (char.IsLetterOrDigit(ch))
+            {
+                if (length < buffer.Length)
+                {
+                    buffer[length++] = char.ToLowerInvariant(ch);
+                }
+
+                continue;
+            }
+
+            AddSignificantAudioNameToken(tokens, buffer.Slice(0, length));
+            length = 0;
+        }
+
+        AddSignificantAudioNameToken(tokens, buffer.Slice(0, length));
+        return tokens;
+    }
+
+    private static void AddSignificantAudioNameToken(HashSet<string> tokens, ReadOnlySpan<char> token)
+    {
+        if (token.Length == 0)
+        {
+            return;
+        }
+
+        bool allDigits = true;
+        for (int i = 0; i < token.Length; i++)
+        {
+            if (!char.IsDigit(token[i]))
+            {
+                allDigits = false;
+                break;
+            }
+        }
+
+        if (allDigits)
+        {
+            return;
+        }
+
+        string text = token.ToString();
+        if (!GenericAudioNameTokens.Contains(text))
+        {
+            tokens.Add(text);
         }
     }
 

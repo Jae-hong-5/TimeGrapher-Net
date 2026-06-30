@@ -145,6 +145,56 @@ card 4: CA7 [Cubilux CA7], device 0: USB Audio [USB Audio]
     }
 
     [Fact]
+    public void BuildPipeWireAlsaRateProbeMap_MatchesPipeWireSourceToAlsaHardware()
+    {
+        var pipeWireSources = new[]
+        {
+            new LiveAudioDevice(65, "USB PnP Sound Device Mono"),
+            new LiveAudioDevice(66, "Built-in Audio Mono"),
+            new LiveAudioDevice(67, "Cubilux CA7 Mono"),
+        };
+        IReadOnlyList<LiveAudioDevice> alsaDevices = LinuxLiveAudioWorker.ParseAlsaCaptureDevices("""
+**** List of CAPTURE Hardware Devices ****
+card 3: Device [USB PnP Sound Device], device 0: USB Audio [USB Audio]
+  Subdevices: 1/1
+  Subdevice #0: subdevice #0
+card 4: CA7 [Cubilux CA7], device 0: USB Audio [USB Audio]
+  Subdevices: 1/1
+  Subdevice #0: subdevice #0
+""");
+
+        IReadOnlyDictionary<int, int> map = LinuxLiveAudioWorker.BuildPipeWireAlsaRateProbeMap(
+            pipeWireSources,
+            alsaDevices);
+
+        Assert.True(map.TryGetValue(65, out int usbPnpDeviceNumber));
+        Assert.True(LinuxLiveAudioWorker.TryDecodeAlsaDeviceNumber(usbPnpDeviceNumber, out int usbPnpCard, out int usbPnpDevice));
+        Assert.Equal(3, usbPnpCard);
+        Assert.Equal(0, usbPnpDevice);
+        Assert.True(map.TryGetValue(67, out int cubiluxDeviceNumber));
+        Assert.True(LinuxLiveAudioWorker.TryDecodeAlsaDeviceNumber(cubiluxDeviceNumber, out int cubiluxCard, out int cubiluxDevice));
+        Assert.Equal(4, cubiluxCard);
+        Assert.Equal(0, cubiluxDevice);
+        Assert.False(map.ContainsKey(66));
+    }
+
+    [Fact]
+    public void ResolveRateProbeDeviceNumber_UsesMappedAlsaHardwareForPipeWireSource()
+    {
+        IReadOnlyList<LiveAudioDevice> alsaDevices = LinuxLiveAudioWorker.ParseAlsaCaptureDevices("""
+**** List of CAPTURE Hardware Devices ****
+card 3: Device [USB PnP Sound Device], device 0: USB Audio [USB Audio]
+""");
+        var map = new Dictionary<int, int>
+        {
+            [65] = alsaDevices[0].Number,
+        };
+
+        Assert.Equal(alsaDevices[0].Number, LinuxLiveAudioWorker.ResolveRateProbeDeviceNumber(65, map));
+        Assert.Equal(66, LinuxLiveAudioWorker.ResolveRateProbeDeviceNumber(66, map));
+    }
+
+    [Fact]
     public void FormatPipeWireVolumePercent_ClampsToEndpointVolumeRange()
     {
         Assert.Equal("0%", LinuxLiveAudioWorker.FormatPipeWireVolumePercent(-1));
