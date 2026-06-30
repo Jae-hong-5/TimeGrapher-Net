@@ -145,6 +145,36 @@ card 4: CA7 [Cubilux CA7], device 0: USB Audio [USB Audio]
     }
 
     [Fact]
+    public void FormatPipeWireVolumePercent_ClampsToEndpointVolumeRange()
+    {
+        Assert.Equal("0%", LinuxLiveAudioWorker.FormatPipeWireVolumePercent(-1));
+        Assert.Equal("50%", LinuxLiveAudioWorker.FormatPipeWireVolumePercent(50));
+        Assert.Equal("100%", LinuxLiveAudioWorker.FormatPipeWireVolumePercent(101));
+    }
+
+    [Fact]
+    public void SetMatchingPipeWireSourceVolumes_ConfiguresMatchingSourcesOnce()
+    {
+        var sources = new[]
+        {
+            new LiveAudioDevice(65, "USB PnP Sound Device Mono"),
+            new LiveAudioDevice(65, "USB PnP Sound Device Mono"),
+            new LiveAudioDevice(66, "Built-in Audio Mono"),
+            new LiveAudioDevice(67, "CM108 Audio Controller Mono"),
+        };
+        var configured = new List<(int SourceNumber, string Volume)>();
+
+        int count = LinuxLiveAudioWorker.SetMatchingPipeWireSourceVolumes(
+            sources,
+            new[] { "usb pnp sound device", "CM108 Audio Controller Mono" },
+            "50%",
+            (sourceNumber, volume) => configured.Add((sourceNumber, volume)));
+
+        Assert.Equal(2, count);
+        Assert.Equal(new[] { (65, "50%"), (67, "50%") }, configured);
+    }
+
+    [Fact]
     public void ProbeStartInfoForSampleRate_KillsLongRunningProbeBeforeAcceptingRate()
     {
         const int startupProbeTimeoutMs = 100;

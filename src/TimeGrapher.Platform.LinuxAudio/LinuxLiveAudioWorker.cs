@@ -73,6 +73,25 @@ public sealed class LinuxLiveAudioWorker : ILiveAudioWorker
         return ParseAlsaCaptureDevices(arecordList);
     }
 
+    public static void SetPipeWireSourceVolume(IReadOnlyList<string> sourceNameFragments, int volumePercent)
+    {
+        string status = RunCommand("wpctl", "status");
+        IReadOnlyList<LiveAudioDevice> sources = ParseWpctlSources(status);
+        string volume = FormatPipeWireVolumePercent(volumePercent);
+        SetMatchingPipeWireSourceVolumes(
+            sources,
+            sourceNameFragments,
+            volume,
+            static (sourceNumber, volumeArgument) =>
+            {
+                RunCommand(
+                    "wpctl",
+                    "set-volume",
+                    sourceNumber.ToString(CultureInfo.InvariantCulture),
+                    volumeArgument);
+            });
+    }
+
     internal static IReadOnlyList<LiveAudioDevice> ParseWpctlSources(string status)
     {
         if (string.IsNullOrWhiteSpace(status))
@@ -681,6 +700,38 @@ public sealed class LinuxLiveAudioWorker : ILiveAudioWorker
     private static string RunCommand(string fileName, params string[] arguments)
     {
         return RunCommand(fileName, CommandProbeTimeout, arguments);
+    }
+
+    internal static string FormatPipeWireVolumePercent(int volumePercent)
+    {
+        int clamped = Math.Clamp(volumePercent, 0, 100);
+        return clamped.ToString(CultureInfo.InvariantCulture) + "%";
+    }
+
+    internal static int SetMatchingPipeWireSourceVolumes(
+        IReadOnlyList<LiveAudioDevice> sources,
+        IReadOnlyList<string> sourceNameFragments,
+        string volumeArgument,
+        Action<int, string> setVolume)
+    {
+        var configured = new HashSet<int>();
+        foreach (LiveAudioDevice source in sources)
+        {
+            foreach (string fragment in sourceNameFragments)
+            {
+                if (string.IsNullOrWhiteSpace(fragment) ||
+                    !source.Name.Contains(fragment, StringComparison.OrdinalIgnoreCase) ||
+                    !configured.Add(source.Number))
+                {
+                    continue;
+                }
+
+                setVolume(source.Number, volumeArgument);
+                break;
+            }
+        }
+
+        return configured.Count;
     }
 
     internal static string RunCommand(string fileName, TimeSpan timeout, params string[] arguments)

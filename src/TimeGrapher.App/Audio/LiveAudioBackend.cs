@@ -12,7 +12,12 @@ internal static class LiveAudioBackend
 {
     private const string WindowsSoundEndpointName = "USB PnP Sound Device";
     private const string WindowsSoundMicName = "USB PnP Sound Device";
-    private const int WindowsSoundMicPercentVolume = 50;
+    private const int PreferredSoundMicPercentVolume = 50;
+    private static readonly string[] LinuxSoundMicNameFragments =
+    {
+        "USB PnP Sound Device",
+        "CM108 Audio Controller Mono",
+    };
 
     public static bool CanCapture =>
 #if TIMEGRAPHER_WINDOWS_AUDIO
@@ -84,15 +89,21 @@ internal static class LiveAudioBackend
     public static void ConfigurePreferredInput()
     {
 #if TIMEGRAPHER_WINDOWS_AUDIO
-        if (!OperatingSystem.IsWindows())
+        if (OperatingSystem.IsWindows())
         {
-            return;
+            SystemAudioControl.SetSoundParameters(
+                WindowsSoundEndpointName,
+                WindowsSoundMicName,
+                PreferredSoundMicPercentVolume);
         }
-
-        SystemAudioControl.SetSoundParameters(
-            WindowsSoundEndpointName,
-            WindowsSoundMicName,
-            WindowsSoundMicPercentVolume);
+#endif
+#if TIMEGRAPHER_LINUX_AUDIO
+        if (OperatingSystem.IsLinux())
+        {
+            LinuxLiveAudioWorker.SetPipeWireSourceVolume(
+                LinuxSoundMicNameFragments,
+                PreferredSoundMicPercentVolume);
+        }
 #endif
     }
 }
