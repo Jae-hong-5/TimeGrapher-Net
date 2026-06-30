@@ -18,7 +18,10 @@ internal sealed record AnalysisRunSettings(
     int ScopeSnapshotPointBudget,
     int AnalysisBlockSize,
     bool WeakAOnsetRescue = true,
-    int WeakAOnsetRescueStrengthStep = WeakAOnsetRescueStrengthPolicy.StandardStep,
+    // Match the app-wide default (AppSettings / SettingsWindowSettings) so a caller that
+    // omits this argument gets the same WeakAOnsetRescueStrengthStep the production run
+    // path supplies, rather than a divergent StandardStep.
+    int WeakAOnsetRescueStrengthStep = WeakAOnsetRescueStrengthPolicy.MinStep,
     bool SpuriousBeatRejection = true)
 {
     // Calibrated run-parameter policy values. Tests deliberately keep the bare
