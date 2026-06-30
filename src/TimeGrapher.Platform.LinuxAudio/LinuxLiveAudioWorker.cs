@@ -298,6 +298,16 @@ public sealed class LinuxLiveAudioWorker : ILiveAudioWorker
         return true;
     }
 
+    /// <summary>
+    /// Live-capture candidate sample rates for the rate menu. Intentionally returns the
+    /// full standard set regardless of <paramref name="deviceNumber"/>: an earlier
+    /// revision probed ALSA/PipeWire hardware to hide unverified rates, but that also hid
+    /// rates that actually worked, so commit 3075ace ("keep standard live rates
+    /// selectable") reverted to offering all standard rates and validating the chosen
+    /// rate at capture start instead. The internal probe overload below and the
+    /// hw-params helpers are retained (and unit tested) for a possible future opt-in, but
+    /// are deliberately NOT wired into this production entry point.
+    /// </summary>
     public static IReadOnlyList<int> GetCandidateSampleRates(int deviceNumber)
     {
         _ = deviceNumber;
