@@ -12,7 +12,7 @@ internal static class LiveAudioBackend
 {
     private const string WindowsSoundEndpointName = "USB PnP Sound Device";
     private const string WindowsSoundMicName = "USB PnP Sound Device";
-    private const int PreferredSoundMicPercentVolume = 50;
+    private const int PreferredSoundMicPercentVolume = 35;
     private static readonly string[] LinuxSoundMicNameFragments =
     {
         "USB PnP Sound Device",
