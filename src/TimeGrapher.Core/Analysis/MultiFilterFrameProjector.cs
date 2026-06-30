@@ -218,13 +218,19 @@ public sealed class MultiFilterFrameProjector
         // O(retained) cost. Track the expired front logically (_trimStart) and publish
         // from it, so the published window is unchanged; only pay the physical shift
         // once at least TrimBatchPoints have expired.
+        //
+        // removeCount is the TOTAL expired front (from index 0), so the batch gate must
+        // compare removeCount itself against TrimBatchPoints. Comparing the per-pass
+        // delta (removeCount - _trimStart) would never reach the threshold under normal
+        // live cadence (only a few points expire per pass), so the physical RemoveRange
+        // would never fire and _windowX/_windowY would grow without bound.
         int removeCount = _trimStart;
         while (removeCount < _windowX.Count && _windowX[removeCount] < minX)
         {
             removeCount++;
         }
 
-        if (removeCount - _trimStart >= TrimBatchPoints)
+        if (removeCount >= TrimBatchPoints)
         {
             _windowX.RemoveRange(0, removeCount);
             for (int i = 0; i < _windowY.Length; i++)
