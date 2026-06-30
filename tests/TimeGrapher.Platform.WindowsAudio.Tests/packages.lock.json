@@ -142,7 +142,7 @@
         "dependencies": {
           "NAudio.Wasapi": "[2.2.1, )",
           "NAudio.WinMM": "[2.2.1, )",
-          "TimeGrapher.Core": "[0.9.13, )"
+          "TimeGrapher.Core": "[0.9.14, )"
         }
       },
       "NAudio.Wasapi": {

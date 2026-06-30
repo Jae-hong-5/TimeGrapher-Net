@@ -107,7 +107,7 @@
       "timegrapher.verify": {
         "type": "Project",
         "dependencies": {
-          "TimeGrapher.Core": "[0.9.13, )"
+          "TimeGrapher.Core": "[0.9.14, )"
         }
       }
     }
