@@ -89,6 +89,12 @@ public sealed class AnalysisWorker : IDisposable
     private volatile bool _stopRequested = false;
     private volatile bool _completionRequested = false;
 
+    // Test seam: invoked at the top of each completion-drain block iteration (null in
+    // production, and only wired during the drain - never the steady-state pass). Lets a
+    // test deterministically gate an in-progress drain and count the blocks it processes,
+    // so stop preemption can be verified without relying on wall-clock timing.
+    internal Action? CompletionDrainIterationHook;
+
     // Theme recolor request from another thread (e.g. UI theme toggle); applied on
     // the analysis thread between frames so it never races the pixel buffer.
     private readonly object _recolorLock = new();
@@ -362,7 +368,7 @@ public sealed class AnalysisWorker : IDisposable
         HandleInputDataCore(stopInterruptible: true);
     }
 
-    private void HandleInputDataCore(bool stopInterruptible)
+    private void HandleInputDataCore(bool stopInterruptible, Action? iterationHook = null)
     {
         var processingTimer = Stopwatch.StartNew();
         MasterAudioBufferSnapshot snapshot = _rawAudio.GetSnapshot();
@@ -384,6 +390,7 @@ public sealed class AnalysisWorker : IDisposable
 
         while (!stopInterruptible || !_stopRequested)
         {
+            iterationHook?.Invoke();
             MasterAudioBufferReadResult read = _rawAudio.CopyAnalysisSamples(_inputBlock, sourceSampleEnd);
             if (read.SamplesCopied <= 0)
             {
@@ -536,7 +543,7 @@ public sealed class AnalysisWorker : IDisposable
         // Interruptible: with no stop pending this drains the buffer fully (natural
         // completion), but an explicit TryStop issued during completion preempts the
         // drain so the worker aborts promptly instead of finishing the whole buffer.
-        HandleInputDataCore(stopInterruptible: true);
+        HandleInputDataCore(stopInterruptible: true, CompletionDrainIterationHook);
 
         // An explicit stop preempted the completion drain; skip the force-published
         // final frame and let the thread exit so TryStop's join returns promptly.

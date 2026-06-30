@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using TimeGrapher.Core.Analysis;
 using TimeGrapher.Core.Shared;
 using TimeGrapher.Core.Sim;
@@ -49,22 +48,51 @@ public sealed class AnalysisWorkerStopPreemptsCompletionTests
             remaining -= slice;
         }
 
+        // Deterministically gate the drain at its first block so it provably cannot
+        // finish (or be skipped by a stop-first race) before the explicit stop is issued.
+        // Counting the block iterations proves preemption without any wall-clock guess:
+        // an interruptible drain aborts after a handful of blocks once it observes the
+        // stop flag, while a non-interruptible one would grind through all ~700.
+        using var drainEntered = new ManualResetEventSlim(false);
+        using var releaseDrain = new ManualResetEventSlim(false);
+        int iterations = 0;
+        worker.CompletionDrainIterationHook = () =>
+        {
+            if (Interlocked.Increment(ref iterations) == 1)
+            {
+                drainEntered.Set();
+                releaseDrain.Wait(TimeSpan.FromSeconds(10));
+            }
+        };
+
         worker.Start();
 
-        // Request natural completion (begins the drain on the worker thread) and then
-        // an explicit stop. The stop must preempt the drain and the worker must join
-        // well within the timeout instead of finishing the whole 60 s buffer.
+        // Request natural completion: this begins the drain on the worker thread, which
+        // blocks at the gate above on its first block.
         var completionThread = new Thread(() => worker.CompleteInput(TimeSpan.FromSeconds(30)))
         {
             IsBackground = true,
         };
         completionThread.Start();
 
-        var sw = Stopwatch.StartNew();
-        bool stopped = worker.TryStop(TimeSpan.FromSeconds(10));
-        sw.Stop();
+        // Barrier: the drain is genuinely in progress (entered its first block iteration).
+        Assert.True(drainEntered.Wait(TimeSpan.FromSeconds(10)), "completion drain was not entered");
 
+        // Issue the explicit stop while the drain is held, then release it.
+        bool stopped = false;
+        var stopThread = new Thread(() => stopped = worker.TryStop(TimeSpan.FromSeconds(10)))
+        {
+            IsBackground = true,
+        };
+        stopThread.Start();
+        releaseDrain.Set();
+
+        Assert.True(stopThread.Join(TimeSpan.FromSeconds(10)), "TryStop did not return");
         Assert.True(stopped, "explicit stop did not preempt the completion drain");
-        completionThread.Join(TimeSpan.FromSeconds(10));
+        Assert.True(completionThread.Join(TimeSpan.FromSeconds(10)), "CompleteInput did not return");
+
+        // The interruptible drain must abort almost immediately once the stop flag is
+        // observed - far fewer than the hundreds of blocks a full ~60 s drain would touch.
+        Assert.True(iterations < 50, $"expected the stop to preempt the drain, but it processed {iterations} block iterations");
     }
 }
