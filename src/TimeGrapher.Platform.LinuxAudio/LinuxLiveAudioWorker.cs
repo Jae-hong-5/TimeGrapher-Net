@@ -41,6 +41,10 @@ public sealed class LinuxLiveAudioWorker : ILiveAudioWorker
     private static readonly Regex PipeWirePropertyRegex = new(
         @"^(?:\*\s*)?(?<name>[A-Za-z0-9_.-]+)\s*=\s*(?:""(?<quoted>[^""]*)""|(?<bare>\S+))",
         RegexOptions.Compiled | RegexOptions.CultureInvariant);
+    private static readonly Regex HwParamsRateRegex = new(
+        @"(?:^|\n)\s*RATE:\s+(?<rate>[^\r\n]+)",
+        RegexOptions.Compiled | RegexOptions.CultureInvariant);
+    private static readonly Regex IntegerRegex = new(@"\d+", RegexOptions.Compiled | RegexOptions.CultureInvariant);
     private static readonly object PipeWireRateProbeLock = new();
     private static IReadOnlyDictionary<int, int> _pipeWireAlsaRateProbeDevices = new Dictionary<int, int>();
     private static IReadOnlySet<int> _pipeWireRateProbeSourceNumbers = new HashSet<int>();
@@ -361,13 +365,15 @@ public sealed class LinuxLiveAudioWorker : ILiveAudioWorker
                     startupProbeTimeoutMs: StartupFailureProbeTimeoutMs,
                     cleanupTimeoutMs: ReplacementStopTimeoutMs);
             }
-            ProcessStartInfo startInfo = TryDecodeAlsaDeviceNumber(probeDeviceNumber, out int card, out int device)
+            bool isAlsaProbe = TryDecodeAlsaDeviceNumber(probeDeviceNumber, out int card, out int device);
+            ProcessStartInfo startInfo = isAlsaProbe
                 ? BuildAlsaProbeStartInfo(card, device, sampleRate)
                 : BuildPipeWireProbeStartInfo(deviceNumber, sampleRate);
             return ProbeStartInfoForSampleRate(
                 startInfo,
                 startupProbeTimeoutMs: StartupFailureProbeTimeoutMs,
-                cleanupTimeoutMs: ReplacementStopTimeoutMs);
+                cleanupTimeoutMs: ReplacementStopTimeoutMs,
+                requestedSampleRate: isAlsaProbe ? sampleRate : null);
         }
         catch
         {
@@ -639,7 +645,8 @@ public sealed class LinuxLiveAudioWorker : ILiveAudioWorker
     internal static bool ProbeStartInfoForSampleRate(
         ProcessStartInfo startInfo,
         int startupProbeTimeoutMs,
-        int cleanupTimeoutMs)
+        int cleanupTimeoutMs,
+        int? requestedSampleRate = null)
     {
         try
         {
@@ -649,9 +656,16 @@ public sealed class LinuxLiveAudioWorker : ILiveAudioWorker
                 return false;
             }
 
+            Task<string> outputTask = process.StandardOutput.ReadToEndAsync();
+            Task<string> errorTask = process.StandardError.ReadToEndAsync();
             if (process.WaitForExit(startupProbeTimeoutMs))
             {
-                return process.ExitCode == 0;
+                string output = outputTask.GetAwaiter().GetResult();
+                string error = errorTask.GetAwaiter().GetResult();
+                string combinedOutput = output + "\n" + error;
+                return process.ExitCode == 0 &&
+                    !ContainsInaccurateRateWarning(combinedOutput) &&
+                    DumpedHwParamsAllowRequestedRate(combinedOutput, requestedSampleRate);
             }
 
             if (!process.HasExited)
@@ -659,12 +673,55 @@ public sealed class LinuxLiveAudioWorker : ILiveAudioWorker
                 process.Kill(entireProcessTree: true);
             }
 
+            _ = outputTask.ContinueWith(static t => { _ = t.Exception; }, TaskScheduler.Default);
+            _ = errorTask.ContinueWith(static t => { _ = t.Exception; }, TaskScheduler.Default);
             return process.WaitForExit(cleanupTimeoutMs);
         }
         catch
         {
             return false;
         }
+    }
+
+    private static bool ContainsInaccurateRateWarning(string text)
+    {
+        return text.Contains("rate is not accurate", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool DumpedHwParamsAllowRequestedRate(string text, int? requestedSampleRate)
+    {
+        if (requestedSampleRate == null)
+        {
+            return true;
+        }
+
+        Match match = HwParamsRateRegex.Match(text);
+        if (!match.Success)
+        {
+            return true;
+        }
+
+        string rateSpec = match.Groups["rate"].Value;
+        if (rateSpec.Contains("ALL", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        MatchCollection numbers = IntegerRegex.Matches(rateSpec);
+        if (numbers.Count == 1 &&
+            int.TryParse(numbers[0].Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int exactRate))
+        {
+            return requestedSampleRate.Value == exactRate;
+        }
+
+        if (numbers.Count >= 2 &&
+            int.TryParse(numbers[0].Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int minRate) &&
+            int.TryParse(numbers[1].Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int maxRate))
+        {
+            return requestedSampleRate.Value >= minRate && requestedSampleRate.Value <= maxRate;
+        }
+
+        return true;
     }
 
     private void StartPipeWireCapture(int deviceNumber, int sampleRate, int bufferMilliseconds)
@@ -722,6 +779,10 @@ public sealed class LinuxLiveAudioWorker : ILiveAudioWorker
     internal static ProcessStartInfo BuildAlsaProbeStartInfo(int card, int device, int sampleRate)
     {
         ProcessStartInfo startInfo = BuildAlsaStartInfo(card, device, sampleRate);
+        int targetIndex = startInfo.ArgumentList.Count - 1;
+        startInfo.ArgumentList.Insert(targetIndex++, "--dump-hw-params");
+        startInfo.ArgumentList.Insert(targetIndex++, "--samples");
+        startInfo.ArgumentList.Insert(targetIndex, "1");
         startInfo.ArgumentList[^1] = "/dev/null";
         return startInfo;
     }

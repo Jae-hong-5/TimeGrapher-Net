@@ -352,6 +352,38 @@ card 3: Device [USB PnP Sound Device], device 0: USB Audio [USB Audio]
     }
 
     [Fact]
+    public void ProbeStartInfoForSampleRate_RejectsInaccurateRateWarning()
+    {
+        (string fileName, string[] args) = ShellCommand(OperatingSystem.IsWindows()
+            ? "echo Warning: rate is not accurate & exit 0"
+            : "echo 'Warning: rate is not accurate'; exit 0");
+
+        Assert.False(LinuxLiveAudioWorker.ProbeStartInfoForSampleRate(
+            BuildStartInfo(fileName, args),
+            startupProbeTimeoutMs: 5000,
+            cleanupTimeoutMs: 5000));
+    }
+
+    [Fact]
+    public void ProbeStartInfoForSampleRate_RejectsDumpedRateRangeThatExcludesRequest()
+    {
+        (string fileName, string[] args) = ShellCommand(OperatingSystem.IsWindows()
+            ? "echo RATE: [44100 48000] & exit 0"
+            : "echo 'RATE: [44100 48000]'; exit 0");
+
+        Assert.True(LinuxLiveAudioWorker.ProbeStartInfoForSampleRate(
+            BuildStartInfo(fileName, args),
+            startupProbeTimeoutMs: 5000,
+            cleanupTimeoutMs: 5000,
+            requestedSampleRate: 48000));
+        Assert.False(LinuxLiveAudioWorker.ProbeStartInfoForSampleRate(
+            BuildStartInfo(fileName, args),
+            startupProbeTimeoutMs: 5000,
+            cleanupTimeoutMs: 5000,
+            requestedSampleRate: 96000));
+    }
+
+    [Fact]
     public void RunCommand_ReturnsOutputForSuccessfulProcess()
     {
         (string fileName, string[] args) = ShellCommand("echo ok");
@@ -547,11 +579,21 @@ card 3: Device [USB PnP Sound Device], device 0: USB Audio [USB Audio]
 
         Assert.Equal("/dev/null", info.ArgumentList[^1]);
         Assert.DoesNotContain("--buffer-time", info.ArgumentList);
+        int samplesIndex = info.ArgumentList.IndexOf("--samples");
+        Assert.Contains("--dump-hw-params", info.ArgumentList);
+        Assert.True(samplesIndex >= 0);
+        Assert.Equal("1", info.ArgumentList[samplesIndex + 1]);
     }
 
     private static ProcessStartInfo BuildStartInfo(string fileName, string[] arguments)
     {
-        var startInfo = new ProcessStartInfo { FileName = fileName };
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = fileName,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+        };
         foreach (string argument in arguments)
         {
             startInfo.ArgumentList.Add(argument);
