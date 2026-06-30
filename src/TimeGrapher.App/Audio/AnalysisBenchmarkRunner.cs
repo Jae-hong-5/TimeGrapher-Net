@@ -34,7 +34,7 @@ internal static class AnalysisBenchmarkRunner
         WatchSynthStreamConfig synthConfig = WatchSynthStreamConfig.Realistic();
         synthConfig.SampleRateHz = (uint)sampleRate;
         synthConfig.Bph = bph;
-        synthConfig.PcmPeakSignalLevel = 0.35;
+        synthConfig.PcmPeakSignalLevel = SimulationAudioDefaults.PcmPeakSignalLevel;
         synthConfig.NoisePeakSignalLevel = 0.0;
 
         var synth = new WatchSynthStream(synthConfig);
