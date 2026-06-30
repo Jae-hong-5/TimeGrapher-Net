@@ -313,8 +313,24 @@ internal sealed record WatchHealthRadarModel(
             {
                 StatsSummary stats = spec.Stats(summary);
                 double meanFraction = Fraction(spec.RadiusValue(stats.Mean));
-                double f1 = Fraction(spec.RadiusValue(stats.Min));
-                double f2 = Fraction(spec.RadiusValue(stats.Max));
+                // RadiusValue can be non-monotonic across zero (e.g. Math.Abs for beat
+                // error), so when the SIGNED sample range straddles zero the magnitude
+                // extreme is at zero, not at an endpoint. Take the radius at both ends
+                // and (when the range crosses zero) at zero, then map to fractions; using
+                // Abs on each endpoint independently would otherwise show a wrong near
+                // end (and collapse a symmetric range to a point).
+                double rMin = spec.RadiusValue(stats.Min);
+                double rMax = spec.RadiusValue(stats.Max);
+                double rLo = Math.Min(rMin, rMax);
+                double rHi = Math.Max(rMin, rMax);
+                if (stats.Min <= 0.0 && stats.Max >= 0.0)
+                {
+                    double rZero = spec.RadiusValue(0.0);
+                    rLo = Math.Min(rLo, rZero);
+                    rHi = Math.Max(rHi, rZero);
+                }
+                double f1 = Fraction(rLo);
+                double f2 = Fraction(rHi);
                 bool outOfBand = hasBand && (meanFraction < bandInner - 1e-6 || meanFraction > bandOuter + 1e-6);
                 horizontal.Add(new HealthHorizontalRow(
                     position,
