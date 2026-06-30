@@ -100,9 +100,14 @@ internal static class LiveAudioBackend
 #if TIMEGRAPHER_LINUX_AUDIO
         if (OperatingSystem.IsLinux())
         {
-            LinuxLiveAudioWorker.SetPipeWireSourceVolume(
+            // Run off the calling (UI) thread: this is invoked synchronously during Live
+            // start, and SetPipeWireSourceVolume shells out to "wpctl status" plus a
+            // set-volume per matching source, each blocking up to a 2s timeout. Volume
+            // setup is best-effort (failures are swallowed) and independent of capture
+            // start, so fire-and-forget keeps the UI responsive instead of stalling it.
+            _ = System.Threading.Tasks.Task.Run(() => LinuxLiveAudioWorker.SetPipeWireSourceVolume(
                 LinuxSoundMicNameFragments,
-                PreferredSoundMicPercentVolume);
+                PreferredSoundMicPercentVolume));
         }
 #endif
     }
