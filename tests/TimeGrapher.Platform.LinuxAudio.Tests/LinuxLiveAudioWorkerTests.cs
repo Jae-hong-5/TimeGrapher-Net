@@ -145,6 +145,14 @@ card 4: CA7 [Cubilux CA7], device 0: USB Audio [USB Audio]
     }
 
     [Fact]
+    public void GetCandidateSampleRates_PublicLinuxPathReturnsStandardChoices()
+    {
+        IReadOnlyList<int> rates = LinuxLiveAudioWorker.GetCandidateSampleRates(78);
+
+        Assert.Equal(new[] { 48000, 96000, 192000 }, rates);
+    }
+
+    [Fact]
     public void BuildPipeWireAlsaRateProbeMap_MatchesPipeWireSourceToAlsaHardware()
     {
         var pipeWireSources = new[]

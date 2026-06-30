@@ -90,18 +90,13 @@ public sealed class LinuxLiveAudioWorker : ILiveAudioWorker
     {
         string status = RunCommand("wpctl", "status");
         IReadOnlyList<LiveAudioDevice> devices = ParseWpctlSources(status);
-        string arecordList = RunCommand("arecord", "-l");
-        IReadOnlyList<LiveAudioDevice> alsaDevices = ParseAlsaCaptureDevices(arecordList);
         if (devices.Count > 0)
         {
-            SetPipeWireAlsaRateProbeDevices(
-                BuildPipeWireAlsaRateProbeMap(devices, alsaDevices, InspectPipeWireSource),
-                BuildPipeWireSourceNumberSet(devices));
             return devices;
         }
 
-        SetPipeWireAlsaRateProbeDevices(new Dictionary<int, int>(), new HashSet<int>());
-        return alsaDevices;
+        string arecordList = RunCommand("arecord", "-l");
+        return ParseAlsaCaptureDevices(arecordList);
     }
 
     public static void SetPipeWireSourceVolume(IReadOnlyList<string> sourceNameFragments, int volumePercent)
@@ -305,7 +300,8 @@ public sealed class LinuxLiveAudioWorker : ILiveAudioWorker
 
     public static IReadOnlyList<int> GetCandidateSampleRates(int deviceNumber)
     {
-        return GetCandidateSampleRates(rate => CanOpenDeviceAtSampleRate(deviceNumber, rate));
+        _ = deviceNumber;
+        return AudioSampleRates.Standard;
     }
 
     internal static IReadOnlyList<int> GetCandidateSampleRates(Func<int, bool> supportsSampleRate)

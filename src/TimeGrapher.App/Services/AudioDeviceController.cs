@@ -184,9 +184,18 @@ internal sealed class AudioDeviceController
         }
         else
         {
-            // Cache miss (pre-warm not finished, e.g. the initial auto-select): keep the live
-            // sample-rate list empty until the backend probe returns. Showing every standard
-            // rate here lets unsupported Linux/PipeWire rates appear selectable.
+            // Cache miss (pre-warm not finished, e.g. the initial auto-select): show the
+            // standard choices immediately so a live microphone always has a selectable
+            // rate, then let a later backend probe narrow the list if it returns first-class
+            // support data.
+            foreach (int rate in standardRates)
+            {
+                if (_state.TryAddSampleRate(rate))
+                {
+                    labels.Add(rate.ToString(CultureInfo.InvariantCulture) + " Hz");
+                }
+            }
+
             ProbeSampleRatesAsync(deviceNumber);
         }
 
