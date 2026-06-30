@@ -222,6 +222,33 @@ id 65, type PipeWire:Interface:Node
     }
 
     [Fact]
+    public void TryParsePipeWireAlsaHardwareAddress_ReadsApiAlsaAliasesAndStarredProperties()
+    {
+        const string inspectOutput = """
+id 65, type PipeWire:Interface:Node
+  * api.alsa.card = "2"
+    api.alsa.device = "1"
+""";
+
+        Assert.True(LinuxLiveAudioWorker.TryParsePipeWireAlsaHardwareAddress(inspectOutput, out int card, out int device));
+        Assert.Equal(2, card);
+        Assert.Equal(1, device);
+    }
+
+    [Fact]
+    public void TryParsePipeWireAlsaHardwareAddress_ReadsObjectPath()
+    {
+        const string inspectOutput = """
+id 65, type PipeWire:Interface:Node
+    object.path = "alsa:pcm:4:front:0:capture"
+""";
+
+        Assert.True(LinuxLiveAudioWorker.TryParsePipeWireAlsaHardwareAddress(inspectOutput, out int card, out int device));
+        Assert.Equal(4, card);
+        Assert.Equal(0, device);
+    }
+
+    [Fact]
     public void ResolveRateProbeDeviceNumber_UsesMappedAlsaHardwareForPipeWireSource()
     {
         IReadOnlyList<LiveAudioDevice> alsaDevices = LinuxLiveAudioWorker.ParseAlsaCaptureDevices("""
@@ -247,6 +274,14 @@ card 3: Device [USB PnP Sound Device], device 0: USB Audio [USB Audio]
         Assert.Equal(0, probeDeviceNumber);
         Assert.True(LinuxLiveAudioWorker.TryResolveRateProbeDeviceNumber(66, map, pipeWireSources, out int nonPipeWireProbe));
         Assert.Equal(66, nonPipeWireProbe);
+    }
+
+    [Fact]
+    public void IsConservativePipeWireFallbackRate_AllowsOnlyLowestStandardRate()
+    {
+        Assert.True(LinuxLiveAudioWorker.IsConservativePipeWireFallbackRate(48000));
+        Assert.False(LinuxLiveAudioWorker.IsConservativePipeWireFallbackRate(96000));
+        Assert.False(LinuxLiveAudioWorker.IsConservativePipeWireFallbackRate(192000));
     }
 
     [Fact]

@@ -39,7 +39,7 @@ public sealed class LinuxLiveAudioWorker : ILiveAudioWorker
         @"^card\s+(?<card>\d+):\s+(?<cardId>[^\[]+)\[(?<cardName>[^\]]+)\],\s+device\s+(?<device>\d+):\s+(?<deviceName>.+?)(?:\s+\[.*\])?$",
         RegexOptions.Compiled | RegexOptions.CultureInvariant);
     private static readonly Regex PipeWirePropertyRegex = new(
-        @"^(?<name>[A-Za-z0-9_.-]+)\s*=\s*(?:""(?<quoted>[^""]*)""|(?<bare>\S+))",
+        @"^(?:\*\s*)?(?<name>[A-Za-z0-9_.-]+)\s*=\s*(?:""(?<quoted>[^""]*)""|(?<bare>\S+))",
         RegexOptions.Compiled | RegexOptions.CultureInvariant);
     private static readonly object PipeWireRateProbeLock = new();
     private static IReadOnlyDictionary<int, int> _pipeWireAlsaRateProbeDevices = new Dictionary<int, int>();
@@ -319,6 +319,11 @@ public sealed class LinuxLiveAudioWorker : ILiveAudioWorker
         return supportedRates;
     }
 
+    internal static bool IsConservativePipeWireFallbackRate(int sampleRate)
+    {
+        return sampleRate == AudioSampleRates.Standard[0];
+    }
+
     public void Start(int deviceNumber, int sampleRate, float volume, int bufferMilliseconds)
     {
         _volume = volume;
@@ -346,7 +351,15 @@ public sealed class LinuxLiveAudioWorker : ILiveAudioWorker
         {
             if (!TryResolveRateProbeDeviceNumber(deviceNumber, out int probeDeviceNumber))
             {
-                return false;
+                if (!IsConservativePipeWireFallbackRate(sampleRate))
+                {
+                    return false;
+                }
+
+                return ProbeStartInfoForSampleRate(
+                    BuildPipeWireProbeStartInfo(deviceNumber, sampleRate),
+                    startupProbeTimeoutMs: StartupFailureProbeTimeoutMs,
+                    cleanupTimeoutMs: ReplacementStopTimeoutMs);
             }
             ProcessStartInfo startInfo = TryDecodeAlsaDeviceNumber(probeDeviceNumber, out int card, out int device)
                 ? BuildAlsaProbeStartInfo(card, device, sampleRate)
@@ -429,8 +442,16 @@ public sealed class LinuxLiveAudioWorker : ILiveAudioWorker
     {
         card = 0;
         device = 0;
-        int? parsedCard = ReadPipeWireIntProperty(inspectOutput, "api.alsa.pcm.card", "alsa.card");
-        int? parsedDevice = ReadPipeWireIntProperty(inspectOutput, "api.alsa.pcm.device", "alsa.device");
+        int? parsedCard = ReadPipeWireIntProperty(
+            inspectOutput,
+            "api.alsa.pcm.card",
+            "api.alsa.card",
+            "alsa.card");
+        int? parsedDevice = ReadPipeWireIntProperty(
+            inspectOutput,
+            "api.alsa.pcm.device",
+            "api.alsa.device",
+            "alsa.device");
 
         if (TryReadPipeWireHwPath(inspectOutput, out int pathCard, out int pathDevice))
         {
@@ -461,7 +482,21 @@ public sealed class LinuxLiveAudioWorker : ILiveAudioWorker
         card = 0;
         device = 0;
         string? path = ReadPipeWireProperty(inspectOutput, "api.alsa.path");
-        if (string.IsNullOrWhiteSpace(path) || !path.StartsWith("hw:", StringComparison.OrdinalIgnoreCase))
+        if (!string.IsNullOrWhiteSpace(path) && TryParsePipeWireHwPath(path, out card, out device))
+        {
+            return true;
+        }
+
+        string? objectPath = ReadPipeWireProperty(inspectOutput, "object.path", "node.name");
+        return !string.IsNullOrWhiteSpace(objectPath) &&
+            TryParsePipeWireObjectPath(objectPath, out card, out device);
+    }
+
+    private static bool TryParsePipeWireHwPath(string path, out int card, out int device)
+    {
+        card = 0;
+        device = 0;
+        if (!path.StartsWith("hw:", StringComparison.OrdinalIgnoreCase))
         {
             return false;
         }
@@ -473,6 +508,22 @@ public sealed class LinuxLiveAudioWorker : ILiveAudioWorker
 
         return int.TryParse(cardText, NumberStyles.Integer, CultureInfo.InvariantCulture, out card) &&
             int.TryParse(deviceText, NumberStyles.Integer, CultureInfo.InvariantCulture, out device);
+    }
+
+    private static bool TryParsePipeWireObjectPath(string path, out int card, out int device)
+    {
+        card = 0;
+        device = 0;
+        string[] parts = path.Split(':');
+        if (parts.Length < 5 ||
+            !parts[0].Equals("alsa", StringComparison.OrdinalIgnoreCase) ||
+            !parts[1].Equals("pcm", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return int.TryParse(parts[2], NumberStyles.Integer, CultureInfo.InvariantCulture, out card) &&
+            int.TryParse(parts[4], NumberStyles.Integer, CultureInfo.InvariantCulture, out device);
     }
 
     private static string? ReadPipeWireProperty(string inspectOutput, params string[] propertyNames)
