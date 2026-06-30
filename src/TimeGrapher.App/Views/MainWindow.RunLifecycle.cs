@@ -289,6 +289,9 @@ public partial class MainWindow
         string failureDetail,
         bool measurementMayBeIncomplete)
     {
+        // Cleared before SetGuiStopMode, which transitions RunState to Stopped and may
+        // raise OnMeasurementLogDropped synchronously (setting the flag) while the log closes.
+        mMeasurementLogDroppedThisStop = false;
         SetGuiStopMode();
         mViewModel.IsAwaitingBeatSync = false;
         if (failed)
@@ -301,10 +304,13 @@ public partial class MainWindow
                 UserErrorMessages.MeasurementLogMayBeIncomplete,
                 "Analysis drain timed out at natural run completion; final measurement rows may be incomplete.");
         }
-        else
+        else if (!mMeasurementLogDroppedThisStop)
         {
             mViewModel.StatusText = "Stopped";
         }
+
+        // If mMeasurementLogDroppedThisStop is set, OnMeasurementLogDropped already set the
+        // incomplete-log warning status during SetGuiStopMode; leave it rather than overwrite.
     }
 
     private async Task<bool> RecordSessionCheck(int sampleRate)
@@ -324,11 +330,18 @@ public partial class MainWindow
         return result.ShouldContinue;
     }
 
+    // Set when the measurement-log drop warning was raised during the current stop, so the
+    // trailing success "Stopped" status does not overwrite it. Cleared at the start of the
+    // completed-run handler, before the stop transition can raise the event.
+    private bool mMeasurementLogDroppedThisStop;
+
     private void OnMeasurementLogDropped(ulong droppedEntries)
     {
         // The measurement-log writer fell behind and dropped rows, so the saved CSV is
         // incomplete. Surface it on the same channel as the analysis-drain and WAV-drop
-        // warnings instead of leaving the loss silent.
+        // warnings instead of leaving the loss silent. The error-log write is the durable
+        // record; the flag protects the warning status from the trailing "Stopped" set.
+        mMeasurementLogDroppedThisStop = true;
         ReportUserErrorStatus(
             UserErrorMessages.MeasurementLogMayBeIncomplete,
             "Measurement log dropped " +
