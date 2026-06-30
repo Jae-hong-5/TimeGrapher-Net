@@ -71,20 +71,42 @@ public sealed class RunSessionControllerTests
     }
 
     [Fact]
-    public void CloseBlockingDisposesInputWorkerEvenWhenTryStopTimesOut()
+    public void CloseBlockingDisposesInputWorkerThatStops()
     {
         var controller = NewController();
         var order = new List<string>();
-        // A worker that does not stop in time would be kept for retry by the bounded
-        // StopInputWorker; at final close there is no retry, so CloseBlocking must
-        // dispose it regardless rather than leak a still-running worker.
+        var worker = new FakeInputWorker(order) { StopResult = true };
+        controller.AttachInputWorker(worker, runSessionToken: 1, () => order.Add("detach-completion"));
+
+        controller.CloseBlocking();
+
+        // When the bounded stop succeeds the worker is fully released: completion
+        // detaches first, then TryStop, then Dispose.
+        int detachIdx = order.IndexOf("detach-completion");
+        int tryStopIdx = order.IndexOf("trystop");
+        int disposeIdx = order.IndexOf("dispose");
+        Assert.True(
+            detachIdx >= 0 && detachIdx < tryStopIdx && tryStopIdx < disposeIdx,
+            "expected detach -> trystop -> dispose on final close; order: " + string.Join(",", order));
+    }
+
+    [Fact]
+    public void CloseBlockingDoesNotDisposeInputWorkerThatTimesOut()
+    {
+        var controller = NewController();
+        var order = new List<string>();
+        // A worker that does not stop in time is wedged. Dispose() performs an
+        // UNBOUNDED join/wait, so disposing it would freeze the app close forever
+        // (this is the F2 hang). CloseBlocking must instead abandon the wedged worker
+        // (a background thread / already-killed capture process is reclaimed by
+        // process-exit teardown) and NOT call the blocking Dispose.
         var worker = new FakeInputWorker(order) { StopResult = false };
         controller.AttachInputWorker(worker, runSessionToken: 1, () => order.Add("detach-completion"));
 
         controller.CloseBlocking();
 
         Assert.Contains("trystop", order);
-        Assert.Contains("dispose", order);
+        Assert.DoesNotContain("dispose", order);
         int detachIdx = order.IndexOf("detach-completion");
         int tryStopIdx = order.IndexOf("trystop");
         Assert.True(

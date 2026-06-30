@@ -26,10 +26,10 @@ public partial class MainWindow
         mAppSettingsController.Detach();
         AppSettingsStore.Flush();
         mViewModel.PropertyChanged -= OnReviewCursorPropertyChanged;
-        // Final close has no retry surface, so do a blocking stop/dispose of the input
-        // and analysis workers rather than leaving a timed-out worker alive (the bounded
-        // StopInputWorker/StopAnalysisThread keep a timed-out worker for a retry that can
-        // never come at close).
+        // Final close has no retry surface, so stop the input and analysis workers with a
+        // bounded stop and dispose them; a worker that times out is abandoned to
+        // process-exit teardown (its Dispose() would otherwise block the close forever on
+        // an unbounded join) rather than kept for a retry that can never come at close.
         mRunSessionController.CloseBlocking();
         mAnalysisPerformanceLogger?.Dispose();
         mMeasurementLogController.Dispose();

@@ -277,14 +277,15 @@ internal sealed class RunSessionController : IDisposable, IRunSessionControls, I
     }
 
     /// <summary>
-    /// Final-close teardown: invalidate the session, then blocking-stop and dispose the
-    /// input and analysis workers. Unlike the bounded <see cref="StopInputWorker"/> /
-    /// <see cref="StopAnalysisThread"/> stops (which keep a timed-out worker addressable
-    /// for a retry), this disposes the workers regardless of whether they stopped in
-    /// time: at window close there is no retry surface, so a timed-out worker would
-    /// otherwise be leaked alive. The analysis worker uses its blocking
-    /// <see cref="AnalysisWorker.Stop"/> (infinite join) so a slow but finite drain
-    /// completes rather than being abandoned.
+    /// Final-close teardown: invalidate the session, then stop the input and analysis
+    /// workers with the bounded <see cref="WorkerStopTimeoutMs"/> stop and dispose them.
+    /// Worker <c>Dispose()</c> (and <see cref="AnalysisWorker.Stop"/>) perform an
+    /// UNBOUNDED join/wait, so this disposes a worker only when its bounded stop actually
+    /// succeeded; a worker that timed out is wedged (its threads are background and its
+    /// capture process was already killed) and is abandoned to process-exit teardown
+    /// rather than blocking the window close forever on an infinite join. Unlike the
+    /// bounded <see cref="StopInputWorker"/> / <see cref="StopAnalysisThread"/> stops,
+    /// there is no retry surface at close, so the wedged worker is not kept for a retry.
     /// </summary>
     public void CloseBlocking()
     {
@@ -302,11 +303,18 @@ internal sealed class RunSessionController : IDisposable, IRunSessionControls, I
             _inputCompletionDetach?.Invoke();
             _inputCompletionDetach = null;
 
-            // Stop with the same bounded timeout, but dispose unconditionally: there is
-            // no retry path at close, so release the worker even if it did not stop in
-            // time rather than leaving a still-running input thread behind.
-            worker.TryStop(TimeSpan.FromMilliseconds(WorkerStopTimeoutMs));
-            worker.Dispose();
+            // Stop with a bounded timeout. Dispose() performs an UNBOUNDED join/wait on
+            // the worker thread or capture process, so disposing a worker that did not
+            // stop in time would freeze the app close forever (the very hang the bounded
+            // TryStop was meant to avoid). A timed-out worker is wedged and cannot be
+            // force-joined; only dispose when it actually stopped, and abandon a wedged
+            // worker (its threads are background and its capture process was already
+            // killed) to process-exit teardown rather than blocking close.
+            if (worker.TryStop(TimeSpan.FromMilliseconds(WorkerStopTimeoutMs)))
+            {
+                worker.Dispose();
+            }
+
             _inputWorker = null;
         }
 
@@ -314,8 +322,15 @@ internal sealed class RunSessionController : IDisposable, IRunSessionControls, I
         if (analysisWorker != null)
         {
             analysisWorker.AnalysisFrameReady -= _onAnalysisFrameReady;
-            analysisWorker.Stop();
-            analysisWorker.Dispose();
+            // Same reasoning as the input worker: Stop()/Dispose() join the analysis
+            // thread with an infinite timeout, so only dispose when a bounded stop
+            // succeeded and abandon a wedged (background) thread otherwise instead of
+            // hanging the close.
+            if (analysisWorker.TryStop(TimeSpan.FromMilliseconds(WorkerStopTimeoutMs)))
+            {
+                analysisWorker.Dispose();
+            }
+
             _analysisWorker = null;
             AnalysisSessionId++;
         }
