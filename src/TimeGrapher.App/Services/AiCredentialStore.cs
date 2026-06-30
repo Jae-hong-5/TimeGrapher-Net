@@ -293,15 +293,28 @@ internal sealed class LinuxSecretToolAiCredentialStore : JsonAiCredentialStore
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
-            if (process is { HasExited: false })
-            {
-                process.Kill(entireProcessTree: true);
-            }
-
+            // Internal timeout (not caller cancellation): report failure. The finally
+            // block below terminates the still-running process.
             return new SecretToolResult(-1, string.Empty);
         }
         finally
         {
+            // Ensure the child process is terminated on every exit path - including
+            // caller (outer-token) cancellation, where the OperationCanceledException
+            // propagates past the timeout-only catch above - so a slow or blocked
+            // secret-tool is never left running (orphaned) after this method returns.
+            if (process is { HasExited: false })
+            {
+                try
+                {
+                    process.Kill(entireProcessTree: true);
+                }
+                catch (InvalidOperationException)
+                {
+                    // The process exited between the HasExited check and Kill.
+                }
+            }
+
             process?.Dispose();
         }
     }
