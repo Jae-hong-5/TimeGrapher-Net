@@ -67,6 +67,12 @@ public sealed class MarkdownDisplayRendererTests
 
         var panel = Assert.IsType<StackPanel>(rendered);
         Assert.Equal(2, panel.Children.Count);
+        // The rendered content must actually be bounded, not merely accompanied by a
+        // truncation notice: the paragraph block must not exceed the input char cap.
+        var paragraph = Assert.IsType<TextBlock>(panel.Children[0]);
+        Assert.True(
+            paragraph.Text!.Length <= 32_000,
+            $"rendered paragraph length {paragraph.Text!.Length} exceeded the 32000-char cap");
         var notice = Assert.IsType<TextBlock>(panel.Children[1]);
         Assert.Contains("truncated", notice.Text);
     }

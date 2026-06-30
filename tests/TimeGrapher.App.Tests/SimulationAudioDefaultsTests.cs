@@ -19,7 +19,32 @@ public sealed class SimulationAudioDefaultsTests
         var buffer = new MasterAudioBuffer(sampleRate);
         using var worker = new AnalysisWorker(buffer, NewWorkerConfig(sampleRate));
         AnalysisFrame? capturedFrame = null;
-        worker.AnalysisFrameReady += frame => capturedFrame = frame;
+        bool clippingEverReported = false;
+        worker.AnalysisFrameReady += frame =>
+        {
+            capturedFrame = frame;
+
+            // Inspect EVERY frame, not just the last: BeatSegments is a bounded recent ring,
+            // so an early transient clipping warning could rotate out before the final frame.
+            BeatSegmentsSnapshot? segments = frame.BeatSegments;
+            if (segments == null)
+            {
+                return;
+            }
+
+            if ((segments.Quality & SignalQualityFlags.ClippedSignal) != 0)
+            {
+                clippingEverReported = true;
+            }
+
+            foreach (var segment in segments.Segments)
+            {
+                if ((segment.Quality & SignalQualityFlags.ClippedSignal) != 0)
+                {
+                    clippingEverReported = true;
+                }
+            }
+        };
 
         var cfg = WatchSynthStreamConfig.Realistic();
         LeftPanelSettings defaults = LeftPanelSettings.Default;
@@ -54,6 +79,9 @@ public sealed class SimulationAudioDefaultsTests
         Assert.Equal(SignalQualityFlags.None, snapshot.Quality & SignalQualityFlags.ClippedSignal);
         Assert.DoesNotContain(snapshot.Segments, segment =>
             (segment.Quality & SignalQualityFlags.ClippedSignal) != 0);
+
+        // No frame across the whole run should have reported a clipping warning.
+        Assert.False(clippingEverReported, "a clipping warning was reported during the default simulation");
     }
 
     private static AnalysisWorker.Config NewWorkerConfig(int sampleRate)
