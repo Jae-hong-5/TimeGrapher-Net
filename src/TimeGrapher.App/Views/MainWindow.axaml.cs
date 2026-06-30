@@ -175,6 +175,7 @@ public partial class MainWindow : Window, IThemeToggleRunner
         mPlaybackFileService = composition.PlaybackFileService;
         mRunCommandService = composition.RunCommandService;
         mMeasurementLogController = composition.MeasurementLogController;
+        mMeasurementLogController.MeasurementLogDropped += OnMeasurementLogDropped;
         mRunSessionController = composition.RunSessionController;
         // Late-attach the live-run adjustment seam now that the bootstrapper has built the
         // controller (the adapter is itself an input to Build), replacing the former window

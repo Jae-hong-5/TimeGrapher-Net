@@ -95,6 +95,7 @@ public sealed class MainWindowBootstrapperTests : IDisposable
 
     private sealed class FakeMeasurementSink : IMeasurementResultSink
     {
+        public ulong DroppedEntries => 0;
         public void ObserveDisplayed(AnalysisFrame frame) { }
         public void Dispose() { }
     }

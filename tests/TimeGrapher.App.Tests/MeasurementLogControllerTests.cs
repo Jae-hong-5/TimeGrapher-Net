@@ -21,6 +21,7 @@ public sealed class MeasurementLogControllerTests
     {
         public int ObserveCalls { get; private set; }
         public bool Disposed { get; private set; }
+        public ulong DroppedEntries { get; set; }
 
         public void ObserveDisplayed(AnalysisFrame frame) => ObserveCalls++;
         public void Dispose() => Disposed = true;
@@ -84,6 +85,41 @@ public sealed class MeasurementLogControllerTests
 
         Assert.Equal(new[] { "seed.csv" }, factory.Paths);
         Assert.Equal(new[] { 54m }, factory.LiftAngles);
+    }
+
+    [Fact]
+    public void RunStop_WithDroppedRows_RaisesMeasurementLogDropped()
+    {
+        var factory = new RecordingFactory();
+        var vm = EnabledViewModel(true);
+        using var controller = new MeasurementLogController(vm, "seed.csv", factory.Create);
+
+        ulong? reported = null;
+        controller.MeasurementLogDropped += count => reported = count;
+
+        vm.SetRunning();                         // opens the sink
+        FakeSink sink = Assert.Single(factory.Sinks);
+        sink.DroppedEntries = 7;                 // the writer fell behind during the run
+        vm.SetStopped();                         // closes the sink -> surfaces the loss
+
+        Assert.True(sink.Disposed);
+        Assert.Equal(7ul, reported);
+    }
+
+    [Fact]
+    public void RunStop_WithNoDroppedRows_DoesNotRaiseMeasurementLogDropped()
+    {
+        var factory = new RecordingFactory();
+        var vm = EnabledViewModel(true);
+        using var controller = new MeasurementLogController(vm, "seed.csv", factory.Create);
+
+        bool raised = false;
+        controller.MeasurementLogDropped += _ => raised = true;
+
+        vm.SetRunning();
+        vm.SetStopped();
+
+        Assert.False(raised);
     }
 
     [Fact]

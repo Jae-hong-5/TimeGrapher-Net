@@ -24,6 +24,12 @@ internal sealed class MeasurementLogController : IDisposable
     private IMeasurementResultSink? _sink;
     private RunUiState _previousRunState;
 
+    /// <summary>
+    /// Raised when a log that dropped rows is closed (argument: the dropped-row count), so
+    /// the silent CSV loss is surfaced instead of leaving an incomplete file looking complete.
+    /// </summary>
+    public event Action<ulong>? MeasurementLogDropped;
+
     public MeasurementLogController(
         MainWindowViewModel viewModel,
         string? pendingLogPath,
@@ -102,8 +108,21 @@ internal sealed class MeasurementLogController : IDisposable
 
     private void CloseSink()
     {
-        _sink?.Dispose();
+        IMeasurementResultSink? sink = _sink;
         _sink = null;
+        if (sink == null)
+        {
+            return;
+        }
+
+        // If the writer fell behind and dropped rows, the saved CSV is incomplete; capture
+        // the count before disposing and surface it so the loss is observable rather than silent.
+        ulong dropped = sink.DroppedEntries;
+        sink.Dispose();
+        if (dropped > 0)
+        {
+            MeasurementLogDropped?.Invoke(dropped);
+        }
     }
 
     // The CLI --measurement-log path opens the first run's log; later runs get a

@@ -11,4 +11,7 @@ namespace TimeGrapher.App.Services;
 internal interface IMeasurementResultSink : IDisposable
 {
     void ObserveDisplayed(AnalysisFrame frame);
+
+    /// <summary>Number of displayed measurement rows dropped under writer backpressure.</summary>
+    ulong DroppedEntries { get; }
 }

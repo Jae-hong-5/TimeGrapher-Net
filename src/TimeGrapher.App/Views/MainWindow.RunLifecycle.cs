@@ -32,6 +32,7 @@ public partial class MainWindow
         // an unbounded join) rather than kept for a retry that can never come at close.
         mRunSessionController.CloseBlocking();
         mAnalysisPerformanceLogger?.Dispose();
+        mMeasurementLogController.MeasurementLogDropped -= OnMeasurementLogDropped;
         mMeasurementLogController.Dispose();
         if (!AudioCloseCheck() && mWavWriter != null)
         {
@@ -321,6 +322,18 @@ public partial class MainWindow
         }
 
         return result.ShouldContinue;
+    }
+
+    private void OnMeasurementLogDropped(ulong droppedEntries)
+    {
+        // The measurement-log writer fell behind and dropped rows, so the saved CSV is
+        // incomplete. Surface it on the same channel as the analysis-drain and WAV-drop
+        // warnings instead of leaving the loss silent.
+        ReportUserErrorStatus(
+            UserErrorMessages.MeasurementLogMayBeIncomplete,
+            "Measurement log dropped " +
+            droppedEntries.ToString(CultureInfo.InvariantCulture) +
+            " row(s) under writer backpressure.");
     }
 
     private bool AudioCloseCheck()
