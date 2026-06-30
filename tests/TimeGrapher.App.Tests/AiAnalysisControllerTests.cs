@@ -156,7 +156,7 @@ public sealed class AiAnalysisControllerTests : IDisposable
     }
 
     [Fact]
-    public async Task AnalyzeAsync_ClosingResultWindowDuringCredentialSaveDoesNotFault()
+    public async Task AnalyzeAsync_ClosingResultWindowDoesNotCancelCredentialSave()
     {
         string logPath = WriteTempLog("log");
         var dialogs = new FakeDialogs
@@ -169,24 +169,21 @@ public sealed class AiAnalysisControllerTests : IDisposable
                 RememberCredentials: true,
                 ConsentGranted: true)
         };
-        var store = new FakeCredentialStore
-        {
-            ProbeResult = true,
-            AwaitSaveCancellation = true
-        };
+        var store = new FakeCredentialStore { ProbeResult = true };
         var controller = new AiAnalysisController(
             dialogs,
             new FakeAiAnalysisService(),
             store);
 
-        Task run = controller.AnalyzeAsync();
-        await store.SaveStarted.Task.WaitAsync(TimeSpan.FromSeconds(1));
+        await controller.AnalyzeAsync();
 
-        Assert.NotNull(dialogs.LastDisplay);
-        dialogs.LastDisplaySession!.RaiseClosed();
-        await run.WaitAsync(TimeSpan.FromSeconds(1));
-
-        Assert.True(store.SaveCancellationObserved);
+        // Credential reconciliation must not be tied to the window-close token, so the
+        // user's "Remember" choice is persisted with a non-cancellable token and closing
+        // the result window afterward cannot cancel it or fault.
+        Assert.NotNull(store.SavedCredentials);
+        Assert.False(store.LastSaveToken.CanBeCanceled);
+        Exception? ex = Record.Exception(() => dialogs.LastDisplaySession!.RaiseClosed());
+        Assert.Null(ex);
         Assert.Empty(dialogs.Errors);
     }
 
@@ -286,7 +283,7 @@ public sealed class AiAnalysisControllerTests : IDisposable
     }
 
     [Fact]
-    public async Task AnalyzeAsync_UncheckedRememberDoesNotDeleteSavedCredentialsWhenBackendFails()
+    public async Task AnalyzeAsync_UncheckedRememberDeletesSavedCredentialsEvenWhenBackendFails()
     {
         string logPath = WriteTempLog("log");
         var dialogs = new FakeDialogs
@@ -316,9 +313,44 @@ public sealed class AiAnalysisControllerTests : IDisposable
 
         await controller.AnalyzeAsync();
 
-        Assert.False(store.DeleteCalled);
+        // Unchecking "Remember" must remove previously-saved credentials even when the
+        // backend rejects the request: the user asked for them gone regardless, with a
+        // non-cancellable token.
+        Assert.True(store.DeleteCalled);
+        Assert.False(store.LastDeleteToken.CanBeCanceled);
         Assert.Null(dialogs.LastDisplay);
         Assert.Contains("User ID or User PW is incorrect.", dialogs.LastFailure!.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task AnalyzeAsync_UncheckedRememberWithNoSavedLoginDoesNotAttemptDeleteOrError()
+    {
+        string logPath = WriteTempLog("log");
+        var dialogs = new FakeDialogs
+        {
+            MeasurementLogPath = logPath,
+            DialogResult = new AiAnalysisDialogResult(
+                AiAnalysisService.PrimaryBackendBaseUrl,
+                "grader",
+                "secret",
+                RememberCredentials: false,
+                ConsentGranted: true)
+        };
+        // No previously-saved login (ReadResult null). Even though the store would report
+        // a failed delete, there is nothing to remove, so the controller must not attempt
+        // the delete nor surface the old bogus "could not be removed" error.
+        var store = new FakeCredentialStore
+        {
+            ProbeResult = true,
+            DeleteResult = false
+        };
+        var ai = new FakeAiAnalysisService();
+        var controller = new AiAnalysisController(dialogs, ai, store);
+
+        await controller.AnalyzeAsync();
+
+        Assert.False(store.DeleteCalled);
+        Assert.Empty(dialogs.Errors);
     }
 
     [Fact]
@@ -496,36 +528,24 @@ public sealed class AiAnalysisControllerTests : IDisposable
         public bool DeleteResult { get; init; } = true;
         public AiBackendCredentials? SavedCredentials { get; private set; }
         public bool DeleteCalled { get; private set; }
-        public bool AwaitSaveCancellation { get; init; }
-        public bool SaveCancellationObserved { get; private set; }
-        public TaskCompletionSource<bool> SaveStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public CancellationToken LastSaveToken { get; private set; }
+        public CancellationToken LastDeleteToken { get; private set; }
 
         public Task<bool> ProbeAsync(CancellationToken cancellationToken) => Task.FromResult(ProbeResult);
 
         public Task<AiBackendCredentials?> ReadAsync(CancellationToken cancellationToken) => Task.FromResult(ReadResult);
 
-        public async Task<bool> SaveAsync(AiBackendCredentials credentials, CancellationToken cancellationToken)
+        public Task<bool> SaveAsync(AiBackendCredentials credentials, CancellationToken cancellationToken)
         {
             SavedCredentials = credentials;
-            if (AwaitSaveCancellation)
-            {
-                SaveStarted.TrySetResult(true);
-                var cancelled = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-                using (cancellationToken.Register(() => cancelled.TrySetResult(true)))
-                {
-                    await cancelled.Task;
-                }
-
-                SaveCancellationObserved = true;
-                cancellationToken.ThrowIfCancellationRequested();
-            }
-
-            return true;
+            LastSaveToken = cancellationToken;
+            return Task.FromResult(true);
         }
 
         public Task<bool> DeleteAsync(CancellationToken cancellationToken)
         {
             DeleteCalled = true;
+            LastDeleteToken = cancellationToken;
             return Task.FromResult(DeleteResult);
         }
     }

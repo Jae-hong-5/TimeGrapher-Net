@@ -116,16 +116,17 @@ internal sealed class AiAnalysisController : IAiAnalysisRunner
                 normalizedBackendBaseUrl,
                 "Preparing AI analysis request."));
 
-        // Tie the request lifetime to the (non-modal) progress window: closing it
-        // cancels the in-flight backend call and the credential-store update, while
-        // closing the final result window after completion is a no-op.
+        // Tie the BACKEND request to the (non-modal) progress window: closing it cancels
+        // the in-flight call. Credential reconciliation below runs afterward regardless
+        // of the outcome and is intentionally NOT tied to this token (it uses
+        // CancellationToken.None) so the user's "Remember" choice is always honored.
         using var requestLifetime = new AiAnalysisRequestLifetime();
         displaySession.OnClosed(requestLifetime.CancelIfActive);
         CancellationToken requestToken = requestLifetime.Token;
 
         await displaySession.ShowStatusAsync("Sending the selected measurement log to the selected server. Waiting for AI response.");
 
-        AiAnalysisResult result;
+        AiAnalysisResult? result = null;
         try
         {
             result = await _aiAnalysisService.AnalyzeMeasurementLogAsync(
@@ -138,62 +139,85 @@ internal sealed class AiAnalysisController : IAiAnalysisRunner
         catch (AiAnalysisServiceException ex)
         {
             await displaySession.ShowFailureAsync(ToFailureDisplay(ex));
-            return;
         }
         catch (TaskCanceledException)
         {
             await displaySession.ShowFailureAsync(new AiAnalysisFailureDisplay(
                 "AI analysis request was canceled or timed out.",
                 RequestId: null));
-            return;
         }
         catch (OperationCanceledException)
         {
             await displaySession.ShowFailureAsync(new AiAnalysisFailureDisplay(
                 "AI analysis request was canceled or timed out.",
                 RequestId: null));
-            return;
         }
 
-        await displaySession.ShowResultAsync(new AiAnalysisDisplay(
-            result.RequestId,
-            result.Explanation,
-            result.Model,
-            normalizedBackendBaseUrl));
+        if (result != null)
+        {
+            await displaySession.ShowResultAsync(new AiAnalysisDisplay(
+                result.RequestId,
+                result.Explanation,
+                result.Model,
+                normalizedBackendBaseUrl));
+        }
 
-        string? credentialUpdateError = await UpdateCredentialStoreAfterSuccessAsync(
+        // Reconcile saved credentials with the user's "Remember" choice REGARDLESS of
+        // whether the analysis succeeded, so unchecking Remember reliably removes a
+        // previously-saved login even when the request failed or the window was closed.
+        // A new login is only persisted when the backend actually accepted it.
+        string? credentialUpdateError = await ReconcileCredentialStoreAsync(
             dialogResult,
             credentials,
             credentialStoreAvailable,
-            requestToken);
+            hadSavedCredentials: savedCredentials != null,
+            persistOnSuccess: result != null);
         if (credentialUpdateError != null)
         {
             await _dialogs.ShowErrorAsync("AI Analysis", credentialUpdateError);
         }
     }
 
-    private async Task<string?> UpdateCredentialStoreAfterSuccessAsync(
+    private async Task<string?> ReconcileCredentialStoreAsync(
         AiAnalysisDialogResult dialogResult,
         AiBackendCredentials credentials,
         bool credentialStoreAvailable,
-        CancellationToken cancellationToken)
+        bool hadSavedCredentials,
+        bool persistOnSuccess)
     {
         if (!credentialStoreAvailable)
         {
             return null;
         }
 
+        // Use CancellationToken.None (not the window-close token): the user's persistence
+        // choice must be applied even if they closed the progress/result window.
         try
         {
             if (dialogResult.RememberCredentials)
             {
-                bool saved = await _credentialStore.SaveAsync(credentials, cancellationToken);
+                // Only persist a login the backend actually accepted.
+                if (!persistOnSuccess)
+                {
+                    return null;
+                }
+
+                bool saved = await _credentialStore.SaveAsync(credentials, CancellationToken.None);
                 return saved
                     ? null
                     : "User ID / User PW could not be saved by this device. This request completed without changing saved login state.";
             }
 
-            bool deleted = await _credentialStore.DeleteAsync(cancellationToken);
+            // "Remember" is unchecked: remove any previously-saved login. If nothing was
+            // saved there is nothing to remove and no failure to report - this also
+            // avoids a spurious "could not be removed" error on a store that returns
+            // false for a missing entry (e.g. first-time use on Windows).
+            if (!hadSavedCredentials)
+            {
+                return null;
+            }
+
+            bool deleted = await _credentialStore.DeleteAsync(CancellationToken.None);
             return deleted
                 ? null
                 : "Saved login could not be removed by the operating system credential store. This request completed without changing saved login state.";
