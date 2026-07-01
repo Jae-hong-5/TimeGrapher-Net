@@ -7,7 +7,7 @@ namespace TimeGrapher.App.Views;
 
 internal static class MarkdownDisplayRenderer
 {
-    private const int MaxMarkdownChars = 32_000;
+    private const int MaxMarkdownChars = 64_000;
     private const int MaxBlocks = 200;
     private const int MaxTableRows = 40;
     private const int MaxTableColumns = 6;

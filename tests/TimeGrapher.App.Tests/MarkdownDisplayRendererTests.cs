@@ -63,7 +63,7 @@ public sealed class MarkdownDisplayRendererTests
     {
         HeadlessPlatform.EnsureStarted();
 
-        Control rendered = MarkdownDisplayRenderer.Render(new string('x', 33_000));
+        Control rendered = MarkdownDisplayRenderer.Render(new string('x', 65_000));
 
         var panel = Assert.IsType<StackPanel>(rendered);
         Assert.Equal(2, panel.Children.Count);
@@ -71,8 +71,8 @@ public sealed class MarkdownDisplayRendererTests
         // truncation notice: the paragraph block must not exceed the input char cap.
         var paragraph = Assert.IsType<TextBlock>(panel.Children[0]);
         Assert.True(
-            paragraph.Text!.Length <= 32_000,
-            $"rendered paragraph length {paragraph.Text!.Length} exceeded the 32000-char cap");
+            paragraph.Text!.Length <= 64_000,
+            $"rendered paragraph length {paragraph.Text!.Length} exceeded the 64000-char cap");
         var notice = Assert.IsType<TextBlock>(panel.Children[1]);
         Assert.Contains("truncated", notice.Text);
     }
