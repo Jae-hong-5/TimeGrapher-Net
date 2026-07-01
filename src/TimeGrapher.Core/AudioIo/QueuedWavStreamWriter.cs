@@ -12,9 +12,11 @@ public sealed class QueuedWavStreamWriter : ISampleWriter
     private const int DefaultQueueCapacity = 128;
     // Close() joins the writer thread on the caller (the UI thread during Stop), so this bounds
     // how long a stop blocks while the recording drains. The producer is stopped before Close, so
-    // a healthy disk drains the <=128-block queue in milliseconds; a slow SD card that cannot
-    // finish within this budget drops the recording tail (reported via DroppedBlocks) rather than
-    // freezing the UI for seconds.
+    // a healthy disk drains the <=128-block queue in milliseconds. If a slow SD card cannot finish
+    // within this budget, Close() returns false (the stop could not be confirmed in time) but the
+    // writer thread keeps draining in the background and finalizes the WAV header when it finishes
+    // (see WriterLoop), so the recording on disk stays a valid, correctly-sized file rather than
+    // one left with placeholder sizes - it is not silently truncated or corrupted.
     private static readonly TimeSpan CloseTimeout = TimeSpan.FromMilliseconds(1500);
 
     private readonly int _queueCapacity;
@@ -23,6 +25,9 @@ public sealed class QueuedWavStreamWriter : ISampleWriter
     private WavStreamWriter? _inner;
     private Thread? _thread;
     private volatile bool _writerFailed;
+    // Set by the writer thread once it has finalized the WAV header (patched the RIFF/data
+    // sizes); its value is the success of that patch. Close() reports it once the thread joins.
+    private volatile bool _finalizeOk;
     private ulong _droppedBlocks;
 
     private sealed class QueuedSampleBlock
@@ -55,11 +60,17 @@ public sealed class QueuedWavStreamWriter : ISampleWriter
                 return false;
             }
 
+            var queue = new BlockingCollection<QueuedSampleBlock>(boundedCapacity: _queueCapacity);
             _writerFailed = false;
+            _finalizeOk = false;
             _droppedBlocks = 0;
             _inner = inner;
-            _queue = new BlockingCollection<QueuedSampleBlock>(boundedCapacity: _queueCapacity);
-            _thread = new Thread(WriterLoop)
+            _queue = queue;
+            // Hand the queue and writer to the loop directly rather than re-reading the
+            // fields: Close() detaches the fields when a stop begins, and a fast Close right
+            // after Open must not race the loop into reading a null writer and skipping the
+            // header finalize.
+            _thread = new Thread(() => WriterLoop(queue, inner))
             {
                 Name = "WavWriter",
                 IsBackground = true,
@@ -116,28 +127,37 @@ public sealed class QueuedWavStreamWriter : ISampleWriter
     {
         BlockingCollection<QueuedSampleBlock>? queue;
         Thread? thread;
-        WavStreamWriter? inner;
 
         lock (_stateLock)
         {
             queue = _queue;
             thread = _thread;
-            inner = _inner;
         }
 
-        if (queue == null || inner == null)
+        if (queue == null)
         {
             return true;
         }
 
+        // Stop accepting new writes (idempotent across retries) so the writer thread drains
+        // to end-of-input, then finalizes the header and disposes the queue in its finally.
         queue.CompleteAdding();
         bool joined = thread == null || thread.Join(CloseTimeout);
         if (!joined)
         {
-            Console.Error.WriteLine("QueuedWavStreamWriter: writer thread did not stop before timeout");
+            // The disk is slow: the writer thread is still draining and will finalize the
+            // header when it finishes. Keep the writer state intact so IsOpen still reports
+            // open and the caller can RETRY Close (MainWindow.AudioCloseCheck treats a false
+            // return with IsOpen==true as retryable, not terminal). The recording on disk is
+            // not corrupted - finalization just has not been confirmed within the budget yet.
+            Console.Error.WriteLine("QueuedWavStreamWriter: writer thread still draining; retry Close to confirm finalization");
             return false;
         }
 
+        // The thread has exited: it finalized the header (result in _finalizeOk). Detach the
+        // fields so IsOpen reports closed and a new session can Open, then dispose the queue -
+        // only now that the thread has provably stopped consuming it. BlockingCollection.Dispose
+        // is idempotent, so a double Close is safe.
         lock (_stateLock)
         {
             if (ReferenceEquals(_queue, queue))
@@ -148,14 +168,8 @@ public sealed class QueuedWavStreamWriter : ISampleWriter
             }
         }
 
-        // Return any blocks still queued (e.g. enqueued just before the writer
-        // thread observed CompleteAdding) so their rented buffers are not leaked
-        // when the queue is disposed.
-        DrainQueuedBlocks(queue);
-        bool closed = inner.Close();
         queue.Dispose();
-        inner.Dispose();
-        return joined && closed && !_writerFailed;
+        return _finalizeOk && !_writerFailed;
     }
 
     public void Dispose()
@@ -163,21 +177,8 @@ public sealed class QueuedWavStreamWriter : ISampleWriter
         Close();
     }
 
-    private void WriterLoop()
+    private void WriterLoop(BlockingCollection<QueuedSampleBlock> queue, WavStreamWriter inner)
     {
-        BlockingCollection<QueuedSampleBlock>? queue;
-        WavStreamWriter? inner;
-        lock (_stateLock)
-        {
-            queue = _queue;
-            inner = _inner;
-        }
-
-        if (queue == null || inner == null)
-        {
-            return;
-        }
-
         try
         {
             foreach (QueuedSampleBlock block in queue.GetConsumingEnumerable())
@@ -199,16 +200,28 @@ public sealed class QueuedWavStreamWriter : ISampleWriter
                     // Stop accepting new blocks BEFORE draining so a producer that
                     // already passed the IsAddingCompleted check cannot TryAdd a
                     // rented buffer after the drain finishes (which would leak it,
-                    // since no consumer remains and Close only disposes the queue).
+                    // since no consumer remains once this loop exits).
                     queue.CompleteAdding();
                     DrainQueuedBlocks(queue);
-                    return;
+                    break;
                 }
             }
         }
         catch (InvalidOperationException)
         {
             _writerFailed = true;
+        }
+        finally
+        {
+            // Finalize the WAV header (patch the RIFF/data sizes) for whatever was written and
+            // release the file here, in the writer thread, so the recording is always a valid
+            // file even when Close() timed out waiting to join on a slow disk: the drain then
+            // finishes in the background and finalization still happens here. Record whether the
+            // header patch succeeded so a joined Close() reports a genuine finalization failure
+            // rather than a false success. The queue is NOT disposed here - Close() disposes it
+            // once, after it has joined this thread, so a Close retry can never call
+            // CompleteAdding on a queue this thread already disposed (ObjectDisposedException).
+            _finalizeOk = inner.Close();
         }
     }
 
