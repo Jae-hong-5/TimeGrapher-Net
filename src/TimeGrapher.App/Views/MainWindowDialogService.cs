@@ -26,7 +26,14 @@ internal sealed class MainWindowDialogService : ITimeGrapherDialogService
             SizeToContent = SizeToContent.Height,
             CanResize = false,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            // Under the Linux borderless-kiosk main window with a minimal/absent WM,
+            // an owned dialog can open behind or without focus, stranding Start in the
+            // Starting state (all run buttons disabled) - indistinguishable from a hang.
+            // Topmost + Activate on open force it to the front and give it focus so its
+            // Yes/No/Cancel (and Esc) are always reachable.
+            Topmost = true,
         };
+        dialog.Opened += (_, _) => dialog.Activate();
 
         // Dismissing the dialog (title-bar X / Alt+F4) bypasses the button
         // handlers, so the fallback must abort the start — matching the Qt
@@ -429,7 +436,11 @@ internal sealed class MainWindowDialogService : ITimeGrapherDialogService
             SizeToContent = SizeToContent.Height,
             CanResize = false,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            // Same kiosk/no-WM front-and-focus guard as AskRecordSessionAsync: a start-failure
+            // error must not open hidden behind the borderless main window.
+            Topmost = true,
         };
+        dialog.Opened += (_, _) => dialog.Activate();
         var ok = new Button { Content = "OK", Width = 80, IsDefault = true, HorizontalAlignment = HorizontalAlignment.Right };
         ok.Click += (_, _) => dialog.Close();
         var panel = new StackPanel { Margin = new Avalonia.Thickness(16), Spacing = 12 };
