@@ -11,7 +11,13 @@ public sealed class LinuxLiveAudioWorker : ILiveAudioWorker
 {
     private const int ReplacementStopTimeoutMs = 2000;
     private const int StartupFailureProbeTimeoutMs = 250;
-    private static readonly TimeSpan CommandProbeTimeout = TimeSpan.FromSeconds(2);
+    // Device enumeration (wpctl status / arecord -l) runs synchronously on the UI thread
+    // via LoadAudioDevices on the capture-ended, device-dropdown and reset paths. A 2 s
+    // ceiling per probe stacked into a multi-second UI stall while PipeWire was re-settling
+    // a just-plugged USB mic; 800 ms keeps a healthy probe well within budget while capping
+    // the worst-case UI block. A genuinely slower wpctl may then miss the window and the
+    // device list falls back to empty for that refresh (recoverable by reopening the list).
+    private static readonly TimeSpan CommandProbeTimeout = TimeSpan.FromMilliseconds(800);
     private const int Channels = MasterAudioBuffer.Channels;
     private const int AlsaDeviceNumberBase = 1_000_000;
     private const int AlsaDeviceNumberStride = 1_000;
