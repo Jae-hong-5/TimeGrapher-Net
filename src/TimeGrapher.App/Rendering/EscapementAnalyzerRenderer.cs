@@ -39,8 +39,9 @@ namespace TimeGrapher.App.Rendering;
 /// reference figure's zeroed axis) and is zoomed to frame both noise groups with
 /// a margin on each side (a fraction of the content width) so the tic and toc
 /// bursts sit inset from the frame edges rather than jammed against them — not
-/// the full 400 ms capture window. Y scales to the visible bursts only, so
-/// anything past the toc never inflates it.
+/// the full 400 ms capture window. Y scales to the visible bursts only (anything
+/// past the toc never inflates it) and eases toward that fit with a per-beat EMA,
+/// so beat-to-beat amplitude jitter does not shake the axis on every update.
 ///
 /// All plottables refill in place; re-renders only when the snapshot version
 /// changes, so coalesced or repeated frames cost nothing. Segments reference
@@ -51,6 +52,11 @@ namespace TimeGrapher.App.Rendering;
 internal sealed class EscapementAnalyzerRenderer
 {
     private const double YHeadroom = 1.1;
+    // Per-beat EMA weight for the Y auto-fit (matches BeatNoiseScopeRenderer):
+    // eases the ±symmetric Y limit toward each beat's fit so beat-to-beat
+    // amplitude jitter no longer shakes the axis on every update. 0.2 is roughly
+    // a 5-beat (~1 s) time constant.
+    private const double YAxisSmoothingFactor = 0.2;
     /// <summary>Top label row (A and C peak), as a fraction of the envelope max.</summary>
     private const double TopLabelFraction = 1.06;
     /// <summary>Second label row (C onset, which sits close to C peak), kept below the top row.</summary>
@@ -98,6 +104,7 @@ internal sealed class EscapementAnalyzerRenderer
     private ulong _lastObservedVersion;
     private double _lastViewRight = MinViewSpanMs - BeatSegmentCapture.PreEventMs;
     private double _lastViewTop = 1.0;
+    private double? _smoothedYTop;
 
     private static bool IsAMarker(int index) => index == MarkerTicA || index == MarkerTocA;
 
@@ -126,6 +133,7 @@ internal sealed class EscapementAnalyzerRenderer
     {
         _lastVersion = 0;
         _lastObservedVersion = 0;
+        _smoothedYTop = null;
         _tracker.Reset();
         foreach (TextBlock value in _valueTexts)
         {
@@ -272,6 +280,7 @@ internal sealed class EscapementAnalyzerRenderer
 
             _lastViewRight = MinViewSpanMs - BeatSegmentCapture.PreEventMs;
             _lastViewTop = 1.0;
+            _smoothedYTop = null;
             return 1.0;
         }
 
@@ -376,10 +385,12 @@ internal sealed class EscapementAnalyzerRenderer
         }
 
         _lastViewRight = endRel;
-        _lastViewTop = YHeadroom * extent;
+        double top = SmoothYTop(YHeadroom * extent);
         _plot.Plot.Axes.SetLimitsX(startRel, endRel);
-        _plot.Plot.Axes.SetLimitsY(-_lastViewTop, _lastViewTop);
-        return extent;
+        _plot.Plot.Axes.SetLimitsY(-top, top);
+        // Marker labels ride the smoothed half-height (not the raw beat extent) so
+        // they stay inside the frame and as steady as the axis itself.
+        return top / YHeadroom;
     }
 
     /// <summary>Fallback rectified envelope (no raw fed); returns the envelope max.</summary>
@@ -410,10 +421,26 @@ internal sealed class EscapementAnalyzerRenderer
         }
 
         _lastViewRight = endRel;
-        _lastViewTop = YHeadroom * max;
+        double top = SmoothYTop(YHeadroom * max);
         _plot.Plot.Axes.SetLimitsX(startRel, endRel);
-        _plot.Plot.Axes.SetLimitsY(-_lastViewTop, _lastViewTop);
-        return max;
+        _plot.Plot.Axes.SetLimitsY(-top, top);
+        return top / YHeadroom;
+    }
+
+    /// <summary>
+    /// Eases the ±symmetric Y half-height toward <paramref name="targetTop"/> with
+    /// a per-beat EMA so beat-to-beat amplitude jitter no longer shakes the axis
+    /// (matches BeatNoiseScopeRenderer). The first fit after a reset snaps so a
+    /// fresh run frames immediately; later beats ease by YAxisSmoothingFactor.
+    /// Returns the smoothed half-height now applied to Y.
+    /// </summary>
+    private double SmoothYTop(double targetTop)
+    {
+        _smoothedYTop = _smoothedYTop is double current
+            ? current + YAxisSmoothingFactor * (targetTop - current)
+            : targetTop;
+        _lastViewTop = _smoothedYTop.Value;
+        return _lastViewTop;
     }
 
     /// <summary>
