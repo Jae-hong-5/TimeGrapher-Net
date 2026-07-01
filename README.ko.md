@@ -71,7 +71,7 @@
    ```bash
    sudo apt update
    sudo apt install -y libx11-6 libice6 libsm6 libfontconfig1 xwayland \
-     pipewire pipewire-bin wireplumber alsa-utils
+     pipewire pipewire-bin wireplumber alsa-utils gnome-keyring libsecret-tools
    ```
 
    마이크 입력에는 PipeWire/ALSA CLI 도구 `wpctl`·`pw-record`·`arecord`(위 패키지)가
@@ -123,11 +123,12 @@
 ## 주요 기능
 
 - 똑/딱 소리를 검출해 박자(BPH)를 자동·수동으로 잡고, 위상 추적으로 동기를 유지.
-- 현재 앱 카탈로그 기준 분석 표시 탭: **Rate/Scope**, **Sound Print**, **Trace**, **Sweep**, **Vario**, **Beat Error**, **Filter Scope**, **Long-Term**, **Positions**, **Health**, **Beat Noise**, **Escapement**, **Comparison**, **Spectrogram**.
+- 앱 카탈로그가 정의한 순서대로 분석 표시 탭: **Rate/Scope**, **Beat Error**, **Trace**, **Vario**, **Long-Term**, **Sweep**, **Escapement**, **Positions**, **Health**, **Beat Noise**, **Comparison**, **Filter Scope**, **Sound Print**, **Spectrogram**.
 - **Positions** 탭은 왼쪽에 작은 포지션 선택 버튼, 오른쪽에 포지션별 시퀀스 측정값을 함께 보여줍니다.
 - 입력 3종: **Live**(마이크), **Playback**(WAV 파일 재생), **Simulation**(합성 신호).
 - 분석과 동시에 입력을 WAV로 녹음할 수 있습니다(Live·Simulation 실행에서 선택 제공; Playback은 기존 파일을 재생만 함).
-- **설정** 창에서 실행 옵션(C-onset 타이밍, PLL 임펄스 veto, 포지션 변경 시 일시정지), **샘플링 파라미터**(분석 블록 크기·캡처 버퍼 길이), CSV 측정 로깅, Error Rate/진폭/Beat Error의 허용(정상 범위) 밴드를 조정합니다.
+- 보조용 **신호 품질 분류**: 온디바이스 ONNX 모델(모델을 못 불러오면 휴리스틱으로 대체)이 라이브 신호를 Good/Noisy/Weak/Unstable로 분류하고 알기 쉬운 안내 문구를 보여 줍니다. 어디까지나 보조 정보로, 측정값을 얼마나 신뢰할지 알려줄 뿐 **비트를 버리거나 바꾸지 않습니다.**
+- **설정** 창에서 실행 옵션(Enhanced Auto BPH, Weak A-onset rescue와 구조 강도, C-onset 타이밍, 포지션 변경 시 일시정지), 실행 파라미터(Avg. Period, 분석 블록 크기, 캡처 버퍼 길이, 하이패스 컷오프), 판정 임계값(최소 판정 비트 수), CSV 측정 로깅, Error Rate/진폭/Beat Error의 허용(정상 범위) 밴드를 조정합니다.
 - 화면 없이 검출 정확도(`--generated` / `--byte-fixtures`, `--adverse`)·오디오 장치를 점검하는 콘솔 모드.
 
 ## 왜 Avalonia / .NET 인가
@@ -143,13 +144,15 @@
 graph TD
     App["App (Avalonia UI)"] --> Core["Core (분석 엔진)"]
     Verify["Verify (검증 콘솔)"] --> Core
+    Inference["Inference (ONNX 신호 품질)"] --> Core
     WinAudio["WindowsAudio (NAudio)"] --> Core
     LinuxAudio["LinuxAudio (PipeWire/ALSA)"] --> Core
+    App --> Inference
     App -. Windows 빌드 .-> WinAudio
     App -. 라즈베리파이 빌드 .-> LinuxAudio
 ```
 
-*그림 1. 모든 프로젝트가 Core를 참조하고, 오디오 백엔드는 빌드 대상 OS에 맞는 것만 포함됩니다.*
+*그림 1. 모든 프로젝트가 Core를 참조하고, ONNX 신호 품질 분류기는 플랫폼 공통이며, 오디오 백엔드는 빌드 대상 OS에 맞는 것만 포함됩니다.*
 
 소리가 화면에 그려지기까지의 흐름:
 
@@ -160,9 +163,11 @@ flowchart LR
     C --> D["측정<br/>BPH·Error Rate·진폭"]
     D --> E["그래프·이미지<br/>생성"]
     E --> F["화면 표시"]
+    D -. 보조 .-> Q["신호 품질<br/>ONNX 분류"]
+    Q -. 안내 .-> F
 ```
 
-*그림 2. 입력 → 검출 → 측정 → 시각화. 분석 한 번이 화면 갱신 한 번으로 이어집니다.*
+*그림 2. 입력 → 검출 → 측정 → 시각화. 분석 한 번이 화면 갱신 한 번으로 이어집니다. 이와 별개로 신호 품질을 분류해 신뢰도 안내를 보조로 제공합니다.*
 
 ### 입력 워커 계약
 
@@ -199,11 +204,12 @@ classDiagram
 | 프로젝트 | 역할 |
 |---|---|
 | `TimeGrapher.Core` | 분석 엔진 — 검출·측정·이미지 생성·WAV 읽기/쓰기·시뮬레이터 (UI·OS 비의존) |
-| `TimeGrapher.App` | Avalonia UI — 창·탭·그래프 표시, OS별 오디오 연결 |
+| `TimeGrapher.App` | Avalonia UI — 창·탭·그래프 표시, OS별 오디오와 신호 품질 분류기 연결 |
+| `TimeGrapher.Inference` | 온디바이스 ONNX 신호 품질 분류기(Good/Noisy/Weak/Unstable); 보조 전용, Core 참조, 학습된 모델 내장 |
 | `TimeGrapher.Platform.WindowsAudio` | Windows 마이크 입력 (NAudio) |
 | `TimeGrapher.Platform.LinuxAudio` | 라즈베리파이 마이크 입력 (PipeWire → ALSA) |
 | `TimeGrapher.Verify` | 화면 없이 WAV의 BPH 검출 정확도를 확인하는 콘솔 |
-| `*.Tests` | xUnit 테스트 (Core / App / WindowsAudio / LinuxAudio / Verify) |
+| `*.Tests` | xUnit 테스트 (Core / App / Inference / WindowsAudio / LinuxAudio / Verify) |
 
 자세한 설계 배경과 Qt→.NET 포팅 과정은 `docs/` 폴더를 참고하세요.
 
@@ -214,6 +220,7 @@ classDiagram
 | Avalonia(.Desktop/.Themes.Fluent) | 11.3.17 | UI 프레임워크 |
 | ScottPlot.Avalonia | 5.0.55 | 스코프/레이트 그래프 |
 | NAudio.Wasapi / NAudio.WinMM | 2.2.1 | Windows 마이크 캡처·볼륨 |
+| Microsoft.ML.OnnxRuntime | 1.20.1 | 온디바이스 신호 품질 추론 |
 | xunit / xunit.runner.visualstudio | 2.9.2 / 2.8.2 | 테스트 |
 | Microsoft.NET.Test.Sdk | 17.12.0 | 테스트 호스트 |
 
@@ -224,16 +231,17 @@ classDiagram
 
 아키텍처 결정: [ADR 4: AI 활용, TDD 지원, 팀 협업을 위한 App, Test, Verify 모듈 구조 분리](docs/ADR/ko/ADR-004.md).
 
-`dotnet test` 기준 **933개 테스트 전부 통과**(App 569 / Core 316 / WindowsAudio 11 / LinuxAudio 22 / Verify 15).
+`dotnet test` 기준 **1346개 테스트 전부 통과**(App 867 / Core 391 / LinuxAudio 36 / Verify 27 / Inference 14 / WindowsAudio 11).
 
 ```mermaid
 pie showData
-    title 테스트 분포 (총 933)
-    "App.Tests" : 569
-    "Core.Tests" : 316
+    title 테스트 분포 (총 1346)
+    "App.Tests" : 867
+    "Core.Tests" : 391
+    "Platform.LinuxAudio.Tests" : 36
+    "Verify.Tests" : 27
+    "Inference.Tests" : 14
     "Platform.WindowsAudio.Tests" : 11
-    "Platform.LinuxAudio.Tests" : 22
-    "Verify.Tests" : 15
 ```
 
 *그림 4. 테스트 분포.*
@@ -254,7 +262,7 @@ git tag v0.1.0 && git push origin v0.1.0
 | 항목 | 명령 | 상태 |
 |---|---|---|
 | 빌드 | `dotnet build TimeGrapherNet.sln -c Release` | ✅ |
-| 테스트 | `dotnet test TimeGrapherNet.sln -c Release` (933/933) | ✅ |
+| 테스트 | `dotnet test TimeGrapherNet.sln -c Release` (1346/1346) | ✅ |
 | 검출 검증 | `... TimeGrapher.Verify -- --generated --byte-fixtures` (exit 0, 생성 및 byte-built fixtures) | ✅ |
 | GUI 실행 | `dotnet run --project src/TimeGrapher.App` | ✅ |
 | 배포 — 라즈베리파이 (linux-arm64) | `dotnet publish ... -r linux-arm64 --self-contained true` | ✅ |
