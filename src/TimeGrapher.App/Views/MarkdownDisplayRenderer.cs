@@ -1,5 +1,7 @@
+using System.Text;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Documents;
 using Avalonia.Layout;
 using Avalonia.Media;
 
@@ -70,14 +72,15 @@ internal static class MarkdownDisplayRenderer
 
             if (TryParseHeading(trimmed, out int level, out string heading))
             {
-                if (!TryAddBlock(panel, new TextBlock
+                var headingBlock = new TextBlock
                 {
-                    Text = StripInlineMarkdown(heading),
                     TextWrapping = TextWrapping.Wrap,
                     FontWeight = FontWeight.Bold,
                     FontSize = HeadingFontSize(level),
                     Margin = new Thickness(0, level <= 2 ? 8 : 4, 0, 0),
-                }))
+                };
+                ApplyInline(headingBlock, heading);
+                if (!TryAddBlock(panel, headingBlock))
                 {
                     AddTruncationNotice(panel);
                     return panel;
@@ -104,13 +107,14 @@ internal static class MarkdownDisplayRenderer
                 paragraph.Add(lines[i].Trim());
             }
 
-            if (!TryAddBlock(panel, new TextBlock
+            var paragraphBlock = new TextBlock
             {
-                Text = StripInlineMarkdown(string.Join(' ', paragraph)),
                 TextWrapping = TextWrapping.Wrap,
                 LineHeight = 20,
                 FontWeight = FontWeight.Normal,
-            }))
+            };
+            ApplyInline(paragraphBlock, string.Join(' ', paragraph));
+            if (!TryAddBlock(panel, paragraphBlock))
             {
                 AddTruncationNotice(panel);
                 return panel;
@@ -203,11 +207,11 @@ internal static class MarkdownDisplayRenderer
         });
         var body = new TextBlock
         {
-            Text = StripInlineMarkdown(text),
             TextWrapping = TextWrapping.Wrap,
             LineHeight = 20,
             FontWeight = FontWeight.Normal,
         };
+        ApplyInline(body, text);
         Grid.SetColumn(body, 1);
         grid.Children.Add(body);
         return grid;
@@ -243,17 +247,18 @@ internal static class MarkdownDisplayRenderer
             for (int col = 0; col < columnCount; col++)
             {
                 string cellText = col < rows[row].Length ? rows[row][col] : string.Empty;
+                var cellBlock = new TextBlock
+                {
+                    TextWrapping = TextWrapping.Wrap,
+                    FontWeight = row == 0 ? FontWeight.Bold : FontWeight.Normal,
+                };
+                ApplyInline(cellBlock, cellText);
                 var cell = new Border
                 {
                     BorderBrush = Brushes.Gray,
                     BorderThickness = new Thickness(0.5),
                     Padding = new Thickness(6, 4),
-                    Child = new TextBlock
-                    {
-                        Text = StripInlineMarkdown(cellText),
-                        TextWrapping = TextWrapping.Wrap,
-                        FontWeight = row == 0 ? FontWeight.Bold : FontWeight.Normal,
-                    },
+                    Child = cellBlock,
                 };
                 Grid.SetRow(cell, row);
                 Grid.SetColumn(cell, col);
@@ -310,8 +315,168 @@ internal static class MarkdownDisplayRenderer
         Opacity = 0.8,
     };
 
-    private static string StripInlineMarkdown(string text) => text
-        .Replace("**", string.Empty, StringComparison.Ordinal)
-        .Replace("__", string.Empty, StringComparison.Ordinal)
-        .Replace("`", string.Empty, StringComparison.Ordinal);
+    // Renders inline markdown (**bold**, __bold__, *italic*, _italic_ and `code`) into the
+    // text block. Plain text with no inline markers keeps the single Text path so the common
+    // case is unchanged and the display char cap stays enforced on Text directly.
+    private static void ApplyInline(TextBlock block, string text)
+    {
+        var runs = new List<InlineRun>();
+        ParseInline(text, runs, bold: false, italic: false);
+
+        if (runs.Count <= 1 && (runs.Count == 0 || runs[0] is { Bold: false, Italic: false }))
+        {
+            block.Text = runs.Count == 0 ? text : runs[0].Text;
+            return;
+        }
+
+        InlineCollection inlines = block.Inlines ??= new InlineCollection();
+        foreach (InlineRun run in runs)
+        {
+            var element = new Run(run.Text);
+            if (run.Bold)
+            {
+                element.FontWeight = FontWeight.Bold;
+            }
+
+            if (run.Italic)
+            {
+                element.FontStyle = FontStyle.Italic;
+            }
+
+            inlines.Add(element);
+        }
+    }
+
+    private static void ParseInline(string text, List<InlineRun> runs, bool bold, bool italic)
+    {
+        var literal = new StringBuilder();
+        int i = 0;
+        while (i < text.Length)
+        {
+            char c = text[i];
+
+            // `code`: content is literal (the app font is already monospace); parsing it here
+            // keeps any * or _ inside a code span from being read as emphasis.
+            if (c == '`')
+            {
+                int codeClose = text.IndexOf('`', i + 1);
+                if (codeClose > i)
+                {
+                    FlushLiteral(runs, literal, bold, italic);
+                    string code = text[(i + 1)..codeClose];
+                    if (code.Length > 0)
+                    {
+                        runs.Add(new InlineRun(code, bold, italic));
+                    }
+
+                    i = codeClose + 1;
+                    continue;
+                }
+            }
+
+            // **bold** / __bold__
+            if ((c == '*' || c == '_') && !bold && i + 1 < text.Length && text[i + 1] == c && IsLeftFlank(text, i, 2, c))
+            {
+                int close = FindClosing(text, i + 2, c, 2);
+                if (close >= 0)
+                {
+                    FlushLiteral(runs, literal, bold, italic);
+                    ParseInline(text[(i + 2)..close], runs, bold: true, italic: italic);
+                    i = close + 2;
+                    continue;
+                }
+            }
+
+            // *italic* / _italic_ (a doubled delimiter is handled by the bold branch above)
+            if ((c == '*' || c == '_') && !italic && !(i + 1 < text.Length && text[i + 1] == c) && IsLeftFlank(text, i, 1, c))
+            {
+                int close = FindClosing(text, i + 1, c, 1);
+                if (close >= 0)
+                {
+                    FlushLiteral(runs, literal, bold, italic);
+                    ParseInline(text[(i + 1)..close], runs, bold: bold, italic: true);
+                    i = close + 1;
+                    continue;
+                }
+            }
+
+            literal.Append(c);
+            i++;
+        }
+
+        FlushLiteral(runs, literal, bold, italic);
+    }
+
+    private static void FlushLiteral(List<InlineRun> runs, StringBuilder literal, bool bold, bool italic)
+    {
+        if (literal.Length > 0)
+        {
+            runs.Add(new InlineRun(literal.ToString(), bold, italic));
+            literal.Clear();
+        }
+    }
+
+    // Finds the matching closing delimiter run, returning its start index or -1 when the
+    // emphasis is never closed (so the opener is left as literal text).
+    private static int FindClosing(string text, int start, char delim, int len)
+    {
+        for (int j = start; j + len <= text.Length; j++)
+        {
+            if (!IsDelimiterRun(text, j, delim, len))
+            {
+                continue;
+            }
+
+            // Reject empty content and a closer preceded by whitespace ("a *b* c" closes,
+            // "a * b *" does not).
+            if (j == start || char.IsWhiteSpace(text[j - 1]))
+            {
+                continue;
+            }
+
+            // Intra-word underscore (a_b_c) is not emphasis: the closer must also sit on a
+            // word boundary.
+            if (delim == '_' && j + len < text.Length && char.IsLetterOrDigit(text[j + len]))
+            {
+                continue;
+            }
+
+            return j;
+        }
+
+        return -1;
+    }
+
+    private static bool IsDelimiterRun(string text, int index, char delim, int len)
+    {
+        for (int k = 0; k < len; k++)
+        {
+            if (text[index + k] != delim)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    // Left-flanking test: the opener must be followed by non-whitespace, and an underscore
+    // opener must not sit inside a word (so snake_case identifiers are left untouched).
+    private static bool IsLeftFlank(string text, int index, int len, char delim)
+    {
+        int after = index + len;
+        if (after >= text.Length || char.IsWhiteSpace(text[after]))
+        {
+            return false;
+        }
+
+        if (delim == '_' && index > 0 && char.IsLetterOrDigit(text[index - 1]))
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    private readonly record struct InlineRun(string Text, bool Bold, bool Italic);
 }

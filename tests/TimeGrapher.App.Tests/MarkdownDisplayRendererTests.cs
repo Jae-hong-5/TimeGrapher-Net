@@ -1,4 +1,6 @@
+using System.Linq;
 using Avalonia.Controls;
+using Avalonia.Controls.Documents;
 using Avalonia.Media;
 using TimeGrapher.App.Views;
 using Xunit;
@@ -56,6 +58,59 @@ public sealed class MarkdownDisplayRendererTests
         var panel = Assert.IsType<StackPanel>(rendered);
         var paragraph = Assert.IsType<TextBlock>(panel.Children[0]);
         Assert.Equal(FontWeight.Normal, paragraph.FontWeight);
+    }
+
+    [Fact]
+    public void Render_AppliesBoldAndItalicInlineRuns()
+    {
+        HeadlessPlatform.EnsureStarted();
+
+        Control rendered = MarkdownDisplayRenderer.Render("**굵게** 그리고 *기울임* 표시.");
+
+        var panel = Assert.IsType<StackPanel>(rendered);
+        var paragraph = Assert.IsType<TextBlock>(panel.Children[0]);
+        var runs = paragraph.Inlines!.OfType<Run>().ToList();
+        Assert.Contains(runs, r => r.Text == "굵게" && r.FontWeight == FontWeight.Bold);
+        Assert.Contains(runs, r => r.Text == "기울임" && r.FontStyle == FontStyle.Italic);
+    }
+
+    [Fact]
+    public void Render_KeepsSnakeCaseUnderscoresLiteral()
+    {
+        HeadlessPlatform.EnsureStarted();
+
+        Control rendered = MarkdownDisplayRenderer.Render("beat_error_ms 값을 확인.");
+
+        var panel = Assert.IsType<StackPanel>(rendered);
+        var paragraph = Assert.IsType<TextBlock>(panel.Children[0]);
+        // No emphasis parsed: intra-word underscores stay verbatim on the single Text path.
+        Assert.Equal("beat_error_ms 값을 확인.", paragraph.Text);
+    }
+
+    [Fact]
+    public void Render_KeepsCodeSpanContentLiteral()
+    {
+        HeadlessPlatform.EnsureStarted();
+
+        Control rendered = MarkdownDisplayRenderer.Render("설정 `a*b*c` 확인.");
+
+        var panel = Assert.IsType<StackPanel>(rendered);
+        var paragraph = Assert.IsType<TextBlock>(panel.Children[0]);
+        string text = string.Concat(paragraph.Inlines!.OfType<Run>().Select(r => r.Text));
+        // The * inside the code span must not be consumed as emphasis.
+        Assert.Contains("a*b*c", text);
+    }
+
+    [Fact]
+    public void Render_LeavesUnmatchedEmphasisAsLiteral()
+    {
+        HeadlessPlatform.EnsureStarted();
+
+        Control rendered = MarkdownDisplayRenderer.Render("3 * 4 = 12");
+
+        var panel = Assert.IsType<StackPanel>(rendered);
+        var paragraph = Assert.IsType<TextBlock>(panel.Children[0]);
+        Assert.Equal("3 * 4 = 12", paragraph.Text);
     }
 
     [Fact]
