@@ -1,22 +1,20 @@
 /* TimeGrapher-Net User Manual — shared styles.
-   Mirrors the app's design language: flat, right-angled (no rounded corners),
-   single-colour brushes, low-contrast grid. */
+   Technical-manual style: white background, square geometry, no decoration. */
 
 :root {
-  --bg: #f4f5f7;
+  --bg: #ffffff;
   --panel: #ffffff;
-  --chrome: #e9ebee;
-  --border: #d2d6db;
-  --text: #1c2025;
-  --text-muted: #5b6470;
-  --accent: #165bff;
-  --accent-soft: #e6edff;
-  --tic: #1f9d55;   /* green = tic */
-  --toc: #d23b3b;   /* red = toc */
-  --warn-bg: #fff6e0;
-  --warn-border: #e0a500;
-  --code-bg: #11151c;
-  --code-text: #e6e8eb;
+  --chrome: #ffffff;
+  --border: #d8d8d8;
+  --text: #222222;
+  --text-muted: #666666;
+  --accent: #A50034;
+  --tic: #A50034;
+  --toc: #666666;
+  --warn-bg: #ffffff;
+  --warn-border: #A50034;
+  --code-bg: #ffffff;
+  --code-text: #222222;
   --sidebar-w: 280px;
   --maxw: 980px;
   font-synthesis: none;
@@ -54,7 +52,7 @@ body {
   display: flex; align-items: center; gap: 10px;
   padding: 16px 18px;
   border-bottom: 1px solid var(--border);
-  background: var(--chrome);
+  background: var(--panel);
 }
 .sidebar .brand img { width: 28px; height: 28px; }
 .sidebar .brand b { font-size: 16px; letter-spacing: .2px; }
@@ -71,10 +69,9 @@ body {
   color: var(--text); text-decoration: none; font-size: 14px;
   border-left: 3px solid transparent;
 }
-.nav-group a:hover { background: var(--accent-soft); }
+.nav-group a:hover { color: var(--accent); }
 .nav-group a.active {
   border-left-color: var(--accent);
-  background: var(--accent-soft);
   font-weight: 600; color: var(--accent);
 }
 .nav-group a .num {
@@ -96,8 +93,7 @@ body {
   position: sticky; top: 0; z-index: 5;
   display: flex; align-items: center; justify-content: space-between;
   padding: 10px 40px;
-  background: rgba(244,245,247,.92);
-  backdrop-filter: blur(6px);
+  background: var(--panel);
   border-bottom: 1px solid var(--border);
 }
 .crumbs { font-size: 13px; color: var(--text-muted); }
@@ -111,27 +107,28 @@ body {
   border-right: 1px solid var(--border);
 }
 .lang-toggle button:last-child { border-right: 0; }
-.lang-toggle button.active { background: var(--accent); color: #fff; }
+.lang-toggle button.active { background: var(--accent); color: #FFFFFF; }
 
 /* ---------- typography ---------- */
 h1 { font-size: 28px; margin: 8px 0 4px; line-height: 1.25; }
 h2 {
   font-size: 21px; margin: 38px 0 10px; padding-bottom: 6px;
-  border-bottom: 2px solid var(--border);
+  border-bottom: 2px solid var(--accent);
 }
 h3 { font-size: 17px; margin: 24px 0 8px; }
+h1, h2, h3 { color: var(--accent); }
 p { margin: 8px 0; }
 .lede { font-size: 16px; color: var(--text-muted); margin-bottom: 8px; }
 ul, ol { margin: 8px 0; padding-left: 22px; }
 li { margin: 4px 0; }
 a { color: var(--accent); }
 code {
-  background: var(--chrome); padding: 1px 6px; font-size: 13px;
+  background: var(--panel); border: 1px solid var(--border); padding: 1px 6px; font-size: 13px;
   font-family: "Cascadia Mono", Consolas, monospace;
 }
 pre {
   background: var(--code-bg); color: var(--code-text);
-  padding: 14px 16px; overflow-x: auto; font-size: 13px; line-height: 1.55;
+  border: 1px solid var(--border); padding: 14px 16px; overflow-x: auto; font-size: 13px; line-height: 1.55;
   font-family: "Cascadia Mono", Consolas, monospace;
 }
 pre code { background: none; padding: 0; color: inherit; }
@@ -147,28 +144,28 @@ kbd {
 }
 
 .note, .warn, .tip {
-  border-left: 4px solid var(--accent); background: var(--accent-soft);
+  border: 1px solid var(--accent); border-left-width: 4px; background: var(--panel);
   padding: 10px 14px; margin: 14px 0;
 }
 .warn { border-left-color: var(--warn-border); background: var(--warn-bg); }
-.tip  { border-left-color: var(--tic); background: #eaf7ef; }
+.tip  { border-left-color: var(--accent); }
 .note p:first-child, .warn p:first-child, .tip p:first-child { margin-top: 0; }
 .note p:last-child, .warn p:last-child, .tip p:last-child { margin-bottom: 0; }
 
 table { border-collapse: collapse; width: 100%; margin: 14px 0; font-size: 14px; }
 th, td { border: 1px solid var(--border); padding: 7px 10px; text-align: left; vertical-align: top; }
-th { background: var(--chrome); font-weight: 700; }
-tbody tr:nth-child(even) { background: #fafbfc; }
+th { background: var(--panel); color: var(--accent); font-weight: 700; }
+tbody tr:nth-child(even) { background: var(--panel); }
 
 .pill {
   display: inline-block; padding: 1px 8px; font-size: 12px; font-weight: 700;
-  border: 1px solid var(--border); background: var(--chrome); white-space: nowrap;
+  border: 1px solid var(--accent); background: var(--panel); color: var(--accent); white-space: nowrap;
 }
-.pill.tic { color: var(--tic); border-color: var(--tic); background: #eaf7ef; }
-.pill.toc { color: var(--toc); border-color: var(--toc); background: #fdeaea; }
-.pill.good { color: var(--tic); border-color: var(--tic); background: #eaf7ef; }
-.pill.warn { color: #9a7400; border-color: var(--warn-border); background: var(--warn-bg); }
-.pill.bad  { color: var(--toc); border-color: var(--toc); background: #fdeaea; }
+.pill.tic { color: var(--tic); border-color: var(--tic); background: var(--panel); }
+.pill.toc { color: var(--toc); border-color: var(--toc); background: var(--panel); }
+.pill.good { color: var(--tic); border-color: var(--tic); background: var(--panel); }
+.pill.warn { color: var(--accent); border-color: var(--warn-border); background: var(--warn-bg); }
+.pill.bad  { color: var(--toc); border-color: var(--toc); background: var(--panel); }
 
 /* figure / screenshot with graceful fallback */
 figure { margin: 16px 0; }
@@ -179,8 +176,7 @@ figure img {
 figure figcaption { font-size: 12.5px; color: var(--text-muted); margin-top: 6px; }
 .shot-missing {
   display: flex; align-items: center; justify-content: center; flex-direction: column;
-  min-height: 200px; border: 1px dashed var(--border); background: repeating-linear-gradient(
-    45deg, #fafbfc, #fafbfc 12px, #f1f3f5 12px, #f1f3f5 24px);
+  min-height: 200px; border: 1px dashed var(--border); background: var(--panel);
   color: var(--text-muted); font-size: 13px; text-align: center; padding: 20px;
 }
 .shot-missing b { color: var(--text); font-size: 14px; }
@@ -194,7 +190,7 @@ figure figcaption { font-size: 12.5px; color: var(--text-muted); margin-top: 6px
   display: block; text-decoration: none; color: var(--text);
   border: 1px solid var(--border); background: var(--panel); padding: 14px;
 }
-.grid a.tile:hover { border-color: var(--accent); background: var(--accent-soft); }
+.grid a.tile:hover { border-color: var(--accent); }
 .grid a.tile .t { font-weight: 700; font-size: 15px; }
 .grid a.tile .n { color: var(--accent); font-weight: 700; font-variant-numeric: tabular-nums; }
 .grid a.tile .d { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
@@ -214,20 +210,20 @@ dl.kv dd { margin: 0; }
 /* ---------- multilingual toggle ---------- */
 .en, .pt { color: var(--text-muted); }
 
-/* symmetric KO / EN / PT badges — only meaningful in side-by-side (all) mode */
+/* Language badges are only useful if a page is viewed without an active mode. */
 .ko::before, .en::before, .pt::before {
   font-size: 10px; font-weight: 700; padding: 0 3px; margin-right: 6px;
   vertical-align: 1px; border: 1px solid currentColor;
 }
-.ko::before { content: "KO"; color: var(--tic); }
-.en::before { content: "EN"; color: var(--accent); }
-.pt::before { content: "PT"; color: var(--warn-border); }
+.ko::before { content: "ko-kr"; color: var(--accent); }
+.en::before { content: "en-us"; color: var(--accent); }
+.pt::before { content: "pt-br"; color: var(--accent); }
 
 /* hide the other languages per selected mode */
 body.show-ko .en, body.show-ko .pt { display: none; }
 body.show-en .ko, body.show-en .pt { display: none; }
 body.show-pt .ko, body.show-pt .en { display: none; }
-body.show-en .en, body.show-pt .pt { color: var(--text); }
+body.show-en .en, body.show-pt .pt { color: inherit; }
 
 /* in a single-language mode the badge is redundant — drop it */
 body.show-ko .ko::before { display: none; }
@@ -237,10 +233,12 @@ body.show-pt .pt::before { display: none; }
 /* headings & table headers carry no badge; a "·" separator shows only in all mode */
 :is(h1, h2, h3) .ko::before, :is(h1, h2, h3) .en::before, :is(h1, h2, h3) .pt::before,
 th .ko::before, th .en::before, th .pt::before { display: none; }
+:is(h1, h2, h3) .ko, :is(h1, h2, h3) .en, :is(h1, h2, h3) .pt,
+th .ko, th .en, th .pt { color: var(--accent); }
 .sep { color: var(--text-muted); }
 body.show-ko .sep, body.show-en .sep, body.show-pt .sep { display: none; }
 
-/* keep block-level EN / PT paragraphs on their own line */
+/* keep block-level en-us / pt-br paragraphs on their own line */
 li > .en, p.en, li > .pt, p.pt { display: block; }
 
 @media (max-width: 860px) {

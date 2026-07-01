@@ -1,7 +1,7 @@
 /* TimeGrapher-Net manual — shared behaviour & chrome.
    Builds the sidebar + language toggle from one place so every page stays
    consistent, then wires:
-   1) bilingual KO/EN toggle (persisted)
+   1) trilingual language toggle (persisted)
    2) screenshot fallback (placeholder when the image is missing)              */
 (function () {
   "use strict";
@@ -65,27 +65,32 @@
     var el = document.getElementById("langToggle");
     if (!el) return;
     el.innerHTML =
-      "<button data-mode=\"show-both\">전체</button>" +
-      "<button data-mode=\"show-ko\">한국어</button>" +
-      "<button data-mode=\"show-en\">EN</button>" +
-      "<button data-mode=\"show-pt\">PT</button>";
+      "<button data-mode=\"show-en\">en-us</button>" +
+      "<button data-mode=\"show-pt\">pt-br</button>" +
+      "<button data-mode=\"show-ko\">ko-kr</button>";
   }
 
   /* ---- language toggle ---- */
-  var KEY = "tg-manual-lang";
-  var modes = ["show-both", "show-ko", "show-en", "show-pt"];
+  var KEY = "tg-manual-lang-v2";
+  var languageTags = {
+    "show-en": "en-US",
+    "show-pt": "pt-BR",
+    "show-ko": "ko-KR"
+  };
+  var modes = ["show-en", "show-pt", "show-ko"];
   function applyLang(mode) {
     modes.forEach(function (m) { document.body.classList.remove(m); });
     document.body.classList.add(mode);
+    document.documentElement.lang = languageTags[mode];
     document.querySelectorAll(".lang-toggle button").forEach(function (b) {
       b.classList.toggle("active", b.getAttribute("data-mode") === mode);
     });
     try { localStorage.setItem(KEY, mode); } catch (e) {}
   }
   function initLang() {
-    var saved = "show-both";
-    try { saved = localStorage.getItem(KEY) || "show-both"; } catch (e) {}
-    if (modes.indexOf(saved) < 0) saved = "show-both";
+    var saved = "show-en";
+    try { saved = localStorage.getItem(KEY) || "show-en"; } catch (e) {}
+    if (modes.indexOf(saved) < 0) saved = "show-en";
     applyLang(saved);
     document.querySelectorAll(".lang-toggle button").forEach(function (b) {
       b.addEventListener("click", function () { applyLang(b.getAttribute("data-mode")); });
