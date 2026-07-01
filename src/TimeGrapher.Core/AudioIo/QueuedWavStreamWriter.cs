@@ -10,7 +10,12 @@ namespace TimeGrapher.Core.AudioIo;
 public sealed class QueuedWavStreamWriter : ISampleWriter
 {
     private const int DefaultQueueCapacity = 128;
-    private static readonly TimeSpan CloseTimeout = TimeSpan.FromSeconds(5);
+    // Close() joins the writer thread on the caller (the UI thread during Stop), so this bounds
+    // how long a stop blocks while the recording drains. The producer is stopped before Close, so
+    // a healthy disk drains the <=128-block queue in milliseconds; a slow SD card that cannot
+    // finish within this budget drops the recording tail (reported via DroppedBlocks) rather than
+    // freezing the UI for seconds.
+    private static readonly TimeSpan CloseTimeout = TimeSpan.FromMilliseconds(1500);
 
     private readonly int _queueCapacity;
     private readonly object _stateLock = new();

@@ -13,7 +13,13 @@ internal enum RunSessionStopOutcome
 
 internal sealed class RunSessionController : IDisposable, IRunSessionControls, IRunSessionLiveAdjustments
 {
-    private const int WorkerStopTimeoutMs = 2000;
+    // Bounded and deliberately short: the stop path joins the input and analysis worker threads
+    // synchronously on the UI thread, so this caps how long a Stop/Reset can block the Avalonia
+    // dispatcher per worker. A SIGKILL'd capture child and the block-boundary analysis stop both
+    // finish well under this on a Pi 5; a genuinely wedged capture (uninterruptible ALSA/USB I/O,
+    // which no longer timeout would recover) surfaces as StopFailed after ~0.8 s instead of
+    // freezing the window for seconds, and the existing StopFailed retry path stays available.
+    private const int WorkerStopTimeoutMs = 800;
 
     private readonly Func<ulong, AnalysisWorker.Config> _createAnalysisConfig;
     private readonly Action _resetBeforeRun;

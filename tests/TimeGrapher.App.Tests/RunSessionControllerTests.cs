@@ -67,7 +67,7 @@ public sealed class RunSessionControllerTests
         Assert.Equal(new[] { UserErrorMessages.StopDidNotFinish }, statuses);
         var entry = Assert.Single(errorLog.Entries);
         Assert.Equal(UserErrorMessages.StopDidNotFinish, entry.UserMessage);
-        Assert.Equal("Test worker did not stop within 2000 ms.", entry.Detail);
+        Assert.Equal("Test worker did not stop within 800 ms.", entry.Detail);
     }
 
     [Fact]
