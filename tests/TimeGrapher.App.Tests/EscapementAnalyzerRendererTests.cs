@@ -254,4 +254,89 @@ public sealed class EscapementAnalyzerRendererTests
             .Single(text => text.LabelText.StartsWith("tic A-toc A", StringComparison.Ordinal));
         Assert.Equal("tic A-toc A 120.00 ms", connectorLabel.LabelText);
     }
+
+    [Fact]
+    public void RenderFrameEasesYTowardSmallerBurstInsteadOfSnapping()
+    {
+        EscapementAnalyzerRenderer renderer = NewRenderer(out AvaPlot plot);
+
+        renderer.RenderFrame(RawFrame(version: 1, extent: 1.0), new AnalysisTabRenderContext(SampleRate: 48000));
+        AxisLimits initial = plot.Plot.Axes.GetLimits();
+        Assert.Equal(1.1, initial.Top, 6);  // YHeadroom(1.1) * 1.0
+
+        renderer.RenderFrame(RawFrame(version: 2, extent: 0.25), new AnalysisTabRenderContext(SampleRate: 48000));
+        AxisLimits afterSmall = plot.Plot.Axes.GetLimits();
+
+        // A smaller burst eases inward (target ±0.275) one EMA step from ±1.1 at
+        // factor 0.2: 1.1 + 0.2 * (0.275 - 1.1) = 0.935 — it does not snap all the
+        // way down, so beat-to-beat amplitude jitter no longer shakes the axis.
+        Assert.True(afterSmall.Top < initial.Top);
+        Assert.True(afterSmall.Top > 0.275);
+        Assert.Equal(0.935, afterSmall.Top, 6);
+        Assert.Equal(-0.935, afterSmall.Bottom, 6);
+    }
+
+    [Fact]
+    public void RenderFrameExpandsYImmediatelyWhenBurstExceedsCurrent()
+    {
+        EscapementAnalyzerRenderer renderer = NewRenderer(out AvaPlot plot);
+
+        renderer.RenderFrame(RawFrame(version: 1, extent: 0.25), new AnalysisTabRenderContext(SampleRate: 48000));
+        AxisLimits initial = plot.Plot.Axes.GetLimits();
+        Assert.Equal(0.275, initial.Top, 6);
+
+        renderer.RenderFrame(RawFrame(version: 2, extent: 1.0), new AnalysisTabRenderContext(SampleRate: 48000));
+        AxisLimits afterLarge = plot.Plot.Axes.GetLimits();
+
+        // A larger burst snaps the axis out to its full fit (±1.1) immediately so the
+        // burst is never clipped while an EMA catches up (only contraction eases).
+        Assert.Equal(1.1, afterLarge.Top, 6);
+        Assert.Equal(-1.1, afterLarge.Bottom, 6);
+    }
+
+    [Fact]
+    public void RenderFrameReSnapsYFitAfterSegmentsDrop()
+    {
+        EscapementAnalyzerRenderer renderer = NewRenderer(out AvaPlot plot);
+
+        renderer.RenderFrame(RawFrame(version: 1, extent: 1.0), new AnalysisTabRenderContext(SampleRate: 48000));
+
+        // A frame with no segments (no tic/toc pair selectable) resets the smoothed fit.
+        renderer.RenderFrame(new AnalysisFrame
+        {
+            BeatSegments = new BeatSegmentsSnapshot { Version = 2, Segments = Array.Empty<BeatSegment>() },
+        }, new AnalysisTabRenderContext(SampleRate: 48000));
+
+        renderer.RenderFrame(RawFrame(version: 3, extent: 0.25), new AnalysisTabRenderContext(SampleRate: 48000));
+        AxisLimits afterReset = plot.Plot.Axes.GetLimits();
+
+        // The next burst snaps to its own fit (±0.275) rather than easing down from
+        // the stale ±1.1, proving the reset cleared the smoothed half-height.
+        Assert.Equal(0.275, afterReset.Top, 6);
+        Assert.Equal(-0.275, afterReset.Bottom, 6);
+    }
+
+    private static AnalysisFrame RawFrame(ulong version, double extent)
+    {
+        float e = (float)extent;
+        return new AnalysisFrame
+        {
+            BeatSegments = new BeatSegmentsSnapshot
+            {
+                Version = version,
+                Segments = new[]
+                {
+                    new BeatSegment
+                    {
+                        Samples = new float[] { 0.1f },
+                        RawValid = true,
+                        RawMin = new float[] { -e },
+                        RawMax = new float[] { e },
+                        MsPerPoint = 0.25,
+                        AOffsetMs = 0.0,
+                    },
+                },
+            },
+        };
+    }
 }

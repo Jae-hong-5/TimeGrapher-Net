@@ -428,16 +428,18 @@ internal sealed class EscapementAnalyzerRenderer
     }
 
     /// <summary>
-    /// Eases the ±symmetric Y half-height toward <paramref name="targetTop"/> with
-    /// a per-beat EMA so beat-to-beat amplitude jitter no longer shakes the axis
-    /// (matches BeatNoiseScopeRenderer). The first fit after a reset snaps so a
-    /// fresh run frames immediately; later beats ease by YAxisSmoothingFactor.
-    /// Returns the smoothed half-height now applied to Y.
+    /// Eases the ±symmetric Y half-height toward <paramref name="targetTop"/>
+    /// (matches BeatNoiseScopeRenderer). A shrinking target is damped by a per-beat
+    /// EMA so beat-to-beat amplitude jitter no longer shakes the axis; a growing
+    /// target is applied immediately so a larger tic/toc burst is always fully framed
+    /// instead of clipped for several beats while the EMA catches up. The first fit
+    /// after a reset snaps so a fresh run frames immediately. Returns the half-height
+    /// now applied to Y.
     /// </summary>
     private double SmoothYTop(double targetTop)
     {
         _smoothedYTop = _smoothedYTop is double current
-            ? current + YAxisSmoothingFactor * (targetTop - current)
+            ? (targetTop > current ? targetTop : current + YAxisSmoothingFactor * (targetTop - current))
             : targetTop;
         _lastViewTop = _smoothedYTop.Value;
         return _lastViewTop;
