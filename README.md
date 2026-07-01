@@ -73,7 +73,7 @@ Build on a dev PC (one prepared via the Windows steps above) and copy only the o
    ```bash
    sudo apt update
    sudo apt install -y libx11-6 libice6 libsm6 libfontconfig1 xwayland \
-     pipewire pipewire-bin wireplumber alsa-utils
+     pipewire pipewire-bin wireplumber alsa-utils gnome-keyring libsecret-tools
    ```
 
    Mic input needs the PipeWire/ALSA CLI tools `wpctl`, `pw-record`, and `arecord`
@@ -126,11 +126,12 @@ Build on a dev PC (one prepared via the Windows steps above) and copy only the o
 ## Features
 
 - Detects tick/tock to lock the beat (BPH) automatically or manually, and stays in sync via phase tracking.
-- Analysis display tabs from the current app catalog: **Rate/Scope**, **Sound Print**, **Trace**, **Sweep**, **Vario**, **Beat Error**, **Filter Scope**, **Long-Term**, **Positions**, **Health**, **Beat Noise**, **Escapement**, **Comparison**, and **Spectrogram**.
+- Analysis display tabs, in the order the app catalog defines them: **Rate/Scope**, **Beat Error**, **Trace**, **Vario**, **Long-Term**, **Sweep**, **Escapement**, **Positions**, **Health**, **Beat Noise**, **Comparison**, **Filter Scope**, **Sound Print**, and **Spectrogram**.
 - The **Positions** tab combines compact position-selection buttons on the left with per-position sequence measurements on the right.
 - Three inputs: **Live** (mic), **Playback** (WAV file), **Simulation** (synthetic signal).
 - Optionally records the input to WAV while analyzing (offered for Live and Simulation runs; Playback only replays an existing file).
-- A **Settings** window tunes run options (C-onset timing, Weak A-onset rescue, pause-on-position-change), run parameters (Avg. Period, analysis block size, capture-buffer length, high-pass cutoff), CSV measurement logging, and the acceptable (normal-range) bands for Error Rate / Amplitude / Beat Error.
+- Advisory **signal-quality classification**: an on-device ONNX model (with a heuristic fallback if the model can't load) labels the live signal as Good / Noisy / Weak / Unstable and surfaces plain-language guidance. It is advisory only — it annotates how much to trust the reading and **never drops or alters a beat**.
+- A **Settings** window tunes run options (Enhanced Auto BPH, Weak A-onset rescue and its rescue strength, C-onset timing, pause-on-position-change), run parameters (Avg. Period, analysis block size, capture-buffer length, high-pass cutoff), the assessment threshold (minimum verdict beats), CSV measurement logging, and the acceptable (normal-range) bands for Error Rate / Amplitude / Beat Error.
 - A console mode to check detection accuracy (`--generated` / `--byte-fixtures`, `--adverse`) and audio devices headlessly.
 
 ## Why Avalonia / .NET
@@ -146,13 +147,15 @@ swapped, and CI checks that boundary automatically.
 graph TD
     App["App (Avalonia UI)"] --> Core["Core (analysis engine)"]
     Verify["Verify (validation console)"] --> Core
+    Inference["Inference (ONNX signal-quality)"] --> Core
     WinAudio["WindowsAudio (NAudio)"] --> Core
     LinuxAudio["LinuxAudio (PipeWire/ALSA)"] --> Core
+    App --> Inference
     App -. Windows build .-> WinAudio
     App -. Raspberry Pi build .-> LinuxAudio
 ```
 
-*Figure 1. Every project references Core; only the audio backend matching the build-target OS is included.*
+*Figure 1. Every project references Core; the ONNX signal-quality classifier is cross-platform, while only the audio backend matching the build-target OS is included.*
 
 The flow from sound to screen:
 
@@ -163,9 +166,11 @@ flowchart LR
     C --> D["Measure<br/>BPH · Error Rate · amplitude"]
     D --> E["Graph / image<br/>render"]
     E --> F["Display"]
+    D -. advisory .-> Q["Signal quality<br/>ONNX classify"]
+    Q -. guidance .-> F
 ```
 
-*Figure 2. Input → detect → measure → visualize. One analysis pass drives one screen update.*
+*Figure 2. Input → detect → measure → visualize. One analysis pass drives one screen update; a parallel advisory step classifies signal quality and surfaces trust guidance.*
 
 ### Input worker contract
 
@@ -202,11 +207,12 @@ classDiagram
 | Project | Role |
 |---|---|
 | `TimeGrapher.Core` | Analysis engine — detection, measurement, image generation, WAV read/write, simulator (UI/OS-independent) |
-| `TimeGrapher.App` | Avalonia UI — windows, tabs, graph display; wires up per-OS audio |
+| `TimeGrapher.App` | Avalonia UI — windows, tabs, graph display; wires up per-OS audio and the signal-quality classifier |
+| `TimeGrapher.Inference` | On-device ONNX signal-quality classifier (Good/Noisy/Weak/Unstable); advisory only, references Core, ships the embedded model |
 | `TimeGrapher.Platform.WindowsAudio` | Windows mic input (NAudio) |
 | `TimeGrapher.Platform.LinuxAudio` | Raspberry Pi mic input (PipeWire → ALSA) |
 | `TimeGrapher.Verify` | Headless console that checks BPH detection accuracy on WAV files |
-| `*.Tests` | xUnit tests (Core / App / WindowsAudio / LinuxAudio / Verify) |
+| `*.Tests` | xUnit tests (Core / App / Inference / WindowsAudio / LinuxAudio / Verify) |
 
 For deeper design background and the Qt→.NET porting story, see the `docs/` folder.
 
@@ -217,6 +223,7 @@ For deeper design background and the Qt→.NET porting story, see the `docs/` fo
 | Avalonia(.Desktop/.Themes.Fluent) | 11.3.17 | UI framework |
 | ScottPlot.Avalonia | 5.0.55 | Scope/rate graphs |
 | NAudio.Wasapi / NAudio.WinMM | 2.2.1 | Windows mic capture & volume |
+| Microsoft.ML.OnnxRuntime | 1.20.1 | On-device signal-quality inference |
 | xunit / xunit.runner.visualstudio | 2.9.2 / 2.8.2 | Testing |
 | Microsoft.NET.Test.Sdk | 17.12.0 | Test host |
 
@@ -227,16 +234,17 @@ Package versions are managed centrally in `Directory.Packages.props` and pinned 
 
 Architecture decision: [ADR 4: Separate App, Test, and Verify Module Structure for AI Usage, TDD Support, and Team Collaboration](docs/ADR/en/ADR-004.md).
 
-**All 933 tests pass** under `dotnet test` (App 569 / Core 316 / WindowsAudio 11 / LinuxAudio 22 / Verify 15).
+**All 1346 tests pass** under `dotnet test` (App 867 / Core 391 / LinuxAudio 36 / Verify 27 / Inference 14 / WindowsAudio 11).
 
 ```mermaid
 pie showData
-    title Test distribution (933 total)
-    "App.Tests" : 569
-    "Core.Tests" : 316
+    title Test distribution (1346 total)
+    "App.Tests" : 867
+    "Core.Tests" : 391
+    "Platform.LinuxAudio.Tests" : 36
+    "Verify.Tests" : 27
+    "Inference.Tests" : 14
     "Platform.WindowsAudio.Tests" : 11
-    "Platform.LinuxAudio.Tests" : 22
-    "Verify.Tests" : 15
 ```
 
 *Figure 4. Test distribution.*
@@ -259,7 +267,7 @@ git tag v0.1.0 && git push origin v0.1.0
 | Item | Command | Status |
 |---|---|---|
 | Build | `dotnet build TimeGrapherNet.sln -c Release` | ✅ |
-| Test | `dotnet test TimeGrapherNet.sln -c Release` (933/933) | ✅ |
+| Test | `dotnet test TimeGrapherNet.sln -c Release` (1346/1346) | ✅ |
 | Detection check | `... TimeGrapher.Verify -- --generated --byte-fixtures` (exit 0, generated and byte-built fixtures) | ✅ |
 | GUI run | `dotnet run --project src/TimeGrapher.App` | ✅ |
 | Deploy — Raspberry Pi (linux-arm64) | `dotnet publish ... -r linux-arm64 --self-contained true` | ✅ |
