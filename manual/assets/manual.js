@@ -11,6 +11,7 @@
   var START = [
     { f: "index.html",    t: "Overview" },
     { f: "index.html#signal-quality", t: "Signal quality" },
+    { f: "top-bar.html",   t: "Top bar" },
     { f: "controls.html", t: "Controls" }
   ];
   var GRAPHS = [

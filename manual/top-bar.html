@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en-US">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Top bar — TimeGrapher User Manual</title>
+<link rel="stylesheet" href="assets/style.css">
+<script defer src="assets/manual.js"></script>
+</head>
+<body class="show-en">
+<div class="layout">
+  <aside class="sidebar" id="sidebar"></aside>
+  <main class="content">
+    <div class="topbar">
+      <div class="crumbs"><a href="index.html"><span class="ko">개요</span><span class="en">Overview</span><span class="pt">Visão geral</span></a> › <span class="ko">상단 바</span><span class="en">Top bar</span><span class="pt">Barra superior</span></div>
+      <div class="lang-toggle" id="langToggle"></div>
+    </div>
+    <div class="content-inner">
+
+      <h1><span class="ko">상단 바</span><span class="sep"> · </span><span class="en">Top bar</span><span class="sep"> · </span><span class="pt">Barra superior</span></h1>
+      <p class="lede ko">창 맨 위 줄입니다. 가운데에는 현재 측정 요약(Error Rate · Amplitude · Beat Error · BPH)이 실시간으로 표시되고, 오른쪽 끝에는 동작 버튼들이 모여 있습니다. 이 페이지는 그 <b>오른쪽 버튼</b>들을 설명합니다.</p>
+      <p class="lede en">The strip along the very top of the window. Its centre shows a live summary of the current reading (Error Rate · Amplitude · Beat Error · BPH); its right edge holds the action buttons. This page documents those <b>right-hand buttons</b>.</p>
+      <p class="lede pt">A faixa no topo da janela. O centro mostra um resumo ao vivo da leitura atual (Error Rate · Amplitude · Beat Error · BPH); a borda direita contém os botões de ação. Esta página documenta esses <b>botões da direita</b>.</p>
+
+      <figure>
+        <img data-shot src="img/overview.png" alt="Application window; the action buttons sit at the top-right">
+        <figcaption class="ko">그림 1. 전체 창. 동작 버튼은 오른쪽 위 모서리에 있습니다: AI · 테마 · 도움말 · 설정, 이어서 최소화·최대화·닫기.</figcaption>
+        <figcaption class="en">Fig 1. The whole window. The action buttons are at the top-right corner: AI · Theme · Help · Settings, then minimize · maximize · close.</figcaption>
+        <figcaption class="pt">Fig 1. A janela inteira. Os botões de ação ficam no canto superior direito: IA · Tema · Ajuda · Configurações, depois minimizar · maximizar · fechar.</figcaption>
+      </figure>
+
+      <h2><span class="ko">우측 상단 버튼</span><span class="sep"> · </span><span class="en">Top-right buttons</span><span class="sep"> · </span><span class="pt">Botões superiores à direita</span></h2>
+      <p class="ko">왼쪽에서 오른쪽 순서입니다. 각 버튼에는 마우스를 올리면 같은 이름의 툴팁이 뜹니다.</p>
+      <p class="en">Left to right. Hovering a button shows a tooltip with the same name.</p>
+      <p class="pt">Da esquerda para a direita. Ao passar o mouse sobre um botão, aparece uma dica com o mesmo nome.</p>
+      <dl class="kv">
+        <dt>✦ <span class="ko">AI 분석</span><span class="en">AI analysis</span><span class="pt">Análise por IA</span></dt>
+        <dd><span class="ko">저장된 <b>측정 로그 파일</b>(<code>.csv</code>·<code>.log</code>·<code>.txt</code>)을 고르면 그 내용을 AI 백엔드로 보내 서술형 진단을 받아 창으로 보여 줍니다. AI 백엔드·자격 증명이 설정돼 있어야 하며, 없으면 안내/오류가 표시됩니다.</span><span class="en">Pick a saved <b>measurement-log file</b> (<code>.csv</code>/<code>.log</code>/<code>.txt</code>); its contents are sent to the AI backend, which returns a written diagnosis shown in a window. Requires the AI backend and credentials to be configured — otherwise it prompts or reports an error.</span><span class="pt">Escolha um <b>arquivo de log de medição</b> salvo (<code>.csv</code>/<code>.log</code>/<code>.txt</code>); seu conteúdo é enviado ao backend de IA, que retorna um diagnóstico escrito exibido em uma janela. Requer o backend de IA e as credenciais configurados — caso contrário, solicita ou informa um erro.</span></dd>
+        <dt>◐ <span class="ko">테마</span><span class="en">Theme</span><span class="pt">Tema</span></dt>
+        <dd><span class="ko">밝은/어두운 테마를 전환합니다. 그래프의 배경·축·색도 함께 바뀝니다.</span><span class="en">Toggles the light/dark theme; graph backgrounds, axes, and colours follow.</span><span class="pt">Alterna o tema claro/escuro; os fundos, eixos e cores dos gráficos acompanham.</span></dd>
+        <dt>? <span class="ko">도움말</span><span class="en">Help</span><span class="pt">Ajuda</span></dt>
+        <dd><span class="ko">이 <b>온라인 매뉴얼</b>을 기본 브라우저로 엽니다. 브라우저(또는 URL 처리기)가 없는 환경에서는 상태 바에 오류가 표시됩니다.</span><span class="en">Opens this <b>online manual</b> in your default browser. On a system with no browser (or URL handler) it reports an error in the status bar.</span><span class="pt">Abre este <b>manual online</b> no navegador padrão. Em um sistema sem navegador (ou manipulador de URL), informa um erro na barra de status.</span></dd>
+        <dt>⚙ <span class="ko">설정</span><span class="en">Settings</span><span class="pt">Configurações</span></dt>
+        <dd><span class="ko"><a href="#settings">설정 창</a>을 엽니다 — 검출·측정 관련 고급 옵션과 판정 허용 밴드를 모아 둔 팝업입니다.</span><span class="en">Opens the <a href="#settings">Settings window</a> — a popup that gathers the advanced detection/run options and the verdict accept-bands.</span><span class="pt">Abre a <a href="#settings">janela de Configurações</a> — um popup que reúne as opções avançadas de detecção/medição e as faixas de aceitação do veredito.</span></dd>
+        <dt>— □ ✕</dt>
+        <dd><span class="ko">최소화 · 최대화 · 닫기.</span><span class="en">Minimize · maximize · close.</span><span class="pt">Minimizar · maximizar · fechar.</span></dd>
+      </dl>
+
+      <h2 id="settings"><span class="ko">설정 창</span><span class="sep"> · </span><span class="en">Settings window</span><span class="sep"> · </span><span class="pt">Janela de configurações</span></h2>
+      <p class="ko">⚙ 버튼으로 열립니다. 세 묶음으로 나뉘며, 대부분 <b>다음 실행부터</b> 적용됩니다. 오른쪽 위 <b>Reset Defaults</b>로 기본값으로 되돌릴 수 있습니다.</p>
+      <p class="en">Opened by the ⚙ button. Grouped into three sections; most changes apply <b>from the next run</b>. <b>Reset Defaults</b> (top-right) restores the defaults.</p>
+      <p class="pt">Aberta pelo botão ⚙. Dividida em três seções; a maioria das mudanças se aplica <b>a partir da próxima medição</b>. <b>Reset Defaults</b> (canto superior direito) restaura os padrões.</p>
+      <dl class="kv">
+        <dt><span class="ko">Run Settings</span><span class="en">Run Settings</span><span class="pt">Run Settings</span></dt>
+        <dd><span class="ko"><b>Enhanced Auto BPH</b>(약한 비트 사이 잡음을 걸러 2배로 잘못 락되는 것 방지), <b>Weak A-onset rescue</b>(락된 위상 근처의 약한 A를 구제 + Safer↔Stronger 강도 슬라이더), <b>Use C-onset timing</b>(C를 피크 대신 온셋에서 계측), <b>Pause on position change</b>(자세 버튼으로 자세가 바뀌면 실행을 일시정지).</span><span class="en"><b>Enhanced Auto BPH</b> (reject weak between-beat noise so the rate can't lock to 2×), <b>Weak A-onset rescue</b> (catch a weak A near the locked phase, with a Safer↔Stronger strength slider), <b>Use C-onset timing</b> (time C from its onset instead of its peak), <b>Pause on position change</b> (pause a running measurement when a position button changes the active position).</span><span class="pt"><b>Enhanced Auto BPH</b> (rejeita ruído fraco entre batidas para a taxa não travar em 2×), <b>Weak A-onset rescue</b> (captura um A fraco perto da fase travada, com um controle de intensidade Safer↔Stronger), <b>Use C-onset timing</b> (mede C a partir do onset em vez do pico), <b>Pause on position change</b> (pausa uma medição em andamento quando um botão de posição muda a posição ativa).</span></dd>
+        <dt><span class="ko">Run Parameters</span><span class="en">Run Parameters</span><span class="pt">Run Parameters</span></dt>
+        <dd><span class="ko"><b>Avg. Period</b>(오차율 평균 창, 초), <b>High Pass Cutoff</b>(하이패스 차단 주파수, Hz), <b>Block Size</b>(검출기 입력 창, 샘플), <b>Capture Buffer</b>(오디오 캡처 버퍼 길이, ms — 지연과 안정성의 절충). 모두 다음 실행부터 적용됩니다.</span><span class="en"><b>Avg. Period</b> (error-rate averaging window, s), <b>High Pass Cutoff</b> (high-pass cut-off, Hz), <b>Block Size</b> (detector input window, samples), <b>Capture Buffer</b> (audio capture buffer length, ms — latency vs. stability). All apply on the next run.</span><span class="pt"><b>Avg. Period</b> (janela de média da taxa de erro, s), <b>High Pass Cutoff</b> (corte do passa-altas, Hz), <b>Block Size</b> (janela de entrada do detector, amostras), <b>Capture Buffer</b> (tamanho do buffer de captura de áudio, ms — latência vs. estabilidade). Todos se aplicam na próxima medição.</span></dd>
+        <dt><span class="ko">Acceptable Bands</span><span class="en">Acceptable Bands</span><span class="pt">Acceptable Bands</span></dt>
+        <dd><span class="ko">각 측정 항목의 <b>허용 최소/최대(Min·Max)</b> 값입니다. <a href="graphs/health.html">Health</a>·<a href="graphs/positions.html">Positions</a> 등의 녹/황/적 판정 기준으로 쓰입니다.</span><span class="en">The <b>accept Min/Max</b> for each measure, used as the green/amber/red thresholds behind <a href="graphs/health.html">Health</a> / <a href="graphs/positions.html">Positions</a>.</span><span class="pt">O <b>Mín/Máx de aceitação</b> de cada medida, usado como os limiares verde/âmbar/vermelho por trás de <a href="graphs/health.html">Health</a> / <a href="graphs/positions.html">Positions</a>.</span></dd>
+      </dl>
+      <div class="note">
+        <p class="ko"><b>참고</b> — <b>Use C-onset timing</b>는 왼쪽 <a href="controls.html#misc">Misc Parameters</a>에도 있는 같은 옵션입니다. 검출·측정 세부 옵션의 자세한 설명은 <a href="controls.html">왼쪽 메뉴</a> 페이지를 참고하세요.</p>
+        <p class="en"><b>Note</b> — <b>Use C-onset timing</b> is the same option that also appears under <a href="controls.html#misc">Misc Parameters</a> on the left. For fuller descriptions of the detection/run options, see the <a href="controls.html">Controls</a> page.</p>
+        <p class="pt"><b>Nota</b> — <b>Use C-onset timing</b> é a mesma opção que também aparece em <a href="controls.html#misc">Misc Parameters</a> à esquerda. Para descrições mais completas das opções de detecção/medição, veja a página <a href="controls.html">Controles</a>.</p>
+      </div>
+
+      <div class="pager">
+        <a href="index.html"><small><span class="ko">← 이전</span><span class="en">← Prev</span><span class="pt">← Anterior</span></small> <span class="ko">개요</span><span class="en">Overview</span><span class="pt">Visão geral</span></a>
+        <a href="controls.html"><span class="ko">왼쪽 메뉴</span><span class="en">Controls</span><span class="pt">Controles</span> <small><span class="ko">다음 →</span><span class="en">Next →</span><span class="pt">Próximo →</span></small></a>
+      </div>
+
+    </div>
+  </main>
+</div>
+</body>
+</html>
