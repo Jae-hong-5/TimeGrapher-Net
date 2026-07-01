@@ -1,8 +1,10 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Documents;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
+using Avalonia.Styling;
 
 using TimeGrapher.App.Services;
 
@@ -276,6 +278,7 @@ internal sealed class MainWindowDialogService : ITimeGrapherDialogService
             CanResize = true,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
         };
+        ApplyAiResultFont(dialog);
 
         var details = new TextBlock
         {
@@ -314,6 +317,26 @@ internal sealed class MainWindowDialogService : ITimeGrapherDialogService
         await session.ShowStatusAsync(display.StatusText);
         dialog.Show(_owner);
         return session;
+    }
+
+    // The AI analysis result window uses the Hack title font (TitleFontFamily) instead of the
+    // app-wide D2Coding body font. App.axaml's global "Control" style pins TextElement.FontFamily
+    // on every control, so a window-scoped style - which overrides the application style by
+    // proximity - is required in addition to setting the window FontFamily.
+    private void ApplyAiResultFont(Window dialog)
+    {
+        if (Application.Current is not { } app
+            || !app.TryGetResource("TitleFontFamily", _owner.ActualThemeVariant, out object? resource)
+            || resource is not FontFamily hackFont)
+        {
+            return;
+        }
+
+        dialog.FontFamily = hackFont;
+        dialog.Styles.Add(new Style(x => x.Is<Control>())
+        {
+            Setters = { new Setter(TextElement.FontFamilyProperty, hackFont) }
+        });
     }
 
     private sealed class AiAnalysisDisplaySession : IAiAnalysisDisplaySession
