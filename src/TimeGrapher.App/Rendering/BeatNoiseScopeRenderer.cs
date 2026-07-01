@@ -568,8 +568,8 @@ internal sealed class BeatNoiseScopeRenderer
         _mainY.Clear();
         _mainYMirror.Clear();
         // The smoothed Y bounds intentionally persist across frames so
-        // SmoothMainYLimits can ease toward the new fit instead of snapping;
-        // they are reset only on CreateGraphs and an absolute-value toggle.
+        // SmoothMainYLimits can ease inward toward a smaller fit instead of
+        // snapping; they are reset only on CreateGraphs and an absolute-value toggle.
 
         foreach (var m in _dynamicAMarkers) m.IsVisible = false;
         foreach (var m in _dynamicCPeakMarkers) m.IsVisible = false;
@@ -698,18 +698,28 @@ internal sealed class BeatNoiseScopeRenderer
     private int DisplaySampleCount(BeatSegment segment) => BeatNoiseScopeLogic.StripSampleCount(
         _viewMode, _rangeMs, segment.Samples.Length, segment.MsPerPoint);
 
-    // Eases the Scope 1 Y limits toward the current beat's fit with a per-beat
-    // EMA instead of snapping to it, so beat-to-beat amplitude jitter no longer
-    // shakes the axis on every update. The first fit after a reset (null bounds)
-    // snaps so a fresh run frames immediately; later beats ease by
-    // YAxisSmoothingFactor. The smoothed bounds persist across frames (RenderMain
-    // no longer clears them) and feed the zoom-out cap in ScopeViewBoundsRule.
+    // Eases the Scope 1 Y limits toward the current beat's fit. Contraction (the
+    // axis shrinking back toward a smaller beat) is damped by a per-beat EMA so
+    // beat-to-beat amplitude jitter no longer shakes the axis on every update.
+    // Expansion is applied immediately: a bound that must move outward to frame the
+    // current beat snaps to the target, preserving the auto-fit invariant that the
+    // displayed range always contains the current waveform - a real amplitude jump
+    // is never clipped for several beats while an EMA catches up. The first fit
+    // after a reset (null bounds) snaps. The smoothed bounds persist across frames
+    // (RenderMain no longer clears them) and feed the zoom-out cap in
+    // ScopeViewBoundsRule.
     private void SmoothMainYLimits(double targetLower, double targetUpper)
     {
         if (_mainYLower is double lower && _mainYUpper is double upper)
         {
-            _mainYLower = lower + YAxisSmoothingFactor * (targetLower - lower);
-            _mainYUpper = upper + YAxisSmoothingFactor * (targetUpper - upper);
+            // Grow instantly (target beyond the current bound), ease only when the
+            // target pulls the bound inward.
+            _mainYUpper = targetUpper > upper
+                ? targetUpper
+                : upper + YAxisSmoothingFactor * (targetUpper - upper);
+            _mainYLower = targetLower < lower
+                ? targetLower
+                : lower + YAxisSmoothingFactor * (targetLower - lower);
         }
         else
         {

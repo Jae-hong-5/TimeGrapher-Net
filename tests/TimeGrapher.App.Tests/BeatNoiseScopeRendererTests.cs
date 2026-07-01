@@ -130,7 +130,7 @@ public sealed class BeatNoiseScopeRendererTests
     }
 
     [Fact]
-    public void Scope1YRangeEasesUpwardWhenWaveformExceedsCurrentMargin()
+    public void Scope1YRangeExpandsImmediatelyWhenWaveformExceedsCurrentMargin()
     {
         var mainPlot = new AvaPlot();
         var renderer = new BeatNoiseScopeRenderer(
@@ -174,14 +174,14 @@ public sealed class BeatNoiseScopeRendererTests
         }, new AnalysisTabRenderContext(SampleRate: 48000));
         AxisLimits afterLarge = mainPlot.Plot.Axes.GetLimits();
 
-        // Smoothing applies to growth as well as shrink: the axis eases upward
-        // toward the larger beat's fit (±1.1) one EMA step from ±0.275 at factor
-        // 0.2 (±0.44) rather than snapping, so no direction jitters.
+        // Expansion is immediate, not eased: a larger beat snaps the axis out to its
+        // full fit (±1.1) on the first render so the waveform is always framed, never
+        // clipped for several beats while an EMA catches up. (Only contraction eases -
+        // see the shrink test above.)
         Assert.True(afterLarge.Bottom < initial.Bottom);
         Assert.True(afterLarge.Top > initial.Top);
-        Assert.True(afterLarge.Top < 1.1);  // eased, did not snap all the way up
-        Assert.Equal(0.44, afterLarge.Top, 6);
-        Assert.Equal(-0.44, afterLarge.Bottom, 6);
+        Assert.Equal(1.1, afterLarge.Top, 6);
+        Assert.Equal(-1.1, afterLarge.Bottom, 6);
     }
 
     [Fact]
