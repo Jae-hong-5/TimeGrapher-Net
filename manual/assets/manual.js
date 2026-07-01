@@ -9,9 +9,9 @@
   /* Single source of truth for navigation. `f` is the file under manual/
      (graph pages live in graphs/). */
   var START = [
-    { f: "index.html",    t: "개요 · Overview" },
-    { f: "index.html#signal-quality", t: "신호 품질 · Signal quality" },
-    { f: "controls.html", t: "왼쪽 메뉴 · Controls" }
+    { f: "index.html",    t: "Overview" },
+    { f: "index.html#signal-quality", t: "Signal quality" },
+    { f: "controls.html", t: "Controls" }
   ];
   var GRAPHS = [
     { f: "graphs/rate-scope.html",   n: 1,  t: "Rate/Scope" },
@@ -51,13 +51,13 @@
     var html =
       "<a class=\"brand\" href=\"" + prefix + "index.html\" style=\"text-decoration:none;color:inherit\">" +
       "<img src=\"" + prefix + "assets/logo.png\" alt=\"\" onerror=\"this.style.display='none'\">" +
-      "<span><b>TimeGrapher</b><span>사용자 매뉴얼 · User Manual</span></span></a>" +
-      "<div class=\"nav-group\"><h4>시작 · Getting started</h4>" +
+      "<span><b>TimeGrapher</b><span>User Manual</span></span></a>" +
+      "<div class=\"nav-group\"><h4>Getting started</h4>" +
       START.map(link).join("") + "</div>" +
-      "<div class=\"nav-group\"><h4>그래프 · Graphs</h4>" +
+      "<div class=\"nav-group\"><h4>Graphs</h4>" +
       GRAPHS.map(link).join("") + "</div>" +
-      "<div class=\"nav-foot\"><b>앱 · App</b><br>v" + APP_VERSION +
-      "<br><b>빌드 · Build</b><br>" + BUILD_DATE + "</div>";
+      "<div class=\"nav-foot\"><b>App</b><br>v" + APP_VERSION +
+      "<br><b>Build</b><br>" + BUILD_DATE + "</div>";
     el.innerHTML = html;
   }
 
