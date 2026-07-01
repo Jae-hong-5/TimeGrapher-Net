@@ -48,6 +48,12 @@ internal sealed class BeatNoiseScopeRenderer
     private const double Lane2Baseline = 0.0;
     private const double Lane1Baseline = 1.2;
     private const byte SelectionFillAlpha = 48;
+    // Per-beat EMA weight for the Scope 1 Y auto-fit: next = current + factor *
+    // (target - current). At the per-beat cadence, 0.2 is roughly a 5-beat (~1 s)
+    // time constant: it absorbs beat-to-beat amplitude jitter so the axis no
+    // longer shakes on every update, while still tracking a real level change
+    // within about a second.
+    private const double YAxisSmoothingFactor = 0.2;
 
     private readonly AvaPlot _mainPlot;
     private readonly AvaPlot _stripPlot;
@@ -320,7 +326,7 @@ internal sealed class BeatNoiseScopeRenderer
         _reviewCursor = AddCursor(main);
         ApplyRangeLimits();
         // Cap zoom-out/pan to the initial full output on both axes: X to the
-        // selected range [0, _rangeMs] and Y to the live auto-fit
+        // selected range [0, _rangeMs] and Y to the smoothed auto-fit
         // [_mainYLower, _mainYUpper]. Zoom-in still works; zoom-out cannot pass
         // the first-output extent.
         main.Axes.Rules.Clear();
@@ -561,8 +567,9 @@ internal sealed class BeatNoiseScopeRenderer
         _mainX.Clear();
         _mainY.Clear();
         _mainYMirror.Clear();
-        _mainYLower = null;
-        _mainYUpper = null;
+        // The smoothed Y bounds intentionally persist across frames so
+        // SmoothMainYLimits can ease toward the new fit instead of snapping;
+        // they are reset only on CreateGraphs and an absolute-value toggle.
 
         foreach (var m in _dynamicAMarkers) m.IsVisible = false;
         foreach (var m in _dynamicCPeakMarkers) m.IsVisible = false;
@@ -658,7 +665,7 @@ internal sealed class BeatNoiseScopeRenderer
         }
 
         double yMax = rangeAbsMax * 1.1;
-        ExpandMainYLimits(-yMax, yMax);
+        SmoothMainYLimits(-yMax, yMax);
     }
 
     private void RenderMainEnvelope(BeatSegment segment)
@@ -685,30 +692,32 @@ internal sealed class BeatNoiseScopeRenderer
         }
 
         double yMax = rangeMax * 1.1;
-        ExpandMainYLimits(_showAbsoluteValue ? -0.02 * yMax : -yMax, yMax);
+        SmoothMainYLimits(_showAbsoluteValue ? -0.02 * yMax : -yMax, yMax);
     }
 
     private int DisplaySampleCount(BeatSegment segment) => BeatNoiseScopeLogic.StripSampleCount(
         _viewMode, _rangeMs, segment.Samples.Length, segment.MsPerPoint);
 
-    private void ExpandMainYLimits(double requiredLower, double requiredUpper)
+    // Eases the Scope 1 Y limits toward the current beat's fit with a per-beat
+    // EMA instead of snapping to it, so beat-to-beat amplitude jitter no longer
+    // shakes the axis on every update. The first fit after a reset (null bounds)
+    // snaps so a fresh run frames immediately; later beats ease by
+    // YAxisSmoothingFactor. The smoothed bounds persist across frames (RenderMain
+    // no longer clears them) and feed the zoom-out cap in ScopeViewBoundsRule.
+    private void SmoothMainYLimits(double targetLower, double targetUpper)
     {
-        if (_mainYLower is not double lower || _mainYUpper is not double upper)
+        if (_mainYLower is double lower && _mainYUpper is double upper)
         {
-            _mainYLower = requiredLower;
-            _mainYUpper = requiredUpper;
-            _mainPlot.Plot.Axes.SetLimitsY(requiredLower, requiredUpper);
-            return;
+            _mainYLower = lower + YAxisSmoothingFactor * (targetLower - lower);
+            _mainYUpper = upper + YAxisSmoothingFactor * (targetUpper - upper);
+        }
+        else
+        {
+            _mainYLower = targetLower;
+            _mainYUpper = targetUpper;
         }
 
-        double nextLower = Math.Min(lower, requiredLower);
-        double nextUpper = Math.Max(upper, requiredUpper);
-        if (nextLower != lower || nextUpper != upper)
-        {
-            _mainYLower = nextLower;
-            _mainYUpper = nextUpper;
-            _mainPlot.Plot.Axes.SetLimitsY(nextLower, nextUpper);
-        }
+        _mainPlot.Plot.Axes.SetLimitsY(_mainYLower.Value, _mainYUpper.Value);
     }
 
     private void RenderStrips(BeatSegmentsSnapshot snapshot)
@@ -1636,8 +1645,8 @@ internal sealed class BeatNoiseScopeRenderer
     /// Caps zoom-out and pan on a scope plot to its initial full-output extent on
     /// both axes: the view can still zoom in and pan within, but never past
     /// [xMin, xMax] x [yMin, yMax]. The bounds are read live each render via the
-    /// providers, so a range-button change (X) or a running Y auto-fit grow is
-    /// honored. A null Y bound (before the first render) leaves Y unconstrained.
+    /// providers, so a range-button change (X) or a running smoothed Y auto-fit
+    /// is honored. A null Y bound (before the first render) leaves Y unconstrained.
     /// </summary>
     private sealed class ScopeViewBoundsRule : IAxisRule
     {

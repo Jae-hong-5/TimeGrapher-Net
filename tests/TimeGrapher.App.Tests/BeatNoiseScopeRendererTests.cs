@@ -75,7 +75,7 @@ public sealed class BeatNoiseScopeRendererTests
     }
 
     [Fact]
-    public void Scope1YRangeRecomputesForCurrentWaveform()
+    public void Scope1YRangeEasesTowardSmallerWaveformInsteadOfSnapping()
     {
         var mainPlot = new AvaPlot();
         var renderer = new BeatNoiseScopeRenderer(
@@ -119,14 +119,18 @@ public sealed class BeatNoiseScopeRendererTests
         }, new AnalysisTabRenderContext(SampleRate: 48000));
         AxisLimits afterSmall = mainPlot.Plot.Axes.GetLimits();
 
+        // The axis eases toward the smaller beat's fit (±0.275) with a per-beat
+        // EMA instead of snapping, so amplitude jitter no longer shakes it every
+        // update. One step from ±1.1 toward ±0.275 at factor 0.2 lands at ±0.935.
         Assert.True(afterSmall.Bottom > initial.Bottom);
         Assert.True(afterSmall.Top < initial.Top);
-        Assert.Equal(-0.275, afterSmall.Bottom, 12);
-        Assert.Equal(0.275, afterSmall.Top, 12);
+        Assert.True(afterSmall.Top > 0.275);  // eased, did not snap all the way down
+        Assert.Equal(0.935, afterSmall.Top, 6);
+        Assert.Equal(-0.935, afterSmall.Bottom, 6);
     }
 
     [Fact]
-    public void Scope1YRangeExpandsWhenWaveformExceedsCurrentMargin()
+    public void Scope1YRangeEasesUpwardWhenWaveformExceedsCurrentMargin()
     {
         var mainPlot = new AvaPlot();
         var renderer = new BeatNoiseScopeRenderer(
@@ -170,10 +174,14 @@ public sealed class BeatNoiseScopeRendererTests
         }, new AnalysisTabRenderContext(SampleRate: 48000));
         AxisLimits afterLarge = mainPlot.Plot.Axes.GetLimits();
 
+        // Smoothing applies to growth as well as shrink: the axis eases upward
+        // toward the larger beat's fit (±1.1) one EMA step from ±0.275 at factor
+        // 0.2 (±0.44) rather than snapping, so no direction jitters.
         Assert.True(afterLarge.Bottom < initial.Bottom);
         Assert.True(afterLarge.Top > initial.Top);
-        Assert.InRange(afterLarge.Bottom, -1.11, -1.09);
-        Assert.InRange(afterLarge.Top, 1.09, 1.11);
+        Assert.True(afterLarge.Top < 1.1);  // eased, did not snap all the way up
+        Assert.Equal(0.44, afterLarge.Top, 6);
+        Assert.Equal(-0.44, afterLarge.Bottom, 6);
     }
 
     [Fact]
