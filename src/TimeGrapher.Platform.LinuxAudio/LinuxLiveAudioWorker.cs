@@ -94,6 +94,10 @@ public sealed class LinuxLiveAudioWorker : ILiveAudioWorker
 
     public static IReadOnlyList<LiveAudioDevice> EnumerateInputDevices()
     {
+        // Enumeration runs synchronously on the UI thread, so the whole refresh - not
+        // just each probe - must stay within one CommandProbeTimeout window. Track the
+        // elapsed budget so the ALSA fallback only runs with the time wpctl left over.
+        var budget = Stopwatch.StartNew();
         string status = RunCommand("wpctl", "status");
         IReadOnlyList<LiveAudioDevice> devices = ParseWpctlSources(status);
         if (devices.Count > 0)
@@ -101,7 +105,17 @@ public sealed class LinuxLiveAudioWorker : ILiveAudioWorker
             return devices;
         }
 
-        string arecordList = RunCommand("arecord", "-l");
+        // wpctl found no sources. Fall back to the ALSA probe only if budget remains: if
+        // wpctl itself consumed the whole window (a stalled PipeWire status rather than a
+        // genuinely source-less system), a second full-timeout probe would just double the
+        // UI stall, so end the refresh empty (recoverable by reopening the list) instead.
+        TimeSpan remaining = CommandProbeTimeout - budget.Elapsed;
+        if (remaining <= TimeSpan.Zero)
+        {
+            return Array.Empty<LiveAudioDevice>();
+        }
+
+        string arecordList = RunCommand("arecord", remaining, "-l");
         return ParseAlsaCaptureDevices(arecordList);
     }
 
@@ -1236,16 +1250,32 @@ public sealed class LinuxLiveAudioWorker : ILiveAudioWorker
                 return "";
             }
 
+            // One deadline for the whole probe (process exit AND pipe drain) so it is bounded
+            // end-to-end to a single timeout window, not one window per stage.
+            var elapsed = Stopwatch.StartNew();
             Task<string> outputTask = process.StandardOutput.ReadToEndAsync();
             Task<string> errorTask = process.StandardError.ReadToEndAsync();
             if (!process.WaitForExit(timeout))
             {
-                TryKillProcessTree(process);
-                // Observe the abandoned stdout/stderr read tasks: killing the child
-                // closes the pipes and faults the in-flight reads, which would
-                // otherwise surface as unobserved task exceptions on the finalizer.
-                _ = outputTask.ContinueWith(static t => { _ = t.Exception; }, TaskScheduler.Default);
-                _ = errorTask.ContinueWith(static t => { _ = t.Exception; }, TaskScheduler.Default);
+                AbandonProbe(process, outputTask, errorTask);
+                return "";
+            }
+
+            // WaitForExit(timeout) returns as soon as the process itself exits, but its
+            // stdout/stderr pipes can outlive it when the child spawned a grandchild that
+            // inherited the write handles; ReadToEndAsync would then never complete and
+            // GetResult() would block with no bound. Drain within the budget REMAINING after
+            // exit so the total stays inside one window; normal probes (pipes closed on exit)
+            // complete this instantly.
+            TimeSpan remaining = timeout - elapsed.Elapsed;
+            if (remaining < TimeSpan.Zero)
+            {
+                remaining = TimeSpan.Zero;
+            }
+
+            if (!Task.WaitAll(new Task[] { outputTask, errorTask }, remaining))
+            {
+                AbandonProbe(process, outputTask, errorTask);
                 return "";
             }
 
@@ -1257,6 +1287,20 @@ public sealed class LinuxLiveAudioWorker : ILiveAudioWorker
         {
             return "";
         }
+    }
+
+    // Kills a probe that outran its budget (process still running, or its pipes still
+    // open after exit) and observes the faulted stdout/stderr reads so they do not
+    // surface as unobserved task exceptions on the finalizer. If the root process has
+    // already exited but a reparented descendant kept the inherited pipe handles open,
+    // Kill(entireProcessTree) cannot reach that descendant; the caller's `using` then
+    // disposes the Process, closing our read ends so the observed reads fault promptly
+    // and the UI stays unblocked. That rare descendant is left to exit on its own.
+    private static void AbandonProbe(Process process, Task outputTask, Task errorTask)
+    {
+        TryKillProcessTree(process);
+        _ = outputTask.ContinueWith(static t => { _ = t.Exception; }, TaskScheduler.Default);
+        _ = errorTask.ContinueWith(static t => { _ = t.Exception; }, TaskScheduler.Default);
     }
 
     private static void TryKillProcessTree(Process process)

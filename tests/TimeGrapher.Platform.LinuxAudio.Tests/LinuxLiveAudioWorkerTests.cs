@@ -433,6 +433,30 @@ card 3: Device [USB PnP Sound Device], device 0: USB Audio [USB Audio]
     }
 
     [Fact]
+    public void RunCommand_BoundsDrainWhenDescendantHoldsPipeAfterRootExits()
+    {
+        // The root process exits promptly, but a backgrounded descendant inherits the
+        // redirected stdout handle and keeps it open ~10 s. Before the drain bound, WaitForExit
+        // succeeded on root exit and then GetResult() blocked on ReadToEndAsync for the whole
+        // descendant lifetime (an unbounded UI-thread stall). RunCommand must now cap the drain
+        // and return far inside that lifetime.
+        (string fileName, string[] args) = ShellCommand(OperatingSystem.IsWindows()
+            ? "start /b ping -n 12 127.0.0.1"
+            : "sleep 10 & echo started");
+
+        Stopwatch stopwatch = Stopwatch.StartNew();
+        string output = LinuxLiveAudioWorker.RunCommand(fileName, TimeSpan.FromMilliseconds(300), args);
+        stopwatch.Stop();
+
+        // Bounded end-to-end (process-exit budget + drain budget + slack), NOT the ~10 s the
+        // descendant lives. Output may be empty on the drain-timeout path; the invariant is time.
+        Assert.True(
+            stopwatch.Elapsed < TimeSpan.FromSeconds(4),
+            $"RunCommand blocked {stopwatch.Elapsed.TotalSeconds:F1}s on a descendant-held pipe");
+        _ = output;
+    }
+
+    [Fact]
     public void TryStop_TimeoutLeavesWorkerRestoppable()
     {
         var worker = new LinuxLiveAudioWorker(new MasterAudioBuffer(48000));
