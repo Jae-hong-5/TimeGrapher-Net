@@ -1,4 +1,5 @@
 using System.Linq;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Documents;
 using Avalonia.Media;
@@ -154,9 +155,56 @@ public sealed class MarkdownDisplayRendererTests
 
         var panel = Assert.IsType<StackPanel>(rendered);
         var paragraph = Assert.IsType<TextBlock>(panel.Children[0]);
-        string text = string.Concat(paragraph.Inlines!.OfType<Run>().Select(r => r.Text));
-        // The * inside the code span must not be consumed as emphasis.
-        Assert.Contains("a*b*c", text);
+        var runs = paragraph.Inlines!.OfType<Run>().ToList();
+        // The * inside the code span must not be consumed as emphasis, and the span must be a
+        // distinct run - not merged into the surrounding prose - so it can be styled as code.
+        Run codeRun = Assert.Single(runs, r => r.Text == "a*b*c");
+        Assert.NotNull(codeRun.Foreground);
+    }
+
+    [Fact]
+    public void Render_StylesCodeSpansWithAccentDistinctFromProse()
+    {
+        HeadlessPlatform.EnsureStarted();
+
+        Control rendered = MarkdownDisplayRenderer.Render("본문 `code` 확인.");
+
+        var panel = Assert.IsType<StackPanel>(rendered);
+        var paragraph = Assert.IsType<TextBlock>(panel.Children[0]);
+        var runs = paragraph.Inlines!.OfType<Run>().ToList();
+        Run codeRun = Assert.Single(runs, r => r.Text == "code");
+        Run proseRun = runs.First(r => r.Text != "code");
+        // The code span carries the shared App.axaml accent foreground and a chip background
+        // (both reused from App.axaml, not ad-hoc colors); the surrounding prose carries
+        // neither, so the two are visibly distinct.
+        Application.Current!.TryGetResource("ChromeAccentBrush", Application.Current.ActualThemeVariant, out object? accent);
+        Application.Current!.TryGetResource("ChromeBorderBrush", Application.Current.ActualThemeVariant, out object? chip);
+        Assert.NotNull(accent);
+        Assert.NotNull(chip);
+        Assert.Same(accent, codeRun.Foreground);
+        Assert.Same(chip, codeRun.Background);
+        Assert.NotSame(accent, proseRun.Foreground);
+        Assert.NotSame(chip, proseRun.Background);
+    }
+
+    [Fact]
+    public void Render_StylesCodeSpanInsideHeadingWithDistinctChipBackground()
+    {
+        HeadlessPlatform.EnsureStarted();
+
+        // A heading's text is already bound to the accent foreground, so foreground alone would
+        // not set a code span apart inside a heading. The chip background must still distinguish it.
+        Control rendered = MarkdownDisplayRenderer.Render("### `rate` 확인");
+
+        var panel = Assert.IsType<StackPanel>(rendered);
+        var heading = Assert.IsType<TextBlock>(panel.Children[0]);
+        var runs = heading.Inlines!.OfType<Run>().ToList();
+        Run codeRun = Assert.Single(runs, r => r.Text == "rate");
+        Run proseRun = runs.First(r => r.Text != "rate");
+        Application.Current!.TryGetResource("ChromeBorderBrush", Application.Current.ActualThemeVariant, out object? chip);
+        Assert.NotNull(chip);
+        Assert.Same(chip, codeRun.Background);
+        Assert.NotSame(chip, proseRun.Background);
     }
 
     [Fact]

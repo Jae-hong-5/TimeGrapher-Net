@@ -326,12 +326,14 @@ internal static class MarkdownDisplayRenderer
         var runs = new List<InlineRun>();
         ParseInline(text, runs, bold: false, italic: false);
 
-        if (runs.Count <= 1 && (runs.Count == 0 || runs[0] is { Bold: false, Italic: false }))
+        if (runs.Count <= 1 && (runs.Count == 0 || runs[0] is { Bold: false, Italic: false, Code: false }))
         {
             block.Text = runs.Count == 0 ? text : runs[0].Text;
             return;
         }
 
+        bool haveAccent = TryGetBrush("ChromeAccentBrush", out IBrush? codeForeground);
+        bool haveChip = TryGetBrush("ChromeBorderBrush", out IBrush? codeBackground);
         InlineCollection inlines = block.Inlines ??= new InlineCollection();
         foreach (InlineRun run in runs)
         {
@@ -346,8 +348,40 @@ internal static class MarkdownDisplayRenderer
                 element.FontStyle = FontStyle.Italic;
             }
 
+            if (run.Code)
+            {
+                // The AI window font is already monospace, so a code span is set apart by color:
+                // a subtle chip background plus the app accent foreground, both reused from
+                // App.axaml (theme-aware). The background is what keeps it distinct even inside a
+                // heading, whose text already carries the accent foreground. Resolved eagerly so
+                // the run is styled even before the block attaches to a visual tree.
+                if (haveChip)
+                {
+                    element.Background = codeBackground;
+                }
+
+                if (haveAccent)
+                {
+                    element.Foreground = codeForeground;
+                }
+            }
+
             inlines.Add(element);
         }
+    }
+
+    private static bool TryGetBrush(string key, out IBrush? brush)
+    {
+        brush = null;
+        if (Application.Current is { } app
+            && app.TryGetResource(key, app.ActualThemeVariant, out object? resource)
+            && resource is IBrush found)
+        {
+            brush = found;
+            return true;
+        }
+
+        return false;
     }
 
     private static void ParseInline(string text, List<InlineRun> runs, bool bold, bool italic)
@@ -382,7 +416,7 @@ internal static class MarkdownDisplayRenderer
                     string code = text[(i + 1)..codeClose];
                     if (code.Length > 0)
                     {
-                        runs.Add(new InlineRun(code, bold, italic));
+                        runs.Add(new InlineRun(code, bold, italic, Code: true));
                     }
 
                     i = codeClose + 1;
@@ -529,5 +563,5 @@ internal static class MarkdownDisplayRenderer
         return true;
     }
 
-    private readonly record struct InlineRun(string Text, bool Bold, bool Italic);
+    private readonly record struct InlineRun(string Text, bool Bold, bool Italic, bool Code = false);
 }
