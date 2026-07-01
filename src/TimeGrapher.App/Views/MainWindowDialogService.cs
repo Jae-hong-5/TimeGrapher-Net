@@ -19,6 +19,18 @@ internal sealed class MainWindowDialogService : ITimeGrapherDialogService
         _owner = owner;
     }
 
+    // Under the Linux borderless-kiosk main window with a minimal/absent WM, an owned
+    // dialog can open behind the main window or without focus - indistinguishable from a
+    // hang, since ShowDialog input-disables the owner. Topmost + Activate on open force
+    // the dialog to the front with focus so its buttons (and Esc) are always reachable.
+    // Routed through one helper so every owned dialog gets the guard consistently and
+    // none can be added later without it.
+    private static void ApplyKioskFrontAndFocus(Window dialog)
+    {
+        dialog.Topmost = true;
+        dialog.Opened += (_, _) => dialog.Activate();
+    }
+
     public async Task<RecordSessionChoice> AskRecordSessionAsync()
     {
         var dialog = new Window
@@ -28,14 +40,8 @@ internal sealed class MainWindowDialogService : ITimeGrapherDialogService
             SizeToContent = SizeToContent.Height,
             CanResize = false,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
-            // Under the Linux borderless-kiosk main window with a minimal/absent WM,
-            // an owned dialog can open behind or without focus, stranding Start in the
-            // Starting state (all run buttons disabled) - indistinguishable from a hang.
-            // Topmost + Activate on open force it to the front and give it focus so its
-            // Yes/No/Cancel (and Esc) are always reachable.
-            Topmost = true,
         };
-        dialog.Opened += (_, _) => dialog.Activate();
+        ApplyKioskFrontAndFocus(dialog);
 
         // Dismissing the dialog (title-bar X / Alt+F4) bypasses the button
         // handlers, so the fallback must abort the start — matching the Qt
@@ -138,6 +144,7 @@ internal sealed class MainWindowDialogService : ITimeGrapherDialogService
             CanResize = false,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
         };
+        ApplyKioskFrontAndFocus(dialog);
 
         AiAnalysisDialogResult? result = null;
         string[] backendLabels = BuildBackendLabels(request.BackendOptions);
@@ -278,6 +285,7 @@ internal sealed class MainWindowDialogService : ITimeGrapherDialogService
             CanResize = true,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
         };
+        ApplyKioskFrontAndFocus(dialog);
         ApplyAiResultFont(dialog);
 
         var details = new TextBlock
@@ -459,11 +467,8 @@ internal sealed class MainWindowDialogService : ITimeGrapherDialogService
             SizeToContent = SizeToContent.Height,
             CanResize = false,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
-            // Same kiosk/no-WM front-and-focus guard as AskRecordSessionAsync: a start-failure
-            // error must not open hidden behind the borderless main window.
-            Topmost = true,
         };
-        dialog.Opened += (_, _) => dialog.Activate();
+        ApplyKioskFrontAndFocus(dialog);
         var ok = new Button { Content = "OK", Width = 80, IsDefault = true, HorizontalAlignment = HorizontalAlignment.Right };
         ok.Click += (_, _) => dialog.Close();
         var panel = new StackPanel { Margin = new Avalonia.Thickness(16), Spacing = 12 };
