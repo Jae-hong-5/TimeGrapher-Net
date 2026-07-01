@@ -121,7 +121,7 @@
         "type": "Project",
         "dependencies": {
           "Microsoft.ML.OnnxRuntime": "[1.20.1, )",
-          "TimeGrapher.Core": "[1.0.0, )"
+          "TimeGrapher.Core": "[1.0.1, )"
         }
       },
       "Microsoft.ML.OnnxRuntime": {
