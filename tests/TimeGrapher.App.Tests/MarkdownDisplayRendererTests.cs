@@ -75,6 +75,64 @@ public sealed class MarkdownDisplayRendererTests
     }
 
     [Fact]
+    public void Render_RendersTripleEmphasisAsBoldAndItalic()
+    {
+        HeadlessPlatform.EnsureStarted();
+
+        Control rendered = MarkdownDisplayRenderer.Render("***중요*** 경고입니다.");
+
+        var panel = Assert.IsType<StackPanel>(rendered);
+        var paragraph = Assert.IsType<TextBlock>(panel.Children[0]);
+        var runs = paragraph.Inlines!.OfType<Run>().ToList();
+        // The tripled delimiter is combined bold+italic, with no stray '*' left behind.
+        Assert.Contains(runs, r => r.Text == "중요" && r.FontWeight == FontWeight.Bold && r.FontStyle == FontStyle.Italic);
+        Assert.DoesNotContain(runs, r => r.Text?.Contains('*') == true);
+    }
+
+    [Fact]
+    public void Render_TreatsBackslashEscapedDelimitersAsLiteral()
+    {
+        HeadlessPlatform.EnsureStarted();
+
+        Control rendered = MarkdownDisplayRenderer.Render(@"\*강조 아님\* 그리고 \`코드 아님\`.");
+
+        var panel = Assert.IsType<StackPanel>(rendered);
+        var paragraph = Assert.IsType<TextBlock>(panel.Children[0]);
+        // Escaped delimiters render as their literal characters with no emphasis/code applied,
+        // and no backslashes are left in the output — so the whole line stays plain text.
+        Assert.Equal("*강조 아님* 그리고 `코드 아님`.", paragraph.Text);
+    }
+
+    [Fact]
+    public void Render_ClosesEmphasisOnUnescapedDelimiterNotEscapedOne()
+    {
+        HeadlessPlatform.EnsureStarted();
+
+        Control rendered = MarkdownDisplayRenderer.Render(@"*a\*b* 뒤.");
+
+        var panel = Assert.IsType<StackPanel>(rendered);
+        var paragraph = Assert.IsType<TextBlock>(panel.Children[0]);
+        var runs = paragraph.Inlines!.OfType<Run>().ToList();
+        // The escaped \* is literal inside the span; the trailing unescaped * closes it.
+        Assert.Contains(runs, r => r.Text == "a*b" && r.FontStyle == FontStyle.Italic);
+    }
+
+    [Fact]
+    public void Render_ClosesEmphasisOnDelimiterAfterEscapedBackslash()
+    {
+        HeadlessPlatform.EnsureStarted();
+
+        // An even backslash run before '*' is escaped backslashes, not an escaped star,
+        // so the star still closes: "*a\\*" -> italic "a\" (one literal backslash).
+        Control rendered = MarkdownDisplayRenderer.Render(@"*a\\* 뒤.");
+
+        var panel = Assert.IsType<StackPanel>(rendered);
+        var paragraph = Assert.IsType<TextBlock>(panel.Children[0]);
+        var runs = paragraph.Inlines!.OfType<Run>().ToList();
+        Assert.Contains(runs, r => r.Text == "a\\" && r.FontStyle == FontStyle.Italic);
+    }
+
+    [Fact]
     public void Render_KeepsSnakeCaseUnderscoresLiteral()
     {
         HeadlessPlatform.EnsureStarted();
@@ -99,6 +157,24 @@ public sealed class MarkdownDisplayRendererTests
         string text = string.Concat(paragraph.Inlines!.OfType<Run>().Select(r => r.Text));
         // The * inside the code span must not be consumed as emphasis.
         Assert.Contains("a*b*c", text);
+    }
+
+    [Fact]
+    public void Render_KeepsBackslashesInCodeSpanLiteral()
+    {
+        HeadlessPlatform.EnsureStarted();
+
+        // Code-span content is verbatim per CommonMark: a backslash inside `code` is literal
+        // (not an escape), so a Windows-style path survives and the trailing \ before ` does
+        // NOT suppress the closing backtick. This is why escaped backticks are not skipped
+        // when closing a code span.
+        Control rendered = MarkdownDisplayRenderer.Render(@"경로 `C:\dir\` 참고.");
+
+        var panel = Assert.IsType<StackPanel>(rendered);
+        var paragraph = Assert.IsType<TextBlock>(panel.Children[0]);
+        string text = string.Concat(paragraph.Inlines!.OfType<Run>().Select(r => r.Text));
+        Assert.Contains(@"C:\dir\", text);
+        Assert.DoesNotContain("`", text);  // the backticks were consumed - the span closed
     }
 
     [Fact]

@@ -317,9 +317,10 @@ internal static class MarkdownDisplayRenderer
         Opacity = 0.8,
     };
 
-    // Renders inline markdown (**bold**, __bold__, *italic*, _italic_ and `code`) into the
-    // text block. Plain text with no inline markers keeps the single Text path so the common
-    // case is unchanged and the display char cap stays enforced on Text directly.
+    // Renders inline markdown (**bold**, __bold__, *italic*, _italic_, ***bold italic***,
+    // `code`, and \-escaped literal delimiters) into the text block. Plain text with no inline
+    // markers keeps the single Text path so the common case is unchanged and the display char
+    // cap stays enforced on Text directly.
     private static void ApplyInline(TextBlock block, string text)
     {
         var runs = new List<InlineRun>();
@@ -357,6 +358,19 @@ internal static class MarkdownDisplayRenderer
         {
             char c = text[i];
 
+            // Backslash escapes the next delimiter so it renders literally and is not read
+            // as emphasis or as a code-span opener (CommonMark backslash escape, limited to
+            // the delimiters this renderer understands). "\*not emphasis\*" keeps its literal
+            // asterisks. Inside an OPEN code span, content stays verbatim per CommonMark - a
+            // backslash there is literal (so a "C:\dir\" code span survives intact) and a
+            // backtick still closes the span; escapes apply only in normal text.
+            if (c == '\\' && i + 1 < text.Length && IsEscapable(text[i + 1]))
+            {
+                literal.Append(text[i + 1]);
+                i += 2;
+                continue;
+            }
+
             // `code`: content is literal (the app font is already monospace); parsing it here
             // keeps any * or _ inside a code span from being read as emphasis.
             if (c == '`')
@@ -372,6 +386,23 @@ internal static class MarkdownDisplayRenderer
                     }
 
                     i = codeClose + 1;
+                    continue;
+                }
+            }
+
+            // ***bold italic*** / ___bold italic___: a triple delimiter run opens combined
+            // strong+emphasis. Checked before the bold branch so the third delimiter is not
+            // left as a stray literal (the shape AI output favours for strong warnings).
+            if ((c == '*' || c == '_') && !bold && !italic
+                && i + 2 < text.Length && text[i + 1] == c && text[i + 2] == c
+                && IsLeftFlank(text, i, 3, c))
+            {
+                int close = FindClosing(text, i + 3, c, 3);
+                if (close >= 0)
+                {
+                    FlushLiteral(runs, literal, bold, italic);
+                    ParseInline(text[(i + 3)..close], runs, bold: true, italic: true);
+                    i = close + 3;
                     continue;
                 }
             }
@@ -429,9 +460,10 @@ internal static class MarkdownDisplayRenderer
                 continue;
             }
 
-            // Reject empty content and a closer preceded by whitespace ("a *b* c" closes,
-            // "a * b *" does not).
-            if (j == start || char.IsWhiteSpace(text[j - 1]))
+            // Reject empty content, a closer preceded by whitespace ("a *b* c" closes,
+            // "a * b *" does not), and a backslash-escaped delimiter ("a\*b*" closes on
+            // the final unescaped star, not the escaped one).
+            if (j == start || char.IsWhiteSpace(text[j - 1]) || IsBackslashEscaped(text, j))
             {
                 continue;
             }
@@ -447,6 +479,23 @@ internal static class MarkdownDisplayRenderer
         }
 
         return -1;
+    }
+
+    // Delimiters a leading backslash renders literally (the subset this renderer parses).
+    private static bool IsEscapable(char c) => c is '*' or '_' or '`' or '\\';
+
+    // A delimiter at <paramref name="index"/> is escaped only when preceded by an ODD
+    // number of backslashes; an even run is escaped backslash pairs ("a\\*") that leave
+    // the delimiter itself active, so the emphasis still closes on it.
+    private static bool IsBackslashEscaped(string text, int index)
+    {
+        int backslashes = 0;
+        for (int k = index - 1; k >= 0 && text[k] == '\\'; k--)
+        {
+            backslashes++;
+        }
+
+        return (backslashes & 1) == 1;
     }
 
     private static bool IsDelimiterRun(string text, int index, char delim, int len)
