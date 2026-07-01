@@ -79,6 +79,8 @@ internal static class MarkdownDisplayRenderer
                     FontSize = HeadingFontSize(level),
                     Margin = new Thickness(0, level <= 2 ? 8 : 4, 0, 0),
                 };
+                // Headings use the app accent brush (theme-aware); inline runs inherit it.
+                headingBlock.Bind(TextBlock.ForegroundProperty, headingBlock.GetResourceObservable("ChromeAccentBrush"));
                 ApplyInline(headingBlock, heading);
                 if (!TryAddBlock(panel, headingBlock))
                 {
