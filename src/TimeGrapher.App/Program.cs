@@ -1,4 +1,6 @@
 using Avalonia;
+using Avalonia.Media;
+using Avalonia.Media.Fonts;
 using TimeGrapher.App.Audio;
 using TimeGrapher.App.Rendering;
 using TimeGrapher.Core.Shared;
@@ -47,5 +49,22 @@ internal static class Program
     public static AppBuilder BuildAvaloniaApp()
         => AppBuilder.Configure<App>()
             .UsePlatformDetect()
+            // The AI analysis window and tab headers use the Latin/code-oriented Hack
+            // face, which has no Hangul (and limited non-Latin) glyphs. Register the
+            // bundled D2Coding family - the app body font, which covers Hangul - as an
+            // explicit fallback so missing glyphs resolve to a shipped font instead of
+            // relying on ambient system fallback (tofu on the minimal Linux kiosk target,
+            // where a covering system font may be absent). D2Coding ships with the app,
+            // so the fallback is deterministic across Windows and the Raspberry Pi build.
+            .With(new FontManagerOptions
+            {
+                FontFallbacks = new[]
+                {
+                    new FontFallback
+                    {
+                        FontFamily = new FontFamily("avares://TimeGrapher.App/Assets/Fonts/D2Coding#D2Coding"),
+                    },
+                },
+            })
             .LogToTrace();
 }
