@@ -4,9 +4,9 @@
 > Basis: Bass, Clements, Kazman, *Software Architecture in Practice* (SAP).
 
 This document records the architectural tactics and patterns that are central to
-TimeGrapherNet. It is intentionally not a full implementation log. Detailed data
-contracts and dependency graphs live in `DATA_MODEL_VIEW.md` and
-`MODULE_USES_VIEW.md`.
+TimeGrapherNet. It is intentionally not a full implementation log; the
+development narrative is kept separately in `DEVELOPMENT_HISTORY.md`, and this
+file keeps the current tactic-to-code trace in one place.
 
 Applicability marks:
 
@@ -51,13 +51,24 @@ AnalysisFrameRenderScheduler -> active tab renderer / global UI state
 
 This baseline is the source of most tactics below.
 
+Current solution scope:
+
+- Production projects: `TimeGrapher.Core`, `TimeGrapher.App`,
+  `TimeGrapher.Inference`, `TimeGrapher.Platform.WindowsAudio`,
+  `TimeGrapher.Platform.LinuxAudio`, and `TimeGrapher.Verify`.
+- Test projects: App, Core, Inference, WindowsAudio, LinuxAudio, and Verify
+  xUnit projects under `tests/`.
+- Display tabs are cataloged in `InfoTabCatalog.cs`: Rate/Scope, Beat Error,
+  Trace, Vario, Long-Term, Sweep, Escapement, Positions, Health, Beat Noise,
+  Comparison, Filter Scope, Sound Print, and Spectrogram.
+
 ## 3. Key Tactics by Quality Attribute
 
 ### 3.1 Modifiability
 
 | SAP tactic | How the project applies it | Evidence | Mark |
 |---|---|---|---|
-| Restrict dependencies | `Core` owns detection, metrics, shared DTOs, imaging, simulation, and audio file logic without UI or platform references. App and platform projects depend inward. CI checks protect this direction. | `TimeGrapher.Core.csproj`, `.github/workflows/ci.yml`, `MODULE_USES_VIEW.md` | ✓ |
+| Restrict dependencies | `Core` owns detection, metrics, shared DTOs, imaging, simulation, and audio file logic without UI, ONNX, or platform references. App, Inference, Verify, and platform projects depend inward. CI checks protect this direction by asserting that Core has no package/project references or forbidden UI/platform usings. | `TimeGrapherNet.sln`, `TimeGrapher.Core.csproj`, `TimeGrapher.App.csproj`, `TimeGrapher.Inference.csproj`, `TimeGrapher.Verify.csproj`, `TimeGrapher.Platform.WindowsAudio.csproj`, `TimeGrapher.Platform.LinuxAudio.csproj`, `.github/workflows/ci.yml` | ✓ |
 | Encapsulate | Windows NAudio and Linux PipeWire/ALSA details are hidden behind live-audio worker contracts. App code starts a worker; it does not consume OS audio APIs directly. | `IAudioInputWorker.cs`, `ILiveAudioWorker.cs`, `AudioCaptureWorker.cs`, `LinuxLiveAudioWorker.cs` | ✓ |
 | Use an intermediary | `LiveAudioBackend` is the platform selection boundary. It is the narrow place where RID/platform conditions become concrete worker creation. | `LiveAudioBackend.cs`, `TimeGrapher.App.csproj` | ✓ |
 | Abstract common services | Shared settings and policy surfaces keep multiple displays consistent instead of duplicating thresholds. Accept bands are read through `AcceptBandSettings.Current`; sampling defaults are read through `SamplingSettings`. | `AcceptBandSettings.cs`, `LongTermAcceptPolicy.cs`, `TraceAlertEvaluator.cs`, `SamplingSettings.cs` | ✓ |
