@@ -92,7 +92,7 @@ internal static class InfoTabCatalog
     {
         // Tab order follows the measurement workflow: live signal and primary
         // readings first, then long-term/positional, then the waveform-diagnostic
-        // tools. The 13 tabs wrap to two rows (7 + 6), so Positions leads the
+        // tools. The 14 tabs wrap to two rows (7 + 7), so Positions leads the
         // second row. Rate/Scope stays first (Definitions[0]) and Spectrogram last.
         var definitions = new List<InfoTabDefinition>
         {
