@@ -30,7 +30,7 @@ public partial class MainWindow : Window, IThemeToggleRunner
     private const int ERROR_RATE_X_DATA_POINTS = 250;
     private const int DEFAULT_SOUND_IMAGE_WIDTH = 1019;
     private const int DEFAULT_SOUND_IMAGE_HEIGHT = 654;
-    private const string APP_FONT_FAMILY = "D2Coding";
+    private const string APP_FONT_FAMILY = PlotThemeHelper.GraphFontFamily;
     private const string PLAYBACK_SOURCE = "Playback";
     private const string SIMULATION_SOURCE = "Simulation";
 

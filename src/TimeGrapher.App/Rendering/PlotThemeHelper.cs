@@ -9,6 +9,29 @@ namespace TimeGrapher.App.Rendering;
 /// </summary>
 internal static class PlotThemeHelper
 {
+    private static readonly BundledPlotFontResolver GraphFontResolver = new();
+
+    static PlotThemeHelper()
+    {
+        // Avalonia resolves App.axaml's avares font itself, while ScottPlot uses
+        // SkiaSharp's independent system-font resolver. Put the bundled adapter
+        // first so graph text does not depend on D2Coding being installed by the
+        // host OS (notably on a clean Ubuntu installation).
+        Fonts.FontResolvers.Insert(0, GraphFontResolver);
+    }
+
+    public const string GraphFontFamily = BundledPlotFontResolver.FontFamily;
+
+    /// <summary>
+    /// Registers the bundled graph typeface before ScottPlot creates any labels.
+    /// ScottPlot's font cache is process-wide, so startup ordering is part of the
+    /// cross-platform rendering contract.
+    /// </summary>
+    public static void ConfigureFonts()
+    {
+        Fonts.Default = GraphFontFamily;
+    }
+
     /// <summary>
     /// Graph label font size shared by every ScottPlot renderer. Mirrors the
     /// App.axaml base FontSize (14); ScottPlot label sizes cannot bind to Avalonia

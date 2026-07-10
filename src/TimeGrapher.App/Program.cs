@@ -47,7 +47,14 @@ internal static class Program
     }
 
     public static AppBuilder BuildAvaloniaApp()
-        => AppBuilder.Configure<App>()
+    {
+        // ScottPlot has a process-wide font cache that is independent from
+        // Avalonia's font manager. Register the bundled graph font before any
+        // AvaPlot can be constructed or rendered, otherwise a missing Linux
+        // system font can be cached under the D2Coding name for the process.
+        PlotThemeHelper.ConfigureFonts();
+
+        return AppBuilder.Configure<App>()
             .UsePlatformDetect()
             // The AI analysis window and tab headers use the Latin/code-oriented Hack
             // face, which has no Hangul (and limited non-Latin) glyphs. Register the
@@ -67,4 +74,5 @@ internal static class Program
                 },
             })
             .LogToTrace();
+    }
 }
