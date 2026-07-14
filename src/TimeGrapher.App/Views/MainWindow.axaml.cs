@@ -309,7 +309,7 @@ public partial class MainWindow : Window, IThemeToggleRunner
         {
             Process.Start(new ProcessStartInfo
             {
-                FileName = "https://lgcmu2026-team5.github.io/TimeGrapher-Net/manual/",
+                FileName = "https://jaehong5.github.io/TimeGrapher-Net/manual/",
                 UseShellExecute = true,
             });
         }
