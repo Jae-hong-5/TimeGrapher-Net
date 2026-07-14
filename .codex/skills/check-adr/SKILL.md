@@ -5,7 +5,7 @@ description: Review this project's Architecture Decision Records (docs/ADR/en, d
 
 # check-adr — ADR review for TimeGrapher-Net
 
-Review the project's ADRs against the team's standard and report concrete, minimal fixes. ADRs live in `docs/ADR/en/` and `docs/ADR/ko/` (one English + one Korean file per decision, e.g. `ADR-002.md`). The authoritative template is the pmerson template at `github.com/lgcmu2026-team5/ADR-template`.
+Review the project's ADRs against the team's standard and report concrete, minimal fixes. ADRs live in `docs/ADR/en/` and `docs/ADR/ko/` (one English + one Korean file per decision, e.g. `ADR-002.md`). The authoritative template is the pmerson template at `github.com/jaehong5/ADR-template`.
 
 ## When to use
 
