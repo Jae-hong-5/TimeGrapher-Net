@@ -273,4 +273,3 @@ git tag v0.1.0 && git push origin v0.1.0
 | Deploy — Raspberry Pi (linux-arm64) | `dotnet publish ... -r linux-arm64 --self-contained true` | ✅ |
 | Deploy — Linux x64 | `dotnet publish ... -r linux-x64 --self-contained true` | ✅ |
 | Deploy — Windows ARM (win-arm64) | `dotnet publish ... -r win-arm64 --self-contained true` | ✅ |
-| Raspberry Pi mic input | verify with a capture device attached | ⏳ awaiting device |

@@ -268,4 +268,3 @@ git tag v0.1.0 && git push origin v0.1.0
 | 배포 — 라즈베리파이 (linux-arm64) | `dotnet publish ... -r linux-arm64 --self-contained true` | ✅ |
 | 배포 — Linux x64 | `dotnet publish ... -r linux-x64 --self-contained true` | ✅ |
 | 배포 — Windows ARM (win-arm64) | `dotnet publish ... -r win-arm64 --self-contained true` | ✅ |
-| 라즈베리파이 마이크 입력 | 캡처 장치 연결 후 검증 | ⏳ 장치 대기 |
