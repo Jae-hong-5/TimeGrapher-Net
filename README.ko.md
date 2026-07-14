@@ -6,7 +6,7 @@
 보여 주는 데스크톱 앱입니다. 기존 Qt/C++ 버전을 **Avalonia + C# (.NET 8)** 로 다시 만들어,
 하나의 코드로 **Windows**와 **라즈베리파이 5**에서 모두 동작합니다.
 
-[![Release](https://img.shields.io/github/v/release/lgcmu2026-team5/TimeGrapher-Net?style=for-the-badge&logo=github)](https://github.com/lgcmu2026-team5/TimeGrapher-Net/releases/latest)
+[![Release](https://img.shields.io/github/v/release/jaehong5/TimeGrapher-Net?style=for-the-badge&logo=github)](https://github.com/jaehong5/TimeGrapher-Net/releases/latest)
 
 ![AvaloniaUI](https://img.shields.io/badge/AvaloniaUI-165BFF?style=for-the-badge&logo=avaloniaui&logoColor=white)
 ![.Net](https://img.shields.io/badge/.NET-5C2D91?style=for-the-badge&logo=.net&logoColor=white)
@@ -20,7 +20,7 @@
 
 ### (A) 릴리즈 내려받기 (권장 — 빌드 불필요)
 
-[Releases 페이지](https://github.com/lgcmu2026-team5/TimeGrapher-Net/releases)에서 OS에 맞는 단일 파일 자기 완결형(self-contained) 묶음을 내려받습니다. .NET SDK는 설치하지 않아도 됩니다.
+[Releases 페이지](https://github.com/jaehong5/TimeGrapher-Net/releases)에서 OS에 맞는 단일 파일 자기 완결형(self-contained) 묶음을 내려받습니다. .NET SDK는 설치하지 않아도 됩니다.
 
 - **Windows** — `TimeGrapher-<태그>-win-x64.zip`을 풀고 `TimeGrapher.App.exe`를 실행합니다.
 - **라즈베리파이 5** — `TimeGrapher-<태그>-linux-arm64.tar.gz`를 풀고 `./install.sh`를 실행합니다(아래 라즈베리파이 절 참고).
@@ -46,7 +46,7 @@
 2. **내려받기 + 빌드**
 
    ```powershell
-   git clone https://github.com/lgcmu2026-team5/TimeGrapher-Net.git
+   git clone https://github.com/jaehong5/TimeGrapher-Net.git
    cd TimeGrapher-Net
    dotnet build TimeGrapherNet.sln -c Release   # 첫 빌드는 패키지 복원으로 몇 분 걸릴 수 있음
    ```

@@ -7,7 +7,7 @@ analyzes, in real time, how accurate the watch is — plotting the result as gra
 Rebuilt from the original Qt/C++ version in **Avalonia + C# (.NET 8)**, a single
 codebase runs on both **Windows** and the **Raspberry Pi 5**.
 
-[![Release](https://img.shields.io/github/v/release/lgcmu2026-team5/TimeGrapher-Net?style=for-the-badge&logo=github)](https://github.com/lgcmu2026-team5/TimeGrapher-Net/releases/latest)
+[![Release](https://img.shields.io/github/v/release/jaehong5/TimeGrapher-Net?style=for-the-badge&logo=github)](https://github.com/jaehong5/TimeGrapher-Net/releases/latest)
 
 ![AvaloniaUI](https://img.shields.io/badge/AvaloniaUI-165BFF?style=for-the-badge&logo=avaloniaui&logoColor=white)
 ![.Net](https://img.shields.io/badge/.NET-5C2D91?style=for-the-badge&logo=.net&logoColor=white)
@@ -21,7 +21,7 @@ There are two ways to get started — **(A) download a prebuilt release** (run i
 
 ### (A) Download a release (recommended — no build)
 
-Download the single-file, self-contained bundle for your OS from the [Releases page](https://github.com/lgcmu2026-team5/TimeGrapher-Net/releases). No .NET SDK install required.
+Download the single-file, self-contained bundle for your OS from the [Releases page](https://github.com/jaehong5/TimeGrapher-Net/releases). No .NET SDK install required.
 
 - **Windows** — extract `TimeGrapher-<tag>-win-x64.zip` and run `TimeGrapher.App.exe`.
 - **Raspberry Pi 5** — extract `TimeGrapher-<tag>-linux-arm64.tar.gz` and run `./install.sh` (see the Raspberry Pi section below).
@@ -47,7 +47,7 @@ Assumes a clean machine with nothing installed. Follow the steps for your OS.
 2. **Clone + build**
 
    ```powershell
-   git clone https://github.com/lgcmu2026-team5/TimeGrapher-Net.git
+   git clone https://github.com/jaehong5/TimeGrapher-Net.git
    cd TimeGrapher-Net
    dotnet build TimeGrapherNet.sln -c Release   # first build may take a few minutes for package restore
    ```
